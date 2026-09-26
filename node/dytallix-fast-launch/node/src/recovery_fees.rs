@@ -9,10 +9,45 @@ use dytallix_protocol_types::{
     sha3_256,
 };
 use dytallix_runtime_crypto::recovery_sponsor::{verify_signed, SponsorVerificationError};
-use serde::{Deserialize, Serialize};
+use crate::block_lifecycle::{Deletes, Writes};
+use crate::storage::state::Storage;
+use rocksdb::{Direction, IteratorMode};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub(crate) const STATE_KEY: &str = "recovery:v1:book";
+/// Every stored recovery key is under this prefix: a header plus one entry per
+/// account, sponsor receipt, success-index entry and expiry-index entry.
+pub(crate) const PREFIX: &str = "recovery:v2:";
+pub(crate) const HEADER_KEY: &str = "recovery:v2:header";
+const ACCOUNT_PREFIX: &str = "recovery:v2:account:";
+const RECEIPT_PREFIX: &str = "recovery:v2:receipt:";
+const OPERATION_PREFIX: &str = "recovery:v2:operation:";
+const EXPIRY_PREFIX: &str = "recovery:v2:expiry:";
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StoredHeader {
+    version: u16,
+    last_height: u64,
+    profile: FeeProfile,
+}
+
+/// True when two account records differ at most in their recovery height.
+fn same_apart_from_height(a: &RecoveryAccount, b: &RecoveryAccount) -> bool {
+    let mut aligned = a.clone();
+    aligned.recovery.last_height = b.recovery.last_height;
+    aligned == *b
+}
+
+fn canonical<T: Serialize + DeserializeOwned>(bytes: &[u8], what: &str) -> Result<T> {
+    let value: T =
+        serde_json::from_slice(bytes).with_context(|| format!("Invalid recovery {what}"))?;
+    ensure!(
+        serde_json::to_vec(&value)? == bytes,
+        "Recovery {what} encoding is not canonical"
+    );
+    Ok(value)
+}
 // Implementation bounds for the isolated local profile. No pruning is authorized.
 pub(crate) const MAX_ACCOUNTS: usize = 4096;
 const MAX_RECEIPTS: usize = 65536;
@@ -321,6 +356,165 @@ impl RecoveryBook {
             "Recovery book size exceeds bound"
         );
         Ok(bytes)
+    }
+    /// The stored form: one entry per account, sponsor receipt, success-index
+    /// entry and expiry-index entry, plus a header. Blocks write changed entries.
+    pub(crate) fn entries(&self) -> Result<BTreeMap<Vec<u8>, Vec<u8>>> {
+        self.validate()?;
+        let mut entries = BTreeMap::new();
+        let header = StoredHeader {
+            version: self.version,
+            last_height: self.last_height,
+            profile: self.profile.clone(),
+        };
+        entries.insert(HEADER_KEY.as_bytes().to_vec(), serde_json::to_vec(&header)?);
+        for (id, account) in &self.accounts {
+            entries.insert(
+                format!("{ACCOUNT_PREFIX}{id}").into_bytes(),
+                serde_json::to_vec(account)?,
+            );
+        }
+        for (id, receipt) in &self.sponsor_receipts {
+            entries.insert(
+                format!("{RECEIPT_PREFIX}{id}").into_bytes(),
+                serde_json::to_vec(receipt)?,
+            );
+        }
+        for (operation, id) in &self.operation_success {
+            entries.insert(
+                format!("{OPERATION_PREFIX}{operation}").into_bytes(),
+                serde_json::to_vec(id)?,
+            );
+        }
+        for (height, ids) in &self.expiry_index {
+            for id in ids {
+                entries.insert(
+                    format!("{EXPIRY_PREFIX}{height:020}:{id}").into_bytes(),
+                    Vec::new(),
+                );
+            }
+        }
+        Ok(entries)
+    }
+    /// Writes and deletions that turn `committed`'s stored entries into this
+    /// book's. An account is written only when it changed in more than its
+    /// recovery height; `load` advances stored accounts to the header height.
+    pub(crate) fn changes_from(&self, committed: &Self) -> Result<(Writes, Deletes)> {
+        let is_account = |key: &Vec<u8>| key.starts_with(ACCOUNT_PREFIX.as_bytes());
+        let next = self.entries()?;
+        let previous = committed.entries()?;
+        let mut writes: Writes = next
+            .iter()
+            .filter(|(key, value)| !is_account(key) && previous.get(*key) != Some(*value))
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+        let mut deletes: Deletes = previous
+            .keys()
+            .filter(|key| !is_account(key) && !next.contains_key(*key))
+            .cloned()
+            .collect();
+        for (id, account) in &self.accounts {
+            let unchanged = committed
+                .accounts
+                .get(id)
+                .is_some_and(|prior| same_apart_from_height(prior, account));
+            if !unchanged {
+                writes.insert(
+                    format!("{ACCOUNT_PREFIX}{id}").into_bytes(),
+                    serde_json::to_vec(account)?,
+                );
+            }
+        }
+        for id in committed.accounts.keys() {
+            if !self.accounts.contains_key(id) {
+                deletes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes());
+            }
+        }
+        Ok((writes, deletes))
+    }
+    /// Read every entry under PREFIX. Unknown keys, noncanonical values and
+    /// entries without a header are rejected.
+    pub(crate) fn load(storage: &Storage) -> Result<Option<Self>> {
+        let prefix = PREFIX.as_bytes();
+        let mut header = None;
+        let mut accounts = BTreeMap::new();
+        let mut sponsor_receipts = BTreeMap::new();
+        let mut operation_success = BTreeMap::new();
+        let mut expiry_index: BTreeMap<u64, BTreeSet<String>> = BTreeMap::new();
+        let mut stored = BTreeMap::new();
+        for item in storage
+            .db
+            .iterator(IteratorMode::From(prefix, Direction::Forward))
+        {
+            let (key, value) = item?;
+            if !key.starts_with(prefix) {
+                break;
+            }
+            let text = std::str::from_utf8(&key).context("Recovery key is not UTF-8")?;
+            if text == HEADER_KEY {
+                header = Some(canonical::<StoredHeader>(&value, "header")?);
+            } else if let Some(id) = text.strip_prefix(ACCOUNT_PREFIX) {
+                accounts.insert(id.to_owned(), canonical(&value, "account")?);
+            } else if let Some(id) = text.strip_prefix(RECEIPT_PREFIX) {
+                sponsor_receipts.insert(id.to_owned(), canonical(&value, "receipt")?);
+            } else if let Some(operation) = text.strip_prefix(OPERATION_PREFIX) {
+                operation_success.insert(operation.to_owned(), canonical(&value, "success index")?);
+            } else if let Some(rest) = text.strip_prefix(EXPIRY_PREFIX) {
+                let (height, id) = rest.split_once(':').context("Invalid recovery expiry key")?;
+                let parsed: u64 = height.parse().context("Invalid recovery expiry height")?;
+                ensure!(
+                    format!("{parsed:020}") == height && value.is_empty(),
+                    "Recovery expiry entry is not canonical"
+                );
+                expiry_index.entry(parsed).or_default().insert(id.to_owned());
+            } else {
+                bail!("Unknown recovery state key");
+            }
+            stored.insert(key.to_vec(), value.to_vec());
+        }
+        let Some(header) = header else {
+            ensure!(stored.is_empty(), "Recovery entries without a header");
+            return Ok(None);
+        };
+        // A stored account keeps the height of its last material change. Advancing
+        // it may change only that height: an expiry always rewrites the account.
+        let mut advanced = BTreeMap::new();
+        for (id, account) in accounts {
+            let account: RecoveryAccount = account;
+            ensure!(
+                account.recovery.last_height <= header.last_height,
+                "Recovery account is ahead of the book height"
+            );
+            let current = RecoveryAccount {
+                recovery: account.recovery.advance_height(header.last_height)?,
+                ..account.clone()
+            };
+            ensure!(
+                same_apart_from_height(&account, &current),
+                "Recovery account has an unapplied expiry"
+            );
+            advanced.insert(id, current);
+        }
+        let book = Self {
+            version: header.version,
+            last_height: header.last_height,
+            profile: header.profile,
+            accounts: advanced,
+            sponsor_receipts,
+            operation_success,
+            expiry_index,
+        };
+        let non_account = |entries: BTreeMap<Vec<u8>, Vec<u8>>| -> BTreeMap<Vec<u8>, Vec<u8>> {
+            entries
+                .into_iter()
+                .filter(|(key, _)| !key.starts_with(ACCOUNT_PREFIX.as_bytes()))
+                .collect()
+        };
+        ensure!(
+            non_account(book.entries()?) == non_account(stored),
+            "Recovery entries are not canonical"
+        );
+        Ok(Some(book))
     }
     pub(crate) fn begin_block(&self, height: u64) -> Result<RecoveryBlock> {
         self.validate()?;

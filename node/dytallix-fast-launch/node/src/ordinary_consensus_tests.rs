@@ -5,7 +5,7 @@ use crate::crypto::{ActivePQC, PQC};
 use crate::ordinary_authority::DiscretionaryGrant;
 use crate::ordinary_state::OrdinaryConfig;
 use crate::runtime::governance_state::{GovernanceState, GOVERNANCE_STATE_VERSION};
-use crate::recovery_fees::{RecoveryAccount, RecoveryBook, STATE_KEY};
+use crate::recovery_fees::{RecoveryAccount, RecoveryBook};
 use crate::storage::state::Storage;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use dytallix_protocol_types::address::{AccountAddress, AddressNetwork};
@@ -376,7 +376,7 @@ fn data(app: &ConsensusApplication) -> BTreeMap<Vec<u8>, Vec<u8>> {
         .collect()
 }
 fn book(app: &ConsensusApplication) -> RecoveryBook {
-    RecoveryBook::decode(&app.storage.db.get(STATE_KEY).unwrap().unwrap()).unwrap()
+    RecoveryBook::load(&app.storage).unwrap().unwrap()
 }
 fn balance(app: &ConsensusApplication, owner: &str) -> u128 {
     let balances: BTreeMap<String, u128> = bincode::deserialize(
