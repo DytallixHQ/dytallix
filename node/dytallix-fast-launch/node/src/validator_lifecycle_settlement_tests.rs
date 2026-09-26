@@ -596,60 +596,6 @@ fn corrupted_pending_lifecycle_fails_recovery_without_repair() {
     assert!(ConsensusApplication::open(&path, f.config.clone(), f.genesis.clone()).is_err());
 }
 
-#[test]
-#[cfg(feature = "mldsa87-development")]
-fn valid_ml_dsa_87_transaction_signature_cannot_authorize_operator_changes() {
-    let f = Fixture::new();
-    let dir = tempfile::tempdir().unwrap();
-    let mut app = f.initialized(&dir.path().join("db"));
-    let (public, secret) = fips204::ml_dsa_87::KG::try_keygen().unwrap();
-    let public = B64.encode(public.into_bytes());
-    let owner = crate::addr::initial_address(
-        crate::addr::AddressNetwork::Development,
-        CHAIN,
-        crate::addr::OriginKeyAlgorithm::MlDsa87,
-        &B64.decode(&public).unwrap(),
-    )
-    .unwrap();
-    let tx = Tx {
-        chain_id: CHAIN.into(),
-        nonce: 0,
-        msgs: vec![Msg::ValidatorExit {
-            from: owner,
-            validator: IDS[0].into(),
-        }],
-        fee: 200000,
-        memo: "operator algorithm rejection".into(),
-    };
-    let bytes = crate::crypto::canonical_json(&tx).unwrap();
-    let envelope = SignedTx {
-        tx,
-        public_key: public.clone(),
-        signature: B64.encode(
-            secret
-                .try_sign(&crate::crypto::sha3_256(&bytes), &[])
-                .unwrap(),
-        ),
-        algorithm: "mldsa87".into(),
-        version: 1,
-    };
-    envelope.verify().unwrap();
-    let error = crate::signed_transaction::normalize(&envelope, 1).unwrap_err();
-    assert!(error.to_string().contains("ML-DSA-65"));
-    let result = commit(
-        &mut app,
-        1,
-        vec![serde_json::to_vec(&WireTransaction::Signed { envelope }).unwrap()],
-    );
-    assert_ne!(result.tx_results[0].code, 0);
-    assert!(
-        result.tx_results[0].log == "Invalid signed transaction",
-        "{:?}",
-        result.tx_results
-    );
-    assert!(result.validator_updates.is_empty());
-    custody(&app, 200, 0, 0);
-}
 
 #[test]
 fn stored_unsigned_validator_operations_require_the_original_account_envelope() {

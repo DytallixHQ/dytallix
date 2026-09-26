@@ -1473,6 +1473,6 @@ mod tests {
     }
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "validator_custody_tests.rs"]
 mod validator_custody_tests;

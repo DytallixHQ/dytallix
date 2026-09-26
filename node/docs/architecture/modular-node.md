@@ -4,7 +4,7 @@ Status: approved direction; implementation in progress. This document does not a
 
 ## Source authority
 
-The dytallix-node workspace is the authoritative source for the mainnet executable and its protocol-critical components. The embedded pqc-crypto and smart-contracts paths identify workspace component sources. The release graph must establish which paths the selected binary actually links. Standalone repositories remain compatibility distributions until their differences receive explicit disposition. Do not copy a standalone implementation into the node without review.
+The dytallix-node workspace is the authoritative source for the mainnet executable and its protocol-critical components. The release graph must establish which paths the selected binary actually links. Standalone repositories remain compatibility distributions until their differences receive explicit disposition. Do not copy a standalone implementation into the node without review.
 
 New reusable components live under crates/. Their versions begin at 0.1.0 and publish=false until release qualification. Existing node module paths remain compatibility exports. Use one executable to compose the modules. Compile-time features select supported implementations; they do not authorize different validation rules among validators.
 
@@ -55,7 +55,5 @@ Required checks include the workspace suite, old import-path compatibility tests
 6. Run independent security review, release-candidate testnet, operator recovery drills, and genesis approval.
 
 ## Initial verification exclusions
-
-The full workspace command also builds blockchain-core research tests. Its ai_request_payload_test currently uses constructors and fields that do not match the current AIRequestMetadata API. This is separate from the extracted crates. Do not suppress this test or infer distributed consensus readiness from the selected-node build.
 
 The complete node test run also exposes governance, metrics, and mempool expectations that require disposition. Some gas fixtures assumed fees were charged in udgt, while the existing runtime charges udrt. This extraction updates those fixtures and retains explicit fee and transfer assertions. It does not change economic runtime behavior. Resolve remaining protocol assertions against the approved specification.

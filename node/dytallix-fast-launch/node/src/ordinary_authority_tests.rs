@@ -520,7 +520,6 @@ fn exhausted_nonce_and_unmatured_or_wrong_beneficiary_claims_reject() {
     )
     .is_err());
 }
-#[cfg(feature = "pqc-fips204")]
 #[test]
 fn real_signature_current_key_check_invalidates_cached_old_authority_without_paid_execution() {
     use crate::crypto::{ActivePQC, PQC};

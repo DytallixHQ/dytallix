@@ -25,9 +25,9 @@ Signature policy now resides in `dytallix-signature-policy`. The initial extract
 
 ## Excluded surfaces
 
-The selected application excludes the legacy HTTP and WebSocket server, legacy gossip module, bridge RPC and Ed25519 bridge storage module, external AI/oracle HTTP routes, Vault client and application key-provider module, and WASM contract routes/runtime. These surfaces are not called by the selected consensus application. The engine and separate HTTP adapter provide their own qualified transport boundary. The external root verifier remains a separate pinned executable.
+The legacy HTTP and WebSocket server, gossip module, bridge RPC and Ed25519 bridge storage, AI/oracle routes, Vault client and WASM contract runtime have been removed from this tree. The engine and separate HTTP adapter provide their own qualified transport boundary. The external root verifier remains a separate pinned executable.
 
-The node defaults retain the legacy service feature, oracle, contracts, metrics and explicit `mldsa87-development` compatibility. The selected runtime rejects that development feature. The standalone `pqc-fips204` selection supports ML-DSA-65; add `mldsa87-development` only for historical development compatibility. The legacy service feature alone does not force a transaction signature backend. Default builds remain outside this selected G35 boundary. Enabling contracts still selects the original blockchain-core and Wasmtime implementation. Disabling oracle also removes its AI routes, so a reduced build no longer imports an absent module.
+The node's default feature is `pqc-consensus`, which selects the FIPS 204 ML-DSA-65 backend. No alternate signature backend or legacy service feature remains.
 
 ## Tests
 

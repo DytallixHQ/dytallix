@@ -14,11 +14,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tokio::time::interval;
 
-#[cfg(feature = "alerts")]
-use reqwest::Client;
 
-#[cfg(feature = "metrics")]
-use prometheus::{IntCounterVec, IntGaugeVec, Opts, Registry};
 
 use crate::storage::blocks::TpsWindow;
 
@@ -219,57 +215,10 @@ pub struct AlertsConfig {
     pub rules: RulesConfig,
 }
 
-/// Prometheus metrics for the alerting system
-#[cfg(feature = "metrics")]
-pub struct AlertMetrics {
-    alert_rule_firing: IntGaugeVec,
-    alert_events_total: IntCounterVec,
-}
 
-#[cfg(feature = "metrics")]
-impl AlertMetrics {
-    pub fn new(registry: &Registry) -> Result<Self> {
-        let alert_rule_firing = IntGaugeVec::new(
-            Opts::new(
-                "dytallix_alert_rule_firing",
-                "Whether an alert rule is currently firing (1) or not (0)",
-            ),
-            &["rule"],
-        )?;
-        registry.register(Box::new(alert_rule_firing.clone()))?;
 
-        let alert_events_total = IntCounterVec::new(
-            Opts::new(
-                "dytallix_alert_events_total",
-                "Total number of alert events (firing or recovery)",
-            ),
-            &["rule", "event_type"],
-        )?;
-        registry.register(Box::new(alert_events_total.clone()))?;
-
-        Ok(Self {
-            alert_rule_firing,
-            alert_events_total,
-        })
-    }
-
-    pub fn set_rule_firing(&self, rule: &str, firing: bool) {
-        self.alert_rule_firing
-            .with_label_values(&[rule])
-            .set(if firing { 1 } else { 0 });
-    }
-
-    pub fn inc_alert_event(&self, rule: &str, event_type: &str) {
-        self.alert_events_total
-            .with_label_values(&[rule, event_type])
-            .inc();
-    }
-}
-
-#[cfg(not(feature = "metrics"))]
 pub struct AlertMetrics;
 
-#[cfg(not(feature = "metrics"))]
 impl AlertMetrics {
     pub fn new(_registry: &()) -> Result<Self> {
         Ok(Self)
@@ -283,50 +232,19 @@ impl AlertMetrics {
 pub struct AlertsEngine {
     config: AlertsConfig,
     state: HashMap<AlertKind, RuleState>,
-    #[cfg(feature = "alerts")]
-    client: Option<Client>,
     #[allow(dead_code)]
     metrics: AlertMetrics,
 }
 
 impl AlertsEngine {
-    /// Create a new alerts engine with the given configuration
-    #[cfg(feature = "metrics")]
-    pub fn new(config: AlertsConfig, registry: &Registry) -> Result<Self> {
-        let metrics = AlertMetrics::new(registry)?;
 
-        #[cfg(feature = "alerts")]
-        let client = if config.webhook_url.is_some() {
-            Some(Client::new())
-        } else {
-            None
-        };
-
-        Ok(Self {
-            config,
-            state: HashMap::new(),
-            #[cfg(feature = "alerts")]
-            client,
-            metrics,
-        })
-    }
-
-    #[cfg(not(feature = "metrics"))]
     pub fn new(config: AlertsConfig) -> Result<Self> {
         let metrics = AlertMetrics::new(&())?;
 
-        #[cfg(feature = "alerts")]
-        let client = if config.webhook_url.is_some() {
-            Some(Client::new())
-        } else {
-            None
-        };
 
         Ok(Self {
             config,
             state: HashMap::new(),
-            #[cfg(feature = "alerts")]
-            client,
             metrics,
         })
     }
@@ -492,38 +410,10 @@ impl AlertsEngine {
         }
 
         // Send webhook if configured
-        #[cfg(feature = "alerts")]
-        if let (Some(webhook_url), Some(client)) = (&self.config.webhook_url, &self.client) {
-            if let Err(e) = self.send_webhook(client, webhook_url, &payload).await {
-                tracing::error!("Failed to send webhook for alert {}: {}", rule_name, e);
-            }
-        }
 
         Ok(())
     }
 
-    /// Send webhook notification
-    #[cfg(feature = "alerts")]
-    async fn send_webhook(
-        &self,
-        client: &Client,
-        webhook_url: &str,
-        payload: &AlertPayload,
-    ) -> Result<()> {
-        let response = client
-            .post(webhook_url)
-            .json(payload)
-            .timeout(Duration::from_secs(10))
-            .send()
-            .await
-            .context("Failed to send webhook request")?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("Webhook returned non-success status: {}", response.status());
-        }
-
-        Ok(())
-    }
 }
 
 /// Load alerts configuration from a YAML file
@@ -682,11 +572,6 @@ rules:
             },
         };
 
-        #[cfg(feature = "metrics")]
-        let registry = Registry::new();
-        #[cfg(feature = "metrics")]
-        let mut engine = AlertsEngine::new(config, &registry).unwrap();
-        #[cfg(not(feature = "metrics"))]
         let mut engine = AlertsEngine::new(config).unwrap();
 
         let gatherer = Arc::new(MockMetricsGatherer::new());
@@ -756,11 +641,6 @@ rules:
             },
         };
 
-        #[cfg(feature = "metrics")]
-        let registry = Registry::new();
-        #[cfg(feature = "metrics")]
-        let mut engine = AlertsEngine::new(config, &registry).unwrap();
-        #[cfg(not(feature = "metrics"))]
         let mut engine = AlertsEngine::new(config).unwrap();
 
         let gatherer = Arc::new(MockMetricsGatherer::new());
@@ -802,11 +682,6 @@ rules:
             ..Default::default()
         };
 
-        #[cfg(feature = "metrics")]
-        let registry = Registry::new();
-        #[cfg(feature = "metrics")]
-        let mut engine = AlertsEngine::new(config, &registry).unwrap();
-        #[cfg(not(feature = "metrics"))]
         let mut engine = AlertsEngine::new(config).unwrap();
 
         let gatherer = Arc::new(MockMetricsGatherer::new());
@@ -878,11 +753,6 @@ rules:
             },
         };
 
-        #[cfg(feature = "metrics")]
-        let registry = Registry::new();
-        #[cfg(feature = "metrics")]
-        let mut engine = AlertsEngine::new(config, &registry).unwrap();
-        #[cfg(not(feature = "metrics"))]
         let mut engine = AlertsEngine::new(config).unwrap();
 
         let gatherer = Arc::new(MockMetricsGatherer::new());

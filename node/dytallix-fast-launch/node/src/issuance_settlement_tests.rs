@@ -509,17 +509,13 @@ fn legacy_emission_mutators_reject_orphan_timing_and_custody_markers() {
     }
 }
 
-#[cfg(any(feature = "pqc-fips204", feature = "pqc-real"))]
 #[test]
 fn signed_claim_at_epoch_boundary_lost_ack_reopen_retry_pays_and_charges_once() {
     use crate::crypto::{ActivePQC, PQC};
     use crate::storage::transaction_record::SignedEnvelope;
     use crate::types::{tx::Tx, Msg, SignedTx};
     let (secret, public) = ActivePQC::keypair();
-    #[cfg(feature = "pqc-fips204")]
     let algorithm = crate::addr::OriginKeyAlgorithm::MlDsa65;
-    #[cfg(all(feature = "pqc-real", not(feature = "pqc-fips204")))]
-    let algorithm = crate::addr::OriginKeyAlgorithm::LegacyDilithium5;
     let owner = crate::addr::initial_address(
         crate::addr::AddressNetwork::Development,
         "test",

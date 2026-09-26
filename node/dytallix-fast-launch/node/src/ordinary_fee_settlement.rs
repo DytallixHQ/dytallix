@@ -829,7 +829,7 @@ pub(crate) fn plan_fee_accounting(
         predecessor_digest: snapshot_digest(book, grants, state)?,
     }))
 }
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "ordinary_fee_settlement_tests.rs"]
 mod tests;
 

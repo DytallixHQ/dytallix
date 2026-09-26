@@ -1355,6 +1355,6 @@ fn subtract_position(
     }
     Ok(())
 }
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "validator_lifecycle_tests.rs"]
 mod tests;

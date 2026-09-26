@@ -1,5 +1,4 @@
 //! Explicit local finalization fixtures. These tests do not prove consensus finality.
-#![cfg(any(feature = "pqc-fips204", feature = "pqc-real"))]
 use dytallix_fast_node::{
     addr::{initial_address, AddressNetwork, OriginKeyAlgorithm},
     block_settlement::{self, BlockOutcome, BlockRequest},
@@ -35,10 +34,7 @@ struct Actor {
 impl Actor {
     fn new() -> Self {
         let (secret, public) = ActivePQC::keypair();
-        #[cfg(feature = "pqc-fips204")]
         let algorithm = OriginKeyAlgorithm::MlDsa65;
-        #[cfg(all(feature = "pqc-real", not(feature = "pqc-fips204")))]
-        let algorithm = OriginKeyAlgorithm::LegacyDilithium5;
         let address =
             initial_address(AddressNetwork::Development, CHAIN, algorithm, &public).unwrap();
         Self {

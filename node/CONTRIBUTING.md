@@ -1,7 +1,6 @@
 # Contributing to Dytallix Node
 
-Start with the [README](README.md) and [docs hub](docs/README.md) so changes to
-the public node, APIs, and internal docs stay aligned.
+Start with the [README](README.md) and [docs hub](docs/README.md).
 
 ## Getting Started
 
@@ -13,9 +12,10 @@ the public node, APIs, and internal docs stay aligned.
 Common commands:
 
 ```bash
-cargo build --workspace --locked
+cargo build --workspace --all-targets --locked
 cargo fmt --all
 cargo test --workspace --locked
+(cd consensus/cometbft && go test -mod=readonly ./...)
 ```
 
 ## Documentation Expectations
@@ -23,13 +23,13 @@ cargo test --workspace --locked
 If your change touches any of the following, update the linked docs in the same
 pull request:
 
-- public node endpoints or request shapes
-  Update [docs/rpc-and-apis.md](docs/rpc-and-apis.md) and
-  [dytallix-fast-launch/node/README_RPC.md](dytallix-fast-launch/node/README_RPC.md).
-- PQC verification behavior or feature flags
-  Update [dytallix-fast-launch/node/PQC_IMPLEMENTATION.md](dytallix-fast-launch/node/PQC_IMPLEMENTATION.md).
-- secrets-loading behavior
-  Update [blockchain-core/SECRETS_README.md](blockchain-core/SECRETS_README.md).
+- a component contract in [docs/mainnet/](docs/mainnet/)
+  Update that contract document.
+- consensus engine behavior
+  Update [consensus/cometbft/README.md](consensus/cometbft/README.md) or
+  [PQC_ENGINE_INTEGRATION.md](consensus/cometbft/PQC_ENGINE_INTEGRATION.md).
+- module dependencies
+  Update [docs/architecture/module-policy.json](docs/architecture/module-policy.json).
 
 ## Pull Request Checklist
 

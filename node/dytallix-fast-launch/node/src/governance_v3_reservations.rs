@@ -77,6 +77,6 @@ pub(crate) fn reservation_request(
     })
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "governance_v3_reservations_tests.rs"]
 mod tests;

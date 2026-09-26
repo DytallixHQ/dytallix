@@ -2,7 +2,6 @@
   "schema_version": 1,
   "status": "initial extraction; not mainnet approval",
   "local_packages": {
-    "dytallix-pqc": "pqc-crypto",
     "dytallix-gas": "crates/gas",
     "dytallix-protocol-types": "crates/protocol-types",
     "dytallix-runtime-crypto": "crates/runtime-crypto",

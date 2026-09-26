@@ -486,6 +486,6 @@ pub(crate) fn append_writes(state: &OrdinaryState, writes: &mut Writes) -> Resul
     writes.insert(STATE_KEY.as_bytes().to_vec(), bytes);
     Ok(())
 }
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "ordinary_state_tests.rs"]
 mod tests;

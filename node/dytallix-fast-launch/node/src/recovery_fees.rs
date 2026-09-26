@@ -332,9 +332,6 @@ impl RecoveryBook {
                     .context("Recovery height overflow")?,
             "Recovery blocks must be consecutive"
         );
-        #[cfg(not(feature = "pqc-fips204"))]
-        bail!("Recovery profile requires the FIPS 204 backend");
-        #[cfg(feature = "pqc-fips204")]
         {
             let mut book = self.clone();
             let due = self.expiry_index.get(&height).map_or(0, BTreeSet::len) as u64;
@@ -887,10 +884,7 @@ impl RecoveryReservations {
         Ok(true)
     }
 }
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "recovery_fees_tests.rs"]
 mod tests;
 
-#[cfg(all(test, not(feature = "pqc-fips204")))]
-#[path = "recovery_backend_tests.rs"]
-mod backend_tests;

@@ -4,8 +4,6 @@
 //! check current account authority, profile, counters, protection, expiry and fees.
 //! No mock or legacy backend can verify this format.
 
-#[cfg(feature = "mldsa87-development")]
-use fips204::ml_dsa_87;
 
 use dytallix_protocol_types::{
     recovery::AuthenticatedFacts,
@@ -45,14 +43,7 @@ pub fn verify_bytes(wire: &[u8]) -> Result<AuthenticatedFacts, SponsorVerificati
     verify_signed(&signed)
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-fn verify_backend(
-    _signed: &SponsoredRecovery,
-) -> Result<AuthenticatedFacts, SponsorVerificationError> {
-    Err(SponsorVerificationError::BackendUnavailable)
-}
 
-#[cfg(feature = "pqc-fips204")]
 fn verify_backend(
     signed: &SponsoredRecovery,
 ) -> Result<AuthenticatedFacts, SponsorVerificationError> {
@@ -81,22 +72,6 @@ fn verify_backend(
             let public = ml_dsa_65::PublicKey::try_from_bytes(bytes)
                 .map_err(|_| SponsorVerificationError::InvalidPublicKey)?;
             let signature: [u8; ml_dsa_65::SIG_LEN] = signed
-                .signature
-                .as_slice()
-                .try_into()
-                .map_err(|_| SponsorVerificationError::InvalidSignature)?;
-            public.verify(&message, &signature, &[])
-        }
-        #[cfg(feature = "mldsa87-development")]
-        "mldsa87" => {
-            let bytes: [u8; ml_dsa_87::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| SponsorVerificationError::InvalidPublicKey)?;
-            let public = ml_dsa_87::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| SponsorVerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_87::SIG_LEN] = signed
                 .signature
                 .as_slice()
                 .try_into()

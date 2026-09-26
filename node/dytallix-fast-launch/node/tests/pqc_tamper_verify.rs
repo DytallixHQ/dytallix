@@ -4,7 +4,7 @@ use dytallix_fast_node::types::{Msg, SignedTx};
 
 #[test]
 fn tamper_signature_failure_is_detected() {
-    // Generate real Dilithium5 keypair via ActivePQC (pqc-real feature is default)
+    // Generate an ML-DSA-65 keypair via ActivePQC.
     let (sk, pk) = dytallix_fast_node::crypto::ActivePQC::keypair();
 
     // Build a canonical transaction

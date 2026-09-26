@@ -48,45 +48,21 @@ fn authorization(recovery: &SignedRecovery, key: KeyIdentity) -> SponsorAuthoriz
     }
 }
 
-#[cfg(feature = "pqc-fips204")]
 mod real {
     use super::*;
-    #[cfg(feature = "mldsa87-development")]
-    use fips204::ml_dsa_87;
     use fips204::{
         ml_dsa_65,
         traits::{KeyGen, SerDes, Signer},
     };
     use rand_core::OsRng;
 
-    /// Export public development evidence only. No secret key leaves this process.
-    #[cfg(feature = "mldsa87-development")]
-    #[test]
-    #[ignore = "explicit public fixture regeneration"]
-    fn export_public_development_fixture() {
-        let directory =
-            std::env::var("DYTALLIX_PUBLIC_FIXTURE_DIR").expect("explicit fixture directory");
-        let value = fixture("mldsa65", "mldsa87").2;
-        let bytes = wire::encode(&value).unwrap();
-        std::fs::write(
-            std::path::Path::new(&directory).join("recovery_sponsor.bin"),
-            bytes,
-        )
-        .unwrap();
-    }
 
     fn secondary_algorithm() -> &'static str {
-        if cfg!(feature = "mldsa87-development") {
-            "mldsa87"
-        } else {
-            "mldsa65"
-        }
+        "mldsa65"
     }
 
     enum Secret {
         Dsa65(ml_dsa_65::PrivateKey),
-        #[cfg(feature = "mldsa87-development")]
-        Dsa87(ml_dsa_87::PrivateKey),
     }
 
     struct Key {
@@ -107,17 +83,6 @@ mod real {
                         secret: Secret::Dsa65(secret),
                     }
                 }
-                #[cfg(feature = "mldsa87-development")]
-                "mldsa87" => {
-                    let (public, secret) = ml_dsa_87::KG::try_keygen_with_rng(&mut OsRng).unwrap();
-                    Self {
-                        identity: KeyIdentity {
-                            algorithm: algorithm.into(),
-                            public_key: public.into_bytes().to_vec(),
-                        },
-                        secret: Secret::Dsa87(secret),
-                    }
-                }
                 _ => panic!("unsupported test key"),
             }
         }
@@ -125,8 +90,6 @@ mod real {
         fn sign_context(&self, message: &[u8], context: &[u8]) -> Vec<u8> {
             match &self.secret {
                 Secret::Dsa65(key) => key.try_sign(message, context).unwrap().to_vec(),
-                #[cfg(feature = "mldsa87-development")]
-                Secret::Dsa87(key) => key.try_sign(message, context).unwrap().to_vec(),
             }
         }
 
@@ -167,15 +130,7 @@ mod real {
 
     #[test]
     fn mainnet_recovery_and_sponsor_roles_require_mldsa65() {
-        for (inner_alg, sponsor_alg) in [
-            ("mldsa65", "mldsa65"),
-            ("mldsa87", "mldsa65"),
-            ("mldsa65", "mldsa87"),
-        ]
-        .into_iter()
-        .filter(|(a, b)| {
-            cfg!(feature = "mldsa87-development") || (*a == "mldsa65" && *b == "mldsa65")
-        }) {
+        for (inner_alg, sponsor_alg) in [("mldsa65", "mldsa65")] {
             let (inner, sponsor, mut value) = fixture(inner_alg, sponsor_alg);
             value.recovery.operation.domain.network = 1;
             value.recovery.signatures =
@@ -191,16 +146,7 @@ mod real {
 
     #[test]
     fn compiled_sponsor_algorithms_verify_without_gaining_recovery_roles() {
-        for (inner_algorithm, sponsor_algorithm) in [
-            ("mldsa65", "mldsa65"),
-            ("mldsa87", "mldsa87"),
-            ("mldsa65", "mldsa87"),
-            ("mldsa87", "mldsa65"),
-        ]
-        .into_iter()
-        .filter(|(a, b)| {
-            cfg!(feature = "mldsa87-development") || (*a == "mldsa65" && *b == "mldsa65")
-        }) {
+        for (inner_algorithm, sponsor_algorithm) in [("mldsa65", "mldsa65")] {
             let (inner, sponsor, value) = fixture(inner_algorithm, sponsor_algorithm);
             let encoded = wire::encode(&value).unwrap();
             let facts = verify_bytes(&encoded).unwrap();
@@ -382,53 +328,12 @@ mod real {
     }
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-#[test]
-fn absent_real_backend_rejects_even_with_mock_feature_enabled() {
-    use dytallix_runtime_crypto::recovery_sponsor::SponsorVerificationError;
-    for (algorithm, public_len, signature_len) in [("mldsa65", 1952, 3309), ("mldsa87", 2592, 4627)]
-    {
-        let key = |byte| KeyIdentity {
-            algorithm: algorithm.into(),
-            public_key: vec![byte; public_len],
-        };
-        let recovery = SignedRecovery {
-            operation: operation(),
-            signatures: vec![RecoverySignature {
-                role: SignatureRole::Operation,
-                key: key(11),
-                signature: vec![12; signature_len],
-            }],
-        };
-        let value = SponsoredRecovery {
-            sponsor: authorization(&recovery, key(13)),
-            recovery,
-            signature: vec![14; signature_len],
-        };
-        let encoded = wire::encode(&value).expect("canonical framing reaches the backend check");
-        assert!(matches!(
-            verify_signed(&value),
-            Err(SponsorVerificationError::BackendUnavailable)
-        ));
-        assert!(matches!(
-            verify_bytes(&encoded),
-            Err(SponsorVerificationError::BackendUnavailable)
-        ));
-    }
-}
 
 /// The same valid public development signature must fail in the strict backend.
-#[cfg(feature = "pqc-fips204")]
 #[test]
 fn frozen_mldsa87_signature_matches_explicit_backend_selection() {
     let bytes = include_bytes!("fixtures/mldsa87/recovery_sponsor.bin");
     let value = wire::decode(bytes).unwrap();
     let result = verify_signed(&value);
-    #[cfg(feature = "mldsa87-development")]
-    assert!(
-        result.is_ok(),
-        "public development fixture must verify: {result:?}"
-    );
-    #[cfg(not(feature = "mldsa87-development"))]
     assert!(matches!(result, Err(dytallix_runtime_crypto::recovery_sponsor::SponsorVerificationError::UnsupportedAlgorithm)));
 }

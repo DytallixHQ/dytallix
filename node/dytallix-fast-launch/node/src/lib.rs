@@ -1,29 +1,5 @@
 // Feature unification must never add legacy routes or alternate crypto backends
 // to the selected consensus application without a compile-time failure.
-#[cfg(all(
-    feature = "pqc-consensus",
-    any(
-        feature = "legacy-services",
-        feature = "mldsa87-development",
-        feature = "reqwest",
-        feature = "dytallix-node",
-        feature = "wasmtime",
-        feature = "axum",
-        feature = "tower",
-        feature = "tower-http",
-        feature = "futures",
-        feature = "tokio-stream",
-        feature = "metrics",
-        feature = "staking",
-        feature = "pqc-real",
-        feature = "pqc-mock",
-        feature = "falcon",
-        feature = "sphincs",
-        feature = "legacy-submit",
-        feature = "legacy-economic-fixtures"
-    )
-))]
-compile_error!("pqc-consensus requires --no-default-features and excludes legacy services and alternate cryptographic backends");
 
 pub mod addr; // address derivation
 pub mod alerts; // alerting subsystem
@@ -36,27 +12,19 @@ pub mod emergency_verifier;
 pub mod upgrade;
 pub mod mempool;
 pub mod metrics; // observability module (internally feature-gated)
-#[cfg(feature = "legacy-services")]
-pub mod p2p;
-#[cfg(feature = "legacy-services")]
-pub mod rpc;
 pub mod runtime;
 // Expose governance module unconditionally; runtime flags gate behavior
 pub use runtime::governance;
-#[cfg(feature = "oracle")]
-pub use runtime::oracle;
 // Expose staking module unconditionally; runtime flags gate behavior
 pub use runtime::staking;
 pub mod state;
 pub mod storage;
 pub mod types; // canonical transaction types
 pub mod util;
-#[cfg(feature = "legacy-services")]
-pub mod ws; // added util module // p2p networking and gossip
+ // added util module // p2p networking and gossip
             // re-export emission types
 pub use runtime::emission::*;
-#[cfg(feature = "legacy-services")]
-pub mod secrets; // vault + sealed keystore providers
+ // vault + sealed keystore providers
 
 mod settlement;
 

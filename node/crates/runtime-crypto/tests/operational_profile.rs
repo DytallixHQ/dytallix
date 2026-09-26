@@ -1,8 +1,5 @@
 //! Approved operational signatures. No persisted legacy key is translated.
-#![cfg(feature = "pqc-fips204")]
 use dytallix_runtime_crypto::{verify, ActivePQC, PQCAlgorithm, PQC};
-#[cfg(feature = "mldsa87-development")]
-use fips204::ml_dsa_87;
 use fips204::{
     ml_dsa_65,
     traits::{KeyGen, SerDes, Signer},
@@ -41,30 +38,6 @@ fn operational_signatures_use_exact_identifier_sizes_and_message() {
     .is_err());
 }
 
-#[cfg(feature = "mldsa87-development")]
-#[test]
-fn explicit_legacy_parameter_set_does_not_become_operational_or_use_aliases() {
-    let (public, secret) = ml_dsa_87::KG::keygen_from_seed(&[91; 32]);
-    let signature = secret.try_sign(b"legacy fixture", &[]).unwrap();
-    let public = public.into_bytes();
-    verify(
-        &public,
-        b"legacy fixture",
-        &signature,
-        PQCAlgorithm::MlDsa87,
-    )
-    .unwrap();
-    assert!(!ActivePQC::verify(&public, b"legacy fixture", &signature));
-    assert!(verify(
-        &public,
-        b"legacy fixture",
-        &signature,
-        PQCAlgorithm::Dilithium5
-    )
-    .is_err());
-    assert!("dilithium3".parse::<PQCAlgorithm>().is_err());
-    assert!("mock-blake3".parse::<PQCAlgorithm>().is_err());
-}
 
 #[test]
 fn operational_context_does_not_accept_oracle_signatures() {

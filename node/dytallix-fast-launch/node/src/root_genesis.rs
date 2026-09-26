@@ -1468,6 +1468,6 @@ pub(crate) fn check_receipt(
     }
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "root_genesis_tests.rs"]
 mod tests;

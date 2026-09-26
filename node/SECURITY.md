@@ -29,12 +29,10 @@ We aim to acknowledge new reports within 3 business days.
 
 The following areas are in scope:
 
-- `dytallix-fast-launch/node`
-- `blockchain-core`
-- `pqc-crypto`
-- `smart-contracts`
-- public RPC surfaces
-- secrets-loading and signing flows
+- `dytallix-fast-launch/node` (consensus application)
+- `consensus/` (CometBFT fork, ABCI bridge and helpers)
+- `crates/`
+- signing, key handling and signature verification
 
 ## Out Of Scope
 

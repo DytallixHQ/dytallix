@@ -410,6 +410,6 @@ fn assess_signed_view(
     })
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "governance_signed_admission_tests.rs"]
 mod tests;

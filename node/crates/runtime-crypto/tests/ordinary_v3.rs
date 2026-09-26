@@ -1,6 +1,5 @@
 //! Signature tests for the provisional v3 codec. No consensus activation.
 
-#[cfg(feature = "pqc-fips204")]
 use dytallix_protocol_types::ordinary as v2;
 use dytallix_protocol_types::{
     ordinary::Limits as V2Limits,
@@ -9,7 +8,6 @@ use dytallix_protocol_types::{
     },
     recovery::{KeyIdentity, RecoveryDomain},
 };
-#[cfg(feature = "pqc-fips204")]
 use dytallix_runtime_crypto::ordinary_v3::verify_bytes;
 use dytallix_runtime_crypto::ordinary_v3::verify_signed;
 use std::collections::BTreeSet;
@@ -70,7 +68,6 @@ fn body(key: KeyIdentity) -> OrdinaryTransaction {
     }
 }
 
-#[cfg(feature = "pqc-fips204")]
 mod real {
     use super::*;
     use fips204::{
@@ -139,16 +136,3 @@ mod real {
     }
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-#[test]
-fn refuses_verification_without_the_selected_backend() {
-    let body = body(KeyIdentity {
-        algorithm: "mldsa65".into(),
-        public_key: vec![0; 1952],
-    });
-    let signed = SignedOrdinary {
-        body,
-        signature: vec![0; 3309],
-    };
-    assert!(verify_signed(&signed, &limits()).is_err());
-}

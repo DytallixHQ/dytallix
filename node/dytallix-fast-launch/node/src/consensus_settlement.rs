@@ -5342,22 +5342,22 @@ fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
     Ok(emergency_trace)
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "consensus_settlement_tests.rs"]
 mod tests;
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "validator_lifecycle_settlement_tests.rs"]
 mod lifecycle_tests;
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "penalty_settlement_tests.rs"]
 mod penalty_tests;
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "recovery_consensus_tests.rs"]
 mod recovery_tests;
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "ordinary_consensus_tests.rs"]
 mod ordinary_tests;

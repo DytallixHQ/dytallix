@@ -3,10 +3,8 @@
 //! Verified facts establish signature authenticity, not account authorization.
 //! `RecoveryState::transition` checks current roles, counters and protection.
 //! There is no fee handling, persistence, RPC route or implicit height advance.
-//! Recovery verification requires `pqc-fips204`, even when `pqc-mock` is enabled.
+//! Recovery verification requires `pqc-fips204`.
 
-#[cfg(feature = "mldsa87-development")]
-use fips204::ml_dsa_87;
 
 use dytallix_protocol_types::{
     recovery::{AuthenticatedFacts, RecoveryState},
@@ -61,14 +59,7 @@ pub fn verify_and_transition(
         .map_err(|e| RecoveryVerificationError::State(e.to_string()))
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-fn verify_backend(
-    _signed: &SignedRecovery,
-) -> Result<AuthenticatedFacts, RecoveryVerificationError> {
-    Err(RecoveryVerificationError::BackendUnavailable)
-}
 
-#[cfg(feature = "pqc-fips204")]
 fn verify_backend(
     signed: &SignedRecovery,
 ) -> Result<AuthenticatedFacts, RecoveryVerificationError> {
@@ -97,7 +88,6 @@ fn verify_backend(
     })
 }
 
-#[cfg(feature = "pqc-fips204")]
 fn verify_signature(
     key: &dytallix_protocol_types::recovery::KeyIdentity,
     message: &[u8],
@@ -120,20 +110,6 @@ fn verify_signature(
             let public_key = ml_dsa_65::PublicKey::try_from_bytes(bytes)
                 .map_err(|_| RecoveryVerificationError::InvalidPublicKey)?;
             let signature: [u8; ml_dsa_65::SIG_LEN] = signature
-                .try_into()
-                .map_err(|_| RecoveryVerificationError::InvalidSignature)?;
-            public_key.verify(message, &signature, &[])
-        }
-        #[cfg(feature = "mldsa87-development")]
-        "mldsa87" => {
-            let bytes: [u8; ml_dsa_87::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| RecoveryVerificationError::InvalidPublicKey)?;
-            let public_key = ml_dsa_87::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| RecoveryVerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_87::SIG_LEN] = signature
                 .try_into()
                 .map_err(|_| RecoveryVerificationError::InvalidSignature)?;
             public_key.verify(message, &signature, &[])

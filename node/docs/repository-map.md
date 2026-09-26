@@ -1,73 +1,45 @@
 # Repository Map
 
-[Docs hub](README.md) | [Build and run](build-and-run.md) | [RPC and API docs](rpc-and-apis.md)
+[Docs hub](README.md) | [Build and run](build-and-run.md)
 
-## Workspace Packages
+## Cargo Workspace
 
 | Path | Cargo package | Purpose |
 | --- | --- | --- |
-| [`blockchain-core`](../blockchain-core) | `dytallix-node` | Core chain logic, consensus, secrets, risk systems, runtime, and storage |
-| [`dytallix-fast-launch/node`](../dytallix-fast-launch/node) | `dytallix-fast-node` | Public RPC node and execution engine |
-| [`pqc-crypto`](../pqc-crypto) | `dytallix-pqc` | Post-quantum crypto primitives and CLI tools |
-| [`smart-contracts`](../smart-contracts) | `dytallix-contracts` | Contract runtime, bridges, and examples |
+| [`dytallix-fast-launch/node`](../dytallix-fast-launch/node) | `dytallix-fast-node` | Consensus application |
+| [`crates/adaptive-emission`](../crates/adaptive-emission) | `dytallix-adaptive-emission` | DRT adaptive emission controller |
+| [`crates/gas`](../crates/gas) | `dytallix-gas` | Gas and fee metering |
+| [`crates/native-supervisor`](../crates/native-supervisor) | `dytallix-native-supervisor` | Supervisor that hosts the consensus application |
+| [`crates/protocol-types`](../crates/protocol-types) | `dytallix-protocol-types` | Wire types, addresses and canonical encodings |
+| [`crates/release-runtime`](../crates/release-runtime) | `dytallix-release-runtime` | Release ownership and observation runtime |
+| [`crates/runtime-crypto`](../crates/runtime-crypto) | `dytallix-runtime-crypto` | FIPS 204 ML-DSA-65 signing and verification |
+| [`crates/signature-policy`](../crates/signature-policy) | `dytallix-signature-policy` | Signature policy |
+| [`crates/storage`](../crates/storage) | `dytallix-storage` | RocksDB state, blocks, receipts and transaction records |
 
-## Main Binaries
+[`consensus/pqc-http-adapter`](../consensus/pqc-http-adapter) is a separate
+Cargo workspace.
 
-### `blockchain-core`
+## Go Modules
 
-- `dytallix-node` from [`blockchain-core/src/main.rs`](../blockchain-core/src/main.rs)
-- `bridge-server` from [`blockchain-core/src/bin/bridge-server.rs`](../blockchain-core/src/bin/bridge-server.rs)
+| Path | Module | Purpose |
+| --- | --- | --- |
+| [`consensus/cometbft`](../consensus/cometbft) | `dytallix.local/consensus/cometbft` | Engine, ABCI bridge and qualification tools; the fork lives in `upstream/` |
+| [`consensus/owner-guard`](../consensus/owner-guard) | `dytallix.local/consensus/owner-guard` | Process-ownership guard |
+| [`consensus/root-authorization`](../consensus/root-authorization) | `github.com/dytallix/root-authorization` | Root authorization verifier |
 
-Notable source areas:
+## Consensus Application Binaries
 
-- [`consensus/`](../blockchain-core/src/consensus)
-- [`risk/`](../blockchain-core/src/risk)
-- [`runtime/`](../blockchain-core/src/runtime)
-- [`secrets/`](../blockchain-core/src/secrets)
-- [`wasm/`](../blockchain-core/src/wasm)
+In [`dytallix-fast-launch/node/src/bin`](../dytallix-fast-launch/node/src/bin):
 
-### `dytallix-fast-launch/node`
+- `consensus_stdio`: pipe protocol driven by the CometBFT bridge
+- `lifecycle_fixture`: validator lifecycle fixture
+- `pqc_signer`, `txhash`: signing and hashing utilities
+- `helper-execution-qualification`: requires feature `helper-qualification`
 
-- `dytallix-fast-node` from [`dytallix-fast-launch/node/src/main.rs`](../dytallix-fast-launch/node/src/main.rs)
-- `pqc_signer` from [`dytallix-fast-launch/node/src/bin/pqc_signer.rs`](../dytallix-fast-launch/node/src/bin/pqc_signer.rs)
-- `txhash` from [`dytallix-fast-launch/node/src/bin/txhash.rs`](../dytallix-fast-launch/node/src/bin/txhash.rs)
+Notable source areas in the application:
 
-Notable source areas:
-
-- [`rpc/`](../dytallix-fast-launch/node/src/rpc)
-- [`runtime/`](../dytallix-fast-launch/node/src/runtime)
-- [`storage/`](../dytallix-fast-launch/node/src/storage)
-- [`mempool/`](../dytallix-fast-launch/node/src/mempool)
-- [`crypto/`](../dytallix-fast-launch/node/src/crypto)
-
-### `pqc-crypto`
-
-Library:
-
-- [`pqc-crypto/src/lib.rs`](../pqc-crypto/src/lib.rs)
-
-CLI tools:
-
-- [`keygen`](../pqc-crypto/src/bin/keygen.rs)
-- [`keygen_raw`](../pqc-crypto/src/bin/keygen_raw.rs)
-- [`pqc_evidence`](../pqc-crypto/src/bin/pqc_evidence.rs)
-- [`sign`](../pqc-crypto/src/bin/sign.rs)
-- [`verify`](../pqc-crypto/src/bin/verify.rs)
-
-### `smart-contracts`
-
-Library:
-
-- [`smart-contracts/src/lib.rs`](../smart-contracts/src/lib.rs)
-
-Examples and test harness:
-
-- [`smart-contracts/examples/counter`](../smart-contracts/examples/counter)
-- [`smart-contracts/test-harness`](../smart-contracts/test-harness)
-- [`smart-contracts/tests`](../smart-contracts/tests)
-
-## Existing Deep-Dive Docs
-
-- [Fast node RPC reference](../dytallix-fast-launch/node/README_RPC.md)
-- [PQC implementation](../dytallix-fast-launch/node/PQC_IMPLEMENTATION.md)
-- [Secrets management](../blockchain-core/SECRETS_README.md)
+- [`consensus_settlement.rs`](../dytallix-fast-launch/node/src/consensus_settlement.rs): ABCI handlers and block settlement
+- [`runtime/`](../dytallix-fast-launch/node/src/runtime): staking, rewards, issuance, penalties and governance
+- [`mempool/`](../dytallix-fast-launch/node/src/mempool): admission
+- [`storage/`](../dytallix-fast-launch/node/src/storage), [`state/`](../dytallix-fast-launch/node/src/state): state access
+- [`upgrade/`](../dytallix-fast-launch/node/src/upgrade): upgrade migrations

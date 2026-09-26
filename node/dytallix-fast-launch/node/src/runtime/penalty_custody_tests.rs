@@ -1,4 +1,3 @@
-#![cfg(feature = "pqc-fips204")]
 use super::*;
 use crate::runtime::reward_runtime::{RewardConfig, ValidatorStatus, VestingLock};
 use crate::runtime::validator_lifecycle::{LifecycleConfig, Operation, ValidatorIdentity};

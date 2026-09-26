@@ -32,44 +32,20 @@ fn canonical_signatures(signatures: &mut [RecoverySignature]) {
     });
 }
 
-#[cfg(feature = "pqc-fips204")]
 mod real {
     use super::*;
     use fips204::ml_dsa_65;
-    #[cfg(feature = "mldsa87-development")]
-    use fips204::ml_dsa_87;
     use fips204::traits::{KeyGen, SerDes, Signer};
     use rand_core::OsRng;
     use std::collections::BTreeMap;
 
-    /// Export public development evidence only. No secret key leaves this process.
-    #[cfg(feature = "mldsa87-development")]
-    #[test]
-    #[ignore = "explicit public fixture regeneration"]
-    fn export_public_development_fixture() {
-        let directory =
-            std::env::var("DYTALLIX_PUBLIC_FIXTURE_DIR").expect("explicit fixture directory");
-        let value = Fixture::new("mldsa87").enroll();
-        let bytes = encode(&value).unwrap();
-        std::fs::write(
-            std::path::Path::new(&directory).join("recovery_signing.bin"),
-            bytes,
-        )
-        .unwrap();
-    }
 
     fn secondary_algorithm() -> &'static str {
-        if cfg!(feature = "mldsa87-development") {
-            "mldsa87"
-        } else {
-            "mldsa65"
-        }
+        "mldsa65"
     }
 
     enum Secret {
         MlDsa65(ml_dsa_65::PrivateKey),
-        #[cfg(feature = "mldsa87-development")]
-        MlDsa87(ml_dsa_87::PrivateKey),
     }
 
     struct SigningKey {
@@ -90,17 +66,6 @@ mod real {
                         secret: Secret::MlDsa65(secret),
                     }
                 }
-                #[cfg(feature = "mldsa87-development")]
-                "mldsa87" => {
-                    let (public, secret) = ml_dsa_87::KG::try_keygen_with_rng(&mut OsRng).unwrap();
-                    Self {
-                        identity: KeyIdentity {
-                            algorithm: algorithm.to_owned(),
-                            public_key: public.into_bytes().to_vec(),
-                        },
-                        secret: Secret::MlDsa87(secret),
-                    }
-                }
                 _ => panic!("unsupported test algorithm"),
             }
         }
@@ -109,8 +74,6 @@ mod real {
             let bytes = signing_bytes(operation, role.clone(), &self.identity).unwrap();
             let signature = match &self.secret {
                 Secret::MlDsa65(secret) => secret.try_sign(&bytes, &[]).unwrap().to_vec(),
-                #[cfg(feature = "mldsa87-development")]
-                Secret::MlDsa87(secret) => secret.try_sign(&bytes, &[]).unwrap().to_vec(),
             };
             RecoverySignature {
                 role,
@@ -248,10 +211,7 @@ mod real {
 
     #[test]
     fn compiled_algorithms_enroll_start_and_finalize() {
-        for algorithm in ["mldsa65", "mldsa87"]
-            .into_iter()
-            .filter(|a| *a == "mldsa65" || cfg!(feature = "mldsa87-development"))
-        {
+        for algorithm in ["mldsa65"] {
             let mut fixture = Fixture::new(algorithm);
             let enrolled = fixture.enroll();
             assert_eq!(enrolled.signatures.len(), 4);
@@ -465,74 +425,13 @@ mod real {
     }
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-#[test]
-fn absent_real_backend_rejects_nonempty_mockish_signatures() {
-    for (algorithm, public_len, signature_len) in [("mldsa65", 1952, 3309), ("mldsa87", 2592, 4627)]
-    {
-        let key = |byte| KeyIdentity {
-            algorithm: algorithm.to_owned(),
-            public_key: vec![byte; public_len],
-        };
-        let active = key(1);
-        let operation = RecoveryOperation {
-            domain: domain(),
-            action: Action {
-                submission_expiry: 11,
-                kind: ActionKind::Enroll {
-                    active: ActiveAuthorization {
-                        generation: 0,
-                        nonce: 0,
-                    },
-                    policy: RecoveryPolicy {
-                        threshold: 2,
-                        guardians: (2..=4)
-                            .map(|byte| Guardian {
-                                key: key(byte),
-                                control_group: format!("fixture-{byte}"),
-                            })
-                            .collect(),
-                    },
-                },
-            },
-        };
-        let mut signatures = vec![RecoverySignature {
-            role: SignatureRole::Operation,
-            key: active,
-            signature: vec![0xA5; signature_len],
-        }];
-        signatures.extend((2..=4).map(|byte| RecoverySignature {
-            role: SignatureRole::Possession,
-            key: key(byte),
-            signature: vec![0xA5; signature_len],
-        }));
-        canonical_signatures(&mut signatures);
-        let signed = SignedRecovery {
-            operation,
-            signatures,
-        };
-        let wire = encode(&signed).expect("bounded canonical input reaches the backend gate");
-        let decoded = decode(&wire).unwrap();
-        assert!(matches!(
-            verify_signed(&decoded),
-            Err(dytallix_runtime_crypto::recovery::RecoveryVerificationError::BackendUnavailable)
-        ));
-    }
-}
 
 /// The same valid public development signature must fail in the strict backend.
-#[cfg(feature = "pqc-fips204")]
 #[test]
 fn frozen_mldsa87_signature_matches_explicit_backend_selection() {
     let bytes = include_bytes!("fixtures/mldsa87/recovery_signing.bin");
     let value = decode(bytes).unwrap();
     let result = verify_signed(&value);
-    #[cfg(feature = "mldsa87-development")]
-    assert!(
-        result.is_ok(),
-        "public development fixture must verify: {result:?}"
-    );
-    #[cfg(not(feature = "mldsa87-development"))]
     assert!(matches!(
         result,
         Err(dytallix_runtime_crypto::recovery::RecoveryVerificationError::UnsupportedAlgorithm)

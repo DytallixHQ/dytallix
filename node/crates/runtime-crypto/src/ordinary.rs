@@ -4,8 +4,6 @@
 //! account key, generation, nonce, protection, expiry and ordinary fee contract
 //! from committed or staged state before execution. No fallback backend is used.
 
-#[cfg(feature = "mldsa87-development")]
-use fips204::ml_dsa_87;
 
 use dytallix_protocol_types::ordinary::{
     self as wire, Limits, OrdinaryTransaction, SignedOrdinary,
@@ -75,15 +73,7 @@ pub fn verify_bytes(
     verify_signed(&signed, limits)
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-fn verify_backend(
-    _signed: &SignedOrdinary,
-    _limits: &Limits,
-) -> Result<(), OrdinaryVerificationError> {
-    Err(OrdinaryVerificationError::BackendUnavailable)
-}
 
-#[cfg(feature = "pqc-fips204")]
 fn verify_backend(
     signed: &SignedOrdinary,
     limits: &Limits,
@@ -110,22 +100,6 @@ fn verify_backend(
             let public = ml_dsa_65::PublicKey::try_from_bytes(bytes)
                 .map_err(|_| OrdinaryVerificationError::InvalidPublicKey)?;
             let signature: [u8; ml_dsa_65::SIG_LEN] = signed
-                .signature
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryVerificationError::InvalidSignature)?;
-            public.verify(&message, &signature, &[])
-        }
-        #[cfg(feature = "mldsa87-development")]
-        "mldsa87" => {
-            let bytes: [u8; ml_dsa_87::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryVerificationError::InvalidPublicKey)?;
-            let public = ml_dsa_87::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| OrdinaryVerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_87::SIG_LEN] = signed
                 .signature
                 .as_slice()
                 .try_into()

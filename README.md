@@ -11,7 +11,7 @@ testnet and product code in the rest of this repository.
 
 | Folder | Contents |
 |---|---|
-| [node/](node/) | Rust node workspace (`dytallix-fast-node`), CometBFT v0.40.0 fork with PQC transport (`node/consensus/cometbft`), PQC HTTP adapter, native supervisor, adaptive emission, storage, gas and signature-policy crates |
+| [node/](node/) | Consensus application (`dytallix-fast-node`), CometBFT v0.40.0 fork with PQC transport (`node/consensus/cometbft`), PQC HTTP adapter, native supervisor, adaptive emission, storage, gas and signature-policy crates |
 | [sdk/](sdk/) | Rust SDK and `dytallix` CLI, including the ordinary-v2 client and browser crate |
 | [pqc/](pqc/) | PQC primitives (ML-DSA, SLH-DSA, ML-KEM, FN-DSA). The node is the qualification authority. |
 | [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry |
@@ -28,10 +28,6 @@ cd mainnet/node
 cargo build --workspace --all-targets --locked
 cargo test --workspace --locked
 ```
-
-The default build is the mainnet consensus application (feature
-`pqc-consensus`). The archived legacy node that the current testnet runs is a
-separate, explicit build; see "Build modes" in `node/docs/build-and-run.md`.
 
 The consensus engine lives in `node/consensus/cometbft`:
 

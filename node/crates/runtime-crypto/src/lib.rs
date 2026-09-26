@@ -1,18 +1,5 @@
 //! Runtime signature backends. Feature selection preserves the existing node API.
-#[cfg(all(
-    feature = "pqc-consensus",
-    any(
-        feature = "mldsa87-development",
-        feature = "pqc-real",
-        feature = "pqc-mock",
-        feature = "falcon",
-        feature = "sphincs"
-    )
-))]
-compile_error!("pqc-consensus runtime excludes alternate cryptographic backends");
 
-#[cfg(all(feature = "pqc-real", feature = "pqc-fips204"))]
-compile_error!("Select exactly one transaction signing backend: pqc-real or pqc-fips204");
 #[allow(clippy::upper_case_acronyms)]
 pub trait PQC {
     fn keypair() -> (Vec<u8>, Vec<u8>); // (sk, pk)
@@ -21,26 +8,10 @@ pub trait PQC {
     const ALG: &'static str;
 }
 
-#[cfg(feature = "pqc-real")]
-mod dilithium;
-#[cfg(feature = "pqc-real")]
-pub use dilithium::Dilithium as ActivePQC;
 
-#[cfg(feature = "pqc-fips204")]
 mod dilithium_fips204;
-#[cfg(feature = "pqc-fips204")]
 pub use dilithium_fips204::MlDsa65 as ActivePQC;
 
-#[cfg(all(
-    feature = "pqc-mock",
-    not(any(feature = "pqc-real", feature = "pqc-fips204"))
-))]
-mod mock;
-#[cfg(all(
-    feature = "pqc-mock",
-    not(any(feature = "pqc-real", feature = "pqc-fips204"))
-))]
-pub use mock::MockPQC as ActivePQC;
 
 // New multi-algorithm PQC verification module
 pub mod pqc_verify;

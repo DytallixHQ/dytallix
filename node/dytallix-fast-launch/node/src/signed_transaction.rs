@@ -411,11 +411,7 @@ mod tests {
 
     fn signed(msgs: impl FnOnce(&str) -> Vec<Msg>, fee: u128) -> SignedTx {
         let (sk, pk) = ActivePQC::keypair();
-        #[cfg(feature = "pqc-fips204")]
         let algorithm = crate::addr::OriginKeyAlgorithm::MlDsa65;
-        #[cfg(feature = "pqc-real")]
-        let algorithm = crate::addr::OriginKeyAlgorithm::LegacyDilithium5;
-        #[cfg(any(feature = "pqc-fips204", feature = "pqc-real"))]
         let sender = crate::addr::initial_address(
             crate::addr::AddressNetwork::Development,
             "signed-input-local",
@@ -423,8 +419,6 @@ mod tests {
             &pk,
         )
         .unwrap();
-        #[cfg(not(any(feature = "pqc-fips204", feature = "pqc-real")))]
-        let sender = "unsigned-development-fixture".to_string();
         SignedTx::sign(
             Tx {
                 chain_id: "signed-input-local".into(),
@@ -611,7 +605,6 @@ mod tests {
         }
     }
     #[test]
-    #[cfg(any(feature = "pqc-fips204", feature = "pqc-real"))]
     fn reward_messages_preserve_signed_amounts_and_bind_every_sender() {
         let signed = signed(
             |from| {
@@ -657,7 +650,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(feature = "pqc-fips204", feature = "pqc-real"))]
     fn reward_envelope_rejects_valid_signature_for_another_owner() {
         let victim = signed(
             |from| vec![Msg::RewardClaim { from: from.into() }],
@@ -680,7 +672,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(feature = "pqc-fips204", feature = "pqc-real"))]
     fn reward_mode_binds_ordinary_message_senders_to_the_signing_key() {
         let authorized = signed(|from| vec![send(from, "udgt", 1)], 21_000_000);
         verify_reward_mode_record(&record(&authorized, 1_000), Some("signed-input-local")).unwrap();

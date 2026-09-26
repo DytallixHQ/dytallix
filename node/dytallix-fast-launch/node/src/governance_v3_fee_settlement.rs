@@ -407,6 +407,6 @@ fn plan_governance_fee(
     })
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "governance_v3_fee_settlement_tests.rs"]
 mod tests;

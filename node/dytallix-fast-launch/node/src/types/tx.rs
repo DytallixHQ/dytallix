@@ -21,7 +21,6 @@ impl SignedTx {
     pub fn sign(tx: Tx, sk: &[u8], pk: &[u8]) -> Result<Self> {
         let bytes = canonical_json(&tx)?;
         let hash = sha3_256(&bytes);
-        #[cfg(feature = "pqc-fips204")]
         let sig = {
             use fips204::{
                 ml_dsa_65,
@@ -46,8 +45,6 @@ impl SignedTx {
             );
             signature.to_vec()
         };
-        #[cfg(not(feature = "pqc-fips204"))]
-        let sig = ActivePQC::sign(sk, &hash);
         Ok(Self {
             tx,
             public_key: B64.encode(pk),
@@ -302,7 +299,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 mod operational_signing_tests {
     use super::*;
     use fips204::{
@@ -332,21 +329,9 @@ mod operational_signing_tests {
             .unwrap();
         assert!(SignedTx::sign(transaction(), &private, &other.into_bytes()).is_err());
         assert!(SignedTx::sign(transaction(), b"bad key", &public).is_err());
-        #[cfg(feature = "mldsa87-development")]
-        {
-            let (legacy_public, legacy_private) =
-                fips204::ml_dsa_87::KG::keygen_from_seed(&[63; 32]);
-            assert!(SignedTx::sign(
-                transaction(),
-                &legacy_private.into_bytes(),
-                &legacy_public.into_bytes()
-            )
-            .is_err());
-        }
     }
 
     #[test]
-    #[cfg(feature = "pqc-consensus")]
     fn selected_consensus_rejects_development_algorithm_without_fallback() {
         let (public, private) = ml_dsa_65::KG::keygen_from_seed(&[63; 32]);
         let mut envelope =

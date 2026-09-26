@@ -146,7 +146,6 @@ impl Fixture {
     }
 }
 
-#[cfg(not(feature = "legacy-economic-fixtures"))]
 #[test]
 fn ordinary_build_rejects_direct_mutation_on_empty_and_historical_databases() {
     for historical in [false, true] {

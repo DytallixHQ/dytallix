@@ -260,7 +260,6 @@ fn sign(mut args: BTreeMap<String, String>) -> Result<()> {
         secret.len() == 4032 && B64.encode(&*secret) == account.secret_key,
         "Invalid ML-DSA-65 private key encoding"
     );
-    #[cfg(feature = "pqc-fips204")]
     {
         use fips204::traits::SerDes;
         let key_bytes: [u8; fips204::ml_dsa_65::SK_LEN] = secret

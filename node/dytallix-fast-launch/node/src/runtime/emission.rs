@@ -134,45 +134,9 @@ impl EmissionEngine {
         }
     }
 
-    /// Call only while holding this Storage execution guard. Ordinary builds
-    /// reject every legacy mutation. Diagnostic builds still reject modern state,
-    /// including malformed and orphan markers. Read errors never enable mutation.
-    fn require_legacy_mutation(storage: &Storage) -> Result<(), String> {
-        if !cfg!(feature = "legacy-economic-fixtures") {
-            return Err("legacy emission mutation is disabled; archived reproduction requires the explicit legacy-economic-fixtures diagnostic feature".into());
-        }
-        for prefix in [
-            b"adaptive:".as_slice(),
-            b"issuance:".as_slice(),
-            b"consensus:".as_slice(),
-            b"recovery:".as_slice(),
-            b"ordinary:".as_slice(),
-            b"rewards:v2".as_slice(),
-        ] {
-            if let Some(entry) = storage
-                .db
-                .iterator(IteratorMode::From(prefix, Direction::Forward))
-                .next()
-            {
-                let (key, _) = entry.map_err(|error| error.to_string())?;
-                if key.starts_with(prefix) {
-                    return Err("Adaptive issuance or consensus requires atomic block settlement; legacy emission mutation is disabled".into());
-                }
-            }
-        }
-        // Timed custody markers remain authoritative even if their timing state
-        // is missing. Presence, including a zero balance, requires recovery.
-        for pool in ["validator_rewards", "treasury", "issuance_reserve"] {
-            if storage
-                .db
-                .get(Self::pool_key(pool))
-                .map_err(|error| error.to_string())?
-                .is_some()
-            {
-                return Err("Adaptive issuance or consensus requires atomic block settlement; legacy emission mutation is disabled".into());
-            }
-        }
-        Ok(())
+    /// Legacy emission mutation is retired; every call is rejected.
+    fn require_legacy_mutation(_storage: &Storage) -> Result<(), String> {
+        Err("legacy emission mutation is disabled".into())
     }
 
     fn pool_key(pool: &str) -> String {

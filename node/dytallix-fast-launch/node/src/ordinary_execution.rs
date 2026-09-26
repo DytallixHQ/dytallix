@@ -974,6 +974,6 @@ fn apply_action(
     Ok(())
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 #[path = "ordinary_execution_tests.rs"]
 mod tests;

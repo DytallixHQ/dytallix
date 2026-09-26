@@ -420,57 +420,6 @@ fn commit_with(
     );
     bail!("Legacy timer settlement is retired")
 }
-/// Archived diagnostic entrypoint. The supported timer remains retired.
-#[cfg(feature = "legacy-economic-fixtures")]
-#[allow(clippy::too_many_arguments)]
-pub fn commit_legacy_fixture_block(
-    state: &mut State,
-    emission: &mut EmissionEngine,
-    staking: &mut StakingModule,
-    burn: &mut FeeBurnEngine,
-    staking_enabled: bool,
-    request: &BlockRequest<'_>,
-) -> Result<BlockOutcome> {
-    commit_legacy_fixture_with(
-        state,
-        emission,
-        staking,
-        burn,
-        staking_enabled,
-        request,
-        |storage, batch| {
-            let mut options = WriteOptions::default();
-            options.set_sync(true);
-            storage.db.write_opt(batch, &options)?;
-            Ok(())
-        },
-    )
-}
-#[cfg(feature = "legacy-economic-fixtures")]
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn commit_legacy_fixture_with(
-    state: &mut State,
-    emission: &mut EmissionEngine,
-    staking: &mut StakingModule,
-    burn: &mut FeeBurnEngine,
-    staking_enabled: bool,
-    request: &BlockRequest<'_>,
-    write: impl FnOnce(&Storage, WriteBatch) -> Result<()>,
-) -> Result<BlockOutcome> {
-    staking
-        .ensure_legacy_fixture_mutation()
-        .map_err(anyhow::Error::msg)?;
-    commit_reward_with(
-        state,
-        emission,
-        staking,
-        burn,
-        staking_enabled,
-        request,
-        false,
-        write,
-    )
-}
 
 #[allow(clippy::too_many_arguments)]
 fn commit_reward_with(

@@ -1,33 +1,21 @@
 # Documentation
 
-This folder is the GitHub-friendly documentation hub for the Dytallix node
-workspace.
-
-Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.
+Documentation for the Dytallix mainnet node workspace.
 
 ## Start Here
 
-- [Capability manifest](public-capabilities.json) - machine-readable public
-  routes, write restrictions, and feature maturity
-- Compatible nodes also expose that contract at `GET /api/capabilities` for
-  runtime discovery
-- [Public deployment evidence](public-deployment-evidence.md) - publicly
-  verifiable live-node contract checks and the remaining provenance gap
-- [Repository map](repository-map.md) - packages, binaries, and notable source
-  areas
-- [Build and run](build-and-run.md) - workspace build commands and main
-  entrypoints
-- [RPC and API docs](rpc-and-apis.md) - public node endpoints and where the
-  deeper protocol docs live
-- [FAQ](faq.md) - operational questions about this repository snapshot
-- [Deployment separation audit](deployment-separation-audit.md) - classification
-  of current Dytallix versus legacy deployment overlap
+- [Build and run](build-and-run.md): build, test and consensus binaries
+- [Repository map](repository-map.md): packages, binaries and source areas
+- [Modular node architecture](architecture/modular-node.md): module
+  boundaries and dependency policy
+- [Component contracts and batch records](mainnet/): per-component contracts
+  and the dated records of the September 2026 implementation batches
 
-## Existing Internal Docs
+## Consensus Engine
 
-- [Fast node RPC reference](../dytallix-fast-launch/node/README_RPC.md)
-- [PQC implementation](../dytallix-fast-launch/node/PQC_IMPLEMENTATION.md)
-- [Secrets management](../blockchain-core/SECRETS_README.md)
+- [CometBFT integration](../consensus/cometbft/README.md)
+- [PQC engine integration](../consensus/cometbft/PQC_ENGINE_INTEGRATION.md)
+- [PQC engine deployment](../deploy/pqc-engine/README.md)
 
 ## Repository References
 

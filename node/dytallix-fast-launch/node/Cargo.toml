@@ -2,7 +2,7 @@
 name = "dytallix-fast-node"
 version = "0.1.0"
 edition = "2021"
-description = "Dytallix Fast Launch Node - Lightweight testnet node"
+description = "Dytallix consensus application"
 
 [dependencies]
 dytallix-adaptive-emission = { path = "../../crates/adaptive-emission" }
@@ -14,7 +14,6 @@ dytallix-release-runtime = { path = "../../crates/release-runtime" }
 dytallix-gas = { path = "../../crates/gas" }
 anyhow = "1"
 libc = "=0.2.184"
-axum = { version = "0.7", features = ["ws","macros"] , optional = true }
 blake3 = "1.5"
 bincode = "1"
 bytes = "1"
@@ -27,31 +26,15 @@ serde_with = "3"
 sha2 = "0.10"
 thiserror = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time"] }
-tokio-stream = { version = "0.1", optional = true }
-tower = { version = "0.5", optional = true }
-tower-http = { version = "0.5", features = ["cors", "trace"] , optional = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 uuid = { version = "1", features = ["v4"] }
 dotenv = "0.15"
-futures = { version = "0.3", optional = true }
 base64 = "0.22"
 bech32 = "0.11"
-# PQC real
-pqcrypto-dilithium = { version = "0.5.0", optional = true }
-pqcrypto-falcon = { version = "0.3.0", optional = true }
-pqcrypto-sphincsplus = { version = "0.7.0", optional = true }
-pqcrypto-traits = { version = "0.3.5", optional = true }
 fips204 = { version = "0.4", optional = true, default-features = false, features = ["default-rng", "ml-dsa-65"] }
 sha3 = "0.10"
-# Observability
-prometheus = { version = "0.13", optional = true }
-clap = { version = "4.4", features = ["derive"], optional = true }
 once_cell = "1.21"
-reqwest = { version = "0.11", features = ["json","rustls-tls"], optional = true }
-# Archived Ed25519 bridge tests only; excluded from the selected consensus graph.
-ed25519-dalek = { version = "1", features = ["std"], optional = true }
-wasmtime = { version = "19.0", optional = true }
 async-trait = "0.1"
 rand = "0.8"
 rand_core = "0.6"
@@ -61,107 +44,19 @@ serde_yaml = "0.9"
 chrono = { version = "0.4", features = ["serde"] }
 colored = "2" # Added for Colorize trait usage
 log = "0.4"    # Added for mempool eviction logging
-# New dependency: core blockchain crate for signature policy
-dytallix-node = { path = "../../blockchain-core", optional = true }
-# Added dependency for PQC signature algorithm mapping in mempool
-dytallix-pqc = { path = "../../pqc-crypto", optional = true }
 
 [dev-dependencies]
 serde_json = "1"
 tempfile = "3"
 
 [features]
+default = ["pqc-consensus"]
+# The selected mainnet consensus application.
+pqc-consensus = ["pqc-fips204", "dytallix-storage/pqc-consensus", "dytallix-runtime-crypto/pqc-consensus"]
+# Pure Rust FIPS 204 (ML-DSA).
+pqc-fips204 = ["fips204", "dytallix-runtime-crypto/pqc-fips204"]
 # Explicit local runner API for returned helper observations. No authority bypass.
 helper-qualification = []
-# Default: the selected mainnet consensus application.
-# Archived legacy builds need --no-default-features plus explicit features, e.g.
-# --features pqc-fips204,metrics,oracle,contracts,legacy-services,mldsa87-development
-default = ["pqc-consensus"]
-# Exact consensus application selection. Incompatible features fail compilation.
-pqc-consensus = ["pqc-fips204", "dytallix-storage/pqc-consensus", "dytallix-runtime-crypto/pqc-consensus"]
-# Archived HTTP, WebSocket, bridge and Vault surfaces for explicit legacy builds.
-legacy-services = ["axum", "tokio-stream", "tower", "tower-http", "futures", "reqwest", "dytallix-storage/legacy-bridge", "dep:dytallix-pqc", "dep:ed25519-dalek"]
-# Historical development signatures are excluded from the selected consensus build.
-mldsa87-development = ["pqc-fips204", "fips204/ml-dsa-87", "dytallix-runtime-crypto/mldsa87-development"]
-# Existing features
-pqc-real = ["pqcrypto-dilithium", "pqcrypto-traits", "dytallix-runtime-crypto/pqc-real"]
-pqc-fips204 = ["fips204", "dytallix-runtime-crypto/pqc-fips204"]  # Pure Rust FIPS 204 (ML-DSA) - WASM compatible
-falcon = ["pqcrypto-falcon", "pqc-real", "dytallix-runtime-crypto/falcon"]
-sphincs = ["pqcrypto-sphincsplus", "pqc-real", "dytallix-runtime-crypto/sphincs"]
-pqc-mock = ["dytallix-runtime-crypto/pqc-mock"]
-# Archived local economics only. Does not enable the node timer or production use.
-legacy-economic-fixtures = []
-legacy-submit = [] # Dev-only legacy submit logic (OFF by default)
-metrics = ["prometheus", "clap"] # Observability features
-alerts = ["legacy-services"]
-# Granular runtime features (compile-time) retained for optional modules
-oracle = ["fips204", "legacy-services"] # Oracle signatures require FIPS 204 with either transaction backend
-contracts = ["legacy-services", "dytallix-node", "wasmtime"]
-ai = ["oracle"]
-staking = []
-# Convenience umbrella feature for a full node build
-full-node = [
-  "oracle",
-  "metrics",
-  "alerts",
-  "contracts",
-  "ai",
-  "staking",
-]
-
-# Archived legacy-service tests. The default consensus build skips them.
-[[test]]
-name = "admission_rpc"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "bridge_integration"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "bridge_unit"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "emission_integration"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "governance_rpc_integration_test"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "json_shapes"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "mempool_integration"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "multi_denom_rpc"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "staking_demo_test"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "legacy_timer_retirement"
-required-features = ["legacy-services"]
-
-[[test]]
-name = "wasm_registry_test"
-required-features = ["contracts"]
-
-[[example]]
-name = "test_fips204"
-required-features = ["mldsa87-development"]
-
-[[bin]]
-name = "dytallix-fast-node"
-path = "src/main.rs"
-required-features = ["legacy-services"]
 
 [[bin]]
 name = "helper-execution-qualification"

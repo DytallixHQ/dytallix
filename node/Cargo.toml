@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "crates/adaptive-emission",
-    "tests/fixtures/registry-contract",
     "crates/protocol-types",
     "crates/runtime-crypto",
     "crates/release-runtime",
@@ -9,9 +8,6 @@ members = [
     "crates/storage",
     "crates/signature-policy",
     "crates/gas",
-    "pqc-crypto",
-    "smart-contracts",
-    "blockchain-core",
     "dytallix-fast-launch/node",
 ]
 resolver = "2"

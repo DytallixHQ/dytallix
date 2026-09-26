@@ -91,42 +91,22 @@ fn body(key: KeyIdentity) -> OrdinaryTransaction {
     }
 }
 
-#[cfg(feature = "pqc-fips204")]
 mod real {
     use super::*;
     use dytallix_protocol_types::sha3_256;
-    #[cfg(feature = "mldsa87-development")]
-    use fips204::ml_dsa_87;
     use fips204::{
         ml_dsa_65,
         traits::{KeyGen, SerDes, Signer},
     };
     use rand_core::OsRng;
 
-    /// Export public development evidence only. No secret key leaves this process.
-    #[cfg(feature = "mldsa87-development")]
-    #[test]
-    #[ignore = "explicit public fixture regeneration"]
-    fn export_public_development_fixture() {
-        let directory =
-            std::env::var("DYTALLIX_PUBLIC_FIXTURE_DIR").expect("explicit fixture directory");
-        let value = fixture("mldsa87").1;
-        let bytes = wire::encode(&value, &limits()).unwrap();
-        std::fs::write(std::path::Path::new(&directory).join("ordinary.bin"), bytes).unwrap();
-    }
 
     fn secondary_algorithm() -> &'static str {
-        if cfg!(feature = "mldsa87-development") {
-            "mldsa87"
-        } else {
-            "mldsa65"
-        }
+        "mldsa65"
     }
 
     enum Secret {
         Dsa65(ml_dsa_65::PrivateKey),
-        #[cfg(feature = "mldsa87-development")]
-        Dsa87(ml_dsa_87::PrivateKey),
     }
     struct Key {
         identity: KeyIdentity,
@@ -145,25 +125,12 @@ mod real {
                         secret: Secret::Dsa65(secret),
                     }
                 }
-                #[cfg(feature = "mldsa87-development")]
-                "mldsa87" => {
-                    let (public, secret) = ml_dsa_87::KG::try_keygen_with_rng(&mut OsRng).unwrap();
-                    Self {
-                        identity: KeyIdentity {
-                            algorithm: algorithm.into(),
-                            public_key: public.into_bytes().to_vec(),
-                        },
-                        secret: Secret::Dsa87(secret),
-                    }
-                }
                 _ => panic!("unsupported test algorithm"),
             }
         }
         fn sign_context(&self, bytes: &[u8], context: &[u8]) -> Vec<u8> {
             match &self.secret {
                 Secret::Dsa65(key) => key.try_sign(bytes, context).unwrap().to_vec(),
-                #[cfg(feature = "mldsa87-development")]
-                Secret::Dsa87(key) => key.try_sign(bytes, context).unwrap().to_vec(),
             }
         }
         fn sign(&self, body: OrdinaryTransaction) -> SignedOrdinary {
@@ -182,10 +149,7 @@ mod real {
 
     #[test]
     fn mainnet_operational_profile_checks_compiled_algorithms() {
-        for algorithm in ["mldsa65", "mldsa87"]
-            .into_iter()
-            .filter(|a| *a == "mldsa65" || cfg!(feature = "mldsa87-development"))
-        {
+        for algorithm in ["mldsa65"] {
             let key = Key::new(algorithm);
             let mut tx = body(key.identity.clone());
             tx.domain.network = 1;
@@ -199,10 +163,7 @@ mod real {
 
     #[test]
     fn compiled_algorithms_authenticate_all_twelve_actions_and_complete_body() {
-        for algorithm in ["mldsa65", "mldsa87"]
-            .into_iter()
-            .filter(|a| *a == "mldsa65" || cfg!(feature = "mldsa87-development"))
-        {
+        for algorithm in ["mldsa65"] {
             let (_, signed) = fixture(algorithm);
             let bytes = wire::encode(&signed, &limits()).unwrap();
             let verified = verify_bytes(&bytes, &limits()).unwrap();
@@ -496,44 +457,13 @@ mod real {
     }
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-#[test]
-fn missing_real_backend_rejects_canonical_input_even_with_mock_enabled() {
-    use dytallix_runtime_crypto::ordinary::OrdinaryVerificationError;
-    for (algorithm, public_len, signature_len) in [("mldsa65", 1952, 3309), ("mldsa87", 2592, 4627)]
-    {
-        let signed = SignedOrdinary {
-            body: body(KeyIdentity {
-                algorithm: algorithm.into(),
-                public_key: vec![1; public_len],
-            }),
-            signature: vec![2; signature_len],
-        };
-        let bytes = wire::encode(&signed, &limits()).expect("canonical input reaches backend gate");
-        assert!(matches!(
-            verify_signed(&signed, &limits()),
-            Err(OrdinaryVerificationError::BackendUnavailable)
-        ));
-        assert!(matches!(
-            verify_bytes(&bytes, &limits()),
-            Err(OrdinaryVerificationError::BackendUnavailable)
-        ));
-    }
-}
 
 /// The same valid public development signature must fail in the strict backend.
-#[cfg(feature = "pqc-fips204")]
 #[test]
 fn frozen_mldsa87_signature_matches_explicit_backend_selection() {
     let bytes = include_bytes!("fixtures/mldsa87/ordinary.bin");
     let value = wire::decode(bytes, &limits()).unwrap();
     let result = verify_signed(&value, &limits());
-    #[cfg(feature = "mldsa87-development")]
-    assert!(
-        result.is_ok(),
-        "public development fixture must verify: {result:?}"
-    );
-    #[cfg(not(feature = "mldsa87-development"))]
     assert!(matches!(
         result,
         Err(dytallix_runtime_crypto::ordinary::OrdinaryVerificationError::UnsupportedAlgorithm)
@@ -545,12 +475,6 @@ fn frozen_mldsa87_signature_matches_explicit_backend_selection() {
         &value.signature,
         dytallix_runtime_crypto::PQCAlgorithm::MlDsa87,
     );
-    #[cfg(feature = "mldsa87-development")]
-    assert!(
-        general.is_ok(),
-        "general verifier must verify this valid fixture"
-    );
-    #[cfg(not(feature = "mldsa87-development"))]
     assert!(matches!(
         general,
         Err(dytallix_runtime_crypto::PQCVerifyError::UnsupportedAlgorithm(_))

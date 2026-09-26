@@ -66,21 +66,11 @@ pub fn verify_bytes(
     verify_signed(&signed, limits)
 }
 
-#[cfg(not(feature = "pqc-fips204"))]
-fn verify_backend(
-    _signed: &SignedOrdinary,
-    _limits: &V3Limits,
-) -> Result<(), OrdinaryV3VerificationError> {
-    Err(OrdinaryV3VerificationError::BackendUnavailable)
-}
 
-#[cfg(feature = "pqc-fips204")]
 fn verify_backend(
     signed: &SignedOrdinary,
     limits: &V3Limits,
 ) -> Result<(), OrdinaryV3VerificationError> {
-    #[cfg(feature = "mldsa87-development")]
-    use fips204::ml_dsa_87;
     use fips204::{
         ml_dsa_65,
         traits::{SerDes, Verifier},
@@ -103,22 +93,6 @@ fn verify_backend(
             let public = ml_dsa_65::PublicKey::try_from_bytes(bytes)
                 .map_err(|_| OrdinaryV3VerificationError::InvalidPublicKey)?;
             let signature: [u8; ml_dsa_65::SIG_LEN] = signed
-                .signature
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryV3VerificationError::InvalidSignature)?;
-            public.verify(&message, &signature, &[])
-        }
-        #[cfg(feature = "mldsa87-development")]
-        "mldsa87" => {
-            let bytes: [u8; ml_dsa_87::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryV3VerificationError::InvalidPublicKey)?;
-            let public = ml_dsa_87::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| OrdinaryV3VerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_87::SIG_LEN] = signed
                 .signature
                 .as_slice()
                 .try_into()

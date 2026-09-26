@@ -766,7 +766,7 @@ fn check_future_history_capacity(state: &LifecycleState, activation: u64) -> Res
     Ok(())
 }
 
-#[cfg(all(test, feature = "pqc-fips204"))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::runtime::reward_runtime::{RewardConfig, ValidatorStatus};
