@@ -49,6 +49,8 @@ prometheus = { version = "0.13", optional = true }
 clap = { version = "4.4", features = ["derive"], optional = true }
 once_cell = "1.21"
 reqwest = { version = "0.11", features = ["json","rustls-tls"], optional = true }
+# Archived Ed25519 bridge tests only; excluded from the selected consensus graph.
+ed25519-dalek = { version = "1", features = ["std"], optional = true }
 wasmtime = { version = "19.0", optional = true }
 async-trait = "0.1"
 rand = "0.8"
@@ -67,17 +69,18 @@ dytallix-pqc = { path = "../../pqc-crypto", optional = true }
 [dev-dependencies]
 serde_json = "1"
 tempfile = "3"
-rand = "0.7"
 
 [features]
 # Explicit local runner API for returned helper observations. No authority bypass.
 helper-qualification = []
-# Public default: core + PQC + metrics + oracle + contracts
-default = ["pqc-fips204", "metrics", "oracle", "contracts", "legacy-services", "mldsa87-development"]
+# Default: the selected mainnet consensus application.
+# Archived legacy builds need --no-default-features plus explicit features, e.g.
+# --features pqc-fips204,metrics,oracle,contracts,legacy-services,mldsa87-development
+default = ["pqc-consensus"]
 # Exact consensus application selection. Incompatible features fail compilation.
 pqc-consensus = ["pqc-fips204", "dytallix-storage/pqc-consensus", "dytallix-runtime-crypto/pqc-consensus"]
-# Archived HTTP, WebSocket, bridge and Vault surfaces retained for default builds.
-legacy-services = ["axum", "tokio-stream", "tower", "tower-http", "futures", "reqwest", "dytallix-storage/legacy-bridge", "dep:dytallix-pqc"]
+# Archived HTTP, WebSocket, bridge and Vault surfaces for explicit legacy builds.
+legacy-services = ["axum", "tokio-stream", "tower", "tower-http", "futures", "reqwest", "dytallix-storage/legacy-bridge", "dep:dytallix-pqc", "dep:ed25519-dalek"]
 # Historical development signatures are excluded from the selected consensus build.
 mldsa87-development = ["pqc-fips204", "fips204/ml-dsa-87", "dytallix-runtime-crypto/mldsa87-development"]
 # Existing features
@@ -105,6 +108,55 @@ full-node = [
   "ai",
   "staking",
 ]
+
+# Archived legacy-service tests. The default consensus build skips them.
+[[test]]
+name = "admission_rpc"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "bridge_integration"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "bridge_unit"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "emission_integration"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "governance_rpc_integration_test"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "json_shapes"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "mempool_integration"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "multi_denom_rpc"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "staking_demo_test"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "legacy_timer_retirement"
+required-features = ["legacy-services"]
+
+[[test]]
+name = "wasm_registry_test"
+required-features = ["contracts"]
+
+[[example]]
+name = "test_fips204"
+required-features = ["mldsa87-development"]
 
 [[bin]]
 name = "dytallix-fast-node"

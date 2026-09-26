@@ -25,14 +25,25 @@ Toolchains: Rust 1.88.0 (pinned by `rust-toolchain.toml`) and Go 1.25.
 
 ```sh
 cd mainnet/node
-cargo build --workspace --locked
+cargo build --workspace --all-targets --locked
 cargo test --workspace --locked
-cargo build -p dytallix-fast-node --bin dytallix-fast-node --release --locked
 ```
 
-The consensus engine lives in `node/consensus/cometbft`. See
-`node/consensus/cometbft/README.md` and `PQC_ENGINE_INTEGRATION.md` there.
-See `node/docs/build-and-run.md` for runtime flags and genesis loading.
+The default build is the mainnet consensus application (feature
+`pqc-consensus`). The archived legacy node that the current testnet runs is a
+separate, explicit build; see "Build modes" in `node/docs/build-and-run.md`.
+
+The consensus engine lives in `node/consensus/cometbft`:
+
+```sh
+cd mainnet/node/consensus/cometbft
+go test -mod=readonly ./...
+```
+
+See `node/consensus/cometbft/README.md` and `PQC_ENGINE_INTEGRATION.md` there.
+
+CI runs all of the above on every change under `mainnet/`
+(`.github/workflows/mainnet.yml`).
 
 ## Launch documents
 

@@ -8,7 +8,9 @@
     "dytallix-runtime-crypto": "crates/runtime-crypto",
     "dytallix-storage": "crates/storage",
     "dytallix-adaptive-emission": "crates/adaptive-emission",
-    "dytallix-signature-policy": "crates/signature-policy"
+    "dytallix-signature-policy": "crates/signature-policy",
+    "dytallix-release-runtime": "crates/release-runtime",
+    "dytallix-fast-node": "dytallix-fast-launch/node"
   },
   "modules": {
     "dytallix-gas": {
@@ -98,6 +100,43 @@
           "serde"
         ],
         "dev-dependencies": [],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-release-runtime": {
+      "path": "crates/release-runtime",
+      "allowed_dependencies": {
+        "dependencies": [
+          "anyhow",
+          "hex",
+          "libc",
+          "serde",
+          "serde_json",
+          "sha2",
+          "tempfile"
+        ],
+        "dev-dependencies": [],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-native-supervisor": {
+      "path": "crates/native-supervisor",
+      "allowed_dependencies": {
+        "dependencies": [
+          "anyhow",
+          "base64",
+          "dytallix-fast-node",
+          "dytallix-release-runtime",
+          "hex",
+          "libc",
+          "serde",
+          "serde_json",
+          "sha2",
+          "toml"
+        ],
+        "dev-dependencies": [
+          "tempfile"
+        ],
         "build-dependencies": []
       }
     }

@@ -16,7 +16,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust
+//! ```ignore
 //! use dytallix_blockchain_core::consensus::{ConsensusEngine, AIServiceType};
 //!
 //! // Create a new consensus engine

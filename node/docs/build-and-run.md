@@ -22,6 +22,23 @@ Run tests:
 cargo test --workspace --locked
 ```
 
+### Build modes
+
+The default build is the selected mainnet consensus application
+(`dytallix-fast-node` feature `pqc-consensus`). `cargo build --workspace` and
+`cargo test --workspace` use it.
+
+The archived legacy node (HTTP/WebSocket RPC, bridge, contracts and the retired
+block timer used by the current testnet) is a separate build. Enable it
+explicitly:
+
+```bash
+cargo test -p dytallix-fast-node --no-default-features --features pqc-fips204,metrics,oracle,contracts,legacy-services,mldsa87-development --locked
+```
+
+Legacy-only test targets declare `required-features`, so the default build
+skips them.
+
 For focused changes in this large workspace, it is reasonable to run the most
 relevant crate or test target and document that scope in the PR.
 
@@ -30,13 +47,13 @@ relevant crate or test target and document that scope in the PR.
 Build the public RPC node:
 
 ```bash
-cargo build -p dytallix-fast-node --bin dytallix-fast-node --release --locked
+cargo build -p dytallix-fast-node --bin dytallix-fast-node --release --no-default-features --features pqc-fips204,metrics,oracle,contracts,legacy-services,mldsa87-development --locked
 ```
 
 Run it:
 
 ```bash
-cargo run -p dytallix-fast-node --bin dytallix-fast-node --release
+cargo run -p dytallix-fast-node --bin dytallix-fast-node --release --no-default-features --features pqc-fips204,metrics,oracle,contracts,legacy-services,mldsa87-development
 ```
 
 The deeper runtime and endpoint notes live in
@@ -57,7 +74,7 @@ Recommended install flow:
 ```bash
 git clone https://github.com/DytallixHQ/dytallix-node.git /opt/dytallix-node
 cd /opt/dytallix-node
-cargo build -p dytallix-fast-node --bin dytallix-fast-node --release --locked
+cargo build -p dytallix-fast-node --bin dytallix-fast-node --release --no-default-features --features pqc-fips204,metrics,oracle,contracts,legacy-services,mldsa87-development --locked
 mkdir -p /etc/dytallix /var/log/dytallix
 ```
 
