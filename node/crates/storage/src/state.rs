@@ -9,6 +9,9 @@ use std::path::PathBuf;
 pub struct Storage {
     pub db: DB,
     execution_lock: std::sync::Mutex<()>,
+    /// RocksDB sequence number at the last complete consensus history
+    /// verification on this handle. Any later write invalidates it.
+    verified_sequence: std::sync::Mutex<Option<u64>>,
 }
 
 impl Storage {
@@ -32,6 +35,7 @@ impl Storage {
         Ok(Self {
             db,
             execution_lock: std::sync::Mutex::new(()),
+            verified_sequence: std::sync::Mutex::new(None),
         })
     }
 
@@ -42,6 +46,7 @@ impl Storage {
         Ok(Self {
             db,
             execution_lock: std::sync::Mutex::new(()),
+            verified_sequence: std::sync::Mutex::new(None),
         })
     }
     /// Serialize selected-node execution planning and commit on this storage handle.
@@ -50,6 +55,27 @@ impl Storage {
         self.execution_lock
             .lock()
             .map_err(|_| anyhow::anyhow!("Execution storage lock poisoned"))
+    }
+
+    /// True when no write has occurred since `mark_verified` recorded the
+    /// current sequence number.
+    pub fn verified_at_current_sequence(&self) -> anyhow::Result<bool> {
+        let mark = *self
+            .verified_sequence
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Verification mark lock poisoned"))?;
+        Ok(mark == Some(self.db.latest_sequence_number()))
+    }
+
+    /// Record that committed state at `sequence` passed verification. The mark
+    /// is kept only if no write occurred after `sequence`.
+    pub fn mark_verified(&self, sequence: u64) -> anyhow::Result<()> {
+        let mut mark = self
+            .verified_sequence
+            .lock()
+            .map_err(|_| anyhow::anyhow!("Verification mark lock poisoned"))?;
+        *mark = (self.db.latest_sequence_number() == sequence).then_some(sequence);
+        Ok(())
     }
 
     pub fn put_block(&self, block: &Block, receipts: &[TxReceipt]) -> anyhow::Result<()> {

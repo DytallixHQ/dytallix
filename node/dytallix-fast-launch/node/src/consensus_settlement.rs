@@ -45,7 +45,7 @@ use dytallix_protocol_types::recovery_sponsor as sponsor_wire;
 use dytallix_protocol_types::ordinary_v3::SignedOrdinary as SignedOrdinaryV3;
 use dytallix_protocol_types::{ordinary as ordinary_wire, ordinary_fees as ordinary_fee_wire};
 use dytallix_storage::adaptive::PreparedJournalUpdate;
-use rocksdb::{IteratorMode, WriteBatch, WriteOptions};
+use rocksdb::{Direction, IteratorMode, WriteBatch, WriteOptions};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -655,6 +655,7 @@ fn check_stored_startup(
             "Stored application genesis source differs");
         crate::root_genesis::check_receipt(
             storage.db.get(crate::root_genesis::STATE_KEY)?.as_deref(), root_genesis)?;
+        let sequence = storage.db.latest_sequence_number();
         let history = HistoryRead::new(storage);
         let trace = verify_recovery_with(&history)?;
         if let (Some(policy), Some(verifier)) = (&config.emergency, emergency_verifier) {
@@ -664,6 +665,7 @@ fn check_stored_startup(
             let outcomes = upgrade_history(&history, config, &trace, Some(verifier))?;
             handover_history(&history, config, &trace, &outcomes, Some(verifier))?;
         }
+        storage.mark_verified(sequence)?;
         Ok(true)
     } else {
         // Read errors must not be mistaken for an empty database.
@@ -791,6 +793,10 @@ pub enum QueryRequest<'a> {
 }
 #[cfg(test)]
 thread_local! { static RECOVERY_PASSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+thread_local! { static FULL_HISTORY_PASSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+thread_local! { static STATE_DIGEST_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 pub struct ConsensusApplication {
     storage: Arc<Storage>,
     config: ConsensusConfig,
@@ -836,32 +842,41 @@ fn read_head(storage: &Storage) -> Result<Option<Head>> {
 fn record_key(height: u64) -> String {
     format!("{BLOCK_PREFIX}{height:016x}")
 }
+/// Key prefixes whose entries form the consensus state commitment.
+const STATE_PREFIXES: [&[u8]; 17] = [
+    b"acct:",
+    b"dms:config:",
+    b"emission:",
+    b"staking:",
+    b"rewards:",
+    b"issuance:",
+    b"adaptive:",
+    b"lifecycle:",
+    b"penalty:",
+    b"recovery:",
+    b"supply:",
+    b"genesis:",
+    b"root:authorization:",
+    b"ordinary:v1:",
+    b"consensus:emergency:",
+    b"consensus:upgrade:",
+    b"consensus:release-handover:",
+];
+/// Individual keys in the consensus state commitment, outside STATE_PREFIXES.
+fn state_keys(governance_enabled: bool) -> Vec<&'static [u8]> {
+    let mut keys = vec![
+        MODE_KEY.as_bytes(),
+        b"meta:chain_id".as_slice(),
+        b"execution:v1:withheld_udrt".as_slice(),
+    ];
+    if governance_enabled {
+        keys.push(GOVERNANCE_STATE_KEY.as_bytes());
+    }
+    keys
+}
 fn selected(key: &[u8], governance_enabled: bool) -> bool {
-    [
-        b"acct:".as_slice(),
-        b"dms:config:",
-        b"emission:",
-        b"staking:",
-        b"rewards:",
-        b"issuance:",
-        b"adaptive:",
-        b"lifecycle:",
-        b"penalty:",
-        b"recovery:",
-        b"supply:",
-        b"genesis:",
-        b"root:authorization:",
-        b"ordinary:v1:",
-        b"consensus:emergency:",
-        b"consensus:upgrade:",
-        b"consensus:release-handover:",
-    ]
-    .iter()
-    .any(|prefix| key.starts_with(prefix))
-        || (governance_enabled && key == GOVERNANCE_STATE_KEY.as_bytes())
-        || key == MODE_KEY.as_bytes()
-        || key == b"meta:chain_id"
-        || key == b"execution:v1:withheld_udrt"
+    STATE_PREFIXES.iter().any(|prefix| key.starts_with(prefix))
+        || state_keys(governance_enabled).contains(&key)
 }
 fn governance_key_permitted(key: &[u8], governance_enabled: bool) -> bool {
     if key.starts_with(b"governance:") {
@@ -869,16 +884,37 @@ fn governance_key_permitted(key: &[u8], governance_enabled: bool) -> bool {
     }
     !key.starts_with(b"gov:")
 }
+/// Reads only the committed state keys and the governance prefixes, so the cost
+/// does not grow with block records or transaction indexes.
 fn state_digest(storage: &Storage, writes: &Writes, governance_enabled: bool) -> Result<String> {
+    // governance_key_permitted rejects keys only under these two prefixes.
+    for prefix in [b"gov:".as_slice(), b"governance:"] {
+        for item in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
+            let (k, _) = item?;
+            if !k.starts_with(prefix) {
+                break;
+            }
+            ensure!(
+                governance_key_permitted(&k, governance_enabled),
+                "Governance state requires a configured consensus profile"
+            );
+        }
+    }
     let mut values = BTreeMap::new();
-    for item in storage.db.iterator(IteratorMode::Start) {
-        let (k, v) = item?;
-        ensure!(
-            governance_key_permitted(&k, governance_enabled),
-            "Governance state requires a configured consensus profile"
-        );
-        if selected(&k, governance_enabled) {
+    for prefix in STATE_PREFIXES {
+        for item in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
+            let (k, v) = item?;
+            if !k.starts_with(prefix) {
+                break;
+            }
+            #[cfg(test)]
+            STATE_DIGEST_READS.with(|n| n.set(n.get() + 1));
             values.insert(k.to_vec(), v.to_vec());
+        }
+    }
+    for key in state_keys(governance_enabled) {
+        if let Some(v) = storage.db.get(key)? {
+            values.insert(key.to_vec(), v);
         }
     }
     for (k, v) in writes {
@@ -4610,6 +4646,12 @@ impl ConsensusApplication {
         batch.put(HEAD_KEY, serde_json::to_vec(&prepared.record.head)?);
         write(&self.storage, batch)?;
         self.pending = None;
+        // Earlier history was verified before this write and is unchanged, so
+        // check only the new block. On failure the mark stays cleared and the
+        // next call repeats the complete check.
+        let sequence = self.storage.db.latest_sequence_number();
+        verify_history(&HistoryRead::new(&self.storage), Some(expected_next.height))?;
+        self.storage.mark_verified(sequence)?;
         Ok(expected_next)
     }
     // Caller holds the execution lock and has validated the committed state.
@@ -4638,8 +4680,7 @@ impl ConsensusApplication {
         wanted_height: i64,
     ) -> Result<(Info, serde_json::Value)> {
         let _guard = self.storage.lock_execution()?;
-        let history = HistoryRead::new(&self.storage);
-        verify_recovery_with(&history)?;
+        verify_recovery(&self.storage)?;
         let info = current_info(&self.storage)?;
         ensure!(
             wanted_height == 0 || u64::try_from(wanted_height).ok() == Some(info.height),
@@ -4834,12 +4875,31 @@ impl ConsensusApplication {
 }
 
 /// Validate durable application state without entering the development journal.
+/// The complete history check runs unless no write has occurred on this storage
+/// handle since the last successful complete check or per-block commit check.
 pub fn verify_recovery(storage: &Storage) -> Result<()> {
-    verify_recovery_with(&HistoryRead::new(storage)).map(|_| ())
-}
-fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
     #[cfg(test)]
     RECOVERY_PASSES.with(|n| n.set(n.get() + 1));
+    if storage.verified_at_current_sequence()? {
+        return Ok(());
+    }
+    let sequence = storage.db.latest_sequence_number();
+    verify_recovery_with(&HistoryRead::new(storage))?;
+    storage.mark_verified(sequence)
+}
+fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
+    verify_history(history, None)
+}
+/// With `from`, block checks cover only heights `from..=head`, and the
+/// whole-history checks are skipped: the unknown-key and orphan scans,
+/// cross-history duplicate sets, exact penalty evidence equality and control
+/// history replay. The complete check (`from = None`) runs at startup and after
+/// any write outside commit.
+fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<EmergencyTrace> {
+    #[cfg(test)]
+    if from.is_none() {
+        FULL_HISTORY_PASSES.with(|n| n.set(n.get() + 1));
+    }
     let storage = history.storage;
     let raw = storage
         .db
@@ -4903,7 +4963,11 @@ fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
             state.last_height == height,
             "Ordinary height differs from committed head"
         );
-        for receipt in state.history.receipts() {
+        for receipt in state
+            .history
+            .receipts()
+            .filter(|receipt| from.is_none_or(|from| receipt.block_height() >= from))
+        {
             ensure!(
                 ordinary_positions
                     .insert((receipt.block_height(), receipt.block_index()), receipt)
@@ -4914,7 +4978,11 @@ fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
     }
     let mut recovery_positions = BTreeMap::new();
     if let Some(book) = &recovery {
-        for receipt in book.sponsor_receipts.values() {
+        for receipt in book
+            .sponsor_receipts
+            .values()
+            .filter(|receipt| from.is_none_or(|from| receipt.block_height >= from))
+        {
             ensure!(
                 recovery_positions
                     .insert((receipt.block_height, receipt.block_index), receipt)
@@ -4944,8 +5012,17 @@ fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
             "Engine head metadata differs"
         );
         known.insert(HEAD_KEY.as_bytes().to_vec());
-        let mut previous: Option<Head> = None;
-        for h in 1..=height {
+        let start = from.unwrap_or(1);
+        ensure!(
+            (1..=height).contains(&start),
+            "Verification start is outside committed history"
+        );
+        let mut previous: Option<Head> = if start > 1 {
+            Some(history.block(start - 1)?.head.clone())
+        } else {
+            None
+        };
+        for h in start..=height {
             let key = record_key(h);
             known.insert(key.as_bytes().to_vec());
             let record = history.block(h)?;
@@ -5275,7 +5352,12 @@ fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
             })
             .collect::<Result<_>>()?;
         ensure!(
-            receipts.len() == penalties.incidents.len() && receipts == recorded_evidence,
+            receipts.len() == penalties.incidents.len()
+                && if from.is_none() {
+                    receipts == recorded_evidence
+                } else {
+                    recorded_evidence.keys().all(|fact| receipts.contains_key(fact))
+                },
             "Penalty receipts differ from committed evidence inputs"
         );
     } else {
@@ -5286,6 +5368,12 @@ fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
     }
     ensure!(recovery_positions.is_empty(), "Orphan recovery receipt");
     ensure!(ordinary_positions.is_empty(), "Orphan ordinary receipt");
+    if from.is_some() {
+        return Ok(EmergencyTrace {
+            records: Vec::new(),
+            states: Vec::new(),
+        });
+    }
     for item in storage.db.iterator(IteratorMode::Start) {
         let (key, _) = item?;
         ensure!(

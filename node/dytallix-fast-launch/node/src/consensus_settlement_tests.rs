@@ -797,3 +797,6 @@ fn admission_receipts_follow_durable_commit_across_failures_and_recovery() {
         assert_eq!(data(&recovered), committed);
     }
 }
+
+#[path = "state_model_tests.rs"]
+mod state_model_tests;
