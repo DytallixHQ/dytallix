@@ -10,7 +10,7 @@ use crate::ordinary_reservations::{ReservationId, ReservationLedger, Reservation
 use crate::ordinary_state::{self, OrdinaryConfig, OrdinaryState, STATE_KEY as ORDINARY_STATE_KEY};
 use crate::recovery_fees::{RecoveryBook, RecoveryResult, STATE_KEY as RECOVERY_STATE_KEY};
 use crate::{
-    block_lifecycle::{self, Writes},
+    block_lifecycle::{self, Deletes, Writes},
     execution::stage_transaction,
     gas::GasSchedule,
     runtime::{
@@ -586,6 +586,7 @@ struct Prepared {
     expected_info: Info,
     expected_state_digest: String,
     writes: Writes,
+    deletes: Deletes,
     journal: Option<PreparedJournalUpdate>,
     record: BlockRecord,
 }
@@ -882,9 +883,22 @@ fn governance_key_permitted(key: &[u8], governance_enabled: bool) -> bool {
     }
     !key.starts_with(b"gov:")
 }
-/// Reads only the committed state keys and the governance prefixes, so the cost
-/// does not grow with block records or transaction indexes.
 fn state_digest(storage: &Storage, writes: &Writes, governance_enabled: bool) -> Result<String> {
+    state_digest_with(storage, writes, &Deletes::new(), governance_enabled)
+}
+/// Reads only the committed state keys and the governance prefixes, so the cost
+/// does not grow with block records or transaction indexes. `deletes` removes
+/// stored keys before `writes` apply; the two sets must be disjoint.
+fn state_digest_with(
+    storage: &Storage,
+    writes: &Writes,
+    deletes: &Deletes,
+    governance_enabled: bool,
+) -> Result<String> {
+    ensure!(
+        deletes.iter().all(|key| !writes.contains_key(key)),
+        "A block cannot write and delete the same key"
+    );
     // governance_key_permitted rejects keys only under these two prefixes.
     for prefix in [b"gov:".as_slice(), b"governance:"] {
         for item in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
@@ -914,6 +928,9 @@ fn state_digest(storage: &Storage, writes: &Writes, governance_enabled: bool) ->
         if let Some(v) = storage.db.get(key)? {
             values.insert(key.to_vec(), v);
         }
+    }
+    for key in deletes {
+        values.remove(key);
     }
     for (k, v) in writes {
         ensure!(
@@ -4592,8 +4609,15 @@ impl ConsensusApplication {
             result_digest: results_digest(&self.config, &results, &validator_updates)?,
             prior_app_hash: expected_info.app_hash.clone(),
         };
+        // Filled by per-account state (phase B1b); empty until then.
+        let deletes = Deletes::new();
         let next_state_digest =
-            state_digest(&self.storage, &writes, self.config.governance.is_some())?;
+            state_digest_with(
+                &self.storage,
+                &writes,
+                &deletes,
+                self.config.governance.is_some(),
+            )?;
         let next_app_hash = app_hash(&next_state_digest, &anchor)?;
         let head = Head {
             anchor,
@@ -4610,6 +4634,7 @@ impl ConsensusApplication {
                 self.config.governance.is_some(),
             )?,
             writes,
+            deletes,
             journal,
             record: BlockRecord {
                 input,
@@ -4684,6 +4709,13 @@ impl ConsensusApplication {
             journal.append_checked(&self.storage, &guard, &mut batch)?;
         } else {
             ensure!(adaptive.is_empty(), "Unexpected controller journal writes");
+        }
+        ensure!(
+            prepared.deletes.iter().all(|key| !prepared.writes.contains_key(key)),
+            "A block cannot write and delete the same key"
+        );
+        for key in &prepared.deletes {
+            batch.delete(key);
         }
         for (key, value) in &prepared.writes {
             if !key.starts_with(b"adaptive:") {
