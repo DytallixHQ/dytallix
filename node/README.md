@@ -35,7 +35,6 @@ so clients can discover the active public surface without scraping docs.
 - [Fast node RPC reference](dytallix-fast-launch/node/README_RPC.md)
 - [PQC implementation](dytallix-fast-launch/node/PQC_IMPLEMENTATION.md)
 - [Secrets management](blockchain-core/SECRETS_README.md)
-- [PulseGuard API draft](blockchain-core/src/risk/pulseguard/api/OPENAPI.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -96,7 +95,6 @@ entrypoints.
 The main API and protocol references are already in the repository:
 
 - [Fast node RPC reference](dytallix-fast-launch/node/README_RPC.md)
-- [PulseGuard API draft](blockchain-core/src/risk/pulseguard/api/OPENAPI.md)
 - [PQC implementation notes](dytallix-fast-launch/node/PQC_IMPLEMENTATION.md)
 - [Secrets management guide](blockchain-core/SECRETS_README.md)
 

@@ -1,3 +1,0 @@
-[pulseguard]
-p95_target_ms = 100
-flash_loan_velocity_threshold = 500.0

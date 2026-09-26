@@ -44,17 +44,6 @@ Stake and governance write routes are intentionally not public-complete. Public
 read routes remain available, while unfinished write paths should return
 explicit unsupported errors until they are ready end to end.
 
-## PulseGuard
-
-The PulseGuard draft API lives at:
-
-- [PulseGuard API draft](../blockchain-core/src/risk/pulseguard/api/OPENAPI.md)
-
-The current draft calls out:
-
-- `POST /pulseguard/score`
-- `GET /pulseguard/stream` as planned SSE or websocket output
-
 ## Security And Cryptography References
 
 - [PQC implementation](../dytallix-fast-launch/node/PQC_IMPLEMENTATION.md)

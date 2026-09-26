@@ -17,7 +17,7 @@ mod types;
 mod contracts;
 mod genesis;
 mod staking;
-mod wasm; // PulseGuard WASM engine & host env // smart contract integration types
+mod wasm; // smart contract integration types
           // mod consensus;  // Temporarily disabled
           // mod networking;  // Temporarily disabled
 

@@ -6,7 +6,8 @@
   "notes": [
     "The Dytallix-mainnet repositories were restored from tarball snapshots on 2026-09-09 and had no git remote; their September history exists only locally.",
     "The newest node work (edited through 2026-09-25) was uncommitted in the source tree and is included here.",
-    "Older candidate source snapshots under Dytallix-mainnet-launch/decision-register are earlier copies of mainnet/node and are not imported."
+    "Older candidate source snapshots under Dytallix-mainnet-launch/decision-register are earlier copies of mainnet/node and are not imported.",
+    "Digests describe the import commit. Later commits (for example removal of product code such as PulseGuard) change mainnet/ and are recorded in git history."
   ],
   "components": [
     {

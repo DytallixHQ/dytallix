@@ -28,7 +28,6 @@ Keypair, faucet, transfer, and basic contract lifecycle are available for experi
 - [Fast node RPC reference](../dytallix-fast-launch/node/README_RPC.md)
 - [PQC implementation](../dytallix-fast-launch/node/PQC_IMPLEMENTATION.md)
 - [Secrets management](../blockchain-core/SECRETS_README.md)
-- [PulseGuard API draft](../blockchain-core/src/risk/pulseguard/api/OPENAPI.md)
 
 ## Repository References
 

@@ -71,7 +71,6 @@ For developers integrating today, the most relevant practical security facts are
 The local node snapshot also contains additional research or draft modules, such
 as:
 
-- PulseGuard risk-scoring components
 - bridge quorum handling
 - oracle-related extensions
 - some multi-algorithm PQC notes

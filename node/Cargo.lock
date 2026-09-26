@@ -1496,7 +1496,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum",
  "base64 0.22.1",
  "base64ct",
  "bincode",
@@ -1524,10 +1523,8 @@ dependencies = [
  "sha3",
  "thiserror 1.0.69",
  "tokio",
- "tokio-stream",
  "tokio-test",
  "tokio-tungstenite 0.20.1",
- "tower-http",
  "tracing",
  "tracing-subscriber",
  "url",

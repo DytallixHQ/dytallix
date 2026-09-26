@@ -26,8 +26,6 @@ pull request:
 - public node endpoints or request shapes
   Update [docs/rpc-and-apis.md](docs/rpc-and-apis.md) and
   [dytallix-fast-launch/node/README_RPC.md](dytallix-fast-launch/node/README_RPC.md).
-- PulseGuard API behavior
-  Update [blockchain-core/src/risk/pulseguard/api/OPENAPI.md](blockchain-core/src/risk/pulseguard/api/OPENAPI.md).
 - PQC verification behavior or feature flags
   Update [dytallix-fast-launch/node/PQC_IMPLEMENTATION.md](dytallix-fast-launch/node/PQC_IMPLEMENTATION.md).
 - secrets-loading behavior
