@@ -253,7 +253,9 @@ pub(crate) fn genesis_amount(storage: &Storage) -> Result<u128> {
             .context("Missing DRT genesis counter; migration required")?,
     )
 }
-const RELEVANT_PREFIXES: [&[u8]; 12] = [
+/// Emission events are not a prefix here: only the current block's event is
+/// read, by point lookup, instead of every event since genesis.
+const RELEVANT_PREFIXES: [&[u8]; 11] = [
     b"supply:",
     b"staking:",
     b"rewards:",
@@ -265,7 +267,6 @@ const RELEVANT_PREFIXES: [&[u8]; 12] = [
     b"gov:",
     b"acct:balances:",
     b"emission:pool:",
-    b"emission:event:",
 ];
 fn relevant_keys() -> [&'static [u8]; 6] {
     [
@@ -297,6 +298,19 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             values.insert(key.clone(), value.clone());
         }
     }
+    let height = match values.get(b"emission:last_height".as_slice()) {
+        Some(raw) => {
+            u64::from_be_bytes(raw.as_slice().try_into().context("Invalid supply height")?)
+        }
+        None => 0,
+    };
+    let event_key = format!("emission:event:{height}").into_bytes();
+    if let Some(event) = match overlay.get(&event_key) {
+        Some(value) => Some(value.clone()),
+        None => snapshot.get(&event_key)?,
+    } {
+        values.insert(event_key, event);
+    }
     let marker = values
         .get(b"genesis:monetary:v1".as_slice())
         .context("Missing monetary genesis; migration required")?;
@@ -312,12 +326,6 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
                 Ok(0)
             }
         }
-    };
-    let height = match values.get(b"emission:last_height".as_slice()) {
-        Some(raw) => {
-            u64::from_be_bytes(raw.as_slice().try_into().context("Invalid supply height")?)
-        }
-        None => 0,
     };
     let governance = values
         .get(GOVERNANCE_STATE_KEY.as_bytes())

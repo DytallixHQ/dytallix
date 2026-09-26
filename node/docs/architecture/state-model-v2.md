@@ -102,6 +102,24 @@ change, are never pruned, and must stay at or below 10,000 entries
 (`runtime/validator_lifecycle.rs`). After 10,000 changes the lifecycle state
 fails validation and the chain stops.
 
+### P12. Recovery book: 4,096 accounts in one value
+
+`recovery:v1:book` holds every recovery account, sponsor receipt and operation
+index in one value of up to 64 MiB, rewritten every block because its height
+advances (`recovery_fees.rs`). `MAX_ACCOUNTS = 4096`, and ordinary
+transactions require a recovery account, so the ordinary account system is
+capped at 4,096 accounts. Sponsor receipts are capped at 65,536 and must cover
+every sponsor nonce ("No pruning is authorized"; "All sponsorship history is
+retained").
+
+### P13. Unbonding records retained forever
+
+The validator lifecycle keeps every unbonding record and requires their count
+to equal `next_unbond_id` (`runtime/validator_lifecycle.rs`). With
+`MAX_ITEMS = 10,000`, the chain stops after 10,000 unbonds in total. Each
+record also requires the validator-set view at its exposure height, which ties
+unbond retention to validator-set history (P11).
+
 ## Invariants to preserve
 
 `verify_recovery` enforces real invariants. The redesign keeps each of them,
@@ -205,7 +223,16 @@ validators join without replaying from genesis.
 | --- | --- | --- |
 | A1 (done) | D1: verification mark, per-block commit check, prefix state digest | Zero complete checks during normal operation; one after an outside write; digest reads only state keys |
 | A2 (done) | D2 cap removal; prefix reads for the issuance and supply views; emergency records from stored receipts, proven equal to history by the complete check (P8 scans, P10) | Block inputs accepted beyond 100,000; existing suite green |
-| A3 | Retention windows with deletions: ordinary and recovery receipts (D5, P4), validator-set history (P11), issuance journal and epoch cap (P8), emission events (P9) | In-process chain far beyond every former cap; retained state bounded by throughput times window; existing suite green |
+| A3 (done) | Ordinary receipts kept only for the fee profile's maximum transaction lifetime (D5, P4 ordinary); the complete check accepts pruned heights. Supply validation reads only the current emission event (P9, supply side) | Capacity returns after the window; pruned transactions cannot replay; reopen passes the complete check; supply valid with past events deleted |
+
+Deferred from A3, because each needs a redesign rather than a window:
+
+| Item | Moves to | Reason |
+| --- | --- | --- |
+| Recovery book and sponsor receipts (P12, P4 recovery) | Phase B, D4 | Needs per-account keys and nonce-plus-expiry replay protection instead of full sponsor history |
+| Validator-set history and unbonding records (P11, P13) | Step 4 (stake withdrawals) | Both rework the lifecycle module, whose history entries cross-validate each other |
+| Issuance journal and epoch cap (P8) | Step 3 (emission inputs) | The journal belongs to the adaptive emission design that step 3 changes |
+| Emission events in the state commitment (P9, digest side) | Phase B, D3 | An incremental Merkle root removes the per-block read of all state keys |
 | B | D4, D3, deletions (app hash v2) | Tree root equals a naive reference over the same key set (property tests); inclusion and non-inclusion proofs verify; determinism across independent databases; supply invariants; G35 profile PASS |
 | C | D6, block-record pruning | A new node joins from a snapshot and matches the application hash; pruned nodes keep full consensus correctness |
 

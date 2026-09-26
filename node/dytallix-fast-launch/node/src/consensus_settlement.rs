@@ -3469,6 +3469,7 @@ impl ConsensusApplication {
                     .last_height
                     .checked_add(1)
                     .context("Height exhausted")?;
+                state.prune_receipts_for(height);
                 let mut recovery = book.begin_block(height)?;
                 let mut shared = shared_meter(&state.config, &recovery)?;
                 let mut staged = committed_ordinary_settlement(self.storage.clone())?;
@@ -4080,6 +4081,7 @@ impl ConsensusApplication {
         let book = recovery_book(&self.storage, &self.config)?.context("Recovery missing")?;
         let mut state =
             load_ordinary(&self.storage, &self.config, Some(&book))?.context("Ordinary missing")?;
+        state.prune_receipts_for(height);
         let mut recovery = book.begin_block(height)?;
         let mut shared = shared_meter(&state.config, &recovery)?;
         let liquidity = ordinary_runtime::eligible_liquidity(&mut staged, &recovery.book)?;
@@ -4279,6 +4281,9 @@ impl ConsensusApplication {
         }
         let committed_recovery = recovery_book(&self.storage, &self.config)?;
         let mut ordinary = load_ordinary(&self.storage, &self.config, committed_recovery.as_ref())?;
+        if let Some(state) = ordinary.as_mut() {
+            state.prune_receipts_for(input.height);
+        }
         let mut recovery = committed_recovery
             .map(|book| book.begin_block(input.height))
             .transpose()?;
@@ -5291,6 +5296,10 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                     "Receipt index differs"
                 );
             }
+            // Ordinary receipts older than the retention window were pruned.
+            let ordinary_receipts_pruned = ordinary
+                .as_ref()
+                .is_some_and(|state| h.saturating_add(state.receipt_window()) <= height);
             for (index, result) in record.result.tx_results.iter().enumerate() {
                 ensure!(
                     result.gas_used >= 0
@@ -5301,6 +5310,11 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                 if result.code == 0 || result.code == 3 {
                     ensure!(
                         indices.contains(&index)
+                            || (ordinary_receipts_pruned
+                                && matches!(
+                                    wire(&config, &record.input.txs[index]),
+                                    Ok(WireTransaction::OrdinaryV2 { .. })
+                                ))
                             || (boundary && index == 0 && result == &TxResult::observation())
                             || (result == &emergency_result()
                                 && matches!(

@@ -276,6 +276,16 @@ impl OrdinaryState {
         state.validate(lifecycle, book, native_nonces)?;
         Ok(state)
     }
+    /// Retained receipts cover this many blocks: the fee profile's maximum
+    /// transaction lifetime. The profile cannot change without a migration.
+    pub(crate) fn receipt_window(&self) -> u64 {
+        self.config.fee_profile.limits.max_expiry_lifetime
+    }
+    /// Apply the receipt window for block `height` before executing it.
+    pub(crate) fn prune_receipts_for(&mut self, height: u64) {
+        let window = self.receipt_window();
+        self.history.prune_expired(height, window);
+    }
     pub(crate) fn validate(
         &self,
         lifecycle: &LifecycleConfig,
@@ -335,6 +345,10 @@ impl OrdinaryState {
             ensure!(
                 receipt.block_height() >= self.config.fee_profile.activation_height,
                 "Ordinary receipt predates profile activation"
+            );
+            ensure!(
+                receipt.block_height().saturating_add(self.receipt_window()) > self.last_height,
+                "Ordinary receipt outside the retention window"
             );
             ensure!(
                 receipt.profile_digest() == current,

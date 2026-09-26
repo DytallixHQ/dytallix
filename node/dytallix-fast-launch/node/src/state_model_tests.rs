@@ -154,3 +154,16 @@ fn block_inputs_are_not_capped_at_the_former_history_bound() {
     }
     assert!(input_limits(&inputs.config, &block(0, vec![])).is_err());
 }
+
+#[test]
+fn supply_validation_reads_only_the_current_emission_event() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = committed_chain(&inputs, &dir.path().join("db"), 8);
+    for height in 1..8u64 {
+        let key = format!("emission:event:{height}");
+        assert!(app.storage.db.get(&key).unwrap().is_some());
+        app.storage.db.delete(key).unwrap();
+    }
+    crate::supply::validate_native(&app.storage, &Writes::new()).unwrap();
+}

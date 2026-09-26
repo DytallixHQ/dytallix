@@ -2878,3 +2878,47 @@ mod release_handover_tests;
 
 #[path = "startup_preflight_tests.rs"]
 mod startup_preflight_tests;
+
+/// Receipts expire with their transactions, so max_receipts bounds the retained
+/// window instead of the chain's lifetime usage.
+#[test]
+fn expired_receipts_are_pruned_and_free_retention_capacity() {
+    let mut fixture = Fixture::new();
+    let ordinary = fixture.config.ordinary.as_mut().unwrap();
+    ordinary.max_receipts = 1;
+    ordinary.fee_profile.limits.max_expiry_lifetime = 3;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let mut app = fixture.initialized(&path);
+    let data_tx = |app: &ConsensusApplication, expiry: u64, data: &str| {
+        let mut signed = fixture.ordinary(
+            &current(app, &fixture.active),
+            &fixture.active,
+            vec![OrdinaryAction::Data { data: data.into() }],
+            1000,
+        );
+        signed.body.expiry_height = expiry;
+        fixture.ordinary_wire(&fixture.resign(signed.body, &fixture.active))
+    };
+
+    let first = data_tx(&app, 3, "first");
+    let result = commit(&mut app, 1, vec![first.clone()]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    // Inside the window (1 + 3 > 2) the retained receipt fills capacity.
+    let second = data_tx(&app, 5, "second");
+    let blocked = commit(&mut app, 2, vec![second]);
+    assert_ne!(blocked.tx_results[0].code, 0);
+    commit(&mut app, 3, vec![]);
+    // At height 4 the first receipt is pruned (1 + 3 <= 4) and capacity returns.
+    let third = data_tx(&app, 6, "third");
+    let accepted = commit(&mut app, 4, vec![third]);
+    assert_eq!(accepted.tx_results[0].code, 0, "{:?}", accepted.tx_results);
+    assert_mirror(&app, &fixture.active, 2);
+    // The pruned transaction cannot be replayed: it expired at height 3.
+    assert_ne!(app.check_tx(&first).code, 0);
+
+    // The complete history check accepts heights whose receipts were pruned.
+    drop(app);
+    let app = fixture.open(&path);
+    assert_eq!(app.info().unwrap().height, 4);
+}

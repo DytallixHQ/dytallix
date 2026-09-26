@@ -247,6 +247,14 @@ impl FeeHistory {
     pub(crate) fn receipt(&self, id: [u8; 32]) -> Option<&FeeReceipt> {
         self.receipts.get(&hex::encode(id))
     }
+    /// Drop receipts whose transactions can no longer be included at block
+    /// `height`. Admission requires `height < expiry <= inclusion + lifetime`,
+    /// so a receipt from block `h` is redundant once `h + lifetime <= height`;
+    /// the consumed spending nonce still prevents replay.
+    pub(crate) fn prune_expired(&mut self, height: u64, lifetime: u64) {
+        self.receipts
+            .retain(|_, receipt| receipt.block_height.saturating_add(lifetime) > height);
+    }
     pub(crate) fn validate(&self) -> Result<()> {
         if self.receipts.len() > MAX_RECEIPTS || self.profiles.len() > MAX_RECEIPTS {
             return Err(internal("Retained fee history exceeds component bound"));
