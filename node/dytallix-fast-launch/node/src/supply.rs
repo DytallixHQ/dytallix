@@ -13,7 +13,6 @@ use crate::{
     storage::state::Storage,
 };
 use anyhow::{ensure, Context, Result};
-use rocksdb::IteratorMode;
 use serde::Serialize;
 use std::collections::BTreeMap;
 
@@ -254,36 +253,41 @@ pub(crate) fn genesis_amount(storage: &Storage) -> Result<u128> {
             .context("Missing DRT genesis counter; migration required")?,
     )
 }
+const RELEVANT_PREFIXES: [&[u8]; 12] = [
+    b"supply:",
+    b"staking:",
+    b"rewards:",
+    b"lifecycle:",
+    b"penalty:",
+    b"issuance:",
+    b"adaptive:",
+    b"governance:",
+    b"gov:",
+    b"acct:balances:",
+    b"emission:pool:",
+    b"emission:event:",
+];
+fn relevant_keys() -> [&'static [u8]; 6] {
+    [
+        DRT_GENESIS_KEY.as_bytes(),
+        EMITTED.as_bytes(),
+        FEE_KEY.as_bytes(),
+        b"genesis:monetary:v1",
+        b"emission:last_height",
+        b"meta:chain_id",
+    ]
+}
 fn relevant(key: &[u8]) -> bool {
-    key.starts_with(b"supply:")
-        || key.starts_with(b"staking:")
-        || key.starts_with(b"rewards:")
-        || key.starts_with(b"lifecycle:")
-        || key.starts_with(b"penalty:")
-        || key.starts_with(b"issuance:")
-        || key.starts_with(b"adaptive:")
-        || key.starts_with(b"governance:")
-        || key.starts_with(b"gov:")
-        || key.starts_with(b"acct:balances:")
-        || key.starts_with(b"emission:pool:")
-        || key.starts_with(b"emission:event:")
-        || [
-            DRT_GENESIS_KEY.as_bytes(),
-            EMITTED.as_bytes(),
-            FEE_KEY.as_bytes(),
-            b"genesis:monetary:v1",
-            b"emission:last_height",
-            b"meta:chain_id",
-        ]
-        .contains(&key)
+    RELEVANT_PREFIXES.iter().any(|prefix| key.starts_with(prefix)) || relevant_keys().contains(&key)
 }
 /// Caller holds the storage execution lock, or owns exclusive startup access.
 /// Overlay values replace stored values. This planner never writes storage.
 pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<NativeSupply> {
     let snapshot = storage.db.snapshot();
     let mut values = Writes::new();
-    for item in snapshot.iterator(IteratorMode::Start) {
-        let (key, value) = item?;
+    for (key, value) in
+        crate::block_lifecycle::snapshot_selected(&snapshot, &RELEVANT_PREFIXES, &relevant_keys())?
+    {
         if relevant(&key) {
             values.insert(key.to_vec(), value.to_vec());
         }

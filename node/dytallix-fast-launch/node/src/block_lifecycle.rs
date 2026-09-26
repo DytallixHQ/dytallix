@@ -9,6 +9,35 @@ use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 
 pub(crate) type Writes = BTreeMap<Vec<u8>, Vec<u8>>;
+/// Entries under `prefixes` plus the listed `keys`, read from one snapshot.
+/// Unlike a full scan, the cost does not grow with unrelated records such as
+/// block history. Keys already covered by a prefix are not read twice.
+pub(crate) fn snapshot_selected(
+    snapshot: &rocksdb::Snapshot<'_>,
+    prefixes: &[&[u8]],
+    keys: &[&[u8]],
+) -> Result<Vec<(Box<[u8]>, Box<[u8]>)>> {
+    let mut entries = Vec::new();
+    for prefix in prefixes {
+        let mode = rocksdb::IteratorMode::From(prefix, rocksdb::Direction::Forward);
+        for item in snapshot.iterator(mode) {
+            let (key, value) = item?;
+            if !key.starts_with(prefix) {
+                break;
+            }
+            entries.push((key, value));
+        }
+    }
+    for key in keys {
+        if prefixes.iter().any(|prefix| key.starts_with(prefix)) {
+            continue;
+        }
+        if let Some(value) = snapshot.get(key)? {
+            entries.push((Box::from(*key), value.into_boxed_slice()));
+        }
+    }
+    Ok(entries)
+}
 pub(crate) fn read<T: DeserializeOwned + Default>(storage: &Storage, key: &str) -> Result<T> {
     storage
         .db

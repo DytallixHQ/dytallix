@@ -460,7 +460,7 @@ fn handover_pair_commits_once_and_source_stops_after_acknowledgement_loss() {
     );
     assert_eq!(query["release_handover"]["active_schema"], 1);
     assert_eq!(query["emergency_control"]["blocks_upgrade"], true);
-    let receipt = emergency_history(&app.storage, &app.config).unwrap()[0]
+    let receipt = committed_emergency_records(&app.storage, &app.config).unwrap()[0]
         .0
         .sha256()
         .unwrap();

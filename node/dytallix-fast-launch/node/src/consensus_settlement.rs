@@ -59,8 +59,6 @@ const HEAD_KEY: &str = "consensus:v1:head";
 const BLOCK_PREFIX: &str = "consensus:v1:block:";
 const GENESIS_SOURCE_KEY: &str = "consensus:v1:genesis_source";
 const GENESIS_APP_HASH_KEY: &str = "consensus:v1:genesis_app_hash";
-// This local qualification profile stops before an unbounded history scan.
-const MAX_HISTORY: u64 = 100_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1950,10 +1948,7 @@ fn combined_transaction(
     }
 }
 fn input_limits(config: &ConsensusConfig, input: &FinalizedBlockInput) -> Result<()> {
-    ensure!(
-        (1..=MAX_HISTORY).contains(&input.height),
-        "Height exceeds local qualification bound"
-    );
+    ensure!(input.height >= 1, "Block height must be positive");
     ensure!(
         input.time_seconds >= 0 && (0..1_000_000_000).contains(&input.time_nanos),
         "Invalid engine timestamp"
@@ -2146,11 +2141,35 @@ fn finalized_anchor(
 /// Bind every immutable control receipt to its actual block, input and result.
 /// This structural scan does not establish signature validity. Startup performs
 /// cryptographic replay separately with the configured helper.
-fn emergency_history(
+/// Emergency records read from stored receipts in sequence order, without
+/// walking blocks. The complete history check proves they equal the records
+/// rebuilt from committed blocks, so they are valid after verify_recovery.
+fn committed_emergency_records(
     storage: &Storage,
     config: &ConsensusConfig,
 ) -> Result<Vec<(emergency::Receipt, emergency::BlockContext)>> {
-    Ok(emergency_history_with(&HistoryRead::new(storage), config)?.records)
+    let Some(policy) = &config.emergency else {
+        return Ok(Vec::new());
+    };
+    let prefix = emergency::RECEIPT_PREFIX.as_bytes();
+    let mut records = Vec::new();
+    for item in storage
+        .db
+        .iterator(IteratorMode::From(prefix, Direction::Forward))
+    {
+        let (key, bytes) = item?;
+        if !key.starts_with(prefix) {
+            break;
+        }
+        let receipt = emergency::decode_receipt(policy, &bytes)?;
+        ensure!(
+            key.as_ref() == emergency::receipt_key(receipt.control.payload.sequence).as_bytes(),
+            "Emergency receipt key differs from sequence"
+        );
+        let context = receipt.context.clone();
+        records.push((receipt, context));
+    }
+    Ok(records)
 }
 fn emergency_history_with(
     history: &HistoryRead<'_>,
@@ -2183,10 +2202,6 @@ fn emergency_history_with(
         "Emergency state missing"
     );
     let height = block_lifecycle::height(storage, "meta:height")?;
-    ensure!(
-        height <= MAX_HISTORY,
-        "Emergency history exceeds consensus history bound"
-    );
     let mut receipts = Vec::new();
     let mut frozen = false;
     for h in 1..=height {
@@ -2418,7 +2433,6 @@ fn handover_history(
     let mut schema = upgrade::State::new(up)?.active_schema();
     let mut expected = BTreeMap::new();
     let height = block_lifecycle::height(storage, "meta:height")?;
-    ensure!(height <= MAX_HISTORY, "Handover history bound");
     for h in 1..=height {
         let record = history.block(h)?;
         let prior_end = emergency_records.partition_point(|(_, c)| c.height < h);
@@ -2574,7 +2588,6 @@ fn upgrade_history(
     let mut state = upgrade::State::new(policy)?;
     let mut expected = BTreeMap::new();
     let height = block_lifecycle::height(storage, "meta:height")?;
-    ensure!(height <= MAX_HISTORY, "Upgrade history bound");
     for h in 1..=height {
         let record = history.block(h)?;
         let prior_end = emergency_records.partition_point(|(_, context)| context.height < h);
@@ -2861,7 +2874,7 @@ impl ConsensusApplication {
             }));
         }
         let context = upgrade_context(height, info.app_hash, &emergency_state, false)?;
-        let records = emergency_history(&self.storage, &self.config)?;
+        let records = committed_emergency_records(&self.storage, &self.config)?;
         let history = upgrade::VerifiedEmergencyHistory::from_records(
             self.config
                 .emergency
@@ -5000,7 +5013,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     let mut recorded_evidence = BTreeMap::new();
     if let Some(head) = &current {
         ensure!(
-            (1..=MAX_HISTORY).contains(&height)
+            height >= 1
                 && head.anchor.height == height
                 && state.last_height == height
                 && block_lifecycle::height(storage, "emission:last_height")? == height,
@@ -5425,6 +5438,10 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         }
     }
     let emergency_trace = emergency_history_with(history, &config)?;
+    ensure!(
+        committed_emergency_records(storage, &config)? == emergency_trace.records,
+        "Stored emergency receipts differ from committed history"
+    );
     let outcomes = upgrade_history(history, &config, &emergency_trace, None)?;
     handover_history(history, &config, &emergency_trace, &outcomes, None)?;
     Ok(emergency_trace)

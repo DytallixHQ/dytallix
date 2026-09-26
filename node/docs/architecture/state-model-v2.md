@@ -73,6 +73,35 @@ Each height stores a full `BlockRecord` (input transactions, results, head,
 accepted records) under `consensus:v1:block:`. This duplicates CometBFT's block
 store. Today it exists to feed the replay in P2.
 
+### P8. Issuance epoch cap and per-block scans
+
+Adaptive issuance stops permanently once the epoch index exceeds
+`max_recorded_epochs` ("Issuance journal audit limit reached",
+`runtime/issuance_timing.rs`), configurable up to 1,000,000. Every block also
+re-verified the whole issuance journal and scanned the entire database to
+build its view. The supply check (`supply::validate_native`, called in every
+`prepare`) scanned the entire database as well.
+
+### P9. Per-block emission events in consensus state
+
+`emission:event:{height}` is written every block (`block_lifecycle.rs`) under
+the `emission:` state prefix. Consensus only reads the current and previous
+events, but the state digest and supply view read one more entry for each past
+block.
+
+### P10. Emergency history walk reachable from CheckTx
+
+CheckTx for an upgrade control called `upgrade_plan`, which rebuilt the
+emergency history by decoding every committed block before the control's
+signature was checked. Any well-formed forged control cost a full walk.
+
+### P11. Validator-set history cap
+
+Lifecycle `history` and `update_history` grow by one entry per validator-set
+change, are never pruned, and must stay at or below 10,000 entries
+(`runtime/validator_lifecycle.rs`). After 10,000 changes the lifecycle state
+fails validation and the chain stops.
+
 ## Invariants to preserve
 
 `verify_recovery` enforces real invariants. The redesign keeps each of them,
@@ -174,7 +203,9 @@ validators join without replaying from genesis.
 
 | Phase | Content | Exit tests |
 | --- | --- | --- |
-| A | D1, D2, D5 | In-process chain to 1,000,000 blocks and 100,000 ordinary transactions with flat per-call latency; the `independent_databases_*` determinism tests extended to long chains; crash and restart at every commit step; existing suite green |
+| A1 (done) | D1: verification mark, per-block commit check, prefix state digest | Zero complete checks during normal operation; one after an outside write; digest reads only state keys |
+| A2 (done) | D2 cap removal; prefix reads for the issuance and supply views; emergency records from stored receipts, proven equal to history by the complete check (P8 scans, P10) | Block inputs accepted beyond 100,000; existing suite green |
+| A3 | Retention windows with deletions: ordinary and recovery receipts (D5, P4), validator-set history (P11), issuance journal and epoch cap (P8), emission events (P9) | In-process chain far beyond every former cap; retained state bounded by throughput times window; existing suite green |
 | B | D4, D3, deletions (app hash v2) | Tree root equals a naive reference over the same key set (property tests); inclusion and non-inclusion proofs verify; determinism across independent databases; supply invariants; G35 profile PASS |
 | C | D6, block-record pruning | A new node joins from a snapshot and matches the application hash; pruned nodes keep full consensus correctness |
 

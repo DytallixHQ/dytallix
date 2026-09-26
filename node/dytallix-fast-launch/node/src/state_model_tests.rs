@@ -144,3 +144,13 @@ fn reopened_storage_repeats_the_complete_check() {
     app.info().unwrap();
     assert!(full_passes() - before >= 1);
 }
+
+#[test]
+fn block_inputs_are_not_capped_at_the_former_history_bound() {
+    let inputs = Inputs::new();
+    // The block helper derives time as height * 10 seconds, so stay within i64.
+    for height in [100_000u64, 100_001, 10_000_000, 1_000_000_000_000] {
+        input_limits(&inputs.config, &block(height, vec![])).unwrap();
+    }
+    assert!(input_limits(&inputs.config, &block(0, vec![])).is_err());
+}

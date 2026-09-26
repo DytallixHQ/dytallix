@@ -6,7 +6,6 @@ use dytallix_storage::{
     adaptive::{prepare_transition, verify_view, PreparedJournalUpdate},
     state::Storage,
 };
-use rocksdb::IteratorMode;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -405,8 +404,9 @@ pub fn plan_block(
         .and_then(|v| v.checked_add(5))
         .context("Issuance view limit exceeds u64")?;
     let snapshot = storage.db.snapshot();
-    for entry in snapshot.iterator(IteratorMode::Start) {
-        let (key, value) = entry?;
+    for (key, value) in
+        crate::block_lifecycle::snapshot_selected(&snapshot, &VIEW_PREFIXES, &VIEW_KEYS)?
+    {
         if selected(&key) {
             ensure!(
                 u64::try_from(values.len())? < view_limit,
@@ -494,15 +494,10 @@ pub fn plan_block(
         writes,
     })
 }
+const VIEW_PREFIXES: [&[u8]; 2] = [b"issuance:", b"adaptive:"];
+const VIEW_KEYS: [&[u8]; 3] = [b"genesis:monetary:v1", b"meta:chain_id", b"emission:last_height"];
 fn selected(key: &[u8]) -> bool {
-    key.starts_with(b"issuance:")
-        || key.starts_with(b"adaptive:")
-        || [
-            b"genesis:monetary:v1".as_slice(),
-            b"meta:chain_id",
-            b"emission:last_height",
-        ]
-        .contains(&key)
+    VIEW_PREFIXES.iter().any(|prefix| key.starts_with(prefix)) || VIEW_KEYS.contains(&key)
 }
 /// Validate an immutable combined view. This checks internal history, not observation authenticity.
 pub fn verify_overlay(values: &BTreeMap<Vec<u8>, Vec<u8>>) -> Result<TimingState> {
