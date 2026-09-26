@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "source": "scripts/address_reference.py",
+  "encoding": [
+    {
+      "network": "mainnet",
+      "name": "zero",
+      "account_id": "0000000000000000000000000000000000000000000000000000000000000000",
+      "address": "dytallix1qyqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqlytkzt"
+    },
+    {
+      "network": "mainnet",
+      "name": "ones",
+      "account_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "address": "dytallix1qyqlllllllllllllllllllllllllllllllllllllllllllllllllllcsf2ve0"
+    },
+    {
+      "network": "mainnet",
+      "name": "sequence",
+      "account_id": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "address": "dytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8c3029yj"
+    },
+    {
+      "network": "mainnet",
+      "name": "high_bit",
+      "account_id": "8000000000000000000000000000000000000000000000000000000000000000",
+      "address": "dytallix1qyqcqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzngpyv"
+    },
+    {
+      "network": "testnet",
+      "name": "zero",
+      "account_id": "0000000000000000000000000000000000000000000000000000000000000000",
+      "address": "tdytallix1qyqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqql5m6xe"
+    },
+    {
+      "network": "testnet",
+      "name": "ones",
+      "account_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "address": "tdytallix1qyqlllllllllllllllllllllllllllllllllllllllllllllllllllcse6qaa"
+    },
+    {
+      "network": "testnet",
+      "name": "sequence",
+      "account_id": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "address": "tdytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8c3l6fqq"
+    },
+    {
+      "network": "testnet",
+      "name": "high_bit",
+      "account_id": "8000000000000000000000000000000000000000000000000000000000000000",
+      "address": "tdytallix1qyqcqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzrcdq7"
+    },
+    {
+      "network": "development",
+      "name": "zero",
+      "account_id": "0000000000000000000000000000000000000000000000000000000000000000",
+      "address": "ddytallix1qyqsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqztuuf3"
+    },
+    {
+      "network": "development",
+      "name": "ones",
+      "account_id": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "address": "ddytallix1qyqlllllllllllllllllllllllllllllllllllllllllllllllllllcdxaxj4"
+    },
+    {
+      "network": "development",
+      "name": "sequence",
+      "account_id": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "address": "ddytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8cvqa00g"
+    },
+    {
+      "network": "development",
+      "name": "high_bit",
+      "account_id": "8000000000000000000000000000000000000000000000000000000000000000",
+      "address": "ddytallix1qyqcqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqlult0k"
+    }
+  ],
+  "origins": [
+    {
+      "network": "mainnet",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "mldsa65",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 1952,
+      "account_id": "a0d5af813e414d4cb418206522c2ae3158149adf56a69346e55ddaeea32141a7",
+      "address": "dytallix1qyq6p4d0sylyzn2vksvzqefzc2hrzkq5nt04df5ngmj4mkhw5vs5rfc4re6hy"
+    },
+    {
+      "network": "mainnet",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "mldsa87",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 2592,
+      "account_id": "9f51be914db42d077d4c613adf8c70f63430fb8ba065577dae6841081c403734",
+      "address": "dytallix1qyqe75d7j9xmgtg804xxzwkl33c0vdpslw96qe2h0khxssggr3qrwdqy9f864"
+    },
+    {
+      "network": "mainnet",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "legacy_dilithium5",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 2592,
+      "account_id": "a41841feb3ef2e6043083b71a41339aed48a8d0ebf34c24d0c83d6b70ced2e33",
+      "address": "dytallix1qyq6gxzpl6e77tnqgvyrkudyzvu6a4y2358t7dxzf5xg844hpnkjuvcucqg52"
+    },
+    {
+      "network": "testnet",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "mldsa65",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 1952,
+      "account_id": "af01c1e6188466bb7de2a909c5484e173a5d0357d1de38de2bade3732bfd28bb",
+      "address": "tdytallix1qyq67qwpucvgge4m0h32jzw9fp8pwwjaqdtarh3cmc46mcmn907j3wcmhy2h7"
+    },
+    {
+      "network": "testnet",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "mldsa87",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 2592,
+      "account_id": "5cc348ecaad3d7d28c331a801c9113f392db4430f7e56411cd2a8b66b083c2b3",
+      "address": "tdytallix1qyq4es6gaj4d847j3se34qqujyfl8ykmgsc00etyz8xj4zmxkzpu9vc4kdxw5"
+    },
+    {
+      "network": "testnet",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "legacy_dilithium5",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 2592,
+      "account_id": "f760883e3ddc1d59c724340effd36ca7fea5fd4f30c4e15aac093f3d1080d361",
+      "address": "tdytallix1qyqlwcyg8c7ac82ecujrgrhl6dk20l49l48np38pt2kqj0eazzqdxcgrnk9nq"
+    },
+    {
+      "network": "development",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "mldsa65",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 1952,
+      "account_id": "cf9fc27bf8cc14ce67ab8c075e2004726085ddfa19988e13689540eb293d54ed",
+      "address": "ddytallix1qyqul87z00uvc9xwv74ccp67yqz8ycy9mhapnxywzd5f2s8t9y74fmgaamdeh"
+    },
+    {
+      "network": "development",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "mldsa87",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 2592,
+      "account_id": "c6ad84132201cbe3bd1666402947d6a0925ccead9161b3b3048182042f6e23d0",
+      "address": "ddytallix1qyqudtvyzv3qrjlrh5txvspfglt2pyjue6kezcdnkvzgrqsy9ahz85qhdkqra"
+    },
+    {
+      "network": "development",
+      "chain_id": "dyt-address-v1-fixture",
+      "algorithm": "legacy_dilithium5",
+      "public_key_pattern": "index_mod_251",
+      "public_key_len": 2592,
+      "account_id": "11363f48a218b7ea2fad41ef261a182c4540a56a1c84cc8712d8a42089206169",
+      "address": "ddytallix1qyq3zd3lfz3p3dl297k5rmexrgvzc32q544pepxvsufd3fpq3ysxz6glz22vh"
+    }
+  ],
+  "invalid": [
+    {
+      "name": "unknown_version",
+      "network": "mainnet",
+      "address": "dytallix1qgqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8caj0dza"
+    },
+    {
+      "name": "unknown_type",
+      "network": "mainnet",
+      "address": "dytallix1qypqqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8caru84z"
+    },
+    {
+      "name": "unversioned",
+      "network": "mainnet",
+      "address": "dytallix1qqqsyqcyq5rqwzqfpg9scrgwpugpzysnzs23v9ccrydpk8qarc0sk74ghx"
+    },
+    {
+      "name": "short",
+      "network": "mainnet",
+      "address": "dytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3uykljmp"
+    },
+    {
+      "name": "long",
+      "network": "mainnet",
+      "address": "dytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8cqfvmtme"
+    },
+    {
+      "name": "nonzero_padding",
+      "network": "mainnet",
+      "address": "dytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8eve7seq"
+    },
+    {
+      "name": "bech32_checksum",
+      "network": "mainnet",
+      "address": "dytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8cyn6fps"
+    },
+    {
+      "name": "uppercase",
+      "network": "mainnet",
+      "address": "DYTALLIX1QYQSQQGZQVZQ2PS8PQYS5ZCVP58Q7YQ3ZGF3G9GKZUVPJXSMRSW3U8C3029YJ"
+    },
+    {
+      "name": "wrong_network",
+      "network": "development",
+      "address": "dytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8c3029yj"
+    },
+    {
+      "name": "checksum_error",
+      "network": "mainnet",
+      "address": "dytallix1qyqsqqgzqvzq2ps8pqys5zcvp58q7yq3zgf3g9gkzuvpjxsmrsw3u8c3029yq"
+    }
+  ]
+}

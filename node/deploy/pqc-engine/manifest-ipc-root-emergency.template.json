@@ -1,0 +1,78 @@
+{
+  "version": 2,
+  "mode": "disposable-loopback",
+  "profile": "dytallix-pqc-loopback-v1",
+  "home": null,
+  "lock_dir": "/run/dytallix-pqc",
+  "engine": {
+    "path": null,
+    "sha256": null
+  },
+  "bridge": {
+    "path": null,
+    "sha256": null
+  },
+  "app": {
+    "path": null,
+    "sha256": null
+  },
+  "application_config": {
+    "path": null,
+    "sha256": null
+  },
+  "native_genesis": {
+    "path": null,
+    "sha256": null
+  },
+  "engine_config": {
+    "path": null,
+    "sha256": null
+  },
+  "validator_public_key_sha256": null,
+  "startup_seconds": 30,
+  "stop_seconds": 30,
+  "ipc": {
+    "profile": "dytallix-pqc-unix-v1",
+    "adapter": {
+      "path": null,
+      "sha256": null
+    },
+    "listen": null
+  },
+  "root": {
+    "config": {
+      "path": null,
+      "sha256": null
+    },
+    "helper": {
+      "path": null,
+      "sha256": null
+    },
+    "policy": {
+      "path": null,
+      "sha256": null
+    },
+    "request": {
+      "path": null,
+      "sha256": null
+    },
+    "engine_genesis": {
+      "path": null,
+      "sha256": null
+    },
+    "release_manifest": {
+      "path": null,
+      "sha256": null
+    }
+  },
+  "emergency": {
+    "config": {
+      "path": null,
+      "sha256": null
+    },
+    "helper": {
+      "path": null,
+      "sha256": null
+    }
+  }
+}

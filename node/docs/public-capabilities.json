@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "lastReviewed": "2026-04-13",
+  "releaseChannel": "early-alpha-public-testnet",
+  "canonicalStatement": "Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.",
+  "publicNode": {
+    "rpcBase": "https://dytallix.com",
+    "contractEndpoint": {
+      "path": "GET /api/capabilities",
+      "availability": "compatible-node-direct",
+      "description": "Machine-readable public contract for compatible node deployments"
+    },
+    "supportedRoutes": [
+      "GET /api/blockchain/status",
+      "GET /api/blockchain/account/:address",
+      "GET /api/blockchain/balance/:address",
+      "GET /api/blockchain/block/:number|hash|latest|finalized",
+      "GET /api/blockchain/tx/:hash",
+      "POST /api/blockchain/submit",
+      "POST /contracts/deploy",
+      "POST /contracts/call",
+      "GET /api/contracts/:address",
+      "GET /api/contracts/:address/query/:method",
+      "GET /api/contracts/:address/events",
+      "GET /api/governance/proposals",
+      "GET /api/governance/proposals/:id/votes",
+      "GET /api/governance/voting-power/:address",
+      "GET /api/governance/total-voting-power",
+      "GET /api/staking/balance/:address",
+      "GET /api/staking/accrued/:address",
+      "GET /api/staking/stats",
+      "GET /api/staking/validators"
+    ],
+    "directNodeOnlyRoutes": [
+      "GET /v1/validators",
+      "GET /v1/delegations/:address"
+    ],
+    "disabledPublicWrites": [
+      "POST /gov/submit",
+      "POST /gov/deposit",
+      "POST /gov/vote",
+      "POST /gov/execute",
+      "POST /api/staking/claim",
+      "POST /api/staking/delegate",
+      "POST /api/staking/undelegate"
+    ],
+    "reservedUnsupportedPayloadPrefixes": [
+      "stake:",
+      "governance:"
+    ]
+  },
+  "validatorDiscovery": {
+    "publicShape": "daddr-compatible-addresses-only",
+    "placeholderIdsForbidden": true,
+    "source": "validator_secrets"
+  },
+  "features": {
+    "transfers": "supported-alpha",
+    "contractLifecycle": "supported-alpha",
+    "stakingReads": "experimental-public-read",
+    "stakingWrites": "hidden",
+    "governanceReads": "experimental-public-read",
+    "governanceWrites": "hidden",
+    "validatorDiscovery": "experimental-public-read"
+  }
+}

@@ -1,0 +1,21 @@
+[package]
+name = "dytallix-core"
+description = "Cryptographic primitives for the Dytallix PQC-native blockchain"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[features]
+default = ["compatibility"]
+compatibility = ["dep:pqcrypto-sphincsplus", "dep:pqcrypto-traits", "fips204/default"]
+strict-mldsa65 = []
+
+[dependencies]
+pqcrypto-sphincsplus = { workspace = true, optional = true }
+pqcrypto-traits = { workspace = true, optional = true }
+fips204 = { workspace = true }
+blake3 = { workspace = true }
+bech32 = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }

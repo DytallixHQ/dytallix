@@ -1,0 +1,9 @@
+[package]
+name = "dytallix-signature-policy"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+dytallix-protocol-types = { path = "../protocol-types" }
+serde = { version = "1", features = ["derive"] }

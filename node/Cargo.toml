@@ -1,0 +1,29 @@
+[workspace]
+members = [
+    "crates/adaptive-emission",
+    "tests/fixtures/registry-contract",
+    "crates/protocol-types",
+    "crates/runtime-crypto",
+    "crates/release-runtime",
+    "crates/native-supervisor",
+    "crates/storage",
+    "crates/signature-policy",
+    "crates/gas",
+    "pqc-crypto",
+    "smart-contracts",
+    "blockchain-core",
+    "dytallix-fast-launch/node",
+]
+resolver = "2"
+
+# Admission timing tests retain their limits and verify every signature.
+# Optimize cryptographic dependencies for those tests; application code keeps
+# the normal test profile. This does not change dev or release profiles.
+[profile.test.package.fips204]
+opt-level = 3
+
+[profile.test.package.sha3]
+opt-level = 3
+
+[profile.test.package.keccak]
+opt-level = 3

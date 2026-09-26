@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "policy_version": "native-library-staging-v1",
+  "catalog_sha512": "0bcc1399efbd853aea8280aad5d1abd2dbd149dd059f1a4a07b970f82012ccb501884e2dc4781d0226f878f80173286c888c90a533136cbce751972944d3c36c",
+  "service_uids": [
+    62018
+  ],
+  "writable_roots": [
+    "/opt/dytallix-execution-policy-0b22d6de/locks",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/abci",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/appdb",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/data",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/abci",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/appdb",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/data",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/abci",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/appdb",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/data",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/abci",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/appdb",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/data",
+    "/opt/dytallix-execution-policy-0b22d6de/output"
+  ],
+  "readonly_files": [
+    "/etc/ld.so.cache",
+    "/opt/dytallix-execution-policy-0b22d6de/catalog/manifest.json",
+    "/opt/dytallix-execution-policy-0b22d6de/catalog/mapping.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/application.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/candidate.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/config.toml",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/emergency.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/genesis.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/native.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/node_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/policy.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/pqc_transport.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/priv_validator_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/request.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config/root.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/service.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/application.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/candidate.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/config.toml",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/emergency.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/genesis.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/native.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/node_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/policy.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/pqc_transport.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/priv_validator_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/request.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config/root.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/service.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/application.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/candidate.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/config.toml",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/emergency.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/genesis.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/native.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/node_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/policy.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/pqc_transport.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/priv_validator_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/request.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config/root.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/service.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/application.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/candidate.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/config.toml",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/emergency.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/genesis.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/native.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/node_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/policy.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/pqc_transport.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/priv_validator_key.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/request.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config/root.json",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/service.json"
+  ],
+  "readonly_directories": [
+    "/opt/dytallix-execution-policy-0b22d6de",
+    "/opt/dytallix-execution-policy-0b22d6de/bin",
+    "/opt/dytallix-execution-policy-0b22d6de/catalog",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node0/config",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node1/config",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node2/config",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3",
+    "/opt/dytallix-execution-policy-0b22d6de/nodes/node3/config"
+  ],
+  "code_aliases": [
+    {
+      "member_id": "libc",
+      "path": "/lib/x86_64-linux-gnu/libc.so.6"
+    },
+    {
+      "member_id": "libgcc",
+      "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1"
+    },
+    {
+      "member_id": "libm",
+      "path": "/lib/x86_64-linux-gnu/libm.so.6"
+    },
+    {
+      "member_id": "libstdcpp",
+      "path": "/lib/x86_64-linux-gnu/libstdc++.so.6"
+    },
+    {
+      "member_id": "libstdcpp",
+      "path": "/usr/lib/x86_64-linux-gnu/libstdc++.so.6"
+    },
+    {
+      "member_id": "loader",
+      "path": "/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+    },
+    {
+      "member_id": "loader",
+      "path": "/lib64/ld-linux-x86-64.so.2"
+    }
+  ],
+  "devices": [
+    "/dev/null",
+    "/dev/urandom"
+  ],
+  "network": {
+    "mode": "shared-private",
+    "namespace_path": "/opt/dytallix-execution-policy-0b22d6de/network/anchor",
+    "sockets": [
+      {
+        "family": "unix",
+        "type": "stream"
+      },
+      {
+        "family": "inet",
+        "type": "stream"
+      }
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+[Unit]
+Description=Dytallix disposable PQC engine and application (%i)
+After=network.target
+ConditionPathExists=/etc/dytallix-pqc/%i.json
+
+[Service]
+Type=simple
+User=dytallix-pqc
+Group=dytallix-pqc
+WorkingDirectory=/var/lib/dytallix-pqc/%i
+RuntimeDirectory=dytallix-pqc
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+UMask=0077
+ExecStartPre=/usr/bin/python3 -B /opt/dytallix-node/deploy/pqc-engine/supervise.py check --manifest /etc/dytallix-pqc/%i.json --systemd-instance %i
+ExecStart=/usr/bin/python3 -B /opt/dytallix-node/deploy/pqc-engine/supervise.py run --manifest /etc/dytallix-pqc/%i.json --systemd-instance %i
+Restart=no
+KillMode=control-group
+TimeoutStartSec=75
+TimeoutStopSec=135
+SendSIGKILL=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET
+ReadOnlyPaths=/etc/dytallix-pqc /opt/dytallix-node /var/lib/dytallix-pqc/%i/config
+ReadWritePaths=/var/lib/dytallix-pqc/%i/data /var/lib/dytallix-pqc/%i/appdb /var/lib/dytallix-pqc/%i/abci /run/dytallix-pqc
+StandardOutput=journal
+StandardError=journal
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=1000
+
+[Install]
+WantedBy=multi-user.target

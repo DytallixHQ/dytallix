@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "authority": "DytallixHQ/dytallix-node",
+  "component": "pqc-crypto",
+  "repository_head": "ee0107d72715e58149c48203887554c59ed0c8f3",
+  "working_tree_dirty": false,
+  "purpose": "Source distribution and comparison; not a qualified standalone package",
+  "sha256": {
+    "Cargo.toml": "cb0d08a8c44f24bbb2191857f7a0f07b1db04c78574319fe8d9eed3669eb6618",
+    "src/bin/keygen.rs": "f08d0eb70e53a8f228d61d55a33c6401e6a78ae478b195311dde89526d8526ec",
+    "src/bin/keygen_raw.rs": "27cfb993d64492067bd78f8b1f4a0e3aa41470dcde80460563272c1252643864",
+    "src/bin/pqc_evidence.rs": "9a0602e1ec524e1d142c9ea8f3777e74d858543c5e25879c629ce5d89472804f",
+    "src/bin/sign.rs": "259a3cd631e58cff5ea191b262705d107ec2c47bd06a5e1d683c850b247a2e88",
+    "src/bin/verify.rs": "ba79da5b89ee2e1179ef33f7977a0794825c3d787abb05e456d40569f806f563",
+    "src/bridge.rs": "32d7fcdea71697a134ad8e3fd17ae4d28a6b7c6471e0ce963ea2611e4d00b473",
+    "src/lib.rs": "a9e0cd64fc92e004726d719d1d654f33950b958af5c4fa8e47f6ba3cc8b2c627",
+    "src/performance.rs": "54470e92b4092b04e2deea3303fd032ab61f59baa8403fe375d9320f3b9c983f",
+    "tests/persistence_and_signing.rs": "61c1dfbb28f47e6dadc8b92f60ec602c401fe454bf39802b81649a27ad7af77c",
+    "WORKSPACE-Cargo.lock": "1e71f8ea96d7c2c0a85c29884276e712c780d0783986223deb25de79883b54ba"
+  }
+}

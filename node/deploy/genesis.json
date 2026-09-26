@@ -1,0 +1,18 @@
+{
+  "chain_id": "dyt-local-1",
+  "_comment": "Fresh-start genesis for the dyt-local-1 relaunch. Emission builds supply from zero; the faucet mints to users on demand via /dev/faucet (see RELAUNCH.md). Replace the placeholder treasury address/amounts below before launch, or remove the accounts entry for a truly empty genesis.",
+  "accounts": [
+    {
+      "address": "REPLACE_WITH_TREASURY_ADDRESS",
+      "balances": {
+        "udgt": "0",
+        "udrt": "0"
+      }
+    }
+  ],
+  "staking": {
+    "delegations": []
+  },
+  "staking_reward_rate_bps": 500,
+  "governance": {}
+}

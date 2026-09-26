@@ -1,0 +1,338 @@
+{
+  "schema_version": "allocation-review-draft-v3",
+  "status": "USER_APPROVED_SOURCE_ALLOCATION_INCOMPLETE_GENESIS",
+  "valid_for_mainnet": false,
+  "importable_genesis": false,
+  "source": {
+    "url": "https://dytallix.com/developers/tokenomics",
+    "title": "Tokenomics | Dytallix",
+    "verification": "Parent agent read the live Chrome accessibility page in this task.",
+    "approval_status": "USER_APPROVED_SOURCE",
+    "user_statement": "Approved mainnet allocations can be found at https://dytallix.com/developers/tokenomics",
+    "approval_scope": [
+      "DGT fixed total of 1000000000 DGT",
+      "DGT category shares 30/20/15/15/20",
+      "DRT reward shares validators40/stakers30/treasury30"
+    ],
+    "not_approved_by_this_statement": [
+      "recipient identities",
+      "custody",
+      "vesting",
+      "DRT genesis supply",
+      "rounding ownership",
+      "replacement of selected corrected adaptive controller",
+      "launch activation",
+      "token decimal scale and base-unit conversions"
+    ]
+  },
+  "chain_id": null,
+  "genesis_time": null,
+  "token_units": {
+    "DGT": {
+      "denomination": "udgt",
+      "base_units_per_token": "1000000",
+      "status": "USER_APPROVED_DECIMAL_SCALE",
+      "approval_ref": "batch-6/APPROVAL.json",
+      "decimal_places": 6,
+      "denomination_encoding_status": "OBSERVED_AND_PROPOSED_NOT_APPROVED"
+    },
+    "DRT": {
+      "denomination": "udrt",
+      "base_units_per_token": "1000000",
+      "status": "USER_APPROVED_DECIMAL_SCALE",
+      "approval_ref": "batch-6/APPROVAL.json",
+      "decimal_places": 6,
+      "denomination_encoding_status": "OBSERVED_AND_PROPOSED_NOT_APPROVED"
+    }
+  },
+  "dgt": {
+    "proposed_initial_supply_udgt": "1000000000000000",
+    "approved_initial_supply_udgt": null,
+    "observed_native_cap_udgt": "1000000000000000",
+    "approved_supply_cap_udgt": "1000000000000000",
+    "allocations": [
+      {
+        "approved_label": "Ecosystem growth",
+        "approval_status": "USER_APPROVED_SOURCE",
+        "share_basis_points": 3000,
+        "proposed_amount_udgt": "300000000000000",
+        "approved_amount_udgt": "300000000000000",
+        "recipient": null,
+        "beneficiary": null,
+        "custody": null,
+        "vesting": null,
+        "lock_enforcement": null,
+        "initial_delegation": null,
+        "approvals": null,
+        "approved_amount_dgt": "300000000",
+        "base_unit_approval_ref": "batch-6/APPROVAL.json"
+      },
+      {
+        "approved_label": "Team and advisors",
+        "approval_status": "USER_APPROVED_SOURCE",
+        "share_basis_points": 2000,
+        "proposed_amount_udgt": "200000000000000",
+        "approved_amount_udgt": "200000000000000",
+        "recipient": null,
+        "beneficiary": null,
+        "custody": null,
+        "vesting": null,
+        "lock_enforcement": null,
+        "initial_delegation": null,
+        "approvals": null,
+        "approved_amount_dgt": "200000000",
+        "base_unit_approval_ref": "batch-6/APPROVAL.json"
+      },
+      {
+        "approved_label": "Public sale",
+        "approval_status": "USER_APPROVED_SOURCE",
+        "share_basis_points": 1500,
+        "proposed_amount_udgt": "150000000000000",
+        "approved_amount_udgt": "150000000000000",
+        "recipient": null,
+        "beneficiary": null,
+        "custody": null,
+        "vesting": null,
+        "lock_enforcement": null,
+        "initial_delegation": null,
+        "approvals": null,
+        "approved_amount_dgt": "150000000",
+        "base_unit_approval_ref": "batch-6/APPROVAL.json"
+      },
+      {
+        "approved_label": "Private sale",
+        "approval_status": "USER_APPROVED_SOURCE",
+        "share_basis_points": 1500,
+        "proposed_amount_udgt": "150000000000000",
+        "approved_amount_udgt": "150000000000000",
+        "recipient": null,
+        "beneficiary": null,
+        "custody": null,
+        "vesting": null,
+        "lock_enforcement": null,
+        "initial_delegation": null,
+        "approvals": null,
+        "approved_amount_dgt": "150000000",
+        "base_unit_approval_ref": "batch-6/APPROVAL.json"
+      },
+      {
+        "approved_label": "Reserve",
+        "approval_status": "USER_APPROVED_SOURCE",
+        "share_basis_points": 2000,
+        "proposed_amount_udgt": "200000000000000",
+        "approved_amount_udgt": "200000000000000",
+        "recipient": null,
+        "beneficiary": null,
+        "custody": null,
+        "vesting": null,
+        "lock_enforcement": null,
+        "initial_delegation": null,
+        "approvals": null,
+        "approved_amount_dgt": "200000000",
+        "base_unit_approval_ref": "batch-6/APPROVAL.json"
+      }
+    ],
+    "fully_issued_at_genesis_approval": null,
+    "post_genesis_mint_policy": null,
+    "mint_authority": null,
+    "burn_policy": null,
+    "burn_authority": null,
+    "vesting_enforcement": null,
+    "allocation_approval_status": "USER_APPROVED_SOURCE",
+    "allocation_approval_reference": "https://dytallix.com/developers/tokenomics",
+    "approved_total_dgt": "1000000000",
+    "approved_total_udgt": "1000000000000000",
+    "unit_approval_ref": "batch-6/APPROVAL.json",
+    "initial_supply_scope": "Fixed total and decimal scale approved. Full issuance at genesis remains unapproved."
+  },
+  "drt": {
+    "proposed_initial_supply_udrt": null,
+    "approved_initial_supply_udrt": null,
+    "allocations": null,
+    "liquid_fee_bootstrap": {
+      "decision": null,
+      "funding_amount_udrt": null,
+      "recipients": null,
+      "custody": null,
+      "approval": null,
+      "constraint": "Initial liquid DRT funding remains open. Local claim recovery now exists; production bootstrap supply and recipients require approval."
+    },
+    "emission_model_selection": "corrected_adaptive_controller",
+    "emission_selection_source": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/docs/mainnet/specification-decisions.md:73-83",
+    "adaptive_integration_status": "LOCALLY_IMPLEMENTED_PRODUCTION_UNQUALIFIED",
+    "approved_controller_parameters": null,
+    "approved_timebase": {
+      "epoch_length": "explicit N finalized blocks",
+      "production_N": null,
+      "approval_ref": "batch-6/issuance-timing/APPROVAL.json"
+    },
+    "approved_emission_allocation": {
+      "approval_status": "USER_APPROVED_SOURCE",
+      "source_url": "https://dytallix.com/developers/tokenomics",
+      "validator_share_basis_points": 4000,
+      "staker_share_basis_points": 3000,
+      "treasury_share_basis_points": 3000,
+      "recipient_identities": null,
+      "eligibility_rules": "Approved owner staking rules in reward_integration_policy; separate validator-pool rules remain open in D02.",
+      "custody": null,
+      "rounding_rule": "Floor each 40/30/30 epoch bucket; retain split remainder separately; distribute each bucket evenly across N blocks, with extra units first.",
+      "residual_owner": null,
+      "settlement_approval": null,
+      "rounding_approval_ref": "batch-6/issuance-timing/APPROVAL.json"
+    },
+    "approved_supply_cap_udrt": null,
+    "mint_authority": null,
+    "burn_authority": null,
+    "burn_rule": null,
+    "website_emission_formula": {
+      "displayed_rule": "min(1000 + max(utilization - 50, 0) * 80, 5000) DRT/block",
+      "source_url": "https://dytallix.com/developers/tokenomics",
+      "status": "CONFLICT_WITH_SELECTED_CORRECTED_ADAPTIVE_MODEL",
+      "controller_change_approved": false,
+      "resolution": "Allocation approval does not replace D01. Retain corrected adaptive model selection and resolve the displayed formula discrepancy."
+    },
+    "integration_evidence_ref": "batch-6/issuance-timing/REPORT.md"
+  },
+  "rounding": {
+    "genesis_allocation_rule": "Approved human-token amounts sum exactly to one billion DGT. The approved six-decimal conversion sums to 1000000000000000 udgt with zero category remainder. Recipient-level allocations remain open.",
+    "candidate_remainder_udgt": "0",
+    "emission_rounding_rule": "Floor each 40/30/30 epoch bucket; retain split remainder separately; distribute each bucket evenly across N blocks, with extra units first.",
+    "reward_rounding_rule": "For each supplied interval budget and eligible-stake snapshot with total_weight > 0, floor(budget * weight / total_weight) with checked wide arithmetic. A sole eligible recipient receives the entire budget.",
+    "fee_rounding_rule": null,
+    "residual_owner": null,
+    "residual_custody_account": null,
+    "approval": null,
+    "approved_category_remainder_udgt": "0",
+    "reward_remainder_reserve": {
+      "status": "USER_APPROVED_REWARD_POOL_RESERVE",
+      "amount_rule": "budget - sum(integer_recipient_entitlements)",
+      "separately_recorded": true,
+      "automatic_recipient": null,
+      "sweep_authority": null,
+      "future_disposition": null,
+      "custody_account": null,
+      "approval_ref": "batch-6/APPROVAL.json"
+    },
+    "reward_rounding_approval_ref": "batch-6/APPROVAL.json",
+    "reward_rules_not_approved": [
+      "legacy conversion plan",
+      "production activation",
+      "future reserve spending authority (not required while disabled)"
+    ],
+    "emission_rounding_approval_ref": "batch-6/issuance-timing/APPROVAL.json"
+  },
+  "required_reconciliation": [
+    "DGT_genesis_issued = sum(DGT_initial_liquid) + sum(DGT_initial_locked) + sum(DGT_initial_staked)",
+    "DGT_total(t) = DGT_genesis_issued + DGT_post_genesis_minted(t) - DGT_burned(t)",
+    "DGT_total(t) = DGT_liquid(t) + DGT_locked(t) + DGT_staked(t) + DGT_unbonding(t) + DGT_governance_escrow(t) + DGT_other_custody(t)",
+    "DRT_total(t) = DRT_genesis_issued + DRT_minted(t) - DRT_burned(t)",
+    "DRT_total(t) = DRT_liquid(t) + DRT_locked(t) + DRT_withheld_fees(t) + DRT_emission_pools(t) + DRT_other_custody(t)",
+    "epoch_issuance = sum(epoch_pool_credits) + epoch_rounding_residual_credit",
+    "fee_debit = fee_burn + sum(fee_recipient_credits) + retained_fee_custody_credit",
+    "reward_pool_debit = sum(reward_recipient_credits) + reward_residual_custody_credit"
+  ],
+  "ledger_requirements": {
+    "all_amounts": "Balances and absolute amounts are unsigned decimal strings in canonical base units. Supply deltas are signed decimal strings. Custody categories must be disjoint.",
+    "required_entry_fields": [
+      "entry_id",
+      "protocol_version",
+      "chain_id",
+      "genesis_digest",
+      "block_height",
+      "transaction_or_epoch_id",
+      "denomination",
+      "transition_type",
+      "source_custody_id",
+      "destination_custody_id",
+      "amount_base_units",
+      "supply_delta_base_units",
+      "rounding_residual_base_units",
+      "authorization_reference",
+      "commit_status",
+      "approval_reference"
+    ],
+    "required_genesis_approval_fields": [
+      "approved_manifest_digest",
+      "approved_supply_per_denomination",
+      "recipient_ownership_evidence",
+      "beneficiary_record",
+      "custody_policy",
+      "vesting_terms",
+      "lock_implementation_and_tests",
+      "initial_stake_mapping",
+      "liquid_fee_bootstrap",
+      "controller_specification_version",
+      "controller_parameter_approval",
+      "emission_allocation_approval",
+      "mint_and_burn_authorities",
+      "residual_owner",
+      "independent_reconciliation",
+      "approver_roles_and_signatures",
+      "approval_timestamp"
+    ]
+  },
+  "approvals": {
+    "high_level_allocation": "USER_APPROVED_SOURCE",
+    "reference": "https://dytallix.com/developers/tokenomics",
+    "recipient_and_custody_approval": null,
+    "executable_genesis_approval": null,
+    "release_approval": null,
+    "decimal_scale_and_reward_arithmetic_and_explicit_vesting_inputs": "batch-6/APPROVAL.json"
+  },
+  "release_authorization": null,
+  "superseded_testnet_candidate": {
+    "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/genesis.dyt-local-1.json",
+    "lines": "3-12",
+    "shares_percent": [
+      40,
+      25,
+      15,
+      10,
+      10
+    ],
+    "status": "SUPERSEDED_FOR_MAINNET",
+    "recipient_addresses_copied": false
+  },
+  "batch_2_correction": "Historical Batch 2 condition. Batch 6 later approved six decimals; current category base-unit values are approved.",
+  "subsequent_policy_approval_ref": "batch-6/APPROVAL.json",
+  "vesting_input_requirement": {
+    "status": "USER_APPROVED_EXPLICIT_INPUT_REQUIREMENT",
+    "approval_ref": "batch-6/APPROVAL.json",
+    "production_schedules_required": true,
+    "historical_schedules_may_be_copied": false,
+    "beneficiaries": null,
+    "schedules": null,
+    "custody": null
+  },
+  "batch_6_update": "Separate user approval adopts six decimals for both tokens, supplied-snapshot recipient allocation arithmetic, retained reward-pool integer remainders without automatic recipient or sweep, and explicit production vesting inputs. The source webpage approval scope is unchanged. Full genesis issuance, custody and beneficiary schedules remain unapproved.",
+  "reward_integration_approval_ref": "batch-6/integration-followup/APPROVAL.json",
+  "reward_integration_policy": {
+    "status": "USER_APPROVED_IMPLEMENTATION_RULES",
+    "approval_ref": "batch-6/integration-followup/APPROVAL.json",
+    "recommendations_ref": "batch-6/integration-followup/evidence/APPROVED_RECOMMENDATIONS.md",
+    "interval": "One finalized block; parent finalized-state eligible snapshot. Batch 8 stake and membership changes become effective at H+2.",
+    "interval_identity": [
+      "chain identity",
+      "genesis digest",
+      "reward-rule version",
+      "height"
+    ],
+    "eligibility": "funded bonded DGT to active non-jailed validators; exclude liquid, unbonding and other deposits",
+    "ownership": "bonded principal owner; self-stake once through owner record; no validator aggregate addition; no staking-pool commission",
+    "locked_principal": "explicit permission to stake required; preserve lock through bond and unbond",
+    "inactive_budget": "separate inactive-period reserve; no automatic recipient or spending authority",
+    "fresh_genesis": "bind rule version, unit scale and eligibility; first finalized post-genesis block",
+    "legacy_state": "reject unconverted state; no erasure or reinterpretation; separate migration plan required",
+    "production_activation_authorized": false,
+    "production_epoch_to_block_issuance_mapping": {
+      "rule_status": "APPROVED",
+      "production_N": null,
+      "approval_ref": "batch-6/issuance-timing/APPROVAL.json"
+    },
+    "implementation_status": "LOCAL_CONSENSUS_INTEGRATION_CHECKED_PRODUCTION_UNQUALIFIED",
+    "test_results_ref": "batch-6/integration-followup/TEST_RESULTS.json",
+    "effective_stake_approval_ref": "batch-8/implementation/APPROVAL.json",
+    "current_implementation_evidence_ref": "batch-10/REPORT.md"
+  },
+  "current_decision_register_ref": "MAINNET_DECISION_REGISTER.json"
+}

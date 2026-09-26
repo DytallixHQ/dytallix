@@ -1,0 +1,6 @@
+syntax = "proto3";
+package pulseguard;
+message ScoreRequest { string tx_hash = 1; bool snapshot = 2; bool details = 3; }
+message Explainability { repeated string top_feature_names = 1; repeated float top_feature_values = 2; string paths_json = 3; }
+message ScoreResponse { string tx_hash = 1; float score = 2; float confidence = 3; repeated string reasons = 4; Explainability explainability = 5; uint32 p95_budget_ms = 6; }
+service PulseGuard { rpc Score(ScoreRequest) returns (ScoreResponse); }

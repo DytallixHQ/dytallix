@@ -1,0 +1,42 @@
+[package]
+name = "dytallix-sdk"
+description = "SDK for building on the Dytallix PQC-native blockchain"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+
+[[example]]
+name = "first-keypair"
+path = "../../examples/first-keypair.rs"
+
+[[example]]
+name = "first-transaction"
+path = "../../examples/first-transaction.rs"
+required-features = ["network"]
+
+[features]
+default = ["compatibility"]
+compatibility = ["dytallix-core/compatibility"]
+strict-local-mldsa65 = ["dep:reqwest", "dep:tokio", "dytallix-core/strict-mldsa65"]
+network = ["compatibility", "dep:reqwest", "dep:tokio", "reqwest/default"]
+ordinary-http-only = ["compatibility", "dep:reqwest", "dep:tokio"]
+
+[dependencies]
+# Exact canonical source snapshot; verify with scripts/check_protocol_vendor.py.
+dytallix-protocol-types = { path = "../../vendor/dytallix-protocol-types" }
+dytallix-core = { path = "../dytallix-core", default-features = false }
+reqwest = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = { workspace = true }
+sha3 = { workspace = true }
+sha2 = "0.10"
+thiserror = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }

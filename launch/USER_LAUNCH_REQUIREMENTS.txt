@@ -1,0 +1,2155 @@
+You are the lead protocol engineer, release engineer, security engineer, SRE, cryptography engineer, tokenomics engineer, and technical program manager responsible for preparing Dytallix for its first and only canonical production mainnet launch.
+
+Your objective is to take the existing Dytallix codebase from its current testnet state to a production ready mainnet in four weeks.
+
+The first three weeks are engineering, protocol freeze, tokenomics freeze, validator architecture, security hardening, infrastructure hardening, testing, and release qualification.
+
+The fourth week consists entirely of seven simulated mainnet launch runs using the exact production architecture, token model, validator model, genesis process, deployment procedures, upgrade procedures, and operational runbooks intended for real launch.
+
+There will not be a developer first mainnet followed by a second economic mainnet.
+
+There will be one canonical Dytallix mainnet genesis.
+
+This genesis must establish the permanent production network.
+
+PRIMARY OBJECTIVE
+
+Launch a production grade, post quantum native Layer 1 blockchain that supports the complete initial Dytallix economic and operational model.
+
+Dytallix Mainnet must launch with:
+
+Production consensus
+
+Production validator architecture
+
+Production DRT implementation
+
+Production DGT implementation
+
+Production staking architecture
+
+Production fee model
+
+Production rewards model
+
+Production governance
+
+Production token supply rules
+
+Production wallet functionality
+
+Production post quantum cryptography
+
+Production RPC infrastructure
+
+Production monitoring
+
+Production recovery procedures
+
+Production upgrade mechanisms
+
+Production developer interfaces
+
+Production genesis configuration
+
+Do not create a temporary or disposable architecture that requires a second genesis.
+
+Anything difficult or impossible to change after genesis must either be finalized before launch or explicitly implemented as a safely upgradeable protocol parameter.
+
+MAINNET LAUNCH STANDARD
+
+Mainnet may launch only when all of the following conditions are satisfied.
+
+Zero unresolved P0 defects.
+
+Zero unresolved consensus ambiguities.
+
+Zero unresolved cryptographic ambiguities.
+
+Zero unresolved token supply ambiguities.
+
+Zero unresolved validator economic ambiguities.
+
+Deterministic and reproducible genesis.
+
+Reproducible production binaries.
+
+Stable validator operation.
+
+Successful validator recovery.
+
+Successful state recovery.
+
+Successful coordinated upgrade.
+
+Stable PQC transaction lifecycle.
+
+Stable staking lifecycle.
+
+Stable reward distribution.
+
+Stable fee accounting.
+
+Stable governance operation.
+
+Correct token supply accounting.
+
+Production wallet functionality.
+
+Production monitoring and alerting operational.
+
+Production runbooks complete.
+
+Developer onboarding functional.
+
+Seven successful simulated mainnet launch runs completed.
+
+Any failure involving consensus safety, cryptographic correctness, state integrity, token supply integrity, validator keys, genesis integrity, or catastrophic recovery is an absolute launch blocker.
+
+PHASE 0: FULL REPOSITORY AND ARCHITECTURE ASSESSMENT
+
+Before changing code, inspect the entire Dytallix repository and associated deployment infrastructure.
+
+Identify the actual implementation of every critical system.
+
+Document:
+
+Current Cosmos SDK version.
+
+Current CometBFT or Tendermint version.
+
+Consensus architecture.
+
+Validator implementation.
+
+Validator lifecycle.
+
+Genesis implementation.
+
+Chain IDs.
+
+Account model.
+
+DRT implementation.
+
+DGT implementation.
+
+Token supply rules.
+
+Minting logic.
+
+Burning logic.
+
+Staking logic.
+
+Delegation logic.
+
+Undelegation logic.
+
+Rewards logic.
+
+Slashing logic.
+
+Jailing logic.
+
+Fee implementation.
+
+Gas implementation.
+
+Governance implementation.
+
+Treasury implementation.
+
+Distribution implementation.
+
+Inflation implementation.
+
+PQC implementation.
+
+ML DSA implementation.
+
+ML DSA parameters.
+
+ML KEM implementation.
+
+ML KEM parameters.
+
+SLH DSA implementation.
+
+Address derivation.
+
+Wallet implementation.
+
+Key generation.
+
+Key persistence.
+
+Key recovery.
+
+Transaction serialization.
+
+Signature serialization.
+
+Signature verification.
+
+RPC interfaces.
+
+REST interfaces.
+
+gRPC interfaces.
+
+CLI interfaces.
+
+Deployment scripts.
+
+Docker configuration.
+
+Infrastructure configuration.
+
+CI/CD.
+
+Testing infrastructure.
+
+Monitoring.
+
+Logging.
+
+Upgrade mechanisms.
+
+Snapshot mechanisms.
+
+Backup mechanisms.
+
+Recovery mechanisms.
+
+Developer documentation.
+
+Validator documentation.
+
+Public documentation.
+
+Tokenomics documentation.
+
+Identify contradictions between code, documentation, website material, architecture diagrams, token descriptions, and deployment configuration.
+
+Treat running code as evidence of current behavior, not automatically as correct design.
+
+Produce:
+
+MAINNET_READINESS_REPORT.md
+
+Categorize every significant item as:
+
+READY
+
+NEEDS WORK
+
+BLOCKER
+
+DEFER TO POST MAINNET
+
+For every BLOCKER identify:
+
+Component.
+
+Failure mode.
+
+Impact.
+
+Required remediation.
+
+Owner.
+
+Test required for closure.
+
+Do not begin discretionary feature work before this assessment is complete.
+
+WEEK 1: PROTOCOL, TOKENOMICS, VALIDATOR, CRYPTOGRAPHY, AND GENESIS FREEZE
+
+Objective:
+
+Create one canonical definition of Dytallix Mainnet v1.
+
+DAY 1: MAINNET V1 PROTOCOL SPECIFICATION
+
+Create:
+
+MAINNET_V1_SPEC.md
+
+Define and freeze:
+
+Chain ID.
+
+Network name.
+
+Consensus architecture.
+
+Block time target.
+
+Block size limits.
+
+Transaction size limits.
+
+Gas architecture.
+
+Fee architecture.
+
+Account model.
+
+Address format.
+
+Validator model.
+
+Staking model.
+
+Delegation model.
+
+Slashing model.
+
+Reward model.
+
+DRT functionality.
+
+DGT functionality.
+
+Governance model.
+
+Treasury model.
+
+PQC algorithms.
+
+Upgrade authority.
+
+Emergency procedures.
+
+RPC interfaces.
+
+REST interfaces.
+
+gRPC interfaces.
+
+Developer interfaces.
+
+Network limits.
+
+Protocol parameter update rules.
+
+Any feature not required for initial launch should be explicitly marked:
+
+POST MAINNET
+
+Do not leave ambiguous partially implemented features enabled.
+
+DAY 2: VALIDATOR AND ECONOMIC SECURITY ARCHITECTURE
+
+Finalize the production validator model.
+
+Define:
+
+Minimum genesis validator count.
+
+Target validator count.
+
+Voting power calculations.
+
+Validator bonding.
+
+Stake requirements.
+
+Delegation rules.
+
+Undelegation period.
+
+Commission rules.
+
+Reward distribution.
+
+Slashing conditions.
+
+Double signing penalties.
+
+Downtime penalties.
+
+Jailing conditions.
+
+Unjailing process.
+
+Validator admission.
+
+Validator removal.
+
+Validator replacement.
+
+Validator key generation.
+
+Validator key storage.
+
+Validator key rotation.
+
+Validator compromise procedure.
+
+Emergency validator replacement.
+
+Peer configuration.
+
+Seed nodes.
+
+Persistent peers.
+
+Sentry architecture if used.
+
+Network partition behavior.
+
+Byzantine fault assumptions.
+
+Finality assumptions.
+
+Determine the minimum validator set required for launch.
+
+If the network remains substantially controlled by the founding team at genesis, document this explicitly and do not characterize it as meaningfully decentralized until validator control actually broadens.
+
+Create:
+
+VALIDATOR_ARCHITECTURE.md
+
+VALIDATOR_OPERATIONS.md
+
+VALIDATOR_SECURITY_MODEL.md
+
+DAY 3: DRT AND DGT TOKENOMICS FREEZE
+
+Create:
+
+DRT_TOKENOMICS.md
+
+DGT_TOKENOMICS.md
+
+TOKEN_SUPPLY_MODEL.md
+
+For DRT define:
+
+Purpose.
+
+Initial supply.
+
+Inflation rate.
+
+Inflation calculation.
+
+Minting authority.
+
+Minting schedule.
+
+Burning rules.
+
+Staking role.
+
+Reward role.
+
+Governance role.
+
+Fee role if any.
+
+Transferability.
+
+Treasury allocations.
+
+Genesis allocations.
+
+Validator allocations.
+
+Foundation allocations.
+
+Team allocations.
+
+Community allocations.
+
+Vesting.
+
+Lockups.
+
+Distribution schedule.
+
+Supply cap if any.
+
+For DGT define:
+
+Purpose.
+
+Fixed supply or inflationary status.
+
+Initial supply.
+
+Maximum supply.
+
+Minting authority.
+
+Burning rules.
+
+Gas role.
+
+Fee role.
+
+Utility role.
+
+Governance role if any.
+
+Transferability.
+
+Genesis allocations.
+
+Treasury allocations.
+
+Foundation allocations.
+
+Team allocations.
+
+Community allocations.
+
+Vesting.
+
+Lockups.
+
+Distribution schedule.
+
+Explicitly reconcile any prior documentation that conflicts with actual launch tokenomics.
+
+Create mathematical supply invariants.
+
+Examples:
+
+Total DGT supply must never exceed the defined maximum.
+
+All DRT inflation must be mathematically reconcilable.
+
+Minted amount minus burned amount must equal supply delta.
+
+Genesis allocation totals must exactly equal genesis supply.
+
+Rewards must reconcile against issuance.
+
+Fees must reconcile against collection, distribution, and burning logic.
+
+Create automated tests for every supply invariant.
+
+DAY 4: PQC ARCHITECTURE FREEZE
+
+Freeze production cryptographic architecture.
+
+Define:
+
+ML DSA variant.
+
+ML KEM variant where used.
+
+SLH DSA support.
+
+Cryptographic algorithm identifiers.
+
+Address derivation.
+
+Public key encoding.
+
+Private key handling.
+
+Signature encoding.
+
+Transaction signing format.
+
+Transaction hashing.
+
+Domain separation.
+
+Replay protection.
+
+Chain ID binding.
+
+Key generation.
+
+Key persistence.
+
+Key recovery.
+
+Wallet key encryption.
+
+Validator key protection.
+
+Signature verification.
+
+Cryptographic versioning.
+
+Future cryptographic migration mechanism.
+
+Run:
+
+Known answer tests.
+
+Cross implementation tests.
+
+Malformed key tests.
+
+Malformed signature tests.
+
+Wrong public key tests.
+
+Wrong network tests.
+
+Replay tests.
+
+Serialization tests.
+
+Deterministic encoding tests.
+
+Large signature tests.
+
+Performance tests.
+
+Ensure cryptographic failure always fails closed.
+
+Create:
+
+PQC_ARCHITECTURE.md
+
+PQC_TEST_REPORT.md
+
+DAY 5: PRODUCTION GENESIS FREEZE
+
+Design the exact production genesis procedure.
+
+Define:
+
+Chain ID.
+
+Genesis timestamp procedure.
+
+Initial validator set.
+
+Validator public keys.
+
+Validator voting power.
+
+Initial accounts.
+
+DRT genesis supply.
+
+DGT genesis supply.
+
+All token allocations.
+
+Staking state.
+
+Governance parameters.
+
+Treasury accounts.
+
+Community pool configuration.
+
+Consensus parameters.
+
+Block parameters.
+
+Fee parameters.
+
+Gas parameters.
+
+PQC parameters.
+
+Slashing parameters.
+
+Inflation parameters.
+
+Distribution parameters.
+
+Upgrade parameters.
+
+Create:
+
+GENESIS_SPEC.md
+
+GENESIS_CEREMONY.md
+
+GENESIS_VALIDATION.md
+
+GENESIS_MANIFEST.json
+
+The genesis process must produce deterministic output except for explicitly documented values such as the final launch timestamp.
+
+Generate cryptographic hashes for the final genesis file.
+
+Every validator must verify the same genesis hash before launch.
+
+WEEK 1 EXIT GATE
+
+Week 1 passes only when Dytallix Mainnet v1 can be described without ambiguity.
+
+Two independent engineers must be able to read the specifications and independently reach the same conclusions regarding:
+
+Consensus.
+
+Validators.
+
+DRT.
+
+DGT.
+
+Staking.
+
+Rewards.
+
+Fees.
+
+Governance.
+
+PQC.
+
+Genesis.
+
+Supply behavior.
+
+Network upgrades.
+
+Any ambiguity blocks progression.
+
+WEEK 2: PRODUCTION HARDENING
+
+Objective:
+
+Build reproducible production infrastructure around the frozen protocol.
+
+DAY 6: REPRODUCIBLE RELEASE BUILD
+
+Create the production release pipeline.
+
+Produce:
+
+Versioned source commit.
+
+Release candidate tag.
+
+Reproducible binaries.
+
+Container image.
+
+Checksums.
+
+Dependency locks.
+
+Compiler versions.
+
+Build environment specification.
+
+Build instructions.
+
+Software Bill of Materials.
+
+Dependency vulnerability report.
+
+Release manifest.
+
+Target:
+
+dytallix v1.0.0 rc1
+
+A clean independent machine must be capable of reproducing the same production binary from source.
+
+Document every dependency required to reproduce the build.
+
+DAY 7: VALIDATOR DEPLOYMENT AUTOMATION
+
+Create automated production validator deployment.
+
+The desired workflow is:
+
+Clean server.
+
+Secure operating system.
+
+Install dependencies.
+
+Install Dytallix binary.
+
+Install genesis.
+
+Configure validator.
+
+Configure peers.
+
+Configure firewall.
+
+Configure monitoring.
+
+Configure log rotation.
+
+Configure backups.
+
+Start node.
+
+Synchronize.
+
+Join consensus.
+
+Eliminate undocumented manual steps.
+
+Test deployment repeatedly from clean servers.
+
+Create:
+
+VALIDATOR_DEPLOYMENT.md
+
+VALIDATOR_RUNBOOK.md
+
+VALIDATOR_RECOVERY.md
+
+DAY 8: WALLET AND TRANSACTION HARDENING
+
+Treat wallet reliability as a launch blocker.
+
+Test:
+
+Wallet creation.
+
+PQC key generation.
+
+Encrypted key storage.
+
+Key persistence.
+
+Application restart.
+
+Device restart.
+
+Wallet recovery.
+
+Account import.
+
+Transaction signing.
+
+Transaction broadcast.
+
+Fee estimation.
+
+Balance display.
+
+Nonce handling.
+
+Sequence handling.
+
+Failed transactions.
+
+Duplicate transactions.
+
+Malformed transactions.
+
+Insufficient balance.
+
+RPC interruption.
+
+Wallet reconnect.
+
+Chain restart.
+
+Upgrade compatibility.
+
+Ensure users cannot silently lose access to assets through ordinary wallet operations.
+
+Create:
+
+WALLET_TEST_REPORT.md
+
+DAY 9: OBSERVABILITY AND OPERATIONAL MONITORING
+
+Deploy production observability.
+
+Monitor:
+
+Block height.
+
+Block production.
+
+Block time.
+
+Consensus rounds.
+
+Validator participation.
+
+Missed blocks.
+
+Voting power.
+
+Peer count.
+
+Mempool size.
+
+Transaction throughput.
+
+Transaction failure rate.
+
+Gas usage.
+
+Fee collection.
+
+Reward distribution.
+
+DRT issuance.
+
+DGT supply.
+
+Token burns.
+
+Delegation activity.
+
+Slashing events.
+
+Governance events.
+
+CPU.
+
+Memory.
+
+Disk.
+
+Disk growth.
+
+Network traffic.
+
+RPC latency.
+
+RPC error rate.
+
+PQC signing latency where appropriate.
+
+PQC verification latency.
+
+Node restarts.
+
+Validator availability.
+
+Create alerts for:
+
+Consensus halt.
+
+Validator outage.
+
+Abnormal missed blocks.
+
+Disk exhaustion.
+
+RPC outage.
+
+Supply invariant violation.
+
+Unexpected mint.
+
+Unexpected burn.
+
+Abnormal staking event.
+
+Abnormal governance event.
+
+Repeated signature verification failures.
+
+Node restart loops.
+
+DAY 10: BACKUP, DISASTER RECOVERY, AND FAILURE TESTING
+
+Create production snapshot procedures.
+
+Test:
+
+Node destruction.
+
+Node restoration.
+
+State corruption.
+
+Snapshot restoration.
+
+Validator removal.
+
+Validator replacement.
+
+Server loss.
+
+Connectivity loss.
+
+Connectivity restoration.
+
+RPC restoration.
+
+Database corruption.
+
+Disk exhaustion.
+
+CPU saturation.
+
+Memory pressure.
+
+Network latency.
+
+Packet loss.
+
+Peer isolation.
+
+Node restart loops.
+
+Malformed transactions.
+
+Malformed PQC signatures.
+
+Duplicate transactions.
+
+Nonce errors.
+
+Large transactions.
+
+Transaction floods.
+
+RPC floods.
+
+Temporary network partitions.
+
+Verify state consistency after every recovery scenario.
+
+Create:
+
+DISASTER_RECOVERY.md
+
+FAILURE_TEST_REPORT.md
+
+WEEK 2 EXIT GATE
+
+Week 2 passes only if individual infrastructure failures can be handled through documented procedures.
+
+No critical recovery process may depend on undocumented operator knowledge.
+
+State integrity must survive all required recovery tests.
+
+WEEK 3: ECONOMIC, ADVERSARIAL, SECURITY, AND RELEASE QUALIFICATION
+
+Objective:
+
+Prove that the exact release candidate intended for production can operate as a complete economic blockchain.
+
+DAY 11: FULL ECONOMIC LIFECYCLE TEST
+
+Exercise the complete network lifecycle.
+
+Create accounts.
+
+Generate PQC keys.
+
+Fund accounts.
+
+Transfer DRT.
+
+Transfer DGT.
+
+Pay fees.
+
+Delegate stake.
+
+Undelegate stake.
+
+Redelegate if supported.
+
+Earn rewards.
+
+Claim rewards.
+
+Run validators.
+
+Miss blocks.
+
+Trigger jailing.
+
+Trigger slashing.
+
+Recover validators.
+
+Submit governance proposals.
+
+Vote.
+
+Execute governance outcomes.
+
+Submit standard transactions.
+
+Restart nodes.
+
+Restart wallets.
+
+Recover wallets.
+
+Verify balances.
+
+Verify rewards.
+
+Verify supply.
+
+Repeat at scale.
+
+Reconcile every DRT and DGT balance against global supply.
+
+No unexplained supply discrepancy is acceptable.
+
+DAY 12: PQC AND NETWORK LOAD TESTING
+
+Benchmark:
+
+Signature generation.
+
+Signature verification.
+
+Transaction size.
+
+Public key size.
+
+Signature size.
+
+Block size.
+
+Transactions per block.
+
+Verification CPU consumption.
+
+Memory consumption.
+
+Network propagation.
+
+Mempool behavior.
+
+RPC performance.
+
+Maximum sustainable transaction rate.
+
+Maximum sustainable block utilization.
+
+Validator performance under maximum expected PQC workload.
+
+Measure degradation as load increases.
+
+Determine:
+
+Safe sustained TPS.
+
+Safe peak TPS.
+
+Safe block utilization.
+
+Recommended validator hardware.
+
+Recommended RPC hardware.
+
+Maximum safe mempool size.
+
+Maximum safe transaction size.
+
+Do not make experimental signature aggregation a launch dependency unless current PQC signature sizes make production operation impractical.
+
+Prefer validated cryptographic correctness over experimental compression.
+
+DAY 13: ECONOMIC AND GOVERNANCE ATTACK SIMULATION
+
+Test adversarial economic scenarios.
+
+Simulate:
+
+Validator concentration.
+
+Delegation concentration.
+
+Large validator failure.
+
+Large validator defection.
+
+Double signing.
+
+Downtime.
+
+Rapid undelegation.
+
+Reward manipulation attempts.
+
+Fee spam.
+
+Low fee spam.
+
+High transaction volume.
+
+Governance proposal spam.
+
+Malicious governance proposals.
+
+Voting concentration.
+
+Treasury abuse attempts.
+
+Unauthorized mint attempts.
+
+Unauthorized burn attempts.
+
+Supply overflow attempts.
+
+Integer boundary conditions.
+
+Inflation calculation edge cases.
+
+Reward calculation edge cases.
+
+Slashing edge cases.
+
+Rounding errors.
+
+Test whether economically meaningful attacks can violate protocol invariants.
+
+Document:
+
+ECONOMIC_SECURITY_REPORT.md
+
+GOVERNANCE_SECURITY_REPORT.md
+
+DAY 14: UPGRADE REHEARSAL AND SECURITY REVIEW
+
+Launch the network using RC1.
+
+Create RC2 containing a controlled harmless change.
+
+Execute the intended production upgrade process.
+
+Test:
+
+Normal coordinated upgrade.
+
+One validator upgrading late.
+
+One validator failing to upgrade.
+
+RPC node remaining on the old version.
+
+Wallet interacting during upgrade.
+
+Node rollback.
+
+State compatibility.
+
+Post upgrade staking.
+
+Post upgrade rewards.
+
+Post upgrade governance.
+
+Post upgrade PQC transactions.
+
+Then perform adversarial security review covering:
+
+Consensus inputs.
+
+RPC exposure.
+
+REST exposure.
+
+gRPC exposure.
+
+PQC verification.
+
+Transaction serialization.
+
+Key handling.
+
+Genesis manipulation.
+
+Replay attacks.
+
+Signature substitution.
+
+Malformed transactions.
+
+Denial of service.
+
+Privilege boundaries.
+
+Validator credentials.
+
+Secrets management.
+
+Dependency vulnerabilities.
+
+Supply chain security.
+
+CI/CD security.
+
+Container security.
+
+Server configuration.
+
+Logging leakage.
+
+Unauthorized minting.
+
+Unauthorized governance.
+
+Treasury compromise.
+
+Validator key compromise.
+
+Resolve every P0 finding.
+
+DAY 15: MAINNET RELEASE FREEZE
+
+Create:
+
+Dytallix v1.0.0 Mainnet Candidate
+
+Freeze:
+
+Source commit.
+
+Dependencies.
+
+Binaries.
+
+Genesis template.
+
+Token parameters.
+
+Validator parameters.
+
+Governance parameters.
+
+PQC parameters.
+
+Container image.
+
+Build environment.
+
+Deployment automation.
+
+Checksums.
+
+Documentation.
+
+Runbooks.
+
+Monitoring configuration.
+
+No new features are permitted after freeze.
+
+Only launch blocking defects may modify the release candidate.
+
+Every modification after freeze requires:
+
+New release candidate.
+
+Documented diff.
+
+Affected test rerun.
+
+Security review of affected code.
+
+WEEK 3 EXIT GATE
+
+The release candidate must pass:
+
+Consensus tests.
+
+PQC tests.
+
+Supply invariant tests.
+
+Wallet tests.
+
+Validator tests.
+
+Staking tests.
+
+Reward tests.
+
+Fee tests.
+
+Governance tests.
+
+Upgrade tests.
+
+Recovery tests.
+
+Load tests.
+
+Security tests.
+
+No unresolved P0 issues may remain.
+
+WEEK 4: SEVEN SIMULATED MAINNET LAUNCH RUNS
+
+The exact production configuration must now be launched repeatedly.
+
+Every simulation is treated as if it were the real Dytallix genesis.
+
+No undocumented shortcuts.
+
+SIMULATION DAY 1: CLEAN GENESIS
+
+Start from clean infrastructure.
+
+Deploy validators.
+
+Perform genesis ceremony.
+
+Verify genesis hashes.
+
+Distribute genesis.
+
+Start validators.
+
+Establish consensus.
+
+Start RPC infrastructure.
+
+Connect wallets.
+
+Create accounts.
+
+Fund accounts.
+
+Stake tokens.
+
+Delegate tokens.
+
+Execute DRT transactions.
+
+Execute DGT transactions.
+
+Collect fees.
+
+Accrue rewards.
+
+Verify supply.
+
+Operate for the full simulation period.
+
+Document all abnormalities.
+
+SIMULATION DAY 2: INFRASTRUCTURE FAILURE
+
+Perform another clean launch.
+
+Kill one validator.
+
+Restore it.
+
+Kill RPC infrastructure.
+
+Restore it.
+
+Force peer reconnection.
+
+Destroy a node.
+
+Restore it from snapshot.
+
+Lose network connectivity.
+
+Restore connectivity.
+
+Verify:
+
+Consensus continuity.
+
+State consistency.
+
+Token supply.
+
+Staking state.
+
+Rewards.
+
+Wallet operation.
+
+SIMULATION DAY 3: ADVERSARIAL NETWORK
+
+Launch again.
+
+Introduce:
+
+Latency.
+
+Packet loss.
+
+Validator partition.
+
+Malformed transactions.
+
+Invalid PQC signatures.
+
+RPC flooding.
+
+Transaction flooding.
+
+Oversized requests.
+
+Invalid serialization.
+
+Peer instability.
+
+Invalid nonces.
+
+Duplicate transactions.
+
+Measure:
+
+Consensus behavior.
+
+State integrity.
+
+PQC verification.
+
+Mempool behavior.
+
+Validator stability.
+
+RPC stability.
+
+Recovery time.
+
+Token accounting.
+
+SIMULATION DAY 4: PRODUCTION UPGRADE
+
+Launch from genesis.
+
+Operate normally.
+
+Accumulate transactions.
+
+Create staking activity.
+
+Generate rewards.
+
+Reach predetermined upgrade height.
+
+Execute production upgrade.
+
+Resume consensus.
+
+Verify:
+
+State.
+
+Balances.
+
+Staking.
+
+Rewards.
+
+Governance.
+
+RPC.
+
+Wallets.
+
+PQC transactions.
+
+Token supply.
+
+Continue operating after upgrade.
+
+SIMULATION DAY 5: OPERATOR ERROR
+
+Simulate realistic human mistakes.
+
+Attempt:
+
+Incorrect configuration.
+
+Wrong binary.
+
+Wrong network.
+
+Misconfigured validator.
+
+Offline validator.
+
+Incorrect genesis.
+
+Wrong genesis hash.
+
+RPC server loss.
+
+Old snapshot restoration.
+
+Duplicate validator key use.
+
+Incorrect peer configuration.
+
+Incorrect network configuration.
+
+Incorrect fee configuration.
+
+Incorrect environment variables.
+
+Attempt to start incompatible versions.
+
+The system and procedures should prevent foreseeable operator errors from becoming catastrophic network failures.
+
+SIMULATION DAY 6: PRODUCTION LOAD AND ECONOMIC ACTIVITY
+
+Simulate real users, developers, validators, and economic activity.
+
+Generate many wallets.
+
+Generate many PQC keys.
+
+Fund accounts.
+
+Transfer DRT.
+
+Transfer DGT.
+
+Delegate stake.
+
+Undelegate stake.
+
+Claim rewards.
+
+Submit sustained transaction load.
+
+Query RPC aggressively.
+
+Submit governance actions.
+
+Create malformed transactions.
+
+Push block limits.
+
+Push mempool limits.
+
+Push RPC limits.
+
+Push PQC verification limits.
+
+Measure actual production capacity.
+
+Document:
+
+Safe sustained throughput.
+
+Peak throughput.
+
+Block saturation behavior.
+
+Validator hardware utilization.
+
+RPC hardware utilization.
+
+Wallet reliability.
+
+Fee behavior.
+
+Reward behavior.
+
+Supply behavior.
+
+SIMULATION DAY 7: FINAL MAINNET DRESS REHEARSAL
+
+Execute the exact production launch procedure.
+
+T MINUS 6 HOURS
+
+Verify binaries.
+
+Verify checksums.
+
+Verify release commit.
+
+Verify genesis.
+
+Verify all genesis allocations.
+
+Verify DRT supply.
+
+Verify DGT supply.
+
+Verify validators.
+
+Verify validator keys.
+
+Verify infrastructure.
+
+Verify networking.
+
+Verify DNS.
+
+Verify RPC.
+
+Verify monitoring.
+
+Verify alerts.
+
+Verify backups.
+
+Verify recovery procedures.
+
+T MINUS 1 HOUR
+
+Confirm validator coordination.
+
+Confirm genesis hash.
+
+Confirm binary hash.
+
+Confirm peers.
+
+Confirm system clocks.
+
+Confirm validator keys.
+
+Confirm configuration.
+
+Confirm token allocations.
+
+Confirm network parameters.
+
+T ZERO
+
+Start validators.
+
+Confirm consensus.
+
+Confirm block production.
+
+Verify expected validator participation.
+
+T PLUS 15 MINUTES
+
+Verify RPC.
+
+Verify wallet connectivity.
+
+Execute canonical PQC transaction.
+
+Execute DRT transaction.
+
+Execute DGT transaction.
+
+Create delegation.
+
+Verify fee accounting.
+
+Verify finalization.
+
+T PLUS 1 HOUR
+
+Verify state consistency across validators.
+
+Verify wallets.
+
+Verify staking.
+
+Verify rewards.
+
+Verify token supply.
+
+Verify monitoring.
+
+Verify RPC infrastructure.
+
+T PLUS 6 HOURS
+
+Review telemetry.
+
+Review logs.
+
+Review validator participation.
+
+Review token accounting.
+
+Review transaction statistics.
+
+Review security alerts.
+
+Review staking activity.
+
+T PLUS 24 HOURS
+
+Perform full supply reconciliation.
+
+Perform full validator review.
+
+Perform final state consistency review.
+
+Complete:
+
+FINAL_MAINNET_SIMULATION_REPORT.md
+
+FINAL GO OR NO GO REVIEW
+
+Score every category PASS or FAIL.
+
+Consensus stability.
+
+Consensus safety.
+
+PQC correctness.
+
+Genesis reproducibility.
+
+Genesis allocation correctness.
+
+Binary reproducibility.
+
+Validator deployment.
+
+Validator recovery.
+
+State recovery.
+
+PQC transaction lifecycle.
+
+Wallet reliability.
+
+DRT transfers.
+
+DGT transfers.
+
+DRT supply accounting.
+
+DGT supply accounting.
+
+Staking.
+
+Delegation.
+
+Undelegation.
+
+Rewards.
+
+Fees.
+
+Slashing.
+
+Governance.
+
+Treasury controls.
+
+Upgrade procedure.
+
+RPC stability.
+
+Load capacity.
+
+Monitoring.
+
+Alerting.
+
+Backup procedures.
+
+Disaster recovery.
+
+Security.
+
+Documentation.
+
+Developer onboarding.
+
+Validator onboarding.
+
+No launch occurs unless every critical category passes.
+
+LAUNCH BLOCKERS
+
+The following automatically produce a NO GO decision.
+
+Consensus safety failure.
+
+Chain halt without documented recovery.
+
+State divergence.
+
+Unexplained state corruption.
+
+PQC signature acceptance failure.
+
+Invalid PQC signature accepted.
+
+Replay vulnerability.
+
+Validator key compromise not safely recoverable.
+
+Genesis inconsistency.
+
+Genesis allocation mismatch.
+
+DRT supply mismatch.
+
+DGT supply mismatch.
+
+Unauthorized minting.
+
+Unauthorized burning.
+
+Incorrect reward issuance.
+
+Incorrect slashing accounting.
+
+Wallet key loss through normal operation.
+
+Wallet recovery failure.
+
+Upgrade causing state corruption.
+
+Unrecoverable validator failure.
+
+Unrecoverable snapshot failure.
+
+Critical remote exploit.
+
+Critical privilege escalation.
+
+Critical governance exploit.
+
+Critical economic invariant failure.
+
+SCOPE CONTROL
+
+During these four weeks do not expand into unrelated features.
+
+Do not allow the following to block mainnet unless they are required for protocol correctness:
+
+QuantumSentinel integrations.
+
+QuantumVault integrations.
+
+QuantumLink integrations.
+
+Experimental AI modules.
+
+Experimental lattice signature aggregation.
+
+Nonessential UI redesign.
+
+Marketing systems.
+
+Additional wallet features beyond required production functionality.
+
+Experimental consensus changes.
+
+Unrelated application layer features.
+
+The sole objective is:
+
+Launch one permanent Dytallix mainnet correctly.
+
+EXECUTION RULES
+
+For every task:
+
+Inspect before modifying.
+
+Document the current state.
+
+State the intended change.
+
+Implement the smallest correct change.
+
+Add tests.
+
+Run tests.
+
+Record results.
+
+Update documentation.
+
+Do not silently change protocol behavior.
+
+Do not silently change tokenomics.
+
+Do not silently change genesis allocations.
+
+Do not silently change cryptographic parameters.
+
+Do not silently change validator economics.
+
+Every protocol relevant change must be documented.
+
+Every token supply change must include mathematical reconciliation.
+
+Every cryptographic change must include test vectors.
+
+Every consensus change must include consensus tests.
+
+Every upgrade relevant change must include upgrade tests.
+
+Every critical bug fix after release freeze must trigger targeted regression testing.
+
+DAILY OUTPUT FORMAT
+
+At the end of every day produce:
+
+DAY_X_STATUS.md
+
+Include:
+
+Tasks completed.
+
+Files changed.
+
+Tests added.
+
+Tests passed.
+
+Tests failed.
+
+Bugs discovered.
+
+Bugs resolved.
+
+Outstanding blockers.
+
+Protocol changes.
+
+Tokenomic changes.
+
+Cryptographic changes.
+
+Infrastructure changes.
+
+Security findings.
+
+Current readiness percentage.
+
+GO or NO GO for progression to the next day.
+
+WEEKLY OUTPUT FORMAT
+
+At the end of each week produce:
+
+WEEK_X_MAINNET_REPORT.md
+
+Include:
+
+Executive summary.
+
+Completed work.
+
+Outstanding work.
+
+Blockers.
+
+Security status.
+
+Consensus status.
+
+PQC status.
+
+Validator status.
+
+DRT status.
+
+DGT status.
+
+Token supply status.
+
+Wallet status.
+
+Infrastructure status.
+
+Testing status.
+
+Risk register.
+
+Readiness score.
+
+Recommendation.
+
+FINAL DELIVERABLES
+
+Before real genesis, the repository must contain or reference:
+
+MAINNET_READINESS_REPORT.md
+
+MAINNET_V1_SPEC.md
+
+VALIDATOR_ARCHITECTURE.md
+
+VALIDATOR_OPERATIONS.md
+
+VALIDATOR_SECURITY_MODEL.md
+
+DRT_TOKENOMICS.md
+
+DGT_TOKENOMICS.md
+
+TOKEN_SUPPLY_MODEL.md
+
+PQC_ARCHITECTURE.md
+
+PQC_TEST_REPORT.md
+
+GENESIS_SPEC.md
+
+GENESIS_CEREMONY.md
+
+GENESIS_VALIDATION.md
+
+GENESIS_MANIFEST.json
+
+VALIDATOR_DEPLOYMENT.md
+
+VALIDATOR_RUNBOOK.md
+
+VALIDATOR_RECOVERY.md
+
+WALLET_TEST_REPORT.md
+
+DISASTER_RECOVERY.md
+
+FAILURE_TEST_REPORT.md
+
+ECONOMIC_SECURITY_REPORT.md
+
+GOVERNANCE_SECURITY_REPORT.md
+
+FINAL_MAINNET_SIMULATION_REPORT.md
+
+FINAL_GO_NO_GO_REPORT.md
+
+FINAL SUCCESS CONDITION
+
+Dytallix is ready for mainnet only when the team can demonstrate, rather than merely assert, that:
+
+The network reaches consensus reliably.
+
+The network survives realistic failures.
+
+The network can recover from catastrophic node loss.
+
+The network can upgrade safely.
+
+PQC signatures work correctly under production load.
+
+Wallet keys persist and recover safely.
+
+DRT supply is mathematically correct.
+
+DGT supply is mathematically correct.
+
+Staking behaves correctly.
+
+Rewards behave correctly.
+
+Fees behave correctly.
+
+Slashing behaves correctly.
+
+Governance behaves correctly.
+
+Validators can be deployed and recovered using documented procedures.
+
+Genesis is deterministic, independently verifiable, and internally consistent.
+
+Production binaries are reproducible.
+
+Security testing has no unresolved critical findings.
+
+Seven simulated mainnet launches have succeeded.
+
+Once all critical launch gates pass, produce a final GO recommendation for the one canonical Dytallix Mainnet genesis.

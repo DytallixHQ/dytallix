@@ -1,0 +1,13 @@
+{
+  "chain_id": "dyt-local-1",
+  "_comment": "DGT genesis allocations per the Dytallix tokenomics paper. DGT is fixed-supply (1,000,000,000 DGT = 1e15 udgt) and fully allocated here; the node enforces this via the dgt_minted cap. DRT is uncapped and emitted/faucet-minted, so it has no genesis allocation.",
+  "accounts": [
+    { "address": "dytallix1nrugtpn9j0e0lw7lfynrqwdzek4ecyh2t60gphd8ps9grhnd7tnqumw094", "_bucket": "Treasury 40%",   "balances": { "udgt": "400000000000000" } },
+    { "address": "dytallix1sheagwcg649z2yjl6y38vs6x2xlwudsx2g883dymxs4v296mux3s6ccnrq", "_bucket": "Staking 25%",    "balances": { "udgt": "250000000000000" } },
+    { "address": "dytallix1cckefyslpmswf7tqtj62p2k7jeuar53025ukhfy0u99662ptclxqxxgazz", "_bucket": "Team 15%",       "balances": { "udgt": "150000000000000" } },
+    { "address": "dytallix10lnaaqwqc04udlvhjjn4rulnmxwv3ze7a4u5dh0vznere5etmxtshulpm8", "_bucket": "Validators 10%", "balances": { "udgt": "100000000000000" } },
+    { "address": "dytallix1nr7zurkkqhpwkm5mafxjg9tjxtkk0fg69hrpazw432dfr3nfaagq5uqd96", "_bucket": "Ecosystem 10%",  "balances": { "udgt": "100000000000000" } }
+  ],
+  "staking": { "delegations": [] },
+  "staking_reward_rate_bps": 500
+}

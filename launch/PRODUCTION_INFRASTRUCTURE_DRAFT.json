@@ -1,0 +1,697 @@
+{
+  "document_type": "production_infrastructure_draft",
+  "schema_version": "1.0.0",
+  "status": "DRAFT_NOT_APPROVED_NOT_IMPLEMENTED",
+  "scope": "Proposed infrastructure records for one canonical mainnet and isolated rehearsal environments.",
+  "authority": {
+    "architecture_approved": false,
+    "provisioning_authorized": false,
+    "budget_approved": false,
+    "launch_approved": false,
+    "approval_record_ref": null
+  },
+  "current_evidence": {
+    "basis": "Pinned source assessment plus authorized read-only SSH observation of one existing Hetzner host.",
+    "assessment_ref": "assessment/release-operations.md",
+    "live_inventory_verified": true,
+    "network_tests_performed": false,
+    "resources_provisioned_by_this_task": 0,
+    "live_inventory_scope": "HOST-001 only; not provider-wide and not an approved mainnet topology.",
+    "operations_evidence_ref": "batch-1/OPERATIONS_EVIDENCE.json",
+    "verified_host_count": 1,
+    "verified_service_observations": 6,
+    "mainnet_inventory_approved": false
+  },
+  "active_inventory": [],
+  "operator_records": [],
+  "key_custody_records": [],
+  "backup_policy_records": [],
+  "release_records": [],
+  "acceptance_results": [],
+  "candidate_architecture": {
+    "validators": {
+      "placement": "Private network; no public RPC; peer traffic through approved sentries",
+      "count": null,
+      "voting_weights": null,
+      "independent_control_groups": null,
+      "status": "PROPOSED"
+    },
+    "conditional_bft_model": {
+      "selected": false,
+      "condition": "Only if a greater-than-two-thirds voting-power finality threshold and one Byzantine validator tolerance are selected.",
+      "conditional_minimum_equal_weight_validators": 4,
+      "equal_weight_required_for_count_only_argument": true,
+      "fault_domain_rule": "For tolerance of an entire domain outage, every tolerated independent fault domain must contain less than one third of total voting power; remaining power must exceed two thirds. Include provider, region, control group, account, network, and shared signing dependencies.",
+      "qualification": "Four validators do not establish decentralization, independence, implementation correctness, or production readiness."
+    },
+    "sentries": {
+      "status": "PROPOSED",
+      "count_per_validator": null,
+      "proposal": "At least two reachable sentry paths per validator with approved independent failure domains; exact count and routing require approval."
+    },
+    "rpc": {
+      "status": "PROPOSED",
+      "minimum_independent_backends_proposed": 2,
+      "gateway": "Redundant ingress with finalized-state and version-aware health policy; no validator signing keys",
+      "interface_scope": {
+        "http": "REQUIRED_SPECIFICATION",
+        "rest": "REQUIRED_SPECIFICATION",
+        "websocket": "REQUIRES_SPECIFICATION",
+        "grpc": "UNRESOLVED_SCOPE_DECISION"
+      }
+    },
+    "observability": {
+      "status": "PROPOSED",
+      "proposal": "Independent collection and alert delivery; monitor collector failure; restricted metrics access; centralized redacted logs with approved retention."
+    },
+    "backups": {
+      "status": "PROPOSED",
+      "proposal": "Consistent state snapshots, encrypted off-host copies, separate custody for key backups, immutable retention where approved, and verified restore records."
+    },
+    "release": {
+      "status": "PROPOSED",
+      "required_outputs": [
+        "versioned source",
+        "binary",
+        "container image",
+        "checksums",
+        "dependency locks",
+        "compiler and build environment",
+        "SBOM",
+        "dependency vulnerability report",
+        "provenance",
+        "release manifest"
+      ]
+    },
+    "rehearsal": {
+      "status": "PROPOSED",
+      "run_count_required": 7,
+      "production_topology_parity_required": true,
+      "candidate_manifest_parity_required": true,
+      "production_keys_allowed": false,
+      "production_funds_allowed": false,
+      "public_production_routing_allowed": false,
+      "chain_identity": "Distinct approved rehearsal identifier per run; preserve protocol semantics and record permitted genesis substitutions.",
+      "production_genesis_created": false,
+      "approved_differences": []
+    }
+  },
+  "recovery_objectives": [
+    {
+      "service": "validator",
+      "rto_seconds": null,
+      "rpo_seconds": null,
+      "state_consistency_requirement": "Resume only from verified authoritative state with safe persisted signing state and active-signer fencing.",
+      "approved_by": null,
+      "approval_record_ref": null,
+      "evidence_ref": null
+    },
+    {
+      "service": "rpc",
+      "rto_seconds": null,
+      "rpo_seconds": null,
+      "state_consistency_requirement": "Serve only verified state under the approved freshness policy.",
+      "approved_by": null,
+      "approval_record_ref": null,
+      "evidence_ref": null
+    },
+    {
+      "service": "observability",
+      "rto_seconds": null,
+      "rpo_seconds": null,
+      "state_consistency_requirement": "Restore collection and delivery within approved data-loss and outage limits.",
+      "approved_by": null,
+      "approval_record_ref": null,
+      "evidence_ref": null
+    },
+    {
+      "service": "backup_restore",
+      "rto_seconds": null,
+      "rpo_seconds": null,
+      "state_consistency_requirement": "Recover committed state without unexplained state or supply discrepancies.",
+      "approved_by": null,
+      "approval_record_ref": null,
+      "evidence_ref": null
+    }
+  ],
+  "missing_decisions": [
+    {
+      "id": "INF-01",
+      "title": "Consensus assumptions",
+      "owner_role": "Protocol lead",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Select finality threshold, fault model, timing assumptions, and stake weighting.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-02",
+      "title": "Validator set and control",
+      "owner_role": "Protocol lead and validator coordinator",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Select minimum and target count, operators, voting weights, ownership groups, and domain limits.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-03",
+      "title": "Provider and placement",
+      "owner_role": "SRE lead",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Select providers, regions, zones, account boundaries, jurisdiction, and shared-dependency limits.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-04",
+      "title": "Capacity and budget",
+      "owner_role": "SRE lead and budget owner",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Approve hardware, storage growth, retention, bandwidth, quotas, and recurring budget after measurement.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-05",
+      "title": "Peer and ingress topology",
+      "owner_role": "Network engineer",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Select sentry count, seed and persistent peers, management path, public interfaces, and firewall policy.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-06",
+      "title": "Key custody",
+      "owner_role": "Cryptography lead and validator operators",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Select verified PQC signer interface, key generation, storage, backup, authorization, rotation, and compromise response.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-07",
+      "title": "Recovery objectives",
+      "owner_role": "SRE lead and protocol lead",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Set RTO and RPO per service; define authoritative-state recovery, signer fencing, and snapshot trust.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-08",
+      "title": "Observability and incident response",
+      "owner_role": "SRE lead",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Approve SLOs, metrics, thresholds, alert routing, on-call coverage, escalation, retention, and redaction.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-09",
+      "title": "Release and configuration control",
+      "owner_role": "Release engineer",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Select artifact registry, signing and attestation verification, approved manifest, configuration management, and rollback limits.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-10",
+      "title": "Upgrade authority",
+      "owner_role": "Protocol lead and governance lead",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Approve governance authorization, activation rules, version compatibility, late-node handling, and recovery limits.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-11",
+      "title": "Rehearsal environment",
+      "owner_role": "QA lead and SRE lead",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Approve isolated production-equivalent layout, seven-run schedule, access, resource budget, and differences register.",
+      "selected_value": null,
+      "approval_record_ref": null
+    },
+    {
+      "id": "INF-12",
+      "title": "Launch authority",
+      "owner_role": "Release lead",
+      "assigned_owner": null,
+      "status": "UNDECIDED",
+      "decision_required": "Assign operators, independent reviewers, incident commander, and final launch approval authority.",
+      "selected_value": null,
+      "approval_record_ref": null
+    }
+  ],
+  "record_schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "Infrastructure asset record",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "record_id",
+      "role",
+      "environment",
+      "state",
+      "provider",
+      "provider_resource_id",
+      "region",
+      "zone",
+      "account_boundary_ref",
+      "operator_record_ref",
+      "control_group_ref",
+      "fault_domain_refs",
+      "host_address_ref",
+      "dns_record_ref",
+      "network_policy_ref",
+      "peer_policy_ref",
+      "hardware_profile_ref",
+      "budget_approval_ref",
+      "release_manifest_ref",
+      "binary_sha256",
+      "container_image_digest",
+      "genesis_sha256",
+      "configuration_sha256",
+      "monitoring_policy_ref",
+      "backup_policy_ref",
+      "key_custody_record_ref",
+      "created_at",
+      "last_verified_at",
+      "acceptance_evidence_refs"
+    ],
+    "properties": {
+      "record_id": {
+        "type": "string"
+      },
+      "role": {
+        "enum": [
+          "validator",
+          "sentry",
+          "seed",
+          "rpc",
+          "rpc_gateway",
+          "monitoring",
+          "alerting",
+          "backup_store",
+          "build_runner",
+          "artifact_registry",
+          "administration"
+        ]
+      },
+      "environment": {
+        "enum": [
+          "rehearsal",
+          "production"
+        ]
+      },
+      "state": {
+        "enum": [
+          "planned",
+          "provisioned",
+          "verified",
+          "retired"
+        ]
+      },
+      "provider": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "provider_resource_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "region": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "zone": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "account_boundary_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "operator_record_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "control_group_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "fault_domain_refs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "host_address_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "dns_record_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "network_policy_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "peer_policy_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "hardware_profile_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "budget_approval_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "release_manifest_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "binary_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "container_image_digest": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "genesis_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "configuration_sha256": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "monitoring_policy_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "backup_policy_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "key_custody_record_ref": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "created_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "last_verified_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "acceptance_evidence_refs": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "record_templates": {
+    "operator": {
+      "record_id": null,
+      "role": null,
+      "assigned_person_ref": null,
+      "organization_ref": null,
+      "control_group_ref": null,
+      "owned_asset_refs": [],
+      "primary_on_call_ref": null,
+      "backup_on_call_ref": null,
+      "access_approval_ref": null,
+      "acceptance_record_ref": null
+    },
+    "key_custody": {
+      "record_id": null,
+      "operator_record_ref": null,
+      "validator_asset_ref": null,
+      "algorithm_spec_ref": null,
+      "public_key_fingerprint": null,
+      "custody_backend": null,
+      "capability_evidence_ref": null,
+      "access_policy_ref": null,
+      "generation_ceremony_ref": null,
+      "backup_policy_ref": null,
+      "signing_state_policy_ref": null,
+      "fencing_policy_ref": null,
+      "rotation_policy_ref": null,
+      "compromise_runbook_ref": null,
+      "last_recovery_test_ref": null,
+      "secret_material_permitted": false
+    },
+    "backup_policy": {
+      "record_id": null,
+      "covered_asset_refs": [],
+      "consistent_snapshot_method_ref": null,
+      "snapshot_trust_rule_ref": null,
+      "encryption_policy_ref": null,
+      "destination_ref": null,
+      "retention_seconds": null,
+      "schedule_ref": null,
+      "rto_seconds": null,
+      "rpo_seconds": null,
+      "restore_runbook_ref": null,
+      "last_restore_evidence_ref": null,
+      "owner_record_ref": null
+    },
+    "release": {
+      "record_id": null,
+      "source_revision": null,
+      "release_tag": null,
+      "compiler_version": null,
+      "build_environment_digest": null,
+      "dependency_lock_digests": {},
+      "binary_digests": {},
+      "container_image_digest": null,
+      "sbom_digest": null,
+      "dependency_report_ref": null,
+      "provenance_ref": null,
+      "genesis_digest": null,
+      "configuration_digest": null,
+      "runbook_digest": null,
+      "monitoring_config_digest": null,
+      "approval_record_ref": null
+    },
+    "acceptance_result": {
+      "record_id": null,
+      "check_id": null,
+      "environment": null,
+      "run_id": null,
+      "candidate_manifest_digest": null,
+      "asset_refs": [],
+      "operator_record_ref": null,
+      "reviewer_record_ref": null,
+      "started_at": null,
+      "ended_at": null,
+      "result": "NOT_RUN",
+      "evidence_refs": [],
+      "defect_refs": []
+    },
+    "rehearsal_difference": {
+      "record_id": null,
+      "run_id": null,
+      "field": null,
+      "production_value_ref": null,
+      "rehearsal_value_ref": null,
+      "reason": null,
+      "effect_on_test_validity": null,
+      "reviewer_record_ref": null,
+      "approval_record_ref": null
+    }
+  },
+  "acceptance_checks": [
+    {
+      "id": "A01",
+      "category": "Topology",
+      "check": "Verify approved operator control groups, voting weights, fault domains, peers, and shared dependencies.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A02",
+      "category": "Release identity",
+      "check": "Verify release source, reproducible binary, required container image, checksums, SBOM, dependencies, and provenance.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A03",
+      "category": "Configuration identity",
+      "check": "Verify chain ID, genesis digest, feature flags, configuration digest, peers, clocks, and network restrictions.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A04",
+      "category": "Key custody",
+      "check": "Verify key provisioning, access, encrypted backups, recovery authorization, signing state, fencing, and no duplicate active signer.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A05",
+      "category": "Validator operation",
+      "check": "Verify consensus participation, agreement, synchronization, restart, replacement, and recovery under approved assumptions.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A06",
+      "category": "RPC and wallet access",
+      "check": "Verify approved HTTP, REST, WebSocket, and gRPC scope; redundant service continuity; transaction lifecycle; wallet reconnect.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A07",
+      "category": "Observability",
+      "check": "Verify every required signal, collection failure detection, alert delivery, acknowledgement, escalation, and recovery notification.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A08",
+      "category": "Recovery",
+      "check": "Restore nodes and RPC services; verify trusted state, balances, receipts, stake, rewards, governance, DRT/DGT supply, and recovery objectives.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A09",
+      "category": "Upgrade",
+      "check": "Verify governed activation, compatibility limits, late operators, state continuity, and permitted rollback/recovery.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A10",
+      "category": "Rehearsal parity",
+      "check": "Verify approved architecture parity and review each difference; isolate identities, keys, funds, routing, and artifacts.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A11",
+      "category": "Seven runs",
+      "check": "Complete seven required isolated launch runs with candidate-linked evidence and no unresolved critical failure.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    },
+    {
+      "id": "A12",
+      "category": "Launch approval",
+      "check": "Verify complete evidence, assigned accountable reviewers, resolved blockers, and explicit final launch approval.",
+      "status": "NOT_RUN",
+      "owner_record_ref": null,
+      "evidence_refs": []
+    }
+  ],
+  "validation_rules": [
+    "Active inventory remains empty until operator-supplied resources are verified.",
+    "Templates and proposals are not active resources.",
+    "A verified asset requires assigned owners, required digests, network and custody policies, and acceptance evidence.",
+    "Do not store secret keys, tokens, passphrases, or recovery seeds in these records.",
+    "Populate sensitive addresses and access references only in the controlled operator inventory.",
+    "All approval fields remain empty until an authorized decision is recorded.",
+    "A changed frozen candidate requires a new manifest and affected qualification checks.",
+    "Governance, staking, wallets, both tokens, and all required initial mainnet functionality remain launch requirements."
+  ],
+  "active_inventory_scope": "Approved mainnet assets only. Empty until topology and individual assets receive acceptance.",
+  "observed_existing_assets": [
+    {
+      "record_id": "HOST-001",
+      "provider": "Hetzner",
+      "status": "EXISTING_HOST_OBSERVED_NOT_MAINNET_QUALIFIED",
+      "evidence_ref": "batch-1/OPERATIONS_EVIDENCE.json",
+      "service_observation_ids": [
+        "SVC-001",
+        "SVC-002",
+        "SVC-003",
+        "SVC-004",
+        "SVC-005",
+        "SVC-006"
+      ],
+      "approved_operator_ref": null
+    }
+  ]
+}

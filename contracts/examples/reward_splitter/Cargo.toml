@@ -1,0 +1,15 @@
+[package]
+name = "reward_splitter"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+dytallix-contracts = { path = "../.." }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"
+
+[workspace]
+

@@ -1,0 +1,736 @@
+{
+  "schema_version": 1,
+  "mainnet_ready": false,
+  "scenarios": [
+    {
+      "id": "L01",
+      "name": "Local reference checks",
+      "mandatory": true,
+      "acceptance": "Exact adaptive and address vectors match; module boundaries pass",
+      "dependency": "Runnable in current worktree",
+      "owner_role": "Runtime",
+      "implementation": "local_prerequisite"
+    },
+    {
+      "id": "L02",
+      "name": "Local component tests",
+      "mandatory": true,
+      "acceptance": "Adaptive, address, and persistent record suites execute with zero failures",
+      "dependency": "Runnable in current worktree",
+      "owner_role": "Runtime",
+      "implementation": "local_prerequisite"
+    },
+    {
+      "id": "L03",
+      "name": "Release baseline",
+      "mandatory": true,
+      "acceptance": "All required workspace, feature, platform, client, crypto vector, and interoperability checks pass on exact candidate; binaries match provenance",
+      "dependency": "Release failures and candidate definition",
+      "owner_role": "Release",
+      "implementation": "pending"
+    },
+    {
+      "id": "L04",
+      "name": "Genesis ceremony",
+      "mandatory": true,
+      "acceptance": "Independent operators reproduce genesis digest, approved allocations, stake, and initial state; changed inputs fail startup",
+      "dependency": "Approved recipient/custody/vesting records, DRT initial supply, identity, and validator specification",
+      "owner_role": "Protocol and operations",
+      "implementation": "pending"
+    },
+    {
+      "id": "L05",
+      "name": "Cold network launch",
+      "mandatory": true,
+      "acceptance": "Empty nodes start from the same bundle and agree on first finalized checkpoint; late starts synchronize",
+      "dependency": "Distributed consensus and peer synchronization",
+      "owner_role": "Consensus",
+      "implementation": "pending"
+    },
+    {
+      "id": "L06",
+      "name": "Client transactions",
+      "mandatory": true,
+      "acceptance": "SDK and wallet submit valid transfers through public interfaces; balances, fees, nonces, and receipts match an independent reference",
+      "dependency": "Client format and account authorization",
+      "owner_role": "Client and runtime",
+      "implementation": "pending"
+    },
+    {
+      "id": "L07",
+      "name": "Account key lifecycle",
+      "mandatory": true,
+      "acceptance": "Creation, authorized rotation, recovery, and restart preserve account identity and balances; obsolete keys cannot authorize later writes",
+      "dependency": "Atomic account authorization and rotation",
+      "owner_role": "Identity",
+      "implementation": "pending"
+    },
+    {
+      "id": "L08",
+      "name": "Adaptive economics",
+      "mandatory": true,
+      "acceptance": "Selected corrected adaptive controller, approved 40/30/30 reward allocation, issuance, fees, burns, and supply reconcile at every transition; reference vectors cover boundaries and unavailable observations",
+      "dependency": "D01 specification and qualification, site curve reconciliation, approved parameters, and atomic economic integration",
+      "owner_role": "Tokenomics",
+      "implementation": "pending"
+    },
+    {
+      "id": "L09",
+      "name": "Validator lifecycle",
+      "mandatory": true,
+      "acceptance": "Delegation, rewards, residuals, unbonding, validator changes, and specified slashing preserve accounting and finality rules",
+      "dependency": "Approved stake lifecycle",
+      "owner_role": "Consensus and runtime",
+      "implementation": "pending"
+    },
+    {
+      "id": "L10",
+      "name": "Contract and governance lifecycle",
+      "mandatory": true,
+      "acceptance": "Required initial governance and treasury controls pass proposal, vote, outcome execution, authorization, persistence, and upgrade checks; every enabled contract module passes its lifecycle checks",
+      "dependency": "Required initial governance implementation and approved authority/parameter rules; approved optional contract boundary",
+      "owner_role": "Runtime",
+      "implementation": "pending"
+    },
+    {
+      "id": "L11",
+      "name": "Node outage and rejoin",
+      "mandatory": true,
+      "acceptance": "Planned process and host loss preserve finalized history; restarted nodes catch up within approved recovery target",
+      "dependency": "Distributed harness and recovery target",
+      "owner_role": "Operations",
+      "implementation": "pending"
+    },
+    {
+      "id": "L12",
+      "name": "Network interruption and restoration",
+      "mandatory": true,
+      "acceptance": "Controlled isolation and delay preserve safety; normal progress resumes under the approved synchrony and stake assumptions",
+      "dependency": "Consensus fault model and isolated network harness",
+      "owner_role": "Consensus",
+      "implementation": "pending"
+    },
+    {
+      "id": "L13",
+      "name": "Consensus fault-model qualification",
+      "mandatory": true,
+      "acceptance": "Independent review and bounded model tests cover the approved faulty-validator assumptions; no conflicting finalization within the model",
+      "dependency": "Final consensus specification and independent review",
+      "owner_role": "Consensus and assurance",
+      "implementation": "pending"
+    },
+    {
+      "id": "L14",
+      "name": "Storage recovery",
+      "mandatory": true,
+      "acceptance": "Controlled interruption at commit boundaries, full storage, backup restoration, and snapshot synchronization preserve finalized state",
+      "dependency": "Distributed persistence integration and recovery procedures",
+      "owner_role": "Storage and operations",
+      "implementation": "pending"
+    },
+    {
+      "id": "L15",
+      "name": "Upgrade and abort",
+      "mandatory": true,
+      "acceptance": "Supported mixed-version period and activation preserve state; pre-activation abort succeeds; post-finality recovery follows the approved protocol",
+      "dependency": "Version compatibility and recovery rules",
+      "owner_role": "Release and consensus",
+      "implementation": "pending"
+    },
+    {
+      "id": "L16",
+      "name": "Capacity and sustained load",
+      "mandatory": true,
+      "acceptance": "Specified workload meets approved finality and throughput targets; queue, disk, memory, and CPU stay within declared limits",
+      "dependency": "Distributed candidate and launch demand forecast",
+      "owner_role": "Performance",
+      "implementation": "pending"
+    },
+    {
+      "id": "L17",
+      "name": "Operator response",
+      "mandatory": true,
+      "acceptance": "Monitoring detects injected service failures; operators execute restore, disposable-key rotation, and emergency update procedures within targets",
+      "dependency": "Independent operators, custody, alerts, and runbooks",
+      "owner_role": "Operations",
+      "implementation": "pending"
+    },
+    {
+      "id": "L18",
+      "name": "Repeated full launch",
+      "mandatory": true,
+      "acceptance": "Seven fresh full launch runs R01-R07 pass in Week 4 using the production architecture, token model, validator model, genesis, deployment, upgrade procedures, and runbooks",
+      "dependency": "L03-L17 integrated qualification and mandatory seven-run harness",
+      "owner_role": "QA and operations",
+      "implementation": "pending"
+    },
+    {
+      "id": "L19",
+      "name": "Frozen-candidate qualification",
+      "mandatory": true,
+      "acceptance": "Recorded frozen candidate passes all seven full-run operating periods, including R07 checkpoints from T-6h through T+24h; no unapproved configuration shortcuts",
+      "dependency": "R01-R07 evidence and approved workload, finality, recovery, and operating-period criteria",
+      "owner_role": "QA",
+      "implementation": "pending"
+    },
+    {
+      "id": "L20",
+      "name": "Final launch decision",
+      "mandatory": true,
+      "acceptance": "All mandatory evidence passes; independent mathematical and security reviews close; release and genesis digests agree; named authorities sign",
+      "dependency": "All earlier scenarios and G0-G8 gate evidence",
+      "owner_role": "Protocol, security, and operations",
+      "implementation": "pending"
+    }
+  ],
+  "authority": {
+    "launch_brief": "USER_LAUNCH_REQUIREMENTS.txt, Week 4 and final review",
+    "allocation_reference": "https://dytallix.com/developers/tokenomics",
+    "allocation_record": "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+    "precedence": "User launch brief and later allocation approval supersede earlier proposals. Preserve D01 corrected adaptive controller selection."
+  },
+  "qualification": {
+    "required_full_runs": 7,
+    "schedule": "Week 4, after engineering and qualification gates in Weeks 1 through 3",
+    "successful_full_runs": 0,
+    "launch_suite_status": "blocked",
+    "production_configuration_required": true,
+    "local_prerequisites_count_as_full_run": false,
+    "fresh_infrastructure_and_genesis_each_run": true,
+    "common_initial_scope": [
+      "Production consensus",
+      "Production validator architecture",
+      "DRT",
+      "DGT",
+      "Staking",
+      "Delegation",
+      "Undelegation",
+      "Slashing",
+      "Jailing and recovery",
+      "Rewards",
+      "Fees",
+      "Supply accounting",
+      "Governance",
+      "Treasury controls",
+      "Wallets",
+      "Post-quantum cryptography",
+      "RPC",
+      "Monitoring and alerts",
+      "Backups and recovery",
+      "Upgrades",
+      "Developer and validator onboarding"
+    ],
+    "isolated_rehearsal_identity": "Use isolated chain IDs, network identifiers, ports, storage, synthetic balances, and disposable keys. Preserve approved production rules and procedures. Record all identity substitutions and configuration differences. Unapproved functional differences invalidate qualification.",
+    "simulation_duration": "Set full operating periods before execution. Run 7 requires actual T-6h through T+24h checkpoints. No approved 30-day mandatory gate exists."
+  },
+  "full_launch_runs": [
+    {
+      "id": "R01",
+      "simulation_day": 1,
+      "name": "Clean Genesis",
+      "mandatory": true,
+      "status": "blocked",
+      "implementation": "pending_distributed_harness",
+      "prerequisite_scenarios": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "common_context": "qualification.common_initial_scope and fresh infrastructure/genesis apply to every run",
+      "focus_scenarios": [
+        "L04",
+        "L05",
+        "L06",
+        "L08",
+        "L09",
+        "L17"
+      ],
+      "required_context_verbatim": [
+        "Start from clean infrastructure.",
+        "Deploy validators.",
+        "Perform genesis ceremony.",
+        "Verify genesis hashes.",
+        "Distribute genesis.",
+        "Start validators.",
+        "Establish consensus.",
+        "Start RPC infrastructure.",
+        "Connect wallets.",
+        "Create accounts.",
+        "Fund accounts.",
+        "Stake tokens.",
+        "Delegate tokens.",
+        "Execute DRT transactions.",
+        "Execute DGT transactions.",
+        "Collect fees.",
+        "Accrue rewards.",
+        "Verify supply.",
+        "Operate for the full simulation period.",
+        "Document all abnormalities."
+      ],
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+    },
+    {
+      "id": "R02",
+      "simulation_day": 2,
+      "name": "Infrastructure Failure",
+      "mandatory": true,
+      "status": "blocked",
+      "implementation": "pending_distributed_harness",
+      "prerequisite_scenarios": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "common_context": "qualification.common_initial_scope and fresh infrastructure/genesis apply to every run",
+      "focus_scenarios": [
+        "L11",
+        "L12",
+        "L14",
+        "L17"
+      ],
+      "required_context_verbatim": [
+        "Perform another clean launch.",
+        "Kill one validator.",
+        "Restore it.",
+        "Kill RPC infrastructure.",
+        "Restore it.",
+        "Force peer reconnection.",
+        "Destroy a node.",
+        "Restore it from snapshot.",
+        "Lose network connectivity.",
+        "Restore connectivity.",
+        "Verify:",
+        "Consensus continuity.",
+        "State consistency.",
+        "Token supply.",
+        "Staking state.",
+        "Rewards.",
+        "Wallet operation."
+      ],
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+    },
+    {
+      "id": "R03",
+      "simulation_day": 3,
+      "name": "Adversarial Network",
+      "mandatory": true,
+      "status": "blocked",
+      "implementation": "pending_distributed_harness",
+      "prerequisite_scenarios": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "common_context": "qualification.common_initial_scope and fresh infrastructure/genesis apply to every run",
+      "focus_scenarios": [
+        "L06",
+        "L12",
+        "L13",
+        "L16"
+      ],
+      "required_context_verbatim": [
+        "Launch again.",
+        "Introduce:",
+        "Latency.",
+        "Packet loss.",
+        "Validator partition.",
+        "Malformed transactions.",
+        "Invalid PQC signatures.",
+        "RPC flooding.",
+        "Transaction flooding.",
+        "Oversized requests.",
+        "Invalid serialization.",
+        "Peer instability.",
+        "Invalid nonces.",
+        "Duplicate transactions.",
+        "Measure:",
+        "Consensus behavior.",
+        "State integrity.",
+        "PQC verification.",
+        "Mempool behavior.",
+        "Validator stability.",
+        "RPC stability.",
+        "Recovery time.",
+        "Token accounting."
+      ],
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+    },
+    {
+      "id": "R04",
+      "simulation_day": 4,
+      "name": "Production Upgrade",
+      "mandatory": true,
+      "status": "blocked",
+      "implementation": "pending_distributed_harness",
+      "prerequisite_scenarios": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "common_context": "qualification.common_initial_scope and fresh infrastructure/genesis apply to every run",
+      "focus_scenarios": [
+        "L10",
+        "L15"
+      ],
+      "required_context_verbatim": [
+        "Launch from genesis.",
+        "Operate normally.",
+        "Accumulate transactions.",
+        "Create staking activity.",
+        "Generate rewards.",
+        "Reach predetermined upgrade height.",
+        "Execute production upgrade.",
+        "Resume consensus.",
+        "Verify:",
+        "State.",
+        "Balances.",
+        "Staking.",
+        "Rewards.",
+        "Governance.",
+        "RPC.",
+        "Wallets.",
+        "PQC transactions.",
+        "Token supply.",
+        "Continue operating after upgrade."
+      ],
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+    },
+    {
+      "id": "R05",
+      "simulation_day": 5,
+      "name": "Operator Error",
+      "mandatory": true,
+      "status": "blocked",
+      "implementation": "pending_distributed_harness",
+      "prerequisite_scenarios": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "common_context": "qualification.common_initial_scope and fresh infrastructure/genesis apply to every run",
+      "focus_scenarios": [
+        "L03",
+        "L04",
+        "L05",
+        "L07",
+        "L11",
+        "L14",
+        "L15",
+        "L17"
+      ],
+      "required_context_verbatim": [
+        "Simulate realistic human mistakes.",
+        "Attempt:",
+        "Incorrect configuration.",
+        "Wrong binary.",
+        "Wrong network.",
+        "Misconfigured validator.",
+        "Offline validator.",
+        "Incorrect genesis.",
+        "Wrong genesis hash.",
+        "RPC server loss.",
+        "Old snapshot restoration.",
+        "Duplicate validator key use.",
+        "Incorrect peer configuration.",
+        "Incorrect network configuration.",
+        "Incorrect fee configuration.",
+        "Incorrect environment variables.",
+        "Attempt to start incompatible versions.",
+        "The system and procedures should prevent foreseeable operator errors from becoming catastrophic network failures."
+      ],
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+    },
+    {
+      "id": "R06",
+      "simulation_day": 6,
+      "name": "Production Load And Economic Activity",
+      "mandatory": true,
+      "status": "blocked",
+      "implementation": "pending_distributed_harness",
+      "prerequisite_scenarios": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "common_context": "qualification.common_initial_scope and fresh infrastructure/genesis apply to every run",
+      "focus_scenarios": [
+        "L06",
+        "L07",
+        "L08",
+        "L09",
+        "L10",
+        "L16"
+      ],
+      "required_context_verbatim": [
+        "Simulate real users, developers, validators, and economic activity.",
+        "Generate many wallets.",
+        "Generate many PQC keys.",
+        "Fund accounts.",
+        "Transfer DRT.",
+        "Transfer DGT.",
+        "Delegate stake.",
+        "Undelegate stake.",
+        "Claim rewards.",
+        "Submit sustained transaction load.",
+        "Query RPC aggressively.",
+        "Submit governance actions.",
+        "Create malformed transactions.",
+        "Push block limits.",
+        "Push mempool limits.",
+        "Push RPC limits.",
+        "Push PQC verification limits.",
+        "Measure actual production capacity.",
+        "Document:",
+        "Safe sustained throughput.",
+        "Peak throughput.",
+        "Block saturation behavior.",
+        "Validator hardware utilization.",
+        "RPC hardware utilization.",
+        "Wallet reliability.",
+        "Fee behavior.",
+        "Reward behavior.",
+        "Supply behavior."
+      ],
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+    },
+    {
+      "id": "R07",
+      "simulation_day": 7,
+      "name": "Final Mainnet Dress Rehearsal",
+      "mandatory": true,
+      "status": "blocked",
+      "implementation": "pending_distributed_harness",
+      "prerequisite_scenarios": [
+        "L01",
+        "L02",
+        "L03"
+      ],
+      "common_context": "qualification.common_initial_scope and fresh infrastructure/genesis apply to every run",
+      "focus_scenarios": [
+        "L03",
+        "L04",
+        "L05",
+        "L06",
+        "L07",
+        "L08",
+        "L09",
+        "L10",
+        "L11",
+        "L12",
+        "L13",
+        "L14",
+        "L15",
+        "L16",
+        "L17",
+        "L19",
+        "L20"
+      ],
+      "required_context_verbatim": [
+        "Execute the exact production launch procedure.",
+        "T MINUS 6 HOURS",
+        "Verify binaries.",
+        "Verify checksums.",
+        "Verify release commit.",
+        "Verify genesis.",
+        "Verify all genesis allocations.",
+        "Verify DRT supply.",
+        "Verify DGT supply.",
+        "Verify validators.",
+        "Verify validator keys.",
+        "Verify infrastructure.",
+        "Verify networking.",
+        "Verify DNS.",
+        "Verify RPC.",
+        "Verify monitoring.",
+        "Verify alerts.",
+        "Verify backups.",
+        "Verify recovery procedures.",
+        "T MINUS 1 HOUR",
+        "Confirm validator coordination.",
+        "Confirm genesis hash.",
+        "Confirm binary hash.",
+        "Confirm peers.",
+        "Confirm system clocks.",
+        "Confirm validator keys.",
+        "Confirm configuration.",
+        "Confirm token allocations.",
+        "Confirm network parameters.",
+        "T ZERO",
+        "Start validators.",
+        "Confirm consensus.",
+        "Confirm block production.",
+        "Verify expected validator participation.",
+        "T PLUS 15 MINUTES",
+        "Verify RPC.",
+        "Verify wallet connectivity.",
+        "Execute canonical PQC transaction.",
+        "Execute DRT transaction.",
+        "Execute DGT transaction.",
+        "Create delegation.",
+        "Verify fee accounting.",
+        "Verify finalization.",
+        "T PLUS 1 HOUR",
+        "Verify state consistency across validators.",
+        "Verify wallets.",
+        "Verify staking.",
+        "Verify rewards.",
+        "Verify token supply.",
+        "Verify monitoring.",
+        "Verify RPC infrastructure.",
+        "T PLUS 6 HOURS",
+        "Review telemetry.",
+        "Review logs.",
+        "Review validator participation.",
+        "Review token accounting.",
+        "Review transaction statistics.",
+        "Review security alerts.",
+        "Review staking activity.",
+        "T PLUS 24 HOURS",
+        "Perform full supply reconciliation.",
+        "Perform full validator review.",
+        "Perform final state consistency review.",
+        "Complete:",
+        "FINAL_MAINNET_SIMULATION_REPORT.md"
+      ],
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+    }
+  ],
+  "final_dress_rehearsal_checkpoints": [
+    {
+      "checkpoint": "T MINUS 6 HOURS",
+      "mandatory": true,
+      "status": "not_run",
+      "checks_verbatim": [
+        "Verify binaries.",
+        "Verify checksums.",
+        "Verify release commit.",
+        "Verify genesis.",
+        "Verify all genesis allocations.",
+        "Verify DRT supply.",
+        "Verify DGT supply.",
+        "Verify validators.",
+        "Verify validator keys.",
+        "Verify infrastructure.",
+        "Verify networking.",
+        "Verify DNS.",
+        "Verify RPC.",
+        "Verify monitoring.",
+        "Verify alerts.",
+        "Verify backups.",
+        "Verify recovery procedures."
+      ]
+    },
+    {
+      "checkpoint": "T MINUS 1 HOUR",
+      "mandatory": true,
+      "status": "not_run",
+      "checks_verbatim": [
+        "Confirm validator coordination.",
+        "Confirm genesis hash.",
+        "Confirm binary hash.",
+        "Confirm peers.",
+        "Confirm system clocks.",
+        "Confirm validator keys.",
+        "Confirm configuration.",
+        "Confirm token allocations.",
+        "Confirm network parameters."
+      ]
+    },
+    {
+      "checkpoint": "T ZERO",
+      "mandatory": true,
+      "status": "not_run",
+      "checks_verbatim": [
+        "Start validators.",
+        "Confirm consensus.",
+        "Confirm block production.",
+        "Verify expected validator participation."
+      ]
+    },
+    {
+      "checkpoint": "T PLUS 15 MINUTES",
+      "mandatory": true,
+      "status": "not_run",
+      "checks_verbatim": [
+        "Verify RPC.",
+        "Verify wallet connectivity.",
+        "Execute canonical PQC transaction.",
+        "Execute DRT transaction.",
+        "Execute DGT transaction.",
+        "Create delegation.",
+        "Verify fee accounting.",
+        "Verify finalization."
+      ]
+    },
+    {
+      "checkpoint": "T PLUS 1 HOUR",
+      "mandatory": true,
+      "status": "not_run",
+      "checks_verbatim": [
+        "Verify state consistency across validators.",
+        "Verify wallets.",
+        "Verify staking.",
+        "Verify rewards.",
+        "Verify token supply.",
+        "Verify monitoring.",
+        "Verify RPC infrastructure."
+      ]
+    },
+    {
+      "checkpoint": "T PLUS 6 HOURS",
+      "mandatory": true,
+      "status": "not_run",
+      "checks_verbatim": [
+        "Review telemetry.",
+        "Review logs.",
+        "Review validator participation.",
+        "Review token accounting.",
+        "Review transaction statistics.",
+        "Review security alerts.",
+        "Review staking activity."
+      ]
+    },
+    {
+      "checkpoint": "T PLUS 24 HOURS",
+      "mandatory": true,
+      "status": "not_run",
+      "checks_verbatim": [
+        "Perform full supply reconciliation.",
+        "Perform full validator review.",
+        "Perform final state consistency review."
+      ]
+    }
+  ],
+  "allocation_policy": {
+    "dgt_total_tokens": "1000000000",
+    "dgt_initial_percent": {
+      "Ecosystem growth": 30,
+      "Team and advisors": 20,
+      "Public sale": 15,
+      "Private sale": 15,
+      "Reserve": 20
+    },
+    "drt_reward_percent": {
+      "Validator rewards": 40,
+      "Staker rewards": 30,
+      "Treasury": 30
+    },
+    "initial_drt_supply": null,
+    "recipient_and_custody_status": "unresolved",
+    "vesting_and_locks_status": "unresolved",
+    "emission_controller": "D01 selected corrected adaptive controller; not the website piecewise-linear curve",
+    "emission_conflict_status": "blocker before protocol freeze; allocation approval does not replace D01"
+  },
+  "unapproved_proposals": {
+    "operator_count": 4,
+    "failure_domains": 3,
+    "restore_and_upgrade_exercises": 2,
+    "capacity_multiple_of_forecast_peak": 2,
+    "normal_load_finality_target_percent": 99.9,
+    "status": "proposals only; obtain approved capacity, finality, recovery, hardware, network, and operator criteria before qualification"
+  },
+  "superseded_proposals": [
+    "Three complete fresh launches: replaced by seven mandatory Week 4 runs.",
+    "At least 30 consecutive days: not an approved mandatory launch requirement. Retained only in archived prior text."
+  ]
+}

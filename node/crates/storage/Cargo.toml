@@ -1,0 +1,27 @@
+[package]
+name = "dytallix-storage"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+dytallix-adaptive-emission = { path = "../adaptive-emission" }
+dytallix-protocol-types = { path = "../protocol-types" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+bincode = "1"
+# Preserve both existing SST codecs without relying on legacy core feature unification.
+rocksdb = { version = "0.21", default-features = false, features = ["lz4", "snappy"] }
+sha2 = "0.10"
+base64 = "0.22"
+ed25519-dalek = { version = "1", features = ["std"], optional = true }
+
+[features]
+default = ["legacy-bridge"]
+pqc-consensus = []
+legacy-bridge = ["dep:ed25519-dalek"]
+
+[dev-dependencies]
+tempfile = "3.8"

@@ -1,0 +1,22 @@
+site_name: Dytallix Documentation
+site_description: Official documentation for Dytallix
+theme:
+  name: readthedocs
+nav:
+  - Home: index.md
+  - Publication Status: publication-status.md
+  - Implementation Status: implementation-status.md
+  - Getting Started: getting-started.md
+  - Contract Quickstart: contract-quickstart.md
+  - Core Concepts: core-concepts.md
+  - CLI Reference: cli-reference.md
+  - SDK Reference: sdk-reference.md
+  - RPC & Explorer: rpc-reference.md
+  - Node Operators: node-operators.md
+  - Tokenomics: tokenomics.md
+  - Security Model: security-model.md
+  - Whitepapers: whitepapers.md
+  - FAQ: faq.md
+markdown_extensions:
+  - tables
+  - fenced_code

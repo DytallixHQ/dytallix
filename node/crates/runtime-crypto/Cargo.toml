@@ -1,0 +1,31 @@
+[package]
+name = "dytallix-runtime-crypto"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+dytallix-protocol-types = { path = "../protocol-types" }
+thiserror = "1"
+tracing = "0.1"
+pqcrypto-dilithium = { version = "0.5.0", optional = true }
+pqcrypto-falcon = { version = "0.3.0", optional = true }
+pqcrypto-sphincsplus = { version = "0.7.0", optional = true }
+pqcrypto-traits = { version = "0.3.5", optional = true }
+fips204 = { version = "0.4", optional = true, default-features = false, features = ["default-rng", "ml-dsa-65"] }
+rand_core = "0.6"
+blake3 = "1.5"
+once_cell = "1"
+
+[features]
+default = []
+pqc-consensus = ["pqc-fips204"]
+pqc-real = ["dep:pqcrypto-dilithium", "dep:pqcrypto-traits"]
+pqc-fips204 = ["dep:fips204"]
+falcon = ["dep:pqcrypto-falcon", "pqc-real"]
+sphincs = ["dep:pqcrypto-sphincsplus", "pqc-real"]
+pqc-mock = []
+
+# Development compatibility only; the selected consensus profile rejects this feature.
+mldsa87-development = ["pqc-fips204", "fips204/ml-dsa-87"]

@@ -1,0 +1,68 @@
+{
+  "verified_on": "2026-04-13",
+  "canonical_statement": "Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.",
+  "sdk": {
+    "git_url": "https://github.com/DytallixHQ/dytallix-sdk.git",
+    "published_on_crates_io": false
+  },
+  "profiles": {
+    "testnet": {
+      "node": "https://dytallix.com",
+      "explorer": "https://dytallix.com/build/blockchain",
+      "faucet": "https://dytallix.com/api/faucet"
+    },
+    "local": {
+      "node": "http://localhost:3030",
+      "faucet": "http://localhost:3004"
+    }
+  },
+  "retired_hosts": [
+    "explorer.dytallix.com",
+    "faucet.dytallix.com",
+    "testnet.dytallix.com",
+    "mainnet.dytallix.com"
+  ],
+  "banned_strings": [
+    "http://localhost:8545"
+  ],
+  "required_strings": {
+    "README.md": [
+      "public-surface.json",
+      "scripts/check_public_surface.py",
+      "It is not the live website frontend source for `dytallix.com`",
+      "The explorer repository remains a docs-only service-surface repo",
+      "The live website frontend for `dytallix.com` is a hosted public surface, not a separate public source repo",
+      "the live faucet backend source is now public in `dytallix-faucet`"
+    ],
+    "docs/publication-status.md": [
+      "The live website frontend remains a hosted public surface rather than a separate public source repo",
+      "live faucet backend source is now published in the public `dytallix-faucet` repo",
+      "clean public checkout rooted at `/opt/dytallix-node`"
+    ],
+    "docs/getting-started.md": [
+      "cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network",
+      "https://dytallix.com/api/faucet"
+    ],
+    "docs/sdk-reference.md": [
+      "cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git",
+      "`get_validators()` and `get_delegations()` still require a direct node"
+    ],
+    "docs/cli-reference.md": [
+      "network <testnet|local>",
+      "https://dytallix.com/build/blockchain",
+      "https://dytallix.com/api/governance/proposals",
+      "http://localhost:3030"
+    ],
+    "docs/index.md": [
+      "GET https://dytallix.com/api/capabilities",
+      "It is not the live website frontend source for `dytallix.com`."
+    ],
+    "docs/implementation-status.md": [
+      "GET https://dytallix.com/api/capabilities",
+      "60` second cooldown",
+      "20` requests per hour",
+      "The hosted explorer frontend source is not currently published as a separate public repo",
+      "compatibility config is published in that repo"
+    ]
+  }
+}

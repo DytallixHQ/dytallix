@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  workflow_call:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: Check public surface strings
+        run: |
+          ! rg -n 'explorer\.dytallix\.com|faucet\.dytallix\.com|testnet\.dytallix\.com|localhost:8545' . -g '!**/target/**'
+      - name: Verify public capability alignment
+        run: python3 scripts/check_public_alignment.py
+      - name: Verify canonical protocol snapshot
+        run: python3 scripts/check_protocol_vendor.py
+      - name: Test source packaging checks
+        run: python3 scripts/test_source_packaging.py
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        # Preserve the exact upstream protocol snapshot. Its lint policy belongs
+        # to the canonical node repository; tests still cover the whole workspace.
+        run: cargo clippy --locked --workspace --exclude dytallix-protocol-types --all-targets --no-deps -- -D warnings
+      - name: Build
+        run: cargo build --locked --all
+      - name: Verify first keypair path
+        run: bash scripts/public_smoke.sh first-keypair
+      - name: Test
+        run: cargo test --locked --all
+      - name: Test selected local HTTP profile
+        run: |
+          cargo test --locked -p dytallix-cli --no-default-features --features ordinary-http-only --bin dytallix-ordinary-local
+          cargo test --locked -p dytallix-sdk --no-default-features --features ordinary-http-only
+      - name: Lint selected local HTTP profile
+        run: cargo clippy --locked -p dytallix-cli --no-default-features --features ordinary-http-only --bin dytallix-ordinary-local --no-deps -- -D warnings
+      - name: Test strict local ML-DSA-65 profile
+        run: |
+          cargo test --locked -p dytallix-cli --no-default-features --features strict-local-mldsa65 --bin dytallix-ordinary-local
+          cargo test --locked -p dytallix-sdk --no-default-features --features strict-local-mldsa65
+      - name: Lint strict local ML-DSA-65 profile
+        run: cargo clippy --locked -p dytallix-cli --no-default-features --features strict-local-mldsa65 --bin dytallix-ordinary-local --no-deps -- -D warnings

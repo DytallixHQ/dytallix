@@ -1,0 +1,13 @@
+/target
+**/target/
+Cargo.lock
+**/.rs.bk
+.env
+.env.
+*.key
+*.pem
+~/.dytallix/
+.DS_Store
+dist/
+logs/
+*.pid

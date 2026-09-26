@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "imported_at": "2026-09-26",
+  "method": "Snapshot of each source repository's tracked files plus uncommitted and untracked non-ignored files (git ls-files -co --exclude-standard). Build outputs are excluded. Python bytecode caches and .DS_Store files are removed.",
+  "content_sha256_definition": "sha256 of the sorted lines '<sha256>  <relative path>' for every file in the folder",
+  "notes": [
+    "The Dytallix-mainnet repositories were restored from tarball snapshots on 2026-09-09 and had no git remote; their September history exists only locally.",
+    "The newest node work (edited through 2026-09-25) was uncommitted in the source tree and is included here.",
+    "Older candidate source snapshots under Dytallix-mainnet-launch/decision-register are earlier copies of mainnet/node and are not imported."
+  ],
+  "components": [
+    {
+      "folder": "mainnet/node",
+      "source_repository": "dytallix-node",
+      "source_path": "~/Developer/Dytallix-mainnet/dytallix-node",
+      "source_branch": "codex/mainnet-governance",
+      "source_head": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
+      "source_uncommitted_paths": 210,
+      "includes_uncommitted_work": true,
+      "file_count": 2434,
+      "content_sha256": "af3ffb97def4c962c074bbd718518d2454de5360a62f5c701056f6603c848b31",
+      "restored_from_original_commit": "406670d890dfe077d95b8ddef4fc00ad7f264776",
+      "restore_archive_sha256": "cea46e0bc31b4c79aae058c2a0f98dcbd166609c46e5ebdabf8a2e9556e966ba"
+    },
+    {
+      "folder": "mainnet/sdk",
+      "source_repository": "dytallix-sdk",
+      "source_path": "~/Developer/Dytallix-mainnet/dytallix-sdk",
+      "source_branch": "codex/restored-baseline",
+      "source_head": "2ae360498a2d6b0e95136934d313ce2a458af105",
+      "source_uncommitted_paths": 36,
+      "includes_uncommitted_work": true,
+      "file_count": 110,
+      "content_sha256": "a3c7337f38d25169f03d1b71417f98e73fb8eaf7ae5a41bd6513583b84bdf7d4",
+      "restored_from_original_commit": "a1cf47eb99f094df7d3052af8c0c33af562dcb89",
+      "restore_archive_sha256": "16f59f9d560faedeaf3aad97109ea3726c9d079430b0592eb49af231a9d5b05a"
+    },
+    {
+      "folder": "mainnet/pqc",
+      "source_repository": "dytallix-pqc",
+      "source_path": "~/Developer/Dytallix-mainnet/dytallix-pqc",
+      "source_branch": "codex/restored-baseline",
+      "source_head": "f3ed0a30b208cfe9878c62c5474749c75ea62f35",
+      "source_uncommitted_paths": 1,
+      "includes_uncommitted_work": true,
+      "file_count": 34,
+      "content_sha256": "a1458ee3dcd3259796b0f5a312726c4945c10831efb7db8d2d5e880354714f9f",
+      "restored_from_original_commit": "7aee20d73de0422979fa9b97f1411d08ac640a77",
+      "restore_archive_sha256": "2f9ef9171db319afddbb85e49c00ddcb193883a7eace09062b357c16395d5244"
+    },
+    {
+      "folder": "mainnet/contracts",
+      "source_repository": "dytallix-contracts",
+      "source_path": "~/Developer/Dytallix-mainnet/dytallix-contracts",
+      "source_branch": "codex/restored-baseline",
+      "source_head": "cb2844a1e2dff9e9859a53162f78cd4dbc882bb8",
+      "source_uncommitted_paths": 0,
+      "includes_uncommitted_work": true,
+      "file_count": 60,
+      "content_sha256": "1908db908f7f7712e91d0b1c379a3905933e3818ac9f6de1ef0ed7edb3e9de02",
+      "restored_from_original_commit": "c6f98e11d8959b428dae1082ef58aa4ed0d8642d",
+      "restore_archive_sha256": "681a50be5a931dd3b34f2f3ff962d9a1038435058bd7717098ddca7f8d22a9dd"
+    },
+    {
+      "folder": "mainnet/faucet",
+      "source_repository": "dytallix-faucet",
+      "source_path": "~/Developer/Dytallix-mainnet/dytallix-faucet",
+      "source_branch": "codex/restored-baseline",
+      "source_head": "33c6aa29b927ff5b8ed1a5e130e0b3e2dd859878",
+      "source_uncommitted_paths": 0,
+      "includes_uncommitted_work": true,
+      "file_count": 27,
+      "content_sha256": "9825cad3993296ab6700f36c8c9432c02c297e48201fbf1515c6f7186573b989",
+      "restored_from_original_commit": "d912323383d15a2d8dd614064806b647f99c85d9",
+      "restore_archive_sha256": "897e7e2937807d155550c70d09a9d83635cd0fb006e505a38a7af8f8e9a11de7"
+    },
+    {
+      "folder": "mainnet/docs",
+      "source_repository": "dytallix-docs",
+      "source_path": "~/Developer/Dytallix-mainnet/dytallix-docs",
+      "source_branch": "codex/restored-baseline",
+      "source_head": "c2c0357a2ed7b7a821f7b3f08c4e3f6963713da1",
+      "source_uncommitted_paths": 0,
+      "includes_uncommitted_work": true,
+      "file_count": 24,
+      "content_sha256": "3037c51c9ed12cedb61b468ed15ebf7ad87b0e2f2a8e5daa2f6a9d053dfb18e1",
+      "restored_from_original_commit": "40d13e8bca0cdf1a6569233a0350aa32253c0b09",
+      "restore_archive_sha256": "3107ad475892a261421d717f2923ba56dd1753310b8c2aeed091ad4776efa5cb"
+    },
+    {
+      "folder": "mainnet/launch",
+      "source_path": "~/Developer/Dytallix-mainnet-launch (top-level documents only)",
+      "excluded": "decision-register/, batch-*/, evidence/, snapshots/, maintenance/, dashboards (about 9.4 GB of evidence archives, source snapshots and binaries)",
+      "file_count": 24,
+      "content_sha256": "df76e896c603e72793333bb9b047e5204c8d920a44e0a1d42b0a53fd41f47479"
+    }
+  ]
+}

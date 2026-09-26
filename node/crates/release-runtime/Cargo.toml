@@ -1,0 +1,28 @@
+[package]
+name = "dytallix-release-runtime"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+default = []
+qualification-fixtures = []
+
+[dependencies]
+anyhow = "=1.0.102"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+sha2 = "=0.10.9"
+hex = "=0.4.3"
+tempfile = "=3.27.0"
+libc = "=0.2.184"
+
+[[bin]]
+name = "release-runtime-owned-child"
+path = "src/bin/owned_child.rs"
+required-features = ["qualification-fixtures"]
+
+[[bin]]
+name = "release-runtime-pause-qualification"
+path = "src/bin/pause_qualification.rs"
+required-features = ["qualification-fixtures"]

@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "status": "initial extraction; not mainnet approval",
+  "local_packages": {
+    "dytallix-pqc": "pqc-crypto",
+    "dytallix-gas": "crates/gas",
+    "dytallix-protocol-types": "crates/protocol-types",
+    "dytallix-runtime-crypto": "crates/runtime-crypto",
+    "dytallix-storage": "crates/storage",
+    "dytallix-adaptive-emission": "crates/adaptive-emission",
+    "dytallix-signature-policy": "crates/signature-policy"
+  },
+  "modules": {
+    "dytallix-gas": {
+      "path": "crates/gas",
+      "allowed_dependencies": {
+        "dependencies": [
+          "dytallix-protocol-types",
+          "serde",
+          "serde_json",
+          "thiserror"
+        ],
+        "dev-dependencies": [
+          "dytallix-storage"
+        ],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-protocol-types": {
+      "path": "crates/protocol-types",
+      "allowed_dependencies": {
+        "dependencies": [
+          "anyhow",
+          "hex",
+          "serde",
+          "serde_json",
+          "sha3",
+          "bech32"
+        ],
+        "dev-dependencies": [],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-runtime-crypto": {
+      "path": "crates/runtime-crypto",
+      "allowed_dependencies": {
+        "dependencies": [
+          "blake3",
+          "dytallix-protocol-types",
+          "fips204",
+          "once_cell",
+          "pqcrypto-dilithium",
+          "pqcrypto-falcon",
+          "pqcrypto-sphincsplus",
+          "pqcrypto-traits",
+          "rand_core",
+          "thiserror",
+          "tracing"
+        ],
+        "dev-dependencies": [],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-storage": {
+      "path": "crates/storage",
+      "allowed_dependencies": {
+        "dependencies": [
+          "anyhow",
+          "base64",
+          "bincode",
+          "dytallix-protocol-types",
+          "ed25519-dalek",
+          "rocksdb",
+          "serde",
+          "serde_json",
+          "sha2",
+          "dytallix-adaptive-emission"
+        ],
+        "dev-dependencies": [
+          "tempfile"
+        ],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-adaptive-emission": {
+      "path": "crates/adaptive-emission",
+      "allowed_dependencies": {
+        "dependencies": [],
+        "dev-dependencies": [],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-signature-policy": {
+      "path": "crates/signature-policy",
+      "allowed_dependencies": {
+        "dependencies": [
+          "dytallix-protocol-types",
+          "serde"
+        ],
+        "dev-dependencies": [],
+        "build-dependencies": []
+      }
+    }
+  }
+}

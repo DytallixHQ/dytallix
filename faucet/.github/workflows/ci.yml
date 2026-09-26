@@ -1,0 +1,38 @@
+name: Faucet CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24.20.0
+          cache: npm
+      - run: npm ci
+      - run: node --check src/server.js
+      - run: node --check src/controllers/faucetController-dual.js
+      - run: npm test -- --runInBand
+      - name: Build runtime image
+        run: docker build --tag dytallix-faucet:ci .
+      - name: Verify image health and service identity
+        run: |
+          docker run --detach --name faucet-ci dytallix-faucet:ci
+          trap 'docker logs faucet-ci; docker rm -f faucet-ci' EXIT
+          test "$(docker exec faucet-ci id -u)" = 1001
+          for _attempt in $(seq 1 30); do
+            state=$(docker inspect --format '{{.State.Health.Status}}' faucet-ci)
+            if [ "$state" = healthy ]; then exit 0; fi
+            if [ "$state" = unhealthy ]; then exit 1; fi
+            sleep 2
+          done
+          exit 1

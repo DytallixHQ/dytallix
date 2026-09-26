@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  BIN_NAME: dytallix
+
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  build-release:
+    needs: verify
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive_name: dytallix-x86_64-unknown-linux-gnu.tar.gz
+            artifact_name: dytallix-x86_64-unknown-linux-gnu
+            binary_path: target/x86_64-unknown-linux-gnu/release/dytallix
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            archive_name: dytallix-x86_64-apple-darwin.tar.gz
+            artifact_name: dytallix-x86_64-apple-darwin
+            binary_path: target/x86_64-apple-darwin/release/dytallix
+          - os: macos-14
+            target: aarch64-apple-darwin
+            archive_name: dytallix-aarch64-apple-darwin.tar.gz
+            artifact_name: dytallix-aarch64-apple-darwin
+            binary_path: target/aarch64-apple-darwin/release/dytallix
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive_name: dytallix-x86_64-pc-windows-msvc.zip
+            artifact_name: dytallix-x86_64-pc-windows-msvc
+            binary_path: target/x86_64-pc-windows-msvc/release/dytallix.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.88.0
+          targets: ${{ matrix.target }}
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Test target
+        run: cargo test --locked --workspace --target ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --locked --release --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
+
+      - name: Verify packaged binary
+        run: ${{ matrix.binary_path }} --version
+
+      - name: Package archive (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p dist
+          staging="${{ matrix.artifact_name }}"
+          mkdir -p "$staging"
+          cp "${{ matrix.binary_path }}" "$staging/$BIN_NAME"
+          cp README.md LICENSE "$staging/"
+          tar -czf "dist/${{ matrix.archive_name }}" "$staging"
+
+      - name: Package archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $staging = "${{ matrix.artifact_name }}"
+          New-Item -ItemType Directory -Force -Path $staging | Out-Null
+          Copy-Item "${{ matrix.binary_path }}" "$staging\\${env:BIN_NAME}.exe"
+          Copy-Item README.md, LICENSE $staging
+          Compress-Archive -Path "$staging\\*" -DestinationPath "dist\\${{ matrix.archive_name }}"
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: dist/${{ matrix.archive_name }}
+
+
+  publish:
+    needs: build-release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: dytallix-*
+          path: dist
+          merge-multiple: true
+      - name: Generate archive checksums
+        working-directory: dist
+        run: sha256sum -- *.tar.gz *.zip > SHA256SUMS
+      - name: Attest release archives
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: dist/*
+      - name: Upload GitHub release assets
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true

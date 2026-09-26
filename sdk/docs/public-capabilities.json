@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "lastReviewed": "2026-04-13",
+  "releaseChannel": "early-alpha-public-testnet",
+  "canonicalStatement": "Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.",
+  "install": {
+    "sdk": [
+      "cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git",
+      "cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network"
+    ],
+    "cli": [
+      "cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix"
+    ],
+    "publishedOnCratesIo": false
+  },
+  "publicRoutes": {
+    "rpcBase": "https://dytallix.com",
+    "faucetBase": "https://dytallix.com/api/faucet",
+    "supported": [
+      "GET /api/blockchain/status",
+      "GET /api/blockchain/account/:address",
+      "GET /api/blockchain/balance/:address",
+      "GET /api/blockchain/block/:number|hash|latest|finalized",
+      "GET /api/blockchain/tx/:hash",
+      "POST /api/blockchain/submit",
+      "POST /contracts/deploy",
+      "POST /contracts/call",
+      "GET /api/contracts/:address",
+      "GET /api/contracts/:address/query/:method",
+      "GET /api/contracts/:address/events",
+      "GET /api/faucet/status",
+      "GET /api/faucet/check/:address",
+      "POST /api/faucet/request",
+      "GET /api/governance/proposals",
+      "GET /api/staking/balance/:address"
+    ],
+    "directNodeOnly": [
+      "GET /api/capabilities",
+      "GET /v1/validators",
+      "GET /v1/delegations/:address"
+    ]
+  },
+  "cli": {
+    "supportedPublicFlows": [
+      "wallet create",
+      "wallet info",
+      "balance",
+      "faucet",
+      "faucet status",
+      "send",
+      "chain status",
+      "chain block",
+      "chain epoch",
+      "chain params",
+      "contract deploy",
+      "contract call",
+      "contract query",
+      "contract info",
+      "contract events",
+      "governance proposals",
+      "governance status",
+      "stake status"
+    ],
+    "disabledOnPublicGateway": [
+      "stake delegate",
+      "stake undelegate",
+      "stake claim",
+      "governance vote",
+      "governance propose"
+    ]
+  },
+  "faucet": {
+    "limits": {
+      "dgt": 10,
+      "drt": 100,
+      "cooldownSeconds": 60,
+      "cooldownMinutes": 1,
+      "maxRequestsPerHour": 20
+    },
+    "statusResponse": {
+      "requiredKeys": [
+        "status",
+        "limits"
+      ],
+      "statusValue": "operational"
+    },
+    "checkResponse": {
+      "acceptedKeys": [
+        "allowed",
+        "canRequest",
+        "retryAfterSeconds",
+        "retryAfter",
+        "cooldownMs",
+        "timeUntilNext"
+      ]
+    },
+    "requestResponse": {
+      "requiredKeys": [
+        "success",
+        "funded"
+      ],
+      "fundedKeys": [
+        "dgt",
+        "drt"
+      ]
+    },
+    "rateLimitResponse": {
+      "acceptedKeys": [
+        "retryAfterSeconds",
+        "retryAfter",
+        "cooldownMs",
+        "message",
+        "error"
+      ],
+      "retryGuidance": "Treat the request as accepted-but-cooled-down only when a retry window is present. Prefer retryAfterSeconds, then retryAfter, then cooldownMs."
+    }
+  },
+  "features": {
+    "keypair": "supported-alpha",
+    "faucet": "supported-alpha",
+    "transfer": "supported-alpha",
+    "contractLifecycle": "supported-alpha",
+    "validatorDiscovery": "experimental-direct-node",
+    "stakingReads": "experimental-public-read",
+    "stakingWrites": "hidden",
+    "governanceReads": "experimental-public-read",
+    "governanceWrites": "hidden",
+    "operatorPaths": "operator-preview"
+  }
+}

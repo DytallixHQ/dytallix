@@ -1,0 +1,45 @@
+[package]
+name = "dytallix-cli"
+description = "CLI for the Dytallix PQC-native blockchain testnet"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+
+[[bin]]
+name = "dytallix"
+path = "src/main.rs"
+required-features = ["legacy-network"]
+
+[[bin]]
+name = "dytallix-ordinary-local"
+path = "src/ordinary_local.rs"
+required-features = ["local-cli"]
+
+[[example]]
+name = "deploy-contract"
+path = "../../examples/deploy-contract.rs"
+required-features = ["legacy-network"]
+
+[features]
+default = ["legacy-network"]
+legacy-network = ["dytallix-sdk/network", "reqwest/default"]
+local-cli = []
+strict-local-mldsa65 = ["local-cli", "dytallix-sdk/strict-local-mldsa65", "dytallix-core/strict-mldsa65"]
+ordinary-http-only = ["local-cli", "dytallix-sdk/ordinary-http-only"]
+
+[dependencies]
+dytallix-core = { path = "../dytallix-core", default-features = false }
+dytallix-sdk = { path = "../dytallix-sdk", default-features = false }
+tokio = { workspace = true }
+clap = { workspace = true }
+indicatif = { workspace = true }
+colored = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+sha2 = "0.10"

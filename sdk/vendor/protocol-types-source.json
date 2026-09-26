@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "package": "dytallix-protocol-types",
+  "package_version": "0.1.0",
+  "vendor_path": "vendor/dytallix-protocol-types",
+  "source_repository": "https://github.com/DytallixHQ/dytallix-node",
+  "source_head": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
+  "source_kind": "working_tree_snapshot",
+  "source_head_is_complete_snapshot": false,
+  "source_description": "Exact canonical protocol crate working-tree bytes after approved ordinary client integration; uncommitted source additions are included. The file hashes, not source_head alone, identify this snapshot.",
+  "hash_algorithm": "sha256",
+  "files": [
+    {
+      "path": "Cargo.toml",
+      "source_path": "crates/protocol-types/Cargo.toml",
+      "bytes": 247,
+      "sha256": "242a43d521f8b3b47da6de10261dabeb98775e29a14a8f31cef0252031bd1e2e"
+    },
+    {
+      "path": "LICENSE",
+      "source_path": "LICENSE",
+      "bytes": 1066,
+      "sha256": "e4b10b3fc81b7b3842dbf47e90868cc4e122cf4b8fe8d20ffd17247560705fe4"
+    },
+    {
+      "path": "src/address.rs",
+      "source_path": "crates/protocol-types/src/address.rs",
+      "bytes": 5134,
+      "sha256": "215409ad82d86db24eabc74a4b79c5ffc29ebb4eebfe677b170051b698565ad6"
+    },
+    {
+      "path": "src/hash.rs",
+      "source_path": "crates/protocol-types/src/hash.rs",
+      "bytes": 1634,
+      "sha256": "c73eb7014a93d325d6cc15317438d214355b3a7c6e9f9b6bbd2fdbc526dde935"
+    },
+    {
+      "path": "src/lib.rs",
+      "source_path": "crates/protocol-types/src/lib.rs",
+      "bytes": 1058,
+      "sha256": "01c19302b4362949c876da0200228ee59f6a90613e3ec307cba1cc1764390c41"
+    },
+    {
+      "path": "src/ordinary.rs",
+      "source_path": "crates/protocol-types/src/ordinary.rs",
+      "bytes": 25637,
+      "sha256": "38e966bc399380a5ebdb0960031ad7b78c1d0eb7d0fcb965eea3948aec136ee3"
+    },
+    {
+      "path": "src/ordinary_client.rs",
+      "source_path": "crates/protocol-types/src/ordinary_client.rs",
+      "bytes": 12035,
+      "sha256": "3688d2c965cb946d57372af36ce76e57b2625eef2dc7629f804d1ba1de2cc66b"
+    },
+    {
+      "path": "src/ordinary_fees.rs",
+      "source_path": "crates/protocol-types/src/ordinary_fees.rs",
+      "bytes": 16653,
+      "sha256": "2acd329db4145b28e37725f5330a430c662e1d7d5ad545803d0691e21b754c3c"
+    },
+    {
+      "path": "src/recovery.rs",
+      "source_path": "crates/protocol-types/src/recovery.rs",
+      "bytes": 30316,
+      "sha256": "4640c35c65e2219537b62932eb56d085cdaedb7bbf03f67c086352b436297bac"
+    },
+    {
+      "path": "src/recovery_sponsor.rs",
+      "source_path": "crates/protocol-types/src/recovery_sponsor.rs",
+      "bytes": 16758,
+      "sha256": "182b80b941b5cf7a24cfea762bab5d47099d8dbf6be2a3d15bba0c0780aef1f6"
+    },
+    {
+      "path": "src/recovery_wire.rs",
+      "source_path": "crates/protocol-types/src/recovery_wire.rs",
+      "bytes": 18202,
+      "sha256": "b9b9fc31d79e3379747c780d4a65405197c351786c830993863dfde616dc44c9"
+    },
+    {
+      "path": "src/tx.rs",
+      "source_path": "crates/protocol-types/src/tx.rs",
+      "bytes": 16303,
+      "sha256": "3339457d07e6f7aa8044a2b1d0972069ddf631304b4b1fb0562a06d3ae4a92ef"
+    },
+    {
+      "path": "src/units.rs",
+      "source_path": "crates/protocol-types/src/units.rs",
+      "bytes": 3830,
+      "sha256": "981aa02b9c99f832e4613ef12780a11c854412f43c48a677f3cabff228d76769"
+    },
+    {
+      "path": "tests/address_v1.rs",
+      "source_path": "crates/protocol-types/tests/address_v1.rs",
+      "bytes": 4943,
+      "sha256": "5823341cde40d5cc79641272e0a93b1ed7757387dec16abea160ebd10735852a"
+    },
+    {
+      "path": "tests/fixtures/address-v1.json",
+      "source_path": "crates/protocol-types/tests/fixtures/address-v1.json",
+      "bytes": 8031,
+      "sha256": "5b7ed0127a5dd7e3cda71a51125d702830b39a3ef0f8e00eb2af051e0ac8ec71"
+    },
+    {
+      "path": "tests/fixtures/ordinary_fee_v1_vectors.json",
+      "source_path": "crates/protocol-types/tests/fixtures/ordinary_fee_v1_vectors.json",
+      "bytes": 40960,
+      "sha256": "7efe727cdef122b8e8fe2afc596f9bc9bddd2c92da209ad97f5044518c35152d"
+    },
+    {
+      "path": "tests/fixtures/ordinary_v2_vectors.json",
+      "source_path": "crates/protocol-types/tests/fixtures/ordinary_v2_vectors.json",
+      "bytes": 243604,
+      "sha256": "a9a3619de55f4110d538277028c93c3273332cceeecfed3f9cc16a6b938938e0"
+    },
+    {
+      "path": "tests/ordinary.rs",
+      "source_path": "crates/protocol-types/tests/ordinary.rs",
+      "bytes": 13901,
+      "sha256": "2a1b3e36f713f7587a306877de45e5018aaaeb6f240636b00a690105593c338f"
+    },
+    {
+      "path": "tests/ordinary_fees.rs",
+      "source_path": "crates/protocol-types/tests/ordinary_fees.rs",
+      "bytes": 11663,
+      "sha256": "596ad3024b60ca8a3763653162e9b7066c3e95d568d7cfe02d9dbff3f102f0fb"
+    },
+    {
+      "path": "tests/recovery.rs",
+      "source_path": "crates/protocol-types/tests/recovery.rs",
+      "bytes": 24283,
+      "sha256": "abb1040c0a22a1b5b4a92272317114a2b4d9b79f9a160daea42c5ae839bc39f6"
+    },
+    {
+      "path": "tests/recovery_sponsor.rs",
+      "source_path": "crates/protocol-types/tests/recovery_sponsor.rs",
+      "bytes": 40007,
+      "sha256": "3b8113d9e298c7d440cf11a2930f467ecf8fd61bb8eacf3fbf4ec50af573302a"
+    },
+    {
+      "path": "tests/recovery_wire.rs",
+      "source_path": "crates/protocol-types/tests/recovery_wire.rs",
+      "bytes": 13425,
+      "sha256": "22b1dc9a68715301fe4cf6eebfc3c87cb01e22fca707585a549970f26a5375e2"
+    },
+    {
+      "path": "tests/units.rs",
+      "source_path": "crates/protocol-types/tests/units.rs",
+      "bytes": 3321,
+      "sha256": "14aa4a9fc6741acd573b2c26208a00e2de10ed058bfe96c5d2f0336510435245"
+    }
+  ]
+}

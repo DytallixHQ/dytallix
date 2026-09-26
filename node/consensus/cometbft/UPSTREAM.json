@@ -1,0 +1,24 @@
+{
+  "repository": "https://github.com/cometbft/cometbft",
+  "version": "v0.40.0",
+  "tag_object": "06b4cbf4b776554bd2b95fc39c80991e7529e765",
+  "commit": "0880b4d378f347ab16e54ec677ff50d803f37d62",
+  "consensus_key_type": "ml_dsa_65",
+  "profile": "local-development-qualification",
+  "production_qualified": false,
+  "launch_status": "NO GO",
+  "p2p_active_profile": "legacy-cometbft-loopback-only",
+  "p2p_target_profile": {
+    "key_establishment": "ML-KEM-768",
+    "authentication": "ML-DSA-65",
+    "component": "internal/pqcp2p",
+    "wire_integration": false,
+    "independent_protocol_review": false
+  },
+  "quantum_vulnerable_active_p2p_asymmetric": [
+    "X25519",
+    "Ed25519"
+  ],
+  "remote_signer_enabled_in_fixture": false,
+  "libp2p_enabled_in_fixture": false
+}

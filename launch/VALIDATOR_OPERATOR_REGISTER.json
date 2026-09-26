@@ -1,0 +1,167 @@
+{
+  "schema_version": "draft-1",
+  "document_status": "DRAFT_NOT_FROZEN",
+  "launch_approval": "NOT_APPROVED",
+  "prepared_date": "2026-09-09",
+  "source_commit": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
+  "purpose": "Register verified operator evidence and decisions. No operator is invented or approved by this draft.",
+  "consensus": {
+    "selection_status": "OPEN",
+    "engine": null,
+    "version": null,
+    "specification_digest": null,
+    "fault_model": null,
+    "weight_assignment_rule": null,
+    "proposed_qualification_models": [
+      {
+        "status": "PROPOSED_ONLY",
+        "name": "minimum_equal_power_bft",
+        "independent_operator_count": 4,
+        "equal_power_quorum_count": 3,
+        "conditional_byzantine_operator_tolerance": 1
+      },
+      {
+        "status": "PROPOSED_ONLY",
+        "name": "target_equal_power_bft",
+        "independent_operator_count": 7,
+        "equal_power_quorum_count": 5,
+        "conditional_byzantine_operator_tolerance": 2
+      }
+    ],
+    "conditions": [
+      "Conventional n=3f+1 protocol with equal power and quorum strictly greater than two-thirds.",
+      "Protocol safety, locking, authentication, persistence, and liveness assumptions require independent review.",
+      "Operator and fault-domain independence must be verified.",
+      "Unequal mainnet power requires weighted analysis. Proposed equal qualification weights do not approve tokenomics."
+    ]
+  },
+  "actual_registered_operator_count": 0,
+  "actual_approved_validator_count": 0,
+  "operators": [],
+  "operator_record_schema": {
+    "required_fields": [
+      "operator_id",
+      "record_status",
+      "public_name",
+      "legal_entity_reference",
+      "ultimate_control_group_id",
+      "control_evidence_references",
+      "registration_contact_reference",
+      "key_custody",
+      "fault_domains",
+      "voting_power",
+      "registration",
+      "lifecycle",
+      "evidence",
+      "approvals"
+    ],
+    "allowed_record_statuses": [
+      "DRAFT",
+      "SUBMITTED",
+      "VERIFIED",
+      "APPROVED",
+      "ACTIVE",
+      "EXIT_PENDING",
+      "EXITED",
+      "REJECTED"
+    ],
+    "field_definitions": {
+      "operator_id": "Stable non-sensitive identifier assigned after an actual operator is identified.",
+      "record_status": "Evidence and approval state; registration does not imply activation.",
+      "public_name": "Verified public operator name.",
+      "legal_entity_reference": "Restricted evidence reference where needed; do not copy private legal identifiers here.",
+      "ultimate_control_group_id": "Shared identifier for operators under the same beneficial or administrative control.",
+      "control_evidence_references": "Evidence supporting control and independence claims.",
+      "registration_contact_reference": "Opaque contact-record reference; no private contact details.",
+      "key_custody": {
+        "algorithm": "Approved algorithm and parameter set.",
+        "public_key_fingerprint": "Verified public fingerprint; null until confirmed.",
+        "public_key_evidence_reference": "Reference to the approved public key record.",
+        "ownership_proof_reference": "Verified proof of key control.",
+        "custodian_control_group_id": "Common custodian or signing-administrator control group.",
+        "signer_design_reference": "Reviewed signer and access-control architecture.",
+        "secret_store_reference": "Opaque identifier only. Never a credential or recovery secret.",
+        "anti_double_signing_evidence_reference": "Persistence, fencing, failover, and rollback qualification evidence.",
+        "recovery_and_rotation_reference": "Approved procedure and rehearsal evidence."
+      },
+      "fault_domains": {
+        "provider_id": "Verified provider identifier.",
+        "cloud_account_control_group_id": "Common account or administrator control identifier.",
+        "region_id": "Verified region identifier.",
+        "data_center_group_id": "Common physical facility identifier where known.",
+        "network_group_id": "Shared network dependency identifier.",
+        "power_group_id": "Shared power dependency identifier where known.",
+        "backup_dependency_group_ids": "Shared recovery provider, storage, or administrator dependencies.",
+        "infrastructure_evidence_references": "Evidence tied to the separate infrastructure inventory."
+      },
+      "voting_power": {
+        "approved_weight_base_units": "Integer decimal string, or null while unapproved.",
+        "approved_weight_rule_reference": "Approved stake-to-power conversion rule.",
+        "genesis_allocation_reference": "Approved funding and self-bond record.",
+        "stake_evidence_reference": "Verified locked stake record.",
+        "effective_height": "Integer decimal string, or null until scheduled by approved protocol."
+      },
+      "registration": {
+        "submitted_at": "Timestamp or null.",
+        "verified_at": "Timestamp or null.",
+        "operator_acceptance_reference": "Actual operator acceptance evidence.",
+        "independence_review_reference": "Control and weighted fault-domain review."
+      },
+      "lifecycle": {
+        "join_rule_reference": "Approved registration and activation rule.",
+        "weight_update_rule_reference": "Approved effective-height and set-update rule.",
+        "key_update_rule_reference": "Approved key-rotation boundary and proof.",
+        "exit_rule_reference": "Approved exit and unbonding rule.",
+        "penalty_rule_reference": "Approved evidence and penalty rule."
+      },
+      "evidence": "Array of verified artifact references with digest, source, observed date, verifier, and verification result.",
+      "approvals": "Array of role, assigned reviewer, decision, date, scope, evidence digest, and expiry/review condition. Null or empty means unapproved."
+    }
+  },
+  "unresolved_decisions": [
+    "consensus_engine_and_version",
+    "protocol_fault_and_timing_assumptions",
+    "mainnet_validator_count_and_admission",
+    "stake_weight_conversion_caps_and_rounding",
+    "self_bond_delegation_unbonding_and_penalties",
+    "rewards_allocation_and_economic_parameters",
+    "join_exit_key_change_and_weight_change_activation",
+    "governance_and_emergency_authority",
+    "independent_operator_and_custody_evidence",
+    "approved_infrastructure_and_recovery_objectives"
+  ],
+  "approval_roles": [
+    {
+      "role": "protocol",
+      "assignee": null,
+      "decision": "UNASSIGNED"
+    },
+    {
+      "role": "security",
+      "assignee": null,
+      "decision": "UNASSIGNED"
+    },
+    {
+      "role": "custody",
+      "assignee": null,
+      "decision": "UNASSIGNED"
+    },
+    {
+      "role": "staking_and_economics",
+      "assignee": null,
+      "decision": "UNASSIGNED"
+    },
+    {
+      "role": "release",
+      "assignee": null,
+      "decision": "UNASSIGNED"
+    }
+  ],
+  "privacy_rule": "Do not store private keys, credentials, recovery material, personal contacts, or private legal identifiers. Use approved restricted references.",
+  "freeze_gate": "Require resolved protocol decisions, verified operators and controls, approved keys and weights, qualification evidence, and recorded reviewer approval.",
+  "batch_1_evidence": {
+    "ref": "batch-1/OPERATIONS_EVIDENCE.json",
+    "finding": "One existing Hetzner host verified. The root service account does not identify a named human operator or an independent validator control group.",
+    "approved_validator_count": 0
+  }
+}

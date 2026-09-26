@@ -1,0 +1,33 @@
+[package]
+name = "dytallix-native-supervisor"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[features]
+default = []
+qualification-fixtures = []
+
+[dependencies]
+anyhow = "=1.0.102"
+libc = "=0.2.184"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+sha2 = "=0.10.9"
+hex = "=0.4.3"
+base64 = "=0.22.1"
+toml = "=0.8.23"
+dytallix-release-runtime = { path = "../release-runtime" }
+dytallix-fast-node = { path = "../../dytallix-fast-launch/node", default-features = false, features = ["pqc-consensus"] }
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[[bin]]
+name = "dytallix-native-supervisor"
+path = "src/main.rs"
+
+[[bin]]
+name = "native-supervisor-process-fixture"
+path = "src/bin/process_fixture.rs"
+required-features = ["qualification-fixtures"]

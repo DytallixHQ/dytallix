@@ -1,0 +1,68 @@
+//go:build !dytallix_pqc_only
+
+// Generated Prometheus constructor extracted without behavioral changes.
+package blocksync
+
+import (
+	prometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+)
+
+func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
+	labels := []string{}
+	for i := 0; i < len(labelsAndValues); i += 2 {
+		labels = append(labels, labelsAndValues[i])
+	}
+	return &Metrics{
+		Syncing: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "syncing",
+			Help:      "Whether or not a node is block syncing. 1 if yes, 0 if no.",
+		}, labels).With(labelsAndValues...),
+		NumTxs: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "num_txs",
+			Help:      "Number of transactions in the latest block.",
+		}, labels).With(labelsAndValues...),
+		TotalTxs: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "total_txs",
+			Help:      "Total number of transactions.",
+		}, labels).With(labelsAndValues...),
+		BlockSizeBytes: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_size_bytes",
+			Help:      "Size of the latest block.",
+		}, labels).With(labelsAndValues...),
+		LatestBlockHeight: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "latest_block_height",
+			Help:      "The height of the latest block.",
+		}, labels).With(labelsAndValues...),
+		AlreadyIncludedBlocks: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "already_included_blocks",
+			Help:      "AlreadyIncludedBlocks blocks that were already included in the chain",
+		}, labels).With(labelsAndValues...),
+		IngestedBlocks: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "ingested_blocks",
+			Help:      "IngestedBlocks blocks that were ingested by the consensus",
+		}, labels).With(labelsAndValues...),
+		IngestedBlockDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "ingested_block_duration",
+			Help:      "IngestedBlockDuration duration of ingesting a block",
+
+			Buckets: stdprometheus.ExponentialBucketsRange(0.1, 100, 8),
+		}, labels).With(labelsAndValues...),
+	}
+}

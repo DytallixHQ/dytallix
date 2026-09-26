@@ -1,0 +1,19 @@
+# mainnet/ is isolated from the monorepo root .gitignore, which ignores
+# Cargo.lock, lib/, build/, data/ and dist/. Mainnet builds must be
+# reproducible, so lockfiles and every source directory are tracked here.
+!*
+!*/
+
+# Build outputs and local state
+target/
+node_modules/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# Secrets never belong in this tree
+.env
+.env.*
+!.env.example
+*.keystore
+keystore.json

@@ -1,0 +1,38 @@
+//go:build !dytallix_pqc_only
+
+// Generated Prometheus constructor extracted without behavioral changes.
+package state
+
+import (
+	prometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+)
+
+func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
+	labels := []string{}
+	for i := 0; i < len(labelsAndValues); i += 2 {
+		labels = append(labels, labelsAndValues[i])
+	}
+	return &Metrics{
+		BlockProcessingTime: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "block_processing_time",
+			Help:      "Time spent processing FinalizeBlock",
+
+			Buckets: stdprometheus.LinearBuckets(1, 10, 10),
+		}, labels).With(labelsAndValues...),
+		ConsensusParamUpdates: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "consensus_param_updates",
+			Help:      "ConsensusParamUpdates is the total number of times the application has updated the consensus params since process start. metrics:Number of consensus parameter updates returned by the application since process start.",
+		}, labels).With(labelsAndValues...),
+		ValidatorSetUpdates: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "validator_set_updates",
+			Help:      "ValidatorSetUpdates is the total number of times the application has updated the validator set since process start. metrics:Number of validator set updates returned by the application since process start.",
+		}, labels).With(labelsAndValues...),
+	}
+}

@@ -1,0 +1,3050 @@
+{
+  "schema_version": "mainnet-decision-work-register-v2",
+  "status": "CURRENT_DECISION_STATUS_NOT_LAUNCH_APPROVAL",
+  "as_of_batch": 10,
+  "scope": "Current decisions and work dependencies; recovery approvals and local implementation evidence recorded; no production activation",
+  "production_activation_authorized": false,
+  "policy_approval_inferred_from_this_request": false,
+  "owner_rule": "Roles are proposed. Named assignees and reviewers remain unset until acceptance is recorded.",
+  "missing_record_rule": "Missing means not established within reviewed evidence.",
+  "categories": [
+    {
+      "id": "D01",
+      "title": "Adaptive issuance",
+      "approved_portion": "Corrected adaptive controller selected. Atomic epoch issuance and explicit observation inputs authorized for local implementation.",
+      "evidence_refs": [
+        "snapshots/dytallix-node/docs/mainnet/specification-decisions.md",
+        "batch-6/issuance-timing/APPROVAL.json"
+      ],
+      "questions": [
+        {
+          "id": "D01-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "Which production controller version, gains, bounds, initial state and initial command apply?",
+          "recommendation": "Retain the selected controller. Review one versioned parameter set with units and admissible ranges.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol and economics lead",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W01"
+          ],
+          "blocking_output": "Production controller configuration",
+          "evidence_refs": [
+            "snapshots/dytallix-node/docs/mainnet/specification-decisions.md",
+            "batch-6/issuance-timing/APPROVAL.json"
+          ]
+        },
+        {
+          "id": "D01-Q02",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "Which observations, sources, authentication, aggregation and missing-input or resume rules apply?",
+          "recommendation": "Specify a deterministic observation contract. Never substitute an invented observation.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol and economics lead",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W01"
+          ],
+          "blocking_output": "Observation contract",
+          "evidence_refs": [
+            "snapshots/dytallix-node/docs/mainnet/specification-decisions.md",
+            "batch-6/issuance-timing/APPROVAL.json"
+          ]
+        }
+      ],
+      "work": {
+        "id": "W01",
+        "deliverable": "Freeze the issuance configuration and observation contract; qualify controller settlement.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D01-Q01",
+          "D01-Q02"
+        ],
+        "depends_on_work": [
+          "W03",
+          "W04",
+          "W08"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Calibration, stability assumptions, deterministic vectors and atomic supply reconciliation.",
+        "owner_role_proposed": "Protocol and economics lead",
+        "assignee": null,
+        "artifact_ids": [
+          "A07",
+          "F06",
+          "F21"
+        ],
+        "depends_on_decisions": [],
+        "canonical_gate_ids": [
+          "G14",
+          "G19"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G14",
+        "G19"
+      ]
+    },
+    {
+      "id": "D02",
+      "title": "DRT reward allocation",
+      "approved_portion": "40/30/30 validator/staker/treasury split. Six decimals. Checked floor allocation by eligible stake. Sole recipient gets the budget. Staking pool pays owners with no commission. Separate rounding and inactive reserves have no automatic recipient or sweep authority. LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
+      "evidence_refs": [
+        "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+        "batch-6/APPROVAL.json",
+        "batch-6/integration-followup/APPROVAL.json",
+        "batch-6/issuance-timing/APPROVAL.json",
+        "decision-register/recovery-acceptance-followup/REPORT.md",
+        "decision-register/recovery-acceptance-followup/TEST_RESULTS.json",
+        "decision-register/recovery-acceptance-followup/ACCEPTANCE_STATUS.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+      ],
+      "questions": [
+        {
+          "id": "D02-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What eligibility and allocation rules apply to the separate validator reward pool?",
+          "recommendation": "Specify the validator pool independently. Preserve owner entitlements and zero staking-pool commission.",
+          "selected_value": null,
+          "owner_role_proposed": "Reward accounting and treasury leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W02"
+          ],
+          "blocking_output": "Validator reward specification",
+          "evidence_refs": [
+            "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+            "batch-6/APPROVAL.json",
+            "batch-6/integration-followup/APPROVAL.json",
+            "batch-6/issuance-timing/APPROVAL.json"
+          ]
+        },
+        {
+          "id": "D02-Q02",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "Who receives treasury rewards, and which custody records authorize receipt?",
+          "recommendation": "Supply verified recipient and custody records. Use D11 for spending authority.",
+          "selected_value": null,
+          "owner_role_proposed": "Reward accounting and treasury leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W02"
+          ],
+          "blocking_output": "Treasury reward configuration",
+          "evidence_refs": [
+            "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+            "batch-6/APPROVAL.json",
+            "batch-6/integration-followup/APPROVAL.json",
+            "batch-6/issuance-timing/APPROVAL.json",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Supporting capture only; this required record remains incomplete. No new supporting acceptance record was found in the reviewed infrastructure sources or refreshed GitHub metadata.",
+          "record_discovery_missing_inputs": [
+            "recipient_account_reference",
+            "custody_policy_reference",
+            "recipient_acceptance",
+            "governance_authority_reference"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D02-Q02.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        }
+      ],
+      "work": {
+        "id": "W02",
+        "deliverable": "Complete reward recipient configuration and validator-pool accounting.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D02-Q01",
+          "D02-Q02"
+        ],
+        "depends_on_work": [
+          "W09",
+          "W11"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Recipient vectors, no double counting, reserve reconciliation and exactly-once settlement.",
+        "owner_role_proposed": "Reward accounting and treasury leads",
+        "assignee": null,
+        "artifact_ids": [
+          "A07",
+          "F06"
+        ],
+        "depends_on_decisions": [
+          "D11-Q03"
+        ],
+        "current_followup_ref": "decision-register/recovery-acceptance-followup/REPORT.md",
+        "legacy_retirement_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "legacy_retirement_status": "LOCAL_RETIREMENT_CHECKS_RECORDED_DIAGNOSTIC_DEFECT_PRESERVED",
+        "legacy_retirement_result_ref": "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "current_record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "canonical_gate_ids": [
+          "G14",
+          "G16",
+          "G17",
+          "G19",
+          "G23"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G14",
+        "G16",
+        "G17",
+        "G19",
+        "G23"
+      ]
+    },
+    {
+      "id": "D03",
+      "title": "Interval timing",
+      "approved_portion": "One finalized block per reward interval, using parent finalized state. Explicit N finalized blocks per issuance epoch. Even per-bucket scheduling gives extra units to first blocks. Separate split reserve. Batch 8 makes stake and membership changes effective at H+2.",
+      "evidence_refs": [
+        "batch-6/integration-followup/APPROVAL.json",
+        "batch-6/issuance-timing/APPROVAL.json",
+        "batch-8/implementation/APPROVAL.json"
+      ],
+      "questions": [
+        {
+          "id": "D03-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What production epoch length N and observation sampling windows apply?",
+          "recommendation": "Review explicit counts and units with the controller. Do not infer N from a local timer.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol lead",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W03"
+          ],
+          "blocking_output": "Production issuance timing matrix",
+          "evidence_refs": [
+            "batch-6/integration-followup/APPROVAL.json",
+            "batch-6/issuance-timing/APPROVAL.json",
+            "batch-8/implementation/APPROVAL.json"
+          ]
+        }
+      ],
+      "work": {
+        "id": "W03",
+        "deliverable": "Complete one timing matrix that references consensus, evidence, withdrawal and governance decisions.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D03-Q01"
+        ],
+        "depends_on_work": [
+          "W06"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Epoch boundary, halt/resume and H+2 transition vectors.",
+        "owner_role_proposed": "Protocol lead",
+        "assignee": null,
+        "artifact_ids": [
+          "A40",
+          "A07"
+        ],
+        "depends_on_decisions": [
+          "D09-Q03",
+          "D11-Q02"
+        ],
+        "canonical_gate_ids": [
+          "G14",
+          "G19"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G14",
+        "G19"
+      ]
+    },
+    {
+      "id": "D04",
+      "title": "Fees",
+      "approved_portion": "Recovery RF01 through RF06 and ordinary actor-paid udrt/no-tips authority remain selected. OF01 through OF05 select ordinary fee contract format 1, canonical profile binding, deterministic metering, zero-charge preacceptance rejection, measured accepted application failure, accepted out-of-gas, shared reservations, atomic cap release and nonce outcomes, and undistributed udrt custody. Production values and actual runtime or durable integration remain separate. Reserve metadata gas before acceptance and count it once. Initial vesting/custody eligibility remains a zero-charge funding condition; a later breached reservation guarantee is an internal fault. Dms authority checks precede acceptance while maturity is a typed post-acceptance state condition. Shared aggregate limits supplement recovery-specific ceilings; mandatory expiry retains its own budget. General distribution and burn policy remain open. The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification. The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
+      "evidence_refs": [
+        "batch-2/ECONOMIC_DECISIONS.json",
+        "batch-10/REPORT.md",
+        "decision-register/recovery-fee-storage/PROPOSAL.json",
+        "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+        "decision-register/recovery-fee-storage/CONTRACT.md",
+        "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+        "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+        "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+        "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+        "decision-register/recovery-fee-implementation/APPROVAL.json",
+        "decision-register/recovery-fee-implementation/SCOPE.json",
+        "decision-register/recovery-fee-implementation/REPORT.md",
+        "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+        "decision-register/recovery-acceptance-followup/REPORT.md",
+        "decision-register/recovery-acceptance-followup/TEST_RESULTS.json",
+        "decision-register/recovery-acceptance-followup/ACCEPTANCE_STATUS.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-fee-implementation/APPROVAL.json",
+        "decision-register/ordinary-fee-implementation/SCOPE.json",
+        "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+        "decision-register/ordinary-fee-implementation/README.md",
+        "decision-register/ordinary-fee-implementation/DECISION_STATUS.md",
+        "decision-register/ordinary-fee-implementation/REPORT.md",
+        "decision-register/ordinary-fee-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-runtime-integration/APPROVAL.json",
+        "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+        "decision-register/ordinary-runtime-integration/README.md",
+        "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+        "decision-register/ordinary-runtime-integration/REPORT.md",
+        "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+        "decision-register/ordinary-client-compatibility/APPROVAL.json",
+        "decision-register/ordinary-client-compatibility/SCOPE.json",
+        "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+        "decision-register/ordinary-client-compatibility/README.md",
+        "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
+        "decision-register/ordinary-client-compatibility/REPORT.md",
+        "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+      ],
+      "questions": [
+        {
+          "id": "D04-Q01",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "Which fee denomination, metering, formula, prices, bounds and tips apply?",
+          "recommendation": "Complete full OF-W06 production qualification and all limits retained by the local client report. Keep hosted wallet UI, live engine/RPC, light-client assurance, production values/roles/records and release acceptance separate.",
+          "selected_value": null,
+          "owner_role_proposed": "Fee accounting lead",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "blocks_work": [
+            "W04",
+            "W10"
+          ],
+          "blocking_output": "Fee parameter specification",
+          "evidence_refs": [
+            "batch-2/ECONOMIC_DECISIONS.json",
+            "batch-10/REPORT.md",
+            "decision-register/recovery-fee-storage/PROPOSAL.json",
+            "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+            "decision-register/recovery-fee-storage/CONTRACT.md",
+            "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+            "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+            "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+            "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/recovery-fee-implementation/SCOPE.json",
+            "decision-register/recovery-fee-implementation/REPORT.md",
+            "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-signing-implementation/APPROVAL.json",
+            "decision-register/ordinary-fee-implementation/APPROVAL.json",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+            "decision-register/ordinary-fee-implementation/SCOPE.json",
+            "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+            "decision-register/ordinary-fee-implementation/README.md",
+            "decision-register/ordinary-fee-implementation/DECISION_STATUS.md",
+            "decision-register/ordinary-fee-implementation/REPORT.md",
+            "decision-register/ordinary-fee-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-runtime-integration/APPROVAL.json",
+            "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+            "decision-register/ordinary-runtime-integration/README.md",
+            "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+            "decision-register/ordinary-runtime-integration/REPORT.md",
+            "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+            "decision-register/ordinary-client-compatibility/APPROVAL.json",
+            "decision-register/ordinary-client-compatibility/SCOPE.json",
+            "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+            "decision-register/ordinary-client-compatibility/README.md",
+            "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
+            "decision-register/ordinary-client-compatibility/REPORT.md",
+            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+          ],
+          "prepared_recommendation_ids": [
+            "RF02"
+          ],
+          "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
+          "approval_records": [
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/ordinary-fee-implementation/APPROVAL.json"
+          ],
+          "approved_fee_rule_ids": [
+            "RF02"
+          ],
+          "approved_fee_portion": "Recovery-only fees use udrt with no tips, deterministic metering, a required versioned cost profile and measured charges. Production prices and limits remain unset.",
+          "remaining_choices": [
+            "Production ordinary and recovery gas prices, minimum charges, costs and resource limits",
+            "Production profile activation and compatible role profiles",
+            "Any fee model for actions outside the twelve selected ordinary actions and recovery format"
+          ],
+          "ordinary_fee_boundary": "OF01 through OF05 select the fee outcome contract. The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
+          "ordinary_signing_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approved_ordinary_fee_decision_ids": [
+            "OF01"
+          ],
+          "approved_ordinary_fee_portion": "OF01 through OF05 select ordinary fee contract format 1, canonical profile binding, deterministic metering, zero-charge preacceptance rejection, measured accepted application failure, accepted out-of-gas, shared reservations, atomic cap release and nonce outcomes, and undistributed udrt custody. Production values and actual runtime or durable integration remain separate. Reserve metadata gas before acceptance and count it once. Initial vesting/custody eligibility remains a zero-charge funding condition; a later breached reservation guarantee is an internal fault. Dms authority checks precede acceptance while maturity is a typed post-acceptance state condition. Shared aggregate limits supplement recovery-specific ceilings; mandatory expiry retains its own budget.",
+          "ordinary_runtime_boundary": "The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
+          "ordinary_runtime_approval_ref": "decision-register/ordinary-runtime-integration/APPROVAL.json",
+          "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+          "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
+          "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
+          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+        },
+        {
+          "id": "D04-Q02",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "How do reservation, failures, refunds, minimum charges and recipient credits work?",
+          "recommendation": "Complete full OF-W06 production qualification and all limits retained by the local client report. Keep hosted wallet UI, live engine/RPC, light-client assurance, production values/roles/records and release acceptance separate.",
+          "selected_value": null,
+          "owner_role_proposed": "Fee accounting lead",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "blocks_work": [
+            "W04",
+            "W10"
+          ],
+          "blocking_output": "Fee settlement specification",
+          "evidence_refs": [
+            "batch-2/ECONOMIC_DECISIONS.json",
+            "batch-10/REPORT.md",
+            "decision-register/recovery-fee-storage/PROPOSAL.json",
+            "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+            "decision-register/recovery-fee-storage/CONTRACT.md",
+            "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+            "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+            "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+            "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/recovery-fee-implementation/SCOPE.json",
+            "decision-register/recovery-fee-implementation/REPORT.md",
+            "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-signing-implementation/APPROVAL.json",
+            "decision-register/ordinary-fee-implementation/APPROVAL.json",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+            "decision-register/ordinary-fee-implementation/SCOPE.json",
+            "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+            "decision-register/ordinary-fee-implementation/README.md",
+            "decision-register/ordinary-fee-implementation/DECISION_STATUS.md",
+            "decision-register/ordinary-fee-implementation/REPORT.md",
+            "decision-register/ordinary-fee-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-runtime-integration/APPROVAL.json",
+            "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+            "decision-register/ordinary-runtime-integration/README.md",
+            "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+            "decision-register/ordinary-runtime-integration/REPORT.md",
+            "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+            "decision-register/ordinary-client-compatibility/APPROVAL.json",
+            "decision-register/ordinary-client-compatibility/SCOPE.json",
+            "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+            "decision-register/ordinary-client-compatibility/README.md",
+            "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
+            "decision-register/ordinary-client-compatibility/REPORT.md",
+            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+          ],
+          "prepared_recommendation_ids": [
+            "RF01",
+            "RF02",
+            "RF03",
+            "RF04",
+            "RF05"
+          ],
+          "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
+          "approval_records": [
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/ordinary-fee-implementation/APPROVAL.json"
+          ],
+          "approved_fee_rule_ids": [
+            "RF01",
+            "RF02",
+            "RF03",
+            "RF04",
+            "RF05"
+          ],
+          "approved_fee_portion": "Recovery uses separate sponsor authority and a signed cap. Reserve the cap, charge the measured permitted amount and release the remainder atomically. Invalid, stale, expired or unfunded requests cause no debit or sponsor nonce change. Charge only success or accepted out-of-gas results. Use stable identifiers to prevent duplicate charges. Credit fees to undistributed custody with no recipient, burn or sweep operation.",
+          "remaining_choices": [
+            "Production profile and receipt retention parameters",
+            "Production fee distribution authority and recipient records",
+            "Any settlement policy outside the selected ordinary and recovery contracts"
+          ],
+          "ordinary_fee_boundary": "OF01 through OF05 select the fee outcome contract. The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
+          "ordinary_signing_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approved_ordinary_fee_decision_ids": [
+            "OF02",
+            "OF03",
+            "OF04",
+            "OF05"
+          ],
+          "approved_ordinary_fee_portion": "OF01 through OF05 select ordinary fee contract format 1, canonical profile binding, deterministic metering, zero-charge preacceptance rejection, measured accepted application failure, accepted out-of-gas, shared reservations, atomic cap release and nonce outcomes, and undistributed udrt custody. Production values and actual runtime or durable integration remain separate. Reserve metadata gas before acceptance and count it once. Initial vesting/custody eligibility remains a zero-charge funding condition; a later breached reservation guarantee is an internal fault. Dms authority checks precede acceptance while maturity is a typed post-acceptance state condition. Shared aggregate limits supplement recovery-specific ceilings; mandatory expiry retains its own budget.",
+          "ordinary_runtime_boundary": "The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
+          "ordinary_runtime_approval_ref": "decision-register/ordinary-runtime-integration/APPROVAL.json",
+          "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+          "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
+          "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
+          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+        }
+      ],
+      "work": {
+        "id": "W04",
+        "deliverable": "Complete production fee admission and execution accounting.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D04-Q01",
+          "D04-Q02"
+        ],
+        "depends_on_work": [
+          "W05",
+          "W11"
+        ],
+        "can_proceed_now": "Continue full OF-W06 production/client qualification and record collection. Preserve the exact local slice boundary and all unpassed production gates.",
+        "completion_evidence": "Shared admission/execution vectors, failed-transaction reconciliation and capacity measurements. Durable receipt rejection is already checked locally.",
+        "owner_role_proposed": "Fee accounting lead",
+        "assignee": null,
+        "artifact_ids": [
+          "A07",
+          "F06"
+        ],
+        "depends_on_decisions": [
+          "D08-Q02"
+        ],
+        "fee_storage_contract_ref": "decision-register/recovery-fee-storage/CONTRACT.md",
+        "fee_storage_work_items_ref": "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+        "preparation_evidence_ref": "decision-register/ordinary-client-compatibility/REPORT.md",
+        "fee_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json",
+        "current_scope_ref": "decision-register/ordinary-fee-implementation/SCOPE.json",
+        "preparation_status": "ORDINARY_CLIENT_COMPATIBILITY_LOCALLY_CHECKED_PRODUCTION_OPEN",
+        "authorized_local_work_items": [
+          "RF-W01",
+          "RF-W02",
+          "RF-W03"
+        ],
+        "local_checked_work_items": [
+          "RF-W01",
+          "RF-W02",
+          "RF-W03"
+        ],
+        "completed_steps": [
+          "RF01 through RF06 and the candidate sponsor codec/meter contract approved for recovery-only implementation",
+          "Local checks recorded for RF-W01, RF-W02, RF-W03; this does not close W04 or W10",
+          "OF01 through OF05 approved; the ordinary fee outcome contract is selected without production numeric values",
+          "Bounded local component checks recorded for OF-W01, OF-W02, OF-W03; paid ordinary consensus execution is not completed by those checks",
+          "Local OF-W04 and OF-W05 checks recorded in the current runtime integration report; production qualification remains open",
+          "Local OF-W06-CLIENT compatibility checks recorded; documented pipe adapter does not establish actual CometBFT engine, live RPC or light-client assurance"
+        ],
+        "remaining_steps": [
+          "Resolve limits explicitly retained in the local client report",
+          "Complete hosted wallet UI and actual live engine/RPC/light-client qualification",
+          "Select production values/roles; verify required production records and release acceptance; full OF-W06 remains open"
+        ],
+        "fee_result_ref": "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+        "fee_report_ref": "decision-register/recovery-fee-implementation/REPORT.md",
+        "current_followup_ref": "decision-register/recovery-acceptance-followup/REPORT.md",
+        "ordinary_fee_approval_ref": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+        "ordinary_fee_work_items_ref": "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+        "current_component_ids": [
+          "OF-W01",
+          "OF-W02",
+          "OF-W03"
+        ],
+        "next_integration_ids": [],
+        "ordinary_fee_local_checked_work_items": [
+          "OF-W01",
+          "OF-W02",
+          "OF-W03"
+        ],
+        "ordinary_fee_result_ref": "decision-register/ordinary-fee-implementation/TEST_RESULTS.json",
+        "ordinary_runtime_approval_ref": "decision-register/ordinary-runtime-integration/APPROVAL.json",
+        "ordinary_runtime_work_items_ref": "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+        "current_integration_ids": [
+          "OF-W04",
+          "OF-W05"
+        ],
+        "next_qualification_ids": [
+          "OF-W06"
+        ],
+        "ordinary_runtime_local_checked_work_items": [
+          "OF-W04",
+          "OF-W05"
+        ],
+        "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+        "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
+        "ordinary_client_work_items_ref": "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+        "current_client_slice_ids": [
+          "OF-W06-CLIENT"
+        ],
+        "ordinary_client_local_checked_work_items": [
+          "OF-W06-CLIENT"
+        ],
+        "full_of_w06_complete": false,
+        "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+        "canonical_gate_ids": [
+          "G10",
+          "G11",
+          "G12",
+          "G14",
+          "G20"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G10",
+        "G11",
+        "G12",
+        "G14",
+        "G20"
+      ]
+    },
+    {
+      "id": "D05",
+      "title": "Burning and supply authority",
+      "approved_portion": "Fixed one-billion DGT total and category shares approved. Production burn rules and supply authority remain open. RF05 approves undistributed recovery fee custody with no burn, recipient or sweep operation in this integration. The general DRT burn policy remains open. OF05 selects existing undistributed udrt custody with no recipient, burn or sweep operation. General DRT burn policy remains open. Fee delta must be reconciled separately from successful action balance changes.",
+      "evidence_refs": [
+        "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+        "batch-2/ECONOMIC_DECISIONS.json",
+        "decision-register/recovery-fee-implementation/APPROVAL.json",
+        "decision-register/ordinary-fee-implementation/APPROVAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-fee-implementation/SCOPE.json",
+        "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+        "decision-register/ordinary-fee-implementation/README.md",
+        "decision-register/ordinary-fee-implementation/DECISION_STATUS.md",
+        "decision-register/ordinary-fee-implementation/REPORT.md",
+        "decision-register/ordinary-fee-implementation/TEST_RESULTS.json"
+      ],
+      "questions": [
+        {
+          "id": "D05-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
+          "recommendation": "Review bandwidth-only DRT burning. Specify exact debit and supply equations before approval.",
+          "selected_value": null,
+          "owner_role_proposed": "Economics and supply accounting leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W05"
+          ],
+          "blocking_output": "DRT burn specification",
+          "evidence_refs": [
+            "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+            "batch-2/ECONOMIC_DECISIONS.json",
+            "decision-register/recovery-fee-implementation/APPROVAL.json"
+          ],
+          "prepared_recommendation_ids": [
+            "RF05"
+          ],
+          "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
+          "recovery_custody_boundary": "RF05 approves undistributed recovery fee custody with no burn, recipient or sweep operation in this integration. The general DRT burn policy remains open.",
+          "recovery_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json",
+          "ordinary_custody_boundary": "OF05 selects existing undistributed udrt custody with no recipient, burn or sweep operation. General DRT burn policy remains open. Fee delta must be reconciled separately from successful action balance changes.",
+          "ordinary_fee_approval_ref": "decision-register/ordinary-fee-implementation/APPROVAL.json"
+        },
+        {
+          "id": "D05-Q02",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
+          "recommendation": "Review this existing proposal explicitly. A fixed total does not establish executable issuance or authority rules.",
+          "selected_value": null,
+          "owner_role_proposed": "Economics and supply accounting leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W05"
+          ],
+          "blocking_output": "DGT issuance and authority specification",
+          "evidence_refs": [
+            "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+            "batch-2/ECONOMIC_DECISIONS.json",
+            "decision-register/recovery-fee-implementation/APPROVAL.json"
+          ]
+        }
+      ],
+      "work": {
+        "id": "W05",
+        "deliverable": "Complete supply authority and burn transitions.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D05-Q01",
+          "D05-Q02"
+        ],
+        "depends_on_work": [],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Conservation vectors across every custody category. Penalty reserve transfers must not be reported as burns.",
+        "owner_role_proposed": "Economics and supply accounting leads",
+        "assignee": null,
+        "artifact_ids": [
+          "F08",
+          "A07"
+        ],
+        "depends_on_decisions": [],
+        "canonical_gate_ids": [
+          "G05",
+          "G12",
+          "G13",
+          "G14",
+          "G15",
+          "G20",
+          "G23"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G05",
+        "G12",
+        "G13",
+        "G14",
+        "G15",
+        "G20",
+        "G23"
+      ]
+    },
+    {
+      "id": "D06",
+      "title": "Consensus and validation",
+      "approved_portion": "CometBFT v0.40.0 local integration and qualification authorized. D06-Q01 now partially approves ML-KEM-768 and ML-DSA-65 authenticated pinned peers, ML-DSA-65 validators, distinct role keys, exact approved IP endpoints and no classical or plaintext fallback. The production engine commit, addresses and final acceptance remain unset.",
+      "evidence_refs": [
+        "batch-7/APPROVAL.json",
+        "batch-9/REPORT.md",
+        "batch-10/REPORT.md",
+        "decision-register/pqc-only-launch-gate/APPROVAL.json",
+        "decision-register/pqc-only-launch-gate/GATE_SPEC.json",
+        "decision-register/pqc-only-launch-gate/REPORT.md",
+        "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json"
+      ],
+      "questions": [
+        {
+          "id": "D06-Q01",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "Which exact engine version, cryptographic roles and transport authentication profile will production freeze?",
+          "recommendation": "Finish source integration, then freeze exact engine provenance and production addresses with the approved role and transport policy. Require candidate-bound review before activation.",
+          "selected_value": null,
+          "approved_portion": "ML-KEM-768 and ML-DSA-65 for authenticated pinned peers; ML-DSA-65 for validator signatures; distinct keys by role; exact approved IP endpoints; no classical or plaintext fallback.",
+          "remaining_choices": [
+            "Exact production engine commit and executable hashes",
+            "Production chain ID and approved peer address and key records",
+            "Protocol review, custody and candidate-bound acceptance"
+          ],
+          "owner_role_proposed": "Protocol lead with cryptography and network reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "blocks_work": [
+            "W06"
+          ],
+          "blocking_output": "Production consensus profile",
+          "evidence_refs": [
+            "batch-7/APPROVAL.json",
+            "batch-9/REPORT.md",
+            "batch-10/REPORT.md",
+            "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json"
+          ]
+        },
+        {
+          "id": "D06-Q02",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
+          "recommendation": "Specify measurable limits and supported recovery behavior. Include light-client and proof-query requirements.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol lead with cryptography and network reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W06"
+          ],
+          "blocking_output": "Consensus operating specification",
+          "evidence_refs": [
+            "batch-7/APPROVAL.json",
+            "batch-9/REPORT.md",
+            "batch-10/REPORT.md"
+          ]
+        }
+      ],
+      "work": {
+        "id": "W06",
+        "deliverable": "Complete the consensus profile and component integration checks.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D06-Q01",
+          "D06-Q02"
+        ],
+        "depends_on_work": [
+          "W10"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Adapter, validator update and evidence-interface checks; synchronization, snapshot, history and proof-query component tests. W09 owns full penalty liability coverage. W14 owns final production capacity acceptance.",
+        "owner_role_proposed": "Protocol lead with cryptography and network reviewers",
+        "assignee": null,
+        "artifact_ids": [
+          "A06",
+          "A39",
+          "F02"
+        ],
+        "depends_on_decisions": [
+          "D09-Q03",
+          "D12-Q01",
+          "D14-Q02"
+        ],
+        "preparation_status": "REVIEW_PACKAGE_PREPARED_POLICY_OPEN",
+        "preparation_evidence_ref": "decision-register/work-pack-1/CONSENSUS_REVIEW.md",
+        "required_launch_gates": [
+          "G35"
+        ],
+        "pqc_only_launch_constraint": "G35 prohibits quantum-vulnerable asymmetric cryptography inside the production trust boundary. Approved roles use ML-KEM-768, ML-DSA-65 and separate SLH-DSA root authorization. Symmetric/hash use needs role-specific review. Full artifact and isolation evidence remain required.",
+        "canonical_gate_ids": [
+          "G01",
+          "G02",
+          "G09",
+          "G25",
+          "G26",
+          "G30",
+          "G35"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G01",
+        "G02",
+        "G09",
+        "G25",
+        "G26",
+        "G30",
+        "G35"
+      ]
+    },
+    {
+      "id": "D07",
+      "title": "Required launch scope",
+      "approved_portion": "The launch brief requires the initial lifecycle, governance, wallet, PQC, RPC, monitoring, recovery and upgrade features. One permanent mainnet is required. These requirements are not optional by default. LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
+      "evidence_refs": [
+        "USER_LAUNCH_REQUIREMENTS.txt",
+        "batch-1/REQUIREMENTS_RECONCILIATION.md",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json"
+      ],
+      "questions": [
+        {
+          "id": "D07-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What exact enabled-module and interface matrix satisfies the required launch scope?",
+          "recommendation": "List each required feature and interface, including the gRPC decision. Defer optional features only after dependency review.",
+          "selected_value": null,
+          "owner_role_proposed": "Product and protocol leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W07",
+            "W12"
+          ],
+          "blocking_output": "Launch feature matrix",
+          "evidence_refs": [
+            "USER_LAUNCH_REQUIREMENTS.txt",
+            "batch-1/REQUIREMENTS_RECONCILIATION.md"
+          ],
+          "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
+          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json"
+        }
+      ],
+      "work": {
+        "id": "W07",
+        "deliverable": "Map each launch requirement to its implementation, interface and acceptance evidence.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D07-Q01"
+        ],
+        "depends_on_work": [],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Every required feature has a responsible role, acceptance criterion and release artifact.",
+        "owner_role_proposed": "Product and protocol leads",
+        "assignee": null,
+        "artifact_ids": [
+          "A20",
+          "A19",
+          "F02"
+        ],
+        "depends_on_decisions": [],
+        "legacy_retirement_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "legacy_retirement_status": "LOCAL_RETIREMENT_CHECKS_RECORDED_DIAGNOSTIC_DEFECT_PRESERVED",
+        "legacy_retirement_result_ref": "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "canonical_gate_ids": [
+          "G31",
+          "G32",
+          "G33"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G31",
+        "G32",
+        "G33"
+      ]
+    },
+    {
+      "id": "D08",
+      "title": "Genesis allocations and vesting",
+      "approved_portion": "One billion DGT; shares 30/20/15/15/20. Six decimals give 10^15 base units. Explicit beneficiary vesting inputs required. Locked DGT may stake only when its schedule permits; locks survive bonding and unbonding.",
+      "evidence_refs": [
+        "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+        "batch-6/APPROVAL.json",
+        "batch-6/integration-followup/APPROVAL.json",
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+      ],
+      "questions": [
+        {
+          "id": "D08-Q01",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "Which beneficiaries, recipients, custody approvals, exact vesting schedules and initial delegations apply?",
+          "recommendation": "Collect verified records. Do not copy historical schedules or fabricate recipients.",
+          "selected_value": null,
+          "owner_role_proposed": "Genesis coordinator with custody and economics reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W08"
+          ],
+          "blocking_output": "Signed allocation and vesting input set",
+          "evidence_refs": [
+            "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+            "batch-6/APPROVAL.json",
+            "batch-6/integration-followup/APPROVAL.json",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "prepared_recommendation_ids": [
+            "RF06"
+          ],
+          "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
+          "recovery_protection_boundary": "RF06 preserves incoming credits and mandatory obligations while blocking discretionary owner actions and queued payouts during protection. Existing locked-principal and custody questions remain open.",
+          "recovery_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Supporting capture only; this required record remains incomplete. No new supporting acceptance record was found in the reviewed infrastructure sources or refreshed GitHub metadata.",
+          "record_discovery_missing_inputs": [
+            "beneficiary_reference",
+            "category",
+            "amount_base_units",
+            "recipient_account_reference",
+            "explicit_vesting_schedule",
+            "staking_permission",
+            "initial_delegation",
+            "custody_reference",
+            "approval_evidence"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D08-Q01.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        },
+        {
+          "id": "D08-Q02",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
+          "recommendation": "Review an explicit liquid fee bootstrap with supply reconciliation and recipient controls.",
+          "selected_value": null,
+          "owner_role_proposed": "Genesis coordinator with custody and economics reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W08",
+            "W04"
+          ],
+          "blocking_output": "DRT genesis policy",
+          "evidence_refs": [
+            "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+            "batch-6/APPROVAL.json",
+            "batch-6/integration-followup/APPROVAL.json"
+          ]
+        },
+        {
+          "id": "D08-Q03",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "Which verified recipients and custody records implement the approved DRT bootstrap?",
+          "recommendation": "Populate only after the bootstrap policy is approved.",
+          "selected_value": null,
+          "owner_role_proposed": "Genesis coordinator with custody and economics reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W08"
+          ],
+          "blocking_output": "DRT genesis input set",
+          "evidence_refs": [
+            "evidence/TOKENOMICS_APPROVED_SOURCE.json",
+            "batch-6/APPROVAL.json",
+            "batch-6/integration-followup/APPROVAL.json",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Supporting capture only; this required record remains incomplete. No new supporting acceptance record was found in the reviewed infrastructure sources or refreshed GitHub metadata.",
+          "record_discovery_missing_inputs": [
+            "approved_bootstrap_policy_reference",
+            "recipient_account_reference",
+            "amount_base_units",
+            "custody_reference",
+            "approval_evidence"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D08-Q03.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        }
+      ],
+      "work": {
+        "id": "W08",
+        "deliverable": "Build and reconcile the executable genesis allocation manifest.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D08-Q01",
+          "D08-Q02",
+          "D08-Q03"
+        ],
+        "depends_on_work": [
+          "W05",
+          "W09",
+          "W10"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Exact integer totals, lock and delegation vectors, beneficiary approvals and deterministic genesis output.",
+        "owner_role_proposed": "Genesis coordinator with custody and economics reviewers",
+        "assignee": null,
+        "depends_on_decisions": [
+          "D13-Q01",
+          "D11-Q03"
+        ],
+        "artifact_ids": [
+          "A12",
+          "A14",
+          "F11",
+          "F14"
+        ],
+        "current_record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "canonical_gate_ids": [
+          "G04",
+          "G05",
+          "G12",
+          "G13",
+          "G14",
+          "G15",
+          "G16",
+          "G17",
+          "G18",
+          "G20"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G04",
+        "G05",
+        "G12",
+        "G13",
+        "G14",
+        "G15",
+        "G16",
+        "G17",
+        "G18",
+        "G20"
+      ]
+    },
+    {
+      "id": "D09",
+      "title": "Validators, evidence, penalties and withdrawals",
+      "approved_portion": "All seven Batch 8 rules approved: effective bonded power; permissioned initial admission with key proof; funded self-bond and capacity checks; H+2 changes; owner-specific unbonding held through both evidence limits, margins and penalty settlement; authorized key rotation; atomic recovery. Batch 9 penalty values are synthetic.",
+      "evidence_refs": [
+        "batch-8/implementation/APPROVAL.json",
+        "batch-8/POLICY_PROPOSAL.json",
+        "batch-9/SCOPE.json",
+        "batch-9/POLICY.md",
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+      ],
+      "questions": [
+        {
+          "id": "D09-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
+          "recommendation": "Approve explicit funded limits and a separate registry amendment authority. Preserve admission and H+2 rules.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol and staking leads with validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W09"
+          ],
+          "blocking_output": "Validator admission configuration",
+          "evidence_refs": [
+            "batch-8/implementation/APPROVAL.json",
+            "batch-8/POLICY_PROPOSAL.json",
+            "batch-9/SCOPE.json",
+            "batch-9/POLICY.md"
+          ]
+        },
+        {
+          "id": "D09-Q02",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "Which operators, control groups, keys, custody arrangements and signed acceptances form the initial set?",
+          "recommendation": "Verify actual operator records. No approved records here does not prove records exist nowhere else.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol and staking leads with validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W09"
+          ],
+          "blocking_output": "Initial validator register",
+          "evidence_refs": [
+            "batch-8/implementation/APPROVAL.json",
+            "batch-8/POLICY_PROPOSAL.json",
+            "batch-9/SCOPE.json",
+            "batch-9/POLICY.md",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Supporting capture only; this required record remains incomplete. Host inventory does not establish approved validator membership, independent operator control or accepted production fault domains.",
+          "record_discovery_missing_inputs": [
+            "operator_id",
+            "control_group",
+            "public_key_reference",
+            "proof_of_possession",
+            "self_bond_funding_reference",
+            "fault_domains",
+            "custody_reference",
+            "signed_acceptance",
+            "review_evidence"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D09-Q02.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        },
+        {
+          "id": "D09-Q03",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
+          "recommendation": "Specify both age limits and both margins with engine evidence coverage.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol and staking leads with validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W09",
+            "W03",
+            "W06"
+          ],
+          "blocking_output": "Evidence retention and unbond timing configuration",
+          "evidence_refs": [
+            "batch-8/implementation/APPROVAL.json",
+            "batch-8/POLICY_PROPOSAL.json",
+            "batch-9/SCOPE.json",
+            "batch-9/POLICY.md"
+          ]
+        },
+        {
+          "id": "D09-Q04",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
+          "recommendation": "Review the complete fault model. Do not promote the synthetic 1/20 rate or first-fault cap to production.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol and staking leads with validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W09"
+          ],
+          "blocking_output": "Production penalty specification",
+          "evidence_refs": [
+            "batch-8/implementation/APPROVAL.json",
+            "batch-8/POLICY_PROPOSAL.json",
+            "batch-9/SCOPE.json",
+            "batch-9/POLICY.md"
+          ]
+        },
+        {
+          "id": "D09-Q05",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
+          "recommendation": "Keep withdrawals blocked until all required evidence and penalty settlement is complete. Preserve approved vesting locks.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol and staking leads with validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W09"
+          ],
+          "blocking_output": "Withdrawal and locked-liability specification",
+          "evidence_refs": [
+            "batch-8/implementation/APPROVAL.json",
+            "batch-8/POLICY_PROPOSAL.json",
+            "batch-9/SCOPE.json",
+            "batch-9/POLICY.md"
+          ],
+          "prepared_recommendation_ids": [
+            "RF06"
+          ],
+          "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
+          "recovery_protection_boundary": "RF06 preserves incoming credits and mandatory obligations while blocking discretionary owner actions and queued payouts during protection. Existing locked-principal and custody questions remain open.",
+          "recovery_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json"
+        }
+      ],
+      "work": {
+        "id": "W09",
+        "deliverable": "Complete validator policy and records; qualify evidence accounting and safe withdrawal.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D09-Q01",
+          "D09-Q02",
+          "D09-Q03",
+          "D09-Q04",
+          "D09-Q05"
+        ],
+        "depends_on_work": [
+          "W06",
+          "W10"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Full engine evidence coverage, locked custody accounting, penalty reconciliation, key rotation, recovery and withdrawal vectors.",
+        "owner_role_proposed": "Protocol and staking leads with validator coordinator",
+        "assignee": null,
+        "artifact_ids": [
+          "A10",
+          "A06",
+          "F03",
+          "F04",
+          "F05"
+        ],
+        "depends_on_decisions": [
+          "D11-Q03"
+        ],
+        "preparation_status": "REVIEW_PACKAGE_PREPARED_POLICY_OPEN",
+        "preparation_evidence_ref": "decision-register/work-pack-1/VALIDATOR_REVIEW.md",
+        "current_record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "canonical_gate_ids": [
+          "G01",
+          "G02",
+          "G04",
+          "G05",
+          "G07",
+          "G08",
+          "G15",
+          "G16",
+          "G17",
+          "G18",
+          "G21",
+          "G22",
+          "G30",
+          "G34"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G01",
+        "G02",
+        "G04",
+        "G05",
+        "G07",
+        "G08",
+        "G15",
+        "G16",
+        "G17",
+        "G18",
+        "G21",
+        "G22",
+        "G30",
+        "G34"
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Keys, accounts and recovery",
+      "approved_portion": "Lost-or-compromised-key recovery, the detailed two-of-three rules, local recovery signing and RF01 through RF06 remain approved. AS01 through AS06 select stable address-v1 Bech32m identity, exact ordinary-v2 bytes, current-key and generation checks, one authoritative spending nonce with an equal native mirror, actual debit-owner checks, generation-bound discretionary grants and shared client format. Recovery-only sponsorship stays separate. Production role allowlists, complete client acceptance, account creation or migration beyond explicit local records, and production activation remain open. AS05 selects generation-bound discretionary grants. A generation change invalidates an old Dms or queued discretionary grant until the current owner reauthorizes it. RF06 protection applies to the actor, actual debit owner and fee payer. Mandatory liabilities and committed H+2 schedules remain intact. OF01 through OF05 now select the ordinary fee outcome dependency. Local runtime and durable checks are recorded separately; production and client qualification remain open. The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification. The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
+      "evidence_refs": [
+        "batch-2/IDENTITY_DECISION.json",
+        "batch-8/implementation/APPROVAL.json",
+        "decision-register/recovery-design/APPROVAL.json",
+        "decision-register/recovery-implementation/APPROVAL.json",
+        "decision-register/recovery-signing/APPROVAL.json",
+        "decision-register/recovery-signing/SPEC.md",
+        "decision-register/recovery-signing/REPORT.md",
+        "decision-register/recovery-signing/TEST_RESULTS.json",
+        "decision-register/recovery-signing/SCOPE.json",
+        "decision-register/recovery-fee-storage/PROPOSAL.json",
+        "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+        "decision-register/recovery-fee-storage/CONTRACT.md",
+        "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+        "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+        "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+        "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+        "decision-register/recovery-fee-implementation/APPROVAL.json",
+        "decision-register/recovery-fee-implementation/SCOPE.json",
+        "decision-register/recovery-fee-implementation/REPORT.md",
+        "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+        "decision-register/recovery-acceptance-followup/REPORT.md",
+        "decision-register/recovery-acceptance-followup/TEST_RESULTS.json",
+        "decision-register/recovery-acceptance-followup/ACCEPTANCE_STATUS.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-fee-implementation/APPROVAL.json",
+        "decision-register/ordinary-fee-implementation/SCOPE.json",
+        "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+        "decision-register/ordinary-fee-implementation/README.md",
+        "decision-register/ordinary-fee-implementation/DECISION_STATUS.md",
+        "decision-register/ordinary-fee-implementation/REPORT.md",
+        "decision-register/ordinary-fee-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-runtime-integration/APPROVAL.json",
+        "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+        "decision-register/ordinary-runtime-integration/README.md",
+        "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+        "decision-register/ordinary-runtime-integration/REPORT.md",
+        "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+        "decision-register/ordinary-client-compatibility/APPROVAL.json",
+        "decision-register/ordinary-client-compatibility/SCOPE.json",
+        "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+        "decision-register/ordinary-client-compatibility/README.md",
+        "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
+        "decision-register/ordinary-client-compatibility/REPORT.md",
+        "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md",
+        "decision-register/pqc-only-launch-gate/APPROVAL.json",
+        "decision-register/pqc-only-launch-gate/GATE_SPEC.json",
+        "decision-register/pqc-only-launch-gate/REPORT.md"
+      ],
+      "questions": [
+        {
+          "id": "D10-Q01",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "Which identity bytes, address codec, role algorithms, versions and signing envelope apply?",
+          "recommendation": "Complete full OF-W06 production qualification and all limits retained by the local client report. Keep hosted wallet UI, live engine/RPC, light-client assurance, production values/roles/records and release acceptance separate.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol cryptography lead with wallet and SDK leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "blocks_work": [
+            "W10"
+          ],
+          "blocking_output": "Account and signing specification",
+          "evidence_refs": [
+            "batch-2/IDENTITY_DECISION.json",
+            "batch-8/implementation/APPROVAL.json",
+            "decision-register/recovery-design/APPROVAL.json",
+            "decision-register/recovery-implementation/APPROVAL.json",
+            "decision-register/recovery-signing/APPROVAL.json",
+            "decision-register/recovery-signing/SPEC.md",
+            "decision-register/recovery-signing/REPORT.md",
+            "decision-register/recovery-signing/TEST_RESULTS.json",
+            "decision-register/recovery-signing/SCOPE.json",
+            "decision-register/recovery-fee-storage/PROPOSAL.json",
+            "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+            "decision-register/recovery-fee-storage/CONTRACT.md",
+            "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+            "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+            "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+            "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/recovery-fee-implementation/SCOPE.json",
+            "decision-register/recovery-fee-implementation/REPORT.md",
+            "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-signing-implementation/APPROVAL.json",
+            "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+            "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+            "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+            "decision-register/ordinary-signing-implementation/SCOPE.json",
+            "decision-register/ordinary-signing-implementation/REPORT.md",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+            "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-runtime-integration/APPROVAL.json",
+            "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+            "decision-register/ordinary-runtime-integration/README.md",
+            "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+            "decision-register/ordinary-runtime-integration/REPORT.md",
+            "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+            "decision-register/ordinary-client-compatibility/APPROVAL.json",
+            "decision-register/ordinary-client-compatibility/SCOPE.json",
+            "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+            "decision-register/ordinary-client-compatibility/README.md",
+            "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
+            "decision-register/ordinary-client-compatibility/REPORT.md",
+            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+          ],
+          "local_implementation_refs": [
+            "decision-register/recovery-signing/APPROVAL.json",
+            "decision-register/recovery-signing/SPEC.md",
+            "decision-register/recovery-signing/REPORT.md",
+            "decision-register/recovery-signing/TEST_RESULTS.json",
+            "decision-register/recovery-signing/SCOPE.json"
+          ],
+          "prepared_recommendation_ids": [
+            "RF01",
+            "RF04"
+          ],
+          "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
+          "approval_records": [
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/ordinary-signing-implementation/APPROVAL.json"
+          ],
+          "approved_fee_rule_ids": [
+            "RF01",
+            "RF04"
+          ],
+          "approved_fee_portion": "Recovery-only sponsorship remains approved. AS01 through AS06 select ordinary signing and OF01 through OF05 now select its fee outcome contract. Production role allowlists and complete client/runtime qualification remain open.",
+          "remaining_choices": [
+            "Production account and signing role allowlists",
+            "Account creation and any migration beyond explicit local records",
+            "Cross-client acceptance and production format qualification"
+          ],
+          "ordinary_signing_proposal_ref": "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+          "approved_ordinary_decision_ids": [
+            "AS01",
+            "AS02",
+            "AS03",
+            "AS04",
+            "AS05",
+            "AS06"
+          ],
+          "approved_ordinary_portion": "AS01 through AS06 select stable address-v1 Bech32m identity, exact ordinary-v2 bytes, current-key and generation checks, one authoritative spending nonce with an equal native mirror, actual debit-owner checks, generation-bound discretionary grants and shared client format. Recovery-only sponsorship stays separate. Production role allowlists, complete client acceptance, account creation or migration beyond explicit local records, and production activation remain open.",
+          "ordinary_runtime_boundary": "The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
+          "ordinary_runtime_approval_ref": "decision-register/ordinary-runtime-integration/APPROVAL.json",
+          "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+          "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
+          "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
+          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+        },
+        {
+          "id": "D10-Q02",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "Which production timings and remaining signing, fee, custody and migration inputs complete the approved recovery contract?",
+          "recommendation": "Complete full OF-W06 production qualification and all limits retained by the local client report. Keep hosted wallet UI, live engine/RPC, light-client assurance, production values/roles/records and release acceptance separate.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol cryptography lead with wallet and SDK leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "blocks_work": [
+            "W10"
+          ],
+          "blocking_output": "Account recovery specification",
+          "evidence_refs": [
+            "batch-2/IDENTITY_DECISION.json",
+            "batch-8/implementation/APPROVAL.json",
+            "decision-register/recovery-design/APPROVAL.json",
+            "decision-register/recovery-implementation/APPROVAL.json",
+            "decision-register/recovery-signing/APPROVAL.json",
+            "decision-register/recovery-signing/SPEC.md",
+            "decision-register/recovery-signing/REPORT.md",
+            "decision-register/recovery-signing/TEST_RESULTS.json",
+            "decision-register/recovery-signing/SCOPE.json",
+            "decision-register/recovery-fee-storage/PROPOSAL.json",
+            "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+            "decision-register/recovery-fee-storage/CONTRACT.md",
+            "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+            "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+            "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+            "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/recovery-fee-implementation/SCOPE.json",
+            "decision-register/recovery-fee-implementation/REPORT.md",
+            "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-signing-implementation/APPROVAL.json",
+            "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+            "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+            "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+            "decision-register/ordinary-signing-implementation/SCOPE.json",
+            "decision-register/ordinary-signing-implementation/REPORT.md",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+            "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+            "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+            "decision-register/ordinary-runtime-integration/APPROVAL.json",
+            "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+            "decision-register/ordinary-runtime-integration/README.md",
+            "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+            "decision-register/ordinary-runtime-integration/REPORT.md",
+            "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+            "decision-register/ordinary-client-compatibility/APPROVAL.json",
+            "decision-register/ordinary-client-compatibility/SCOPE.json",
+            "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+            "decision-register/ordinary-client-compatibility/README.md",
+            "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
+            "decision-register/ordinary-client-compatibility/REPORT.md",
+            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+          ],
+          "approved_requirements": [
+            {
+              "id": "REC-A01",
+              "rule": "Support recovery from a lost active key and from a compromised active key."
+            },
+            {
+              "id": "REC-A02",
+              "rule": "Require multiple independent recovery keys. One stolen recovery key cannot authorize takeover or an account freeze."
+            },
+            {
+              "id": "REC-A03",
+              "rule": "Configure recovery before an incident. Protect recovery-policy changes against immediate removal by a compromised active key."
+            },
+            {
+              "id": "REC-A04",
+              "rule": "Require a defined recovery delay. After sufficient recovery approvals, restrict outgoing activity while preserving vesting, staking and penalty obligations."
+            },
+            {
+              "id": "REC-A05",
+              "rule": "The active key cannot unilaterally cancel authorized recovery. Specify separate cancellation authority."
+            },
+            {
+              "id": "REC-A06",
+              "rule": "No administrator recovery override. Use the configured account recovery policy."
+            }
+          ],
+          "detailed_proposal_ref": "decision-register/recovery-design/PROPOSAL.json",
+          "acceptance_plan_ref": "decision-register/recovery-design/ACCEPTANCE_PLAN.md",
+          "remaining_choices": [
+            "Production finalized-block timing values",
+            "Production ordinary and recovery fee prices, resource limits and retention under D04",
+            "Named guardian and sponsor custody records under D10-Q03",
+            "Any required account or legacy-state migration plan"
+          ],
+          "approval_records": [
+            "decision-register/recovery-design/APPROVAL.json",
+            "decision-register/recovery-implementation/APPROVAL.json",
+            "decision-register/recovery-signing/APPROVAL.json",
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "decision-register/ordinary-signing-implementation/APPROVAL.json"
+          ],
+          "approved_detail_ids": [
+            "REC-P01",
+            "REC-P02",
+            "REC-P03",
+            "REC-P04",
+            "REC-P05",
+            "REC-P06",
+            "REC-P07",
+            "REC-P08",
+            "REC-P09",
+            "REC-P10",
+            "REC-P11"
+          ],
+          "approved_threshold_profile": {
+            "threshold": 2,
+            "guardian_count": 3,
+            "status": "USER_APPROVED_PROFILE",
+            "interpretation": "The final presented proposal specified two approvals from three independent recovery keys; the user approved it."
+          },
+          "local_signing_implementation_ref": "decision-register/recovery-signing/SPEC.md",
+          "prepared_recommendation_ids": [
+            "RF01",
+            "RF03",
+            "RF04",
+            "RF06"
+          ],
+          "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
+          "approved_fee_rule_ids": [
+            "RF01",
+            "RF03",
+            "RF04",
+            "RF06"
+          ],
+          "approved_fee_portion": "RF01 through RF06 extend the approved recovery contract. Protected accounts cannot perform discretionary owner actions or sponsor fees. Incoming credits and mandatory protocol obligations continue. Apply protection to actual debit owners and queued payouts.",
+          "approved_ordinary_decision_ids": [
+            "AS04",
+            "AS05"
+          ],
+          "approved_ordinary_portion": "AS05 selects generation-bound discretionary grants. A generation change invalidates an old Dms or queued discretionary grant until the current owner reauthorizes it. RF06 protection applies to the actor, actual debit owner and fee payer. Mandatory liabilities and committed H+2 schedules remain intact.",
+          "ordinary_runtime_boundary": "The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
+          "ordinary_runtime_approval_ref": "decision-register/ordinary-runtime-integration/APPROVAL.json",
+          "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+          "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
+          "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
+          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+        },
+        {
+          "id": "D10-Q03",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "Who controls each signing role, and what custody, backup and recovery arrangements will they accept?",
+          "recommendation": "Collect role-specific custody records and signer requirements without exposing secrets.",
+          "selected_value": null,
+          "owner_role_proposed": "Protocol cryptography lead with wallet and SDK leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W10"
+          ],
+          "blocking_output": "Signing custody register",
+          "evidence_refs": [
+            "batch-2/IDENTITY_DECISION.json",
+            "batch-8/implementation/APPROVAL.json",
+            "decision-register/recovery-design/APPROVAL.json",
+            "decision-register/recovery-implementation/APPROVAL.json",
+            "decision-register/recovery-signing/APPROVAL.json",
+            "decision-register/recovery-signing/SPEC.md",
+            "decision-register/recovery-signing/REPORT.md",
+            "decision-register/recovery-signing/TEST_RESULTS.json",
+            "decision-register/recovery-signing/SCOPE.json",
+            "decision-register/recovery-fee-storage/PROPOSAL.json",
+            "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+            "decision-register/recovery-fee-storage/CONTRACT.md",
+            "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+            "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+            "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+            "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Supporting capture only; this required record remains incomplete. An OS account and prepared directory are not a signer, public-key registry, custody acceptance or recovery drill.",
+          "record_discovery_missing_inputs": [
+            "signing_role",
+            "controller_reference",
+            "public_key_reference",
+            "algorithm_and_version",
+            "signer_reference",
+            "recovery_and_backup_reference",
+            "signed_acceptance",
+            "drill_evidence"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D10-Q03.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        }
+      ],
+      "work": {
+        "id": "W10",
+        "deliverable": "Freeze account and cryptographic formats; implement and qualify approved recovery rules.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D10-Q01",
+          "D10-Q02",
+          "D10-Q03"
+        ],
+        "depends_on_work": [],
+        "can_proceed_now": "Continue full OF-W06 production/client qualification and record collection. Preserve the exact local slice boundary and all unpassed production gates.",
+        "completion_evidence": "Cross-client vectors, current-key authorization, rotation, recovery and signer custody review.",
+        "owner_role_proposed": "Protocol cryptography lead with wallet and SDK leads",
+        "assignee": null,
+        "artifact_ids": [
+          "A08",
+          "A11",
+          "A19",
+          "F09",
+          "F18"
+        ],
+        "depends_on_decisions": [
+          "D13-Q01",
+          "D04-Q01",
+          "D04-Q02",
+          "D11-Q03",
+          "D12-Q02"
+        ],
+        "preparation_status": "ORDINARY_CLIENT_COMPATIBILITY_LOCALLY_CHECKED_PRODUCTION_OPEN",
+        "preparation_evidence_ref": "decision-register/ordinary-client-compatibility/REPORT.md",
+        "implementation_plan_ref": "decision-register/recovery-design/IMPLEMENTATION_MAP.md",
+        "current_scope_ref": "decision-register/ordinary-fee-implementation/SCOPE.json",
+        "component_result_ref": "decision-register/recovery-implementation/TEST_RESULTS.json",
+        "component_report_ref": "decision-register/recovery-implementation/REPORT.md",
+        "completed_steps": [
+          "Deterministic recovery component with trusted authority facts",
+          "18 recovery tests and full workspace regression check",
+          "Canonical local recovery operation codec",
+          "Actual ML-DSA signature verification adapter",
+          "RF01 through RF06 and the candidate sponsor codec/meter contract approved for recovery-only implementation",
+          "Local checks recorded for RF-W01, RF-W02, RF-W03; this does not close W04 or W10",
+          "AS01 through AS06 and local legacy retirement LR01 approved; ordinary fees, deployment and migration remain separate",
+          "Ordinary codec and current-authority component checks recorded locally; those earlier component checks did not cover runtime or full SDK/wallet acceptance",
+          "OF01 through OF05 approved; the ordinary fee outcome contract is selected without production numeric values",
+          "Bounded local component checks recorded for OF-W01, OF-W02, OF-W03; paid ordinary consensus execution is not completed by those checks",
+          "Local OF-W04 and OF-W05 checks recorded in the current runtime integration report; production qualification remains open",
+          "Local OF-W06-CLIENT compatibility checks recorded; documented pipe adapter does not establish actual CometBFT engine, live RPC or light-client assurance"
+        ],
+        "remaining_steps": [
+          "Resolve limits explicitly retained in the local client report",
+          "Complete hosted wallet UI and actual live engine/RPC/light-client qualification",
+          "Select production values/roles; verify required production records and release acceptance; full OF-W06 remains open"
+        ],
+        "signing_result_ref": "decision-register/recovery-signing/TEST_RESULTS.json",
+        "signing_report_ref": "decision-register/recovery-signing/REPORT.md",
+        "fee_storage_contract_ref": "decision-register/recovery-fee-storage/CONTRACT.md",
+        "fee_storage_work_items_ref": "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+        "fee_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json",
+        "authorized_local_work_items": [
+          "RF-W01",
+          "RF-W02",
+          "RF-W03"
+        ],
+        "local_checked_work_items": [
+          "RF-W01",
+          "RF-W02",
+          "RF-W03"
+        ],
+        "fee_result_ref": "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+        "fee_report_ref": "decision-register/recovery-fee-implementation/REPORT.md",
+        "current_followup_ref": "decision-register/recovery-acceptance-followup/REPORT.md",
+        "ordinary_signing_proposal_ref": "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "ordinary_signing_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "ordinary_result_ref": "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "ordinary_fee_approval_ref": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+        "ordinary_fee_work_items_ref": "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+        "current_component_ids": [
+          "OF-W01",
+          "OF-W02",
+          "OF-W03"
+        ],
+        "next_integration_ids": [],
+        "ordinary_fee_local_checked_work_items": [
+          "OF-W01",
+          "OF-W02",
+          "OF-W03"
+        ],
+        "ordinary_fee_result_ref": "decision-register/ordinary-fee-implementation/TEST_RESULTS.json",
+        "ordinary_runtime_approval_ref": "decision-register/ordinary-runtime-integration/APPROVAL.json",
+        "ordinary_runtime_work_items_ref": "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+        "current_integration_ids": [
+          "OF-W04",
+          "OF-W05"
+        ],
+        "next_qualification_ids": [
+          "OF-W06"
+        ],
+        "ordinary_runtime_local_checked_work_items": [
+          "OF-W04",
+          "OF-W05"
+        ],
+        "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
+        "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
+        "ordinary_client_work_items_ref": "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+        "current_client_slice_ids": [
+          "OF-W06-CLIENT"
+        ],
+        "ordinary_client_local_checked_work_items": [
+          "OF-W06-CLIENT"
+        ],
+        "full_of_w06_complete": false,
+        "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+        "current_record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "required_launch_gates": [
+          "G35"
+        ],
+        "pqc_only_launch_constraint": "G35 prohibits quantum-vulnerable asymmetric cryptography inside the production trust boundary. Approved roles use ML-KEM-768, ML-DSA-65 and separate SLH-DSA root authorization. Symmetric/hash use needs role-specific review. Full artifact and isolation evidence remain required.",
+        "canonical_gate_ids": [
+          "G03",
+          "G04",
+          "G08",
+          "G10",
+          "G11",
+          "G12",
+          "G13",
+          "G20",
+          "G23",
+          "G24",
+          "G25",
+          "G29",
+          "G30",
+          "G31",
+          "G33",
+          "G34",
+          "G35"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G03",
+        "G04",
+        "G08",
+        "G10",
+        "G11",
+        "G12",
+        "G13",
+        "G20",
+        "G23",
+        "G24",
+        "G25",
+        "G29",
+        "G30",
+        "G31",
+        "G33",
+        "G34",
+        "G35"
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Governance and emergency authority",
+      "approved_portion": "Only bonded stake gives voting power. Liquid DGT gives zero. Count each owner stake once; do not add validator aggregate stake. An immutable finalized eligible-bond snapshot fixes each proposal's weights and quorum denominator. Each registered account with effective bonded DGT controls its own vote, including validator and delegator bonds. A proposer must be a registered account with positive effective bonded DGT at the finalized parent. Validators have no special vote; signed vote delegation and proposal cancellation are disabled in governance v1. Abstentions count for quorum but not approval or veto. Required weights round up with exact basis-point arithmetic. DGT deposits are refundable escrow at terminal status; no burn or sweep authority. An explicit deposit stage precedes voting; a below-minimum proposal rejects and refunds. Execution requires an explicit finalized-height timelock and an action fixed before voting. The approved ordinary-v3 engineering profile preserves v2 bytes, carries exactly one governance action without mixed ordinary actions, and requires candidate-bound activation; it does not select action classes, fees, or production values.",
+      "evidence_refs": [
+        "batch-5/eligibility-followup/APPROVAL.json",
+        "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
+        "decision-register/core-function-alignment/E04_GOVERNANCE_WIRE_PROFILE_APPROVAL_2026-09-25.json",
+        "decision-register/core-function-alignment/E04_GOVERNANCE_ENTRY_POLICY_APPROVAL_2026-09-25.json",
+        "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json"
+      ],
+      "questions": [
+        {
+          "id": "D11-Q01",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
+          "recommendation": "Implement the approved immutable finalized eligible-bond snapshot, owner-based counting, bonded-account proposer eligibility, no special validator vote, and no signed vote delegation in governance v1.",
+          "selected_value": {
+            "snapshot": "IMMUTABLE_FINALIZED_ELIGIBLE_BOND_AT_VOTING_START",
+            "vote_owner": "BOND_OWNER_ONLY",
+            "validator_aggregate_double_count": false,
+            "unsigned_vote_delegation": false,
+            "electorate": "REGISTERED_ACCOUNTS_WITH_EFFECTIVE_BONDED_DGT_AT_FINALIZED_PARENT",
+            "owner_identity": "STABLE_ACCOUNT_ID",
+            "validator_eligibility": "NO_SPECIAL_VOTE_OWN_EFFECTIVE_BOND_ONLY",
+            "proposer_eligibility": "REGISTERED_ACCOUNT_WITH_POSITIVE_EFFECTIVE_BONDED_DGT_AT_FINALIZED_PARENT",
+            "signed_vote_delegation": false
+          },
+          "owner_role_proposed": "Governance lead with protocol and custody reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
+          "blocks_work": [
+            "W11"
+          ],
+          "blocking_output": "Governance electorate specification",
+          "evidence_refs": [
+            "batch-5/eligibility-followup/APPROVAL.json",
+            "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
+            "decision-register/core-function-alignment/E04_GOVERNANCE_ENTRY_POLICY_APPROVAL_2026-09-25.json",
+            "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json"
+          ]
+        },
+        {
+          "id": "D11-Q02",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
+          "recommendation": "Implement exact basis-point arithmetic, refundable DGT escrow and a finalized-height execution timelock. Governance v1 has no proposal cancellation. Select production numeric values separately.",
+          "selected_value": {
+            "abstention": "COUNTS_FOR_QUORUM_ONLY",
+            "threshold_comparison": "EXACT_BASIS_POINTS_REQUIRED_WEIGHT_ROUNDED_UP",
+            "deposit_custody": "ACCOUNTED_DGT_ESCROW_REFUND_ON_TERMINAL_STATUS",
+            "deposit_burn_or_sweep_authority": false,
+            "execution": "EXPLICIT_FINALIZED_HEIGHT_TIMELOCK_WITH_PREVOTE_ACTION_BINDING",
+            "deposit_stage": "EXPLICIT_POSITIVE_PERIOD_THEN_MINIMUM_CHECK_AND_REFUND_OR_PARENT_SNAPSHOT_VOTING",
+            "production_quorum_bps": null,
+            "production_approval_bps": null,
+            "production_veto_bps": null,
+            "production_deposit_and_period_values": null,
+            "proposal_cancellation": false
+          },
+          "owner_role_proposed": "Governance lead with protocol and custody reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
+          "blocks_work": [
+            "W11",
+            "W03"
+          ],
+          "blocking_output": "Governance parameter specification",
+          "evidence_refs": [
+            "batch-5/eligibility-followup/APPROVAL.json",
+            "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
+            "decision-register/core-function-alignment/E04_GOVERNANCE_ENTRY_POLICY_APPROVAL_2026-09-25.json",
+            "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json"
+          ]
+        },
+        {
+          "id": "D11-Q03",
+          "kind": "policy_decision",
+          "status": "PARTIALLY_APPROVED",
+          "question": "Which actions, parameter bounds, treasury powers, emergency powers and upgrade or recovery authorities apply?",
+          "recommendation": "Separate routine governance, emergency actions, registry amendments and custody authority. Define limits and execution delays.",
+          "selected_value": {
+            "scope": "PARTIAL_EMERGENCY_CONTROL_POLICY",
+            "default_emergency_control": "FREEZE_ORDINARY_TRANSACTIONS_CONTINUE_CONSENSUS",
+            "enforcement": "CONSENSUS_EXECUTION",
+            "emergency_controls": "EXPLICIT_AUTHORIZATION_ONLY",
+            "resume_authorization": "SEPARATE_REQUIRED",
+            "automatic_expiry": false,
+            "restart_clears_freeze": false,
+            "freeze_priority_over_pending_upgrades": true,
+            "preserve_upgrade_records_and_consumed_sequences": true,
+            "automatic_upgrade_activation_after_resume": false,
+            "emergency_spending_minting_balance_rewrite_or_key_replacement": false,
+            "separate_full_consensus_halt_procedure_required": true,
+            "automatic_transition_policy": {
+              "mandatory_issuance": "CONTINUE_PREVIOUSLY_APPROVED_RULES",
+              "reward_accrual_and_distribution": "CONTINUE_PREVIOUSLY_APPROVED_RULES",
+              "penalties_and_accrued_liabilities": "CONTINUE_PREVIOUSLY_APPROVED_RULES",
+              "vesting_maturity_and_recovery_deadlines": "CONTINUE_PREVIOUSLY_APPROVED_RULES",
+              "committed_h_plus_2_validator_changes": "EXECUTE_EXISTING_FINALIZED_COMMITMENTS",
+              "discretionary_queued_actions": "BLOCK_DURING_FREEZE_PRESERVE_RECORDS",
+              "new_user_instructions": "BLOCK_DURING_FREEZE",
+              "upgrade_activation": "BLOCK_UNTIL_SEPARATE_CANDIDATE_SPECIFIC_AUTHORIZATION",
+              "unsafe_mandatory_transition": "USE_SEPARATE_FULL_CONSENSUS_HALT"
+            },
+            "production_authority_membership": null,
+            "production_quorum": {
+              "independent_custodian_count": 5,
+              "freeze_required_distinct_approvals": 3,
+              "resume_required_distinct_approvals": 3,
+              "distinct_purpose_bound_freeze_resume_keys": true,
+              "verification_model": "VERIFY_EACH_COMPLETE_SLH_DSA_SIGNATURE_SEPARATELY",
+              "names": null,
+              "public_keys": null,
+              "key_epochs": null,
+              "control_group_evidence": null
+            },
+            "production_timing": {
+              "clock": "FINALIZED_BLOCK_HEIGHT",
+              "selection_basis": "MEASURE_MULTI_PARTY_SIGNING_AND_PROPAGATION_ON_STAGING",
+              "bounded_validity_window_required": true,
+              "validity_window_blocks": null,
+              "maximum_anchor_age_blocks": null,
+              "bind_chain_release_action_authority_epoch_sequence_and_finalized_anchor": true,
+              "versioned_wire_contract_required_if_replacing_exact_target_height": true,
+              "automatic_resume": false
+            },
+            "production_activation_authorized": false,
+            "resume_readiness_policy": {
+              "fresh_separate_authorization_required": true,
+              "required_bindings": [
+                "incident",
+                "restored_state",
+                "candidate",
+                "freeze_receipt"
+              ],
+              "user_transactions_in_resume_block": false,
+              "user_transactions_from_following_block": true,
+              "operational_health_alone_authorizes_resume": false
+            },
+            "upgrade_hold_clearance_policy": {
+              "separate_domain_separated_authorization_required": true,
+              "candidate_specific": true,
+              "required_bindings": [
+                "hold_and_freeze_history",
+                "candidate_digest",
+                "migration_plan",
+                "sequence",
+                "activation_height"
+              ],
+              "actual_activation_path_must_recheck_hold": true,
+              "new_freeze_prevents_activation": true,
+              "generic_clear_all_holds": false,
+              "authority_membership": null,
+              "approval_threshold": null,
+              "production_activation_authorized": false
+            },
+            "full_consensus_halt_policy": {
+              "trigger": "UNTRUSTWORTHY_CONSENSUS_DETERMINISTIC_EXECUTION_OR_CRYPTOGRAPHIC_INTEGRITY",
+              "separate_operator_procedure_required": true,
+              "signer_fencing_and_signing_history_preservation": true,
+              "reviewed_finalized_checkpoint_required": true,
+              "corrected_candidate_and_state_compatibility_evidence_required": true,
+              "coordinated_restart_approval_required": true,
+              "rely_on_new_on_chain_transaction_after_consensus_stops": false,
+              "reset_signing_history": false,
+              "create_new_genesis": false,
+              "time_based_restart": false,
+              "halt_authority": null,
+              "restart_authority": null,
+              "operators": null
+            }
+          },
+          "owner_role_proposed": "Governance lead with protocol and custody reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "blocks_work": [
+            "W11",
+            "W02",
+            "W08",
+            "W09",
+            "W10"
+          ],
+          "blocking_output": "Governance authority matrix",
+          "evidence_refs": [
+            "batch-5/eligibility-followup/APPROVAL.json",
+            "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
+            "decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md",
+            "decision-register/emergency-release-staging/policy/APPROVAL.json",
+            "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.md",
+            "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.json"
+          ],
+          "approved_rule_ids": [
+            "EF01",
+            "EF02",
+            "EF03",
+            "EF04",
+            "EF05",
+            "EF06",
+            "ERS01",
+            "ERS02",
+            "ERS03",
+            "ERS04",
+            "ERS05",
+            "ERS06"
+          ],
+          "remaining_choices": [
+            "Named independent emergency custodians, control groups, public keys, key epochs, custody and backup records, and signed role acceptances.",
+            "Numeric finalized-height validity windows and maximum anchor age, selected from measured signing and propagation evidence.",
+            "Production root parameter-set approval and exact production control wire schema, with reviewed authority-epoch and anchor binding.",
+            "Execution and qualification evidence for each approved mandatory transition and blocked discretionary path.",
+            "Actual incident, freeze receipt, restored state, candidate and recovery evidence for any production resume.",
+            "Upgrade clearance authority membership and approval threshold; exact candidate, migration, sequence, activation height and activation-path qualification.",
+            "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
+            "Other routine governance actions, parameter bounds, treasury powers, registry changes and upgrade or recovery authorities covered by D11-Q03."
+          ],
+          "approval_records": [
+            "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
+            "decision-register/emergency-release-staging/policy/APPROVAL.json"
+          ]
+        }
+      ],
+      "work": {
+        "id": "W11",
+        "deliverable": "Complete the initial governance lifecycle and authority controls.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D11-Q01",
+          "D11-Q02",
+          "D11-Q03"
+        ],
+        "depends_on_work": [
+          "W09",
+          "W10"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Snapshot, threshold, deposit, execution, upgrade and emergency recovery vectors.",
+        "owner_role_proposed": "Governance lead with protocol and custody reviewers",
+        "assignee": null,
+        "artifact_ids": [
+          "A09",
+          "A24",
+          "F22"
+        ],
+        "depends_on_decisions": [],
+        "canonical_gate_ids": [
+          "G17",
+          "G19",
+          "G21",
+          "G22",
+          "G23",
+          "G24",
+          "G31"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G17",
+        "G19",
+        "G21",
+        "G22",
+        "G23",
+        "G24",
+        "G31"
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Infrastructure and service objectives",
+      "approved_portion": "Existing servers are on Hetzner. The observed host is not an approved production topology.",
+      "evidence_refs": [
+        "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
+        "batch-1/OPERATIONS_EVIDENCE.json",
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md",
+        "decision-register/pqc-only-launch-gate/APPROVAL.json",
+        "decision-register/pqc-only-launch-gate/GATE_SPEC.json",
+        "decision-register/pqc-only-launch-gate/REPORT.md"
+      ],
+      "questions": [
+        {
+          "id": "D12-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
+          "recommendation": "Review fault domains, validator isolation, sentry and public RPC roles, and signer fencing.",
+          "selected_value": null,
+          "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W12",
+            "W06"
+          ],
+          "blocking_output": "Production topology and budget",
+          "evidence_refs": [
+            "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
+            "batch-1/OPERATIONS_EVIDENCE.json"
+          ]
+        },
+        {
+          "id": "D12-Q02",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
+          "recommendation": "Set measurable availability and recovery targets. Recovery must preserve committed chain history.",
+          "selected_value": null,
+          "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W12",
+            "W10"
+          ],
+          "blocking_output": "Operations acceptance specification",
+          "evidence_refs": [
+            "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
+            "batch-1/OPERATIONS_EVIDENCE.json"
+          ]
+        },
+        {
+          "id": "D12-Q03",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "Which exact assets, operators, account owners and funded commitments implement the topology?",
+          "recommendation": "Verify inventory and owner acceptance. Use public identifiers, not secrets.",
+          "selected_value": null,
+          "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W12"
+          ],
+          "blocking_output": "Approved infrastructure inventory",
+          "evidence_refs": [
+            "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
+            "batch-1/OPERATIONS_EVIDENCE.json",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Historical captures identify three Hetzner assets under reported Dytallix control and record host preparation. No live server inspection occurred in this discovery. Production service/topology approval, named owner acceptance and funded commitment remain missing; the required record remains incomplete.",
+          "record_discovery_missing_inputs": [
+            "service_role",
+            "owner_acceptance",
+            "funded_commitment_reference",
+            "topology_reference"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D12-Q03.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        }
+      ],
+      "work": {
+        "id": "W12",
+        "deliverable": "Complete infrastructure and runbook readiness with candidate deployment checks.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D12-Q01",
+          "D12-Q02",
+          "D12-Q03"
+        ],
+        "depends_on_work": [
+          "W06",
+          "W09",
+          "W10"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Verified topology, monitoring, restore, signer fencing and rehearsal preparation. W14 owns exact-release deployment acceptance and final production capacity qualification.",
+        "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
+        "assignee": null,
+        "artifact_ids": [
+          "A13",
+          "A18",
+          "A21",
+          "A22",
+          "A23",
+          "F15",
+          "F16",
+          "F17",
+          "F19"
+        ],
+        "depends_on_decisions": [
+          "D07-Q01",
+          "D14-Q01",
+          "D14-Q02"
+        ],
+        "current_record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "required_launch_gates": [
+          "G35"
+        ],
+        "pqc_only_launch_constraint": "G35 prohibits quantum-vulnerable asymmetric cryptography inside the production trust boundary. Approved roles use ML-KEM-768, ML-DSA-65 and separate SLH-DSA root authorization. Symmetric/hash use needs role-specific review. Full artifact and isolation evidence remain required.",
+        "canonical_gate_ids": [
+          "G01",
+          "G07",
+          "G08",
+          "G09",
+          "G24",
+          "G25",
+          "G26",
+          "G27",
+          "G28",
+          "G29",
+          "G30",
+          "G31",
+          "G32",
+          "G34",
+          "G35"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G01",
+        "G07",
+        "G08",
+        "G09",
+        "G24",
+        "G25",
+        "G26",
+        "G27",
+        "G28",
+        "G29",
+        "G30",
+        "G31",
+        "G32",
+        "G34",
+        "G35"
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Canonical network identity",
+      "approved_portion": "One permanent mainnet genesis is required. AS01 selects address network codes and Bech32m prefixes: 1/dytallix, 2/tdytallix, 3/ddytallix. The exact display name, unused production chain ID and genesis timestamp procedure remain open. AS03 bounds the combined profile chain ID to 1 through 128 UTF-8 bytes.",
+      "evidence_refs": [
+        "USER_LAUNCH_REQUIREMENTS.txt",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+      ],
+      "questions": [
+        {
+          "id": "D13-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What display name, unused chain ID and genesis timestamp procedure apply?",
+          "recommendation": "Preserve the selected address network codes and prefixes. Select the exact production display name, unused chain ID and genesis timestamp procedure separately. Generate the final digest only after production inputs freeze.",
+          "selected_value": null,
+          "owner_role_proposed": "Genesis and release leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W13",
+            "W08",
+            "W10"
+          ],
+          "blocking_output": "Network identity specification",
+          "evidence_refs": [
+            "USER_LAUNCH_REQUIREMENTS.txt"
+          ],
+          "approved_identity_boundary": "AS01 selects address network codes and Bech32m prefixes: 1/dytallix, 2/tdytallix, 3/ddytallix. The exact display name, unused production chain ID and genesis timestamp procedure remain open. AS03 bounds the combined profile chain ID to 1 through 128 UTF-8 bytes.",
+          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json"
+        },
+        {
+          "id": "D13-Q02",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "What final identity manifest and deterministic genesis digest will the release signers approve?",
+          "recommendation": "Generate only after allocations and validators are complete. Do not invent a final digest.",
+          "selected_value": null,
+          "owner_role_proposed": "Genesis and release leads",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W13"
+          ],
+          "blocking_output": "Signed genesis commitment",
+          "evidence_refs": [
+            "USER_LAUNCH_REQUIREMENTS.txt",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Supporting capture only; this required record remains incomplete. A testnet identity and reported progress do not establish approved production genesis, independent reproduction or signer acceptance.",
+          "record_discovery_missing_inputs": [
+            "approved_identity_policy_reference",
+            "source_and_config_reference",
+            "genesis_digest",
+            "independent_reproduction_reference",
+            "signer_acceptance"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D13-Q02.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        }
+      ],
+      "work": {
+        "id": "W13",
+        "deliverable": "Produce the canonical identity manifest and final genesis commitment.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D13-Q01",
+          "D13-Q02"
+        ],
+        "depends_on_work": [
+          "W10",
+          "W08",
+          "W09"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Network separation, deterministic generation and independent digest verification.",
+        "owner_role_proposed": "Genesis and release leads",
+        "assignee": null,
+        "artifact_ids": [
+          "A14",
+          "F12",
+          "F13"
+        ],
+        "depends_on_decisions": [],
+        "current_record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "canonical_gate_ids": [
+          "G04",
+          "G05"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G04",
+        "G05"
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "Release and independent review",
+      "approved_portion": "Reproducible release, deterministic genesis, required features, closure of launch blockers and seven full launch simulations remain required. Local test passes do not satisfy these gates. LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
+      "evidence_refs": [
+        "USER_LAUNCH_REQUIREMENTS.txt",
+        "LAUNCH_GATES.json",
+        "batch-10/REPORT.md",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md",
+        "decision-register/pqc-only-launch-gate/APPROVAL.json",
+        "decision-register/pqc-only-launch-gate/GATE_SPEC.json",
+        "decision-register/pqc-only-launch-gate/REPORT.md"
+      ],
+      "questions": [
+        {
+          "id": "D14-Q01",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
+          "recommendation": "Freeze exact sources, features, toolchains, artifacts and signer roles.",
+          "selected_value": null,
+          "owner_role_proposed": "Release and QA leads with independent reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W14",
+            "W12"
+          ],
+          "blocking_output": "Release and review specification",
+          "evidence_refs": [
+            "USER_LAUNCH_REQUIREMENTS.txt",
+            "LAUNCH_GATES.json",
+            "batch-10/REPORT.md"
+          ],
+          "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
+          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json"
+        },
+        {
+          "id": "D14-Q02",
+          "kind": "policy_decision",
+          "status": "OPEN",
+          "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
+          "recommendation": "Set measurable acceptance criteria. Preserve all seven full simulations. No mandatory 30-day duration is inferred.",
+          "selected_value": null,
+          "owner_role_proposed": "Release and QA leads with independent reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W14",
+            "W06",
+            "W12"
+          ],
+          "blocking_output": "Qualification and launch acceptance plan",
+          "evidence_refs": [
+            "USER_LAUNCH_REQUIREMENTS.txt",
+            "LAUNCH_GATES.json",
+            "batch-10/REPORT.md"
+          ]
+        },
+        {
+          "id": "D14-Q03",
+          "kind": "required_record",
+          "status": "OPEN",
+          "question": "Who accepts each engineering, operations, signing and independent review role?",
+          "recommendation": "Obtain named owner and reviewer acceptance with scope and evidence responsibilities.",
+          "selected_value": null,
+          "owner_role_proposed": "Release and QA leads with independent reviewers",
+          "assignee": null,
+          "reviewer": null,
+          "approval_record": null,
+          "blocks_work": [
+            "W14"
+          ],
+          "blocking_output": "Release responsibility register",
+          "evidence_refs": [
+            "USER_LAUNCH_REQUIREMENTS.txt",
+            "LAUNCH_GATES.json",
+            "batch-10/REPORT.md",
+            "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+          ],
+          "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
+          "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",
+          "input_template_ref": "decision-register/work-pack-1/REQUIRED_RECORD_INPUTS.json",
+          "record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+          "record_discovery_boundary": "Supporting capture only; this required record remains incomplete. Installation verification is not named release-role acceptance or independent review.",
+          "record_discovery_missing_inputs": [
+            "role",
+            "named_assignee_reference",
+            "scope",
+            "acceptance_reference",
+            "reviewer_reference",
+            "independence_evidence"
+          ],
+          "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D14-Q03.json",
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+        }
+      ],
+      "work": {
+        "id": "W14",
+        "deliverable": "Assemble the signed release candidate and complete independent qualification.",
+        "status": "PREPARATION_CAN_PROCEED_FINALIZATION_BLOCKED",
+        "blocked_by": [
+          "D14-Q01",
+          "D14-Q02",
+          "D14-Q03"
+        ],
+        "depends_on_work": [
+          "W01",
+          "W02",
+          "W03",
+          "W04",
+          "W05",
+          "W06",
+          "W07",
+          "W08",
+          "W09",
+          "W10",
+          "W11",
+          "W12",
+          "W13"
+        ],
+        "can_proceed_now": "Prepare specifications, input schemas and review material within recorded approvals. Do not choose open values.",
+        "completion_evidence": "Reproducible artifacts, closed blocker evidence, independent review, seven full simulations and explicit launch decision. Include exact-release deployment acceptance and production capacity qualification.",
+        "owner_role_proposed": "Release and QA leads with independent reviewers",
+        "assignee": null,
+        "artifact_ids": [
+          "A15",
+          "A16",
+          "A17",
+          "A25",
+          "A26",
+          "A27",
+          "A28",
+          "A29",
+          "A30",
+          "A31",
+          "A32",
+          "A33",
+          "A34",
+          "A35",
+          "A36",
+          "A38",
+          "A40",
+          "F20",
+          "F23",
+          "F24"
+        ],
+        "depends_on_decisions": [],
+        "legacy_retirement_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "legacy_retirement_status": "LOCAL_RETIREMENT_CHECKS_RECORDED_DIAGNOSTIC_DEFECT_PRESERVED",
+        "legacy_retirement_result_ref": "decision-register/ordinary-signing-implementation/TEST_RESULTS.json",
+        "current_record_discovery_ref": "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "required_launch_gates": [
+          "G35"
+        ],
+        "pqc_only_launch_constraint": "G35 prohibits quantum-vulnerable asymmetric cryptography inside the production trust boundary. Approved roles use ML-KEM-768, ML-DSA-65 and separate SLH-DSA root authorization. Symmetric/hash use needs role-specific review. Full artifact and isolation evidence remain required.",
+        "canonical_gate_ids": [
+          "G01",
+          "G02",
+          "G03",
+          "G04",
+          "G06",
+          "G07",
+          "G08",
+          "G09",
+          "G10",
+          "G11",
+          "G12",
+          "G13",
+          "G14",
+          "G15",
+          "G16",
+          "G17",
+          "G18",
+          "G19",
+          "G20",
+          "G21",
+          "G22",
+          "G23",
+          "G24",
+          "G25",
+          "G26",
+          "G27",
+          "G28",
+          "G29",
+          "G30",
+          "G31",
+          "G32",
+          "G33",
+          "G34",
+          "G35"
+        ],
+        "current_progress_ref": "LAUNCH_GATES.json"
+      },
+      "canonical_gate_ids": [
+        "G01",
+        "G02",
+        "G03",
+        "G04",
+        "G06",
+        "G07",
+        "G08",
+        "G09",
+        "G10",
+        "G11",
+        "G12",
+        "G13",
+        "G14",
+        "G15",
+        "G16",
+        "G17",
+        "G18",
+        "G19",
+        "G20",
+        "G21",
+        "G22",
+        "G23",
+        "G24",
+        "G25",
+        "G26",
+        "G27",
+        "G28",
+        "G29",
+        "G30",
+        "G31",
+        "G32",
+        "G33",
+        "G34",
+        "G35"
+      ]
+    }
+  ],
+  "question_counts": {
+    "fully_open_policy_questions": 20,
+    "partially_approved_policy_questions": 6,
+    "required_records": 8
+  },
+  "supersessions": [
+    {
+      "source": "DECISIONS_REQUIRED.md",
+      "prior_statement": "D02 left commission and residual ownership generally open",
+      "current_disposition": "Staking-pool commission is zero. Rounding and inactive reserves have no automatic recipient or sweep. Only separate validator-pool and treasury questions remain.",
+      "later_evidence_refs": [
+        "batch-6/APPROVAL.json",
+        "batch-6/integration-followup/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "DECISIONS_REQUIRED.md",
+      "prior_statement": "D06 called for a new consensus engine comparison",
+      "current_disposition": "Local integration candidate is established. Production freeze remains open.",
+      "later_evidence_refs": [
+        "batch-7/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "GENESIS_ALLOCATION_DRAFT.md",
+      "prior_statement": "Decimal conversion and reward rules described as unresolved",
+      "current_disposition": "Six decimals, stake allocation, reserves, reward intervals and epoch mapping have later approvals.",
+      "later_evidence_refs": [
+        "batch-6/APPROVAL.json",
+        "batch-6/integration-followup/APPROVAL.json",
+        "batch-6/issuance-timing/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "GENESIS_ALLOCATION_DRAFT.json",
+      "prior_statement": "Epoch mapping null; all changes affect next block; integration marked absent",
+      "current_disposition": "Epoch mapping approved; membership and stake changes use H+2. Local integration exists; production qualification remains open.",
+      "later_evidence_refs": [
+        "batch-6/issuance-timing/APPROVAL.json",
+        "batch-8/implementation/APPROVAL.json",
+        "batch-10/REPORT.md"
+      ]
+    },
+    {
+      "source": "VALIDATOR_ARCHITECTURE.md",
+      "prior_statement": "Static-set and broad unanswered lifecycle statements",
+      "current_disposition": "All seven Batch 8 rules are approved and locally implemented. Production values and operator records remain open.",
+      "later_evidence_refs": [
+        "batch-8/implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "DGT_TOKENOMICS.md",
+      "prior_statement": "Generic commission proposal",
+      "current_disposition": "Staking-pool commission is zero. Separate validator-pool distribution remains open.",
+      "later_evidence_refs": [
+        "batch-6/integration-followup/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "DRT_TOKENOMICS.md",
+      "prior_statement": "Claim and issuance repair proposals describe earlier implementation gaps",
+      "current_disposition": "Later local integration and claim recovery evidence supersede those implementation status statements.",
+      "later_evidence_refs": [
+        "batch-6/issuance-timing/APPROVAL.json",
+        "batch-6/claim-recovery/REPORT.md"
+      ]
+    },
+    {
+      "source": "TOKEN_SUPPLY_MODEL.md",
+      "prior_statement": "Earlier repair implementation status",
+      "current_disposition": "Use later batch evidence for implementation status; production supply qualification remains open.",
+      "later_evidence_refs": [
+        "batch-6/issuance-timing/APPROVAL.json",
+        "batch-10/REPORT.md"
+      ]
+    },
+    {
+      "source": "batch-6/APPROVAL.json",
+      "prior_statement": "not_approved timing and eligibility at that time",
+      "current_disposition": "Later integration and issuance timing approvals narrow the earlier exclusions. Historical record retained.",
+      "later_evidence_refs": [
+        "batch-6/integration-followup/APPROVAL.json",
+        "batch-6/issuance-timing/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "batch-6/integration-followup/evidence/APPROVED_RECOMMENDATIONS.md",
+      "prior_statement": "Captured recommendation heading says not approved",
+      "current_disposition": "Later approval record accepts the captured recommendations.",
+      "later_evidence_refs": [
+        "batch-6/integration-followup/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "batch-6/claim-recovery/EMISSION_DECISION.json",
+      "prior_statement": "Epoch mapping PENDING",
+      "current_disposition": "Later issuance timing approval closes the mapping choice; production N and observations remain open.",
+      "later_evidence_refs": [
+        "batch-6/issuance-timing/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "batch-8/POLICY_PROPOSAL.json",
+      "prior_statement": "Seven proposal approval flags false",
+      "current_disposition": "Later implementation approval accepts all seven rules, without production numeric values.",
+      "later_evidence_refs": [
+        "batch-8/implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/work-pack-1/IDENTITY_REVIEW.md",
+      "prior_statement": "Loss-only recovery and active-key cancellation recommended",
+      "current_disposition": "User approved recovery from lost and compromised active keys; no unilateral active-key cancellation. Detailed threshold, timing and cancellation rules remain proposals.",
+      "later_evidence_refs": [
+        "decision-register/recovery-design/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/work-pack-1/README.md",
+      "prior_statement": "Recovery scope still awaiting a decision",
+      "current_disposition": "Broader recovery requirement and six design principles approved. D10-Q02 remains partially approved because exact rules and values remain open.",
+      "later_evidence_refs": [
+        "decision-register/recovery-design/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "batch-2/IDENTITY_DECISION.md",
+      "prior_statement": "Single recovery key and active-key cancellation candidate",
+      "current_disposition": "Recovery scope now requires multiple independent recovery keys and protection from a compromised active key. Prior candidate remains historical.",
+      "later_evidence_refs": [
+        "decision-register/recovery-design/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-design/RECOVERY_SPEC.md",
+      "prior_statement": "Detailed REC-P01 through REC-P11 marked proposed",
+      "current_disposition": "User approved the detailed recovery contract and two-of-three profile. Production timings and separate signing, fee, custody and activation dependencies remain open.",
+      "later_evidence_refs": [
+        "decision-register/recovery-implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-design/PROPOSAL.json",
+      "prior_statement": "Candidate profile and detailed rules unapproved",
+      "current_disposition": "Later user approval selects the two-of-three profile and authorizes implementation of the presented contract. This proposal remains historical.",
+      "later_evidence_refs": [
+        "decision-register/recovery-implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-implementation/REPORT.md",
+      "prior_statement": "Exact signed recovery operations and real verification remain future integration work",
+      "current_disposition": "The later local recovery signing package implements the canonical codec and actual ML-DSA verifier. Fee settlement, atomic chain persistence, all-path enforcement and client/custody qualification remain open. Production algorithm roles and the global transaction format remain unapproved.",
+      "later_evidence_refs": [
+        "decision-register/recovery-signing/APPROVAL.json",
+        "decision-register/recovery-signing/SPEC.md",
+        "decision-register/recovery-signing/REPORT.md",
+        "decision-register/recovery-signing/TEST_RESULTS.json",
+        "decision-register/recovery-signing/SCOPE.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-signing/REPORT.md",
+      "prior_statement": "Prepare recovery fee and persistence contract next",
+      "current_disposition": "The later recovery fee approval selects RF01 through RF06 and the sponsor codec/meter contract. Consult the latest implementation scope and results for checked portions. Ordinary account authorization, all-path integration and production qualification remain open. Later AS01 through AS06 approval now selects the ordinary signing contract. Component and integration completion must be read from the latest report. Ordinary fee outcomes and production qualification remain open.",
+      "later_evidence_refs": [
+        "decision-register/recovery-fee-storage/PROPOSAL.json",
+        "decision-register/recovery-fee-storage/AUTHORIZATION.json",
+        "decision-register/recovery-fee-storage/CONTRACT.md",
+        "decision-register/recovery-fee-storage/FEE_REVIEW.md",
+        "decision-register/recovery-fee-storage/STORAGE_MAP.md",
+        "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+        "decision-register/recovery-fee-storage/ACCEPTANCE.json",
+        "decision-register/recovery-fee-implementation/APPROVAL.json",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-fee-storage/PROPOSAL.json",
+      "prior_statement": "RF01 through RF06 marked proposed and unapproved",
+      "current_disposition": "Later user approval selects RF01 through RF06 and the linked candidate sponsor codec/meter contract for recovery-only implementation. Production numeric values and the general mainnet fee and burn policies remain open.",
+      "later_evidence_refs": [
+        "decision-register/recovery-fee-implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-fee-storage/WORK_ITEMS.json",
+      "prior_statement": "RF-W01 through RF-W03 await policy selection",
+      "current_disposition": "RF-W01 through RF-W03 are authorized for local implementation. Any checked portions are recorded in the later implementation report. RF-W04 and complete RF-W05 still require ordinary account authorization under D10-Q01. Later AS01 through AS06 approval now selects the ordinary signing contract. Component and integration completion must be read from the latest report. Ordinary fee outcomes and production qualification remain open.",
+      "later_evidence_refs": [
+        "decision-register/recovery-fee-implementation/APPROVAL.json",
+        "decision-register/recovery-fee-storage/CONTRACT.md",
+        "decision-register/recovery-fee-implementation/SCOPE.json",
+        "decision-register/recovery-fee-implementation/REPORT.md",
+        "decision-register/recovery-fee-implementation/TEST_RESULTS.json",
+        "decision-register/ordinary-signing-implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-fee-implementation/ACCEPTANCE_STATUS.json",
+      "prior_statement": "Nine locally passed, thirteen partial and eight open recovery cases",
+      "current_disposition": "The later acceptance map records additional local tests and preserves ordinary-account and production gaps.",
+      "later_evidence_refs": [
+        "decision-register/recovery-acceptance-followup/ACCEPTANCE_STATUS.json",
+        "decision-register/recovery-acceptance-followup/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+      "prior_statement": "AS01 through AS06 and separate LR01 marked proposed and unapproved",
+      "current_disposition": "The later user approval selects AS01 through AS06 and local LR01 retirement. It does not select ordinary fee outcome semantics, production values, migration, database deletion or deployment.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+      "prior_statement": "All ordinary signing and legacy retirement approval flags false",
+      "current_disposition": "These flags record the historical proposal. Use the later explicit approval for selected scope and the latest implementation evidence for local checks.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-signing-implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+      "prior_statement": "Legacy retirement not selected",
+      "current_disposition": "LR01 is now approved for local source retirement and tests. Live usage remains unverified. Preserve staking ownership compatibility, historical records and the legacy diagnostic defect.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-signing-implementation/APPROVAL.json",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.md",
+        "decision-register/recovery-acceptance-followup/ORDINARY_SIGNING_PROPOSAL.json",
+        "decision-register/recovery-acceptance-followup/LEGACY_ENTRYPOINTS.md",
+        "decision-register/ordinary-signing-implementation/SCOPE.json",
+        "decision-register/ordinary-signing-implementation/REPORT.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "source": "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+      "prior_statement": "OF01 through OF05 marked proposed and unapproved",
+      "current_disposition": "The later user proceed instruction selects OF01 through OF05. This queue covers profile/meter, reservations and staged settlement components. Paid runtime actions, durable consensus/admission and production qualification remain separate work.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-fee-implementation/APPROVAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-fee-implementation/SCOPE.json",
+        "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+        "decision-register/ordinary-fee-implementation/README.md",
+        "decision-register/ordinary-fee-implementation/DECISION_STATUS.md",
+        "decision-register/ordinary-fee-implementation/REPORT.md",
+        "decision-register/ordinary-fee-implementation/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "source": "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+      "prior_statement": "Ordinary fee policy approval flags false",
+      "current_disposition": "These flags preserve the historical proposal. The later approval selects the final presented ordinary fee contract, including metadata reservation, funding-failure boundaries, Dms maturity separation and shared capacity rules.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-fee-implementation/APPROVAL.json"
+      ]
+    },
+    {
+      "source": "decision-register/ordinary-signing-implementation/DECISION_STATUS.md",
+      "prior_statement": "Ordinary fee outcome contract remains open",
+      "current_disposition": "OF01 through OF05 are now selected. Production cost/retention values and component-to-runtime integration remain open.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-fee-implementation/APPROVAL.json",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.md",
+        "decision-register/ordinary-signing-implementation/ORDINARY_FEE_PROPOSAL.json",
+        "decision-register/ordinary-fee-implementation/SCOPE.json",
+        "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+        "decision-register/ordinary-fee-implementation/README.md",
+        "decision-register/ordinary-fee-implementation/DECISION_STATUS.md",
+        "decision-register/ordinary-fee-implementation/REPORT.md",
+        "decision-register/ordinary-fee-implementation/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "source": "decision-register/ordinary-fee-implementation/WORK_ITEMS.json",
+      "prior_statement": "OF-W04 and OF-W05 are the next integration queue",
+      "current_disposition": "The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-runtime-integration/APPROVAL.json",
+        "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+        "decision-register/ordinary-runtime-integration/README.md",
+        "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+        "decision-register/ordinary-runtime-integration/REPORT.md",
+        "decision-register/ordinary-runtime-integration/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "source": "decision-register/ordinary-fee-implementation/RUNTIME_INTEGRATION_MAP.md",
+      "prior_statement": "Runtime and durable work remains the next queue",
+      "current_disposition": "The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification. The map remains a historical source inspection, not the current implementation result.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-runtime-integration/APPROVAL.json",
+        "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+        "decision-register/ordinary-runtime-integration/README.md",
+        "decision-register/ordinary-runtime-integration/DECISION_STATUS.md",
+        "decision-register/ordinary-runtime-integration/REPORT.md",
+        "decision-register/ordinary-runtime-integration/TEST_RESULTS.json"
+      ]
+    },
+    {
+      "source": "decision-register/work-pack-1/evidence/RECORD_DISCOVERY.json",
+      "prior_statement": "Prior search excluded server observation",
+      "current_disposition": "The later discovery adds historical infrastructure captures and a dated GitHub metadata refresh. All eight required records remain incomplete; no production acceptance or live server qualification is inferred.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
+        "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+      ]
+    },
+    {
+      "source": "decision-register/ordinary-runtime-integration/WORK_ITEMS.json",
+      "prior_statement": "OF-W06 client and production qualification remains open",
+      "current_disposition": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
+      "later_evidence_refs": [
+        "decision-register/ordinary-client-compatibility/APPROVAL.json",
+        "decision-register/ordinary-client-compatibility/SCOPE.json",
+        "decision-register/ordinary-client-compatibility/WORK_ITEMS.json",
+        "decision-register/ordinary-client-compatibility/README.md",
+        "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
+        "decision-register/ordinary-client-compatibility/REPORT.md",
+        "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+      ]
+    }
+  ],
+  "workflow": [
+    "Prepare decision packages and collect existing records in parallel.",
+    "Approve exact policy values with evidence, version, units, owner and effective conditions.",
+    "Verify required records and owner acceptance.",
+    "Implement only approved behavior; retain separate test and review gates.",
+    "Close a work item only when its acceptance evidence passes.",
+    "Freeze and launch only after the required release gates pass."
+  ],
+  "priority_order": [
+    {
+      "order": 1,
+      "scope": "Consensus, identity and validator rules",
+      "decisions": [
+        "D06",
+        "D10",
+        "D09",
+        "D03"
+      ],
+      "reason": "These choices control evidence, withdrawal safety and finality."
+    },
+    {
+      "order": 2,
+      "scope": "Economic and governance completion",
+      "decisions": [
+        "D01",
+        "D02",
+        "D04",
+        "D05",
+        "D08",
+        "D11"
+      ],
+      "reason": "Review coupled supply, fee, custody and authority contracts together."
+    },
+    {
+      "order": 3,
+      "scope": "Production records and acceptance",
+      "decisions": [
+        "D07",
+        "D12",
+        "D13",
+        "D14"
+      ],
+      "reason": "Record collection and acceptance planning can start now; final freeze consumes prior outputs."
+    }
+  ],
+  "mandatory_launch_constraints": [
+    {
+      "id": "G35",
+      "gate_ref": "LAUNCH_GATES.json#/gates/34",
+      "mandatory": true,
+      "launch_veto": true
+    }
+  ],
+  "pqc_profile_decision": {
+    "status": "ALGORITHMS_APPROVED_QUALIFICATION_OPEN",
+    "approval_ref": "decision-register/pqc-profile/APPROVAL.json",
+    "profile_ref": "decision-register/pqc-profile/PROFILE.json",
+    "gate_spec_ref": "decision-register/pqc-profile/GATE_SPEC.json",
+    "production_activation_authorized": false
+  },
+  "canonical_gate_register_ref": "LAUNCH_GATES.json",
+  "canonical_gate_view_ref": "MAINNET_GATE_MASTER.md",
+  "gate_reconciliation_ref": "decision-register/gate-consolidation-20260912/RECONCILIATION_REPORT.md",
+  "progress_rule": "Policy and required-record statuses remain authoritative here. Read all gate progress, completed work and remaining qualification from LAUNCH_GATES.json. Earlier local implementation boundary fields retain their historical scope."
+}

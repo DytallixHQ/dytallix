@@ -1,0 +1,90 @@
+//go:build !dytallix_pqc_only
+
+// Generated Prometheus constructor extracted without behavioral changes.
+package p2p
+
+import (
+	prometheus "github.com/go-kit/kit/metrics/prometheus"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+)
+
+func PrometheusMetrics(namespace string, labelsAndValues ...string) *Metrics {
+	labels := []string{}
+	for i := 0; i < len(labelsAndValues); i += 2 {
+		labels = append(labels, labelsAndValues[i])
+	}
+	return &Metrics{
+		Peers: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "peers",
+			Help:      "Number of peers.",
+		}, labels).With(labelsAndValues...),
+		PeerReceiveBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "peer_receive_bytes_total",
+			Help:      "Number of bytes received from a given peer.",
+		}, append(labels, "peer_id", "chID")).With(labelsAndValues...),
+		PeerSendBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "peer_send_bytes_total",
+			Help:      "Number of bytes sent to a given peer.",
+		}, append(labels, "peer_id", "chID")).With(labelsAndValues...),
+		PeerSendQueueSize: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "peer_send_queue_size",
+			Help:      "Number of messages that are currently being sent to a given peer.",
+		}, append(labels, "peer_id")).With(labelsAndValues...),
+		NumTxs: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "num_txs",
+			Help:      "Number of transactions submitted by each peer.",
+		}, append(labels, "peer_id")).With(labelsAndValues...),
+		MessageReceiveBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "message_receive_bytes_total",
+			Help:      "Number of bytes of each message type received.",
+		}, append(labels, "message_type")).With(labelsAndValues...),
+		MessageSendBytesTotal: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "message_send_bytes_total",
+			Help:      "Number of bytes of each message type sent.",
+		}, append(labels, "message_type")).With(labelsAndValues...),
+		MessagesReceived: prometheus.NewCounterFrom(stdprometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "messages_received",
+			Help:      "Number of messages received before being processed by the reactor",
+		}, append(labels, "message_type", "reactor")).With(labelsAndValues...),
+		MessagesReactorInFlight: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "messages_reactor_in_flight",
+			Help:      "Number of messages in flight (wip by reactor)",
+		}, append(labels, "message_type", "reactor")).With(labelsAndValues...),
+		MessagesReactorPendingDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "messages_reactor_pending_duration",
+			Help:      "Duration between receiving a message and submitting it to the reactor",
+		}, append(labels, "message_type", "reactor")).With(labelsAndValues...),
+		MessageReactorReceiveDuration: prometheus.NewHistogramFrom(stdprometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "message_reactor_receive_duration",
+			Help:      "Duration of the message receive operation by reactor",
+		}, append(labels, "message_type", "reactor")).With(labelsAndValues...),
+		MessageReactorQueueConcurrency: prometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: MetricsSubsystem,
+			Name:      "message_reactor_queue_concurrency",
+			Help:      "Concurrency of the incoming message queue for a given reactor",
+		}, append(labels, "reactor")).With(labelsAndValues...),
+	}
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "lastReviewed": "2026-04-14",
+  "canonicalStatement": "Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.",
+  "faucet": {
+    "baseUrl": "https://dytallix.com/api/faucet",
+    "statusUrl": "https://dytallix.com/api/faucet/status",
+    "checkUrlTemplate": "https://dytallix.com/api/faucet/check/{address}",
+    "limits": {
+      "dgt": 10,
+      "drt": 100,
+      "cooldownSeconds": 60,
+      "cooldownMinutes": 1,
+      "maxRequestsPerHour": 20
+    },
+    "statusResponse": {
+      "requiredKeys": [
+        "status",
+        "limits",
+        "activeUsers"
+      ],
+      "statusValue": "operational"
+    },
+    "checkResponse": {
+      "requiredKeys": [
+        "canRequest",
+        "timeUntilNext"
+      ]
+    }
+  }
+}
