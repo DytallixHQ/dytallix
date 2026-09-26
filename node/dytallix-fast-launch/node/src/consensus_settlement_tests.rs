@@ -162,18 +162,13 @@ fn governance_v3_transport_requires_config_and_type_discriminator() {
         .contains("Ordinary transport requires type discriminator"));
 }
 
-fn observation_wire(parent_hash: String) -> Vec<u8> {
-    serde_json::to_vec(&WireTransaction::EpochObservation {
-        observation: EpochObservation {
-            epoch: 0,
-            utilization_ppm: 500000,
-            volatility_ppm: 0,
-            first_height: 1,
-            last_height: 2,
-            parent_hash,
-        },
-    })
-    .unwrap()
+/// The observation derived from committed blocks, with a caller-chosen parent
+/// hash so tests can also build an incorrect one. The fixture uses 2-block epochs.
+fn observation_wire(app: &ConsensusApplication, height: u64, parent_hash: String) -> Vec<u8> {
+    let observation = derived_observation(&app.storage, &app.config, 2, height, &parent_hash)
+        .unwrap()
+        .unwrap();
+    serde_json::to_vec(&WireTransaction::EpochObservation { observation }).unwrap()
 }
 
 fn data(app: &ConsensusApplication) -> BTreeMap<Vec<u8>, Vec<u8>> {
@@ -360,10 +355,10 @@ fn epoch_boundary_requires_exact_prior_engine_hash_before_any_write() {
     let before = data(&app);
     assert!(app.finalize_block(block(3, vec![])).is_err());
     assert_eq!(data(&app), before);
-    let incorrect = observation_wire("ab".repeat(32));
+    let incorrect = observation_wire(&app, 3, "ab".repeat(32));
     assert!(app.finalize_block(block(3, vec![incorrect])).is_err());
     assert_eq!(data(&app), before);
-    let valid = observation_wire(block(2, vec![]).hash);
+    let valid = observation_wire(&app, 3, block(2, vec![]).hash);
     let result = app.finalize_block(block(3, vec![valid])).unwrap();
     assert_eq!(result.tx_results.len(), 1);
     assert_eq!(result.tx_results[0].code, 0);
@@ -690,7 +685,7 @@ fn proposal_filters_committed_receipts_before_byte_and_count_budgets() {
     assert_eq!(selected, vec![fresh.clone()]);
     assert_eq!(data(&app), before);
     commit_empty(&mut app, 2);
-    let observation = observation_wire(block(2, vec![]).hash);
+    let observation = observation_wire(&app, 3, block(2, vec![]).hash);
     let before = data(&app);
     let selected = app
         .prepare_proposal(
@@ -800,3 +795,6 @@ fn admission_receipts_follow_durable_commit_across_failures_and_recovery() {
 
 #[path = "state_model_tests.rs"]
 mod state_model_tests;
+
+#[path = "observation_contract_tests.rs"]
+mod observation_contract_tests;

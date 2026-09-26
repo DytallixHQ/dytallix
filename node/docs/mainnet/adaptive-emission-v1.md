@@ -101,3 +101,30 @@ encoding, and governance migration. D02–D07 remain separate decisions.
 Before activation, calibrate the plant, select gains within a proved domain,
 integrate atomic supply accounting, and complete independent review and release
 qualification. A successful reference test does not authorize activation.
+
+## Observation contract v1 (implemented, proposed for D01-Q02)
+
+Decision D01-Q02 (observation sources, authentication, aggregation and
+missing-input rules) remains open. This contract is implemented as the
+proposal for it.
+
+- Observations are derived by every validator from committed blocks. No
+  transaction submitter or proposer supplies their values. CheckTx refuses
+  submitted observations, the proposer inserts the derived observation, and
+  execution rejects any block whose observation differs from the derivation.
+- Utilization for epoch `e` is the total byte length of all transactions in
+  blocks `e*n+1 ..= (e+1)*n`, excluding that epoch's own observation, divided
+  by `n * max_block_bytes`, in parts per million, capped at 1,000,000. Here
+  `n` is `epoch_blocks`. Empty blocks contribute zero; a BFT chain has no
+  missing heights.
+- Volatility is 0 until an authenticated source is approved. The controller
+  therefore applies no volatility damping.
+- The complete history check re-derives every committed observation.
+
+Block space is used because it is the only capacity defined for every
+transaction type (`max_block_bytes`). If a unified block gas limit is
+introduced, utilization can move to gas under a new contract version.
+
+Deriving observations also removes a liveness failure: previously a boundary
+block without a valid submitted observation could not be proposed, so the
+chain stopped if no one submitted one.

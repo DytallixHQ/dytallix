@@ -35,25 +35,13 @@ fn full_scan_state_digest(storage: &Storage, writes: &Writes, governance_enabled
 /// so its chains end at height 18.
 const EPOCH_BLOCKS: u64 = 2;
 
-/// Epoch boundaries require the completed parent epoch's observation first.
+/// Epoch boundaries carry the observation derived from committed blocks first.
 fn commit_next(app: &mut ConsensusApplication, height: u64) {
-    let mut txs = Vec::new();
-    if height > 1 && (height - 1) % EPOCH_BLOCKS == 0 {
-        let epoch = (height - 1) / EPOCH_BLOCKS - 1;
-        txs.push(
-            serde_json::to_vec(&WireTransaction::EpochObservation {
-                observation: EpochObservation {
-                    epoch,
-                    utilization_ppm: 500000,
-                    volatility_ppm: 0,
-                    first_height: epoch * EPOCH_BLOCKS + 1,
-                    last_height: (epoch + 1) * EPOCH_BLOCKS,
-                    parent_hash: block(height - 1, vec![]).hash,
-                },
-            })
-            .unwrap(),
-        );
-    }
+    let parent = block(height - 1, vec![]).hash;
+    let txs = derived_observation_wire(&app.storage, &app.config, EPOCH_BLOCKS, height, &parent)
+        .unwrap()
+        .into_iter()
+        .collect();
     app.finalize_block(block(height, txs)).unwrap();
     app.commit().unwrap();
 }
