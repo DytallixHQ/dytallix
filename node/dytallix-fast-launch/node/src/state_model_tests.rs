@@ -155,3 +155,48 @@ fn supply_validation_reads_only_the_current_emission_event() {
     }
     crate::supply::validate_native(&app.storage, &Writes::new()).unwrap();
 }
+
+#[test]
+fn staged_deletions_match_physically_deleted_state() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = committed_chain(&inputs, &dir.path().join("db"), 4);
+    let deleted: Deletes = ["emission:event:1", "emission:event:2"]
+        .iter()
+        .map(|k| k.as_bytes().to_vec())
+        .collect();
+    let staged = state_digest_with(&app.storage, &Writes::new(), &deleted, false).unwrap();
+    for key in &deleted {
+        app.storage.db.delete(key).unwrap();
+    }
+    assert_eq!(staged, state_digest(&app.storage, &Writes::new(), false).unwrap());
+}
+
+#[test]
+fn a_block_cannot_write_and_delete_the_same_key() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = committed_chain(&inputs, &dir.path().join("db"), 1);
+    let key = b"acct:overlap".to_vec();
+    let writes = Writes::from([(key.clone(), b"1".to_vec())]);
+    let deletes = Deletes::from([key]);
+    assert!(state_digest_with(&app.storage, &writes, &deletes, false).is_err());
+}
+
+#[test]
+fn commit_applies_staged_deletions_atomically() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = committed_chain(&inputs, &dir.path().join("db"), 1);
+    // A key outside the state commitment, so deleting it keeps the head valid.
+    app.storage.db.put(b"scratch:b1a", b"x").unwrap();
+    app.finalize_block(block(2, vec![])).unwrap();
+    app.pending
+        .as_mut()
+        .unwrap()
+        .deletes
+        .insert(b"scratch:b1a".to_vec());
+    app.commit().unwrap();
+    assert!(app.storage.db.get(b"scratch:b1a").unwrap().is_none());
+    assert_eq!(app.info().unwrap().height, 2);
+}

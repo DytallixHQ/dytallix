@@ -1,9 +1,12 @@
 # Account model v2
 
-Status: proposal. Phase B1 of [state model v2](state-model-v2.md), engineering
-task E04. Account creation is a protocol rule, so it needs an approved decision
-(P01) before implementation. This changes the account storage layout, so it
-must land before genesis.
+Status: approved direction. Phase B1 of [state model v2](state-model-v2.md),
+engineering task E04. This changes the account storage layout, so it must land
+before genesis.
+
+**Decided (P01, 26 September 2026):** option A, implicit account creation, with
+an account-creation fee that is burned. The fee amount is a configurable
+parameter; no production value is set here.
 
 ## Problems
 
@@ -101,7 +104,6 @@ throughout, so existing fixtures remain valid.
 
 ## Open questions for P01
 
-1. Account creation: option A or B?
-2. Creation fee: amount, and burn or treasury?
-3. Should a balance-only account below some minimum be prunable (an
+1. Creation fee amount (the parameter exists; its production value is unset).
+2. Should a balance-only account below some minimum be prunable (an
    existential deposit), or kept indefinitely?

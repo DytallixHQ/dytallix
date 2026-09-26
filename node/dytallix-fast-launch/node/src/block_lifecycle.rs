@@ -9,6 +9,8 @@ use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 
 pub(crate) type Writes = BTreeMap<Vec<u8>, Vec<u8>>;
+/// Keys a block removes. A block never writes and deletes the same key.
+pub(crate) type Deletes = std::collections::BTreeSet<Vec<u8>>;
 /// Entries under `prefixes` plus the listed `keys`, read from one snapshot.
 /// Unlike a full scan, the cost does not grow with unrelated records such as
 /// block history. Keys already covered by a prefix are not read twice.
