@@ -8,7 +8,7 @@ use crate::ordinary_fee_settlement::Outcome as OrdinaryOutcome;
 use crate::ordinary_meter::{RecoveryCeilings, SharedBlockMeter};
 use crate::ordinary_reservations::{ReservationId, ReservationLedger, ReservationRequest};
 use crate::ordinary_state::{self, OrdinaryConfig, OrdinaryState, STATE_KEY as ORDINARY_STATE_KEY};
-use crate::recovery_fees::{RecoveryBook, RecoveryResult, STATE_KEY as RECOVERY_STATE_KEY};
+use crate::recovery_fees::{RecoveryBook, RecoveryResult, PREFIX as RECOVERY_PREFIX};
 use crate::{
     block_lifecycle::{self, Deletes, Writes},
     execution::stage_transaction,
@@ -1066,15 +1066,13 @@ pub(crate) fn append_genesis_anchor(
                     "Recovery account missing from monetary genesis"
                 );
             }
-            let encoded = book.encode()?;
-            ensure!(
-                capture
-                    .writes
-                    .insert(RECOVERY_STATE_KEY.as_bytes().to_vec(), encoded.clone())
-                    .is_none(),
-                "Recovery genesis already staged"
-            );
-            batch.put(RECOVERY_STATE_KEY, encoded);
+            for (key, value) in book.entries()? {
+                ensure!(
+                    capture.writes.insert(key.clone(), value.clone()).is_none(),
+                    "Recovery genesis already staged"
+                );
+                batch.put(key, value);
+            }
         }
         if let Some(ordinary_config) = &config.ordinary {
             ordinary_state::assert_absent(storage)?;
@@ -1791,11 +1789,9 @@ fn recovery_bytes(value: &str) -> Result<Vec<u8>> {
     Ok(raw)
 }
 fn recovery_book(storage: &Storage, config: &ConsensusConfig) -> Result<Option<RecoveryBook>> {
-    let stored = storage.db.get(RECOVERY_STATE_KEY)?;
-    match (&config.recovery, stored) {
+    match (&config.recovery, RecoveryBook::load(storage)?) {
         (None, None) => Ok(None),
-        (Some(initial), Some(raw)) => {
-            let current = RecoveryBook::decode(&raw)?;
+        (Some(initial), Some(current)) => {
             ensure!(
                 current.profile == initial.profile
                     && current.accounts.keys().eq(initial.accounts.keys()),
@@ -4344,6 +4340,7 @@ impl ConsensusApplication {
             state.prune_receipts_for(input.height);
         }
         let mut recovery = committed_recovery
+            .as_ref()
             .map(|book| book.begin_block(input.height))
             .transpose()?;
         let mut shared = ordinary
@@ -4579,8 +4576,19 @@ impl ConsensusApplication {
         if let Some(state) = ordinary.as_ref() {
             ordinary_state::append_writes(state, &mut writes)?;
         }
+        let mut deletes = Deletes::new();
         if let Some(block) = recovery {
-            writes.insert(RECOVERY_STATE_KEY.as_bytes().to_vec(), block.book.encode()?);
+            let committed = committed_recovery
+                .as_ref()
+                .context("Committed recovery book missing")?;
+            let (changed, removed) = block.book.changes_from(committed)?;
+            for (key, value) in changed {
+                ensure!(
+                    writes.insert(key, value).is_none(),
+                    "Recovery entry already staged"
+                );
+            }
+            deletes.extend(removed);
         }
         crate::supply::validate_native(&self.storage, &writes)?;
         let validator_updates = if self.config.lifecycle.is_some() {
@@ -4609,8 +4617,6 @@ impl ConsensusApplication {
             result_digest: results_digest(&self.config, &results, &validator_updates)?,
             prior_app_hash: expected_info.app_hash.clone(),
         };
-        // Filled by per-account state (phase B1b); empty until then.
-        let deletes = Deletes::new();
         let next_state_digest =
             state_digest_with(
                 &self.storage,
@@ -5500,7 +5506,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         }
         if key.starts_with(b"recovery:") {
             ensure!(
-                config.recovery.is_some() && key.as_ref() == RECOVERY_STATE_KEY.as_bytes(),
+                config.recovery.is_some() && key.starts_with(RECOVERY_PREFIX.as_bytes()),
                 "Unknown or unconfigured recovery state"
             );
         }

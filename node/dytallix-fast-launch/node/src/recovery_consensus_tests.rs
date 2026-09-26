@@ -2,7 +2,7 @@
 //! These checks do not qualify live clients, production fees, or ordinary signing.
 use super::*;
 use crate::crypto::{ActivePQC, PQC};
-use crate::recovery_fees::{RecoveryAccount, RecoveryBook, STATE_KEY};
+use crate::recovery_fees::{RecoveryAccount, RecoveryBook, HEADER_KEY};
 use crate::storage::state::Storage;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use dytallix_protocol_types::recovery::*;
@@ -344,7 +344,7 @@ fn data(app: &ConsensusApplication) -> BTreeMap<Vec<u8>, Vec<u8>> {
         .collect()
 }
 fn book(app: &ConsensusApplication) -> RecoveryBook {
-    RecoveryBook::decode(&app.storage.db.get(STATE_KEY).unwrap().unwrap()).unwrap()
+    RecoveryBook::load(&app.storage).unwrap().unwrap()
 }
 fn balance(app: &ConsensusApplication, owner: &str) -> u128 {
     let balances: BTreeMap<String, u128> = bincode::deserialize(
@@ -708,7 +708,9 @@ fn recovery_namespace_corruption_prevents_consensus_reopen() {
         .active_generation += 1;
     stored.validate().unwrap(); // Structurally valid state still requires the committed root.
     let mut batch = WriteBatch::default();
-    batch.put(STATE_KEY, serde_json::to_vec(&stored).unwrap());
+    for (key, value) in stored.entries().unwrap() {
+        batch.put(key, value);
+    }
     write_sync(&app.storage, batch).unwrap();
     let corrupted = data(&app);
     assert_ne!(app.check_tx(&valid_next).code, 0);
@@ -1601,7 +1603,7 @@ fn legacy_consensus_state_never_converts_and_unsupported_recovery_book_never_rew
     let mut legacy = fixture.initialized(&path);
     commit(&mut legacy, 1, vec![]);
     let original = data(&legacy);
-    assert!(legacy.storage.db.get(STATE_KEY).unwrap().is_none());
+    assert!(RecoveryBook::load(&legacy.storage).unwrap().is_none());
     drop(legacy);
     fixture.config.recovery = Some(recovery);
     assert!(
@@ -1617,17 +1619,17 @@ fn legacy_consensus_state_never_converts_and_unsupported_recovery_book_never_rew
         })
         .collect();
     assert_eq!(after, original);
-    assert!(raw.db.get(STATE_KEY).unwrap().is_none());
+    assert!(RecoveryBook::load(&raw).unwrap().is_none());
     drop(raw);
     let fresh_path = dir.path().join("fresh");
     let fresh = fixture.initialized(&fresh_path);
-    let mut stored = book(&fresh);
-    assert_eq!(stored.version, 1);
-    stored.version = 2;
-    let bytes = serde_json::to_vec(&stored).unwrap();
-    assert!(RecoveryBook::decode(&bytes).is_err());
+    assert_eq!(book(&fresh).version, 1);
+    let mut header: serde_json::Value =
+        serde_json::from_slice(&fresh.storage.db.get(HEADER_KEY).unwrap().unwrap()).unwrap();
+    header["version"] = 2.into();
+    let bytes = serde_json::to_vec(&header).unwrap();
     let mut batch = WriteBatch::default();
-    batch.put(STATE_KEY, &bytes);
+    batch.put(HEADER_KEY, &bytes);
     write_sync(&fresh.storage, batch).unwrap();
     let unchanged = data(&fresh);
     drop(fresh);
@@ -1647,7 +1649,8 @@ fn legacy_consensus_state_never_converts_and_unsupported_recovery_book_never_rew
         })
         .collect();
     assert_eq!(after, unchanged);
-    assert_eq!(raw.db.get(STATE_KEY).unwrap().unwrap(), bytes);
+    assert_eq!(raw.db.get(HEADER_KEY).unwrap().unwrap(), bytes);
+    assert!(RecoveryBook::load(&raw).is_err());
 }
 
 #[test]
@@ -1768,4 +1771,56 @@ fn signed_maximum_sponsor_nonce_request_rejects_without_blocking_valid_request()
     assert!(!stored.sponsor_receipts.contains_key(&hex::encode(
         sponsor::authorization_id(&exhausted_request.sponsor).unwrap()
     )));
+}
+
+#[test]
+fn recovery_book_is_stored_per_entry_and_round_trips() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = fixture.initialized(&dir.path().join("db"));
+    let stored = book(&app);
+    let entries = stored.entries().unwrap();
+    assert!(entries.contains_key(HEADER_KEY.as_bytes()));
+    assert_eq!(
+        entries
+            .keys()
+            .filter(|k| k.starts_with(b"recovery:v2:account:"))
+            .count(),
+        stored.accounts.len()
+    );
+    for (key, value) in &entries {
+        assert_eq!(app.storage.db.get(key).unwrap().as_ref(), Some(value));
+    }
+    assert_eq!(RecoveryBook::load(&app.storage).unwrap().unwrap(), stored);
+}
+
+#[test]
+fn a_block_rewrites_only_changed_recovery_entries() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    app.finalize_block(block(1, vec![])).unwrap();
+    let written: Vec<Vec<u8>> = app
+        .pending
+        .as_ref()
+        .unwrap()
+        .writes
+        .keys()
+        .filter(|k| k.starts_with(b"recovery:"))
+        .cloned()
+        .collect();
+    // Only the header's height changes in an empty block; no account is rewritten.
+    assert_eq!(written, vec![HEADER_KEY.as_bytes().to_vec()]);
+    app.commit().unwrap();
+    assert_eq!(book(&app).last_height, 1);
+}
+
+#[test]
+fn unknown_recovery_keys_are_refused() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = fixture.initialized(&dir.path().join("db"));
+    app.storage.db.put(b"recovery:v2:unexpected", b"{}").unwrap();
+    assert!(RecoveryBook::load(&app.storage).is_err());
+    assert!(app.info().is_err());
 }
