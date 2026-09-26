@@ -1,5 +1,4 @@
 use crate::{state::State, storage::state::Storage};
-use rocksdb::{Direction, IteratorMode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
