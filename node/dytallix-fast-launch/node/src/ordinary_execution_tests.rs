@@ -7,7 +7,7 @@ use crate::{
     storage::state::Storage,
 };
 use dytallix_protocol_types::{
-    address::{AccountAddress, AddressNetwork},
+    address::{AccountAddress, AddressNetwork, OriginKeyAlgorithm},
     ordinary::{Limits, OrdinaryTransaction},
     recovery::{KeyIdentity, RecoveryConfig, RecoveryDomain, RecoveryState},
     recovery_sponsor::FeeProfile as RecoveryProfile,
@@ -91,6 +91,18 @@ fn filler(i: usize) -> [u8; 32] {
     id[..8].copy_from_slice(&(i as u64).to_be_bytes());
     id
 }
+/// The chain account template; the fixture accounts use it too.
+fn template() -> RecoveryConfig {
+    RecoveryConfig {
+        timing_version: 1,
+        recovery_delay: 2,
+        finalization_window: 3,
+        policy_delay: 2,
+        policy_window: 3,
+        submission_lifetime: 100,
+        algorithms: BTreeMap::from([("mldsa65".into(), 1952)]),
+    }
+}
 fn fixture_with(ids: &[[u8; 32]]) -> Fixture {
     let rp = RecoveryProfile {
         version: 1,
@@ -125,15 +137,7 @@ fn fixture_with(ids: &[[u8; 32]]) -> Fixture {
                     genesis_digest: [7; 32],
                     account_id: id,
                 },
-                RecoveryConfig {
-                    timing_version: 1,
-                    recovery_delay: 2,
-                    finalization_window: 3,
-                    policy_delay: 2,
-                    policy_window: 3,
-                    submission_lifetime: 100,
-                    algorithms: BTreeMap::from([("mldsa65".into(), 1952)]),
-                },
+                template(),
                 KeyIdentity {
                     algorithm: "mldsa65".into(),
                     public_key: keys().1.clone(),
@@ -232,6 +236,7 @@ fn run(
     execute_signed(
         s,
         p,
+        &template(),
         &mut f.book,
         &mut f.grants,
         &mut f.history,
@@ -439,7 +444,6 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &actions.accounts,
             actions.ordinary_fee_total().unwrap(),
             &f.settlement,
-            &f.book,
             &touched,
             AddressNetwork::Development,
             &BTreeSet::new(),
@@ -468,7 +472,6 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &actions.accounts,
             actions.ordinary_fee_total().unwrap(),
             &misallocated,
-            &f.book,
             &touched,
             AddressNetwork::Development,
             &BTreeSet::new(),
@@ -486,7 +489,6 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &actions.accounts,
             actions.ordinary_fee_total().unwrap(),
             &wrong_nonce,
-            &f.book,
             &touched,
             AddressNetwork::Development,
             &BTreeSet::new(),
@@ -504,7 +506,6 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &actions.accounts,
             actions.ordinary_fee_total().unwrap(),
             &wrong_fee_total,
-            &f.book,
             &touched,
             AddressNetwork::Development,
             &BTreeSet::new(),
@@ -522,7 +523,6 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
                 &actions.accounts,
                 actions.ordinary_fee_total().unwrap(),
                 &f.settlement,
-                &f.book,
                 &BTreeSet::from([ACTOR]),
                 AddressNetwork::Development,
                 &BTreeSet::new(),
@@ -545,6 +545,7 @@ fn insufficient_metadata_budget_rejects_execution_and_admission_before_acceptanc
             admission_only(
                 &s,
                 &p,
+                &template(),
                 &mut f.book,
                 &mut f.grants,
                 &mut f.history,
@@ -766,6 +767,7 @@ fn explicit_receipt_capacity_rejects_new_acceptance_without_charging() {
     let result = execute_signed(
         &first,
         &p,
+        &template(),
         &mut f.book,
         &mut f.grants,
         &mut f.history,
@@ -790,6 +792,7 @@ fn explicit_receipt_capacity_rejects_new_acceptance_without_charging() {
     let result = execute_signed(
         &second,
         &p,
+        &template(),
         &mut f.book,
         &mut f.grants,
         &mut f.history,
@@ -943,10 +946,10 @@ fn cumulative_operator_self_unbond_checks_every_affected_protected_principal_own
     let s = signed(&f, &p, vec![first.clone(), second.clone()], 1000, 2000);
     let mut block = shared(&p);
     let mut meter = OrdinaryMeter::new(&p, &s.body, &mut block).unwrap();
-    assert!(principal_owners(&mut meter, &f.book, &f.settlement, &actor, &[first.clone()]).is_ok());
+    assert!(principal_owners(&mut meter, &f.book, None, &f.settlement, &actor, &[first.clone()]).is_ok());
     let before = fingerprint(&f);
     assert!(matches!(
-        principal_owners(&mut meter, &f.book, &f.settlement, &actor, &[first, second]),
+        principal_owners(&mut meter, &f.book, None, &f.settlement, &actor, &[first, second]),
         Err(PlanError::Rejected(_))
     ));
     assert_eq!(fingerprint(&f), before);
@@ -995,25 +998,124 @@ fn send_gas_and_loaded_accounts_do_not_grow_with_registered_accounts() {
 #[test]
 fn lazy_eligibility_matches_the_complete_block_start_snapshot() {
     let mut f = fixture();
+    // An account a transfer created has no recovery record but has funds; an
+    // owner with no native account has none.
+    let (unregistered, absent) = ([0x55; 32], [0x66; 32]);
+    let dev = AddressNetwork::Development;
+    f.settlement
+        .account(&native_address(dev, &unregistered))
+        .unwrap()
+        .set_balance("udrt", 30);
     let full = eligible_liquidity(&mut f.settlement.clone(), &f.book).unwrap();
     let mut lazy = LazyEligibility::new(&f.settlement);
-    let unregistered = [0x55; 32];
     let covered = lazy
-        .covering(&f.book, [ACTOR, OWNER, unregistered])
+        .covering(dev, [ACTOR, OWNER, unregistered, absent])
         .unwrap()
         .clone();
     for (complete, partial) in [
         (&full.total, &covered.total),
         (&full.unrestricted, &covered.unrestricted),
     ] {
-        let expected: BTreeMap<_, _> = complete
+        let mut expected: BTreeMap<_, _> = complete
             .iter()
             .filter(|(asset, _)| asset.owner == ACTOR || asset.owner == OWNER)
             .map(|(asset, value)| (*asset, *value))
             .collect();
+        for (owner, udrt) in [(unregistered, 30), (absent, 0)] {
+            expected.insert(asset(owner, Denomination::Udgt), 0);
+            expected.insert(asset(owner, Denomination::Udrt), udrt);
+        }
         assert_eq!(*partial, expected);
     }
     // Values stay those of block start after the live settlement changes.
     set(&mut f, ACTOR, "udrt", 1);
-    assert_eq!(lazy.covering(&f.book, [ACTOR]).unwrap(), &covered);
+    assert_eq!(lazy.covering(dev, [ACTOR]).unwrap(), &covered);
+}
+/// The account the fixture key derives on the fixture chain. The fixture
+/// accounts use made-up IDs, so this one has no recovery record.
+fn fresh() -> [u8; 32] {
+    *AccountAddress::from_origin_key(
+        AddressNetwork::Development,
+        "ordinary-runtime-test",
+        OriginKeyAlgorithm::MlDsa65,
+        &keys().1,
+    )
+    .unwrap()
+    .account_id()
+}
+fn first_spend(f: &Fixture, p: &FeeProfile, actions: Vec<Action>, gas: u64) -> SignedOrdinary {
+    let mut s = signed(f, p, actions, gas, p.max_fee_cap);
+    s.body.domain.account_id = fresh();
+    resign(&mut s, p);
+    s
+}
+#[test]
+fn first_spend_stores_the_template_record_and_charges_its_writes_before_acceptance() {
+    // Charged writes of a 1952-byte key need a larger limit and cap.
+    let mut p = profile();
+    p.write_byte_cost = 1;
+    p.max_transaction_gas = 10_000;
+    p.max_fee_cap = 20_000;
+    let mut f = fixture();
+    let address = native_address(AddressNetwork::Development, &fresh());
+    let tx = first_spend(&f, &p, vec![send(OWNER, 5)], 10_000);
+    // No native account: rejected without a fee or any change.
+    let before = fingerprint(&f);
+    let result = run(&mut f, &p, &tx, 0, &mut shared(&p)).unwrap();
+    assert!(!result.accepted && result.error.unwrap().contains("no funds"));
+    assert_eq!(fingerprint(&f), before);
+
+    f.settlement
+        .account(&address)
+        .unwrap()
+        .set_balance("udrt", 50_000);
+    let record = ordinary_authority::prospective_actor(&f.book, &template(), &tx.body)
+        .unwrap()
+        .unwrap();
+    let writes = logical::recovery_account(&fresh(), &record, MAX_LOGICAL_BYTES)
+        .unwrap()
+        .byte_len()
+        + logical::origin(&fresh(), &tx.body.key, MAX_LOGICAL_BYTES)
+            .unwrap()
+            .byte_len();
+    // Overhead 2 and signature 3 precede the records. A limit that cannot
+    // store them rejects before acceptance.
+    let low = first_spend(&f, &p, vec![send(OWNER, 5)], 2 + 3 + writes - 1);
+    let before = fingerprint(&f);
+    let result = run(&mut f, &p, &low, 0, &mut shared(&p)).unwrap();
+    assert!(!result.accepted && result.fee == 0);
+    assert_eq!(fingerprint(&f), before);
+
+    // Accepted: metadata 5, the send 10 and its two native account writes
+    // (fixed-width, so their size does not depend on the balances) follow.
+    // The record and origin are stored with the consumed nonce.
+    let result = run(&mut f, &p, &tx, 0, &mut shared(&p)).unwrap();
+    assert!(result.success, "{:?}", result.error);
+    let native = |a: &str| {
+        logical::native_account(a, &AccountState::default(), MAX_LOGICAL_BYTES)
+            .unwrap()
+            .byte_len()
+    };
+    assert_eq!(
+        result.gas_used,
+        2 + 3 + writes + 5 + 10 + native(&address) + native(&addr(&f, OWNER))
+    );
+    let key = hex::encode(fresh());
+    let mut expected = record;
+    expected.recovery.spending_nonce = 1;
+    assert_eq!(f.book.accounts[&key], expected);
+    assert_eq!(f.book.origins[&key], tx.body.key);
+    assert_eq!(f.settlement.accounts[&address].nonce, 1);
+    assert_eq!(
+        f.settlement.accounts[&address].balance_of("udrt"),
+        50_000 - 5 - result.fee
+    );
+    f.book.validate().unwrap();
+    // The next transaction is an ordinary one at nonce 1.
+    let mut next = first_spend(&f, &p, vec![send(OWNER, 5)], 10_000);
+    next.body.spending_nonce = 1;
+    resign(&mut next, &p);
+    let result = run(&mut f, &p, &next, 1, &mut shared(&p)).unwrap();
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(f.book.accounts[&key].recovery.spending_nonce, 2);
 }

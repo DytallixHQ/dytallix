@@ -698,6 +698,7 @@ impl RecoveryBook {
 /// Prior values of the book entries one proposal candidate may change.
 pub(crate) struct BookCheckpoint {
     accounts: Vec<(String, Option<RecoveryAccount>)>,
+    origins: Vec<(String, Option<KeyIdentity>)>,
     receipts: Vec<(String, Option<SponsorReceipt>)>,
     operations: Vec<(String, Option<String>)>,
     expiry_index: BTreeMap<u64, BTreeSet<String>>,
@@ -705,9 +706,9 @@ pub(crate) struct BookCheckpoint {
     last_height: u64,
 }
 impl RecoveryBook {
-    /// Capture the named entries and the (small, capacity-bounded) expiry
-    /// index. `rollback` restores them and fails if any entry outside them was
-    /// added or removed.
+    /// Capture the named entries (an account's origin with the account) and
+    /// the (small, capacity-bounded) expiry index. `rollback` restores them and
+    /// fails if any entry outside them was added or removed.
     pub(crate) fn checkpoint(
         &self,
         accounts: &[String],
@@ -716,6 +717,7 @@ impl RecoveryBook {
     ) -> BookCheckpoint {
         BookCheckpoint {
             accounts: accounts.iter().map(|k| (k.clone(), self.accounts.get(k).cloned())).collect(),
+            origins: accounts.iter().map(|k| (k.clone(), self.origins.get(k).cloned())).collect(),
             receipts: receipts
                 .iter()
                 .map(|k| (k.clone(), self.sponsor_receipts.get(k).cloned()))
@@ -744,6 +746,7 @@ impl RecoveryBook {
             }
         }
         restore(&mut self.accounts, checkpoint.accounts);
+        restore(&mut self.origins, checkpoint.origins);
         restore(&mut self.sponsor_receipts, checkpoint.receipts);
         restore(&mut self.operation_success, checkpoint.operations);
         self.expiry_index = checkpoint.expiry_index;

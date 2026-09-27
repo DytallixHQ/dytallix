@@ -681,6 +681,41 @@ impl<'a> OrdinaryMeter<'a> {
         self.read_keys.insert(record.key.clone());
         Ok(())
     }
+    /// First-spend account initialization (B1c). The actor's new records are
+    /// charged as writes before acceptance, so a signed limit too low to store
+    /// them rejects the transaction without a fee.
+    pub(crate) fn initialize(&mut self, record: &LogicalRecord) -> Result<()> {
+        let result = self.initialize_inner(record);
+        if matches!(
+            &result,
+            Err(MeterError::Internal(_) | MeterError::BlockCapacity)
+        ) {
+            self.phase = Phase::Fault;
+            self.block.faulted = true;
+        }
+        result
+    }
+    fn initialize_inner(&mut self, record: &LogicalRecord) -> Result<()> {
+        self.live()?;
+        if self.phase != Phase::Validation
+            || !self.signature
+            || self.writes.contains_key(&record.key)
+        {
+            return self.fault(MeterError::Internal(
+                "account initialization phase/order mismatch",
+            ));
+        }
+        let new = mul(record.byte_len(), self.profile.write_byte_cost)?;
+        self.update(
+            self.base_gas,
+            add(self.write_gas, new)?,
+            self.metadata,
+            self.usage.bytes,
+            self.usage.signatures,
+        )?;
+        self.writes.insert(record.key.clone(), new);
+        Ok(())
+    }
     pub(crate) fn accept(&mut self) -> Result<()> {
         let result = self.accept_inner();
         if matches!(

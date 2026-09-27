@@ -169,6 +169,46 @@ fn logical_reads_deduplicate_and_final_write_size_replaces_prior_proposal() {
     assert_eq!(block.usage().gas, result.used_gas());
 }
 #[test]
+fn account_initialization_is_a_single_preacceptance_write() {
+    let p = profile();
+    let r = record(b"recovery:account", 30);
+    let mut block = SharedBlockMeter::new(&p, ceilings()).unwrap();
+    let mut meter = OrdinaryMeter::new(&p, &body(1000), &mut block).unwrap();
+    meter.ordinary_signature().unwrap();
+    meter.initialize(&r).unwrap();
+    meter.accept().unwrap();
+    meter.action(0).unwrap();
+    meter.action(1).unwrap();
+    let result = meter.finish().unwrap();
+    assert_eq!(result.used_gas(), 2 + 3 + r.byte_len() + 5 + 14);
+    // A limit too low to store the record rejects before acceptance: no fee.
+    let mut block = SharedBlockMeter::new(&p, ceilings()).unwrap();
+    let mut meter =
+        OrdinaryMeter::new(&p, &body(2 + 3 + r.byte_len() - 1), &mut block).unwrap();
+    meter.ordinary_signature().unwrap();
+    assert!(matches!(
+        meter.initialize(&r),
+        Err(MeterError::PreAcceptanceRejected(_))
+    ));
+    assert!(!meter.finish().unwrap().accepted());
+    // Only after the signature, only before acceptance and only once per record.
+    for step in 0..3 {
+        let mut block = SharedBlockMeter::new(&p, ceilings()).unwrap();
+        let mut meter = OrdinaryMeter::new(&p, &body(1000), &mut block).unwrap();
+        if step > 0 {
+            meter.ordinary_signature().unwrap();
+        }
+        if step == 1 {
+            meter.initialize(&r).unwrap();
+        }
+        if step == 2 {
+            meter.accept().unwrap();
+        }
+        assert!(matches!(meter.initialize(&r), Err(MeterError::Internal(_))));
+        assert!(block.is_faulted());
+    }
+}
+#[test]
 fn failed_action_keeps_measured_writes_and_cannot_resume_after_exhaustion() {
     let p = profile();
     let mut block = SharedBlockMeter::new(&p, ceilings()).unwrap();

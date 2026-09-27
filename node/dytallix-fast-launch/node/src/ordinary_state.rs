@@ -12,7 +12,7 @@ use crate::{
 };
 use anyhow::{ensure, Context, Result};
 use dytallix_protocol_types::{
-    address::{AccountAddress, AddressNetwork, OriginKeyAlgorithm},
+    address::{AccountAddress, AddressNetwork},
     ordinary_fees::{self, FeeProfile},
     recovery::RecoveryConfig,
     sha3_256,
@@ -79,13 +79,6 @@ fn network(value: u8) -> Result<AddressNetwork> {
         2 => Ok(AddressNetwork::Testnet),
         3 => Ok(AddressNetwork::Development),
         _ => anyhow::bail!("Unsupported ordinary origin network"),
-    }
-}
-fn origin_algorithm(value: &str) -> Result<OriginKeyAlgorithm> {
-    match value {
-        "mldsa65" => Ok(OriginKeyAlgorithm::MlDsa65),
-        "mldsa87" => Ok(OriginKeyAlgorithm::MlDsa87),
-        _ => anyhow::bail!("Unsupported exact ordinary origin algorithm"),
     }
 }
 impl OrdinaryConfig {
@@ -239,7 +232,7 @@ impl OrdinaryConfig {
         let address = AccountAddress::from_origin_key(
             network(d.network)?,
             &d.chain_id,
-            origin_algorithm(&key.algorithm)?,
+            ordinary_authority::origin_algorithm(&key.algorithm)?,
             &key.public_key,
         )?;
         ensure!(

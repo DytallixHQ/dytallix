@@ -2,6 +2,7 @@
 use super::*;
 use crate::{ordinary_authority::DiscretionaryGrant, recovery_fees::RecoveryAccount};
 use dytallix_protocol_types::{
+    address::OriginKeyAlgorithm,
     recovery::{KeyIdentity, RecoveryConfig, RecoveryDomain, RecoveryState},
     recovery_sponsor,
 };

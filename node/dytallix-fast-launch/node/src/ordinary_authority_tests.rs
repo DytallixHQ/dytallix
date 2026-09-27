@@ -598,7 +598,7 @@ fn fee_preacceptance_defers_only_maturity_and_preserves_authority_rejections() {
         }],
     );
     assert!(prepare_body(&book, &native, &young, 10, &tx, &limits()).is_err());
-    let result = prepare_body_phase(&book, &native, &young, 10, &tx, &limits(), true).unwrap();
+    let result = prepare_body_phase((&book).into(), &native, &young, 10, &tx, &limits(), true).unwrap();
     assert_eq!(
         result.deferred_application_checks,
         vec![DeferredApplicationCheck::DmsClaimMaturity {
@@ -612,7 +612,7 @@ fn fee_preacceptance_defers_only_maturity_and_preserves_authority_rejections() {
         owner: [2; 32],
         expected_grant_generation: 1,
     }];
-    assert!(prepare_body_phase(&book, &native, &young, 10, &stale, &limits(), true).is_err());
+    assert!(prepare_body_phase((&book).into(), &native, &young, 10, &stale, &limits(), true).is_err());
     assert_eq!(young[&hex::encode([2; 32])].last_active_height, 10);
 }
 #[test]
@@ -686,4 +686,123 @@ fn account_lookup_by_address_requires_the_exact_registered_address() {
     let unregistered =
         AccountAddress::from_account_id(AddressNetwork::Development, [9; 32]).encode();
     assert!(book.account_by_address(&unregistered).is_none());
+}
+fn template() -> RecoveryConfig {
+    RecoveryConfig {
+        timing_version: 1,
+        recovery_delay: 4,
+        finalization_window: 5,
+        policy_delay: 4,
+        policy_window: 5,
+        submission_lifetime: 60,
+        algorithms: BTreeMap::from([("mldsa65".into(), 1952)]),
+    }
+}
+/// A first spend: the book's chain domain, the account ID `key` derives on
+/// that chain, and zero counters.
+fn first_spend(book: &RecoveryBook, key: KeyIdentity, actions: Vec<Action>) -> OrdinaryTransaction {
+    let mut tx = body(book, 1, actions);
+    tx.domain.account_id = *AccountAddress::from_origin_key(
+        AddressNetwork::Development,
+        "ordinary-model",
+        OriginKeyAlgorithm::MlDsa65,
+        &key.public_key,
+    )
+    .unwrap()
+    .account_id();
+    tx.authorization_generation = 0;
+    tx.spending_nonce = 0;
+    tx.key = key;
+    tx
+}
+#[test]
+fn first_spend_record_comes_from_the_origin_key_and_the_chain_template() {
+    let book = book();
+    assert_eq!(
+        prospective_actor(&book, &template(), &body(&book, 1, vec![])).unwrap(),
+        None
+    );
+    let data = vec![Action::Data { data: "x".into() }];
+    let tx = first_spend(&book, key(40), data);
+    let record = prospective_actor(&book, &template(), &tx).unwrap().unwrap();
+    assert_eq!(
+        record.recovery,
+        RecoveryState::new(tx.domain.clone(), template(), key(40), 10).unwrap()
+    );
+    assert_eq!(
+        record.address,
+        AccountAddress::from_account_id(AddressNetwork::Development, tx.domain.account_id).encode()
+    );
+    assert_eq!(record.sponsor_nonce, 0);
+    // Authority checks use the prospective record in place of a stored one.
+    let mut native = native_nonces(&book);
+    native.insert(record.address.clone(), 0);
+    let view = Accounts::with_initial(&book, Some(&record));
+    let assessment = prepare_body(view, &native, &grants(), 10, &tx, &limits()).unwrap();
+    assert_eq!(assessment.prospective_nonce.after, 1);
+    assert!(prepare_body(&book, &native, &grants(), 10, &tx, &limits()).is_err());
+    // The native nonce must still be zero.
+    let mut spent = native.clone();
+    spent.insert(record.address.clone(), 1);
+    assert!(prepare_body(view, &spent, &grants(), 10, &tx, &limits()).is_err());
+    // A first spend may register a grant, to an existing beneficiary only.
+    let register = |beneficiary| {
+        first_spend(
+            &book,
+            key(40),
+            vec![Action::DmsRegister {
+                beneficiary,
+                period_blocks: 2,
+            }],
+        )
+    };
+    let assessment =
+        prepare_body(view, &native, &grants(), 10, &register([2; 32]), &limits()).unwrap();
+    assert!(assessment
+        .prospective_grants
+        .contains_key(&hex::encode(tx.domain.account_id)));
+    assert!(prepare_body(view, &native, &grants(), 10, &register([9; 32]), &limits()).is_err());
+}
+#[test]
+fn first_spend_rejects_a_foreign_key_domain_counters_algorithm_or_full_book() {
+    let book = book();
+    let good = first_spend(&book, key(40), vec![]);
+    let rejects = |book: &RecoveryBook, tx: &OrdinaryTransaction, template: &RecoveryConfig| {
+        prospective_actor(book, template, tx).is_err()
+    };
+    assert!(!rejects(&book, &good, &template()));
+    // Another key: it does not hash to the account ID.
+    let mut foreign = good.clone();
+    foreign.key = key(41);
+    assert!(rejects(&book, &foreign, &template()));
+    // Another chain domain.
+    for change in 0..3 {
+        let mut tx = good.clone();
+        match change {
+            0 => tx.domain.chain_id = "other-chain".into(),
+            1 => tx.domain.genesis_digest = [8; 32],
+            _ => tx.domain.network = 2,
+        }
+        assert!(rejects(&book, &tx, &template()));
+    }
+    // Nonzero counters.
+    let mut tx = good.clone();
+    tx.spending_nonce = 1;
+    assert!(rejects(&book, &tx, &template()));
+    let mut tx = good.clone();
+    tx.authorization_generation = 1;
+    assert!(rejects(&book, &tx, &template()));
+    // A key algorithm the template does not allow.
+    let mut narrow = template();
+    narrow.algorithms = BTreeMap::from([("mldsa87".into(), 2592)]);
+    assert!(rejects(&book, &good, &narrow));
+    // A book at the account cap.
+    let mut full = book.clone();
+    let filler = full.accounts[&hex::encode([1; 32])].clone();
+    for i in full.accounts.len()..MAX_ACCOUNTS {
+        full.accounts.insert(format!("f{i:063x}"), filler.clone());
+    }
+    assert!(rejects(&full, &good, &template()));
+    full.accounts.pop_last();
+    assert!(!rejects(&full, &good, &template()));
 }

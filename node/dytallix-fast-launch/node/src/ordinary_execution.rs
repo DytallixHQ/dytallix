@@ -2,7 +2,7 @@
 //! All mutable inputs are block-local checkpoints. Only an accepted result
 //! publishes a new checkpoint. Internal failures require the caller to abort.
 use crate::{
-    ordinary_authority::{self, DiscretionaryGrant, Grants},
+    ordinary_authority::{self, Accounts, DiscretionaryGrant, Grants},
     ordinary_fee_settlement::{
         self as fees, FeeHistory, FeeReceipt, FinancialState, Outcome, PlanError,
     },
@@ -20,6 +20,7 @@ use dytallix_protocol_types::{
     address::{AccountAddress, AddressNetwork},
     ordinary::{self, Action, SignedOrdinary},
     ordinary_fees::{self, FeeProfile},
+    recovery::RecoveryConfig,
 };
 use std::collections::{BTreeMap, BTreeSet};
 type Result<T> = std::result::Result<T, PlanError>;
@@ -123,19 +124,14 @@ fn reconcile_receipt(
     action_accounts: &BTreeMap<String, AccountState>,
     action_fee_total: u128,
     after: &Settlement,
-    book: &RecoveryBook,
     touched: &BTreeSet<[u8; 32]>,
     network: AddressNetwork,
     created: &BTreeSet<String>,
     creation_fee: u128,
     receipt: &FeeReceipt,
 ) -> Result<()> {
-    let actor = book
-        .accounts
-        .get(&hex::encode(receipt.actor()))
-        .ok_or_else(|| internal("Receipt actor has no registered account"))?
-        .address
-        .as_str();
+    let actor = native_address(network, &receipt.actor());
+    let actor = actor.as_str();
     let cap = receipt.reserved_cap();
     let charge = receipt.charge();
     let before_fee_total = before.ordinary_fee_total().map_err(internal)?;
@@ -253,8 +249,10 @@ fn reconcile_receipt(
 }
 /// Block-start eligibility, computed for each owner on first use. Values come
 /// from an unmodified copy of the block-start settlement, so they equal a
-/// complete snapshot taken before any candidate executes. Unregistered owners
-/// stay absent, which reservations treat as zero, as the complete snapshot did.
+/// complete snapshot taken before any candidate executes. Owners resolve by
+/// native address, so an account's values do not depend on whether it has a
+/// recovery record yet (a first spend adds one, B1c); an owner with no native
+/// account has zero.
 pub(crate) struct LazyEligibility {
     base: Settlement,
     loaded: BTreeSet<[u8; 32]>,
@@ -273,24 +271,22 @@ impl LazyEligibility {
     }
     pub(crate) fn covering(
         &mut self,
-        book: &RecoveryBook,
+        network: AddressNetwork,
         owners: impl IntoIterator<Item = [u8; 32]>,
     ) -> Result<&Eligibility> {
         for owner in owners {
             if !self.loaded.insert(owner) {
                 continue;
             }
-            let Some(account) = book.accounts.get(&hex::encode(owner)) else {
-                continue;
-            };
+            let address = native_address(network, &owner);
             for (denomination, name) in [(Denomination::Udgt, "udgt"), (Denomination::Udrt, "udrt")] {
                 let total = self
                     .base
-                    .ordinary_eligible(&account.address, name, true)
+                    .ordinary_eligible(&address, name, true)
                     .map_err(internal)?;
                 let unrestricted = self
                     .base
-                    .ordinary_eligible(&account.address, name, false)
+                    .ordinary_eligible(&address, name, false)
                     .map_err(internal)?;
                 self.liquidity
                     .total
@@ -477,13 +473,16 @@ fn write_changes(
 }
 /// Delegators of an exiting or under-bonded validator are not touched accounts,
 /// so their recovery records are metered here, when protection is checked.
+/// `initial` is the actor's prospective first-spend record, if any.
 fn protected_owner(
     meter: &mut OrdinaryMeter<'_>,
     book: &RecoveryBook,
+    initial: Option<&RecoveryAccount>,
     address: &str,
 ) -> Result<()> {
-    let a = book
-        .account_by_address(address)
+    let a = initial
+        .filter(|a| a.address == address)
+        .or_else(|| book.account_by_address(address))
         .ok_or_else(|| internal("Validator principal owner missing recovery account"))?;
     meter.read(&logical::recovery_account(
         &a.recovery.domain.account_id,
@@ -500,6 +499,7 @@ fn protected_owner(
 fn principal_owners(
     meter: &mut OrdinaryMeter<'_>,
     book: &RecoveryBook,
+    initial: Option<&RecoveryAccount>,
     settlement: &Settlement,
     actor: &str,
     actions: &[Action],
@@ -557,7 +557,7 @@ fn principal_owners(
                     {
                         for (owner, positions) in &view.positions {
                             if positions.contains_key(validator_id) {
-                                protected_owner(meter, book, owner)?;
+                                protected_owner(meter, book, initial, owner)?;
                             }
                         }
                     }
@@ -569,7 +569,7 @@ fn principal_owners(
             Action::ValidatorExit { validator_id } => {
                 for (owner, positions) in &view.positions {
                     if positions.contains_key(validator_id) {
-                        protected_owner(meter, book, owner)?;
+                        protected_owner(meter, book, initial, owner)?;
                     }
                 }
             }
@@ -582,6 +582,7 @@ fn principal_owners(
 pub(crate) fn execute_signed(
     signed: &SignedOrdinary,
     profile: &FeeProfile,
+    template: &RecoveryConfig,
     book: &mut RecoveryBook,
     grants: &mut Grants,
     history: &mut FeeHistory,
@@ -592,7 +593,8 @@ pub(crate) fn execute_signed(
     block: &mut SharedBlockMeter,
 ) -> Result<OrdinaryExecutionResult> {
     execute(
-        signed, profile, book, grants, history, settlement, height, index, limits, block, false,
+        signed, profile, template, book, grants, history, settlement, height, index, limits,
+        block, false,
     )
 }
 /// CheckTx is provisional. It checks current authority and eligible funding, but
@@ -601,6 +603,7 @@ pub(crate) fn execute_signed(
 pub(crate) fn admission_only(
     signed: &SignedOrdinary,
     profile: &FeeProfile,
+    template: &RecoveryConfig,
     book: &mut RecoveryBook,
     grants: &mut Grants,
     history: &mut FeeHistory,
@@ -611,13 +614,15 @@ pub(crate) fn admission_only(
     block: &mut SharedBlockMeter,
 ) -> Result<OrdinaryExecutionResult> {
     execute(
-        signed, profile, book, grants, history, settlement, height, index, limits, block, true,
+        signed, profile, template, book, grants, history, settlement, height, index, limits,
+        block, true,
     )
 }
 #[allow(clippy::too_many_arguments)]
 fn execute(
     signed: &SignedOrdinary,
     profile: &FeeProfile,
+    template: &RecoveryConfig,
     book: &mut RecoveryBook,
     grants: &mut Grants,
     history: &mut FeeHistory,
@@ -698,6 +703,24 @@ fn execute(
     }
     let touched = ordinary_authority::touched_accounts(body);
     let network = pre!(ordinary_authority::network(body.domain.network).map_err(reject));
+    let actor = native_address(network, &body.domain.account_id);
+    // First spend of an account a transfer created (B1c). Its record comes
+    // from the chain template and is stored only if the transaction is
+    // accepted; storing it and its origin is charged before acceptance.
+    let initial = pre!(ordinary_authority::prospective_actor(book, template, body).map_err(reject));
+    if let Some(record) = &initial {
+        if !settlement.exists(&actor).map_err(internal)? {
+            pre!(Err::<(), _>(reject("Uninitialized ordinary account has no funds")));
+        }
+        let id = &body.domain.account_id;
+        pre!(meter
+            .initialize(&logical::recovery_account(id, record, MAX_LOGICAL_BYTES)?)
+            .map_err(PlanError::from));
+        pre!(meter
+            .initialize(&logical::origin(id, &body.key, MAX_LOGICAL_BYTES)?)
+            .map_err(PlanError::from));
+    }
+    let accounts = Accounts::with_initial(book, initial.as_ref());
     let mut baseline = settlement.clone();
     pre!(meter_records(
         &mut meter,
@@ -707,7 +730,10 @@ fn execute(
         &touched,
         network
     ));
-    let mut financial = snapshot(&mut baseline, registered(book, &touched))?;
+    let mut financial = snapshot(
+        &mut baseline,
+        registered(book, &touched).chain(initial.as_ref()),
+    )?;
     // Existing unregistered recipients are loaded so the receipt check sees
     // their prior balances; absent ones are created only by their transfer.
     let mut created = BTreeSet::new();
@@ -720,11 +746,11 @@ fn execute(
             created.insert(address);
         }
     }
-    ordinary_authority::validate_nonce_mirrors_for(book, &financial.native_nonces, &touched)
+    ordinary_authority::validate_nonce_mirrors_for(accounts, &financial.native_nonces, &touched)
         .map_err(internal)?;
-    ordinary_authority::validate_grants_for(book, grants, &touched).map_err(internal)?;
+    ordinary_authority::validate_grants_for(accounts, grants, &touched).map_err(internal)?;
     let assessment = pre!(ordinary_authority::check_verified_preacceptance(
-        book,
+        accounts,
         &financial.native_nonces,
         grants,
         height,
@@ -741,7 +767,6 @@ fn execute(
             "Ordinary retained profile or grant capacity exhausted"
         )));
     }
-    let actor = address(book, &body.domain.account_id)?;
     let mut tokens: BTreeMap<usize, ValidatedValidatorAction> = BTreeMap::new();
     let mut ordered = Vec::new();
     for (i, a) in body.actions.iter().enumerate() {
@@ -791,6 +816,7 @@ fn execute(
     pre!(principal_owners(
         &mut meter,
         book,
+        initial.as_ref(),
         &baseline,
         &actor,
         &body.actions
@@ -822,7 +848,7 @@ fn execute(
     )
     .map_err(reject));
     for (asset, amount) in spending_requirements {
-        let owner = address(book, &asset.owner)?;
+        let owner = native_address(network, &asset.owner);
         let denom = match asset.denomination {
             Denomination::Udgt => "udgt",
             Denomination::Udrt => "udrt",
@@ -946,38 +972,61 @@ fn execute(
         &action_accounts,
         action_fee_total,
         &effects,
-        book,
         &touched,
         network,
         &created,
         profile.account_creation_fee_udrt,
         &receipt,
     )?;
-    // Advance the actor's nonce in place; restore it if the touched mirrors or
-    // grants disagree, so an internal failure leaves the book unchanged.
+    // Advance the actor's nonce in place, or on a first spend store its record
+    // and origin, even if an action failed (the nonce is consumed). Undo it if
+    // the touched mirrors or grants disagree or the receipt cannot be retained,
+    // so an internal failure leaves the book unchanged.
     let actor_key = hex::encode(body.domain.account_id);
-    let previous_nonce = std::mem::replace(
-        &mut book
-            .accounts
-            .get_mut(&actor_key)
-            .ok_or_else(|| internal("Actor disappeared"))?
-            .recovery
-            .spending_nonce,
-        receipt.nonce_after(),
-    );
-    let checked = snapshot(&mut effects, registered(book, &touched)).and_then(|after| {
-        ordinary_authority::validate_nonce_mirrors_for(book, &after.native_nonces, &touched)
-            .and_then(|()| ordinary_authority::validate_grants_for(book, &next_grants, &touched))
-            .map_err(internal)
-    });
-    if let Err(e) = checked {
-        if let Some(actor) = book.accounts.get_mut(&actor_key) {
-            actor.recovery.spending_nonce = previous_nonce;
+    let previous_nonce = match initial {
+        Some(mut record) => {
+            record.recovery.spending_nonce = receipt.nonce_after();
+            book.origins.insert(actor_key.clone(), body.key.clone());
+            book.accounts.insert(actor_key.clone(), record);
+            None
+        }
+        None => Some(std::mem::replace(
+            &mut book
+                .accounts
+                .get_mut(&actor_key)
+                .ok_or_else(|| internal("Actor disappeared"))?
+                .recovery
+                .spending_nonce,
+            receipt.nonce_after(),
+        )),
+    };
+    let published = snapshot(&mut effects, registered(book, &touched))
+        .and_then(|after| {
+            ordinary_authority::validate_nonce_mirrors_for(&*book, &after.native_nonces, &touched)
+                .and_then(|()| {
+                    ordinary_authority::validate_grants_for(&*book, &next_grants, &touched)
+                })
+                .map_err(internal)
+        })
+        .and_then(|()| history.retain(profile, receipt.clone()));
+    if let Err(e) = published {
+        match previous_nonce {
+            Some(nonce) => {
+                if let Some(actor) = book.accounts.get_mut(&actor_key) {
+                    actor.recovery.spending_nonce = nonce;
+                }
+            }
+            None => {
+                book.accounts.remove(&actor_key);
+                book.origins.remove(&actor_key);
+            }
         }
         return Err(e);
     }
-    // Retain first: it is the only fallible publication step.
-    history.retain(profile, receipt.clone())?;
+    #[cfg(test)]
+    if previous_nonce.is_none() {
+        book.validate().map_err(internal)?;
+    }
     #[cfg(test)]
     history.validate()?;
     let result = OrdinaryExecutionResult {

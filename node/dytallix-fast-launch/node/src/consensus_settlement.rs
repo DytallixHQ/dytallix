@@ -3,6 +3,7 @@
 use crate::emergency_freeze::{self as emergency, ControlVerifier};
 use crate::emergency_verifier::{EmergencyVerifier, EmergencyVerifierConfig};
 use crate::governance_signed_admission::{AdmissionParent, PreadmissionAssessment};
+use crate::ordinary_authority;
 use crate::ordinary_execution::{self as ordinary_runtime, OrdinaryExecutionResult};
 use crate::ordinary_fee_settlement::Outcome as OrdinaryOutcome;
 use crate::ordinary_meter::{RecoveryCeilings, SharedBlockMeter};
@@ -41,6 +42,7 @@ use crate::{
 use crate::{release_handover as handover, upgrade};
 use anyhow::{ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
+use dytallix_protocol_types::address::AccountAddress;
 use dytallix_protocol_types::recovery_sponsor as sponsor_wire;
 use dytallix_protocol_types::ordinary_v3::SignedOrdinary as SignedOrdinaryV3;
 use dytallix_protocol_types::{ordinary as ordinary_wire, ordinary_fees as ordinary_fee_wire};
@@ -1827,20 +1829,58 @@ fn recovery_book(storage: &Storage, config: &ConsensusConfig) -> Result<Option<R
         (None, None) => Ok(None),
         (Some(initial), Some(current)) => {
             ensure!(
-                current.profile == initial.profile
-                    && current.accounts.keys().eq(initial.accounts.keys())
-                    && current.origins == initial.origins,
-                "Recovery profile, account inventory or origins differ"
+                current.profile == initial.profile,
+                "Recovery profile differs"
             );
+            // Genesis accounts keep their address, domain, configuration and
+            // origin. Any other account was initialized by its first spend
+            // (B1c): chain domain, template configuration, the native address
+            // of its ID and an origin record. The origin's derivation is
+            // checked when the account is created and by the complete check.
+            let chain = &initial
+                .accounts
+                .values()
+                .next()
+                .context("Recovery genesis has no accounts")?
+                .recovery
+                .domain;
+            let mut genesis = 0usize;
             for (id, account) in &current.accounts {
-                let origin = &initial.accounts[id];
+                let d = &account.recovery.domain;
+                if let Some(origin) = initial.accounts.get(id) {
+                    genesis += 1;
+                    ensure!(
+                        account.address == origin.address
+                            && *d == origin.recovery.domain
+                            && account.recovery.config == origin.recovery.config
+                            && current.origins.get(id) == initial.origins.get(id),
+                        "Recovery origin or configuration differs"
+                    );
+                    continue;
+                }
+                let template = &config
+                    .ordinary
+                    .as_ref()
+                    .context("Recovery account added without the ordinary profile")?
+                    .account_template
+                    .recovery;
                 ensure!(
-                    account.address == origin.address
-                        && account.recovery.domain == origin.recovery.domain
-                        && account.recovery.config == origin.recovery.config,
-                    "Recovery origin or configuration differs"
+                    d.network == chain.network
+                        && d.chain_id == chain.chain_id
+                        && d.genesis_digest == chain.genesis_digest
+                        && account.recovery.config == *template
+                        && current.origins.contains_key(id)
+                        && ordinary_authority::network(d.network).is_ok_and(|network| {
+                            AccountAddress::from_account_id(network, d.account_id).encode()
+                                == account.address
+                        }),
+                    "Initialized recovery account differs from the chain template"
                 );
             }
+            ensure!(
+                genesis == initial.accounts.len(),
+                "Recovery genesis account missing"
+            );
             Ok(Some(current))
         }
         _ => anyhow::bail!("Recovery state and configuration differ"),
@@ -1849,8 +1889,9 @@ fn recovery_book(storage: &Storage, config: &ConsensusConfig) -> Result<Option<R
 /// Accounts created in this block: native records staged with no committed
 /// balance record. Only a `Send` creates accounts (B1c), each burning the
 /// account creation fee once, so the block's burn must equal the fee times
-/// their number. A new account has nonce 0, a canonical address and no
-/// registration.
+/// their number. A new account has a canonical address and nonce 0, unless
+/// its first spend in the same block initialized it; its nonce then mirrors
+/// its new recovery record.
 fn check_account_creations(
     storage: &Storage,
     staged: &Settlement,
@@ -1863,9 +1904,10 @@ fn check_account_creations(
             continue;
         }
         ensure!(
-            account.nonce == 0
-                && ordinary_state::canonical_account_address(address)
-                && book.account_by_address(address).is_none(),
+            ordinary_state::canonical_account_address(address)
+                && book.account_by_address(address).map_or(account.nonce == 0, |initialized| {
+                    initialized.recovery.spending_nonce == account.nonce
+                }),
             "Invalid account creation"
         );
         created += 1;
@@ -1972,6 +2014,7 @@ fn combined_transaction(
             let result = ordinary_runtime::execute_signed(
                 &signed,
                 &state.config.fee_profile,
+                &state.config.account_template.recovery,
                 &mut recovery.book,
                 &mut state.grants,
                 &mut state.history,
@@ -3674,6 +3717,7 @@ impl ConsensusApplication {
                 let mut shared = shared_meter(&state.config, &recovery)?;
                 let mut staged = committed_ordinary_settlement(self.storage.clone())?;
                 let mut liquidity = ordinary_runtime::LazyEligibility::new(&staged);
+                let network = ordinary_authority::chain_network(&book)?;
                 let head = current_info(&self.storage)?.app_hash;
                 self.admission
                     .lock()
@@ -3685,6 +3729,7 @@ impl ConsensusApplication {
                         let result = ordinary_runtime::admission_only(
                             &signed,
                             &state.config.fee_profile,
+                            &state.config.account_template.recovery,
                             &mut recovery.book,
                             &mut state.grants,
                             &mut state.history,
@@ -3707,7 +3752,7 @@ impl ConsensusApplication {
                             // A new reservation rechecks every retained one.
                             let owners = admission.owners().into_iter().chain(request.owners());
                             match admission
-                                .reserve(request, liquidity.covering(&recovery.book, owners)?)
+                                .reserve(request, liquidity.covering(network, owners)?)
                             {
                                 Ok(_) => output.code = 0,
                                 Err(error) => {
@@ -3740,7 +3785,7 @@ impl ConsensusApplication {
                             .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?;
                         let owners = admission.owners().into_iter().chain(request.owners());
                         match admission
-                            .reserve(request, liquidity.covering(&recovery.book, owners)?)
+                            .reserve(request, liquidity.covering(network, owners)?)
                         {
                             Ok(_) => result.code = 0,
                             Err(error) => {
@@ -4271,6 +4316,7 @@ impl ConsensusApplication {
         let mut recovery = book.begin_block(height)?;
         let mut shared = shared_meter(&state.config, &recovery)?;
         let mut liquidity = ordinary_runtime::LazyEligibility::new(&staged);
+        let network = ordinary_authority::chain_network(&recovery.book)?;
         let mut reservations = ReservationLedger::new(
             ordinary_fee_wire::profile_digest(&state.config.fee_profile)?,
             state.config.queue_limits()?,
@@ -4309,7 +4355,7 @@ impl ConsensusApplication {
                     Some(request) => reservations
                         .reserve(
                             request,
-                            liquidity.covering(&recovery.book, request.owners())?,
+                            liquidity.covering(network, request.owners())?,
                         )
                         .is_ok(),
                     None => false,
