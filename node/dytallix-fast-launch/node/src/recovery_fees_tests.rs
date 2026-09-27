@@ -130,13 +130,14 @@ fn fresh_book_roundtrip_and_mapping_rejection() {
     let mut different = account(2);
     different.recovery.domain.genesis_digest = [9; 32];
     assert!(RecoveryBook::new(profile(), vec![account(1), different]).is_err());
-    let mut missing_history = book.clone();
-    missing_history
+    // Pruned receipts (B1d) leave a sponsor counter ahead of retained history.
+    let mut pruned_history = book.clone();
+    pruned_history
         .accounts
         .get_mut(&hex::encode([2; 32]))
         .unwrap()
         .sponsor_nonce = 1;
-    assert!(missing_history.validate().is_err());
+    pruned_history.validate().unwrap();
     let mut whitespace = book.encode().unwrap();
     whitespace.push(b' ');
     assert!(RecoveryBook::decode(&whitespace).is_err());
@@ -271,6 +272,7 @@ fn charged_recovery_receipt_reconciles_each_native_delta() {
         target_account_id: [1; 32],
         block_height: 1,
         block_index: 0,
+        retained_until: 50,
         success: true,
         profile_version: 1,
         profile_digest: wire::profile_digest(&profile()).unwrap(),
@@ -487,22 +489,52 @@ fn exact_rejected_work_limits_and_meter_overflow_have_no_state_effects() {
 }
 
 #[test]
-fn retained_history_rejects_unreachable_exhausted_sponsor_counters() {
-    let initial = RecoveryBook::new(profile(), vec![account(1), account(2)]).unwrap();
-    // Every nonce increment requires a retained receipt, and the book retains
-    // at most MAX_RECEIPTS. A u64::MAX durable nonce is not a reachable state.
-    assert!((MAX_RECEIPTS as u128) < u128::from(u64::MAX));
-    for nonce in [MAX_RECEIPTS as u64 + 1, u64::MAX] {
-        let mut corrupt = initial.clone();
-        corrupt
-            .accounts
-            .get_mut(&hex::encode([2; 32]))
-            .unwrap()
-            .sponsor_nonce = nonce;
-        assert!(corrupt.validate().is_err());
-        assert!(RecoveryBook::decode(&serde_json::to_vec(&corrupt).unwrap()).is_err());
-    }
-    assert_eq!(initial.begin_block(1).unwrap().book.last_height, 1);
+fn sponsor_receipts_are_pruned_when_their_operation_can_no_longer_be_submitted() {
+    let mut book = RecoveryBook::new(profile(), vec![account(1), account(2)])
+        .unwrap()
+        .begin_block(1)
+        .unwrap()
+        .book;
+    book.accounts
+        .get_mut(&hex::encode([2; 32]))
+        .unwrap()
+        .sponsor_nonce = 1;
+    let mut receipt = SponsorReceipt {
+        operation_id: [3; 32],
+        sponsor_authorization_id: [4; 32],
+        envelope_hash: [5; 32],
+        sponsor_account_id: [2; 32],
+        target_account_id: [1; 32],
+        block_height: 1,
+        block_index: 0,
+        retained_until: 3,
+        success: true,
+        profile_version: 1,
+        profile_digest: wire::profile_digest(&profile()).unwrap(),
+        gas_limit: 100,
+        gas_used: 10,
+        reserved_cap: 200,
+        settled_fee: 20,
+        released_reserve: 180,
+        sponsor_counter_before: 0,
+        sponsor_counter_after: 1,
+        target_state_digest: [6; 32],
+        record_hash: [0; 32],
+    };
+    receipt.record_hash = receipt.hash().unwrap();
+    let id = hex::encode([4; 32]);
+    book.sponsor_receipts.insert(id.clone(), receipt);
+    book.operation_success.insert(hex::encode([3; 32]), id.clone());
+    book.validate().unwrap();
+    // Retained while its operation can still be submitted.
+    let book = book.begin_block(2).unwrap().book;
+    assert!(book.sponsor_receipts.contains_key(&id));
+    assert!(book.operation_success.contains_key(&hex::encode([3; 32])));
+    // Pruned with its success entry once it cannot; the sponsor nonce stays.
+    let book = book.begin_block(3).unwrap().book;
+    assert!(book.sponsor_receipts.is_empty() && book.operation_success.is_empty());
+    assert_eq!(book.accounts[&hex::encode([2; 32])].sponsor_nonce, 1);
+    book.validate().unwrap();
 }
 
 fn ordinary_shared_profile() -> dytallix_protocol_types::ordinary_fees::FeeProfile {

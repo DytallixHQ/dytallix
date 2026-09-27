@@ -75,9 +75,12 @@ cap.
    reads accounts lazily from one snapshot and keeps a per-block overlay.
    Per-block validation covers touched accounts only; the complete history
    check still validates every account.
-4. **Replay protection without full history.** Sponsor receipts currently must
-   cover every sponsor nonce. Replace that with the nonce itself plus an
-   authorization expiry window, like ordinary receipts in phase A3.
+4. **Replay protection without full history (done in B1d).** Sponsor receipts
+   had to cover every sponsor nonce. Now the sponsor nonce alone rejects a
+   replayed sponsorship, and each receipt and its success-index entry are kept
+   until the operation's submission expiry (`retained_until`), after which
+   the operation cannot be submitted again. The window comes from the
+   existing per-account `submission_lifetime`; no parameter is added.
 5. Remove `MAX_ACCOUNTS` and the 64 MiB book bound. (Done: the byte bound in T5, the account cap in C6.)
 
 Per-block cost becomes O(accounts touched), not O(all accounts).
@@ -89,7 +92,7 @@ Per-block cost becomes O(accounts touched), not O(all accounts).
 | B1a | Deletions in `Writes`, digest, commit and supply | Nothing |
 | B1b | Per-account storage and staged view; remove the account cap; no change to who can transact | B1a |
 | B1c | Account creation per the approved option, plus the creation fee | Decision on A/B and the fee |
-| B1d | Sponsor receipt and operation-index windows | B1a, B1b |
+| B1d (done) | Sponsor receipt and operation-index windows: each receipt records its operation's submission expiry and is pruned with its success entry at that height; retained counters must be distinct and below the sponsor nonce instead of covering it; the history check accepts a missing receipt only when its operation has expired | B1a, B1b |
 
 B1a and B1b do not depend on the decision. Genesis accounts keep working
 throughout, so existing fixtures remain valid.

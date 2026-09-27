@@ -5554,7 +5554,9 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                             && receipt.target_account_id == envelope.sponsor.domain.account_id
                             && receipt.gas_limit == envelope.sponsor.gas_limit
                             && receipt.reserved_cap == envelope.sponsor.maximum_charge
-                            && receipt.sponsor_counter_before == envelope.sponsor.sponsor_nonce,
+                            && receipt.sponsor_counter_before == envelope.sponsor.sponsor_nonce
+                            && receipt.retained_until
+                                == envelope.recovery.operation.action.submission_expiry,
                         "Recovery receipt differs from signed input"
                     );
                     let result = &record.result.tx_results[index];
@@ -5683,6 +5685,18 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             let ordinary_receipts_pruned = ordinary
                 .as_ref()
                 .is_some_and(|state| h.saturating_add(state.receipt_window()) <= height);
+            // A sponsor receipt is pruned once its operation can no longer be
+            // submitted (B1d).
+            let recovery_receipt_pruned = |raw: &[u8]| -> bool {
+                let Ok(WireTransaction::Recovery { envelope_base64 }) = wire(&config, raw) else {
+                    return false;
+                };
+                recovery_bytes(&envelope_base64)
+                    .and_then(|bytes| Ok(sponsor_wire::decode(&bytes)?))
+                    .is_ok_and(|envelope| {
+                        envelope.recovery.operation.action.submission_expiry <= height
+                    })
+            };
             for (index, result) in record.result.tx_results.iter().enumerate() {
                 ensure!(
                     result.gas_used >= 0
@@ -5698,6 +5712,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                                     wire(&config, &record.input.txs[index]),
                                     Ok(WireTransaction::OrdinaryV2 { .. })
                                 ))
+                            || recovery_receipt_pruned(&record.input.txs[index])
                             || (boundary && index == 0 && result == &TxResult::observation())
                             || (result == &emergency_result()
                                 && matches!(
