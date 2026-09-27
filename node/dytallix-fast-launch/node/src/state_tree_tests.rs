@@ -134,3 +134,33 @@ fn stored_tree_check_refuses_changed_or_extra_records() {
     storage.db.put(&key, record).unwrap();
     assert!(verify_stored(&storage, 0, &state).is_err());
 }
+
+/// A tree rebuilt at a later version from the full key set, in storage
+/// without tree records, has the incremental root and takes later updates.
+#[test]
+fn rebuilt_tree_at_a_later_version_matches_and_continues() {
+    let (_dir, source) = storage();
+    let mut state: BTreeMap<Vec<u8>, Vec<u8>> =
+        (0..30u8).map(|i| (vec![b'k', i], vec![i; 2])).collect();
+    commit(
+        &source,
+        &super::update(&source, 0, state.clone().into_iter().map(|(k, v)| (k, Some(v)))).unwrap(),
+    );
+    for version in 1..=9u64 {
+        let key = vec![b'k', version as u8];
+        state.insert(key.clone(), vec![0xee]);
+        commit(
+            &source,
+            &super::update(&source, version, [(key, Some(vec![0xee]))]).unwrap(),
+        );
+    }
+    let (_other, restored) = storage();
+    let update = rebuild(&restored, 9, state.clone()).unwrap();
+    assert_eq!(update.root, root(&source, 9).unwrap());
+    commit(&restored, &update);
+    verify_stored(&restored, 9, &state).unwrap();
+    assert!(rebuild(&restored, 9, state.clone()).is_err());
+    let change = [(vec![b'k', 3], None)];
+    let next = super::update(&restored, 10, change.clone()).unwrap();
+    assert_eq!(next.root, super::update(&source, 10, change).unwrap().root);
+}

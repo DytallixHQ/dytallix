@@ -318,11 +318,11 @@
       "files": [
         {
           "path": "consensus/cometbft/cmd/dytallix-comet-bridge/application.go",
-          "sha256": "30ca609c8b00d963c9ef4f24fff78d5b89bc0b8648997005009ed6a28ddda1c1"
+          "sha256": "dada8095fa0ad8e43858be27144ee65b7eef1e791eeeaa12f38a3f06d47adba5"
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-comet-bridge/snapshots.go",
-          "sha256": "7ad5f518985222b6c127ed40573c0a92c21a054a9435032993a0d0d3340794cd"
+          "sha256": "e647ed2a94cc56d189d6a3f6aeb610a172b69834fdcd343ccf8ad2f22230d568"
         },
         {
           "path": "consensus/pqc-http-adapter/src/main.rs",

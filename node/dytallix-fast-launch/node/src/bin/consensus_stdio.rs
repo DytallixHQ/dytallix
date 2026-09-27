@@ -2,7 +2,8 @@
 use anyhow::{bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use dytallix_fast_node::consensus_settlement::{
-    BlockHistory, ConsensusApplication, ConsensusConfig, FinalizedBlockInput, ValidatorConfig,
+    BlockHistory, ConsensusApplication, ConsensusConfig, FinalizedBlockInput, SnapshotChunk,
+    SnapshotOffer, ValidatorConfig,
 };
 use dytallix_fast_node::runtime::penalty_custody::EvidenceFact;
 use dytallix_fast_node::runtime::validator_lifecycle::LifecycleConfig;
@@ -239,6 +240,37 @@ fn handle(
         "commit" => {
             app.commit()?;
             Ok(json!({"retain_height": app.retain_height()?}))
+        }
+        // State sync v1, rule 4: restore a snapshot into an empty node.
+        "offer_snapshot" => {
+            let offer = app.offer_snapshot(
+                unsigned(payload, "height")?,
+                u32::try_from(unsigned(payload, "format")?)?,
+                u32::try_from(unsigned(payload, "chunks")?)?,
+                &canonical_base64(string(payload, "hash")?)?,
+                &canonical_base64(string(payload, "metadata")?)?,
+                string(payload, "app_hash")?,
+            )?;
+            let result = match offer {
+                SnapshotOffer::Accept => "accept",
+                SnapshotOffer::Reject => "reject",
+                SnapshotOffer::RejectFormat => "reject_format",
+                SnapshotOffer::Abort => "abort",
+            };
+            Ok(json!({"result": result}))
+        }
+        "apply_snapshot_chunk" => {
+            let applied = app.apply_snapshot_chunk(
+                u32::try_from(unsigned(payload, "index")?)?,
+                &canonical_base64(string(payload, "chunk")?)?,
+            )?;
+            let result = match applied {
+                SnapshotChunk::Accept => "accept",
+                SnapshotChunk::Retry => "retry",
+                SnapshotChunk::RejectSnapshot => "reject_snapshot",
+                SnapshotChunk::Abort => "abort",
+            };
+            Ok(json!({"result": result}))
         }
         "query" => {
             ensure!(

@@ -476,3 +476,147 @@ fn a_snapshot_failure_does_not_affect_commit() {
     assert_eq!(app.wait_for_snapshot().unwrap().unwrap().height, 4);
     assert_eq!(app.info().unwrap().height, 4);
 }
+
+/// A chain at height 12 with its snapshot at 12: the metadata bytes and
+/// chunks.
+fn snapshotted_chain(
+    inputs: &Inputs,
+    dir: &std::path::Path,
+) -> (ConsensusApplication, Vec<u8>, Vec<Vec<u8>>) {
+    use crate::snapshot::{chunk_path, snapshot_dir, Metadata, METADATA_FILE};
+    let mut app = snapshot_app(inputs, dir, 12);
+    for height in 2..=12 {
+        commit_next(&mut app, height);
+    }
+    app.wait_for_snapshot().unwrap().unwrap();
+    let target = snapshot_dir(&dir.join("snapshots"), 12);
+    let raw = std::fs::read(target.join(METADATA_FILE)).unwrap();
+    let chunks = (0..Metadata::decode(&raw).unwrap().chunks.len())
+        .map(|index| std::fs::read(chunk_path(&target, index)).unwrap())
+        .collect();
+    (app, raw, chunks)
+}
+
+fn offer(app: &mut ConsensusApplication, raw: &[u8], chunks: usize, trusted: &str) -> SnapshotOffer {
+    let hash = crate::snapshot::Metadata::decode(raw).unwrap().hash().unwrap();
+    app.offer_snapshot(12, 1, u32::try_from(chunks).unwrap(), &hash, raw, trusted)
+        .unwrap()
+}
+
+/// State sync v1, rule 4: a snapshot of a live chain restores on an empty
+/// node to the same application hash; the restored node passes the startup
+/// check, restarts, and continues the chain in step with the source.
+#[test]
+fn a_snapshot_restores_on_an_empty_node_and_the_chain_continues() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let (mut source, raw, chunks) = snapshotted_chain(&inputs, &dir.path().join("source"));
+    let trusted = source.info().unwrap().app_hash;
+    let target_path = dir.path().join("target");
+    let mut target = inputs.open(&target_path);
+    assert_eq!(offer(&mut target, &raw, chunks.len(), &trusted), SnapshotOffer::Accept);
+    for (index, chunk) in chunks.iter().enumerate() {
+        assert_eq!(
+            target
+                .apply_snapshot_chunk(u32::try_from(index).unwrap(), chunk)
+                .unwrap(),
+            SnapshotChunk::Accept
+        );
+    }
+    assert_eq!(target.info().unwrap(), source.info().unwrap());
+    assert!(!beside(&target_path, ".restore").exists());
+    assert!(!beside(&target_path, ".replaced").exists());
+    // A node with state takes no snapshot.
+    assert_eq!(offer(&mut source, &raw, chunks.len(), &trusted), SnapshotOffer::Abort);
+    drop(target);
+    let mut target = inputs.open(&target_path);
+    verify_recovery(&target.storage).unwrap();
+    for height in 13..=16 {
+        commit_next(&mut source, height);
+        commit_next(&mut target, height);
+        assert_eq!(target.info().unwrap(), source.info().unwrap());
+    }
+}
+
+/// Rule 4: an offer must match the trusted application hash, format and
+/// metadata hash; a chunk that differs from its listed hash is fetched
+/// again; chunks out of order, or a stream whose rebuilt state does not give
+/// the trusted hash, reject the snapshot and leave the node empty; an
+/// interrupted restore is discarded on restart.
+#[test]
+fn restore_refuses_untrusted_or_altered_snapshots() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let (source, raw, chunks) = snapshotted_chain(&inputs, &dir.path().join("source"));
+    let trusted = source.info().unwrap().app_hash;
+    let path = dir.path().join("target");
+    let mut target = inputs.open(&path);
+    let hash = crate::snapshot::Metadata::decode(&raw).unwrap().hash().unwrap();
+    let count = u32::try_from(chunks.len()).unwrap();
+    assert_eq!(offer(&mut target, &raw, chunks.len(), &"0".repeat(64)), SnapshotOffer::Reject);
+    assert_eq!(
+        target.offer_snapshot(12, 2, count, &hash, &raw, &trusted).unwrap(),
+        SnapshotOffer::RejectFormat
+    );
+    assert_eq!(
+        target.offer_snapshot(12, 1, count, &[0; 32], &raw, &trusted).unwrap(),
+        SnapshotOffer::Reject
+    );
+    assert_eq!(
+        target.offer_snapshot(11, 1, count, &hash, &raw, &trusted).unwrap(),
+        SnapshotOffer::Reject
+    );
+    // A corrupted chunk is fetched again; a chunk out of order rejects.
+    assert_eq!(offer(&mut target, &raw, chunks.len(), &trusted), SnapshotOffer::Accept);
+    let mut corrupted = chunks[0].clone();
+    corrupted[0] ^= 1;
+    assert_eq!(target.apply_snapshot_chunk(0, &corrupted).unwrap(), SnapshotChunk::Retry);
+    assert_eq!(
+        target.apply_snapshot_chunk(count, &chunks[0]).unwrap(),
+        SnapshotChunk::RejectSnapshot
+    );
+    assert!(!beside(&path, ".restore").exists());
+    assert_eq!(target.apply_snapshot_chunk(0, &chunks[0]).unwrap(), SnapshotChunk::Abort);
+    // Altered state with consistent chunk hashes: the rebuilt root differs.
+    let mut stream: Vec<u8> = chunks.concat();
+    let entries = crate::snapshot::decode_entries(&stream).unwrap();
+    let (key, value) = entries
+        .iter()
+        .find(|(key, _)| key.starts_with(b"acct:"))
+        .unwrap();
+    let at = stream
+        .windows(key.len() + 4 + value.len())
+        .position(|w| w.starts_with(key) && w.ends_with(value))
+        .unwrap();
+    let last = at + key.len() + 4 + value.len() - 1;
+    stream[last] ^= 1;
+    let mut altered = crate::snapshot::Metadata::decode(&raw).unwrap();
+    let altered_chunks: Vec<Vec<u8>> = stream
+        .chunks(crate::snapshot::CHUNK_BYTES)
+        .map(<[u8]>::to_vec)
+        .collect();
+    altered.chunks = altered_chunks
+        .iter()
+        .map(|chunk| hex::encode(<sha3::Sha3_256 as sha3::Digest>::digest(chunk)))
+        .collect();
+    let altered_raw = altered.encode().unwrap();
+    assert_eq!(offer(&mut target, &altered_raw, altered_chunks.len(), &trusted), SnapshotOffer::Accept);
+    let mut last_result = None;
+    for (index, chunk) in altered_chunks.iter().enumerate() {
+        last_result = Some(
+            target
+                .apply_snapshot_chunk(u32::try_from(index).unwrap(), chunk)
+                .unwrap(),
+        );
+    }
+    assert_eq!(last_result, Some(SnapshotChunk::RejectSnapshot));
+    assert!(!beside(&path, ".restore").exists());
+    assert!(target.storage.db.iterator(IteratorMode::Start).next().is_none());
+    // An interrupted restore leaves a staging database that restart removes.
+    assert_eq!(offer(&mut target, &raw, chunks.len(), &trusted), SnapshotOffer::Accept);
+    assert!(beside(&path, ".restore").exists());
+    drop(target);
+    let target = inputs.open(&path);
+    assert!(!beside(&path, ".restore").exists());
+    assert!(target.storage.db.iterator(IteratorMode::Start).next().is_none());
+}

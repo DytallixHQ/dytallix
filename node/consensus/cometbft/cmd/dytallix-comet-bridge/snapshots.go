@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha3"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -141,4 +143,65 @@ func (a *application) ListSnapshots(context.Context, *abci.RequestListSnapshots)
 
 func (a *application) LoadSnapshotChunk(_ context.Context, req *abci.RequestLoadSnapshotChunk) (*abci.ResponseLoadSnapshotChunk, error) {
 	return &abci.ResponseLoadSnapshotChunk{Chunk: a.snapshots.chunk(req.Height, req.Format, req.Chunk)}, nil
+}
+
+// OfferSnapshot passes a snapshot and the application hash the light client
+// verified for its height to the application (state sync v1, rule 4). A
+// failed call aborts state sync: the application's state is unknown.
+func (a *application) OfferSnapshot(ctx context.Context, req *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
+	if req.Snapshot == nil || len(req.AppHash) != 32 || len(req.Snapshot.Metadata) > maxSnapshotMetadata {
+		return &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}, nil
+	}
+	payload := map[string]any{
+		"height": req.Snapshot.Height, "format": req.Snapshot.Format, "chunks": req.Snapshot.Chunks,
+		"hash":     base64.StdEncoding.EncodeToString(req.Snapshot.Hash),
+		"metadata": base64.StdEncoding.EncodeToString(req.Snapshot.Metadata),
+		"app_hash": hex.EncodeToString(req.AppHash),
+	}
+	var result struct {
+		Result string `json:"result"`
+	}
+	if err := a.child.call(ctx, "offer_snapshot", payload, &result); err != nil {
+		return &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ABORT}, nil
+	}
+	outcome, ok := map[string]abci.ResponseOfferSnapshot_Result{
+		"accept":        abci.ResponseOfferSnapshot_ACCEPT,
+		"reject":        abci.ResponseOfferSnapshot_REJECT,
+		"reject_format": abci.ResponseOfferSnapshot_REJECT_FORMAT,
+		"abort":         abci.ResponseOfferSnapshot_ABORT,
+	}[result.Result]
+	if !ok {
+		outcome = abci.ResponseOfferSnapshot_ABORT
+	}
+	return &abci.ResponseOfferSnapshot{Result: outcome}, nil
+}
+
+// ApplySnapshotChunk passes one chunk of the accepted snapshot to the
+// application. A chunk that fails its hash, or is too large to be one, is
+// fetched again from another sender.
+func (a *application) ApplySnapshotChunk(ctx context.Context, req *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
+	retry := &abci.ResponseApplySnapshotChunk{Result: abci.ResponseApplySnapshotChunk_RETRY, RefetchChunks: []uint32{req.Index}}
+	if req.Sender != "" {
+		retry.RejectSenders = []string{req.Sender}
+	}
+	if len(req.Chunk) > maxSnapshotChunk {
+		return retry, nil
+	}
+	payload := map[string]any{"index": req.Index, "chunk": base64.StdEncoding.EncodeToString(req.Chunk)}
+	var result struct {
+		Result string `json:"result"`
+	}
+	if err := a.child.call(ctx, "apply_snapshot_chunk", payload, &result); err != nil {
+		return &abci.ResponseApplySnapshotChunk{Result: abci.ResponseApplySnapshotChunk_ABORT}, nil
+	}
+	switch result.Result {
+	case "accept":
+		return &abci.ResponseApplySnapshotChunk{Result: abci.ResponseApplySnapshotChunk_ACCEPT}, nil
+	case "retry":
+		return retry, nil
+	case "reject_snapshot":
+		return &abci.ResponseApplySnapshotChunk{Result: abci.ResponseApplySnapshotChunk_REJECT_SNAPSHOT}, nil
+	default:
+		return &abci.ResponseApplySnapshotChunk{Result: abci.ResponseApplySnapshotChunk_ABORT}, nil
+	}
 }
