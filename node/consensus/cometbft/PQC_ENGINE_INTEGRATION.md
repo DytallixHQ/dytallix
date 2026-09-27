@@ -44,7 +44,7 @@ peers [{id, public_key_base64, address}], handshake_timeout_ms
 
 The network is the exact genesis chain ID. Each configured peer must also appear once in `persistent_peers` with the same address. Restart retains the existing key, signer state and databases.
 
-The command rejects remote signing, classical peer identities, non-ML-DSA-65 validator keys, libp2p, discovery, state sync, unsafe RPC, TLS listeners and nonlocal P2P/RPC addresses. Its only optional browser origin is `http://127.0.0.1:4173`.
+The command rejects remote signing, classical peer identities, non-ML-DSA-65 validator keys, libp2p, discovery, unsafe RPC, TLS listeners and nonlocal P2P/RPC addresses. State sync runs only in the PQC-only build, from operator light blocks passed with `--light-blocks`. Its only optional browser origin is `http://127.0.0.1:4173`.
 
 The public `experimental_pqc_engine_ready` event records the selected profile, suite, node ID, allowed peer IDs, full-key size and handshake limit. `PQC transport authenticated` records successful transport authentication. Actual connected-peer evidence comes from the engine's `net_info` response.
 

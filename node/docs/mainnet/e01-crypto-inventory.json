@@ -184,7 +184,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "32c89ff738c1a1b1ce5194b2250c5d26d3850652aa7f06ee39d67b6f80e45d00"
+          "sha256": "81f244e9e78a71c885805ca21f31163033deeaeff463a9cfe47ea67525c74847"
         },
         {
           "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
@@ -234,7 +234,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "32c89ff738c1a1b1ce5194b2250c5d26d3850652aa7f06ee39d67b6f80e45d00"
+          "sha256": "81f244e9e78a71c885805ca21f31163033deeaeff463a9cfe47ea67525c74847"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",
@@ -246,11 +246,38 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "4796e50e35ad7d1c24ea9e29499066e911389f2b073802cffc8d73213377fe67"
+          "sha256": "294a1b427d0995497caecf1d2886688a4f4e615754e3b7b17bbf57784d544103"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
       "role": "peer_admission_and_startup"
+    },
+    {
+      "algorithm": "ML-DSA-65 (Comet ml_dsa_65 commit verification)",
+      "files": [
+        {
+          "path": "consensus/cometbft/internal/lightblocks/lightblocks.go",
+          "sha256": "496333fe463f6149ce804179c993ddf9158b21002f20662d0aedd1bc3253dbd2"
+        },
+        {
+          "path": "consensus/cometbft/internal/lightblocks/stateprovider.go",
+          "sha256": "d4e0cecf637dd6b201a57574788483b7d5af49e83fedbf39621df050bf25366c"
+        },
+        {
+          "path": "consensus/cometbft/upstream/light/verifier.go",
+          "sha256": "d31623c41da3ae4a01c4c6ca534add87aafba5919a6f8a57a36863f83d6d725c"
+        },
+        {
+          "path": "consensus/cometbft/upstream/config/statesync_sources_pqc.go",
+          "sha256": "dad770ce3e8018c5ccaeab5dd3f5a9bf08bb98266809f1613084541eef92d6d6"
+        },
+        {
+          "path": "consensus/cometbft/upstream/node/services_pqc.go",
+          "sha256": "12b5ec77bd8d131775b43d3d52ff10d221eb99d52ffd0adb0166d81cabcd2367"
+        }
+      ],
+      "policy": "A joining node verifies operator-exported light blocks from the configured trusted height by sequential verification; the trust period stays below the evidence age; PQC-only builds refuse RPC light-client servers",
+      "role": "state_sync_light_client"
     },
     {
       "algorithm": "SLH-DSA-SHAKE-256s",

@@ -116,6 +116,18 @@ ROUTES = [
         ],
     },
     {
+        "role": "state_sync_light_client",
+        "algorithm": "ML-DSA-65 (Comet ml_dsa_65 commit verification)",
+        "policy": "A joining node verifies operator-exported light blocks from the configured trusted height by sequential verification; the trust period stays below the evidence age; PQC-only builds refuse RPC light-client servers",
+        "files": [
+            "consensus/cometbft/internal/lightblocks/lightblocks.go",
+            "consensus/cometbft/internal/lightblocks/stateprovider.go",
+            "consensus/cometbft/upstream/light/verifier.go",
+            "consensus/cometbft/upstream/config/statesync_sources_pqc.go",
+            "consensus/cometbft/upstream/node/services_pqc.go",
+        ],
+    },
+    {
         "role": "root_authorization",
         "algorithm": "SLH-DSA-SHAKE-256s",
         "policy": "Emergency, upgrade and handover controls verify through the pinned local root-verify helper",

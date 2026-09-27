@@ -276,9 +276,13 @@ validators and therefore produce no ABCI misbehavior records. This bridge cannot
 observe those cases through the ABCI metadata alone. Do not interpret an empty
 array as proof that the block contains no engine evidence.
 
-Keep state sync disabled. Withdrawal qualification depends on historical
-validator identities, stake exposure, block times, and incident records across
-the full evidence window. A snapshot of only current balances is insufficient.
+State sync runs only in the PQC-only build, from light blocks the operator
+exports (`docs/architecture/state-sync-v1.md` in `mainnet/node`). Withdrawal
+qualification depends on historical validator identities, stake exposure, block
+times, and incident records across the full evidence window. A snapshot
+therefore holds the complete committed state, including the lifecycle's
+validator history and the penalty incidents, and the block records retained for
+the evidence window; the restored node runs the full startup check before use.
 
 
 ## Approved PQC profile: local component status
