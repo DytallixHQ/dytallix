@@ -291,6 +291,15 @@ mod linux {
             "Owned process remains: {pid}"
         );
     }
+    fn assert_released(competing: &File) {
+        crate::lease::eventually(|| {
+            ensure!(
+                unsafe { libc::flock(competing.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } == 0,
+                "Lifecycle lease still held"
+            );
+            Ok(())
+        });
+    }
     fn probe(owner: &mut ProcessOwner) {
         assert_eq!(
             owner
@@ -410,10 +419,7 @@ mod linux {
             0
         );
         owner.shutdown().unwrap();
-        assert_eq!(
-            unsafe { libc::flock(competing.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
-            0
-        );
+        assert_released(&competing);
     }
     #[test]
     fn engine_adapter_start_after_delayed_final_socket_mode_and_all_are_reaped() {
@@ -635,10 +641,7 @@ mod linux {
         drop(owner);
         drop(fixture.service);
         drop(fixture.state);
-        assert_eq!(
-            unsafe { libc::flock(competing.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) },
-            0
-        );
+        assert_released(&competing);
     }
     #[test]
     fn parent_death_signal_terminates_child_without_pid_adoption() {
