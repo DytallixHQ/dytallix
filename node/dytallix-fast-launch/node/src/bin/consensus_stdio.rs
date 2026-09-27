@@ -54,6 +54,7 @@ fn canonical_base64(value: &str) -> Result<Vec<u8>> {
 enum QueryPath<'a> {
     Status,
     OrdinaryProfile,
+    GovernanceProfile,
     OrdinaryReceipt(&'a str),
     OrdinaryAccount(&'a str),
     EmergencyReceipt(&'a str),
@@ -63,6 +64,7 @@ fn query_path(path: &str) -> Result<QueryPath<'_>> {
     match path {
         "" | "/status" | "/supply" => Ok(QueryPath::Status),
         "/ordinary/profile" => Ok(QueryPath::OrdinaryProfile),
+        "/ordinary/profile_v3" => Ok(QueryPath::GovernanceProfile),
         _ if path.starts_with("/state/proof/") => {
             let key = path.strip_prefix("/state/proof/").unwrap();
             ensure!(
@@ -287,6 +289,7 @@ fn handle(
             let request = match path {
                 QueryPath::Status => QueryRequest::Status,
                 QueryPath::OrdinaryProfile => QueryRequest::OrdinaryProfile,
+                QueryPath::GovernanceProfile => QueryRequest::GovernanceProfile,
                 QueryPath::OrdinaryReceipt(id) => QueryRequest::OrdinaryReceipt(id),
                 QueryPath::OrdinaryAccount(id) => QueryRequest::OrdinaryAccount(id),
                 QueryPath::EmergencyReceipt(id) => QueryRequest::EmergencyReceipt(id),
@@ -783,6 +786,11 @@ mod transport_tests {
             query_path("/ordinary/profile").unwrap(),
             QueryPath::OrdinaryProfile
         );
+        assert_eq!(
+            query_path("/ordinary/profile_v3").unwrap(),
+            QueryPath::GovernanceProfile
+        );
+        assert!(query_path("/ordinary/profile_v4").is_err());
         for path in ["", "/status", "/supply"] {
             assert_eq!(query_path(path).unwrap(), QueryPath::Status);
         }

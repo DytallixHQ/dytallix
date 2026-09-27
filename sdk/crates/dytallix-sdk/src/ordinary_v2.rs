@@ -21,8 +21,9 @@ pub use dytallix_protocol_types::{
 use dytallix_protocol_types::{ordinary as wire, ordinary_fees};
 use serde::{Deserialize, Serialize};
 
+/// Errors of the ordinary-v2 and ordinary-v3 client paths.
 #[derive(Debug, thiserror::Error)]
-#[error("ordinary-v2: {0}")]
+#[error("ordinary: {0}")]
 pub struct Error(pub String);
 pub type Result<T> = std::result::Result<T, Error>;
 pub(crate) fn error(e: impl std::fmt::Display) -> Error {

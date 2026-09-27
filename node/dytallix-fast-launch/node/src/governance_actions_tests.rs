@@ -104,3 +104,40 @@ fn a_fee_change_keeps_every_ungoverned_profile_field() {
         Err(Rule("GOVERNANCE_FEE_ALGORITHMS_DIFFER"))
     );
 }
+
+/// Clients build action data with the protocol-types encoder (clients v1);
+/// it must equal the chain's bincode bytes and decode back canonically.
+#[test]
+fn client_action_data_matches_the_chain_encoding() {
+    use dytallix_protocol_types::governance_action as client;
+    assert_eq!(client::CLASS_PARAMETER_CHANGE, CLASS_PARAMETER_CHANGE);
+    assert_eq!(client::CLASS_VALIDATOR_REGISTRY, CLASS_VALIDATOR_REGISTRY);
+    let mut values = fees(&example());
+    values.signature_costs.insert("mldsa87".into(), 9);
+    values.validator_proof_costs.insert("zeta-é".into(), u64::MAX);
+    values.account_creation_fee_udrt = u128::MAX - 7;
+    let parameters = [
+        ParameterChange::Fees(values),
+        ParameterChange::MinSelfBond(u128::MAX),
+        ParameterChange::MaxActive(16),
+    ];
+    for change in parameters {
+        let data = change.action_data();
+        assert_eq!(data, encode(&change).unwrap(), "{change:?}");
+        assert_eq!(decode::<ParameterChange>(&data), Ok(change));
+    }
+    let registry = [
+        RegistryChange::Add {
+            validator_id: "validator-é".into(),
+            owner: "dyt1owner".into(),
+        },
+        RegistryChange::Remove {
+            validator_id: String::new(),
+        },
+    ];
+    for change in registry {
+        let data = change.action_data();
+        assert_eq!(data, encode(&change).unwrap(), "{change:?}");
+        assert_eq!(decode::<RegistryChange>(&data), Ok(change));
+    }
+}

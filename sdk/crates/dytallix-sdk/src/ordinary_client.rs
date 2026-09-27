@@ -1,9 +1,10 @@
-//! Explicit CometBFT JSON-RPC client for the local ordinary-v2 integration.
+//! Explicit CometBFT JSON-RPC client for ordinary-v2 and ordinary-v3 transactions.
 //! No URL default, legacy fallback, redirect, automatic submission, or consensus
 //! proof is supplied. A successful CheckTx result is not a committed receipt.
 use crate::ordinary_v2::{
     self, error, AccountView, Error, FeeProfile, ProfileView, ReceiptView, Result, SignedOrdinary,
 };
+use crate::ordinary_v3::{self, FeeProfileV3, GovernanceProfileView};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -151,6 +152,22 @@ impl CometClient {
         }
         Ok(view)
     }
+    /// The committed v3 fee profile and next proposal ID (`/ordinary/profile_v3`).
+    pub async fn query_governance_profile(&self) -> Result<GovernanceProfileView> {
+        let (height, view): (u64, GovernanceProfileView) =
+            self.query("/ordinary/profile_v3").await?;
+        if view.version != 1
+            || view.context.height != height
+            || view.enabled != view.fee_profile.is_some()
+            || view.enabled != (view.next_proposal_id > 0)
+        {
+            return Err(Error("inconsistent governance profile query view".into()));
+        }
+        if let Some(profile) = &view.fee_profile {
+            profile.validate().map_err(error)?;
+        }
+        Ok(view)
+    }
     pub async fn query_account(&self, id: &[u8; 32]) -> Result<Option<AccountView>> {
         let (height, view): (u64, Option<AccountView>) = self
             .query(&format!("/ordinary/account/{}", hex(id)))
@@ -189,6 +206,22 @@ impl CometClient {
         max_transport_bytes: usize,
     ) -> Result<CheckTxResponse> {
         let tx = submission(signed, profile, max_transport_bytes)?;
+        let id = ordinary_v2::transaction_id(&signed.body, &profile.limits)?;
+        self.check(tx, &id).await
+    }
+    /// CheckTx for a v3 governance transaction; the bound is the ordinary
+    /// configuration's `max_transport_bytes`.
+    pub async fn check_governance_tx(
+        &self,
+        signed: &ordinary_v3::SignedOrdinary,
+        profile: &FeeProfileV3,
+        max_transport_bytes: usize,
+    ) -> Result<CheckTxResponse> {
+        let tx = governance_submission(signed, profile, max_transport_bytes)?;
+        let id = ordinary_v3::transaction_id(&signed.body, &profile.limits())?;
+        self.check(tx, &id).await
+    }
+    async fn check(&self, tx: Vec<u8>, id: &[u8; 32]) -> Result<CheckTxResponse> {
         let result: CheckResult = self
             .call("check_tx", json!({"tx":STANDARD.encode(tx)}))
             .await?;
@@ -196,7 +229,7 @@ impl CometClient {
             code: result.code,
             log: result.log,
             codespace: result.codespace,
-            transaction_id: hex(&ordinary_v2::transaction_id(&signed.body, &profile.limits)?),
+            transaction_id: hex(id),
             engine_hash: None,
             submitted: false,
         })
@@ -210,6 +243,22 @@ impl CometClient {
         max_transport_bytes: usize,
     ) -> Result<CheckTxResponse> {
         let tx = submission(signed, profile, max_transport_bytes)?;
+        let id = ordinary_v2::transaction_id(&signed.body, &profile.limits)?;
+        self.broadcast(tx, &id).await
+    }
+    /// Explicit v3 broadcast, as `submit_sync`. An admitted governance
+    /// transaction whose rule then fails is still charged.
+    pub async fn submit_governance_sync(
+        &self,
+        signed: &ordinary_v3::SignedOrdinary,
+        profile: &FeeProfileV3,
+        max_transport_bytes: usize,
+    ) -> Result<CheckTxResponse> {
+        let tx = governance_submission(signed, profile, max_transport_bytes)?;
+        let id = ordinary_v3::transaction_id(&signed.body, &profile.limits())?;
+        self.broadcast(tx, &id).await
+    }
+    async fn broadcast(&self, tx: Vec<u8>, id: &[u8; 32]) -> Result<CheckTxResponse> {
         let expected_hash = hex(&Sha256::digest(&tx));
         let result: BroadcastResult = self
             .call("broadcast_tx_sync", json!({"tx":STANDARD.encode(tx)}))
@@ -224,7 +273,7 @@ impl CometClient {
             code: result.code,
             log: result.log,
             codespace: result.codespace,
-            transaction_id: hex(&ordinary_v2::transaction_id(&signed.body, &profile.limits)?),
+            transaction_id: hex(id),
             engine_hash: Some(result.hash),
             submitted: true,
         })
@@ -243,6 +292,19 @@ fn submission(signed: &SignedOrdinary, profile: &FeeProfile, bound: usize) -> Re
     }
     ordinary_v2::verify_signature(signed, &profile.limits)?;
     ordinary_v2::encode_transport(signed, &profile.limits, bound)
+}
+fn governance_submission(
+    signed: &ordinary_v3::SignedOrdinary,
+    profile: &FeeProfileV3,
+    bound: usize,
+) -> Result<Vec<u8>> {
+    // Binds the exact profile, one action, contract version and fee cap.
+    // Activation was checked at preparation, so the profile's own height is passed.
+    profile
+        .validate_signed_request(&signed.body, profile.activation_height)
+        .map_err(|_| Error("submission profile differs from signed body".into()))?;
+    ordinary_v3::verify_signature(signed, &profile.limits())?;
+    ordinary_v3::encode_transport(signed, &profile.limits(), bound)
 }
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()

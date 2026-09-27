@@ -31,7 +31,7 @@ dytallix --help
 | `send` | Send DGT or DRT | `dytallix send <daddr> 100` |
 | `faucet` | Request faucet funds or inspect eligibility | `dytallix faucet status` |
 | `stake` | View staking state publicly, or use direct-node staking writes | `dytallix stake status` |
-| `governance` | Query proposals publicly, or use direct-node governance writes | `dytallix governance proposals` |
+| `governance` | Consensus-chain governance transactions (ordinary v3); legacy testnet reads under `legacy` | `dytallix governance query-profile --endpoint <rpc> --output governance.json` |
 | `contract` | Deploy, call, query, and inspect contracts | `dytallix contract info <address>` |
 | `node` | Operate or inspect a local node workflow | `dytallix node status` |
 | `chain` | Query block, epoch, status, and chain params | `dytallix chain status` |
@@ -127,28 +127,54 @@ Current public behavior:
 
 ### `governance`
 
+Governance on the consensus chain uses ordinary-v3 transactions sent through
+an explicit CometBFT JSON-RPC endpoint. Like `dytallix ordinary`, it works
+from captured views and an explicit signing context, and prepares and signs
+offline.
+
 Subcommands:
 
-- `proposals`
-- `vote <id> <yes|no|abstain>`
-- `propose`
-- `status <id>`
+- `query-profile --endpoint <rpc> --output <file>`: the committed governance
+  fee profile and the next proposal ID
+- `propose`: one change, `--max-active <n>`, `--min-self-bond-udgt <n>`,
+  `--fees <FeeValues JSON>`, `--registry-add <validator-id> --owner <address>`
+  or `--registry-remove <validator-id>`; it takes the captured next proposal ID
+- `deposit --proposal-id <id> --amount-udgt <n>`
+- `vote --proposal-id <id> --choice <yes|no|no-with-veto|abstain>`
+- `sign`, `inspect` and `submit`, as for `dytallix ordinary`
 
-Examples:
+`propose`, `deposit` and `vote` take `--profile`, `--account`, `--context` and
+`--governance-profile` (captured views), plus `--expiry-height`,
+`--gas-limit`, `--maximum-fee-udrt`, `--output` and an optional `--memo`.
+
+Example:
 
 ```bash
-dytallix governance proposals
-DYTALLIX_ENDPOINT=http://localhost:3030 dytallix governance vote 7 yes
+dytallix governance vote --profile profile.json --account account.json \
+  --context context.json --governance-profile governance.json \
+  --proposal-id 7 --choice no-with-veto --expiry-height 1200 \
+  --gas-limit 600 --maximum-fee-udrt 1200 --output vote.json
 ```
 
-Current public behavior:
+Behavior:
 
-- `proposals` reads `https://dytallix.com/api/governance/proposals`
-- `status <id>` filters the public proposals list and prints the matching item
+- `submit` refreshes the views first; they may be at a later height, but must
+  show the same account authority and fee profiles, and a proposal must still
+  hold the next proposal ID
+- once the chain admits a governance transaction, a failed governance rule
+  (for example a proposal ID another proposal took first) is still charged
+- CheckTx acceptance is not commitment; the spent account nonce is
+
+`legacy` holds the testnet REST commands, built with the `legacy-network`
+feature: `legacy proposals`, `legacy status <id>`,
+`legacy vote <id> <yes|no|abstain>` and `legacy propose`. The consensus chain
+refuses these requests.
+
+- `legacy proposals` reads `https://dytallix.com/api/governance/proposals`
+- `legacy status <id>` filters the public proposals list and prints the matching item
 - the CLI consults `GET /api/capabilities` on compatible nodes when deciding
   whether public governance writes should stay blocked
-- `vote` and `propose` are disabled on the default public website gateway
-- write testing for governance still requires a local node or direct node endpoint
+- `legacy vote` and `legacy propose` are disabled on the default public website gateway
 
 ### `contract`
 
