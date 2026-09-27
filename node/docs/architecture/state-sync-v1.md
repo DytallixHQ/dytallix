@@ -1,6 +1,6 @@
 # State sync and bounded restart (state model phase C)
 
-Status: approved (P01, 27 September 2026: decisions below); C1 to C4
+Status: approved (P01, 27 September 2026: decisions below); C1 to C5
 implemented (notes below). Engineering task E04. Covers gaps 3 and 4 of the
 [E04.1 triage](../mainnet/e04-requirement-triage.md) (STATE-002, STATE-003,
 SYNC-002, SYNC-003) and D6 of [state model v2](state-model-v2.md). Paths:
@@ -209,6 +209,34 @@ records chain back from any trusted head.
 - **Checks.** E01 records the route as `state_sync_light_client`; the Go
   graph check passes, since the light client adds no HTTP, TLS or classical
   key package. A two-node join through the engine is C5.
+
+## C5 implementation notes
+
+- **Unit and module tests.** Restart cost independent of height, a pruned
+  node passing its checks, a snapshot of a live chain restoring on a second
+  database with the same application hash, a corrupted chunk, a wrong hash
+  and an interrupted restore are covered by the C1 to C3 tests.
+- **Two-node join.** `state-sync-join` (native-supervisor, behind
+  `qualification-fixtures`) runs the real guarded binaries as a
+  four-validator loopback chain from `dytallix-comet-fixture` with the PQC
+  loopback transport. It is the owner parent of every child, using the
+  release-runtime owner protocol unchanged; it installs neither
+  no_new_privs nor a seccomp filter, so it runs where both are already
+  applied. Nodes 0 to 2 commit and write snapshots every 5 blocks, keeping
+  10 (synthetic values); node 2 keeps every block record so that it can
+  serve blocks after the snapshot. After block 22, node 2 stops, its light
+  blocks from 10 to its head are exported, and it restarts. Node 3 starts
+  empty with state sync trusting height 10 and must log a restored snapshot
+  within the export, catch up, and reach a later height whose application
+  hash, from its own application, equals the chain's.
+- **Runs.** The E02 native job runs it under a transient systemd unit with
+  no_new_privs and the production `SystemCallFilter`.
+  `tools/state-sync-join/run-in-docker.sh` does the same in a container with
+  the `oci_seccomp.py` profile. Three local runs restored the snapshot at
+  20 and matched the application hash at heights 28 to 30.
+- **Observed.** Snapshots of one height differ between pruned nodes and the
+  archive node, since block records are local; pruned nodes agree. The
+  engine fetches chunks only from peers offering the exact snapshot.
 
 The AppArmor roles (E02) must allow the bridge to read the snapshot
 directory and the application to write it; that change returns to E02 and
