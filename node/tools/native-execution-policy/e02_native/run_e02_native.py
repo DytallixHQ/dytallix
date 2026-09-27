@@ -27,6 +27,7 @@ import hashlib
 import json
 import os
 import platform
+import pwd
 import re
 import select
 import shutil
@@ -429,6 +430,25 @@ def preflight():
     if ROOT.exists():
         raise SystemExit(f"{ROOT} already exists")
     log(f"kernel={platform.release()} parser={run('apparmor_parser', '--version').stdout.splitlines()[0]}")
+    ensure_service_user()
+
+
+SERVICE_USER = "dyt-e02-probe"
+
+
+def ensure_service_user():
+    """systemd resolves User= through the user database (exit 217 without a
+    record); setpriv takes the bare UID. Give the probe UID a system record."""
+    try:
+        pwd.getpwuid(UID)
+        return False
+    except KeyError:
+        pass
+    run("groupadd", "--system", "--gid", str(GID), SERVICE_USER)
+    run("useradd", "--system", "--uid", str(UID), "--gid", str(GID), "--no-create-home",
+        "--home-dir", "/nonexistent", "--shell", "/usr/sbin/nologin", SERVICE_USER)
+    log(f"service_user={SERVICE_USER} uid={UID} gid={GID} created")
+    return True
 
 
 def main():
