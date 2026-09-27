@@ -47,7 +47,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | --- | --- |
 | 1, 2 | #262 (`docs/architecture/liveness-v1.md`) |
 | 3, 4 | #263, #265, #266, #267, #268 (`docs/architecture/state-sync-v1.md`) |
-| 5 | Running account totals: `supply:account_totals` (liquid uDGT and uDRT) is written at consensus genesis and updated by each block from the balance records it writes; the per-block supply check reads no other account; the complete check compares the totals with every record. |
+| 5 | #269. Running account totals: `supply:account_totals` (liquid uDGT and uDRT) is written at consensus genesis and updated by each block from the balance records it writes; the per-block supply check reads no other account; the complete check compares the totals with every record. |
 | 6 | Duplicate bypass: a reservation request carries its signed envelope's digest, so a re-signed copy of a reserved intent is refused (identity mismatch) in CheckTx, rechecks and proposals; only the same bytes are already reserved. The engine requires the flood mempool with recheck, which the per-head admission queue depends on, and a mempool `max_tx_bytes` no larger than the genesis block; the fixture sets it to the application limit. Mempool and P2P capacity values (size, total bytes, cache, peer rates) stay operator settings until D06-Q02. |
 
 ## Policy questions (P01)
