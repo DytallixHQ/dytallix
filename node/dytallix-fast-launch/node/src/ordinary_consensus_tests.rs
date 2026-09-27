@@ -4,7 +4,6 @@ use super::*;
 use crate::crypto::{ActivePQC, PQC};
 use crate::ordinary_authority::DiscretionaryGrant;
 use crate::ordinary_state::OrdinaryConfig;
-use crate::runtime::governance_state::{GovernanceState, GOVERNANCE_STATE_VERSION};
 use crate::recovery_fees::{RecoveryAccount, RecoveryBook};
 use crate::storage::state::Storage;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
@@ -517,19 +516,17 @@ fn assert_mirror(app: &ConsensusApplication, key: &Key, expected: u64) {
     assert_eq!(current(app, key).spending_nonce, expected);
 }
 
-fn local_governance_candidate(
+pub(crate) fn local_governance_candidate(
     fixture: &Fixture,
     genesis_digest: [u8; 32],
     activation_height: u64,
 ) -> GovernanceCandidateConfig {
-    use crate::runtime::{
-        governance_ballot::Rules as BallotRules,
-        governance_candidate::{
-            ActionClassLimit, Cancellation, EntryPolicy, PendingPolicies, PolicyDecision,
-            ProposerEligibility, ValidatorVoting, VoteDelegation, CANDIDATE_SCHEMA_VERSION,
-        },
-        governance_deposit_stage::DepositRules,
+    use crate::runtime::governance_candidate::{
+        ActionClassLimit, BallotRules, Bounds, Cancellation, DepositRules, EntryPolicy,
+        ParameterBounds, ProposerEligibility, ValidatorVoting, VoteDelegation,
+        CANDIDATE_SCHEMA_VERSION, CLASS_PARAMETER_CHANGE, CLASS_VALIDATOR_REGISTRY,
     };
+    // Synthetic values; production values are E05 inputs.
     GovernanceCandidateConfig {
         schema_version: CANDIDATE_SCHEMA_VERSION,
         chain_id: CHAIN.into(),
@@ -539,30 +536,45 @@ fn local_governance_candidate(
             base: fixture.config.ordinary.as_ref().unwrap().fee_profile.clone(),
             version: 2,
             activation_height,
-            max_governance_action_bytes: 100,
+            max_governance_action_bytes: 1_000,
             governance_action_costs: [1; 3],
         },
         ballot: BallotRules {
             version: 1,
             chain_id: CHAIN.into(),
             genesis_digest,
-            quorum_bps: 1,
-            approval_bps: 1,
-            veto_bps: 1,
+            quorum_bps: 5_000,
+            approval_bps: 5_000,
+            veto_bps: 3_334,
             voting_period_blocks: 2,
             timelock_blocks: 2,
-            max_voters: 3,
+            max_voters: 64,
         },
         deposit: DepositRules {
             deposit_period_blocks: 2,
             minimum_deposit_udgt: 5,
-            max_action_bytes: 100,
+            max_action_bytes: 1_000,
+            max_depositors: 4,
         },
-        action_classes: vec![ActionClassLimit {
-            class: 17,
-            max_data_bytes: 3,
-            approval_digest: [8; 32],
-        }],
+        action_classes: vec![
+            ActionClassLimit {
+                class: CLASS_PARAMETER_CHANGE,
+                max_data_bytes: 1_000,
+                approval_digest: [8; 32],
+            },
+            ActionClassLimit {
+                class: CLASS_VALIDATOR_REGISTRY,
+                max_data_bytes: 1_000,
+                approval_digest: [9; 32],
+            },
+        ],
+        parameter_bounds: ParameterBounds {
+            gas_price: Bounds { min: 1, max: 100 },
+            resource_cost: Bounds { min: 0, max: 1_000_000 },
+            account_creation_fee_udrt: Bounds { min: 1, max: 1_000_000 },
+            min_self_bond: Bounds { min: 1, max: 1_000_000_000 },
+            max_active: Bounds { min: 1, max: 64 },
+        },
         entry_policy: EntryPolicy {
             proposer_eligibility:
                 ProposerEligibility::RegisteredOwnerWithEffectiveBondAtFinalizedParent,
@@ -570,212 +582,7 @@ fn local_governance_candidate(
             vote_delegation: VoteDelegation::Disabled,
             cancellation: Cancellation::Disabled,
         },
-        pending_policies: PendingPolicies {
-            exact_state_transitions: PolicyDecision::Pending,
-        },
     }
-}
-
-#[test]
-fn governance_parent_binds_genesis_state_height_and_nonce_mirrors() {
-    let f = Fixture::new();
-    let dir = tempfile::tempdir().unwrap();
-    let app = f.initialized(dir.path());
-    let _guard = app.storage.lock_execution().unwrap();
-    let genesis_digest: [u8; 32] = Sha256::digest(&f.genesis).into();
-    let mut configured = f.config.clone();
-    configured.governance = Some(local_governance_candidate(&f, genesis_digest, 1));
-    app.storage
-        .db
-        .put(MODE_KEY, serde_json::to_vec(&configured).unwrap())
-        .unwrap();
-    let governance = GovernanceState::new(
-        GOVERNANCE_STATE_VERSION,
-        CHAIN.into(),
-        genesis_digest,
-        0,
-    )
-    .unwrap();
-    let bind_state = |governance: &GovernanceState| {
-        app.storage
-            .db
-            .put(GOVERNANCE_STATE_KEY, governance.encode().unwrap())
-            .unwrap();
-        let state = state_digest(&app.storage, &Writes::new(), true).unwrap();
-        let hash = digest(b"dytallix-cometbft-genesis-v1", &state).unwrap();
-        app.storage.db.put(GENESIS_APP_HASH_KEY, hash.as_bytes()).unwrap();
-        hash
-    };
-    let expected_hash = bind_state(&governance);
-    let parent = committed_governance_parent(
-        app.storage.clone(),
-        &configured,
-        genesis_digest,
-    )
-    .unwrap();
-    assert_eq!(parent.height, 0);
-    assert_eq!(parent.app_hash, hex::decode(expected_hash).unwrap().as_slice());
-    assert_eq!(parent.recovery.last_height, 0);
-    assert_eq!(parent.lifecycle.last_height, 0);
-    assert_eq!(parent.governance, governance);
-    assert_eq!(parent.native_nonces.len(), parent.recovery.accounts.len());
-    let mut alternate = configured.clone();
-    alternate.governance.as_mut().unwrap().activation_height += 1;
-    assert!(committed_governance_parent(app.storage.clone(), &alternate, genesis_digest)
-        .err().unwrap()
-        .to_string()
-        .contains("committed configuration"));
-
-    app.storage.db.put(GENESIS_APP_HASH_KEY, b"00".repeat(32)).unwrap();
-    assert!(committed_governance_parent(app.storage.clone(), &configured, genesis_digest)
-        .err().unwrap()
-        .to_string()
-        .contains("app hash"));
-
-    let stale = GovernanceState::new(
-        GOVERNANCE_STATE_VERSION,
-        CHAIN.into(),
-        genesis_digest,
-        1,
-    )
-    .unwrap();
-    bind_state(&stale);
-    assert!(committed_governance_parent(app.storage.clone(), &configured, genesis_digest)
-        .err().unwrap()
-        .to_string()
-        .contains("state, authority, or lifecycle"));
-
-    bind_state(&governance);
-    app.storage
-        .db
-        .put(
-            format!("acct:nonce:{}", f.active.address()),
-            bincode::serialize(&1u64).unwrap(),
-        )
-        .unwrap();
-    let state = state_digest(&app.storage, &Writes::new(), true).unwrap();
-    let hash = digest(b"dytallix-cometbft-genesis-v1", &state).unwrap();
-    app.storage.db.put(GENESIS_APP_HASH_KEY, hash.as_bytes()).unwrap();
-    assert!(committed_governance_parent(app.storage.clone(), &configured, genesis_digest)
-        .err().unwrap()
-        .to_string()
-        .contains("nonce"));
-}
-
-#[test]
-fn signed_governance_deposit_uses_verified_committed_parent() {
-    use crate::runtime::governance_ordered_admission::{
-        plan_ordered_admission_block, AdmissionAction,
-    };
-    use dytallix_protocol_types::{
-        ordinary_fees_v3::{self, ORDINARY_FEE_CONTRACT_VERSION},
-        ordinary_v3 as v3,
-    };
-
-    let f = Fixture::new();
-    let dir = tempfile::tempdir().unwrap();
-    let mut app = f.initialized(dir.path());
-    commit(&mut app, 1, vec![]);
-    let _guard = app.storage.lock_execution().unwrap();
-    let genesis_digest: [u8; 32] = Sha256::digest(&f.genesis).into();
-    let candidate = local_governance_candidate(&f, genesis_digest, 2);
-    candidate.validate_shape().unwrap();
-    let deposit = candidate.deposit.clone();
-    let mut configured = f.config.clone();
-    configured.governance = Some(candidate.clone());
-    app.storage
-        .db
-        .put(MODE_KEY, serde_json::to_vec(&configured).unwrap())
-        .unwrap();
-    let initial = GovernanceState::new(
-        GOVERNANCE_STATE_VERSION,
-        CHAIN.into(),
-        genesis_digest,
-        0,
-    )
-    .unwrap();
-    let action_data = vec![1, 2, 3];
-    let planned = plan_ordered_admission_block(
-        &initial,
-        1,
-        &deposit,
-        3,
-        &BTreeMap::new(),
-        None,
-        &[AdmissionAction::Proposal {
-            proposal_id: 1,
-            action_class: 17,
-            action_digest: v3::governance_action_digest(17, &action_data).unwrap(),
-            action_data,
-        }],
-    )
-    .unwrap();
-    app.storage
-        .db
-        .put(GOVERNANCE_STATE_KEY, planned.state_bytes)
-        .unwrap();
-    let state = state_digest(&app.storage, &Writes::new(), true).unwrap();
-    let mut head = read_head(&app.storage).unwrap().unwrap();
-    head.state_digest = state.clone();
-    head.app_hash = app_hash(&state, &head.anchor).unwrap();
-    app.storage.db.put(HEAD_KEY, serde_json::to_vec(&head).unwrap()).unwrap();
-    let mut record: BlockRecord = decode(
-        &app.storage.db.get(record_key(1)).unwrap().unwrap(),
-    )
-    .unwrap();
-    record.head = head;
-    record.result.app_hash = record.head.app_hash.clone();
-    app.storage
-        .db
-        .put(record_key(1), serde_json::to_vec(&record).unwrap())
-        .unwrap();
-    let parent = committed_governance_parent(
-        app.storage.clone(),
-        &configured,
-        genesis_digest,
-    )
-    .unwrap();
-    let recovery = &parent.recovery.accounts[&hex::encode(f.active.id())].recovery;
-    let mut signed = v3::SignedOrdinary {
-        body: v3::OrdinaryTransaction {
-            domain: recovery.domain.clone(),
-            authorization_generation: recovery.active_generation,
-            spending_nonce: recovery.spending_nonce,
-            key: f.active.identity.clone(),
-            expiry_height: 5,
-            ordinary_fee_contract_version: ORDINARY_FEE_CONTRACT_VERSION,
-            fee_profile_version: candidate.fee_profile.version,
-            fee_profile_digest: ordinary_fees_v3::profile_digest(&candidate.fee_profile).unwrap(),
-            fee_denomination: v3::Denomination::Udrt,
-            maximum_fee: candidate.fee_profile.base.max_fee_cap,
-            gas_limit: candidate.fee_profile.base.max_transaction_gas,
-            memo: String::new(),
-            actions: vec![v3::Action::GovernanceDeposit {
-                proposal_id: 1,
-                amount_udgt: 5,
-            }],
-        },
-        signature: Vec::new(),
-    };
-    let resign = |signed: &mut v3::SignedOrdinary| {
-        signed.signature = ActivePQC::sign(
-            &f.active.secret,
-            &v3::signing_bytes(&signed.body, &candidate.fee_profile.limits()).unwrap(),
-        );
-    };
-    resign(&mut signed);
-    let assessed = parent.assess_signed(&signed).unwrap();
-    assert_eq!(assessed.actor(), f.active.id());
-    assert!(matches!(
-        assessed.ordered_action(),
-        AdmissionAction::Deposit { proposal_id: 1, amount_udgt: 5, .. }
-    ));
-    signed.body.spending_nonce += 1;
-    resign(&mut signed);
-    assert!(parent.assess_signed(&signed)
-        .err().unwrap()
-        .to_string()
-        .contains("nonce is stale"));
 }
 
 #[test]
@@ -3592,4 +3399,524 @@ fn sponsor_receipts_are_pruned_after_their_operation_expires_and_history_still_v
     drop(app);
     let reopened = fixture.open(&dir.path().join("db"));
     verify_recovery(&reopened.storage).unwrap();
+}
+
+// Governance T6 through the engine: CheckTx, finalize and commit with real
+// signatures. Values are synthetic.
+mod governance {
+    use super::*;
+    use crate::governance_actions::{self, ParameterChange, RegistryChange};
+    use crate::runtime::governance_candidate::{CLASS_PARAMETER_CHANGE, CLASS_VALIDATOR_REGISTRY};
+    use crate::runtime::governance_store::{self, GovernedParameters, Header};
+    use dytallix_protocol_types::{
+        ordinary_fees_v3::{self, ORDINARY_FEE_CONTRACT_VERSION},
+        ordinary_v3 as v3,
+    };
+
+    fn governed() -> Fixture {
+        let mut f = Fixture::new();
+        let digest: [u8; 32] = Sha256::digest(&f.genesis).into();
+        f.config.governance = Some(local_governance_candidate(&f, digest, 1));
+        f
+    }
+    fn tx(app: &ConsensusApplication, key: &Key, action: v3::Action) -> Vec<u8> {
+        let candidate = app.config.governance.as_ref().unwrap();
+        let parameters = GovernedParameters::read(&app.storage).unwrap();
+        let profile = governance_actions::governance_fee(candidate, &parameters);
+        let state = current(app, key);
+        let body = v3::OrdinaryTransaction {
+            domain: state.domain.clone(),
+            authorization_generation: state.active_generation,
+            spending_nonce: state.spending_nonce,
+            key: key.identity.clone(),
+            expiry_height: header(app).height + 50,
+            ordinary_fee_contract_version: ORDINARY_FEE_CONTRACT_VERSION,
+            fee_profile_version: profile.version,
+            fee_profile_digest: ordinary_fees_v3::profile_digest(profile).unwrap(),
+            fee_denomination: v3::Denomination::Udrt,
+            maximum_fee: profile.base.max_fee_cap,
+            gas_limit: profile.base.max_transaction_gas,
+            memo: String::new(),
+            actions: vec![action],
+        };
+        let limits = profile.limits();
+        let signature =
+            ActivePQC::sign(&key.secret, &v3::signing_bytes(&body, &limits).unwrap());
+        crate::ordinary_transport::encode_transport_v3(
+            &v3::SignedOrdinary { body, signature },
+            &limits,
+            65_536,
+        )
+        .unwrap()
+    }
+    fn propose(app: &ConsensusApplication, key: &Key, id: u64, class: u16, data: Vec<u8>) -> Vec<u8> {
+        let digest = v3::governance_action_digest(class, &data).unwrap();
+        tx(
+            app,
+            key,
+            v3::Action::GovernanceProposal {
+                proposal_id: id,
+                action_class: class,
+                action_data: data,
+                action_digest: digest,
+            },
+        )
+    }
+    fn deposit(app: &ConsensusApplication, key: &Key, id: u64, amount: u128) -> Vec<u8> {
+        tx(
+            app,
+            key,
+            v3::Action::GovernanceDeposit {
+                proposal_id: id,
+                amount_udgt: amount,
+            },
+        )
+    }
+    fn vote(app: &ConsensusApplication, key: &Key, id: u64, choice: v3::VoteChoice) -> Vec<u8> {
+        tx(app, key, v3::Action::GovernanceVote { proposal_id: id, choice })
+    }
+    fn udgt(app: &ConsensusApplication, owner: &str) -> u128 {
+        let balances: BTreeMap<String, u128> = bincode::deserialize(
+            &app.storage
+                .db
+                .get(format!("acct:balances:{owner}"))
+                .unwrap()
+                .unwrap(),
+        )
+        .unwrap();
+        balances.get("udgt").copied().unwrap_or(0)
+    }
+    fn header(app: &ConsensusApplication) -> Header {
+        Header::read(&app.storage).unwrap().unwrap()
+    }
+    fn codes(result: &FinalizeResult) -> Vec<u32> {
+        result.tx_results.iter().map(|r| r.code).collect()
+    }
+    fn min_self_bond(app: &ConsensusApplication) -> u128 {
+        lifecycle_state(app).config.min_self_bond
+    }
+
+    /// Submission, deposit, vote, tally, timelock and execution at their exact
+    /// heights; the deposit is refunded once and the record then removed.
+    /// Returns every block's transactions and app hash.
+    fn run_min_self_bond(f: &Fixture, dir: &std::path::Path) -> Vec<(Vec<Vec<u8>>, String)> {
+        let mut app = f.initialized(dir);
+        let data = governance_actions::encode(&ParameterChange::MinSelfBond(50)).unwrap();
+        let proposal = propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data);
+        assert_eq!(app.check_tx_result(&proposal).unwrap().code, 0);
+        let mut blocks = Vec::new();
+        let mut run = |app: &mut ConsensusApplication, height, txs: Vec<Vec<u8>>| {
+            let result = commit(app, height, txs.clone());
+            blocks.push((txs, result.app_hash.clone()));
+            result
+        };
+        assert_eq!(codes(&run(&mut app, 1, vec![proposal])), vec![0]);
+        assert_eq!(header(&app).next_proposal_id, 2);
+        let payer_dgt = udgt(&app, &f.payer.address());
+        let deposit = deposit(&app, &f.payer, 1, 5);
+        assert_eq!(codes(&run(&mut app, 2, vec![deposit])), vec![0]);
+        assert_eq!(udgt(&app, &f.payer.address()), payer_dgt - 5);
+        assert_eq!(header(&app).held_udgt, 5);
+        // Deposits close at 3 and the ballot opens there, with the bond
+        // snapshot of height 2: the active account's 100 uDGT.
+        let yes = vote(&app, &f.active, 1, v3::VoteChoice::Yes);
+        assert_eq!(codes(&run(&mut app, 3, vec![yes])), vec![0]);
+        run(&mut app, 4, vec![]);
+        run(&mut app, 5, vec![]);
+        // The ballot closes at 6 and passes; the timelock runs to 8.
+        run(&mut app, 6, vec![]);
+        assert_eq!(min_self_bond(&app), 10);
+        assert_eq!(header(&app).held_udgt, 5);
+        run(&mut app, 7, vec![]);
+        run(&mut app, 8, vec![]);
+        assert_eq!(min_self_bond(&app), 50);
+        assert_eq!(
+            GovernedParameters::read(&app.storage).unwrap().min_self_bond,
+            Some(50)
+        );
+        assert_eq!(udgt(&app, &f.payer.address()), payer_dgt);
+        assert_eq!(header(&app).held_udgt, 0);
+        assert_eq!(header(&app).proposals, 1);
+        run(&mut app, 9, vec![]);
+        assert_eq!(header(&app).proposals, 0);
+        assert!(app
+            .storage
+            .db
+            .iterator(IteratorMode::From(b"governance:v2:", rocksdb::Direction::Forward))
+            .map(|e| e.unwrap().0)
+            .take_while(|k| k.starts_with(b"governance:v2:"))
+            .all(|k| k.as_ref() == governance_store::HEADER_KEY.as_bytes()
+                || k.as_ref() == governance_store::PARAMETERS_KEY.as_bytes()));
+        drop(app);
+        // A restart runs the complete check over the pruned state.
+        let reopened = f.open(dir);
+        assert_eq!(min_self_bond(&reopened), 50);
+        blocks
+    }
+
+    #[test]
+    fn passed_parameter_change_executes_after_its_timelock_and_refunds_once() {
+        let f = governed();
+        let one = tempfile::tempdir().unwrap();
+        let blocks = run_min_self_bond(&f, one.path());
+        // The same blocks on an independent database give the same hashes.
+        let two = tempfile::tempdir().unwrap();
+        let mut replay = f.initialized(two.path());
+        for (height, (txs, hash)) in blocks.into_iter().enumerate() {
+            let result = commit(&mut replay, height as u64 + 1, txs);
+            assert_eq!(result.app_hash, hash, "block {} differs", height + 1);
+        }
+    }
+
+    #[test]
+    fn rule_failures_after_acceptance_are_charged_and_change_no_governance_state() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        // The payer has no bond, so it cannot propose; it still pays.
+        let data = governance_actions::encode(&ParameterChange::MinSelfBond(50)).unwrap();
+        let drt = balance(&app, &f.payer.address());
+        let unbonded = propose(&app, &f.payer, 1, CLASS_PARAMETER_CHANGE, data.clone());
+        assert_eq!(codes(&commit(&mut app, 1, vec![unbonded])), vec![3]);
+        assert!(balance(&app, &f.payer.address()) < drt);
+        assert_eq!(ordinary_nonce(&app, &f.payer.address()), 1);
+        assert_eq!(header(&app).next_proposal_id, 1);
+        // Out of bounds, a disabled class and a wrong ID are paid failures.
+        let too_high =
+            governance_actions::encode(&ParameterChange::MinSelfBond(2_000_000_000)).unwrap();
+        let block = vec![
+            propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, too_high),
+        ];
+        assert_eq!(codes(&commit(&mut app, 2, block)), vec![3]);
+        let block = vec![propose(&app, &f.active, 1, 7, vec![1])];
+        assert_eq!(codes(&commit(&mut app, 3, block)), vec![3]);
+        let block = vec![propose(&app, &f.active, 2, CLASS_PARAMETER_CHANGE, data.clone())];
+        assert_eq!(codes(&commit(&mut app, 4, block)), vec![3]);
+        let block = vec![propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data)];
+        assert_eq!(codes(&commit(&mut app, 5, block)), vec![0]);
+        // Voting before the ballot opens, a deposit of zero, and a vote by an
+        // owner outside the snapshot are all paid failures.
+        let block = vec![vote(&app, &f.active, 1, v3::VoteChoice::Yes)];
+        assert_eq!(codes(&commit(&mut app, 6, block)), vec![3]);
+        let block = vec![deposit(&app, &f.payer, 1, 0)];
+        assert_eq!(codes(&commit(&mut app, 7, block)), vec![1], "zero deposit is malformed");
+        let block = vec![deposit(&app, &f.payer, 1, 5)];
+        assert_eq!(codes(&commit(&mut app, 6 + 2, block)), vec![3], "deposit period closed");
+        assert_eq!(header(&app).held_udgt, 0);
+    }
+
+    #[test]
+    fn below_minimum_and_rejected_proposals_refund_every_depositor() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        let data = governance_actions::encode(&ParameterChange::MaxActive(3)).unwrap();
+        let before = udgt(&app, &f.payer.address());
+        let block = vec![propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data.clone())];
+        commit(&mut app, 1, block);
+        let txs = vec![deposit(&app, &f.payer, 1, 4)];
+        commit(&mut app, 2, txs);
+        assert_eq!(header(&app).held_udgt, 4);
+        // Below the minimum of 5 at close: refunded at 3.
+        commit(&mut app, 3, vec![]);
+        assert_eq!(header(&app).held_udgt, 0);
+        assert_eq!(udgt(&app, &f.payer.address()), before);
+        // A funded proposal voted down is refunded at its close.
+        let block = vec![propose(&app, &f.active, 2, CLASS_PARAMETER_CHANGE, data)];
+        commit(&mut app, 4, block);
+        let txs = vec![deposit(&app, &f.payer, 2, 3), deposit(&app, &f.secondary, 2, 3)];
+        commit(&mut app, 5, txs);
+        let txs = vec![vote(&app, &f.active, 2, v3::VoteChoice::NoWithVeto)];
+        commit(&mut app, 6, txs);
+        commit(&mut app, 7, vec![]);
+        commit(&mut app, 8, vec![]);
+        assert_eq!(header(&app).held_udgt, 6);
+        commit(&mut app, 9, vec![]);
+        assert_eq!(header(&app).held_udgt, 0);
+        assert_eq!(udgt(&app, &f.payer.address()), before);
+        assert_eq!(
+            lifecycle_state(&app).config.max_active,
+            4
+        );
+        drop(app);
+        f.open(dir.path());
+    }
+
+    #[test]
+    fn inconsistent_execution_fails_refunds_and_leaves_state() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        // A minimum above the only validator's self-bond (100) passes the
+        // genesis bounds but not the current state.
+        let data = governance_actions::encode(&ParameterChange::MinSelfBond(500)).unwrap();
+        let block = vec![propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data)];
+        commit(&mut app, 1, block);
+        let txs = vec![deposit(&app, &f.payer, 1, 5)];
+        commit(&mut app, 2, txs);
+        let txs = vec![vote(&app, &f.active, 1, v3::VoteChoice::Yes)];
+        commit(&mut app, 3, txs);
+        for height in 4..=8 {
+            commit(&mut app, height, vec![]);
+        }
+        assert_eq!(min_self_bond(&app), 10);
+        assert_eq!(GovernedParameters::read(&app.storage).unwrap(), GovernedParameters::default());
+        assert_eq!(header(&app).held_udgt, 0);
+        let removed = governance_actions::encode(&RegistryChange::Remove {
+            validator_id: "validator-one".into(),
+        })
+        .unwrap();
+        let block = vec![propose(&app, &f.active, 2, CLASS_VALIDATOR_REGISTRY, removed)];
+        assert_eq!(codes(&commit(&mut app, 9, block)), vec![0]);
+    }
+
+    #[test]
+    fn fee_change_replaces_both_profiles_at_its_execution_height() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        let base = &f.config.ordinary.as_ref().unwrap().fee_profile;
+        let values = governance_actions::FeeValues {
+            gas_price: 3,
+            transaction_overhead: base.transaction_overhead,
+            receipt_metadata_cost: base.receipt_metadata_cost,
+            wire_byte_cost: base.wire_byte_cost,
+            read_byte_cost: base.read_byte_cost,
+            write_byte_cost: base.write_byte_cost,
+            action_costs: base.action_costs,
+            signature_costs: base.signature_costs.clone(),
+            validator_proof_costs: base.validator_proof_costs.clone(),
+            governance_action_costs: [2; 3],
+            account_creation_fee_udrt: 2_000,
+        };
+        let data = governance_actions::encode(&ParameterChange::Fees(values)).unwrap();
+        let block = vec![propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data)];
+        commit(&mut app, 1, block);
+        let txs = vec![deposit(&app, &f.payer, 1, 5)];
+        commit(&mut app, 2, txs);
+        let txs = vec![vote(&app, &f.active, 1, v3::VoteChoice::Yes)];
+        commit(&mut app, 3, txs);
+        for height in 4..=7 {
+            commit(&mut app, height, vec![]);
+        }
+        // A transaction signed for the old profile is refused at height 8.
+        let stale = vote(&app, &f.secondary, 1, v3::VoteChoice::Yes);
+        let result = commit(&mut app, 8, vec![stale]);
+        assert_eq!(codes(&result), vec![1]);
+        let parameters = GovernedParameters::read(&app.storage).unwrap();
+        let ordinary = parameters.ordinary_fee.clone().unwrap();
+        assert_eq!((ordinary.gas_price, ordinary.version, ordinary.activation_height), (3, 2, 8));
+        assert_eq!(ordinary.account_creation_fee_udrt, 2_000);
+        let v3_profile = parameters.governance_fee.clone().unwrap();
+        assert_eq!(v3_profile.base, ordinary);
+        assert_eq!((v3_profile.version, v3_profile.activation_height), (3, 8));
+        // The new profile is in force: a send pays at gas price 3.
+        let drt = balance(&app, &f.payer.address());
+        let mut signed = f.ordinary(&current(&app, &f.payer), &f.payer, vec![send(f.secondary.id(), 1)], 1000);
+        signed.body.fee_profile_version = ordinary.version;
+        signed.body.fee_profile_digest = ordinary_fees::profile_digest(&ordinary).unwrap();
+        signed.body.maximum_fee = 2000;
+        signed.body.gas_limit = 600;
+        let signature = ActivePQC::sign(
+            &f.payer.secret,
+            &ordinary::signing_bytes(&signed.body, &ordinary.limits).unwrap(),
+        );
+        signed.signature = signature;
+        let result = commit(&mut app, 9, vec![f.ordinary_wire(&signed)]);
+        assert_eq!(codes(&result), vec![0], "{:?}", result.tx_results);
+        let paid = drt - balance(&app, &f.payer.address()) - 1;
+        assert_eq!(paid % 3, 0, "fee is charged at the governed gas price");
+        drop(app);
+        f.open(dir.path());
+    }
+
+    use bincode::Options as _;
+    fn fixint<T: serde::Serialize>(value: &T) -> Vec<u8> {
+        bincode::DefaultOptions::new()
+            .with_fixint_encoding()
+            .serialize(value)
+            .unwrap()
+    }
+
+    #[test]
+    fn complete_check_refuses_inconsistent_governance_entries() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        let data = governance_actions::encode(&ParameterChange::MaxActive(3)).unwrap();
+        let txs = vec![propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data)];
+        commit(&mut app, 1, txs);
+        let txs = vec![deposit(&app, &f.payer, 1, 5)];
+        commit(&mut app, 2, txs);
+        let txs = vec![vote(&app, &f.active, 1, v3::VoteChoice::Yes)];
+        commit(&mut app, 3, txs);
+        let rules = app.config.governance.as_ref().unwrap().store_rules();
+        governance_store::validate_complete(&app.storage, &rules).unwrap();
+        let entries: BTreeMap<Vec<u8>, Vec<u8>> = app
+            .storage
+            .db
+            .iterator(IteratorMode::From(b"governance:v2:", rocksdb::Direction::Forward))
+            .map(|e| {
+                let (k, v) = e.unwrap();
+                (k.to_vec(), v.to_vec())
+            })
+            .take_while(|(k, _)| k.starts_with(b"governance:v2:"))
+            .collect();
+        let key = |prefix: &str| {
+            entries
+                .keys()
+                .find(|k| k.starts_with(prefix.as_bytes()))
+                .unwrap()
+                .clone()
+        };
+        let proposal_key = key("governance:v2:proposal:");
+        let mut proposal: governance_store::Proposal = bincode::DefaultOptions::new()
+            .with_fixint_encoding()
+            .deserialize(&entries[&proposal_key])
+            .unwrap();
+        if let governance_store::Phase::Voting { tally, .. } = &mut proposal.phase {
+            tally.yes += 1;
+        }
+        let mut header = header(&app);
+        header.held_udgt += 1;
+        let corruptions: Vec<(Vec<u8>, Option<Vec<u8>>)> = vec![
+            (proposal_key, Some(fixint(&proposal))),
+            (key("governance:v2:due:"), None),
+            (key("governance:v2:vote:"), Some(fixint(&governance_store::VoteChoice::No))),
+            (governance_store::HEADER_KEY.as_bytes().to_vec(), Some(fixint(&header))),
+            (key("governance:v2:snapshot:"), None),
+            (b"governance:v2:other".to_vec(), Some(vec![1])),
+        ];
+        for (key, value) in corruptions {
+            let original = entries.get(&key).cloned();
+            match &value {
+                Some(value) => app.storage.db.put(&key, value).unwrap(),
+                None => app.storage.db.delete(&key).unwrap(),
+            }
+            assert!(
+                governance_store::validate_complete(&app.storage, &rules).is_err(),
+                "{}",
+                String::from_utf8_lossy(&key)
+            );
+            match original {
+                Some(value) => app.storage.db.put(&key, value).unwrap(),
+                None => app.storage.db.delete(&key).unwrap(),
+            }
+        }
+        governance_store::validate_complete(&app.storage, &rules).unwrap();
+    }
+
+    #[test]
+    fn a_refund_at_block_start_is_spendable_in_the_same_block() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        let data = governance_actions::encode(&ParameterChange::MaxActive(3)).unwrap();
+        let txs = vec![propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data)];
+        commit(&mut app, 1, txs);
+        let all = udgt(&app, &f.payer.address());
+        let txs = vec![deposit(&app, &f.payer, 1, 4)];
+        commit(&mut app, 2, txs);
+        // The below-minimum refund runs at 3 before this transfer of the
+        // payer's whole balance, so the transfer is funded.
+        let mut signed = f.ordinary(
+            &current(&app, &f.payer),
+            &f.payer,
+            vec![OrdinaryAction::Send {
+                recipient: f.secondary.id(),
+                denomination: Denomination::Udgt,
+                amount: all,
+            }],
+            1000,
+        );
+        signed = f.resign(signed.body, &f.payer);
+        let result = commit(&mut app, 3, vec![f.ordinary_wire(&signed)]);
+        assert_eq!(codes(&result), vec![0], "{:?}", result.tx_results);
+        assert_eq!(udgt(&app, &f.payer.address()), 0);
+    }
+
+    #[test]
+    fn proposer_selects_paid_governance_transactions_and_drops_denied_ones() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let app = f.initialized(dir.path());
+        let data = governance_actions::encode(&ParameterChange::MaxActive(3)).unwrap();
+        let valid = propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data.clone());
+        // Unfunded for its signed cap and not registered: denied, not included.
+        let stranger = Key::new();
+        let denied = {
+            let mut raw = propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data.clone());
+            raw.truncate(raw.len() - 3);
+            raw
+        };
+        let paid = propose(&app, &f.payer, 1, CLASS_PARAMETER_CHANGE, data);
+        let _ = stranger;
+        let out = app
+            .prepare_proposal(1, 10, 0, vec![valid.clone(), denied, paid.clone()], 1_048_576)
+            .unwrap();
+        assert_eq!(out, vec![valid, paid]);
+        assert!(app.process_proposal(block(1, out)).unwrap());
+    }
+
+    #[test]
+    fn validator_registry_addition_executes_and_survives_restart() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        let data = governance_actions::encode(&RegistryChange::Add {
+            validator_id: "validator-two".into(),
+            owner: f.payer.address(),
+        })
+        .unwrap();
+        let txs = vec![propose(&app, &f.active, 1, CLASS_VALIDATOR_REGISTRY, data)];
+        commit(&mut app, 1, txs);
+        let txs = vec![deposit(&app, &f.payer, 1, 5)];
+        commit(&mut app, 2, txs);
+        let txs = vec![vote(&app, &f.active, 1, v3::VoteChoice::Yes)];
+        commit(&mut app, 3, txs);
+        for height in 4..=8 {
+            commit(&mut app, height, vec![]);
+        }
+        let operators = lifecycle_state(&app).config.approved_operators;
+        assert_eq!(operators.get("validator-two"), Some(&f.payer.address()));
+        assert_eq!(
+            GovernedParameters::read(&app.storage).unwrap().approved_operators,
+            Some(operators)
+        );
+        drop(app);
+        let reopened = f.open(dir.path());
+        assert!(lifecycle_state(&reopened)
+            .config
+            .approved_operators
+            .contains_key("validator-two"));
+    }
+
+    #[test]
+    fn many_proposals_keep_retained_governance_state_bounded() {
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        let data = governance_actions::encode(&ParameterChange::MaxActive(3)).unwrap();
+        let mut peak = 0;
+        // Within one issuance epoch (100 blocks), so no observation is due.
+        for round in 0..95u64 {
+            let height = round + 1;
+            let id = header(&app).next_proposal_id;
+            let txs = vec![propose(&app, &f.active, id, CLASS_PARAMETER_CHANGE, data.clone())];
+            assert_eq!(codes(&commit(&mut app, height, txs)), vec![0]);
+            let retained = app
+                .storage
+                .db
+                .iterator(IteratorMode::From(b"governance:v2:", rocksdb::Direction::Forward))
+                .take_while(|e| e.as_ref().unwrap().0.starts_with(b"governance:v2:"))
+                .count();
+            peak = peak.max(retained);
+        }
+        assert_eq!(header(&app).next_proposal_id, 96);
+        // Header, and three proposals (admitted, collecting, finished) each
+        // with one due entry.
+        assert!(peak <= 7, "retained governance entries peaked at {peak}");
+        drop(app);
+        f.open(dir.path());
+    }
 }

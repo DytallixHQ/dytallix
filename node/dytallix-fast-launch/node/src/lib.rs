@@ -44,9 +44,9 @@ pub mod recovery_store;
 
 pub mod ordinary_authority;
 pub mod ordinary_transport;
-pub mod governance_signed_admission;
+pub(crate) mod governance_actions;
+pub(crate) mod governance_execution;
 pub(crate) mod governance_v3_meter;
-pub(crate) mod governance_v3_fee_settlement;
 pub(crate) mod governance_v3_reservations;
 
 pub mod ordinary_fee_settlement;

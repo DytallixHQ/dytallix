@@ -1,14 +1,6 @@
 //! Transaction-local account and inactivity-switch state for selected-node execution.
-use crate::governance_signed_admission::PreadmissionAssessment;
-use crate::governance_v3_fee_settlement::{
-    ActionDisposition, FeePlan as GovernanceFeePlan, Outcome as GovernanceFeeOutcome,
-};
-use crate::ordinary_fee_settlement::FinancialState;
-use crate::ordinary_reservations::{Asset, Denomination};
-use crate::recovery_fees::RecoveryBook;
 use crate::runtime::dead_man_switch::DeadManSwitchConfig;
-use crate::runtime::governance_ordered_admission::OrderedAdmissionPlan;
-use crate::runtime::governance_state::{GovernanceState, STATE_KEY as GOVERNANCE_STATE_KEY};
+use crate::runtime::governance_store::GovernanceStore;
 use crate::runtime::penalty_custody::{EvidenceFact, PenaltyState, STATE_KEY as PENALTY_STATE_KEY};
 use crate::runtime::reward_runtime::{RewardState, REWARD_STATE_KEY};
 use crate::runtime::staking::{delegator_key, DelegatorRewardRecord, TOTAL_STAKE_KEY};
@@ -22,7 +14,7 @@ use rocksdb::{WriteBatch, WriteOptions};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeMap,
     sync::Arc,
 };
 
@@ -92,7 +84,7 @@ pub(crate) struct Settlement {
     pub(crate) reward_timestamp: Option<u64>,
     pub(crate) validators: Option<LifecycleState>,
     pub(crate) penalties: Option<PenaltyState>,
-    pub(crate) governance: Option<GovernanceState>,
+    pub(crate) governance: Option<GovernanceStore>,
 }
 impl Settlement {
     pub(crate) fn new(storage: Arc<Storage>) -> Self {
@@ -109,207 +101,6 @@ impl Settlement {
             penalties: None,
             governance: None,
         }
-    }
-    /// Stage every governance account change with its state record. The
-    /// consensus caller must still bind the stored parent to the committed
-    /// head and enable the exact governance profile before these writes commit.
-    pub(crate) fn apply_ordered_governance(
-        &mut self,
-        parent: &GovernanceState,
-        plan: &OrderedAdmissionPlan,
-        book: &RecoveryBook,
-    ) -> Result<()> {
-        anyhow::ensure!(self.governance.is_none(), "Governance already staged");
-        parent.validate()?;
-        book.validate()?;
-        anyhow::ensure!(
-            parent.encode()? == plan.parent_state_bytes
-                && self.storage.db.get(GOVERNANCE_STATE_KEY)?
-                    == Some(plan.parent_state_bytes.clone())
-                && plan.next_state.encode()? == plan.state_bytes
-                && parent.finalized_height().checked_add(1)
-                    == Some(plan.next_state.finalized_height())
-                && parent.plan_commit(
-                    plan.next_state.finalized_height(),
-                    plan.next_state.proposals().clone(),
-                )? == plan.next_state
-                && book.last_height == plan.next_state.finalized_height()
-                && book.accounts.all()?.values().all(|account| {
-                    account.recovery.domain.chain_id == parent.chain_id()
-                        && account.recovery.domain.genesis_digest == parent.genesis_digest()
-                }),
-            "Governance plan differs from stored parent or staged recovery"
-        );
-        let before_accounts = plan.account_writes.iter().try_fold(0u128, |sum, write| {
-            sum.checked_add(write.balance_before_udgt)
-                .context("Governance before-account custody overflow")
-        })?;
-        let after_accounts = plan.account_writes.iter().try_fold(0u128, |sum, write| {
-            sum.checked_add(write.balance_after_udgt)
-                .context("Governance after-account custody overflow")
-        })?;
-        anyhow::ensure!(
-            before_accounts.checked_add(parent.held_total_udgt()?)
-                == after_accounts.checked_add(plan.next_state.held_total_udgt()?),
-            "Governance native account and escrow custody differ"
-        );
-        let mut staged = self.clone();
-        let mut seen = BTreeSet::new();
-        for write in &plan.account_writes {
-            anyhow::ensure!(
-                seen.insert(write.owner),
-                "Repeated governance account write"
-            );
-            let account = book
-                .accounts
-                .all()?
-                .get(&hex::encode(write.owner))
-                .context("Governance account owner is not registered")?;
-            let address = &account.address;
-            let before_balance = staged.account(address)?.balance_of("udgt");
-            let before_spendable = staged.ordinary_eligible(address, "udgt", false)?;
-            anyhow::ensure!(
-                before_balance == write.balance_before_udgt
-                    && before_spendable == write.spendable_before_udgt,
-                "Governance account write differs from staged balance"
-            );
-            staged
-                .account(address)?
-                .set_balance("udgt", write.balance_after_udgt);
-            anyhow::ensure!(
-                staged.ordinary_eligible(address, "udgt", false)? == write.spendable_after_udgt,
-                "Governance account write differs from staged spendable DGT"
-            );
-        }
-        staged.governance = Some(plan.next_state.clone());
-        *self = staged;
-        Ok(())
-    }
-    /// Read the same staged accounts that a governance fee plan would change.
-    /// The clone keeps failed or read-only planning out of the write overlay.
-    pub(crate) fn governance_financial_snapshot(
-        &self,
-        book: &RecoveryBook,
-    ) -> Result<FinancialState> {
-        book.validate()?;
-        let mut staged = self.clone();
-        let mut snapshot = FinancialState {
-            absent_recipients: Default::default(),
-            balances: BTreeMap::new(),
-            eligible: BTreeMap::new(),
-            native_nonces: BTreeMap::new(),
-            withheld_udrt: staged.ordinary_fee_total()?,
-        };
-        for registered in book.accounts.all()?.values() {
-            let address = &registered.address;
-            let owner = registered.recovery.domain.account_id;
-            let account = staged.account(address)?.clone();
-            anyhow::ensure!(
-                account.nonce == registered.recovery.spending_nonce,
-                "Governance native and recovery nonces differ"
-            );
-            snapshot.native_nonces.insert(address.clone(), account.nonce);
-            for (denomination, name) in [
-                (Denomination::Udgt, "udgt"),
-                (Denomination::Udrt, "udrt"),
-            ] {
-                let asset = Asset { owner, denomination };
-                let balance = account.balance_of(name);
-                let eligible = staged.ordinary_eligible(address, name, false)?;
-                anyhow::ensure!(
-                    eligible <= balance,
-                    "Governance eligible amount exceeds account balance"
-                );
-                snapshot.balances.insert(asset, balance);
-                snapshot.eligible.insert(asset, eligible);
-            }
-        }
-        Ok(snapshot)
-    }
-    /// Apply the paid v3 fee and both nonce mirrors to this block overlay.
-    /// The consensus caller still owns the receipt and the returned RecoveryBook.
-    pub(crate) fn apply_governance_fee_plan(
-        &mut self,
-        assessment: &PreadmissionAssessment,
-        plan: &GovernanceFeePlan,
-        book: &RecoveryBook,
-        block_index: u32,
-    ) -> Result<RecoveryBook> {
-        assessment.bind_fee_receipt(&plan.receipt)?;
-        book.validate()?;
-        let mut staged = self.clone();
-        let receipt = &plan.receipt;
-        anyhow::ensure!(
-            receipt.block_height == book.last_height
-                && receipt.block_index == block_index
-                && plan.reservation.asset.owner == receipt.actor
-                && plan.reservation.asset.denomination == Denomination::Udrt
-                && plan.reservation.cap == receipt.reserved_cap
-                && matches!(
-                    (receipt.outcome, plan.disposition),
-                    (GovernanceFeeOutcome::Success, ActionDisposition::KeepProposed)
-                        | (GovernanceFeeOutcome::ApplicationFailure | GovernanceFeeOutcome::OutOfGas,
-                            ActionDisposition::DiscardAll)
-                ),
-            "Governance fee plan identity or disposition differs"
-        );
-        let registered = book
-            .accounts
-            .all()?
-            .get(&hex::encode(receipt.actor))
-            .context("Governance fee actor is not registered")?;
-        let address = &registered.address;
-        let before_balance = staged.account(address)?.balance_of("udrt");
-        let before_eligible = staged.ordinary_eligible(address, "udrt", false)?;
-        let before_nonce = staged.account(address)?.nonce;
-        let before_withheld = staged.ordinary_fee_total()?;
-        let after_balance = before_balance
-            .checked_sub(receipt.charge)
-            .context("Governance fee exceeds current uDRT balance")?;
-        let after_eligible = before_eligible
-            .checked_sub(receipt.charge)
-            .context("Governance fee exceeds eligible uDRT")?;
-        let expected_nonce = before_nonce
-            .checked_add(1)
-            .context("Governance fee nonce overflow")?;
-        anyhow::ensure!(
-            registered.recovery.spending_nonce == before_nonce
-                && receipt.nonce_before == before_nonce
-                && receipt.nonce_after == expected_nonce
-                && plan.reservation.balance_before == before_balance
-                && plan.reservation.eligible_before == before_eligible
-                && plan.reservation.balance_while_reserved
-                    == before_balance.checked_sub(receipt.reserved_cap)
-                        .context("Governance fee cap exceeds current balance")?
-                && plan.reservation.eligible_while_reserved
-                    == before_eligible.checked_sub(receipt.reserved_cap)
-                        .context("Governance fee cap exceeds eligible balance")?
-                && plan.fee_checkpoint.balances.get(&plan.reservation.asset)
-                    == Some(&after_balance)
-                && plan.fee_checkpoint.eligible.get(&plan.reservation.asset)
-                    == Some(&after_eligible)
-                && plan.fee_checkpoint.native_nonces.get(address) == Some(&expected_nonce)
-                && before_withheld.checked_add(receipt.charge)
-                    == Some(plan.fee_checkpoint.withheld_udrt),
-            "Governance fee checkpoint differs from staged account"
-        );
-        let mut expected_book = book.clone();
-        expected_book
-            .accounts
-            .find_mut(&hex::encode(receipt.actor))?
-            .context("Governance fee actor disappeared")?
-            .recovery
-            .spending_nonce = expected_nonce;
-        anyhow::ensure!(
-            expected_book == plan.authority_checkpoint,
-            "Governance authority checkpoint differs from fee nonce"
-        );
-        let account = staged.account(address)?;
-        account.set_balance("udrt", after_balance);
-        account.nonce = expected_nonce;
-        staged.fee_total = Some(plan.fee_checkpoint.withheld_udrt);
-        *self = staged;
-        Ok(expected_book)
     }
     /// Attach one parent-snapshot interval before executing its transactions.
     /// The block adapter stages all writes before it executes transactions.
@@ -908,12 +699,6 @@ impl Settlement {
     }
     pub(crate) fn writes(&self) -> Result<BTreeMap<Vec<u8>, Vec<u8>>> {
         let mut writes = self.lifecycle.clone();
-        if let Some(governance) = &self.governance {
-            writes.insert(
-                GOVERNANCE_STATE_KEY.as_bytes().to_vec(),
-                governance.encode()?,
-            );
-        }
         if let Some(validators) = &self.validators {
             validators
                 .validate_rewards(self.rewards.as_ref().context("Missing lifecycle rewards")?)?;

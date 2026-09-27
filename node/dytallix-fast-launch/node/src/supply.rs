@@ -2,7 +2,7 @@
 //! Unpaid rewards and both reserves remain inside staking-pool custody.
 use crate::{
     block_lifecycle::Writes,
-    runtime::governance_state::{GovernanceState, STATE_KEY as GOVERNANCE_STATE_KEY},
+    runtime::governance_store::{self, Header as GovernanceHeader},
     runtime::issuance_timing::{self, PoolAmounts, TimingState, TIMING_STATE_KEY},
     runtime::penalty_custody::{PenaltyState, STATE_KEY as PENALTY_STATE_KEY},
     runtime::reward_runtime::{RewardState, REWARD_STATE_KEY},
@@ -258,7 +258,8 @@ pub(crate) fn genesis_amount(storage: &Storage) -> Result<u128> {
 }
 /// Emission events are not a prefix here: only the current block's event is
 /// read, by point lookup, instead of every event since genesis.
-const RELEVANT_PREFIXES: [&[u8]; 11] = [
+/// Governance contributes only its header's held deposit total (T6).
+const RELEVANT_PREFIXES: [&[u8]; 10] = [
     b"supply:",
     b"staking:",
     b"rewards:",
@@ -266,13 +267,13 @@ const RELEVANT_PREFIXES: [&[u8]; 11] = [
     b"penalty:",
     b"issuance:",
     b"adaptive:",
-    b"governance:",
     b"gov:",
     b"acct:balances:",
     b"emission:pool:",
 ];
-fn relevant_keys() -> [&'static [u8]; 7] {
+fn relevant_keys() -> [&'static [u8]; 8] {
     [
+        governance_store::HEADER_KEY.as_bytes(),
         DRT_GENESIS_KEY.as_bytes(),
         DRT_BURNED_KEY.as_bytes(),
         EMITTED.as_bytes(),
@@ -332,20 +333,21 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         }
     };
     let governance = values
-        .get(GOVERNANCE_STATE_KEY.as_bytes())
-        .map(|raw| GovernanceState::decode(raw))
+        .get(governance_store::HEADER_KEY.as_bytes())
+        .map(|raw| GovernanceHeader::decode(raw))
         .transpose()?;
     let governance_escrow = governance
         .as_ref()
-        .map(|state| {
+        .map(|header| {
+            // The genesis digest is bound to the configured candidate by the
+            // history check; it is not the monetary genesis marker.
             ensure!(
-                state.last_height() == height
+                header.height == height
                     && values.get(b"meta:chain_id".as_slice()).map(Vec::as_slice)
-                        == Some(state.chain_id().as_bytes())
-                    && marker[1..] == state.genesis_digest(),
-                "Governance supply state height, chain, or genesis differs"
+                        == Some(header.chain_id.as_bytes()),
+                "Governance supply state height or chain differs"
             );
-            state.held_total_udgt()
+            Ok(header.held_udgt)
         })
         .transpose()?;
     let genesis = read(DRT_GENESIS_KEY, true)?;
@@ -491,7 +493,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
     for (key, raw) in &values {
         ensure!(
             (!key.starts_with(b"governance:") && !key.starts_with(b"gov:"))
-                || key == GOVERNANCE_STATE_KEY.as_bytes(),
+                || key.starts_with(governance_store::PREFIX.as_bytes()),
             "Unsupported governance supply record"
         );
         ensure!(
@@ -853,9 +855,7 @@ pub(crate) fn validate(storage: &Storage, overlay: &Writes) -> Result<DrtSupply>
 #[cfg(test)]
 mod reward_v2_tests {
     use super::*;
-    use crate::runtime::governance_deposit_stage::{DepositRules, DepositStage};
-    use crate::runtime::governance_escrow::DepositEscrow;
-    use crate::runtime::governance_state::ProposalRecord;
+    use crate::runtime::governance_store::HEADER_KEY as GOVERNANCE_HEADER_KEY;
     use crate::runtime::reward_runtime::{RewardConfig, ValidatorStatus};
 
     fn fixture() -> (tempfile::TempDir, Storage, RewardState) {
@@ -943,52 +943,34 @@ mod reward_v2_tests {
         // A burn cannot overdraw the payer.
         assert!(settlement.burn("alice", 901).is_err());
     }
+    fn governance_header(chain: &str, digest: [u8; 32], height: u64, held: u128) -> Vec<u8> {
+        let mut header = GovernanceHeader::genesis(chain.into(), digest).unwrap();
+        header.height = height;
+        header.held_udgt = held;
+        header.encode().unwrap()
+    }
     #[test]
     fn governance_supply_state_is_bound_to_chain_and_height() {
         let (_dir, storage, _) = fixture();
         let marker = storage.db.get("genesis:monetary:v1").unwrap().unwrap();
         let mut digest = [0u8; 32];
         digest.copy_from_slice(&marker[1..]);
-        let state = GovernanceState::new(1, "supply-test".into(), digest, 0).unwrap();
+        let key = GOVERNANCE_HEADER_KEY.as_bytes().to_vec();
         let mut writes = Writes::new();
-        writes.insert(
-            GOVERNANCE_STATE_KEY.as_bytes().to_vec(),
-            state.encode().unwrap(),
-        );
+        writes.insert(key.clone(), governance_header("supply-test", digest, 0, 0));
         let supply = validate_native(&storage, &writes).unwrap();
         assert_eq!(supply.dgt.governance_escrow, Some(0));
         assert_eq!(supply.dgt.response().accounting_version, 2);
-
-        let wrong_chain = GovernanceState::new(1, "other-chain".into(), digest, 0).unwrap();
-        writes.insert(
-            GOVERNANCE_STATE_KEY.as_bytes().to_vec(),
-            wrong_chain.encode().unwrap(),
-        );
-        assert!(validate_native(&storage, &writes).is_err());
-
-        let wrong_height = GovernanceState::new(1, "supply-test".into(), digest, 1).unwrap();
-        writes.insert(
-            GOVERNANCE_STATE_KEY.as_bytes().to_vec(),
-            wrong_height.encode().unwrap(),
-        );
-        assert!(validate_native(&storage, &writes).is_err());
-
-        let wrong_genesis = GovernanceState::new(1, "supply-test".into(), [7; 32], 0).unwrap();
-        writes.insert(
-            GOVERNANCE_STATE_KEY.as_bytes().to_vec(),
-            wrong_genesis.encode().unwrap(),
-        );
-        assert!(validate_native(&storage, &writes).is_err());
-
-        writes.insert(
-            GOVERNANCE_STATE_KEY.as_bytes().to_vec(),
-            state.encode().unwrap(),
-        );
-        for key in ["governance:v1:unknown", "gov:legacy"] {
-            writes.insert(key.as_bytes().to_vec(), vec![1]);
+        for wrong in [
+            governance_header("other-chain", digest, 0, 0),
+            governance_header("supply-test", digest, 1, 0),
+        ] {
+            writes.insert(key.clone(), wrong);
             assert!(validate_native(&storage, &writes).is_err());
-            writes.remove(key.as_bytes());
         }
+        writes.insert(key, governance_header("supply-test", digest, 0, 0));
+        writes.insert(b"gov:legacy".to_vec(), vec![1]);
+        assert!(validate_native(&storage, &writes).is_err());
     }
     #[test]
     fn governance_deposit_remains_in_dgt_custody() {
@@ -1009,38 +991,10 @@ mod reward_v2_tests {
         let marker = storage.db.get("genesis:monetary:v1").unwrap().unwrap();
         let mut digest = [0u8; 32];
         digest.copy_from_slice(&marker[1..]);
-        let stage = DepositStage::new(
-            DepositRules {
-                deposit_period_blocks: 3,
-                minimum_deposit_udgt: 10,
-                max_action_bytes: 8,
-            },
-            1,
-            1,
-            vec![1],
-            dytallix_protocol_types::ordinary_v3::governance_action_digest(1, &[1]).unwrap(),
-            1,
-        )
-        .unwrap();
-        let escrow = DepositEscrow::new(1, 4).unwrap();
-        let state = GovernanceState::new(1, "supply-test".into(), digest, 0).unwrap();
-        let state = state
-            .plan_commit(
-                1,
-                BTreeMap::from([(1, ProposalRecord::new(stage.clone(), escrow.clone(), None))]),
-            )
-            .unwrap();
-        let (escrow, balance) = escrow.plan_deposit([1; 32], 5, 60, 60).unwrap();
-        let state = state
-            .plan_commit(
-                2,
-                BTreeMap::from([(1, ProposalRecord::new(stage, escrow, None))]),
-            )
-            .unwrap();
         let mut writes = Writes::new();
         writes.insert(
-            GOVERNANCE_STATE_KEY.as_bytes().to_vec(),
-            state.encode().unwrap(),
+            GOVERNANCE_HEADER_KEY.as_bytes().to_vec(),
+            governance_header("supply-test", digest, 2, 5),
         );
         writes.insert(
             b"emission:last_height".to_vec(),
@@ -1049,7 +1003,7 @@ mod reward_v2_tests {
         put_amount(&mut writes, EMITTED, 0);
         writes.insert(
             b"acct:balances:alice".to_vec(),
-            bincode::serialize(&BTreeMap::from([("udgt".to_string(), balance)])).unwrap(),
+            bincode::serialize(&BTreeMap::from([("udgt".to_string(), 55u128)])).unwrap(),
         );
         let supply = validate_native(&storage, &writes).unwrap();
         assert_eq!(supply.dgt.governance_escrow, Some(5));

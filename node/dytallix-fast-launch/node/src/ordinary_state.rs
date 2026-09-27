@@ -64,7 +64,13 @@ pub(crate) fn validator_profile_digest(lifecycle: &LifecycleConfig) -> Result<[u
     bytes.extend_from_slice(&1952u32.to_be_bytes());
     bytes.extend_from_slice(&3309u32.to_be_bytes());
     bytes.extend_from_slice(b"PURE-ML-DSA/EMPTY-CONTEXT\0");
-    let config = serde_json::to_vec(lifecycle)?;
+    // The exact role, less the values governance may change (T6): operators,
+    // the minimum self-bond and the active-set bound.
+    let mut role = lifecycle.clone();
+    role.approved_operators.clear();
+    role.min_self_bond = 0;
+    role.max_active = 0;
+    let config = serde_json::to_vec(&role)?;
     bytes.extend_from_slice(
         &u32::try_from(config.len())
             .context("Lifecycle role length overflow")?

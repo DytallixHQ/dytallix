@@ -36,34 +36,26 @@ fn configured_digest_selects_only_the_governance_state_key() {
         .unwrap()
         .try_into()
         .unwrap();
-    let governance = GovernanceState::new(
-        GOVERNANCE_STATE_VERSION,
-        app.config.chain_id.clone(),
-        genesis_digest,
-        0,
-    )
-    .unwrap();
-    let mut writes = Writes::new();
-    writes.insert(GOVERNANCE_STATE_KEY.as_bytes().to_vec(), governance.encode().unwrap());
+    let mut writes =
+        governance_store::genesis_writes(&app.config.chain_id, genesis_digest).unwrap();
+    let key = governance_store::HEADER_KEY.as_bytes().to_vec();
     assert!(state_digest(&app.storage, &writes, false).is_err());
     assert_ne!(state_digest(&app.storage, &writes, true).unwrap(), base);
-    writes.insert(b"governance:v1:other".to_vec(), b"forbidden".to_vec());
-    assert!(state_digest(&app.storage, &writes, true).is_err());
-    writes.remove(b"governance:v1:other".as_slice());
-    writes.insert(b"gov:proposal:1".to_vec(), b"forbidden".to_vec());
-    assert!(state_digest(&app.storage, &writes, true).is_err());
-    writes.remove(b"gov:proposal:1".as_slice());
+    // Only the per-entry layout is governance state; the old blob and the
+    // legacy module's keys are refused.
+    for forbidden in [b"governance:v1:state".as_slice(), b"gov:proposal:1"] {
+        writes.insert(forbidden.to_vec(), b"forbidden".to_vec());
+        assert!(state_digest(&app.storage, &writes, true).is_err());
+        writes.remove(forbidden);
+    }
     let expected = state_digest(&app.storage, &writes, true).unwrap();
-    app.storage
-        .db
-        .put(GOVERNANCE_STATE_KEY, &writes[GOVERNANCE_STATE_KEY.as_bytes()])
-        .unwrap();
+    app.storage.db.put(&key, &writes[&key]).unwrap();
     assert_eq!(
         state_digest(&app.storage, &Writes::new(), true).unwrap(),
         expected
     );
     assert!(verify_recovery(&app.storage).is_err());
-    app.storage.db.delete(GOVERNANCE_STATE_KEY).unwrap();
+    app.storage.db.delete(&key).unwrap();
 }
 
 #[test]

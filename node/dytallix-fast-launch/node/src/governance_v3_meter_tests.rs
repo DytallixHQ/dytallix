@@ -270,7 +270,7 @@ fn second_v3_profile_in_one_block_faults_shared_budget() {
 
 fn state_record(bytes: usize) -> LogicalRecord {
     LogicalRecord::new(
-        b"governance:v1:state",
+        b"governance:v2:header",
         &[LogicalField {
             id: 1,
             value: LogicalValue::Bytes(vec![7; bytes]),
