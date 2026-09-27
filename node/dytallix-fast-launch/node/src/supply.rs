@@ -1,7 +1,7 @@
 //! Native-token custody accounting for the selected block lifecycle.
 //! Unpaid rewards and both reserves remain inside staking-pool custody.
 use crate::{
-    block_lifecycle::Writes,
+    block_lifecycle::{Deletes, Writes},
     runtime::governance_store::{self, Header as GovernanceHeader},
     runtime::issuance_timing::{self, PoolAmounts, TimingState, TIMING_STATE_KEY},
     runtime::penalty_custody::{PenaltyState, STATE_KEY as PENALTY_STATE_KEY},
@@ -19,6 +19,115 @@ use std::collections::BTreeMap;
 pub const DRT_GENESIS_KEY: &str = "supply:drt_genesis";
 /// Cumulative uDRT burned (account creation fees). Absent means zero.
 pub const DRT_BURNED_KEY: &str = "supply:drt_burned";
+/// Running totals of liquid uDGT and uDRT over every `acct:balances:` record
+/// (E04 gap 5). Consensus blocks update them from the balance records they
+/// write, so per-block checks read no other account; the complete check
+/// compares them with a scan. Written at consensus genesis.
+pub(crate) const ACCOUNT_TOTALS_KEY: &str = "supply:account_totals";
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize, Serialize)]
+pub(crate) struct AccountTotals {
+    pub udgt: u128,
+    pub udrt: u128,
+}
+impl AccountTotals {
+    /// The liquid amounts one canonical balance map holds.
+    fn of_balances(raw: &[u8]) -> Result<Self> {
+        let balances: BTreeMap<String, u128> =
+            bincode::deserialize(raw).context("Invalid account balance map")?;
+        ensure!(
+            bincode::serialize(&balances)? == raw,
+            "Noncanonical account balance map"
+        );
+        Ok(Self {
+            udgt: balances.get("udgt").copied().unwrap_or(0),
+            udrt: balances.get("udrt").copied().unwrap_or(0),
+        })
+    }
+    fn add(self, other: Self) -> Result<Self> {
+        Ok(Self {
+            udgt: self
+                .udgt
+                .checked_add(other.udgt)
+                .context("Liquid DGT supply exceeds u128")?,
+            udrt: self
+                .udrt
+                .checked_add(other.udrt)
+                .context("Liquid DRT supply exceeds u128")?,
+        })
+    }
+    fn sub(self, other: Self) -> Result<Self> {
+        Ok(Self {
+            udgt: self
+                .udgt
+                .checked_sub(other.udgt)
+                .context("Account totals below a removed balance")?,
+            udrt: self
+                .udrt
+                .checked_sub(other.udrt)
+                .context("Account totals below a removed balance")?,
+        })
+    }
+    pub(crate) fn encode(&self) -> Result<Vec<u8>> {
+        Ok(bincode::serialize(self)?)
+    }
+    pub(crate) fn decode(raw: &[u8]) -> Result<Self> {
+        let totals: Self = bincode::deserialize(raw).context("Invalid account totals")?;
+        ensure!(totals.encode()? == raw, "Noncanonical account totals");
+        Ok(totals)
+    }
+    /// Totals over the given balance maps: the genesis value.
+    pub(crate) fn sum<'a>(maps: impl IntoIterator<Item = &'a BTreeMap<String, u128>>) -> Result<Self> {
+        maps.into_iter().try_fold(Self::default(), |totals, balances| {
+            totals.add(Self {
+                udgt: balances.get("udgt").copied().unwrap_or(0),
+                udrt: balances.get("udrt").copied().unwrap_or(0),
+            })
+        })
+    }
+}
+
+/// The account totals after a block's staged writes and deletes: the
+/// committed totals, less each changed record's committed amounts, plus its
+/// new amounts. Reads only the records the block changes.
+pub(crate) fn account_totals_after(
+    storage: &Storage,
+    writes: &Writes,
+    deletes: &Deletes,
+) -> Result<AccountTotals> {
+    let mut totals = AccountTotals::decode(
+        &storage
+            .db
+            .get(ACCOUNT_TOTALS_KEY)?
+            .context("Account totals missing; consensus genesis writes them")?,
+    )?;
+    let changed = writes
+        .keys()
+        .chain(deletes.iter())
+        .filter(|key| key.starts_with(b"acct:balances:"));
+    for key in changed {
+        if let Some(old) = storage.db.get(key)? {
+            totals = totals.sub(AccountTotals::of_balances(&old)?)?;
+        }
+    }
+    for (key, value) in writes {
+        if key.starts_with(b"acct:balances:") {
+            ensure!(!deletes.contains(key), "A block cannot write and delete a balance");
+            totals = totals.add(AccountTotals::of_balances(value)?)?;
+        }
+    }
+    Ok(totals)
+}
+
+/// Which way the supply check finds liquid account balances.
+#[derive(Clone, Copy)]
+enum Accounts<'a> {
+    /// Read every balance record; any stored totals must match the sum.
+    Scan,
+    /// Take the running totals after the staged changes; read single
+    /// records only.
+    Totals(&'a Deletes),
+}
 const EMITTED: &str = "emission:circulating_supply";
 const POOLS: [&str; 4] = [
     "block_rewards",
@@ -278,8 +387,9 @@ const RELEVANT_PREFIXES: [&[u8]; 8] = [
     b"acct:balances:",
     b"emission:pool:",
 ];
-fn relevant_keys() -> [&'static [u8]; 9] {
+fn relevant_keys() -> [&'static [u8]; 10] {
     [
+        ACCOUNT_TOTALS_KEY.as_bytes(),
         governance_store::HEADER_KEY.as_bytes(),
         TIMING_STATE_KEY.as_bytes(),
         DRT_GENESIS_KEY.as_bytes(),
@@ -296,11 +406,45 @@ fn relevant(key: &[u8]) -> bool {
 }
 /// Caller holds the storage execution lock, or owns exclusive startup access.
 /// Overlay values replace stored values. This planner never writes storage.
+/// The complete supply check: reads every account (startup and the
+/// development path).
 pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<NativeSupply> {
+    validate_native_with(storage, overlay, Accounts::Scan)
+}
+/// The per-block supply check over staged `overlay` and `deletes`: liquid
+/// balances come from the running account totals, so its cost does not grow
+/// with the number of accounts. The overlay must carry the updated totals
+/// when the block changes a balance.
+pub(crate) fn validate_native_block(
+    storage: &Storage,
+    overlay: &Writes,
+    deletes: &Deletes,
+) -> Result<NativeSupply> {
+    validate_native_with(storage, overlay, Accounts::Totals(deletes))
+}
+#[cfg(test)]
+thread_local! { pub(crate) static ACCOUNT_SCANS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+fn validate_native_with(
+    storage: &Storage,
+    overlay: &Writes,
+    accounts: Accounts<'_>,
+) -> Result<NativeSupply> {
     let snapshot = storage.db.snapshot();
     let mut values = Writes::new();
+    let prefixes: Vec<&[u8]> = match accounts {
+        Accounts::Scan => {
+            #[cfg(test)]
+            ACCOUNT_SCANS.with(|n| n.set(n.get() + 1));
+            RELEVANT_PREFIXES.to_vec()
+        }
+        Accounts::Totals(_) => RELEVANT_PREFIXES
+            .iter()
+            .copied()
+            .filter(|prefix| *prefix != b"acct:balances:".as_slice())
+            .collect(),
+    };
     for (key, value) in
-        crate::block_lifecycle::snapshot_selected(&snapshot, &RELEVANT_PREFIXES, &relevant_keys())?
+        crate::block_lifecycle::snapshot_selected(&snapshot, &prefixes, &relevant_keys())?
     {
         if relevant(&key) {
             values.insert(key.to_vec(), value.to_vec());
@@ -340,6 +484,20 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             }
         }
     };
+    // One account's balance record: from the staged or loaded values, else,
+    // when balances were not all loaded, from committed storage.
+    let balance_record = |owner: &str| -> Result<Option<Vec<u8>>> {
+        let key = format!("acct:balances:{owner}").into_bytes();
+        if let Some(raw) = values.get(&key) {
+            return Ok(Some(raw.clone()));
+        }
+        match accounts {
+            Accounts::Scan => Ok(None),
+            Accounts::Totals(deletes) if deletes.contains(&key) => Ok(None),
+            Accounts::Totals(_) => Ok(snapshot.get(&key)?),
+        }
+    };
+    let has_account = |owner: &str| -> Result<bool> { Ok(balance_record(owner)?.is_some()) };
     let governance = values
         .get(governance_store::HEADER_KEY.as_bytes())
         .map(|raw| GovernanceHeader::decode(raw))
@@ -446,7 +604,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
     })?;
     for owner in pending_by_owner.keys() {
         ensure!(
-            values.contains_key(format!("acct:balances:{owner}").as_bytes()),
+            has_account(owner)?,
             "Pending bond owner has no funding account record"
         );
     }
@@ -496,10 +654,9 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         }
         None => 500,
     };
-    let mut dgt_liquid = 0u128;
+    let mut scanned = AccountTotals::default();
     let mut staked = 0u128;
     let mut bonded_owners = BTreeMap::new();
-    let mut liquid = 0u128;
     let mut pools = BTreeMap::new();
     for (key, raw) in &values {
         ensure!(
@@ -515,22 +672,15 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             !key.starts_with(b"supply:")
                 || key == DRT_GENESIS_KEY.as_bytes()
                 || key == DRT_BURNED_KEY.as_bytes()
-                || key == DGT_MINTED_KEY.as_bytes(),
+                || key == DGT_MINTED_KEY.as_bytes()
+                || key == ACCOUNT_TOTALS_KEY.as_bytes(),
             "Unsupported native supply record; accounting migration required"
         );
         if key.starts_with(b"acct:balances:") {
-            let balances: BTreeMap<String, u128> =
-                bincode::deserialize(raw).context("Invalid account balance map")?;
-            ensure!(
-                bincode::serialize(&balances)? == *raw,
-                "Noncanonical account balance map"
-            );
-            dgt_liquid = dgt_liquid
-                .checked_add(balances.get("udgt").copied().unwrap_or(0))
-                .context("Liquid DGT supply exceeds u128")?;
-            liquid = liquid
-                .checked_add(balances.get("udrt").copied().unwrap_or(0))
-                .context("Liquid DRT supply exceeds u128")?;
+            let balances = AccountTotals::of_balances(raw)?;
+            if matches!(accounts, Accounts::Scan) {
+                scanned = scanned.add(balances)?;
+            }
         }
         if let Some(address) = key.strip_prefix(b"staking:delegator:") {
             let address =
@@ -547,7 +697,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
                 "Noncanonical delegator record"
             );
             ensure!(
-                values.contains_key(format!("acct:balances:{address}").as_bytes()),
+                has_account(address)?,
                 "Delegator has no funding account record"
             );
             staked = staked
@@ -584,6 +734,30 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             pools.insert(name.to_string(), amount(raw)?);
         }
     }
+    let stored_totals = values
+        .get(ACCOUNT_TOTALS_KEY.as_bytes())
+        .map(|raw| AccountTotals::decode(raw))
+        .transpose()?;
+    let accounts_total = match accounts {
+        // Stored totals, when present, must equal the scan.
+        Accounts::Scan => {
+            ensure!(
+                stored_totals.is_none_or(|stored| stored == scanned),
+                "Account totals differ from the account records"
+            );
+            scanned
+        }
+        // The totals the block leaves must follow from its balance changes.
+        Accounts::Totals(deletes) => {
+            let expected = account_totals_after(storage, overlay, deletes)?;
+            ensure!(
+                stored_totals == Some(expected),
+                "Account totals differ from the block's balance changes"
+            );
+            expected
+        }
+    };
+    let (dgt_liquid, liquid) = (accounts_total.udgt, accounts_total.udrt);
     let pool_total = pools
         .values()
         .try_fold(0u128, |sum, v| sum.checked_add(*v))
@@ -623,7 +797,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         );
         for owner in rewards.owners() {
             ensure!(
-                values.contains_key(format!("acct:balances:{owner}").as_bytes()),
+                has_account(owner)?,
                 "Reward owner has no funding account record"
             );
         }
@@ -645,8 +819,9 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
                 event.1
             };
             for owner in rewards.locks.keys() {
-                let balances: BTreeMap<String, u128> =
-                    bincode::deserialize(&values[format!("acct:balances:{owner}").as_bytes()])?;
+                let balances: BTreeMap<String, u128> = bincode::deserialize(
+                    &balance_record(owner)?.context("Vesting lock owner has no account record")?,
+                )?;
                 rewards
                     .liquid_spendable(
                         owner,
@@ -1270,5 +1445,79 @@ mod issuance_timing_supply_tests {
         }
         storage.db.put("adaptive:v1:head", b"corrupt").unwrap();
         assert!(inspect_timed_native(&storage).is_err());
+    }
+}
+
+#[cfg(test)]
+mod account_totals_tests {
+    use super::*;
+
+    /// The totals after a block: an update, a new record and a removal.
+    #[test]
+    fn account_totals_after_counts_updates_new_records_and_removals() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = Storage::open(dir.path().join("db")).unwrap();
+        let map = |udgt: u128, udrt: u128| {
+            bincode::serialize(&BTreeMap::from([
+                ("udgt".to_string(), udgt),
+                ("udrt".to_string(), udrt),
+            ]))
+            .unwrap()
+        };
+        storage.db.put(b"acct:balances:a", map(10, 100)).unwrap();
+        storage.db.put(b"acct:balances:b", map(5, 50)).unwrap();
+        let totals = AccountTotals { udgt: 15, udrt: 150 };
+        storage.db.put(ACCOUNT_TOTALS_KEY, totals.encode().unwrap()).unwrap();
+        let mut writes = Writes::new();
+        writes.insert(b"acct:balances:a".to_vec(), map(8, 90));
+        writes.insert(b"acct:balances:c".to_vec(), map(1, 1));
+        let deletes = Deletes::from([b"acct:balances:b".to_vec()]);
+        assert_eq!(
+            account_totals_after(&storage, &writes, &deletes).unwrap(),
+            AccountTotals { udgt: 9, udrt: 91 }
+        );
+        assert_eq!(
+            account_totals_after(&storage, &Writes::new(), &Deletes::new()).unwrap(),
+            totals
+        );
+        let both = Deletes::from([b"acct:balances:a".to_vec()]);
+        assert!(account_totals_after(&storage, &writes, &both).is_err());
+    }
+
+    /// The complete check audits stored totals against every record, and a
+    /// block check takes liquid supply from the totals its writes leave.
+    #[test]
+    fn stored_totals_are_audited_and_carry_block_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut storage = Storage::open(dir.path().join("db")).unwrap();
+        crate::genesis::initialize(
+            &mut storage,
+            "totals-test",
+            Some(
+                br#"{"chain_id":"totals-test",
+                    "accounts":[{"address":"alice","balances":{"udrt":"1000"}}]}"#,
+            ),
+        )
+        .unwrap();
+        let put = |totals: AccountTotals| {
+            storage.db.put(ACCOUNT_TOTALS_KEY, totals.encode().unwrap()).unwrap()
+        };
+        let right = AccountTotals { udgt: 0, udrt: 1000 };
+        put(right);
+        validate_native(&storage, &Writes::new()).unwrap();
+        put(AccountTotals { udgt: 0, udrt: 999 });
+        let error = validate_native(&storage, &Writes::new()).unwrap_err().to_string();
+        assert!(error.contains("Account totals differ"), "{error}");
+        put(right);
+        let storage = std::sync::Arc::new(storage);
+        let mut settlement = crate::settlement::Settlement::new(storage.clone());
+        settlement.burn("alice", 100).unwrap();
+        let mut writes = settlement.writes().unwrap();
+        assert!(validate_native_block(&storage, &writes, &Deletes::new()).is_err());
+        let after = account_totals_after(&storage, &writes, &Deletes::new()).unwrap();
+        assert_eq!(after, AccountTotals { udgt: 0, udrt: 900 });
+        writes.insert(ACCOUNT_TOTALS_KEY.as_bytes().to_vec(), after.encode().unwrap());
+        let supply = validate_native_block(&storage, &writes, &Deletes::new()).unwrap();
+        assert_eq!((supply.drt.liquid, supply.drt.total), (900, 900));
     }
 }

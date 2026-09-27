@@ -570,6 +570,7 @@ pub(crate) fn initialize_mode_with_root(
         prepared.append_checked(storage, &execution_guard, &mut batch)?;
         batch.put(TIMING_STATE_KEY, state.encode()?);
     }
+    let account_totals = crate::supply::AccountTotals::sum(plan.balances.values())?;
     for (address, balances) in plan.balances {
         batch.put(
             format!("acct:balances:{address}"),
@@ -582,6 +583,10 @@ pub(crate) fn initialize_mode_with_root(
             ..Default::default()
         };
         batch.put(delegator_key(&address), bincode::serialize(&record)?);
+    }
+    // Consensus blocks keep running account totals (E04 gap 5).
+    if consensus_config.is_some() {
+        batch.put(crate::supply::ACCOUNT_TOTALS_KEY, account_totals.encode()?);
     }
     batch.put(DGT_MINTED_KEY, bincode::serialize(&plan.dgt_total)?);
     batch.put(DRT_INITIAL_KEY, bincode::serialize(&plan.drt_total)?);

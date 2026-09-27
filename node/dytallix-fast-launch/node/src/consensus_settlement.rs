@@ -5233,7 +5233,15 @@ impl ConsensusApplication {
             }
             deletes.extend(removed);
         }
-        crate::supply::validate_native(&self.storage, &writes)?;
+        // The block's balance changes update the running account totals,
+        // which the per-block supply check uses instead of reading every
+        // account (E04 gap 5).
+        let totals = crate::supply::account_totals_after(&self.storage, &writes, &deletes)?;
+        writes.insert(
+            crate::supply::ACCOUNT_TOTALS_KEY.as_bytes().to_vec(),
+            totals.encode()?,
+        );
+        crate::supply::validate_native_block(&self.storage, &writes, &deletes)?;
         let validator_updates = if self.config.lifecycle.is_some() {
             let lifecycle = LifecycleState::decode(
                 writes
@@ -5805,7 +5813,8 @@ impl ConsensusApplication {
     }
     fn query_validated(&self) -> Result<serde_json::Value> {
         let info = current_info(&self.storage)?;
-        let supply = crate::supply::validate_native(&self.storage, &Writes::new())?;
+        let supply =
+            crate::supply::validate_native_block(&self.storage, &Writes::new(), &Deletes::new())?;
         let engine_hash =
             read_head(&self.storage)?.map_or_else(|| "genesis".into(), |h| h.anchor.engine_hash);
         let mut response = serde_json::json!({"height": info.height, "app_hash": info.app_hash, "engine_hash": engine_hash,
@@ -6004,7 +6013,17 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         storage.get_chain_id().as_deref() == Some(&config.chain_id),
         "Stored consensus chain differs"
     );
-    crate::supply::validate_native(storage, &Writes::new())?;
+    // The complete check reads every account and requires the running totals
+    // to match; a block checks the totals alone (E04 gap 5).
+    if from.is_none() {
+        crate::supply::validate_native(storage, &Writes::new())?;
+        ensure!(
+            storage.db.get(crate::supply::ACCOUNT_TOTALS_KEY)?.is_some(),
+            "Account totals missing from consensus state"
+        );
+    } else {
+        crate::supply::validate_native_block(storage, &Writes::new(), &Deletes::new())?;
+    }
     // The complete check replays the issuance journal window from its
     // checkpoint; blocks check only the timing state's bindings.
     if from.is_none() && storage.db.get(TIMING_STATE_KEY)?.is_some() {

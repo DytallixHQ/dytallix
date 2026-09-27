@@ -620,3 +620,79 @@ fn restore_refuses_untrusted_or_altered_snapshots() {
     assert!(!beside(&path, ".restore").exists());
     assert!(target.storage.db.iterator(IteratorMode::Start).next().is_none());
 }
+
+fn account_scans() -> usize {
+    crate::supply::ACCOUNT_SCANS.with(|n| n.get())
+}
+/// Every account record, summed.
+fn scanned_totals(app: &ConsensusApplication) -> crate::supply::AccountTotals {
+    let maps: Vec<BTreeMap<String, u128>> = app
+        .storage
+        .db
+        .iterator(IteratorMode::From(b"acct:balances:", Direction::Forward))
+        .map(|item| item.unwrap())
+        .take_while(|(key, _)| key.starts_with(b"acct:balances:"))
+        .map(|(_, raw)| bincode::deserialize(&raw).unwrap())
+        .collect();
+    crate::supply::AccountTotals::sum(&maps).unwrap()
+}
+fn stored_totals(app: &ConsensusApplication) -> crate::supply::AccountTotals {
+    let raw = app
+        .storage
+        .db
+        .get(crate::supply::ACCOUNT_TOTALS_KEY)
+        .unwrap()
+        .unwrap();
+    crate::supply::AccountTotals::decode(&raw).unwrap()
+}
+
+/// E04 gap 5: after the startup check, blocks read no account record for
+/// the supply check; they use the running account totals.
+#[test]
+fn committed_blocks_read_no_account_records_for_supply() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = committed_chain(&inputs, &dir.path().join("db"), 2);
+    let before = account_scans();
+    for height in 3..=12 {
+        commit_next(&mut app, height);
+    }
+    app.query().unwrap();
+    assert_eq!(account_scans() - before, 0);
+    drop(app);
+    // A restart's complete check reads every account once.
+    let before = account_scans();
+    verify_recovery(&inputs.open(&dir.path().join("db")).storage).unwrap();
+    assert_eq!(account_scans() - before, 1);
+}
+
+/// The running totals follow a transfer that creates a record, and both the
+/// complete check and a block's check refuse totals that do not match.
+#[test]
+fn account_totals_follow_balances_and_are_audited() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = committed_chain(&inputs, &dir.path().join("db"), 4);
+    assert!(app.storage.db.get(b"acct:balances:recipient").unwrap().is_some());
+    assert_eq!(stored_totals(&app), scanned_totals(&app));
+    let check = || verify_recovery_with(&HistoryRead::new(&app.storage)).map(|_| ());
+    check().unwrap();
+    let key = crate::supply::ACCOUNT_TOTALS_KEY;
+    let good = app.storage.db.get(key).unwrap().unwrap();
+    let mut wrong = stored_totals(&app);
+    wrong.udrt += 1;
+    app.storage.db.put(key, wrong.encode().unwrap()).unwrap();
+    let error = check().unwrap_err().to_string();
+    assert!(error.contains("Account totals differ"), "{error}");
+    app.storage.db.put(key, &good).unwrap();
+    check().unwrap();
+    // A block's balance change must come with the totals it leaves.
+    let mut balances: BTreeMap<String, u128> = BTreeMap::new();
+    balances.insert("udrt".into(), 7);
+    let mut writes = Writes::new();
+    writes.insert(b"acct:balances:new".to_vec(), bincode::serialize(&balances).unwrap());
+    let error = crate::supply::validate_native_block(&app.storage, &writes, &Deletes::new())
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("block's balance changes"), "{error}");
+}
