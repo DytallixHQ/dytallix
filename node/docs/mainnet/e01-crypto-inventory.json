@@ -184,7 +184,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "81f244e9e78a71c885805ca21f31163033deeaeff463a9cfe47ea67525c74847"
+          "sha256": "fcffa9b2f8940a2c6fc67ddafac47655b2c8b15169c1b569280a2e9a4d6b4eff"
         },
         {
           "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
@@ -234,7 +234,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "81f244e9e78a71c885805ca21f31163033deeaeff463a9cfe47ea67525c74847"
+          "sha256": "fcffa9b2f8940a2c6fc67ddafac47655b2c8b15169c1b569280a2e9a4d6b4eff"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",
@@ -386,7 +386,7 @@
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-fixture/main.go",
-      "sha256": "6155618a9145414ebaa078507e987830dad9dade41534644186600a64d95dd3b"
+      "sha256": "bb060c0d185f47b3db0d9e26ab083845b3fd37686ae30fe5dc3c0e8678dc4be8"
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-fixture/pqc_engine_fixture.go",

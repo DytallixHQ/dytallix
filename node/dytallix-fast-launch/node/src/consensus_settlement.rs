@@ -2349,6 +2349,7 @@ fn combined_transaction(
                     unrestricted_debits: vec![],
                     wire_bytes: bytes.len() as u64,
                     signature_work: shared.usage().signatures - signatures_before,
+                    envelope_digest: sponsor_wire::envelope_hash(&signed)?,
                 })
             } else {
                 None
