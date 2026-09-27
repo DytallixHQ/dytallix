@@ -307,7 +307,7 @@
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",
-          "sha256": "875eeabcb4fd162c01e8f763c25b4d59c4495eddfefbc98516166b035aa34e63"
+          "sha256": "378f09c86278cf76e15d0ab2178b1d7b4d8cfce8b7888e7cca7b0e8565e0ba03"
         }
       ],
       "policy": "Owner process checks; the supervisor requires ML-DSA-65 validator key records",
