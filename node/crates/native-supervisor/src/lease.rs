@@ -96,6 +96,21 @@ impl LifecycleLease {
     }
 }
 
+/// Concurrent tests fork children that hold duplicate lock descriptors until
+/// exec closes them, so a released lock can stay briefly held. Retry the
+/// reacquisition within a bound instead of treating that window as a leak.
+#[cfg(test)]
+pub(crate) fn eventually<T>(mut attempt: impl FnMut() -> Result<T>) -> T {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        match attempt() {
+            Ok(value) => return value,
+            Err(error) if std::time::Instant::now() >= deadline => panic!("{error:#}"),
+            Err(_) => std::thread::sleep(std::time::Duration::from_millis(10)),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,7 +131,7 @@ mod tests {
         held.recheck().unwrap();
         drop(held);
         assert!(a.is_file() && b.is_file());
-        LifecycleLease::acquire(&a, &b).unwrap();
+        eventually(|| LifecycleLease::acquire(&a, &b));
     }
     #[test]
     fn replacement_and_symlink_refused() {
@@ -138,9 +153,9 @@ mod tests {
         let b = root.join("state.lock");
         let second = lock(&b).unwrap();
         assert!(LifecycleLease::acquire(&a, &b).is_err());
-        let first = lock(&a).unwrap();
+        let first = eventually(|| lock(&a));
         drop(first);
         drop(second);
-        LifecycleLease::acquire(&a, &b).unwrap();
+        eventually(|| LifecycleLease::acquire(&a, &b));
     }
 }
