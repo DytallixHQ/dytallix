@@ -317,7 +317,7 @@ impl SnapshotWriter {
 /// The entries of a complete stream, in order.
 pub fn decode_entries(mut stream: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
     let mut entries = Vec::new();
-    let mut take = |stream: &mut &[u8]| -> Result<Vec<u8>> {
+    let take = |stream: &mut &[u8]| -> Result<Vec<u8>> {
         ensure!(stream.len() >= 4, "Truncated snapshot entry");
         let (length, rest) = stream.split_at(4);
         let length = usize::try_from(u32::from_be_bytes(length.try_into()?))?;

@@ -31,3 +31,8 @@ path = "src/main.rs"
 name = "native-supervisor-process-fixture"
 path = "src/bin/process_fixture.rs"
 required-features = ["qualification-fixtures"]
+
+[[bin]]
+name = "state-sync-join"
+path = "src/bin/state_sync_join.rs"
+required-features = ["qualification-fixtures"]
