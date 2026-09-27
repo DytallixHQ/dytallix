@@ -127,6 +127,27 @@ func TestFinalizeRequiresOneResultPerTransaction(t *testing.T) {
 	}
 }
 
+func TestCommitForwardsTheApplicationRetainHeight(t *testing.T) {
+	for _, tc := range []struct {
+		response string
+		want     int64
+		ok       bool
+	}{
+		{`{"ok":true,"result":{"retain_height":37}}`, 37, true},
+		{`{"ok":true,"result":{"retain_height":0}}`, 0, true},
+		{`{"ok":true,"result":{}}`, 0, false},
+		{`{"ok":true,"result":{"retain_height":-1}}`, 0, false},
+		{`{"ok":true,"result":{"retain_height":9223372036854775808}}`, 0, false},
+	} {
+		t.Setenv("DYTALLIX_BRIDGE_TEST_RESPONSE", tc.response)
+		a := application{child: testChild(t, "updates")}
+		res, err := a.Commit(context.Background(), &abci.RequestCommit{})
+		if tc.ok != (err == nil) || (tc.ok && res.RetainHeight != tc.want) {
+			t.Fatalf("%s: %v %v", tc.response, res, err)
+		}
+	}
+}
+
 func TestSocketRequiresPrivateUnusedUnixPath(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.Chmod(dir, 0o700); err != nil {

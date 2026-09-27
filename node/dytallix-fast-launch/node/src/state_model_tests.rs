@@ -164,11 +164,12 @@ fn supply_validation_reads_only_the_current_emission_event() {
     let inputs = Inputs::new();
     let dir = tempfile::tempdir().unwrap();
     let app = committed_chain(&inputs, &dir.path().join("db"), 8);
-    for height in 1..8u64 {
+    // Committed state keeps only the parent's and the current event.
+    for height in 1..=8u64 {
         let key = format!("emission:event:{height}");
-        assert!(app.storage.db.get(&key).unwrap().is_some());
-        app.storage.db.delete(key).unwrap();
+        assert_eq!(app.storage.db.get(&key).unwrap().is_some(), height >= 7);
     }
+    app.storage.db.delete("emission:event:7").unwrap();
     crate::supply::validate_native(&app.storage, &Writes::new()).unwrap();
 }
 
@@ -243,4 +244,140 @@ fn issuance_runs_past_the_journal_window_and_keeps_only_the_window() {
     let reopened = inputs.open(&dir.path().join("db"));
     verify_recovery(&reopened.storage).unwrap();
     assert_eq!(timing(&reopened), state);
+}
+
+/// Heights of the block records the node holds.
+fn held(app: &ConsensusApplication) -> Vec<u64> {
+    app.storage
+        .db
+        .iterator(IteratorMode::From(BLOCK_PREFIX.as_bytes(), Direction::Forward))
+        .map(|item| item.unwrap().0)
+        .take_while(|key| key.starts_with(BLOCK_PREFIX.as_bytes()))
+        .map(|key| height_of_record_key(&key).unwrap())
+        .collect()
+}
+
+/// State sync v1, rule 2: a node keeps the retained window (two epochs of two
+/// blocks here), block 1 because it holds a legacy transaction, and the
+/// parent's and current emission events; it tells the engine the window
+/// start and restarts from the window.
+#[test]
+fn a_pruned_node_keeps_the_window_and_restarts_from_it() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let app = committed_chain(&inputs, &path, 40);
+    assert_eq!(held(&app), [1, 37, 38, 39, 40]);
+    assert_eq!(retained_from(&app.storage).unwrap(), 37);
+    assert_eq!(app.retain_height().unwrap(), 37);
+    let events = app
+        .storage
+        .db
+        .iterator(IteratorMode::From(b"emission:event:", Direction::Forward))
+        .take_while(|e| e.as_ref().unwrap().0.starts_with(b"emission:event:"))
+        .count();
+    assert_eq!(events, 2);
+    drop(app);
+    let mut app = inputs.open(&path);
+    verify_recovery(&app.storage).unwrap();
+    commit_next(&mut app, 41);
+    assert_eq!(held(&app), [1, 38, 39, 40, 41]);
+}
+
+/// Rule 1: the startup check decodes the same block records at any height:
+/// the window and the pinned records, not the chain from genesis.
+#[test]
+fn startup_check_work_does_not_grow_with_height() {
+    let inputs = Inputs::new();
+    let decodes = |height| {
+        let dir = tempfile::tempdir().unwrap();
+        let app = committed_chain(&inputs, &dir.path().join("db"), height);
+        let history = HistoryRead::new(&app.storage);
+        let before = full_passes();
+        verify_recovery_with(&history).unwrap();
+        assert_eq!(full_passes() - before, 1);
+        history.block_decodes.get()
+    };
+    let short = decodes(20);
+    assert_eq!(short, decodes(60));
+    assert!(short <= 5, "decoded {short} block records");
+}
+
+/// Rule 2: an archive node keeps every record and tells the engine to keep
+/// every block, with the same committed state as a pruned node.
+#[test]
+fn an_archive_node_keeps_every_record_with_the_same_state() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("archive");
+    // ML-DSA signatures are randomized: both chains carry the same bytes.
+    let send = signed_wire(inputs.send());
+    let chain = |path: &std::path::Path, history| {
+        let mut app = inputs.initialized(path).with_block_history(history);
+        app.finalize_block(block(1, vec![send.clone()])).unwrap();
+        app.commit().unwrap();
+        for height in 2..=12 {
+            commit_next(&mut app, height);
+        }
+        app
+    };
+    let app = chain(&path, BlockHistory::Archive);
+    assert_eq!(held(&app), (1..=12).collect::<Vec<_>>());
+    assert_eq!(app.retain_height().unwrap(), 0);
+    let pruned = chain(&dir.path().join("pruned"), BlockHistory::Window);
+    assert_eq!(held(&pruned), [1, 9, 10, 11, 12]);
+    assert_eq!(app.info().unwrap(), pruned.info().unwrap());
+    drop(app);
+    verify_recovery(&inputs.open(&path).storage).unwrap();
+}
+
+/// Rule 1: the startup check refuses a gap in the window, a window start that
+/// leaves an unpinned record below it, and one below the records held.
+#[test]
+fn startup_check_refuses_a_gap_or_a_moved_window_start() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = committed_chain(&inputs, &dir.path().join("db"), 20);
+    assert_eq!(held(&app), [1, 17, 18, 19, 20]);
+    let check = || verify_recovery_with(&HistoryRead::new(&app.storage)).map(|_| ());
+    check().unwrap();
+    let db = &app.storage.db;
+    let record = db.get(record_key(18)).unwrap().unwrap();
+    db.delete(record_key(18)).unwrap();
+    assert!(check().is_err());
+    db.put(record_key(18), &record).unwrap();
+    db.put(RETAINED_KEY, 18u64.to_be_bytes()).unwrap();
+    let error = check().unwrap_err().to_string();
+    assert!(error.contains("not pinned"), "{error}");
+    db.put(RETAINED_KEY, 16u64.to_be_bytes()).unwrap();
+    assert!(check().is_err());
+    db.put(RETAINED_KEY, 17u64.to_be_bytes()).unwrap();
+    check().unwrap();
+}
+
+/// Rule 2: a record a replay reads outlives the window: one with a recorded
+/// control or accepted legacy transactions, or a named emergency anchor. A
+/// control that a freeze refused does not pin its block.
+#[test]
+fn records_that_replays_read_are_pinned() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = committed_chain(&inputs, &dir.path().join("db"), 4);
+    let record_at = |height| -> BlockRecord {
+        decode(&app.storage.db.get(record_key(height)).unwrap().unwrap()).unwrap()
+    };
+    let none = BTreeSet::new();
+    assert!(pinned(1, &record_at(1), &none));
+    let mut record = record_at(3);
+    assert!(!pinned(3, &record, &none));
+    assert!(pinned(3, &record, &BTreeSet::from([3])));
+    for (result, kept) in [
+        (emergency_result(), true),
+        (upgrade_result(), true),
+        (handover_result(), true),
+        (TxResult::invalid(EMERGENCY_FROZEN), false),
+    ] {
+        record.result.tx_results[0] = result;
+        assert_eq!(pinned(3, &record, &none), kept);
+    }
 }

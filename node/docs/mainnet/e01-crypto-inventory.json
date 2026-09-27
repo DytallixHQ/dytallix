@@ -318,7 +318,7 @@
       "files": [
         {
           "path": "consensus/cometbft/cmd/dytallix-comet-bridge/application.go",
-          "sha256": "0bc6fb54cac8005b21669c56872edd7a16ba5eebcc1e4db99e12f384c360755f"
+          "sha256": "825dee3bfd340e49744b399e4178bf871398705c476201aa754935207bccd773"
         },
         {
           "path": "consensus/pqc-http-adapter/src/main.rs",

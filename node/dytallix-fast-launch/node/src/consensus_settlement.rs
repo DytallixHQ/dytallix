@@ -798,6 +798,169 @@ impl<'a> HistoryRead<'a> {
             app_hash: record.result.app_hash.clone(),
         })
     }
+    /// Heights of the block records held up to `height`, ascending: records
+    /// kept below the retained window, then the window.
+    fn heights(&self, height: u64) -> Result<Vec<u64>> {
+        let retained = retained_from(self.storage)?;
+        let mut heights = kept_below(self.storage, retained)?;
+        heights.extend(retained..=height);
+        Ok(heights)
+    }
+}
+
+/// Oldest record of the retained block window. Block records are local, not
+/// committed state, so the window is a node setting (state sync v1, rule 2).
+/// Absent until a record is first removed; the node then holds every record.
+const RETAINED_KEY: &str = "consensus:v1:retained";
+/// Records examined for removal per commit, so that commit cost stays flat
+/// when a node with a long history first applies the window.
+const PRUNE_PER_COMMIT: u64 = 64;
+
+/// Which block records a node keeps: the retained window, or every record
+/// (an archive node). Either way consensus state is the same.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum BlockHistory {
+    #[default]
+    Window,
+    Archive,
+}
+
+fn retained_from(storage: &Storage) -> Result<u64> {
+    let Some(raw) = storage.db.get(RETAINED_KEY)? else {
+        return Ok(1);
+    };
+    let height = u64::from_be_bytes(
+        raw.as_slice()
+            .try_into()
+            .context("Invalid retained block height")?,
+    );
+    ensure!(height > 1, "Invalid retained block height");
+    Ok(height)
+}
+fn height_of_record_key(key: &[u8]) -> Result<u64> {
+    let hex = key
+        .strip_prefix(BLOCK_PREFIX.as_bytes())
+        .context("Not a block record key")?;
+    ensure!(hex.len() == 16, "Invalid block record key");
+    Ok(u64::from_str_radix(std::str::from_utf8(hex)?, 16)?)
+}
+/// Heights of the records kept below the window start.
+fn kept_below(storage: &Storage, retained: u64) -> Result<Vec<u64>> {
+    let end = record_key(retained);
+    let mut heights = Vec::new();
+    for item in storage
+        .db
+        .iterator(IteratorMode::From(BLOCK_PREFIX.as_bytes(), Direction::Forward))
+    {
+        let (key, _) = item?;
+        if !key.starts_with(BLOCK_PREFIX.as_bytes()) || key.as_ref() >= end.as_bytes() {
+            break;
+        }
+        heights.push(height_of_record_key(&key)?);
+    }
+    Ok(heights)
+}
+/// Heights of the finalized anchors that recorded emergency controls name.
+fn control_anchors(storage: &Storage, config: &ConsensusConfig) -> Result<BTreeSet<u64>> {
+    Ok(committed_emergency_records(storage, config)?
+        .into_iter()
+        .filter_map(|(receipt, _)| receipt.context.finalized_anchor.map(|a| a.height))
+        .collect())
+}
+/// A record that outlives the window, because a replay reads it: it holds a
+/// recorded control (only a recorded control has one of their results) or
+/// accepted legacy signed transactions, or it is the finalized anchor of a
+/// recorded emergency control. Such records are rare: controls need their
+/// policy's authority, and legacy signed transactions are refused under the
+/// recovery profile.
+fn pinned(height: u64, record: &BlockRecord, anchors: &BTreeSet<u64>) -> bool {
+    let recorded = [emergency_result(), upgrade_result(), handover_result()];
+    !record.accepted.is_empty()
+        || anchors.contains(&height)
+        || record
+            .result
+            .tx_results
+            .iter()
+            .any(|result| recorded.contains(result))
+}
+/// The lowest height whose record must be kept once `height` is committed:
+/// the next block reads its parent, the next epoch boundary reads the
+/// previous epoch (two epochs keep the last boundary checkable at startup),
+/// an emergency control reads an anchor up to its age bound, and every
+/// ordinary receipt keeps its block. The evidence horizon, which depends on
+/// block times, is applied per record by `prune_plan`.
+fn retention_floor(storage: &Storage, config: &ConsensusConfig, height: u64) -> Result<u64> {
+    let config = effective_config(storage, config)?;
+    let mut span = 2u64;
+    if storage.db.get(TIMING_STATE_KEY)?.is_some() {
+        span = span.max(
+            timing(storage)?
+                .config
+                .epoch_blocks
+                .checked_mul(2)
+                .context("Epoch retention overflow")?,
+        );
+    }
+    if let Some(v2) = config.emergency.as_ref().and_then(|p| p.v2.as_ref()) {
+        // A control in the block being committed names an anchor one block
+        // further back than the next block's control can.
+        span = span.max(
+            v2.max_anchor_age_blocks
+                .checked_add(1)
+                .context("Anchor retention overflow")?,
+        );
+    }
+    if let Some(ordinary) = &config.ordinary {
+        span = span.max(ordinary.fee_profile.limits.max_expiry_lifetime);
+    }
+    Ok(height
+        .checked_add(1)
+        .context("Height exhausted")?
+        .saturating_sub(span)
+        .max(1))
+}
+/// Records to remove when `head` commits, and the new window start. A record
+/// leaves only below the floor and past the evidence horizon at `head`, as
+/// the lifecycle drops validator sets; pinned records stay.
+fn prune_plan(
+    storage: &Storage,
+    config: &ConsensusConfig,
+    head: &BlockRecord,
+) -> Result<Option<(Vec<u64>, u64)>> {
+    let height = head.input.height;
+    let retained = retained_from(storage)?;
+    let floor = retention_floor(storage, config, height)?;
+    if retained >= floor {
+        return Ok(None);
+    }
+    let lifecycle = lifecycle_state(storage)?;
+    let parent_time = u64::try_from(head.input.time_seconds)?;
+    let anchors = control_anchors(storage, config)?;
+    let mut deletes = Vec::new();
+    let mut next = retained;
+    while next < floor && next - retained < PRUNE_PER_COMMIT {
+        let record: BlockRecord = decode(
+            &storage
+                .db
+                .get(record_key(next))?
+                .context("Retained block record missing")?,
+        )?;
+        ensure!(
+            record.input.height == next,
+            "Retained block record height differs"
+        );
+        if let Some(lifecycle) = &lifecycle {
+            let time = u64::try_from(record.input.time_seconds)?;
+            if !lifecycle.config.past_horizon(next, time, height, parent_time) {
+                break;
+            }
+        }
+        if !pinned(next, &record, &anchors) {
+            deletes.push(next);
+        }
+        next += 1;
+    }
+    Ok((next > retained).then_some((deletes, next)))
 }
 struct EmergencyTrace {
     records: Vec<(emergency::Receipt, emergency::BlockContext)>,
@@ -830,6 +993,7 @@ pub struct ConsensusApplication {
     runtime_candidate: Option<crate::runtime_candidate_v2::VerifiedRuntimeCandidate>,
     pending: Option<Prepared>,
     admission: Mutex<crate::ordinary_admission::OrdinaryAdmissionQueue>,
+    block_history: BlockHistory,
 }
 
 fn valid_hash(value: &str) -> Result<()> {
@@ -2357,7 +2521,7 @@ fn evidence_times(
     height: u64,
     facts: &[EvidenceFact],
 ) -> Result<Vec<(u64, i32)>> {
-    evidence_times_with(storage, config, height, facts, None)
+    evidence_times_with(storage, config, height, facts, None, 0)
 }
 /// A duplicate vote under the penalty profile is penalized; everything else
 /// is recorded only.
@@ -2367,12 +2531,16 @@ fn penalized(config: &ConsensusConfig, fact: &EvidenceFact) -> bool {
 /// `evidence_times` with the validator set at each offence height from
 /// `set_at` instead of the committed lifecycle history. The complete check
 /// replays old blocks whose offence heights the lifecycle no longer keeps.
+/// A penalized fact naming a height below `floor` is checked for shape only:
+/// its block or validator set is no longer held, and the fact was checked in
+/// full when its block committed (state sync v1, rule 1).
 fn evidence_times_with(
     storage: &Storage,
     config: &ConsensusConfig,
     height: u64,
     facts: &[EvidenceFact],
     set_at: Option<&dyn Fn(u64) -> Result<Vec<ValidatorUpdate>>>,
+    floor: u64,
 ) -> Result<Vec<(u64, i32)>> {
     ensure!(facts.len() <= 64, "Unsupported evidence batch");
     if facts.is_empty() {
@@ -2385,7 +2553,7 @@ fn evidence_times_with(
         ensure!(fact.height < height, "Evidence is not for an earlier block");
         // A recorded fact needs no historical check: CometBFT verified it,
         // and a mismatch here would stop the chain.
-        if !penalized(config, fact) {
+        if !penalized(config, fact) || fact.height < floor {
             times.push((fact.time_seconds, fact.time_nanos));
             continue;
         }
@@ -2580,7 +2748,9 @@ fn emergency_history_with(
     let height = block_lifecycle::height(storage, "meta:height")?;
     let mut receipts = Vec::new();
     let mut frozen = false;
-    for h in 1..=height {
+    // Blocks without a recorded control change no control state, so the
+    // held records (the window and pinned records) give the same trace.
+    for h in history.heights(height)? {
         let record = history.block(h)?;
         let controls = record
             .input
@@ -2809,7 +2979,7 @@ fn handover_history(
     let mut schema = upgrade::State::new(up)?.active_schema();
     let mut expected = BTreeMap::new();
     let height = block_lifecycle::height(storage, "meta:height")?;
-    for h in 1..=height {
+    for h in history.heights(height)? {
         let record = history.block(h)?;
         let prior_end = emergency_records.partition_point(|(_, c)| c.height < h);
         let current_end = emergency_records.partition_point(|(_, c)| c.height <= h);
@@ -2964,7 +3134,7 @@ fn upgrade_history(
     let mut state = upgrade::State::new(policy)?;
     let mut expected = BTreeMap::new();
     let height = block_lifecycle::height(storage, "meta:height")?;
-    for h in 1..=height {
+    for h in history.heights(height)? {
         let record = history.block(h)?;
         let prior_end = emergency_records.partition_point(|(_, context)| context.height < h);
         let current_end = emergency_records.partition_point(|(_, context)| context.height <= h);
@@ -3692,6 +3862,7 @@ impl ConsensusApplication {
             runtime_candidate,
             pending: None,
             admission: Mutex::new(crate::ordinary_admission::OrdinaryAdmissionQueue::default()),
+            block_history: BlockHistory::default(),
         })
     }
     pub fn info(&self) -> Result<Info> {
@@ -4987,6 +5158,12 @@ impl ConsensusApplication {
         }
         // The issuance window's pruned journal and observation records.
         let mut deletes = issuance_deletes;
+        // Blocks read only the parent's emission event and supply only the
+        // current one, so the event before the parent leaves state (state
+        // sync v1, rule 2).
+        if input.height > 2 {
+            deletes.insert(format!("emission:event:{}", input.height - 2).into_bytes());
+        }
         if let Some(block) = recovery {
             let committed = committed_recovery
                 .as_ref()
@@ -5080,6 +5257,22 @@ impl ConsensusApplication {
             },
         })
     }
+    /// Keep every block record instead of the retained window (an archive
+    /// node). A local setting: it changes no committed state.
+    pub fn with_block_history(mut self, history: BlockHistory) -> Self {
+        self.block_history = history;
+        self
+    }
+    /// The height below which the engine may drop its blocks: the window
+    /// start, or zero for an archive node or a node that holds every record.
+    pub fn retain_height(&self) -> Result<u64> {
+        Ok(match self.block_history {
+            BlockHistory::Archive => 0,
+            BlockHistory::Window => Some(retained_from(&self.storage)?)
+                .filter(|height| *height > 1)
+                .unwrap_or(0),
+        })
+    }
     pub fn commit(&mut self) -> Result<Info> {
         self.commit_with(|storage, batch| {
             let mut options = WriteOptions::default();
@@ -5164,6 +5357,16 @@ impl ConsensusApplication {
             serde_json::to_vec(&prepared.record)?,
         );
         batch.put(HEAD_KEY, serde_json::to_vec(&prepared.record.head)?);
+        if self.block_history == BlockHistory::Window {
+            if let Some((deletes, retained)) =
+                prune_plan(&self.storage, &self.config, &prepared.record)?
+            {
+                for height in deletes {
+                    batch.delete(record_key(height));
+                }
+                batch.put(RETAINED_KEY, retained.to_be_bytes());
+            }
+        }
         write(&self.storage, batch)?;
         self.pending = None;
         // Earlier history was verified before this write and is unchanged, so
@@ -5460,6 +5663,93 @@ pub fn verify_recovery(storage: &Storage) -> Result<()> {
 fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
     verify_history(history, None)
 }
+/// A block record's own commitments: metadata, input and result digests and
+/// the application hash formula.
+fn check_record(config: &ConsensusConfig, h: u64, record: &BlockRecord) -> Result<()> {
+    let anchor = &record.head.anchor;
+    ensure!(
+        anchor.version == 1
+            && record.input.height == h
+            && anchor.height == h
+            && anchor.engine_hash == record.input.hash
+            && anchor.time_seconds == record.input.time_seconds
+            && anchor.time_nanos == record.input.time_nanos,
+        "Consensus record metadata differs"
+    );
+    ensure!(
+        anchor.input_digest == digest(b"dytallix-cometbft-input-v1", &record.input)?
+            && anchor.result_digest
+                == results_digest(
+                    config,
+                    &record.result.tx_results,
+                    &record.result.validator_updates
+                )?
+            && record.result.tx_results.len() == record.input.txs.len(),
+        "Consensus input or result commitment differs"
+    );
+    valid_hash(&record.head.state_digest)?;
+    valid_hash(&anchor.prior_app_hash)?;
+    ensure!(
+        record.result.app_hash == record.head.app_hash
+            && record.head.app_hash == app_hash(&record.head.state_digest, anchor)?,
+        "Consensus application hash differs"
+    );
+    Ok(())
+}
+/// A block's accepted legacy signed transactions against their stored
+/// transaction, settlement and receipt index.
+fn check_accepted(
+    storage: &Storage,
+    config: &ConsensusConfig,
+    h: u64,
+    record: &BlockRecord,
+    indices: &mut BTreeSet<usize>,
+    transactions: &mut BTreeSet<String>,
+) -> Result<()> {
+    for accepted in &record.accepted {
+        let index = usize::try_from(accepted.index)?;
+        ensure!(
+            index < record.input.txs.len()
+                && indices.insert(index)
+                && transactions.insert(accepted.record.transaction.hash.clone()),
+            "Duplicate committed transaction or index"
+        );
+        let WireTransaction::Signed { envelope } = wire(config, &record.input.txs[index])?
+        else {
+            anyhow::bail!("Accepted transaction is not signed");
+        };
+        let verified = normalize_record(config, envelope)?;
+        ensure!(
+            verified.encode()? == accepted.record.encode()?,
+            "Committed original transaction differs"
+        );
+        let stored = storage
+            .get_transaction_record(&verified.transaction.hash)?
+            .context("Committed transaction missing")?;
+        ensure!(
+            stored.encode()? == verified.encode()?,
+            "Stored transaction differs"
+        );
+        let receipt =
+            settlement::existing(storage, &verified.transaction, h, accepted.index)?
+                .context("Committed settlement missing")?;
+        ensure!(
+            serde_json::to_vec(&receipt)? == serde_json::to_vec(&accepted.receipt)?
+                && record.result.tx_results[index]
+                    == TxResult::from_receipt(&receipt, true)?,
+            "Committed receipt or result differs"
+        );
+        ensure!(
+            storage
+                .db
+                .get(format!("rcpt:{}", verified.transaction.hash))?
+                .as_deref()
+                == Some(serde_json::to_vec(&receipt)?.as_slice()),
+            "Receipt index differs"
+        );
+    }
+    Ok(())
+}
 /// With `from`, block checks cover only heights `from..=head`, and the
 /// whole-history checks are skipped: the unknown-key and orphan scans,
 /// cross-history duplicate sets, exact penalty evidence equality and control
@@ -5552,6 +5842,17 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         );
     }
     let ordinary = load_ordinary(storage, &config, recovery.as_ref(), from.is_none())?;
+    // The complete check replays the retained window: from block 1 when the
+    // node holds every record, else from just after the window's first
+    // record, which anchors the chain (state sync v1, rule 1). Receipts and
+    // evidence of removed blocks are checked against state only.
+    let retained = retained_from(storage)?;
+    let start = match from {
+        Some(from) => from,
+        None if retained > 1 => retained + 1,
+        None => 1,
+    };
+    let windowed = from.is_none() && start > 1;
     let mut ordinary_positions = BTreeMap::new();
     if let Some(state) = &ordinary {
         ensure!(
@@ -5561,7 +5862,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         for receipt in state
             .history
             .receipts()
-            .filter(|receipt| from.is_none_or(|from| receipt.block_height() >= from))
+            .filter(|receipt| receipt.block_height() >= start)
         {
             ensure!(
                 ordinary_positions
@@ -5576,7 +5877,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         for receipt in book
             .sponsor_receipts
             .values()
-            .filter(|receipt| from.is_none_or(|from| receipt.block_height >= from))
+            .filter(|receipt| receipt.block_height >= start)
         {
             ensure!(
                 recovery_positions
@@ -5608,11 +5909,14 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             "Engine head metadata differs"
         );
         known.insert(HEAD_KEY.as_bytes().to_vec());
-        let start = from.unwrap_or(1);
         ensure!(
-            (1..=height).contains(&start),
-            "Verification start is outside committed history"
+            (1..=height).contains(&start) && (start > retained || retained == 1),
+            "Verification start is outside retained history"
         );
+        if windowed {
+            known.insert(RETAINED_KEY.as_bytes().to_vec());
+            known.insert(record_key(retained).into_bytes());
+        }
         let mut previous: Option<Head> = if start > 1 {
             Some(history.block(start - 1)?.head.clone())
         } else {
@@ -5621,10 +5925,23 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         // Validator sets folded from committed updates (state model step 4):
         // the set in effect at h + 1, and in the complete check each change
         // point still inside the evidence horizon, for old blocks' evidence.
+        // A windowed replay folds from the first block whose next set the
+        // lifecycle history still holds; evidence below `evidence_floor`
+        // names blocks or sets no longer held.
+        let fold_from = match &lifecycle {
+            Some(lifecycle) if windowed => {
+                start.max(lifecycle.history.base_height.saturating_sub(1))
+            }
+            _ => start,
+        };
+        let evidence_floor = match &lifecycle {
+            Some(lifecycle) => retained.max(lifecycle.history.base_height),
+            None => retained,
+        };
         let mut next_set = match &lifecycle {
             Some(_) if start == 1 => Some(configured_validator_map(&config)),
             Some(lifecycle) => Some(validator_tuple_map(
-                &lifecycle.validator_set(start.checked_add(1).context("Height exhausted")?)?,
+                &lifecycle.validator_set(fold_from.checked_add(1).context("Height exhausted")?)?,
             )),
             None => None,
         };
@@ -5637,7 +5954,16 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             known.insert(key.as_bytes().to_vec());
             let record = history.block(h)?;
             input_limits(&config, &record.input)?;
-            if from.is_none() && lifecycle.is_some() {
+            if windowed {
+                evidence_times_with(
+                    storage,
+                    &config,
+                    h,
+                    &record.input.misbehavior,
+                    None,
+                    evidence_floor,
+                )?;
+            } else if from.is_none() && lifecycle.is_some() {
                 let set_at = |offence: u64| -> Result<Vec<ValidatorUpdate>> {
                     let (_, set) = folded
                         .range(..=offence)
@@ -5652,7 +5978,14 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                         })
                         .collect())
                 };
-                evidence_times_with(storage, &config, h, &record.input.misbehavior, Some(&set_at))?;
+                evidence_times_with(
+                    storage,
+                    &config,
+                    h,
+                    &record.input.misbehavior,
+                    Some(&set_at),
+                    0,
+                )?;
             } else {
                 evidence_times(storage, &config, h, &record.input.misbehavior)?;
             }
@@ -5677,26 +6010,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                     .or_insert(h);
             }
             let anchor = &record.head.anchor;
-            ensure!(
-                anchor.version == 1
-                    && record.input.height == h
-                    && anchor.height == h
-                    && anchor.engine_hash == record.input.hash
-                    && anchor.time_seconds == record.input.time_seconds
-                    && anchor.time_nanos == record.input.time_nanos,
-                "Consensus record metadata differs"
-            );
-            ensure!(
-                anchor.input_digest == digest(b"dytallix-cometbft-input-v1", &record.input)?
-                    && anchor.result_digest
-                        == results_digest(
-                            &config,
-                            &record.result.tx_results,
-                            &record.result.validator_updates
-                        )?
-                    && record.result.tx_results.len() == record.input.txs.len(),
-                "Consensus input or result commitment differs"
-            );
+            check_record(&config, h, &record)?;
             if let Some(lifecycle) = &lifecycle {
                 // The lifecycle keeps the last two heights' updates; older
                 // ones are checked by the fold below.
@@ -5707,60 +6021,57 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                         "Committed validator updates differ from lifecycle history"
                     );
                 }
-                let mut projected = next_set.clone().context("Folded validator set missing")?;
-                for update in &record.result.validator_updates {
-                    let key = (update.pubkey_type.clone(), update.pubkey_base64.clone());
-                    if update.power == 0 {
-                        ensure!(
-                            projected.remove(&key).is_some(),
-                            "Validator removal has no predecessor"
-                        );
-                    } else {
-                        ensure!(update.power > 0, "Negative validator power");
-                        projected.insert(key, update.power);
-                    }
-                }
-                let target = h.checked_add(2).context("Height exhausted")?;
-                if target >= lifecycle.history.base_height {
-                    ensure!(
-                        projected == validator_tuple_map(&lifecycle.validator_set(target)?),
-                        "Validator update activation height differs"
-                    );
-                }
-                if from.is_none() {
-                    if next_set.as_ref() != Some(&projected) {
-                        folded.insert(target, projected.clone());
-                    }
-                    // Drop a folded set once evidence can no longer name a
-                    // height it covered (the set ends where the next begins).
-                    let time = |x: u64| -> Result<u64> {
-                        Ok(u64::try_from(history.block(x)?.input.time_seconds)?)
-                    };
-                    let (parent_height, parent_time) = (h, time(h)?);
-                    while let Some(next_start) = folded.keys().nth(1).copied() {
-                        let end = next_start - 1;
-                        if end > parent_height
-                            || !lifecycle.config.past_horizon(
-                                end,
-                                time(end)?,
-                                parent_height,
-                                parent_time,
-                            )
-                        {
-                            break;
+                // Blocks before the fold start are checked by the lifecycle
+                // history alone.
+                if h >= fold_from {
+                    let mut projected = next_set.clone().context("Folded validator set missing")?;
+                    for update in &record.result.validator_updates {
+                        let key = (update.pubkey_type.clone(), update.pubkey_base64.clone());
+                        if update.power == 0 {
+                            ensure!(
+                                projected.remove(&key).is_some(),
+                                "Validator removal has no predecessor"
+                            );
+                        } else {
+                            ensure!(update.power > 0, "Negative validator power");
+                            projected.insert(key, update.power);
                         }
-                        folded.pop_first();
                     }
+                    let target = h.checked_add(2).context("Height exhausted")?;
+                    if target >= lifecycle.history.base_height {
+                        ensure!(
+                            projected == validator_tuple_map(&lifecycle.validator_set(target)?),
+                            "Validator update activation height differs"
+                        );
+                    }
+                    if from.is_none() && !windowed {
+                        if next_set.as_ref() != Some(&projected) {
+                            folded.insert(target, projected.clone());
+                        }
+                        // Drop a folded set once evidence can no longer name a
+                        // height it covered (the set ends where the next begins).
+                        let time = |x: u64| -> Result<u64> {
+                            Ok(u64::try_from(history.block(x)?.input.time_seconds)?)
+                        };
+                        let (parent_height, parent_time) = (h, time(h)?);
+                        while let Some(next_start) = folded.keys().nth(1).copied() {
+                            let end = next_start - 1;
+                            if end > parent_height
+                                || !lifecycle.config.past_horizon(
+                                    end,
+                                    time(end)?,
+                                    parent_height,
+                                    parent_time,
+                                )
+                            {
+                                break;
+                            }
+                            folded.pop_first();
+                        }
+                    }
+                    next_set = Some(projected);
                 }
-                next_set = Some(projected);
             }
-            valid_hash(&record.head.state_digest)?;
-            valid_hash(&anchor.prior_app_hash)?;
-            ensure!(
-                record.result.app_hash == record.head.app_hash
-                    && record.head.app_hash == app_hash(&record.head.state_digest, anchor)?,
-                "Consensus application hash differs"
-            );
             if let Some(prior) = &previous {
                 ensure!(
                     anchor.parent_engine_hash == prior.anchor.engine_hash
@@ -5803,15 +6114,20 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                         record.result.tx_results[index] == TxResult::observation(),
                         "Committed observation differs"
                     );
+                    // A windowed replay derives only observations whose
+                    // epoch it still holds; retention keeps the latest one.
+                    let derivable =
+                        !windowed || h.saturating_sub(state.config.epoch_blocks) >= retained;
                     ensure!(
-                        Some(observation)
-                            == derived_observation(
-                                storage,
-                                &config,
-                                state.config.epoch_blocks,
-                                h,
-                                &anchor.parent_engine_hash,
-                            )?,
+                        !derivable
+                            || Some(observation)
+                                == derived_observation(
+                                    storage,
+                                    &config,
+                                    state.config.epoch_blocks,
+                                    h,
+                                    &anchor.parent_engine_hash,
+                                )?,
                         "Committed observation differs from committed block usage"
                     );
                     observations += 1;
@@ -5923,48 +6239,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                     );
                 }
             }
-            for accepted in &record.accepted {
-                let index = usize::try_from(accepted.index)?;
-                ensure!(
-                    index < record.input.txs.len()
-                        && indices.insert(index)
-                        && transactions.insert(accepted.record.transaction.hash.clone()),
-                    "Duplicate committed transaction or index"
-                );
-                let WireTransaction::Signed { envelope } = wire(&config, &record.input.txs[index])?
-                else {
-                    anyhow::bail!("Accepted transaction is not signed");
-                };
-                let verified = normalize_record(&config, envelope)?;
-                ensure!(
-                    verified.encode()? == accepted.record.encode()?,
-                    "Committed original transaction differs"
-                );
-                let stored = storage
-                    .get_transaction_record(&verified.transaction.hash)?
-                    .context("Committed transaction missing")?;
-                ensure!(
-                    stored.encode()? == verified.encode()?,
-                    "Stored transaction differs"
-                );
-                let receipt =
-                    settlement::existing(storage, &verified.transaction, h, accepted.index)?
-                        .context("Committed settlement missing")?;
-                ensure!(
-                    serde_json::to_vec(&receipt)? == serde_json::to_vec(&accepted.receipt)?
-                        && record.result.tx_results[index]
-                            == TxResult::from_receipt(&receipt, true)?,
-                    "Committed receipt or result differs"
-                );
-                ensure!(
-                    storage
-                        .db
-                        .get(format!("rcpt:{}", verified.transaction.hash))?
-                        .as_deref()
-                        == Some(serde_json::to_vec(&receipt)?.as_slice()),
-                    "Receipt index differs"
-                );
-            }
+            check_accepted(storage, &config, h, &record, &mut indices, &mut transactions)?;
             // Ordinary receipts older than the retention window were pruned.
             let ordinary_receipts_pruned = ordinary
                 .as_ref()
@@ -6072,9 +6347,20 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                 ))
             })
             .collect::<Result<_>>()?;
+        // A windowed replay matches the incidents its blocks admitted; older
+        // incidents are checked against state only. A fact can repeat, so
+        // one first seen in the window may have been admitted before it.
         ensure!(
             receipts.len() == penalties.incidents.len()
-                && if from.is_none() {
+                && if windowed {
+                    recorded_evidence
+                        .iter()
+                        .all(|(fact, h)| receipts.get(fact).is_some_and(|admitted| admitted <= h))
+                        && receipts
+                            .iter()
+                            .filter(|(_, h)| **h >= start)
+                            .all(|(fact, h)| recorded_evidence.get(fact) == Some(h))
+                } else if from.is_none() {
                     receipts == recorded_evidence
                 } else {
                     recorded_evidence.keys().all(|fact| receipts.contains_key(fact))
@@ -6090,10 +6376,12 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     ensure!(recovery_positions.is_empty(), "Orphan recovery receipt");
     ensure!(ordinary_positions.is_empty(), "Orphan ordinary receipt");
     if from.is_none() {
+        // Evidence records of removed blocks stay in state (liveness v1).
         let prefix = settlement::EVIDENCE_PREFIX.as_bytes();
+        let first = settlement::evidence_key(start, 0)?;
         let stored = storage
             .db
-            .iterator(IteratorMode::From(prefix, Direction::Forward))
+            .iterator(IteratorMode::From(&first, Direction::Forward))
             .take_while(|item| item.as_ref().map_or(true, |(k, _)| k.starts_with(prefix)))
             .count();
         ensure!(
@@ -6106,6 +6394,29 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             records: Vec::new(),
             states: Vec::new(),
         });
+    }
+    // Records kept below the window must be pinned; the control replays
+    // below bind their controls to receipts.
+    if windowed {
+        let anchors = control_anchors(storage, &config)?;
+        for h in kept_below(storage, retained)? {
+            let record = history.block(h)?;
+            input_limits(&config, &record.input)?;
+            check_record(&config, h, &record)?;
+            ensure!(
+                pinned(h, &record, &anchors),
+                "Block record below the retained window is not pinned"
+            );
+            check_accepted(
+                storage,
+                &config,
+                h,
+                &record,
+                &mut BTreeSet::new(),
+                &mut transactions,
+            )?;
+            known.insert(record_key(h).into_bytes());
+        }
     }
     for item in storage.db.iterator(IteratorMode::Start) {
         let (key, _) = item?;

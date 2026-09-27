@@ -2,7 +2,7 @@
 use anyhow::{bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use dytallix_fast_node::consensus_settlement::{
-    ConsensusApplication, ConsensusConfig, FinalizedBlockInput, ValidatorConfig,
+    BlockHistory, ConsensusApplication, ConsensusConfig, FinalizedBlockInput, ValidatorConfig,
 };
 use dytallix_fast_node::runtime::penalty_custody::EvidenceFact;
 use dytallix_fast_node::runtime::validator_lifecycle::LifecycleConfig;
@@ -238,7 +238,7 @@ fn handle(
         "finalize_block" => Ok(serde_json::to_value(app.finalize_block(block(payload)?)?)?),
         "commit" => {
             app.commit()?;
-            Ok(json!({}))
+            Ok(json!({"retain_height": app.retain_height()?}))
         }
         "query" => {
             ensure!(
@@ -328,6 +328,7 @@ fn run() -> Result<()> {
     let mut emergency_verifier_path = None;
     let mut candidate_path = None;
     let mut release_manifest_sha512 = None;
+    let mut block_history = None;
     while let Some(arg) = args.next() {
         let value = args.next().context("Each argument requires a value")?;
         let slot = match arg.as_str() {
@@ -338,6 +339,7 @@ fn run() -> Result<()> {
             "--development-root-config" => &mut development_root_path,
             "--development-emergency-verifier-config" => &mut emergency_verifier_path,
             "--development-candidate-config" => &mut candidate_path,
+            "--block-history" => &mut block_history,
             _ => bail!("Unsupported argument"),
         };
         ensure!(slot.replace(value).is_none(), "Duplicate argument");
@@ -356,6 +358,12 @@ fn run() -> Result<()> {
         "Genesis exceeds local fixture limit"
     );
     let database = db_path.context("--db is required")?;
+    // A local setting: the retained window (default) or every block record.
+    let block_history = match block_history.as_deref() {
+        None | Some("window") => BlockHistory::Window,
+        Some("archive") => BlockHistory::Archive,
+        Some(_) => bail!("--block-history must be window or archive"),
+    };
     ensure!(
         candidate_path.is_none()
             || (development_root_path.is_some() && emergency_verifier_path.is_some()),
@@ -428,7 +436,8 @@ fn run() -> Result<()> {
         (None, None) => {
             ConsensusApplication::open(std::path::Path::new(&database), config.clone(), genesis)?
         }
-    };
+    }
+    .with_block_history(block_history);
     let stdin = std::io::stdin();
     let flags = unsafe { libc::fcntl(stdin.as_raw_fd(), libc::F_GETFL) };
     ensure!(

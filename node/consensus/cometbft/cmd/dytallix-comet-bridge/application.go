@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -252,11 +253,18 @@ func (a *application) FinalizeBlock(ctx context.Context, req *abci.RequestFinali
 }
 
 func (a *application) Commit(ctx context.Context, _ *abci.RequestCommit) (*abci.ResponseCommit, error) {
-	var result struct{}
+	// The application reports the start of its retained block window, or zero
+	// when it keeps every block (state sync v1, rule 2).
+	var result struct {
+		RetainHeight *uint64 `json:"retain_height"`
+	}
 	if err := a.child.call(ctx, "commit", struct{}{}, &result); err != nil {
 		return nil, err
 	}
-	return &abci.ResponseCommit{RetainHeight: 0}, nil
+	if result.RetainHeight == nil || *result.RetainHeight > math.MaxInt64 {
+		return nil, errors.New("application commit returned no valid retain height")
+	}
+	return &abci.ResponseCommit{RetainHeight: int64(*result.RetainHeight)}, nil
 }
 
 func (a *application) Query(ctx context.Context, req *abci.RequestQuery) (*abci.ResponseQuery, error) {
