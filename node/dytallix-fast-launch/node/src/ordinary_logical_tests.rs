@@ -1,5 +1,9 @@
 use super::*;
-use crate::runtime::{penalty_custody::PenaltyConfig, reward_runtime::RewardConfig};
+use crate::runtime::{
+    penalty_custody::PenaltyConfig,
+    reward_runtime::RewardConfig,
+    validator_lifecycle::HistoricalSet,
+};
 use dytallix_protocol_types::recovery::{
     KeyIdentity, RecoveryConfig, RecoveryDomain, RecoveryState,
 };
@@ -290,12 +294,16 @@ fn lifecycle_fixture() -> LifecycleState {
         },
         schedules: BTreeMap::new(),
         unbonding: BTreeMap::new(),
-        history: BTreeMap::new(),
+        history: ValidatorHistory::new(HistoricalSet {
+            validators: BTreeMap::new(),
+            powers: BTreeMap::new(),
+        }),
         update_history: BTreeMap::new(),
         last_height: 8,
         max_positions: 9,
         next_unbond_id: 10,
         reserved_owners: BTreeSet::new(),
+        used_addresses: BTreeSet::new(),
     }
 }
 #[test]
@@ -310,11 +318,16 @@ fn lifecycle_vector_uses_fixed_self_bond_and_usize_width() {
     for n in 3..=7u64 {
         b.extend(n.to_le_bytes());
     }
-    empty_maps(&mut b, 6);
+    // Effective validators and positions, schedules, unbonding; then the
+    // compact history (base height, base set, changes) and update history.
+    empty_maps(&mut b, 4);
+    b.extend(1u64.to_le_bytes());
+    empty_maps(&mut b, 4);
     for n in 8..=10u64 {
         b.extend(n.to_le_bytes());
     }
-    empty_maps(&mut b, 1);
+    // Reserved owners and used consensus addresses.
+    empty_maps(&mut b, 2);
     assert_eq!(
         got.canonical_bytes(),
         payload_record("lifecycle:v1:state", b)

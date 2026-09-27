@@ -1957,6 +1957,9 @@ fn signed_validator_register_rotate_exit_and_mature_withdraw_preserve_stable_own
     assert_eq!((penalty.pruned_released, penalty.released_total().unwrap()), (100, 100));
     let state = lifecycle_state(&app);
     assert!(state.unbonding.values().all(|entry| entry.owner != owner));
+    // History before the evidence horizon is gone; the restart below still
+    // passes the complete check, which folds validator updates from genesis.
+    assert!(state.history.base_height > 1);
     let rewards = reward_state(&app);
     assert!(!rewards.unbonding.contains_key(&owner));
     // Its staker slot is freed once it holds nothing else.

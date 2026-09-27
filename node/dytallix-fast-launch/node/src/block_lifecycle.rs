@@ -381,7 +381,9 @@ pub(crate) fn prepare_adaptive_interval(
         let before = validators.clone();
         validators.advance(next, parent_time, &mut rewards)?;
         let mut released = Vec::new();
-        if let Some(raw) = storage.db.get(crate::runtime::penalty_custody::STATE_KEY)? {
+        let penalty_raw = storage.db.get(crate::runtime::penalty_custody::STATE_KEY)?;
+        let custody = penalty_raw.is_some();
+        if let Some(raw) = penalty_raw {
             ensure!(
                 rewards.locks.is_empty(),
                 "Penalty qualification does not support vesting locks"
@@ -399,6 +401,11 @@ pub(crate) fn prepare_adaptive_interval(
             // their lifecycle entries below (state model step 4).
             released = penalties.prune_released()?;
             validators.remove_released(&released, &mut rewards)?;
+            // Records past the evidence horizon: incidents before the history
+            // they name.
+            penalties.prune_incidents(&validators, next - 1, parent_time)?;
+            validators.prune_history(next - 1, parent_time)?;
+            penalties.consolidate(validators.history.base_height)?;
             penalties.validate(&validators)?;
             writes.insert(
                 crate::runtime::penalty_custody::STATE_KEY
@@ -410,6 +417,9 @@ pub(crate) fn prepare_adaptive_interval(
         if released.is_empty() {
             // Without releases, still free the slots of owners holding nothing.
             validators.remove_released(&[], &mut rewards)?;
+        }
+        if !custody {
+            validators.prune_history(next - 1, parent_time)?;
         }
         writes.insert(
             crate::runtime::validator_lifecycle::STATE_KEY

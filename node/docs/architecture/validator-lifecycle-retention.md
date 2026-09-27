@@ -82,10 +82,37 @@ every unbond, and `PenaltyState::validate` walks every tranche and incident.
 
 | Step | Content | Output change |
 | --- | --- | --- |
-| V1 | Counters for released and deducted totals; unbond and tranche sequences checked by counter, not count | None |
-| V2 | Remove released unbonds, their tranches and receipts; release empty staker slots; reward gross unbonding net of releases | State layout; capacity |
-| V3 | Compact per-height history entries (address and power) in per-height storage; used-address set; historical set lookups by height | State layout |
-| V4 | Horizon pruning of history, update history and settled incidents; complete check folds committed validator updates from genesis | Capacity |
+| V1 (done) | Counters for released and deducted totals; unbond and tranche sequences checked by counter, not count | None |
+| V2 (done) | Remove released unbonds, their tranches and receipts at the next block start; release empty staker slots; reward gross unbonding net of releases | State layout; capacity |
+| V3 (done) | Compact history: a base set plus one change per activation (identity changes and power changes, with the parent time); used-address set; historical set lookups by height; update history kept for the last two heights | State layout |
+| V4 (done) | Horizon pruning of history and settled incidents; merging of held tranches no admissible evidence can tell apart; the complete check folds committed validator updates from the genesis set and checks old blocks' evidence against the folded sets | Capacity |
+
+**Implementation notes (V3, V4).**
+
+- History stays in the lifecycle state rather than per-height storage. An
+  entry is a marker or a power change (tens of bytes), full keys appear only
+  when an identity changes, and the horizon bounds the count, so the
+  existing 16 MiB state bound suffices. Scheduling beyond
+  `MAX_HISTORY_CHANGES` (100,000 retained activations) is a paid capacity
+  failure, not a halt. Per-height storage remains an option if production
+  horizons need it.
+- Every activation records an entry, even one that changes no power, so the
+  horizon advances with time rather than only with power changes.
+- Held tranches of one owner on one validator that started at or before the
+  oldest retained history height are merged into the earliest one. Offences
+  before that height are past the horizon, so no admissible evidence can
+  tell them apart, and unbond order is unchanged. Tranches that were
+  deducted, released, unbonded or allocated are never merged.
+- A settled incident whose deduction still sits in a held tranche is kept
+  until that tranche is released. Only first faults allocate, so there are
+  at most 64.
+- Two lifetime caps found during implementation were also fixed: new
+  unbonds were refused once `next_unbond_id` reached 10,000 (now the live
+  count), and reaching the tranche cap inside an action was an internal
+  error (now a paid capacity failure).
+- History entries keep no owner positions. The lifecycle check that an
+  unbond was covered by the owner's historical position is replaced by the
+  penalty custody's tranche exposure check.
 
 Each step keeps the node suite green, with test oracles comparing the new
 records with a full-history reference.

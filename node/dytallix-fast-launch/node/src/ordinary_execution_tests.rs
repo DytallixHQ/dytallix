@@ -869,6 +869,7 @@ fn positive_logical_costs_charge_each_read_final_write_and_metadata_once() {
 #[test]
 fn cumulative_operator_self_unbond_checks_every_affected_protected_principal_owner() {
     use crate::runtime::validator_lifecycle::{
+        HistoricalSet, ValidatorHistory,
         LifecycleConfig, LifecycleState, ValidatorIdentity, ValidatorView,
     };
     use dytallix_protocol_types::recovery::{Guardian, RecoveryPolicy, RecoveryStatus};
@@ -927,12 +928,13 @@ fn cumulative_operator_self_unbond_checks_every_affected_protected_principal_own
         effective: view.clone(),
         schedules: BTreeMap::new(),
         unbonding: BTreeMap::new(),
-        history: BTreeMap::from([(1, view)]),
+        history: ValidatorHistory::new(HistoricalSet::of(&view).unwrap()),
         update_history: BTreeMap::new(),
         last_height: 1,
         max_positions: 8,
         next_unbond_id: 0,
         reserved_owners: BTreeSet::new(),
+        used_addresses: BTreeSet::new(),
     });
     let first = Action::RewardBeginUnbond {
         validator_id: "validator".into(),

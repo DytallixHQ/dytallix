@@ -12,6 +12,10 @@ pub const STATE_KEY: &str = "lifecycle:v1:state";
 pub const PROFILE: &str = "cometbft-lifecycle-local-qualification";
 pub const MAX_TOTAL_POWER: u128 = 1_152_921_504_606_846_975;
 const MAX_ITEMS: usize = 10_000;
+/// Retained validator-history entries: one per activation inside the evidence
+/// horizon. Entries are small (a marker or a power change), and the state's
+/// byte bound still applies. Scheduling beyond it is a paid capacity failure.
+pub const MAX_HISTORY_CHANGES: usize = 100_000;
 const MAX_BYTES: usize = 16 * 1024 * 1024;
 type Positions = BTreeMap<String, BTreeMap<String, u128>>;
 
@@ -76,6 +80,25 @@ impl LifecycleConfig {
             "Lifecycle configuration exceeds bound"
         );
         Ok(())
+    }
+    /// True when no evidence or withdrawal can still need a record that
+    /// ended at (`end_height`, `end_time`): both evidence limits plus the
+    /// processing margins have passed at the parent, as for unbond maturity
+    /// (state model step 4, P01 27 September 2026).
+    pub fn past_horizon(
+        &self,
+        end_height: u64,
+        end_time: u64,
+        parent_height: u64,
+        parent_time: u64,
+    ) -> bool {
+        let blocks = end_height
+            .saturating_add(self.evidence_max_age_blocks)
+            .saturating_add(self.processing_margin_blocks);
+        let seconds = end_time
+            .saturating_add(self.evidence_max_age_seconds)
+            .saturating_add(self.processing_margin_seconds);
+        parent_height > blocks && parent_time > seconds
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -161,6 +184,34 @@ pub struct ScheduledChange {
     pub additions: Vec<PendingBond>,
     pub removals: Vec<UnbondEntry>,
 }
+/// A past validator set: identities and voting power. Owner exposure is kept
+/// by penalty tranches, not here (state model step 4).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HistoricalSet {
+    pub validators: BTreeMap<String, ValidatorIdentity>,
+    pub powers: BTreeMap<String, u128>,
+}
+/// The change from one historical set to the next, at its activation height.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SetChange {
+    /// Parent time of the activation block: the last time the previous set
+    /// was in effect.
+    pub parent_time_seconds: u64,
+    /// Validators added or given a new identity (Some) or removed (None).
+    pub identities: BTreeMap<String, Option<ValidatorIdentity>>,
+    /// New power of each remaining validator whose power changed.
+    pub powers: BTreeMap<String, u128>,
+}
+/// Validator sets from `base_height` on: the set then, and each later change.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidatorHistory {
+    pub base_height: u64,
+    pub base: HistoricalSet,
+    pub changes: BTreeMap<u64, SetChange>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LifecycleState {
@@ -168,12 +219,17 @@ pub struct LifecycleState {
     pub effective: ValidatorView,
     pub schedules: BTreeMap<u64, ScheduledChange>,
     pub unbonding: BTreeMap<String, UnbondEntry>,
-    pub history: BTreeMap<u64, ValidatorView>,
+    pub history: ValidatorHistory,
+    /// Validator updates of the last two heights; older ones are verified
+    /// from committed blocks.
     pub update_history: BTreeMap<u64, Vec<ValidatorUpdate>>,
     pub last_height: u64,
     pub max_positions: usize,
     pub next_unbond_id: u64,
     pub reserved_owners: BTreeSet<String>,
+    /// Every consensus address any validator has used. A key is never
+    /// registered again, even after its history is pruned.
+    pub used_addresses: BTreeSet<String>,
 }
 #[derive(Clone, Debug)]
 pub enum Operation {
@@ -373,6 +429,201 @@ impl VerifiedKeyProof {
 #[error("{0}")]
 pub(crate) struct TransitionCapacity(pub &'static str);
 
+fn set_updates<'a>(
+    validators: impl Iterator<Item = (&'a String, &'a ValidatorIdentity)>,
+    power: impl Fn(&str) -> Result<u128>,
+) -> Result<Vec<ValidatorUpdate>> {
+    let mut updates = Vec::new();
+    for (id, identity) in validators {
+        let power = power(id)?;
+        ensure!(
+            power > 0 && power <= MAX_TOTAL_POWER,
+            "Invalid validator power"
+        );
+        updates.push((
+            consensus_address(&identity.pubkey_base64)?,
+            ValidatorUpdate {
+                pubkey_type: "ml_dsa_65".into(),
+                pubkey_base64: identity.pubkey_base64.clone(),
+                power: i64::try_from(power)?,
+            },
+        ));
+    }
+    updates.sort_by(|a, b| a.0.cmp(&b.0));
+    Ok(updates.into_iter().map(|(_, u)| u).collect())
+}
+impl HistoricalSet {
+    pub fn of(view: &ValidatorView) -> Result<Self> {
+        let mut powers = BTreeMap::new();
+        for id in view.validators.keys() {
+            powers.insert(
+                id.clone(),
+                checked_sum(view.positions.values().filter_map(|p| p.get(id)).copied())?,
+            );
+        }
+        Ok(Self {
+            validators: view.validators.clone(),
+            powers,
+        })
+    }
+    fn validate(&self, config: &LifecycleConfig) -> Result<()> {
+        ensure!(
+            !self.validators.is_empty()
+                && self.validators.len() <= config.max_active
+                && self.powers.keys().eq(self.validators.keys()),
+            "Invalid historical validator set"
+        );
+        let mut addresses = BTreeSet::new();
+        for (id, identity) in &self.validators {
+            ensure!(
+                config.approved_operators.get(id) == Some(&identity.owner),
+                "Validator operator is not approved"
+            );
+            ensure!(
+                addresses.insert(consensus_address(&identity.pubkey_base64)?),
+                "Duplicate consensus address"
+            );
+        }
+        ensure!(
+            self.powers.values().all(|p| *p > 0)
+                && checked_sum(self.powers.values().copied())? <= MAX_TOTAL_POWER,
+            "Invalid historical validator power"
+        );
+        Ok(())
+    }
+    pub fn validator_set(&self) -> Result<Vec<ValidatorUpdate>> {
+        set_updates(self.validators.iter(), |id| {
+            self.powers
+                .get(id)
+                .copied()
+                .context("Historical validator has no power")
+        })
+    }
+    fn change_to(&self, next: &Self, parent_time_seconds: u64) -> SetChange {
+        let mut identities = BTreeMap::new();
+        for (id, identity) in &next.validators {
+            if self.validators.get(id) != Some(identity) {
+                identities.insert(id.clone(), Some(identity.clone()));
+            }
+        }
+        for id in self.validators.keys() {
+            if !next.validators.contains_key(id) {
+                identities.insert(id.clone(), None);
+            }
+        }
+        let powers = next
+            .powers
+            .iter()
+            .filter(|(id, power)| self.powers.get(*id) != Some(power))
+            .map(|(id, power)| (id.clone(), *power))
+            .collect();
+        SetChange {
+            parent_time_seconds,
+            identities,
+            powers,
+        }
+    }
+    fn apply(&mut self, change: &SetChange) {
+        for (id, identity) in &change.identities {
+            match identity {
+                Some(identity) => {
+                    self.validators.insert(id.clone(), identity.clone());
+                }
+                None => {
+                    self.validators.remove(id);
+                    self.powers.remove(id);
+                }
+            }
+        }
+        for (id, power) in &change.powers {
+            self.powers.insert(id.clone(), *power);
+        }
+    }
+}
+impl ValidatorHistory {
+    pub(crate) fn new(base: HistoricalSet) -> Self {
+        Self {
+            base_height: 1,
+            base,
+            changes: BTreeMap::new(),
+        }
+    }
+    /// The set in effect at `height`.
+    pub fn at(&self, height: u64) -> Result<HistoricalSet> {
+        ensure!(
+            height >= self.base_height,
+            "Validator history before the retention horizon"
+        );
+        let mut set = self.base.clone();
+        for change in self.changes.range(..=height).map(|(_, c)| c) {
+            set.apply(change);
+        }
+        Ok(set)
+    }
+    fn latest(&self) -> HistoricalSet {
+        let mut set = self.base.clone();
+        for change in self.changes.values() {
+            set.apply(change);
+        }
+        set
+    }
+    /// Record the set that takes effect at `height`, if it differs.
+    fn record(&mut self, height: u64, parent_time_seconds: u64, next: &HistoricalSet) -> Result<()> {
+        ensure!(
+            height
+                > self
+                    .changes
+                    .keys()
+                    .next_back()
+                    .copied()
+                    .unwrap_or(self.base_height),
+            "Validator history height regressed"
+        );
+        // Every activation is recorded, even one that changes no power: its
+        // time lets the evidence horizon advance (state model step 4).
+        let change = self.latest().change_to(next, parent_time_seconds);
+        self.changes.insert(height, change);
+        Ok(())
+    }
+    fn validate(&self, config: &LifecycleConfig, last_height: u64) -> Result<()> {
+        ensure!(
+            self.base_height > 0
+                && self.base_height <= last_height.max(1)
+                && self.changes.len() <= MAX_HISTORY_CHANGES,
+            "Lifecycle history bound invalid"
+        );
+        let mut set = self.base.clone();
+        set.validate(config)?;
+        let mut previous = (self.base_height, 0u64);
+        for (height, change) in &self.changes {
+            ensure!(
+                *height > previous.0
+                    && *height <= last_height.max(1)
+                    && change.parent_time_seconds >= previous.1,
+                "Invalid validator history change"
+            );
+            set.apply(change);
+            set.validate(config)?;
+            previous = (*height, change.parent_time_seconds);
+        }
+        Ok(())
+    }
+    /// Parent time of the latest retained change, or zero.
+    fn last_change_time(&self) -> u64 {
+        self.changes
+            .values()
+            .next_back()
+            .map_or(0, |c| c.parent_time_seconds)
+    }
+    /// Every identity the retained history holds.
+    pub fn identities(&self) -> impl Iterator<Item = &ValidatorIdentity> {
+        self.base.validators.values().chain(
+            self.changes
+                .values()
+                .flat_map(|c| c.identities.values().flatten()),
+        )
+    }
+}
 impl ValidatorView {
     fn validate(&self, config: &LifecycleConfig, max_positions: usize) -> Result<()> {
         ensure!(
@@ -420,35 +671,26 @@ impl ValidatorView {
         Ok(())
     }
     pub fn validator_set(&self) -> Result<Vec<ValidatorUpdate>> {
-        let mut updates = Vec::new();
-        for (id, identity) in &self.validators {
-            let power = checked_sum(self.positions.values().filter_map(|p| p.get(id)).copied())?;
-            ensure!(
-                power > 0 && power <= MAX_TOTAL_POWER,
-                "Invalid validator power"
-            );
-            updates.push((
-                consensus_address(&identity.pubkey_base64)?,
-                ValidatorUpdate {
-                    pubkey_type: "ml_dsa_65".into(),
-                    pubkey_base64: identity.pubkey_base64.clone(),
-                    power: i64::try_from(power)?,
-                },
-            ));
-        }
-        updates.sort_by(|a, b| a.0.cmp(&b.0));
-        Ok(updates.into_iter().map(|(_, u)| u).collect())
+        set_updates(self.validators.iter(), |id| {
+            checked_sum(self.positions.values().filter_map(|p| p.get(id)).copied())
+        })
     }
 }
 fn difference(before: &ValidatorView, after: &ValidatorView) -> Result<Vec<ValidatorUpdate>> {
+    difference_of(before.validator_set()?, after.validator_set()?)
+}
+fn difference_of(
+    before: Vec<ValidatorUpdate>,
+    after: Vec<ValidatorUpdate>,
+) -> Result<Vec<ValidatorUpdate>> {
     let mut keys = BTreeMap::<String, (String, i64, i64)>::new();
-    for u in before.validator_set()? {
+    for u in before {
         keys.insert(
             consensus_address(&u.pubkey_base64)?,
             (u.pubkey_base64, u.power, 0),
         );
     }
-    for u in after.validator_set()? {
+    for u in after {
         let entry =
             keys.entry(consensus_address(&u.pubkey_base64)?)
                 .or_insert((u.pubkey_base64, 0, 0));
@@ -485,12 +727,18 @@ impl LifecycleState {
             validators: identities,
             positions: rewards.positions.clone(),
         };
+        let used_addresses = effective
+            .validators
+            .values()
+            .map(|identity| consensus_address(&identity.pubkey_base64))
+            .collect::<Result<_>>()?;
         let state = Self {
             config,
-            effective: effective.clone(),
+            history: ValidatorHistory::new(HistoricalSet::of(&effective)?),
+            effective,
             schedules: BTreeMap::new(),
             unbonding: BTreeMap::new(),
-            history: BTreeMap::from([(1, effective)]),
+            used_addresses,
             update_history: BTreeMap::new(),
             last_height: 0,
             max_positions: rewards.config.max_positions,
@@ -527,9 +775,10 @@ impl LifecycleState {
         );
         Ok(state)
     }
+    /// The full view at the current height or a scheduled one.
     fn view(&self, height: u64) -> Result<&ValidatorView> {
         ensure!(
-            height > 0
+            height >= self.last_height.max(1)
                 && height
                     <= self
                         .last_height
@@ -538,14 +787,6 @@ impl LifecycleState {
                         .max(1),
             "Lifecycle set height out of range"
         );
-        if height <= self.last_height.max(1) {
-            return self
-                .history
-                .range(..=height)
-                .next_back()
-                .map(|(_, v)| v)
-                .context("Missing validator history");
-        }
         Ok(self
             .schedules
             .range(..=height)
@@ -553,8 +794,16 @@ impl LifecycleState {
             .map(|(_, s)| &s.view)
             .unwrap_or(&self.effective))
     }
+    /// The set at any height from the retained history to two blocks ahead.
+    pub fn historical_set(&self, height: u64) -> Result<HistoricalSet> {
+        ensure!(height > 0, "Lifecycle set height out of range");
+        if height >= self.last_height.max(1) {
+            return HistoricalSet::of(self.view(height)?);
+        }
+        self.history.at(height)
+    }
     pub fn validator_set(&self, height: u64) -> Result<Vec<ValidatorUpdate>> {
-        self.view(height)?.validator_set()
+        self.historical_set(height)?.validator_set()
     }
     pub fn historical_validator_set(&self, height: u64) -> Result<Vec<ValidatorUpdate>> {
         self.validator_set(height)
@@ -572,9 +821,13 @@ impl LifecycleState {
             self.view(height.checked_add(2).context("Update height overflow")?)?,
         )
     }
+    /// Updates are retained for the last two heights; older blocks' updates
+    /// are verified from committed block records.
     pub fn historical_validator_updates(&self, height: u64) -> Result<Vec<ValidatorUpdate>> {
         ensure!(
-            height > 0 && height <= self.last_height,
+            height > 0
+                && height <= self.last_height
+                && height.saturating_add(1) >= self.last_height,
             "Historical update height out of range"
         );
         Ok(self
@@ -726,13 +979,12 @@ impl LifecycleState {
             );
         }
         ensure!(
-            self.history.contains_key(&1)
-                && self.history.len() <= MAX_ITEMS
-                && self.update_history.len() <= MAX_ITEMS
+            self.update_history.len() <= 2
                 && self.schedules.len() <= 2
                 && self.unbonding.len() <= MAX_ITEMS,
             "Lifecycle history bound invalid"
         );
+        self.history.validate(&self.config, self.last_height)?;
         let mut previous = &self.effective;
         let mut ids = BTreeSet::new();
         for (height, schedule) in &self.schedules {
@@ -779,21 +1031,26 @@ impl LifecycleState {
             );
             previous = &schedule.view;
         }
-        for (height, view) in &self.history {
-            ensure!(
-                *height > 0 && *height <= self.last_height.max(1),
-                "Future validator history"
-            );
-            view.validate(&self.config, self.max_positions)?;
-        }
         ensure!(
-            self.history
-                .range(..=self.last_height.max(1))
-                .next_back()
-                .map(|(_, v)| v)
-                == Some(&self.effective),
+            self.history.latest() == HistoricalSet::of(&self.effective)?,
             "Effective validator history mismatch"
         );
+        for identity in self
+            .history
+            .identities()
+            .chain(self.effective.validators.values())
+            .chain(
+                self.schedules
+                    .values()
+                    .flat_map(|s| s.view.validators.values()),
+            )
+        {
+            ensure!(
+                self.used_addresses
+                    .contains(&consensus_address(&identity.pubkey_base64)?),
+                "Validator key missing from used addresses"
+            );
+        }
         for (id, entry) in &self.unbonding {
             ensure!(
                 *id == entry.id
@@ -806,20 +1063,8 @@ impl LifecycleState {
                     && entry.evidence_config == self.config,
                 "Invalid finalized unbond history"
             );
-            ensure!(
-                self.view(
-                    entry
-                        .last_exposure_height
-                        .context("Missing exposure height")?
-                )?
-                .positions
-                .get(&entry.owner)
-                .and_then(|p| p.get(&entry.validator))
-                .copied()
-                .unwrap_or(0)
-                    >= entry.amount,
-                "Unbond lacks historical principal exposure"
-            );
+            // Exposure at the last height is checked against penalty tranches
+            // (`PenaltyState::validate`); history keeps no owner positions.
         }
         // Released entries are removed (state model step 4); each retained ID
         // is unique and below the sequence counter.
@@ -843,34 +1088,23 @@ impl LifecycleState {
         }
         for (height, updates) in &self.update_history {
             ensure!(
-                *height > 0 && *height <= self.last_height,
-                "Future validator update history"
+                *height > 0
+                    && *height <= self.last_height
+                    && height.saturating_add(1) >= self.last_height,
+                "Future or unretained validator update history"
             );
-            let expected = difference(
-                self.view(
-                    height
-                        .checked_add(1)
-                        .context("Historical height overflow")?,
-                )?,
-                self.view(
-                    height
-                        .checked_add(2)
-                        .context("Historical height overflow")?,
-                )?,
+            let expected = difference_of(
+                self.validator_set(height.checked_add(1).context("Historical height overflow")?)?,
+                self.validator_set(height.checked_add(2).context("Historical height overflow")?)?,
             )?;
             ensure!(
                 *updates == expected && !updates.is_empty(),
                 "Validator update history mismatch"
             );
         }
-        // Every changed view must have the exact update returned two blocks before activation.
-        for height in self
-            .history
-            .keys()
-            .copied()
-            .chain(self.schedules.keys().copied())
-            .filter(|h| *h > 1)
-        {
+        // Every scheduled set must have the exact update returned two blocks
+        // before activation. Older activations were checked when scheduled.
+        for height in self.schedules.keys().copied() {
             let request = height
                 .checked_sub(2)
                 .context("Invalid history activation height")?;
@@ -878,7 +1112,10 @@ impl LifecycleState {
                 request > 0 && request <= self.last_height,
                 "Invalid historical activation request"
             );
-            let updates = difference(self.view(height - 1)?, self.view(height)?)?;
+            let updates = difference_of(
+                self.validator_set(height - 1)?,
+                self.validator_set(height)?,
+            )?;
             ensure!(
                 self.update_history
                     .get(&request)
@@ -925,11 +1162,19 @@ impl LifecycleState {
             next_rewards.unbonding = next.unbonding_by_owner()?;
         }
         next.last_height = height;
+        next.retain_recent_updates();
         next.validate()?;
         next.validate_rewards(&next_rewards)?;
         *self = next;
         *rewards = next_rewards;
         Ok(())
+    }
+    /// Keep the validator updates of the last two heights; older blocks'
+    /// updates are verified from committed block records.
+    fn retain_recent_updates(&mut self) {
+        let last = self.last_height;
+        self.update_history
+            .retain(|h, _| h.saturating_add(1) >= last);
     }
     fn apply_activation(&mut self, height: u64, parent_time_seconds: u64) -> Result<bool> {
         let Some(schedule) = self.schedules.remove(&height) else {
@@ -944,7 +1189,8 @@ impl LifecycleState {
             );
         }
         self.effective = schedule.view;
-        self.history.insert(height, self.effective.clone());
+        let set = HistoricalSet::of(&self.effective)?;
+        self.history.record(height, parent_time_seconds, &set)?;
         Ok(true)
     }
     /// Check both queued activations before accepting their principal changes.
@@ -957,8 +1203,11 @@ impl LifecycleState {
         let mut projected = self.clone();
         let heights: Vec<_> = projected.schedules.keys().copied().collect();
         for height in heights {
-            projected.apply_activation(height, 0)?;
+            // Projection only measures size; any nondecreasing time will do.
+            let time = projected.history.last_change_time();
+            projected.apply_activation(height, time)?;
             projected.last_height = height;
+            projected.retain_recent_updates();
             projected.validate()?;
             ensure!(
                 bincode::serialized_size(&projected)? <= max_state_bytes,
@@ -1234,24 +1483,14 @@ impl LifecycleState {
         *self = next;
         Ok(())
     }
-    fn check_new_key(&self, key: &str) -> Result<()> {
+    /// A consensus key is never registered twice, even after its history is
+    /// pruned (P01, 27 September 2026). Records the address as used.
+    fn check_new_key(&mut self, key: &str) -> Result<()> {
         let address = consensus_address(key)?;
-        // Never recycle a historical key while its evidence liability remains unresolved.
-        for identity in self
-            .history
-            .values()
-            .flat_map(|v| v.validators.values())
-            .chain(
-                self.schedules
-                    .values()
-                    .flat_map(|s| s.view.validators.values()),
-            )
-        {
-            ensure!(
-                consensus_address(&identity.pubkey_base64)? != address,
-                "Consensus key or address already used"
-            );
-        }
+        ensure!(
+            self.used_addresses.insert(address),
+            "Consensus key or address already used"
+        );
         Ok(())
     }
     fn append_removal(
@@ -1307,6 +1546,32 @@ impl LifecycleState {
             subtract_position(&mut schedule.view.positions, &owner, validator, amount)?;
             self.append_removal(schedule, request, effective, &owner, validator, amount)?;
         }
+        Ok(())
+    }
+    /// Drop validator history that no evidence or withdrawal can still need
+    /// (state model step 4): fold the base set forward while the set it holds
+    /// ended past the horizon at this block's parent. The current set stays.
+    pub fn prune_history(&mut self, parent_height: u64, parent_time: u64) -> Result<()> {
+        let mut next = self.clone();
+        while let Some((&start, change)) = next.history.changes.iter().next() {
+            // The base set was last in effect at `start - 1`, at the change's
+            // recorded parent time.
+            if !next
+                .config
+                .past_horizon(start - 1, change.parent_time_seconds, parent_height, parent_time)
+            {
+                break;
+            }
+            let change = next
+                .history
+                .changes
+                .remove(&start)
+                .context("Validator history change vanished")?;
+            next.history.base.apply(&change);
+            next.history.base_height = start;
+        }
+        next.validate()?;
+        *self = next;
         Ok(())
     }
     /// Remove released unbond entries (state model step 4). The reward state's

@@ -1,7 +1,9 @@
 //! Synthetic local evidence custody. Engine facts are not cryptographic proofs.
 //! Gross lifecycle history stays immutable. This sidecar records net losses and releases.
 use super::reward_runtime::RewardState;
-use super::validator_lifecycle::{consensus_address, LifecycleState, ValidatorView};
+use super::validator_lifecycle::{
+    consensus_address, HistoricalSet, LifecycleState, TransitionCapacity, ValidatorView,
+};
 use anyhow::{ensure, Context, Result};
 use bincode::Options;
 use serde::{Deserialize, Serialize};
@@ -200,12 +202,9 @@ fn floor_ratio(amount: u128, numerator: u64, denominator: u64) -> Result<u128> {
         })
         .context("Penalty arithmetic overflow")
 }
-fn historical_view(lifecycle: &LifecycleState, height: u64) -> Result<&ValidatorView> {
+fn historical_view(lifecycle: &LifecycleState, height: u64) -> Result<HistoricalSet> {
     lifecycle
-        .history
-        .range(..=height)
-        .next_back()
-        .map(|(_, view)| view)
+        .historical_set(height)
         .context("Missing offence validator history")
 }
 fn future_view(lifecycle: &LifecycleState, height: u64) -> &ValidatorView {
@@ -272,9 +271,10 @@ impl PenaltyState {
             .next_tranche_id
             .checked_add(1)
             .context("Tranche sequence overflow")?;
+        ensure!(amount > 0, "Zero tranche principal");
         ensure!(
-            amount > 0 && self.tranches.len() < MAX_ITEMS,
-            "Tranche capacity exceeded or zero principal"
+            self.tranches.len() < MAX_ITEMS,
+            TransitionCapacity("Tranche capacity exceeded")
         );
         ensure!(
             self.tranches
@@ -448,8 +448,12 @@ impl PenaltyState {
                 }
             }
         }
+        // First-fault markers are permanent; a marker's incident may have
+        // been pruned (state model step 4), so retained ones must be indexed.
         ensure!(
-            first_faults == self.first_faults,
+            first_faults
+                .iter()
+                .all(|(validator, id)| self.first_faults.get(validator) == Some(id)),
             "First-fault index differs from receipts"
         );
         ensure!(
@@ -457,11 +461,16 @@ impl PenaltyState {
             "Pruned penalty deductions differ from receipts"
         );
         for incident in self.incidents.values() {
-            let first = &self.incidents[&self.first_faults[&incident.validator]];
-            ensure!(
-                first.admitted_height <= incident.admitted_height,
-                "Later fault precedes first-fault record"
-            );
+            let first_id = self
+                .first_faults
+                .get(&incident.validator)
+                .context("Incident validator has no first-fault marker")?;
+            if let Some(first) = self.incidents.get(first_id) {
+                ensure!(
+                    first.admitted_height <= incident.admitted_height,
+                    "Later fault precedes first-fault record"
+                );
+            }
         }
         let mut released_by_entry = BTreeMap::new();
         for (id, tranche) in &self.tranches {
@@ -591,6 +600,11 @@ impl PenaltyState {
             "Tranche pending or unbond custody differs"
         );
         for incident in self.incidents.values() {
+            // A first fault whose deduction still sits in a held tranche
+            // outlives the history of its offence height.
+            if incident.fact.height < lifecycle.history.base_height {
+                continue;
+            }
             let view = historical_view(lifecycle, incident.fact.height)?;
             let identity = view
                 .validators
@@ -826,12 +840,8 @@ impl PenaltyState {
             }
         }
         let validator = matched.context("Evidence validator not in offence set")?;
-        let power = sum(view
-            .positions
-            .values()
-            .filter_map(|p| p.get(&validator))
-            .copied())?;
-        let total = sum(view.positions.values().flat_map(|p| p.values()).copied())?;
+        let power = view.powers.get(&validator).copied().unwrap_or(0);
+        let total = sum(view.powers.values().copied())?;
         ensure!(
             i64::try_from(power)? == fact.power && i64::try_from(total)? == fact.total_power,
             "Evidence historical voting power differs"
@@ -1042,6 +1052,91 @@ impl PenaltyState {
     }
     pub fn live_released(&self) -> Result<u128> {
         sum(self.tranches.values().map(|t| t.released))
+    }
+    /// Merge held tranches that no admissible evidence can tell apart (state
+    /// model step 4): one owner's tranches on one validator, never unbonded,
+    /// deducted, released or allocated, that started by `cutoff`, the oldest
+    /// height the validator history keeps. Offences before it are past the
+    /// evidence horizon, so exposure differs only where no evidence is
+    /// admissible. The earliest tranche absorbs the others, so unbond order
+    /// is unchanged.
+    pub fn consolidate(&mut self, cutoff: u64) -> Result<()> {
+        let allocated: BTreeSet<&String> = self
+            .incidents
+            .values()
+            .flat_map(|i| i.allocations.keys())
+            .collect();
+        let mut groups: BTreeMap<(String, String), Vec<(u64, String)>> = BTreeMap::new();
+        for tranche in self.tranches.values().filter(|t| {
+            t.unbond_id.is_none()
+                && t.deducted == 0
+                && t.released == 0
+                && t.start_height <= cutoff
+                && !allocated.contains(&t.id)
+        }) {
+            groups
+                .entry((tranche.owner.clone(), tranche.validator.clone()))
+                .or_default()
+                .push((tranche.start_height, tranche.id.clone()));
+        }
+        let mut next = self.clone();
+        for mut members in groups.into_values().filter(|m| m.len() > 1) {
+            members.sort();
+            let (_, keep) = members.remove(0);
+            let mut gross = next.tranches[&keep].gross_amount;
+            for (_, id) in members {
+                let merged = next
+                    .tranches
+                    .remove(&id)
+                    .context("Consolidated tranche vanished")?;
+                gross = gross
+                    .checked_add(merged.gross_amount)
+                    .context("Penalty custody overflow")?;
+            }
+            next.tranches
+                .get_mut(&keep)
+                .context("Consolidated tranche vanished")?
+                .gross_amount = gross;
+        }
+        next.validate_internal()?;
+        *self = next;
+        Ok(())
+    }
+    /// Drop settled incidents whose evidence is past the horizon at this
+    /// block's parent and whose deductions no longer sit in a held tranche
+    /// (state model step 4). An expired fact cannot be resubmitted, and the
+    /// first-fault markers stay, so penalty rules are unchanged.
+    pub fn prune_incidents(
+        &mut self,
+        lifecycle: &LifecycleState,
+        parent_height: u64,
+        parent_time: u64,
+    ) -> Result<()> {
+        let expired: Vec<String> = self
+            .incidents
+            .iter()
+            .filter(|(_, incident)| {
+                incident.settled_height.is_some()
+                    && lifecycle.config.past_horizon(
+                        incident.fact.height,
+                        incident.fact.time_seconds,
+                        parent_height,
+                        parent_time,
+                    )
+                    && incident
+                        .allocations
+                        .keys()
+                        .all(|tranche| !self.tranches.contains_key(tranche))
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        let mut next = self.clone();
+        for id in expired {
+            next.incidents.remove(&id);
+        }
+        next.validate_internal()?;
+        *self = next;
+        Ok(())
     }
     /// Remove every released unbond's tranches and release receipt (state
     /// model step 4), keeping their deductions and releases as totals.
