@@ -91,12 +91,14 @@ impl BondSnapshot {
             book.last_height == parent_height
                 && book
                     .accounts
+                    .all()?
                     .values()
                     .all(|account| account.recovery.domain.chain_id == lifecycle.config.chain_id),
             "Governance account registry differs from finalized lifecycle parent"
         );
         let eligible_owners = book
             .accounts
+            .all()?
             .keys()
             .filter(|id| lifecycle.effective.positions.contains_key(*id))
             .cloned()

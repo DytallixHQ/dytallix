@@ -135,7 +135,7 @@ pub fn plan_ordered_admission_block(
             source.ballot_rules.chain_id == parent.chain_id()
                 && source.ballot_rules.genesis_digest == parent.genesis_digest()
                 && source.lifecycle.config.chain_id == parent.chain_id()
-                && source.recovery.accounts.values().all(|account| {
+                && source.recovery.accounts.all()?.values().all(|account| {
                     account.recovery.domain.chain_id == parent.chain_id()
                         && account.recovery.domain.genesis_digest == parent.genesis_digest()
                 }),

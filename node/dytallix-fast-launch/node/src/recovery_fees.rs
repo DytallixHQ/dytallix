@@ -11,10 +11,12 @@ use dytallix_protocol_types::{
 };
 use dytallix_runtime_crypto::recovery_sponsor::{verify_signed, SponsorVerificationError};
 use crate::block_lifecycle::{Deletes, Writes};
+use crate::recovery_store::{Stored, StoredSet};
 use crate::storage::state::Storage;
 use rocksdb::{Direction, IteratorMode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// Every stored recovery key is under this prefix: a header plus one entry per
 /// account, sponsor receipt, success-index entry and expiry-index entry.
@@ -32,6 +34,16 @@ struct StoredHeader {
     version: u16,
     last_height: u64,
     profile: FeeProfile,
+    chain: RecoveryChain,
+}
+/// The chain domain every account shares (`validate` rejects mixed domains).
+/// The header stores it, so a staged book knows it without reading accounts.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct RecoveryChain {
+    pub network: u8,
+    pub chain_id: String,
+    pub genesis_digest: [u8; 32],
 }
 
 /// True when two account records differ at most in their recovery height.
@@ -50,9 +62,9 @@ fn canonical<T: Serialize + DeserializeOwned>(bytes: &[u8], what: &str) -> Resul
     );
     Ok(value)
 }
-// Implementation bounds for the isolated local profile. No pruning is authorized.
-// The book is stored per entry, so no whole-book byte bound applies.
-pub(crate) const MAX_ACCOUNTS: usize = 4096;
+// Implementation bound for the isolated local profile. No pruning is authorized.
+// The book is stored per entry and read per account, so neither its bytes nor
+// its accounts are capped; the account creation fee bounds growth (B1c).
 const MAX_RECEIPTS: usize = 65536;
 const UNINITIALIZED_TARGET: &str = "Recovery target has no recovery record: unknown, or not \
 yet initialized by its first ordinary transaction";
@@ -98,34 +110,62 @@ impl SponsorReceipt {
         Ok(sha3_256(&bytes))
     }
 }
+/// A stored account keeps the height of its last material change. Reading it
+/// at a later height may change only that height: an expiry always rewrites
+/// the account.
+impl Stored for RecoveryAccount {
+    const PREFIX: &'static str = ACCOUNT_PREFIX;
+    const WHAT: &'static str = "account";
+    fn at_height(self, height: u64) -> Result<Self> {
+        ensure!(
+            self.recovery.last_height <= height,
+            "Recovery account is ahead of the book height"
+        );
+        let current = RecoveryAccount {
+            recovery: self.recovery.advance_height(height)?,
+            ..self.clone()
+        };
+        ensure!(
+            same_apart_from_height(&self, &current),
+            "Recovery account has an unapplied expiry"
+        );
+        Ok(current)
+    }
+}
+impl Stored for KeyIdentity {
+    const PREFIX: &'static str = ORIGIN_PREFIX;
+    const WHAT: &'static str = "origin";
+    fn at_height(self, _height: u64) -> Result<Self> {
+        Ok(self)
+    }
+}
+/// Accounts and origins are complete in memory (genesis, tests and the
+/// complete check) or staged: read from committed storage on first use, with
+/// the block's changes in an overlay (`recovery_store`). Receipts, the success
+/// index and the capacity-bounded expiry index stay in memory.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RecoveryBook {
     pub version: u16,
     pub last_height: u64,
     pub profile: FeeProfile,
-    pub accounts: BTreeMap<String, RecoveryAccount>,
+    pub accounts: StoredSet<RecoveryAccount>,
     pub sponsor_receipts: BTreeMap<String, SponsorReceipt>,
     pub operation_success: BTreeMap<String, String>,
     pub expiry_index: BTreeMap<u64, BTreeSet<String>>,
     /// Each account's immutable origin public key, from which its ID was
     /// derived. Present under the combined ordinary profile; the ordinary
     /// configuration checks that it covers every account and hashes to its ID.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub origins: BTreeMap<String, KeyIdentity>,
+    #[serde(default, skip_serializing_if = "StoredSet::is_empty_complete")]
+    pub origins: StoredSet<KeyIdentity>,
+    /// A staged book's chain domain, from the stored header. A complete book
+    /// derives it from its accounts.
+    #[serde(skip)]
+    chain: Option<RecoveryChain>,
 }
 impl RecoveryBook {
     pub(crate) fn new(profile: FeeProfile, accounts: Vec<RecoveryAccount>) -> Result<Self> {
-        let mut book = Self {
-            version: 1,
-            last_height: 0,
-            profile,
-            accounts: BTreeMap::new(),
-            sponsor_receipts: BTreeMap::new(),
-            operation_success: BTreeMap::new(),
-            expiry_index: BTreeMap::new(),
-            origins: BTreeMap::new(),
-        };
+        let mut values = BTreeMap::new();
         for account in accounts {
             ensure!(
                 account.sponsor_nonce == 0 && account.recovery.last_height == 0,
@@ -138,81 +178,99 @@ impl RecoveryBook {
             );
             let id = hex::encode(account.recovery.domain.account_id);
             ensure!(
-                book.accounts.insert(id, account).is_none(),
+                values.insert(id, account).is_none(),
                 "Duplicate recovery account ID"
             );
         }
+        let book = Self {
+            version: 1,
+            last_height: 0,
+            profile,
+            accounts: StoredSet::complete(values),
+            sponsor_receipts: BTreeMap::new(),
+            operation_success: BTreeMap::new(),
+            expiry_index: BTreeMap::new(),
+            origins: StoredSet::default(),
+            chain: None,
+        };
         book.validate()?;
         Ok(book)
+    }
+    /// The chain domain every account shares.
+    pub(crate) fn chain(&self) -> Result<RecoveryChain> {
+        if let Some(chain) = &self.chain {
+            return Ok(chain.clone());
+        }
+        let d = &self
+            .accounts
+            .all()?
+            .values()
+            .next()
+            .context("Recovery book has no accounts")?
+            .recovery
+            .domain;
+        Ok(RecoveryChain {
+            network: d.network,
+            chain_id: d.chain_id.clone(),
+            genesis_digest: d.genesis_digest,
+        })
+    }
+    fn header(&self) -> Result<Vec<u8>> {
+        Ok(serde_json::to_vec(&StoredHeader {
+            version: self.version,
+            last_height: self.last_height,
+            profile: self.profile.clone(),
+            chain: self.chain()?,
+        })?)
     }
     /// Look up an account by native address without scanning the book. An
     /// address encodes its account ID, so decode it, look up the ID and require
     /// the stored address to match exactly (as a linear search would).
-    pub(crate) fn account_by_address(&self, address: &str) -> Option<&RecoveryAccount> {
-        let id = *[
+    pub(crate) fn account_by_address(&self, address: &str) -> Result<Option<Arc<RecoveryAccount>>> {
+        let Some(decoded) = [
             AddressNetwork::Mainnet,
             AddressNetwork::Testnet,
             AddressNetwork::Development,
         ]
         .into_iter()
-        .find_map(|network| AccountAddress::decode(network, address).ok())?
-        .account_id();
-        self.accounts
-            .get(&hex::encode(id))
-            .filter(|account| account.address == address)
+        .find_map(|network| AccountAddress::decode(network, address).ok()) else {
+            return Ok(None);
+        };
+        Ok(self
+            .accounts
+            .find(&hex::encode(decoded.account_id()))?
+            .filter(|account| account.address == address))
     }
+    /// Complete validation; only a complete book holds every account.
     pub(crate) fn validate(&self) -> Result<()> {
         ensure!(self.version == 1, "Unsupported recovery book version");
         self.profile.validate()?;
-        ensure!(
-            !self.accounts.is_empty() && self.accounts.len() <= MAX_ACCOUNTS,
-            "Recovery account count outside bounds"
-        );
+        let accounts = self.accounts.all()?;
+        ensure!(!accounts.is_empty(), "Recovery book has no accounts");
         ensure!(
             self.sponsor_receipts.len() <= MAX_RECEIPTS,
             "Recovery receipt capacity exceeded"
         );
         let profile_digest = wire::profile_digest(&self.profile)?;
+        let chain = self.chain_from(accounts)?;
         let mut addresses = BTreeSet::new();
-        let mut domain = None;
-        for (id, account) in &self.accounts {
-            account.recovery.validate()?;
+        for (id, account) in accounts {
+            self.check_account(id, account, &chain)?;
             ensure!(
-                *id == hex::encode(account.recovery.domain.account_id),
-                "Recovery account key mismatch"
-            );
-            ensure!(
-                !account.address.is_empty()
-                    && account.address.len() <= 256
-                    && addresses.insert(&account.address),
+                addresses.insert(&account.address),
                 "Invalid or duplicate native account mapping"
             );
-            ensure!(
-                account.recovery.last_height == self.last_height,
-                "Recovery account height differs from book"
-            );
-            let d = &account.recovery.domain;
-            let shared = (d.network, d.chain_id.clone(), d.genesis_digest);
-            if let Some(expected) = &domain {
-                ensure!(*expected == shared, "Mixed recovery chain domains");
-            }
-            domain = Some(shared);
-            for (algorithm, length) in &account.recovery.config.algorithms {
-                let expected = match algorithm.as_str() {
-                    "mldsa65" => 1952,
-                    "mldsa87" => 2592,
-                    _ => bail!("Unsupported configured recovery algorithm"),
-                };
-                ensure!(
-                    *length == expected && self.profile.signature_costs.contains_key(algorithm),
-                    "Recovery key profile differs from fee profile"
-                );
-            }
         }
         ensure!(
-            self.origins.keys().all(|id| self.accounts.contains_key(id)),
+            self.origins.all()?.keys().all(|id| accounts.contains_key(id)),
             "Recovery origin without account"
         );
+        if let Some(chain) = &self.chain {
+            ensure!(
+                *chain == self.chain_from(accounts)?,
+                "Recovery header chain differs from its accounts"
+            );
+        }
         let expected = self.expected_expiries()?;
         ensure!(
             expected == self.expiry_index,
@@ -223,10 +281,7 @@ impl RecoveryBook {
         let mut counters = BTreeSet::new();
         for (id, receipt) in &self.sponsor_receipts {
             let sponsor_id = hex::encode(receipt.sponsor_account_id);
-            let sponsor = self
-                .accounts
-                .get(&sponsor_id)
-                .context("Missing receipt sponsor")?;
+            let sponsor = accounts.get(&sponsor_id).context("Missing receipt sponsor")?;
             self.check_receipt(
                 id,
                 receipt,
@@ -258,13 +313,87 @@ impl RecoveryBook {
         for (sponsor, _) in &counters {
             *counts.entry(sponsor.as_str()).or_default() += 1;
         }
-        for (id, account) in &self.accounts {
+        for (id, account) in accounts {
             ensure!(
                 counts.get(id.as_str()).copied().unwrap_or(0) == account.sponsor_nonce,
                 "Sponsor history does not cover its counter"
             );
         }
         Ok(())
+    }
+    /// Rules for one account record on its own.
+    fn check_account(&self, id: &str, account: &RecoveryAccount, chain: &RecoveryChain) -> Result<()> {
+        account.recovery.validate()?;
+        ensure!(
+            id == hex::encode(account.recovery.domain.account_id),
+            "Recovery account key mismatch"
+        );
+        ensure!(
+            !account.address.is_empty() && account.address.len() <= 256,
+            "Invalid or duplicate native account mapping"
+        );
+        ensure!(
+            account.recovery.last_height == self.last_height,
+            "Recovery account height differs from book"
+        );
+        let d = &account.recovery.domain;
+        ensure!(
+            d.network == chain.network
+                && d.chain_id == chain.chain_id
+                && d.genesis_digest == chain.genesis_digest,
+            "Mixed recovery chain domains"
+        );
+        for (algorithm, length) in &account.recovery.config.algorithms {
+            let expected = match algorithm.as_str() {
+                "mldsa65" => 1952,
+                "mldsa87" => 2592,
+                _ => bail!("Unsupported configured recovery algorithm"),
+            };
+            ensure!(
+                *length == expected && self.profile.signature_costs.contains_key(algorithm),
+                "Recovery key profile differs from fee profile"
+            );
+        }
+        Ok(())
+    }
+    /// Block-level validation of a staged book: the header, the receipt
+    /// bound, every changed account and origin, and the expiry index, which
+    /// only accounts in it or changed in this block can affect. Unchanged
+    /// accounts were checked when their changes were staged; the complete
+    /// check revalidates every entry and the sponsor history.
+    pub(crate) fn validate_staged(&self) -> Result<()> {
+        ensure!(self.version == 1, "Unsupported recovery book version");
+        self.profile.validate()?;
+        ensure!(
+            self.sponsor_receipts.len() <= MAX_RECEIPTS,
+            "Recovery receipt capacity exceeded"
+        );
+        let chain = self.chain()?;
+        for (id, account) in self.accounts.overlay() {
+            self.check_account(id, account, &chain)?;
+        }
+        for id in self.origins.overlay().keys() {
+            ensure!(self.accounts.contains(id)?, "Recovery origin without account");
+        }
+        let affected: BTreeSet<&String> = self
+            .expiry_index
+            .values()
+            .flatten()
+            .chain(self.accounts.overlay().keys())
+            .collect();
+        let mut expected = BTreeMap::new();
+        for id in affected {
+            let account = self
+                .accounts
+                .find(id)?
+                .context("Recovery expiry index references an absent account")?;
+            self.add_expiries(&mut expected, id, &account)?;
+        }
+        ensure!(
+            expected == self.expiry_index,
+            "Recovery due-expiry index differs from obligations"
+        );
+        self.check_capacity(&expected)
     }
     /// Checks on one receipt that do not compare it with other receipts.
     /// `sponsor_nonce` and `success_entry` are the sponsor's counter and the
@@ -322,7 +451,7 @@ impl RecoveryBook {
         );
         ensure!(
             self.accounts
-                .contains_key(&hex::encode(receipt.target_account_id))
+                .contains(&hex::encode(receipt.target_account_id))?
                 && receipt.target_account_id != receipt.sponsor_account_id,
             "Invalid receipt target"
         );
@@ -365,10 +494,23 @@ impl RecoveryBook {
     }
     fn expected_expiries(&self) -> Result<BTreeMap<u64, BTreeSet<String>>> {
         let mut index: BTreeMap<u64, BTreeSet<String>> = BTreeMap::new();
-        for (id, account) in &self.accounts {
+        for (id, account) in self.accounts.all()? {
             self.add_expiries(&mut index, id, account)?;
         }
         Ok(index)
+    }
+    fn chain_from(&self, accounts: &BTreeMap<String, Arc<RecoveryAccount>>) -> Result<RecoveryChain> {
+        let d = &accounts
+            .values()
+            .next()
+            .context("Recovery book has no accounts")?
+            .recovery
+            .domain;
+        Ok(RecoveryChain {
+            network: d.network,
+            chain_id: d.chain_id.clone(),
+            genesis_digest: d.genesis_digest,
+        })
     }
     /// The expiry index after one account changes. Given a consistent index,
     /// this equals `expected_expiries` of the changed book.
@@ -431,16 +573,11 @@ impl RecoveryBook {
     pub(crate) fn entries(&self) -> Result<BTreeMap<Vec<u8>, Vec<u8>>> {
         self.validate()?;
         let mut entries = BTreeMap::new();
-        let header = StoredHeader {
-            version: self.version,
-            last_height: self.last_height,
-            profile: self.profile.clone(),
-        };
-        entries.insert(HEADER_KEY.as_bytes().to_vec(), serde_json::to_vec(&header)?);
-        for (id, account) in &self.accounts {
+        entries.insert(HEADER_KEY.as_bytes().to_vec(), self.header()?);
+        for (id, account) in self.accounts.all()? {
             entries.insert(
                 format!("{ACCOUNT_PREFIX}{id}").into_bytes(),
-                serde_json::to_vec(account)?,
+                serde_json::to_vec(&**account)?,
             );
         }
         for (id, receipt) in &self.sponsor_receipts {
@@ -463,32 +600,31 @@ impl RecoveryBook {
                 );
             }
         }
-        for (id, key) in &self.origins {
+        for (id, key) in self.origins.all()? {
             entries.insert(
                 format!("{ORIGIN_PREFIX}{id}").into_bytes(),
-                serde_json::to_vec(key)?,
+                serde_json::to_vec(&**key)?,
             );
         }
         Ok(entries)
     }
     /// Writes and deletions that turn `committed`'s stored entries into this
     /// book's. An account is written only when it changed in more than its
-    /// recovery height; `load` advances stored accounts to the header height.
+    /// recovery height; stored accounts are read at the header height.
     /// `committed` was validated when loaded; only this book is validated here,
-    /// and only changed entries are serialized.
+    /// and only changed entries are serialized. For a staged book the changed
+    /// accounts and origins are its overlay, compared with committed storage.
     pub(crate) fn changes_from(&self, committed: &Self) -> Result<(Writes, Deletes)> {
-        self.validate()?;
+        let staged = !self.accounts.is_complete();
+        if staged {
+            self.validate_staged()?;
+        } else {
+            self.validate()?;
+        }
         let mut writes = Writes::new();
         let mut deletes = Deletes::new();
-        let header = |book: &Self| {
-            serde_json::to_vec(&StoredHeader {
-                version: book.version,
-                last_height: book.last_height,
-                profile: book.profile.clone(),
-            })
-        };
-        let next_header = header(self)?;
-        if header(committed)? != next_header {
+        let next_header = self.header()?;
+        if committed.header()? != next_header {
             writes.insert(HEADER_KEY.as_bytes().to_vec(), next_header);
         }
         fn diff<V: Serialize + PartialEq>(
@@ -510,7 +646,23 @@ impl RecoveryBook {
         }
         diff(RECEIPT_PREFIX, &self.sponsor_receipts, &committed.sponsor_receipts, &mut writes, &mut deletes)?;
         diff(OPERATION_PREFIX, &self.operation_success, &committed.operation_success, &mut writes, &mut deletes)?;
-        diff(ORIGIN_PREFIX, &self.origins, &committed.origins, &mut writes, &mut deletes)?;
+        if staged {
+            for (id, key) in self.origins.overlay() {
+                if self.origins.committed(id)?.as_ref() != Some(&**key) {
+                    writes.insert(format!("{ORIGIN_PREFIX}{id}").into_bytes(), serde_json::to_vec(&**key)?);
+                }
+            }
+        } else {
+            let (next, previous) = (self.origins.all()?, committed.origins.all()?);
+            for (id, key) in next {
+                if previous.get(id) != Some(key) {
+                    writes.insert(format!("{ORIGIN_PREFIX}{id}").into_bytes(), serde_json::to_vec(&**key)?);
+                }
+            }
+            for id in previous.keys().filter(|id| !next.contains_key(*id)) {
+                deletes.insert(format!("{ORIGIN_PREFIX}{id}").into_bytes());
+            }
+        }
         let expiry_keys = |book: &Self| -> BTreeSet<Vec<u8>> {
             book.expiry_index
                 .iter()
@@ -524,29 +676,47 @@ impl RecoveryBook {
             writes.insert(key.clone(), Vec::new());
         }
         deletes.extend(previous_expiry.difference(&next_expiry).cloned());
-        for (id, account) in &self.accounts {
-            let unchanged = committed
-                .accounts
-                .get(id)
-                .is_some_and(|prior| same_apart_from_height(prior, account));
-            if !unchanged {
-                writes.insert(
-                    format!("{ACCOUNT_PREFIX}{id}").into_bytes(),
-                    serde_json::to_vec(account)?,
-                );
+        if staged {
+            for (id, account) in self.accounts.overlay() {
+                let unchanged = self
+                    .accounts
+                    .committed(id)?
+                    .is_some_and(|prior| same_apart_from_height(&prior, account));
+                if !unchanged {
+                    writes.insert(
+                        format!("{ACCOUNT_PREFIX}{id}").into_bytes(),
+                        serde_json::to_vec(&**account)?,
+                    );
+                }
             }
-        }
-        for id in committed.accounts.keys() {
-            if !self.accounts.contains_key(id) {
-                deletes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes());
+        } else {
+            let previous = committed.accounts.all()?;
+            for (id, account) in self.accounts.all()? {
+                let unchanged = previous
+                    .get(id)
+                    .is_some_and(|prior| same_apart_from_height(prior, account));
+                if !unchanged {
+                    writes.insert(
+                        format!("{ACCOUNT_PREFIX}{id}").into_bytes(),
+                        serde_json::to_vec(&**account)?,
+                    );
+                }
+            }
+            for id in previous.keys() {
+                if !self.accounts.all()?.contains_key(id) {
+                    deletes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes());
+                }
             }
         }
         #[cfg(test)]
-        assert_eq!(
-            (&writes, &deletes),
-            (&self.changes_from_reference(committed)?.0, &self.changes_from_reference(committed)?.1),
-            "Incremental recovery diff differs from the full-entry reference"
-        );
+        {
+            let (next, previous) = (self.materialized()?, committed.materialized()?);
+            assert_eq!(
+                (&writes, &deletes),
+                (&next.changes_from_reference(&previous)?.0, &next.changes_from_reference(&previous)?.1),
+                "Incremental recovery diff differs from the full-entry reference"
+            );
+        }
         Ok((writes, deletes))
     }
     /// The previous whole-entry diff, kept as the test oracle for `changes_from`.
@@ -565,19 +735,35 @@ impl RecoveryBook {
             .filter(|key| !is_account(key) && !next.contains_key(*key))
             .cloned()
             .collect();
-        for (id, account) in &self.accounts {
-            if !committed.accounts.get(id).is_some_and(|prior| same_apart_from_height(prior, account)) {
-                writes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes(), serde_json::to_vec(account)?);
+        let (accounts, previous) = (self.accounts.all()?, committed.accounts.all()?);
+        for (id, account) in accounts {
+            if !previous.get(id).is_some_and(|prior| same_apart_from_height(prior, account)) {
+                writes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes(), serde_json::to_vec(&**account)?);
             }
         }
-        for id in committed.accounts.keys().filter(|id| !self.accounts.contains_key(*id)) {
+        for id in previous.keys().filter(|id| !accounts.contains_key(*id)) {
             deletes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes());
         }
         Ok((writes, deletes))
     }
+    /// A complete copy, reading committed storage for a staged book. Test
+    /// oracles only.
+    #[cfg(test)]
+    pub(crate) fn materialized(&self) -> Result<Self> {
+        fn complete<V: Clone>(values: BTreeMap<String, Arc<V>>) -> BTreeMap<String, V> {
+            values.into_iter().map(|(k, v)| (k, (*v).clone())).collect()
+        }
+        let mut book = self.clone();
+        book.accounts = StoredSet::complete(complete(self.accounts.materialized()?));
+        book.origins = StoredSet::complete(complete(self.origins.materialized()?));
+        book.chain = None;
+        Ok(book)
+    }
     /// Read every entry under PREFIX. Unknown keys, noncanonical values and
     /// entries without a header are rejected.
     pub(crate) fn load(storage: &Storage) -> Result<Option<Self>> {
+        #[cfg(test)]
+        crate::recovery_store::COMPLETE_LOADS.with(|n| n.set(n.get() + 1));
         let prefix = PREFIX.as_bytes();
         let mut header = None;
         let mut accounts = BTreeMap::new();
@@ -622,34 +808,21 @@ impl RecoveryBook {
             ensure!(stored.is_empty(), "Recovery entries without a header");
             return Ok(None);
         };
-        // A stored account keeps the height of its last material change. Advancing
-        // it may change only that height: an expiry always rewrites the account.
         let mut advanced = BTreeMap::new();
         for (id, account) in accounts {
             let account: RecoveryAccount = account;
-            ensure!(
-                account.recovery.last_height <= header.last_height,
-                "Recovery account is ahead of the book height"
-            );
-            let current = RecoveryAccount {
-                recovery: account.recovery.advance_height(header.last_height)?,
-                ..account.clone()
-            };
-            ensure!(
-                same_apart_from_height(&account, &current),
-                "Recovery account has an unapplied expiry"
-            );
-            advanced.insert(id, current);
+            advanced.insert(id, account.at_height(header.last_height)?);
         }
-        let book = Self {
+        let mut book = Self {
             version: header.version,
             last_height: header.last_height,
             profile: header.profile,
-            accounts: advanced,
+            accounts: StoredSet::complete(advanced),
             sponsor_receipts,
             operation_success,
             expiry_index,
-            origins,
+            origins: StoredSet::complete(origins),
+            chain: Some(header.chain),
         };
         let non_account = |entries: BTreeMap<Vec<u8>, Vec<u8>>| -> BTreeMap<Vec<u8>, Vec<u8>> {
             entries
@@ -661,10 +834,70 @@ impl RecoveryBook {
             non_account(book.entries()?) == non_account(stored),
             "Recovery entries are not canonical"
         );
+        // `validate` matched the stored chain with the accounts' domain.
+        book.chain = None;
+        Ok(Some(book))
+    }
+    /// The committed book with accounts and origins read on first use. Only
+    /// the header, receipts, success index and expiry index are read here.
+    /// Unknown keys and whole-book rules are the complete check's (`load`).
+    pub(crate) fn open(storage: &Arc<Storage>) -> Result<Option<Self>> {
+        let Some(raw) = storage.db.get(HEADER_KEY)? else {
+            return Ok(None);
+        };
+        let header: StoredHeader = canonical(&raw, "header")?;
+        let scan = |prefix: &str| -> Result<Vec<(String, Vec<u8>)>> {
+            let mut entries = Vec::new();
+            for item in storage
+                .db
+                .iterator(IteratorMode::From(prefix.as_bytes(), Direction::Forward))
+            {
+                let (key, value) = item?;
+                let Some(rest) = key.strip_prefix(prefix.as_bytes()) else {
+                    break;
+                };
+                entries.push((
+                    std::str::from_utf8(rest)
+                        .context("Recovery key is not UTF-8")?
+                        .to_owned(),
+                    value.to_vec(),
+                ));
+            }
+            Ok(entries)
+        };
+        let mut sponsor_receipts = BTreeMap::new();
+        for (id, value) in scan(RECEIPT_PREFIX)? {
+            sponsor_receipts.insert(id, canonical(&value, "receipt")?);
+        }
+        let mut operation_success = BTreeMap::new();
+        for (operation, value) in scan(OPERATION_PREFIX)? {
+            operation_success.insert(operation, canonical(&value, "success index")?);
+        }
+        let mut expiry_index: BTreeMap<u64, BTreeSet<String>> = BTreeMap::new();
+        for (rest, value) in scan(EXPIRY_PREFIX)? {
+            let (height, id) = rest.split_once(':').context("Invalid recovery expiry key")?;
+            let parsed: u64 = height.parse().context("Invalid recovery expiry height")?;
+            ensure!(
+                format!("{parsed:020}") == height && value.is_empty(),
+                "Recovery expiry entry is not canonical"
+            );
+            expiry_index.entry(parsed).or_default().insert(id.to_owned());
+        }
+        let book = Self {
+            version: header.version,
+            last_height: header.last_height,
+            profile: header.profile,
+            accounts: StoredSet::staged(storage.clone(), header.last_height),
+            sponsor_receipts,
+            operation_success,
+            expiry_index,
+            origins: StoredSet::staged(storage.clone(), header.last_height),
+            chain: Some(header.chain),
+        };
+        book.validate_staged()?;
         Ok(Some(book))
     }
     pub(crate) fn begin_block(&self, height: u64) -> Result<RecoveryBlock> {
-        self.validate()?;
         ensure!(
             height
                 == self
@@ -673,36 +906,66 @@ impl RecoveryBook {
                     .context("Recovery height overflow")?,
             "Recovery blocks must be consecutive"
         );
-        {
+        let due = self.expiry_index.get(&height).cloned().unwrap_or_default();
+        let expiry_gas_used = (due.len() as u64)
+            .checked_mul(self.profile.expiry_event_gas_cost)
+            .context("Expiry budget overflow")?;
+        ensure!(
+            expiry_gas_used <= self.profile.mandatory_expiry_gas_budget,
+            "Mandatory expiry exceeds reserved budget"
+        );
+        let book = if self.accounts.is_complete() {
+            self.validate()?;
             let mut book = self.clone();
-            let due = self.expiry_index.get(&height).map_or(0, BTreeSet::len) as u64;
-            let expiry_gas_used = due
-                .checked_mul(self.profile.expiry_event_gas_cost)
-                .context("Expiry budget overflow")?;
-            ensure!(
-                expiry_gas_used <= self.profile.mandatory_expiry_gas_budget,
-                "Mandatory expiry exceeds reserved budget"
-            );
-            for account in book.accounts.values_mut() {
+            for account in book.accounts.overlay_values_mut() {
                 account.recovery = account.recovery.advance_height(height)?;
             }
             book.last_height = height;
             book.expiry_index = book.expected_expiries()?;
             book.validate()?;
-            Ok(RecoveryBlock {
-                book,
-                gas_used: 0,
-                bytes_used: 0,
-                signatures_used: 0,
-                expiry_gas_used,
-            })
-        }
+            book
+        } else {
+            // Only accounts owing an expiry at this height change beyond their
+            // height; every other account is read at the new height on use.
+            let mut book = self.clone();
+            book.accounts = self.accounts.staged_at(height)?;
+            book.origins = self.origins.staged_at(height)?;
+            book.last_height = height;
+            for account in book.accounts.overlay_values_mut() {
+                account.recovery = account.recovery.advance_height(height)?;
+            }
+            for id in &due {
+                let mut next = (*self
+                    .accounts
+                    .find(id)?
+                    .context("Recovery expiry index references an absent account")?)
+                .clone();
+                next.recovery = next.recovery.advance_height(height)?;
+                book.expiry_index = book.expiry_index_with(id, &next)?;
+                book.accounts.insert(id.clone(), next);
+            }
+            book.validate_staged()?;
+            #[cfg(test)]
+            assert_eq!(
+                book.materialized()?,
+                self.materialized()?.begin_block(height)?.book,
+                "Staged block start differs from the complete computation"
+            );
+            book
+        };
+        Ok(RecoveryBlock {
+            book,
+            gas_used: 0,
+            bytes_used: 0,
+            signatures_used: 0,
+            expiry_gas_used,
+        })
     }
 }
 /// Prior values of the book entries one proposal candidate may change.
 pub(crate) struct BookCheckpoint {
-    accounts: Vec<(String, Option<RecoveryAccount>)>,
-    origins: Vec<(String, Option<KeyIdentity>)>,
+    accounts: Vec<(String, Option<Arc<RecoveryAccount>>)>,
+    origins: Vec<(String, Option<Arc<KeyIdentity>>)>,
     receipts: Vec<(String, Option<SponsorReceipt>)>,
     operations: Vec<(String, Option<String>)>,
     expiry_index: BTreeMap<u64, BTreeSet<String>>,
@@ -712,7 +975,8 @@ pub(crate) struct BookCheckpoint {
 impl RecoveryBook {
     /// Capture the named entries (an account's origin with the account) and
     /// the (small, capacity-bounded) expiry index. `rollback` restores them and
-    /// fails if any entry outside them was added or removed.
+    /// fails if any entry outside them was added or removed. For a staged book
+    /// the entries are overlay entries; reads cached meanwhile are not state.
     pub(crate) fn checkpoint(
         &self,
         accounts: &[String],
@@ -720,8 +984,8 @@ impl RecoveryBook {
         operations: &[String],
     ) -> BookCheckpoint {
         BookCheckpoint {
-            accounts: accounts.iter().map(|k| (k.clone(), self.accounts.get(k).cloned())).collect(),
-            origins: accounts.iter().map(|k| (k.clone(), self.origins.get(k).cloned())).collect(),
+            accounts: accounts.iter().map(|k| (k.clone(), self.accounts.overlay_entry(k))).collect(),
+            origins: accounts.iter().map(|k| (k.clone(), self.origins.overlay_entry(k))).collect(),
             receipts: receipts
                 .iter()
                 .map(|k| (k.clone(), self.sponsor_receipts.get(k).cloned()))
@@ -732,10 +996,10 @@ impl RecoveryBook {
                 .collect(),
             expiry_index: self.expiry_index.clone(),
             sizes: (
-                self.accounts.len(),
+                self.accounts.overlay().len(),
                 self.sponsor_receipts.len(),
                 self.operation_success.len(),
-                self.origins.len(),
+                self.origins.overlay().len(),
             ),
             last_height: self.last_height,
         }
@@ -749,17 +1013,21 @@ impl RecoveryBook {
                 };
             }
         }
-        restore(&mut self.accounts, checkpoint.accounts);
-        restore(&mut self.origins, checkpoint.origins);
+        for (key, entry) in checkpoint.accounts {
+            self.accounts.restore(key, entry);
+        }
+        for (key, entry) in checkpoint.origins {
+            self.origins.restore(key, entry);
+        }
         restore(&mut self.sponsor_receipts, checkpoint.receipts);
         restore(&mut self.operation_success, checkpoint.operations);
         self.expiry_index = checkpoint.expiry_index;
         ensure!(
             (
-                self.accounts.len(),
+                self.accounts.overlay().len(),
                 self.sponsor_receipts.len(),
                 self.operation_success.len(),
-                self.origins.len(),
+                self.origins.overlay().len(),
             ) == checkpoint.sizes
                 && self.last_height == checkpoint.last_height,
             "Recovery rollback does not restore the book"
@@ -1079,10 +1347,10 @@ impl RecoveryBlock {
         // Recovery never creates or initializes an account (B1c): an account
         // created by a transfer gets its record from its first ordinary
         // transaction.
-        let Some(target) = self.book.accounts.get(&target_id).cloned() else {
+        let Some(target) = self.book.accounts.find(&target_id)?.map(|a| (*a).clone()) else {
             return Ok(RecoveryResult::rejected(gas, UNINITIALIZED_TARGET));
         };
-        let Some(sponsor) = self.book.accounts.get(&sponsor_id).cloned() else {
+        let Some(sponsor) = self.book.accounts.find(&sponsor_id)?.map(|a| (*a).clone()) else {
             return Ok(RecoveryResult::rejected(gas, UNINITIALIZED_SPONSOR));
         };
         let auth_id = wire::authorization_id(a)?;
@@ -1224,8 +1492,9 @@ impl RecoveryBlock {
         *settlement = native;
         #[cfg(test)]
         {
-            assert_eq!(self.book.expiry_index, self.book.expected_expiries()?);
-            self.book.validate()?;
+            let complete = self.book.materialized()?;
+            assert_eq!(self.book.expiry_index, complete.expected_expiries()?);
+            complete.validate()?;
         }
         Ok(RecoveryResult {
             success,

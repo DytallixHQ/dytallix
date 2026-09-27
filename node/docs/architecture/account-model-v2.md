@@ -71,14 +71,14 @@ cap.
    | `recovery:v2:expiry:{height:020}:{id}` | pending-expiry index entry |
    | `ordinary:v2:grant:{id}` | discretionary grant |
 
-3. **Staged view.** Replace the in-memory book with a view that reads accounts
-   lazily from one snapshot and keeps a per-block overlay. Per-block validation
-   covers touched accounts only; the complete history check still validates
-   every account.
+3. **Staged view (done in C6).** Replace the in-memory book with a view that
+   reads accounts lazily from one snapshot and keeps a per-block overlay.
+   Per-block validation covers touched accounts only; the complete history
+   check still validates every account.
 4. **Replay protection without full history.** Sponsor receipts currently must
    cover every sponsor nonce. Replace that with the nonce itself plus an
    authorization expiry window, like ordinary receipts in phase A3.
-5. Remove `MAX_ACCOUNTS` and the 64 MiB book bound. (The byte bound was removed in T5; the account cap goes with B1c.)
+5. Remove `MAX_ACCOUNTS` and the 64 MiB book bound. (Done: the byte bound in T5, the account cap in C6.)
 
 Per-block cost becomes O(accounts touched), not O(all accounts).
 
@@ -167,10 +167,13 @@ Each step keeps the existing suite green. T2 keeps the whole-set functions as
 test oracles.
 
 After T5, per-transaction cost no longer depends on the account count. Per
-block, four scans remain O(accounts): the state digest, the supply scan, the
-recovery-book load and the `origins` list inside the ordinary state. The
-state digest moves to the incremental Merkle root (state model phase B).
-`origins` and the closed-set checks go with B1c.
+block, four scans remained O(accounts): the state digest, the supply scan, the
+recovery-book load and the `origins` list inside the ordinary state. C1 moved
+`origins` into per-account entries and C6 made the recovery book staged, so
+two remain: the state digest, which moves to the incremental Merkle root
+(state model phase B), and the supply scan. Opening the book still reads every
+sponsor receipt and success-index entry (bounded, windowed by B1d), and the
+governance parent still loads the complete book (T6).
 
 ### Tests
 
@@ -217,11 +220,11 @@ of `OrdinaryConfig`, which is rewritten every block, into immutable
 | C3 (done) | `Send` to an unknown address creates a balance-only account (native record, nonce 0, no recovery record); the actor pays the creation fee, burned before the transfer, once per new recipient per transaction. The fee is reserved before acceptance; a missing recipient's read is metered as an empty native record; the receipt check requires the burn to equal the fee times the accounts created (none on failure); a block check requires every newly staged account to have nonce 0, a canonical address and no registration, and the block's burn to match; the complete check scans every native record (paired, canonical, nonce 0 without a recovery record) | New accepted transactions, gas for recipient reads, supply burns |
 | C4 (done) | The first outgoing transaction of a balance-only account initializes it. With no recovery record for the actor, the chain requires the chain domain, generation and nonce 0, a key that hashes to the account ID, a key algorithm in the template and an existing native account, then checks authority against a prospective record built from the template without storing it. The record and origin are stored at acceptance, even if an action fails (the nonce is consumed), and removed again on an internal failure or when a proposal drops the candidate (checkpoints capture origins). Storing them is charged as writes before acceptance, so a limit too low to store them rejects without a fee. Reservation eligibility resolves owners by native address; the block check accepts an account created and initialized in the same block; the load check accepts post-genesis accounts whose chain domain, template configuration, address and origin record match. The ordinary account query stays null until initialization; a wallet signs the first spend at generation 0 and nonce 0 with its origin key | Authority rules, gas for initialization |
 | C5 (done) | An initialized implicit account enrolls guardians and is recovered like a genesis account. A recovery whose target or sponsor has no recovery record is rejected before acceptance, with no charge, by a message saying the account is unknown or not yet initialized by its first ordinary transaction | Messages only |
-| C6 | Remove `MAX_ACCOUNTS` after the lazy staged view (B1b-2) makes per-block work proportional to touched accounts | Capacity |
+| C6 (done) | Staged recovery view (B1b-2): accounts and origins are read from committed storage on first use, adjusted to the book height and cached, with the block's changes in an overlay (`recovery_store.rs`). The header stores the chain domain. Block start advances only accounts due in the expiry index; block-level validation, the stored diff and candidate checkpoints cover the overlay and the expiry index. Each changed account is checked against genesis or the template at the end of the block; the complete check loads every account and checks them all. Opening the ordinary state re-checks only the latest block's receipt actors. `MAX_ACCOUNTS` is removed. Test builds compare each staged block start, diff and rollback with the complete computation | Capacity |
 
-Until C6, a first spend is rejected before fee acceptance when the book is at
-`MAX_ACCOUNTS`. Receiving never adds to the recovery book, so balance-only
-accounts are not capped.
+There is no account cap (C6): the creation fee bounds growth, and a block
+reads only the accounts it touches, the accounts with a pending expiry and
+the actors of the previous block's receipts.
 
 Client follow-up (not consensus): the SDK and CLI build the signing context
 from the ordinary account query, which is null for a balance-only account.
@@ -230,7 +233,9 @@ origin key, under the chain domain from the profile context.
 
 ## Tests
 
-- Accounts beyond 4,096; per-block reads proportional to touched accounts.
+- Accounts beyond 4,096; per-block reads proportional to touched accounts
+  (C6: a 4,100-account book, and a block whose account reads and complete
+  loads do not change as accounts are added).
 - Deletion round-trip: digest, commit, reopen and complete check.
 - Under A: send to a new address; first spend with a matching key succeeds; a
   mismatched key is rejected; the creation fee is charged exactly once.

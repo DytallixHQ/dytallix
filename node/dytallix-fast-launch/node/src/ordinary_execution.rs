@@ -23,6 +23,7 @@ use dytallix_protocol_types::{
     recovery::RecoveryConfig,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 type Result<T> = std::result::Result<T, PlanError>;
 const MAX_LOGICAL_BYTES: u32 = 64 * 1024 * 1024;
 #[derive(Clone, Copy, Debug)]
@@ -60,7 +61,8 @@ fn denied(gas: u64, e: impl std::fmt::Display) -> OrdinaryExecutionResult {
 }
 fn address(book: &RecoveryBook, id: &[u8; 32]) -> Result<String> {
     book.accounts
-        .get(&hex::encode(id))
+        .find(&hex::encode(id))
+        .map_err(internal)?
         .map(|a| a.address.clone())
         .ok_or_else(|| reject("Unregistered ordinary account"))
 }
@@ -77,16 +79,21 @@ fn asset(owner: [u8; 32], denomination: Denomination) -> Asset {
 }
 /// Registered accounts among `ids`. Unregistered IDs are left to the authority
 /// check, which rejects them.
-fn registered<'a>(
-    book: &'a RecoveryBook,
-    ids: &'a BTreeSet<[u8; 32]>,
-) -> impl Iterator<Item = &'a RecoveryAccount> {
-    ids.iter()
-        .filter_map(|id| book.accounts.get(&hex::encode(id)))
+fn registered(book: &RecoveryBook, ids: &BTreeSet<[u8; 32]>) -> Result<Vec<Arc<RecoveryAccount>>> {
+    let mut accounts = Vec::new();
+    for id in ids {
+        if let Some(account) = book.accounts.find(&hex::encode(id)).map_err(internal)? {
+            accounts.push(account);
+        }
+    }
+    Ok(accounts)
+}
+fn is_registered(book: &RecoveryBook, id: &[u8; 32]) -> Result<bool> {
+    book.accounts.contains(&hex::encode(id)).map_err(internal)
 }
 fn snapshot<'a>(
     settlement: &mut Settlement,
-    accounts: impl IntoIterator<Item = &'a RecoveryAccount>,
+    accounts: impl IntoIterator<Item = &'a Arc<RecoveryAccount>>,
 ) -> Result<FinancialState> {
     let mut state = FinancialState {
         absent_recipients: BTreeSet::new(),
@@ -305,9 +312,10 @@ pub(crate) fn eligible_liquidity(
     settlement: &mut Settlement,
     book: &RecoveryBook,
 ) -> Result<Eligibility> {
-    let total = snapshot(settlement, book.accounts.values())?.eligible;
+    let accounts = book.accounts.all().map_err(internal)?;
+    let total = snapshot(settlement, accounts.values())?.eligible;
     let mut unrestricted = BTreeMap::new();
-    for a in book.accounts.values() {
+    for a in accounts.values() {
         for (denomination, name) in [(Denomination::Udgt, "udgt"), (Denomination::Udrt, "udrt")] {
             unrestricted.insert(
                 asset(a.recovery.domain.account_id, denomination),
@@ -325,21 +333,28 @@ pub(crate) fn eligible_liquidity(
 /// Apply recovery counter changes only when the previous combined mirror agrees.
 /// `before` holds the pre-transaction records of the accounts a recovery
 /// transaction touches (its target and sponsor); execution changes no other
-/// account and adds none, so the registry size must be unchanged.
+/// account and adds none, so the book's changed entries may gain only those
+/// (`changed_before` is its changed-entry key set before execution).
 pub(crate) fn sync_recovery_mirrors(
     before: &BTreeMap<String, RecoveryAccount>,
-    registered_before: usize,
+    changed_before: &BTreeSet<String>,
     after: &RecoveryBook,
     settlement: &mut Settlement,
 ) -> Result<()> {
-    if after.accounts.len() != registered_before {
+    if after
+        .accounts
+        .overlay()
+        .keys()
+        .any(|id| !changed_before.contains(id) && !before.contains_key(id))
+    {
         return Err(internal("Recovery account registry changed"));
     }
     let mut next = settlement.clone();
     for (id, a) in before {
         let b = after
             .accounts
-            .get(id)
+            .find(id)
+            .map_err(internal)?
             .ok_or_else(|| internal("Recovery account registry changed"))?;
         if a.address != b.address
             || next.account(&a.address).map_err(internal)?.nonce != a.recovery.spending_nonce
@@ -377,12 +392,15 @@ fn meter_records(
     // Unregistered touched accounts are transfer recipients. Charge a read of
     // the native record, empty if the account does not exist yet. They are not
     // loaded, so an absent recipient can only be created by its transfer.
-    for id in touched.iter().filter(|id| !book.accounts.contains_key(&hex::encode(id))) {
+    for id in touched {
+        if is_registered(book, id)? {
+            continue;
+        }
         let address = native_address(network, id);
         let record = settlement.peek(&address).map_err(internal)?.unwrap_or_default();
         meter.read(&logical::native_account(&address, &record, MAX_LOGICAL_BYTES)?)?;
     }
-    for a in registered(book, touched) {
+    for a in registered(book, touched)? {
         meter.read(&logical::native_account(
             &a.address,
             settlement.account(&a.address).map_err(internal)?,
@@ -390,7 +408,7 @@ fn meter_records(
         )?)?;
         meter.read(&logical::recovery_account(
             &a.recovery.domain.account_id,
-            a,
+            &a,
             MAX_LOGICAL_BYTES,
         )?)?;
         meter.read(&logical::grant(
@@ -477,16 +495,19 @@ fn write_changes(
 fn protected_owner(
     meter: &mut OrdinaryMeter<'_>,
     book: &RecoveryBook,
-    initial: Option<&RecoveryAccount>,
+    initial: Option<&Arc<RecoveryAccount>>,
     address: &str,
 ) -> Result<()> {
-    let a = initial
-        .filter(|a| a.address == address)
-        .or_else(|| book.account_by_address(address))
-        .ok_or_else(|| internal("Validator principal owner missing recovery account"))?;
+    let a = match initial.filter(|a| a.address == address) {
+        Some(initial) => initial.clone(),
+        None => book
+            .account_by_address(address)
+            .map_err(internal)?
+            .ok_or_else(|| internal("Validator principal owner missing recovery account"))?,
+    };
     meter.read(&logical::recovery_account(
         &a.recovery.domain.account_id,
-        a,
+        &a,
         MAX_LOGICAL_BYTES,
     )?)?;
     if !a.recovery.outgoing_allowed() {
@@ -499,7 +520,7 @@ fn protected_owner(
 fn principal_owners(
     meter: &mut OrdinaryMeter<'_>,
     book: &RecoveryBook,
-    initial: Option<&RecoveryAccount>,
+    initial: Option<&Arc<RecoveryAccount>>,
     settlement: &Settlement,
     actor: &str,
     actions: &[Action],
@@ -707,7 +728,8 @@ fn execute(
     // First spend of an account a transfer created (B1c). Its record comes
     // from the chain template and is stored only if the transaction is
     // accepted; storing it and its origin is charged before acceptance.
-    let initial = pre!(ordinary_authority::prospective_actor(book, template, body).map_err(reject));
+    let initial = pre!(ordinary_authority::prospective_actor(book, template, body).map_err(reject))
+        .map(Arc::new);
     if let Some(record) = &initial {
         if !settlement.exists(&actor).map_err(internal)? {
             pre!(Err::<(), _>(reject("Uninitialized ordinary account has no funds")));
@@ -732,12 +754,15 @@ fn execute(
     ));
     let mut financial = snapshot(
         &mut baseline,
-        registered(book, &touched).chain(initial.as_ref()),
+        registered(book, &touched)?.iter().chain(initial.as_ref()),
     )?;
     // Existing unregistered recipients are loaded so the receipt check sees
     // their prior balances; absent ones are created only by their transfer.
     let mut created = BTreeSet::new();
-    for id in touched.iter().filter(|id| !book.accounts.contains_key(&hex::encode(id))) {
+    for id in &touched {
+        if is_registered(book, id)? {
+            continue;
+        }
         let address = native_address(network, id);
         if baseline.exists(&address).map_err(internal)? {
             baseline.account(&address).map_err(internal)?;
@@ -984,7 +1009,8 @@ fn execute(
     // so an internal failure leaves the book unchanged.
     let actor_key = hex::encode(body.domain.account_id);
     let previous_nonce = match initial {
-        Some(mut record) => {
+        Some(record) => {
+            let mut record = Arc::unwrap_or_clone(record);
             record.recovery.spending_nonce = receipt.nonce_after();
             book.origins.insert(actor_key.clone(), body.key.clone());
             book.accounts.insert(actor_key.clone(), record);
@@ -993,14 +1019,16 @@ fn execute(
         None => Some(std::mem::replace(
             &mut book
                 .accounts
-                .get_mut(&actor_key)
+                .find_mut(&actor_key)
+                .map_err(internal)?
                 .ok_or_else(|| internal("Actor disappeared"))?
                 .recovery
                 .spending_nonce,
             receipt.nonce_after(),
         )),
     };
-    let published = snapshot(&mut effects, registered(book, &touched))
+    let published = registered(book, &touched)
+        .and_then(|accounts| snapshot(&mut effects, &accounts))
         .and_then(|after| {
             ordinary_authority::validate_nonce_mirrors_for(&*book, &after.native_nonces, &touched)
                 .and_then(|()| {
@@ -1012,20 +1040,20 @@ fn execute(
     if let Err(e) = published {
         match previous_nonce {
             Some(nonce) => {
-                if let Some(actor) = book.accounts.get_mut(&actor_key) {
+                if let Ok(Some(actor)) = book.accounts.find_mut(&actor_key) {
                     actor.recovery.spending_nonce = nonce;
                 }
             }
             None => {
-                book.accounts.remove(&actor_key);
-                book.origins.remove(&actor_key);
+                book.accounts.restore(actor_key.clone(), None);
+                book.origins.restore(actor_key, None);
             }
         }
         return Err(e);
     }
     #[cfg(test)]
     if previous_nonce.is_none() {
-        book.validate().map_err(internal)?;
+        book.materialized().and_then(|b| b.validate()).map_err(internal)?;
     }
     #[cfg(test)]
     history.validate()?;

@@ -134,7 +134,7 @@ impl Settlement {
                     plan.next_state.proposals().clone(),
                 )? == plan.next_state
                 && book.last_height == plan.next_state.finalized_height()
-                && book.accounts.values().all(|account| {
+                && book.accounts.all()?.values().all(|account| {
                     account.recovery.domain.chain_id == parent.chain_id()
                         && account.recovery.domain.genesis_digest == parent.genesis_digest()
                 }),
@@ -162,6 +162,7 @@ impl Settlement {
             );
             let account = book
                 .accounts
+                .all()?
                 .get(&hex::encode(write.owner))
                 .context("Governance account owner is not registered")?;
             let address = &account.address;
@@ -199,7 +200,7 @@ impl Settlement {
             native_nonces: BTreeMap::new(),
             withheld_udrt: staged.ordinary_fee_total()?,
         };
-        for registered in book.accounts.values() {
+        for registered in book.accounts.all()?.values() {
             let address = &registered.address;
             let owner = registered.recovery.domain.account_id;
             let account = staged.account(address)?.clone();
@@ -254,6 +255,7 @@ impl Settlement {
         );
         let registered = book
             .accounts
+            .all()?
             .get(&hex::encode(receipt.actor))
             .context("Governance fee actor is not registered")?;
         let address = &registered.address;
@@ -294,7 +296,7 @@ impl Settlement {
         let mut expected_book = book.clone();
         expected_book
             .accounts
-            .get_mut(&hex::encode(receipt.actor))
+            .find_mut(&hex::encode(receipt.actor))?
             .context("Governance fee actor disappeared")?
             .recovery
             .spending_nonce = expected_nonce;

@@ -207,12 +207,12 @@ fn plan_governance_fee(
         return Err(rejected("V3 transaction expired or exceeds lifetime"));
     }
     ordinary_authority::validate_nonce_mirrors(book, &financial.native_nonces).map_err(internal)?;
-    let account_asset_bound = book
-        .accounts
+    let registered = book.accounts.all().map_err(internal)?;
+    let account_asset_bound = registered
         .len()
         .checked_mul(2)
         .ok_or_else(|| internal("Governance financial snapshot bound overflow"))?;
-    if financial.native_nonces.len() != book.accounts.len()
+    if financial.native_nonces.len() != registered.len()
         || financial.balances.len() > account_asset_bound
         || financial.eligible.len() > account_asset_bound
     {
@@ -221,7 +221,7 @@ fn plan_governance_fee(
         ));
     }
     for (asset, amount) in &financial.eligible {
-        if !book.accounts.contains_key(&hex::encode(asset.owner))
+        if !registered.contains_key(&hex::encode(asset.owner))
             || *amount > financial.balances.get(asset).copied().unwrap_or(0)
         {
             return Err(internal(
@@ -230,8 +230,7 @@ fn plan_governance_fee(
         }
     }
     let actor = body.domain.account_id;
-    let account = book
-        .accounts
+    let account = registered
         .get(&hex::encode(actor))
         .ok_or_else(|| rejected("Unregistered governance actor"))?;
     if account.recovery.domain != body.domain
@@ -358,7 +357,8 @@ fn plan_governance_fee(
     let mut authority_checkpoint = book.clone();
     authority_checkpoint
         .accounts
-        .get_mut(&hex::encode(actor))
+        .find_mut(&hex::encode(actor))
+        .map_err(internal)?
         .ok_or_else(|| internal("Accepted governance actor disappeared"))?
         .recovery
         .spending_nonce = nonce_after;

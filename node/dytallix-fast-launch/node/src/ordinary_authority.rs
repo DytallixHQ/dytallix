@@ -4,7 +4,7 @@
 //! change either nonce. The metered runtime separately checks funding, module
 //! rules, and atomic publication. Existing recovery-only profiles
 //! do not call these new compatibility-mirror checks.
-use crate::recovery_fees::{RecoveryAccount, RecoveryBook, MAX_ACCOUNTS};
+use crate::recovery_fees::{RecoveryAccount, RecoveryBook};
 use anyhow::{ensure, Context, Result};
 use dytallix_protocol_types::{
     address::{AccountAddress, AddressNetwork, OriginKeyAlgorithm},
@@ -14,6 +14,7 @@ use dytallix_protocol_types::{
 use dytallix_runtime_crypto::ordinary::{verify_signed, VerifiedOrdinary};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// Future committed discretionary permission. This does not represent a mandatory
 /// liability, validator schedule, penalty, reward accrual, or vesting obligation.
@@ -99,19 +100,23 @@ impl AuthorityAssessment {
 #[derive(Clone, Copy)]
 pub(crate) struct Accounts<'a> {
     book: &'a RecoveryBook,
-    initial: Option<&'a RecoveryAccount>,
+    initial: Option<&'a Arc<RecoveryAccount>>,
 }
 impl<'a> Accounts<'a> {
     pub(crate) fn with_initial(
         book: &'a RecoveryBook,
-        initial: Option<&'a RecoveryAccount>,
+        initial: Option<&'a Arc<RecoveryAccount>>,
     ) -> Self {
         Self { book, initial }
     }
-    fn get(self, id: &[u8; 32]) -> Option<&'a RecoveryAccount> {
-        self.initial
+    fn get(self, id: &[u8; 32]) -> Result<Option<Arc<RecoveryAccount>>> {
+        if let Some(initial) = self
+            .initial
             .filter(|a| a.recovery.domain.account_id == *id)
-            .or_else(|| self.book.accounts.get(&hex::encode(id)))
+        {
+            return Ok(Some(initial.clone()));
+        }
+        self.book.accounts.find(&hex::encode(id))
     }
 }
 impl<'a> From<&'a RecoveryBook> for Accounts<'a> {
@@ -122,9 +127,9 @@ impl<'a> From<&'a RecoveryBook> for Accounts<'a> {
         }
     }
 }
-fn account<'a>(accounts: Accounts<'a>, id: &[u8; 32]) -> Result<&'a RecoveryAccount> {
+fn account(accounts: Accounts<'_>, id: &[u8; 32]) -> Result<Arc<RecoveryAccount>> {
     accounts
-        .get(id)
+        .get(id)?
         .context("Unregistered ordinary account reference")
 }
 pub(crate) fn network(code: u8) -> Result<AddressNetwork> {
@@ -145,15 +150,7 @@ pub(crate) fn origin_algorithm(value: &str) -> Result<OriginKeyAlgorithm> {
 /// The network every account in the book shares (`RecoveryBook::validate`
 /// rejects mixed chain domains).
 pub(crate) fn chain_network(book: &RecoveryBook) -> Result<AddressNetwork> {
-    network(
-        book.accounts
-            .values()
-            .next()
-            .context("Recovery book has no chain domain")?
-            .recovery
-            .domain
-            .network,
-    )
+    network(book.chain()?.network)
 }
 /// The actor's recovery record for its first spend (B1c), or None when it
 /// already has one. An account created by a transfer has no key on chain: its
@@ -166,16 +163,10 @@ pub(crate) fn prospective_actor(
     body: &OrdinaryTransaction,
 ) -> Result<Option<RecoveryAccount>> {
     let id = body.domain.account_id;
-    if book.accounts.contains_key(&hex::encode(id)) {
+    if book.accounts.contains(&hex::encode(id))? {
         return Ok(None);
     }
-    let chain = &book
-        .accounts
-        .values()
-        .next()
-        .context("Recovery book has no chain domain")?
-        .recovery
-        .domain;
+    let chain = book.chain()?;
     ensure!(
         body.domain.network == chain.network
             && body.domain.chain_id == chain.chain_id
@@ -185,10 +176,6 @@ pub(crate) fn prospective_actor(
     ensure!(
         body.authorization_generation == 0 && body.spending_nonce == 0,
         "Uninitialized account requires generation and nonce zero"
-    );
-    ensure!(
-        book.accounts.len() < MAX_ACCOUNTS,
-        "Ordinary account capacity exhausted"
     );
     let address = AccountAddress::from_origin_key(
         network(body.domain.network)?,
@@ -221,7 +208,7 @@ pub(crate) fn validate_nonce_mirrors(
     native_nonces: &BTreeMap<String, u64>,
 ) -> Result<()> {
     book.validate()?;
-    for state in book.accounts.values() {
+    for state in book.accounts.all()?.values() {
         let domain = &state.recovery.domain;
         let address = AccountAddress::decode(network(domain.network)?, &state.address)?;
         ensure!(
@@ -266,7 +253,7 @@ pub(crate) fn validate_nonce_mirrors_for<'a>(
 ) -> Result<()> {
     let accounts = accounts.into();
     for id in ids {
-        let Some(state) = accounts.get(id) else {
+        let Some(state) = accounts.get(id)? else {
             continue;
         };
         state.recovery.validate()?;
@@ -291,7 +278,7 @@ pub(crate) fn validate_nonce_mirrors_for<'a>(
 /// new grants. Do not delete them, copy a current generation, or resume them.
 pub(crate) fn validate_grants(book: &RecoveryBook, grants: &Grants) -> Result<()> {
     ensure!(
-        grants.len() <= book.accounts.len(),
+        grants.len() <= book.accounts.all()?.len(),
         "Discretionary grant count exceeds owner capacity"
     );
     for (key, grant) in grants {

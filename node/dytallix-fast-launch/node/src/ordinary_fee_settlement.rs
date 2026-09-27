@@ -580,9 +580,9 @@ pub(crate) fn plan_fee_accounting(
 ) -> Result<PlanningResult> {
     profile.validate().map_err(internal)?;
     history.validate()?;
+    let registered = book.accounts.all().map_err(internal)?;
     for receipt in history.receipts.values() {
-        let actor = book
-            .accounts
+        let actor = registered
             .get(&hex::encode(receipt.actor))
             .ok_or_else(|| internal("Retained receipt actor is absent from current state"))?;
         if receipt.block_height > book.last_height
@@ -637,16 +637,16 @@ pub(crate) fn plan_fee_accounting(
                 .into(),
         ));
     }
-    if state.balances.len() > book.accounts.len() * 2
-        || state.eligible.len() > book.accounts.len() * 2
-        || state.native_nonces.len() > book.accounts.len()
+    if state.balances.len() > registered.len() * 2
+        || state.eligible.len() > registered.len() * 2
+        || state.native_nonces.len() > registered.len()
     {
         return Err(internal(
             "Financial snapshot exceeds registered account capacity",
         ));
     }
     for (a, eligible) in &state.eligible {
-        if !book.accounts.contains_key(&hex::encode(a.owner))
+        if !registered.contains_key(&hex::encode(a.owner))
             || *eligible > state.balances.get(a).copied().unwrap_or(0)
         {
             return Err(internal(
@@ -798,7 +798,8 @@ pub(crate) fn plan_fee_accounting(
     let mut authority = book.clone();
     let actor = authority
         .accounts
-        .get_mut(&hex::encode(body.domain.account_id))
+        .find_mut(&hex::encode(body.domain.account_id))
+        .map_err(internal)?
         .ok_or_else(|| internal("Accepted actor disappeared"))?;
     actor.recovery.spending_nonce = assessment.prospective_nonce.after;
     financial

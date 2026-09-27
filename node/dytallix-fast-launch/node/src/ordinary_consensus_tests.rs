@@ -3494,3 +3494,47 @@ fn recovery_enrolls_an_initialized_implicit_account_and_refuses_an_uninitialized
     let reopened = fixture.open(&dir.path().join("db"));
     verify_recovery(&reopened.storage).unwrap();
 }
+
+#[test]
+fn block_account_reads_do_not_grow_with_initialized_accounts() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let reads = || crate::recovery_store::STORED_READS.with(|n| n.get());
+    let loads = || crate::recovery_store::COMPLETE_LOADS.with(|n| n.get());
+    let send_block = |app: &mut ConsensusApplication, height: u64| {
+        let tx = fixture.ordinary(
+            &current(app, &fixture.active),
+            &fixture.active,
+            vec![send(fixture.payer.id(), 1)],
+            1000,
+        );
+        let raw = fixture.ordinary_wire(&tx);
+        let (before, loaded) = (reads(), loads());
+        assert_admitted(app.check_tx(&raw));
+        let proposed = app
+            .prepare_proposal(height, height as i64 * 10, 0, vec![raw.clone()], 1_048_576)
+            .unwrap();
+        assert_eq!(proposed, vec![raw.clone()]);
+        let result = commit(app, height, vec![raw]);
+        assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+        assert_eq!(loads(), loaded, "admission, proposal and commit load no complete book");
+        reads() - before
+    };
+    // Opening the committed book re-checks the previous block's receipts, so
+    // each measured block follows a block with one receipt.
+    send_block(&mut app, 1);
+    let first = send_block(&mut app, 2);
+    let mut height = 3;
+    for _ in 0..12 {
+        let key = Key::new();
+        let raw = funding(&app, &fixture, &key, 50_000);
+        assert_eq!(commit(&mut app, height, vec![raw]).tx_results[0].code, 0);
+        let raw = first_spend(&app, &fixture, &key, vec![send(fixture.payer.id(), 1)], 1000);
+        assert_eq!(commit(&mut app, height + 1, vec![raw]).tx_results[0].code, 0);
+        assert!(registered(&app, &key));
+        height += 2;
+    }
+    assert_eq!(book(&app).accounts.len(), 15);
+    assert_eq!(send_block(&mut app, height), first);
+}

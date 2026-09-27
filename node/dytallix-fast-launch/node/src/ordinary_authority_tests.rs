@@ -678,14 +678,14 @@ fn touched_checks_cover_exactly_the_accounts_a_transaction_names() {
 fn account_lookup_by_address_requires_the_exact_registered_address() {
     let book = book();
     for a in book.accounts.values() {
-        assert_eq!(book.account_by_address(&a.address), Some(a));
+        assert_eq!(book.account_by_address(&a.address).unwrap().as_deref(), Some(a));
     }
     let first = &book.accounts[&hex::encode([1; 32])].address;
-    assert!(book.account_by_address(&first.to_uppercase()).is_none());
-    assert!(book.account_by_address("not-an-address").is_none());
+    assert!(book.account_by_address(&first.to_uppercase()).unwrap().is_none());
+    assert!(book.account_by_address("not-an-address").unwrap().is_none());
     let unregistered =
         AccountAddress::from_account_id(AddressNetwork::Development, [9; 32]).encode();
-    assert!(book.account_by_address(&unregistered).is_none());
+    assert!(book.account_by_address(&unregistered).unwrap().is_none());
 }
 fn template() -> RecoveryConfig {
     RecoveryConfig {
@@ -724,7 +724,7 @@ fn first_spend_record_comes_from_the_origin_key_and_the_chain_template() {
     );
     let data = vec![Action::Data { data: "x".into() }];
     let tx = first_spend(&book, key(40), data);
-    let record = prospective_actor(&book, &template(), &tx).unwrap().unwrap();
+    let record = Arc::new(prospective_actor(&book, &template(), &tx).unwrap().unwrap());
     assert_eq!(
         record.recovery,
         RecoveryState::new(tx.domain.clone(), template(), key(40), 10).unwrap()
@@ -764,7 +764,7 @@ fn first_spend_record_comes_from_the_origin_key_and_the_chain_template() {
     assert!(prepare_body(view, &native, &grants(), 10, &register([9; 32]), &limits()).is_err());
 }
 #[test]
-fn first_spend_rejects_a_foreign_key_domain_counters_algorithm_or_full_book() {
+fn first_spend_rejects_a_foreign_key_domain_counters_or_algorithm() {
     let book = book();
     let good = first_spend(&book, key(40), vec![]);
     let rejects = |book: &RecoveryBook, tx: &OrdinaryTransaction, template: &RecoveryConfig| {
@@ -796,13 +796,4 @@ fn first_spend_rejects_a_foreign_key_domain_counters_algorithm_or_full_book() {
     let mut narrow = template();
     narrow.algorithms = BTreeMap::from([("mldsa87".into(), 2592)]);
     assert!(rejects(&book, &good, &narrow));
-    // A book at the account cap.
-    let mut full = book.clone();
-    let filler = full.accounts[&hex::encode([1; 32])].clone();
-    for i in full.accounts.len()..MAX_ACCOUNTS {
-        full.accounts.insert(format!("f{i:063x}"), filler.clone());
-    }
-    assert!(rejects(&full, &good, &template()));
-    full.accounts.pop_last();
-    assert!(!rejects(&full, &good, &template()));
 }

@@ -135,12 +135,12 @@ impl OrdinaryConfig {
             &BTreeSet::from(["mldsa65".to_owned()]),
         )?;
         ensure!(
-            book.origins.len() == book.accounts.len(),
+            book.origins.all()?.len() == book.accounts.all()?.len(),
             "Explicit origin records must cover exactly the registered accounts"
         );
         self.validate_template(book)?;
         let mut addresses = BTreeSet::new();
-        for (id, account) in &book.accounts {
+        for (id, account) in book.accounts.all()? {
             self.validate_account(lifecycle, book, id, account)?;
             addresses.insert(account.address.as_str());
         }
@@ -169,14 +169,7 @@ impl OrdinaryConfig {
     fn validate_template(&self, book: &RecoveryBook) -> Result<()> {
         let template = &self.account_template.recovery;
         template.validate()?;
-        let network = book
-            .accounts
-            .values()
-            .next()
-            .context("Recovery book has no chain domain")?
-            .recovery
-            .domain
-            .network;
+        let network = book.chain()?.network;
         for (algorithm, length) in &template.algorithms {
             let expected = match algorithm.as_str() {
                 "mldsa65" => 1952,
@@ -227,7 +220,7 @@ impl OrdinaryConfig {
         }
         let key = book
             .origins
-            .get(id)
+            .find(id)?
             .context("Ordinary origin record missing")?;
         let address = AccountAddress::from_origin_key(
             network(d.network)?,
@@ -311,7 +304,7 @@ impl OrdinaryState {
             "Ordinary activation requires fresh recovery genesis"
         );
         ensure!(
-            book.accounts.values().all(|a| a.sponsor_nonce == 0
+            book.accounts.all()?.values().all(|a| a.sponsor_nonce == 0
                 && a.recovery.pending_recovery.is_none()
                 && a.recovery.pending_policy.is_none()),
             "Ordinary genesis cannot migrate pending recovery work"
@@ -374,7 +367,7 @@ impl OrdinaryState {
             "Ordinary/recovery state heights differ"
         );
         ensure!(
-            native_nonces.len() == book.accounts.len(),
+            native_nonces.len() == book.accounts.all()?.len(),
             "Native nonce mirrors must cover exactly the registered ordinary accounts"
         );
         ordinary_authority::validate_nonce_mirrors(book, native_nonces)?;
@@ -402,8 +395,8 @@ impl OrdinaryState {
         );
         for id in changed {
             let key = hex::encode(id);
-            if let Some(account) = book.accounts.get(&key) {
-                self.config.validate_account(lifecycle, book, &key, account)?;
+            if let Some(account) = book.accounts.find(&key)? {
+                self.config.validate_account(lifecycle, book, &key, &account)?;
             }
         }
         ordinary_authority::validate_nonce_mirrors_for(book, native_nonces, changed)?;
@@ -437,15 +430,23 @@ impl OrdinaryState {
             count = count
                 .checked_add(1)
                 .context("Ordinary receipt count overflow")?;
-            let actor = book
-                .accounts
-                .get(&hex::encode(receipt.actor()))
-                .context("Ordinary receipt actor missing")?;
             ensure!(
-                receipt.block_height() <= self.last_height
-                    && receipt.nonce_after() <= actor.recovery.spending_nonce,
+                receipt.block_height() <= self.last_height,
                 "Ordinary retained receipt exceeds committed authority"
             );
+            // A staged book checks the actors of this block's receipts: an
+            // older receipt was checked when its block was staged, and nonces
+            // only grow. A complete book (the complete check) checks them all.
+            if book.accounts.is_complete() || receipt.block_height() == self.last_height {
+                let actor = book
+                    .accounts
+                    .find(&hex::encode(receipt.actor()))?
+                    .context("Ordinary receipt actor missing")?;
+                ensure!(
+                    receipt.nonce_after() <= actor.recovery.spending_nonce,
+                    "Ordinary retained receipt exceeds committed authority"
+                );
+            }
             ensure!(
                 receipt.block_height() >= self.config.fee_profile.activation_height,
                 "Ordinary receipt predates profile activation"
@@ -608,7 +609,7 @@ pub(crate) fn validate_native_accounts(storage: &Storage, book: &RecoveryBook) -
             canonical_account_address(address),
             "Native account address is not canonical"
         );
-        if book.account_by_address(address).is_none() {
+        if book.account_by_address(address)?.is_none() {
             let nonce: u64 = bincode::deserialize(raw).context("Invalid native nonce")?;
             ensure!(
                 nonce == 0 && bincode::serialize(&nonce)? == *raw,
@@ -623,7 +624,7 @@ pub(crate) fn read_native_nonces(
     book: &RecoveryBook,
 ) -> Result<BTreeMap<String, u64>> {
     let mut values = BTreeMap::new();
-    for account in book.accounts.values() {
+    for account in book.accounts.all()?.values() {
         let key = format!("acct:nonce:{}", account.address);
         let raw = storage
             .db

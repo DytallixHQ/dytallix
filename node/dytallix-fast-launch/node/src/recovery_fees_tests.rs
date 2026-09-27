@@ -735,3 +735,115 @@ fn origins_must_belong_to_accounts_and_are_covered_by_rollback() {
     book.origins.insert(hex::encode([2; 32]), key);
     assert!(book.rollback(checkpoint).is_err());
 }
+fn numbered_id(i: usize) -> [u8; 32] {
+    let mut id = [0xAB; 32];
+    id[..8].copy_from_slice(&(i as u64).to_be_bytes());
+    id
+}
+fn numbered(i: usize) -> RecoveryAccount {
+    let mut account = account(1);
+    account.recovery.domain.account_id = numbered_id(i);
+    account.address = format!("account-{i}");
+    account
+}
+/// A database holding `book`'s committed entries.
+fn stored(book: &RecoveryBook) -> (tempfile::TempDir, Arc<Storage>) {
+    let dir = tempfile::tempdir().unwrap();
+    let storage = Arc::new(Storage::open(dir.path().join("db")).unwrap());
+    for (key, value) in book.entries().unwrap() {
+        storage.db.put(key, value).unwrap();
+    }
+    (dir, storage)
+}
+fn commit_changes(storage: &Storage, (writes, deletes): (Writes, Deletes)) {
+    for (key, value) in writes {
+        storage.db.put(key, value).unwrap();
+    }
+    for key in deletes {
+        storage.db.delete(key).unwrap();
+    }
+}
+fn stored_reads() -> usize {
+    crate::recovery_store::STORED_READS.with(|n| n.get())
+}
+#[test]
+fn staged_book_beyond_4096_accounts_reads_only_the_accounts_it_uses() {
+    let mut accounts: Vec<_> = (0..4_100).map(numbered).collect();
+    accounts[4_097] = enrolled(accounts[4_097].clone());
+    let book = RecoveryBook::new(profile(), accounts).unwrap();
+    let id = hex::encode(numbered_id(4_097));
+    let (_dir, storage) = stored(&book);
+
+    let before = stored_reads();
+    let committed = RecoveryBook::open(&storage).unwrap().unwrap();
+    let mut block = committed.begin_block(1).unwrap().book;
+    assert_eq!(stored_reads(), before, "opening and starting a block read no account");
+    // Read on first use at the block height, then cached.
+    let mut account = (*block.accounts.find(&id).unwrap().unwrap()).clone();
+    assert_eq!(account.recovery.last_height, 1);
+    block.accounts.find(&id).unwrap();
+    assert!(block.accounts.find(&hex::encode([0xCD; 32])).unwrap().is_none());
+    assert_eq!(stored_reads(), before + 2);
+    // Every entry is the complete check's.
+    assert!(block.accounts.all().is_err() && block.validate().is_err());
+    assert!(serde_json::to_vec(&block).is_err());
+
+    // Starting a recovery writes the header, that account and its expiry.
+    start(&mut account);
+    let expiry = account.recovery.pending_recovery.as_ref().unwrap().expiry_height;
+    let expected = account.recovery.advance_height(expiry).unwrap();
+    assert!(expected.pending_recovery.is_none());
+    block.expiry_index = block.expiry_index_with(&id, &account).unwrap();
+    block.accounts.insert(id.clone(), account);
+    let changes = block.changes_from(&committed).unwrap();
+    assert_eq!(
+        changes.0.keys().cloned().collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            HEADER_KEY.as_bytes().to_vec(),
+            format!("{ACCOUNT_PREFIX}{id}").into_bytes(),
+            format!("{EXPIRY_PREFIX}{expiry:020}:{id}").into_bytes(),
+        ])
+    );
+    assert!(changes.1.is_empty());
+    commit_changes(&storage, changes);
+
+    // Later blocks read only the pending account, and its expiry is applied
+    // at its height. The test build compares each block start with the
+    // complete computation.
+    for height in 2..=expiry {
+        let before = stored_reads();
+        let committed = RecoveryBook::open(&storage).unwrap().unwrap();
+        let next = committed.begin_block(height).unwrap().book;
+        let changes = next.changes_from(&committed).unwrap();
+        assert!(stored_reads() - before <= 3, "height {height}");
+        commit_changes(&storage, changes);
+    }
+    let complete = RecoveryBook::load(&storage).unwrap().unwrap();
+    assert_eq!(complete.accounts[&id].recovery, expected);
+    assert!(complete.expiry_index.is_empty());
+    assert_eq!(complete.accounts.len(), 4_100);
+}
+#[test]
+fn staged_rollback_restores_the_overlay_and_ignores_cached_reads() {
+    let book = RecoveryBook::new(profile(), (0..8).map(numbered).collect()).unwrap();
+    let (_dir, storage) = stored(&book);
+    let mut block = RecoveryBook::open(&storage)
+        .unwrap()
+        .unwrap()
+        .begin_block(1)
+        .unwrap()
+        .book;
+    let (a, b) = (hex::encode(numbered_id(1)), hex::encode(numbered_id(2)));
+    let original = block.clone();
+    let checkpoint = block.checkpoint(&[a.clone()], &[], &[]);
+    block.accounts.find(&b).unwrap();
+    block.accounts.find_mut(&a).unwrap().unwrap().address = "changed".into();
+    block.origins.insert(a.clone(), key(9));
+    assert_ne!(block, original);
+    block.rollback(checkpoint).unwrap();
+    assert_eq!(block, original, "a cached read is not state");
+    // A change outside the checkpoint is detected.
+    let checkpoint = block.checkpoint(&[a.clone()], &[], &[]);
+    block.accounts.find_mut(&b).unwrap().unwrap().address = "changed".into();
+    assert!(block.rollback(checkpoint).is_err());
+}

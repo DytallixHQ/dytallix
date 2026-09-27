@@ -303,7 +303,7 @@ impl ConsensusConfig {
                     && book.profile.max_block_gas <= i64::MAX as u64,
                 "Recovery gas exceeds engine result range"
             );
-            for account in book.accounts.values() {
+            for account in book.accounts.all()?.values() {
                 ensure!(
                     account.sponsor_nonce == 0
                         && account.recovery.last_height == 0
@@ -715,6 +715,8 @@ fn preflight_prepared_release(
 const HISTORY_CACHE_BYTES: usize = 8 * 1024 * 1024;
 struct HistoryRead<'a> {
     storage: &'a Storage,
+    /// The same storage as a shared handle, for a staged recovery book.
+    shared: Option<&'a Arc<Storage>>,
     blocks: std::cell::RefCell<BTreeMap<u64, Arc<BlockRecord>>>,
     cached_bytes: std::cell::Cell<usize>,
     budget: usize,
@@ -728,9 +730,16 @@ impl<'a> HistoryRead<'a> {
     fn new(storage: &'a Storage) -> Self {
         Self::with_budget(storage, HISTORY_CACHE_BYTES)
     }
+    fn shared(storage: &'a Arc<Storage>) -> Self {
+        Self {
+            shared: Some(storage),
+            ..Self::new(storage)
+        }
+    }
     fn with_budget(storage: &'a Storage, budget: usize) -> Self {
         Self {
             storage,
+            shared: None,
             blocks: Default::default(),
             cached_bytes: Default::default(),
             budget,
@@ -1060,7 +1069,7 @@ pub(crate) fn append_genesis_anchor(
         }
         if let Some(book) = &config.recovery {
             config.validate()?;
-            for account in book.accounts.values() {
+            for account in book.accounts.all()?.values() {
                 ensure!(
                     capture
                         .writes
@@ -1083,7 +1092,7 @@ pub(crate) fn append_genesis_anchor(
                 .as_ref()
                 .context("Ordinary recovery genesis missing")?;
             let mut native_nonces = BTreeMap::new();
-            for account in book.accounts.values() {
+            for account in book.accounts.all()?.values() {
                 ensure!(
                     account.recovery.spending_nonce == 0 && account.recovery.active_generation == 0,
                     "Ordinary fresh genesis requires zero authority counters"
@@ -1297,7 +1306,9 @@ fn committed_governance_parent(
     let app_hash: [u8; 32] = hex::decode(&info.app_hash)?
         .try_into()
         .map_err(|_| anyhow::anyhow!("Governance parent app hash length differs"))?;
-    let recovery = recovery_book(&storage, config)?.context("Governance recovery state missing")?;
+    // Governance still reads every account (T6), so it loads the complete book.
+    let recovery =
+        recovery_book_complete(&storage, config)?.context("Governance recovery state missing")?;
     let lifecycle = lifecycle_state(&storage)?.context("Governance lifecycle state missing")?;
     let governance = GovernanceState::decode(
         &storage
@@ -1313,7 +1324,7 @@ fn committed_governance_parent(
             && governance.chain_id() == config.chain_id
             && governance.genesis_digest() == genesis_digest
             && governance.finalized_height() == info.height
-            && recovery.accounts.values().all(|account| {
+            && recovery.accounts.all()?.values().all(|account| {
                 account.recovery.domain.chain_id == config.chain_id
                     && account.recovery.domain.genesis_digest == genesis_digest
             }),
@@ -1785,31 +1796,31 @@ fn committed_ordinary_settlement(storage: Arc<Storage>) -> Result<Settlement> {
 }
 /// Registered accounts loaded into the block's settlement. Every account whose
 /// recovery record, native nonce or grant changed in the block is among them.
-fn changed_accounts(staged: &Settlement, book: &RecoveryBook) -> BTreeSet<[u8; 32]> {
-    staged
-        .accounts
-        .keys()
-        .filter_map(|address| book.account_by_address(address))
-        .map(|account| account.recovery.domain.account_id)
-        .collect()
+fn changed_accounts(staged: &Settlement, book: &RecoveryBook) -> Result<BTreeSet<[u8; 32]>> {
+    let mut changed = BTreeSet::new();
+    for address in staged.accounts.keys() {
+        if let Some(account) = book.account_by_address(address)? {
+            changed.insert(account.recovery.domain.account_id);
+        }
+    }
+    Ok(changed)
 }
 fn staged_nonces_for(
     staged: &mut Settlement,
     book: &RecoveryBook,
     ids: &BTreeSet<[u8; 32]>,
 ) -> Result<BTreeMap<String, u64>> {
-    ids.iter()
-        .filter_map(|id| book.accounts.get(&hex::encode(id)))
-        .map(|account| {
-            Ok((
-                account.address.clone(),
-                staged.account(&account.address)?.nonce,
-            ))
-        })
-        .collect()
+    let mut nonces = BTreeMap::new();
+    for id in ids {
+        if let Some(account) = book.accounts.find(&hex::encode(id))? {
+            nonces.insert(account.address.clone(), staged.account(&account.address)?.nonce);
+        }
+    }
+    Ok(nonces)
 }
 fn staged_nonces(staged: &mut Settlement, book: &RecoveryBook) -> Result<BTreeMap<String, u64>> {
     book.accounts
+        .all()?
         .values()
         .map(|account| {
             Ok((
@@ -1824,7 +1835,30 @@ fn recovery_bytes(value: &str) -> Result<Vec<u8>> {
     ensure!(B64.encode(&raw) == value, "Noncanonical recovery base64");
     Ok(raw)
 }
-fn recovery_book(storage: &Storage, config: &ConsensusConfig) -> Result<Option<RecoveryBook>> {
+/// The committed recovery book, staged: accounts and origins are read on first
+/// use, so opening it does not depend on the number of accounts. Its header
+/// must match the configured genesis. Each account a block changes is checked
+/// against genesis (`check_changed_recovery_accounts`) and the complete check
+/// checks every account (`recovery_book_complete`).
+fn recovery_book(storage: &Arc<Storage>, config: &ConsensusConfig) -> Result<Option<RecoveryBook>> {
+    match (&config.recovery, RecoveryBook::open(storage)?) {
+        (None, None) => Ok(None),
+        (Some(initial), Some(current)) => {
+            ensure!(
+                current.profile == initial.profile && current.chain()? == initial.chain()?,
+                "Recovery profile or chain domain differs"
+            );
+            Ok(Some(current))
+        }
+        _ => anyhow::bail!("Recovery state and configuration differ"),
+    }
+}
+/// The complete committed recovery book, every account checked against
+/// genesis. For the complete check and for governance (T6).
+fn recovery_book_complete(
+    storage: &Storage,
+    config: &ConsensusConfig,
+) -> Result<Option<RecoveryBook>> {
     match (&config.recovery, RecoveryBook::load(storage)?) {
         (None, None) => Ok(None),
         (Some(initial), Some(current)) => {
@@ -1832,59 +1866,74 @@ fn recovery_book(storage: &Storage, config: &ConsensusConfig) -> Result<Option<R
                 current.profile == initial.profile,
                 "Recovery profile differs"
             );
-            // Genesis accounts keep their address, domain, configuration and
-            // origin. Any other account was initialized by its first spend
-            // (B1c): chain domain, template configuration, the native address
-            // of its ID and an origin record. The origin's derivation is
-            // checked when the account is created and by the complete check.
-            let chain = &initial
-                .accounts
-                .values()
-                .next()
-                .context("Recovery genesis has no accounts")?
-                .recovery
-                .domain;
             let mut genesis = 0usize;
-            for (id, account) in &current.accounts {
-                let d = &account.recovery.domain;
-                if let Some(origin) = initial.accounts.get(id) {
+            for (id, account) in current.accounts.all()? {
+                if check_recovery_account(config, initial, &current, id, account)? {
                     genesis += 1;
-                    ensure!(
-                        account.address == origin.address
-                            && *d == origin.recovery.domain
-                            && account.recovery.config == origin.recovery.config
-                            && current.origins.get(id) == initial.origins.get(id),
-                        "Recovery origin or configuration differs"
-                    );
-                    continue;
                 }
-                let template = &config
-                    .ordinary
-                    .as_ref()
-                    .context("Recovery account added without the ordinary profile")?
-                    .account_template
-                    .recovery;
-                ensure!(
-                    d.network == chain.network
-                        && d.chain_id == chain.chain_id
-                        && d.genesis_digest == chain.genesis_digest
-                        && account.recovery.config == *template
-                        && current.origins.contains_key(id)
-                        && ordinary_authority::network(d.network).is_ok_and(|network| {
-                            AccountAddress::from_account_id(network, d.account_id).encode()
-                                == account.address
-                        }),
-                    "Initialized recovery account differs from the chain template"
-                );
             }
             ensure!(
-                genesis == initial.accounts.len(),
+                genesis == initial.accounts.all()?.len(),
                 "Recovery genesis account missing"
             );
             Ok(Some(current))
         }
         _ => anyhow::bail!("Recovery state and configuration differ"),
     }
+}
+/// Tie one account to genesis, returning whether it is a genesis account. A
+/// genesis account keeps its address, domain, configuration and origin. Any
+/// other account was initialized by its first spend (B1c): chain domain,
+/// template configuration, the native address of its ID and an origin record.
+/// The origin's derivation is checked by `OrdinaryConfig::validate_account`.
+fn check_recovery_account(
+    config: &ConsensusConfig,
+    initial: &RecoveryBook,
+    current: &RecoveryBook,
+    id: &str,
+    account: &RecoveryAccount,
+) -> Result<bool> {
+    let d = &account.recovery.domain;
+    if let Some(origin) = initial.accounts.all()?.get(id) {
+        ensure!(
+            account.address == origin.address
+                && *d == origin.recovery.domain
+                && account.recovery.config == origin.recovery.config
+                && current.origins.find(id)?.as_deref() == initial.origins.all()?.get(id).map(|k| &**k),
+            "Recovery origin or configuration differs"
+        );
+        return Ok(true);
+    }
+    let template = &config
+        .ordinary
+        .as_ref()
+        .context("Recovery account added without the ordinary profile")?
+        .account_template
+        .recovery;
+    let chain = initial.chain()?;
+    ensure!(
+        d.network == chain.network
+            && d.chain_id == chain.chain_id
+            && d.genesis_digest == chain.genesis_digest
+            && account.recovery.config == *template
+            && current.origins.contains(id)?
+            && ordinary_authority::network(d.network).is_ok_and(|network| {
+                AccountAddress::from_account_id(network, d.account_id).encode() == account.address
+            }),
+        "Initialized recovery account differs from the chain template"
+    );
+    Ok(false)
+}
+/// `check_recovery_account` for every account this block changed.
+fn check_changed_recovery_accounts(config: &ConsensusConfig, book: &RecoveryBook) -> Result<()> {
+    let initial = config
+        .recovery
+        .as_ref()
+        .context("Recovery configuration missing")?;
+    for (id, account) in book.accounts.overlay() {
+        check_recovery_account(config, initial, book, id, account)?;
+    }
+    Ok(())
 }
 /// Accounts created in this block: native records staged with no committed
 /// balance record. Only a `Send` creates accounts (B1c), each burning the
@@ -1905,7 +1954,7 @@ fn check_account_creations(
         }
         ensure!(
             ordinary_state::canonical_account_address(address)
-                && book.account_by_address(address).map_or(account.nonce == 0, |initialized| {
+                && book.account_by_address(address)?.map_or(account.nonce == 0, |initialized| {
                     initialized.recovery.spending_nonce == account.nonce
                 }),
             "Invalid account creation"
@@ -1929,7 +1978,7 @@ fn validate_ordinary_principals(
 ) -> Result<()> {
     let owner = |value: &str| -> Result<()> {
         ensure!(
-            book.account_by_address(value).is_some(),
+            book.account_by_address(value)?.is_some(),
             "Ordinary principal owner lacks registered stable account"
         );
         Ok(())
@@ -2029,18 +2078,19 @@ fn combined_transaction(
         Ok(WireTransaction::Recovery { envelope_base64 }) => {
             let bytes = recovery_bytes(&envelope_base64).unwrap_or_else(|_| raw.to_vec());
             // A charged recovery changes only its target and sponsor records.
-            let before: BTreeMap<String, RecoveryAccount> = sponsor_wire::decode(&bytes)
-                .map(|signed| {
-                    [signed.sponsor.domain.account_id, signed.sponsor.sponsor_account_id]
-                        .iter()
-                        .map(hex::encode)
-                        .filter_map(|id| {
-                            recovery.book.accounts.get(&id).map(|a| (id, a.clone()))
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
-            let registered_before = recovery.book.accounts.len();
+            let mut before: BTreeMap<String, RecoveryAccount> = BTreeMap::new();
+            if let Ok(signed) = sponsor_wire::decode(&bytes) {
+                for id in [signed.sponsor.domain.account_id, signed.sponsor.sponsor_account_id]
+                    .iter()
+                    .map(hex::encode)
+                {
+                    if let Some(account) = recovery.book.accounts.find(&id)? {
+                        before.insert(id, (*account).clone());
+                    }
+                }
+            }
+            let changed_before: BTreeSet<String> =
+                recovery.book.accounts.overlay().keys().cloned().collect();
             let signatures_before = shared.usage().signatures;
             let result = recovery.execute_with_shared(height, index, &bytes, staged, shared)?;
             if result.charged {
@@ -2053,7 +2103,7 @@ fn combined_transaction(
                 );
                 ordinary_runtime::sync_recovery_mirrors(
                     &before,
-                    registered_before,
+                    &changed_before,
                     &recovery.book,
                     staged,
                 )?;
@@ -4114,7 +4164,7 @@ impl ConsensusApplication {
                         let auth = &signed.sponsor;
                         let account = book
                             .accounts
-                            .get(&hex::encode(auth.sponsor_account_id))
+                            .find(&hex::encode(auth.sponsor_account_id))?
                             .context("Unknown sponsor")?;
                         ensure!(
                             account.recovery.outgoing_allowed()
@@ -4169,7 +4219,7 @@ impl ConsensusApplication {
                     let auth = &signed.sponsor;
                     let account = book
                         .accounts
-                        .get(&hex::encode(auth.sponsor_account_id))
+                        .find(&hex::encode(auth.sponsor_account_id))?
                         .context("Unknown sponsor")?;
                     let liquid = reservation_state
                         .account(&account.address)?
@@ -4383,7 +4433,7 @@ impl ConsensusApplication {
             staged.rewards.as_ref().context("Reward state missing")?,
             staged.validators.as_ref(),
         )?;
-        let changed = changed_accounts(&staged, &recovery.book);
+        let changed = changed_accounts(&staged, &recovery.book)?;
         state.validate_block(
             self.config
                 .lifecycle
@@ -4399,6 +4449,7 @@ impl ConsensusApplication {
             &recovery.book,
             state.config.fee_profile.account_creation_fee_udrt,
         )?;
+        check_changed_recovery_accounts(&self.config, &recovery.book)?;
         // No second candidate verification here. ProcessProposal and FinalizeBlock
         // independently repeat the selected ordered block against committed state.
         Ok(out)
@@ -4715,7 +4766,7 @@ impl ConsensusApplication {
             )?;
             // Only accounts this block loaded are checked and written; loading
             // every account here would rewrite every acct: key each block.
-            let changed = changed_accounts(&staged, book);
+            let changed = changed_accounts(&staged, book)?;
             state.validate_block(
                 self.config
                     .lifecycle
@@ -4731,6 +4782,9 @@ impl ConsensusApplication {
                 book,
                 state.config.fee_profile.account_creation_fee_udrt,
             )?;
+        }
+        if let Some(block) = &recovery {
+            check_changed_recovery_accounts(&self.config, &block.book)?;
         }
         let mut writes = staged.writes()?;
         if let Some(plan) = emergency_plan {
@@ -4973,7 +5027,7 @@ impl ConsensusApplication {
         // check only the new block. On failure the mark stays cleared and the
         // next call repeats the complete check.
         let sequence = self.storage.db.latest_sequence_number();
-        verify_history(&HistoryRead::new(&self.storage), Some(expected_next.height))?;
+        verify_history(&HistoryRead::shared(&self.storage), Some(expected_next.height))?;
         self.storage.mark_verified(sequence)?;
         Ok(expected_next)
     }
@@ -5094,7 +5148,11 @@ impl ConsensusApplication {
         let Some(state) = state else {
             return Ok(serde_json::Value::Null);
         };
-        let Some(account) = book.as_ref().and_then(|book| book.accounts.get(id)) else {
+        let account = match &book {
+            Some(book) => book.accounts.find(id)?,
+            None => None,
+        };
+        let Some(account) = account else {
             return Ok(serde_json::Value::Null);
         };
         let recovery = &account.recovery;
@@ -5272,7 +5330,16 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             "Governance state differs from committed chain or height"
         );
     }
-    let recovery = recovery_book(storage, &config)?;
+    // The complete check reads every account; a per-block check stays staged.
+    let recovery = match from {
+        None => recovery_book_complete(storage, &config)?,
+        Some(_) => recovery_book(
+            history
+                .shared
+                .context("Per-block verification requires a shared storage handle")?,
+            &config,
+        )?,
+    };
     if let Some(book) = &recovery {
         ensure!(
             book.last_height == height,
@@ -5537,7 +5604,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                         .as_ref()
                         .context("Recovery missing")?
                         .accounts
-                        .get(&hex::encode(body.domain.account_id))
+                        .find(&hex::encode(body.domain.account_id))?
                         .context("Ordinary actor missing")?;
                     ensure!(
                         body.domain == actor.recovery.domain && body.expiry_height > h,
