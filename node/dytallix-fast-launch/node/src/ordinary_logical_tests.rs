@@ -389,6 +389,8 @@ fn penalty_fixture() -> PenaltyState {
         last_height: 7,
         parent_time: (11, -3),
         evidence_processed_height: 7,
+        pruned_deducted: 0,
+        pruned_released: 0,
     }
 }
 #[test]
@@ -407,6 +409,9 @@ fn penalty_vector_freezes_signed_time_and_counter_widths() {
     }
     b.extend((-3i32).to_le_bytes());
     b.extend(7u64.to_le_bytes());
+    // Pruned deduction and release totals (state model step 4).
+    b.extend(0u128.to_le_bytes());
+    b.extend(0u128.to_le_bytes());
     assert_eq!(got.canonical_bytes(), payload_record("penalty:v1:state", b));
     assert!(penalty(&state, got.byte_len() as u32 - 1).is_err());
 }

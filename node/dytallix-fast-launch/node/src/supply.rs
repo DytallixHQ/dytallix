@@ -670,9 +670,11 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         let validators = validators
             .as_ref()
             .context("Penalty custody requires validator lifecycle")?;
+        // Gross unbond custody still counts the tranches it holds; removed
+        // tranches left it with their unbond entries (state model step 4).
         let net = penalties.net_unbonding_total(validators)?;
-        let deductions = penalties.deducted_total()?;
-        let releases = penalties.released_total()?;
+        let deductions = penalties.live_deducted()?;
+        let releases = penalties.live_released()?;
         ensure!(
             net.checked_add(deductions)
                 .and_then(|value| value.checked_add(releases))

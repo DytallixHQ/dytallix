@@ -1116,7 +1116,7 @@ mod tests {
             apply(&state, None, &rewards, &token, 0, 0),
             Err(ValidatorError::Internal(_))
         ));
-        state.next_unbond_id = 1;
+        state.max_positions = 0;
         assert!(matches!(
             precheck(
                 &state,

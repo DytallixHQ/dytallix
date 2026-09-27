@@ -380,6 +380,7 @@ pub(crate) fn prepare_adaptive_interval(
         };
         let before = validators.clone();
         validators.advance(next, parent_time, &mut rewards)?;
+        let mut released = Vec::new();
         if let Some(raw) = storage.db.get(crate::runtime::penalty_custody::STATE_KEY)? {
             ensure!(
                 rewards.locks.is_empty(),
@@ -394,12 +395,21 @@ pub(crate) fn prepare_adaptive_interval(
                 "Lifecycle and penalty parent timestamps differ"
             );
             penalties.begin_block(next, committed_parent_time, &validators)?;
+            // Unbonds released in the previous block leave custody here, with
+            // their lifecycle entries below (state model step 4).
+            released = penalties.prune_released()?;
+            validators.remove_released(&released, &mut rewards)?;
+            penalties.validate(&validators)?;
             writes.insert(
                 crate::runtime::penalty_custody::STATE_KEY
                     .as_bytes()
                     .to_vec(),
                 penalties.encode()?,
             );
+        }
+        if released.is_empty() {
+            // Without releases, still free the slots of owners holding nothing.
+            validators.remove_released(&[], &mut rewards)?;
         }
         writes.insert(
             crate::runtime::validator_lifecycle::STATE_KEY

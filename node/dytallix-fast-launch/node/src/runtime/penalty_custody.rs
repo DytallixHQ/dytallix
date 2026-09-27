@@ -150,6 +150,11 @@ pub struct PenaltyState {
     pub last_height: u64,
     pub parent_time: (u64, i32),
     pub evidence_processed_height: u64,
+    /// Deductions and releases of tranches removed after their unbond was
+    /// released (state model step 4). The penalty reserve keeps the
+    /// deductions.
+    pub pruned_deducted: u128,
+    pub pruned_released: u128,
 }
 
 fn valid_id(id: &str) -> Result<()> {
@@ -244,6 +249,8 @@ impl PenaltyState {
             last_height: 0,
             parent_time: (0, 0),
             evidence_processed_height: 0,
+            pruned_deducted: 0,
+            pruned_released: 0,
         };
         for (owner, positions) in &lifecycle.effective.positions {
             for (validator, amount) in positions {
@@ -332,10 +339,6 @@ impl PenaltyState {
                 && self.first_faults.len() <= 64,
             "Penalty record capacity exceeded"
         );
-        ensure!(
-            u64::try_from(self.tranches.len())? == self.next_tranche_id,
-            "Missing tranche sequence"
-        );
         for (id, tranche) in &self.tranches {
             valid_id(&tranche.owner)?;
             valid_id(&tranche.validator)?;
@@ -374,6 +377,7 @@ impl PenaltyState {
         let mut deductions = BTreeMap::new();
         let mut reservations = BTreeMap::new();
         let mut first_faults = BTreeMap::new();
+        let mut pruned_allocations = 0u128;
         for (id, incident) in &self.incidents {
             ensure!(
                 *id == incident.fact.id(&self.config.chain_id)?,
@@ -412,10 +416,25 @@ impl PenaltyState {
                 "Penalty allocation bound exceeded"
             );
             for (tranche_id, amount) in &incident.allocations {
-                let tranche = self
-                    .tranches
-                    .get(tranche_id)
-                    .context("Penalty allocation lacks tranche")?;
+                let Some(tranche) = self.tranches.get(tranche_id) else {
+                    // A settled deduction's tranche is removed once its unbond
+                    // is released; the deduction stays in `pruned_deducted`.
+                    let sequence: u64 = tranche_id
+                        .strip_prefix("tranche-")
+                        .context("Invalid tranche ID")?
+                        .parse()?;
+                    ensure!(
+                        incident.settled_height.is_some()
+                            && *amount > 0
+                            && *tranche_id == format!("tranche-{sequence:020}")
+                            && sequence < self.next_tranche_id,
+                        "Penalty allocation lacks tranche"
+                    );
+                    pruned_allocations = pruned_allocations
+                        .checked_add(*amount)
+                        .context("Penalty custody overflow")?;
+                    continue;
+                };
                 ensure!(
                     *amount > 0
                         && tranche.validator == incident.validator
@@ -432,6 +451,10 @@ impl PenaltyState {
         ensure!(
             first_faults == self.first_faults,
             "First-fault index differs from receipts"
+        );
+        ensure!(
+            pruned_allocations <= self.pruned_deducted,
+            "Pruned penalty deductions differ from receipts"
         );
         for incident in self.incidents.values() {
             let first = &self.incidents[&self.first_faults[&incident.validator]];
@@ -999,11 +1022,69 @@ impl PenaltyState {
         Ok(amount)
     }
 
+    /// Every deduction ever settled, including removed tranches': the
+    /// penalty reserve.
     pub fn deducted_total(&self) -> Result<u128> {
+        self.live_deducted()?
+            .checked_add(self.pruned_deducted)
+            .context("Penalty custody overflow")
+    }
+    /// Every release ever made, including removed tranches'.
+    pub fn released_total(&self) -> Result<u128> {
+        self.live_released()?
+            .checked_add(self.pruned_released)
+            .context("Penalty custody overflow")
+    }
+    /// Deductions and releases of tranches still held, which the gross unbond
+    /// custody still counts.
+    pub fn live_deducted(&self) -> Result<u128> {
         sum(self.tranches.values().map(|t| t.deducted))
     }
-    pub fn released_total(&self) -> Result<u128> {
+    pub fn live_released(&self) -> Result<u128> {
         sum(self.tranches.values().map(|t| t.released))
+    }
+    /// Remove every released unbond's tranches and release receipt (state
+    /// model step 4), keeping their deductions and releases as totals.
+    /// Returns the released unbond IDs; the caller removes their lifecycle
+    /// entries in the same block. Unsettled penalties never reference a
+    /// released tranche (`withdraw` refuses them).
+    pub fn prune_released(&mut self) -> Result<Vec<String>> {
+        let ids: Vec<String> = self.releases.keys().cloned().collect();
+        let mut next = self.clone();
+        for id in &ids {
+            let tranches: Vec<String> = next
+                .tranches
+                .values()
+                .filter(|t| t.unbond_id.as_ref() == Some(id))
+                .map(|t| t.id.clone())
+                .collect();
+            ensure!(!tranches.is_empty(), "Released unbond has no tranches");
+            for tranche_id in tranches {
+                let tranche = next
+                    .tranches
+                    .remove(&tranche_id)
+                    .context("Missing released tranche")?;
+                ensure!(
+                    tranche.remaining()? == 0
+                        && !next.incidents.values().any(|i| {
+                            i.settled_height.is_none() && i.allocations.contains_key(&tranche_id)
+                        }),
+                    "Released tranche still holds custody"
+                );
+                next.pruned_deducted = next
+                    .pruned_deducted
+                    .checked_add(tranche.deducted)
+                    .context("Penalty custody overflow")?;
+                next.pruned_released = next
+                    .pruned_released
+                    .checked_add(tranche.released)
+                    .context("Penalty custody overflow")?;
+            }
+            next.releases.remove(id);
+        }
+        next.validate_internal()?;
+        *self = next;
+        Ok(ids)
     }
     pub fn penalty_reserve(&self) -> Result<u128> {
         self.deducted_total()

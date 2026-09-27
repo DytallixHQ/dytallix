@@ -364,3 +364,56 @@ fn admission_reserves_bytes_for_future_penalty_receipt_growth() {
     assert!(state.validate_capacity(current + 7).is_err());
     assert!(state.validate_capacity(current + 8).is_ok());
 }
+
+#[test]
+fn pruning_a_penalized_release_keeps_the_reserve_and_custody_balance() {
+    let (mut state, mut lifecycle, mut rewards) = fixture();
+    step(&mut state, &mut lifecycle, &mut rewards, 1);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    step(&mut state, &mut lifecycle, &mut rewards, 2);
+    let evidence = fact(&lifecycle, 1);
+    assess(&mut state, &mut lifecycle, &evidence);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    let mut height = 3;
+    let mut withdrawn = None;
+    while withdrawn.is_none() && height < 40 {
+        step(&mut state, &mut lifecycle, &mut rewards, height);
+        state.finalize_evidence_batch(&lifecycle).unwrap();
+        if let Some(entry) = lifecycle.unbonding.values().find(|e| e.owner == "alice") {
+            let id = entry.id.clone();
+            let (parent, seconds) = (state.last_height - 1, state.parent_time.0);
+            if state.withdraw("alice", &id, parent, seconds, &lifecycle).is_ok() {
+                withdrawn = Some(id);
+            }
+        }
+        height += 1;
+    }
+    let id = withdrawn.expect("alice's exit matures");
+    let reserve = state.penalty_reserve().unwrap();
+    let released = state.released_total().unwrap();
+    assert!(reserve > 0 && released > 0);
+
+    let ids = state.prune_released().unwrap();
+    assert_eq!(ids, vec![id]);
+    lifecycle.remove_released(&ids, &mut rewards).unwrap();
+    state.validate(&lifecycle).unwrap();
+    assert!(state.tranches.values().all(|t| t.unbond_id.is_none()));
+    assert_eq!((state.pruned_deducted, state.pruned_released), (reserve, released));
+    assert_eq!(
+        (state.penalty_reserve().unwrap(), state.released_total().unwrap()),
+        (reserve, released)
+    );
+    // Gross custody equals net plus the deductions and releases it still holds.
+    assert_eq!(
+        state.net_unbonding_total(&lifecycle).unwrap()
+            + state.live_deducted().unwrap()
+            + state.live_released().unwrap(),
+        rewards.total_unbonding().unwrap()
+    );
+    // The settled incident still names the removed tranche and stays valid.
+    assert!(state.incidents.values().any(|i| !i.allocations.is_empty()));
+    assert_eq!(
+        PenaltyState::decode(&state.encode().unwrap()).unwrap(),
+        state
+    );
+}

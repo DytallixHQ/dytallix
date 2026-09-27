@@ -821,8 +821,10 @@ impl LifecycleState {
                 "Unbond lacks historical principal exposure"
             );
         }
+        // Released entries are removed (state model step 4); each retained ID
+        // is unique and below the sequence counter.
         ensure!(
-            ids.len() <= MAX_ITEMS && u64::try_from(ids.len())? == self.next_unbond_id,
+            ids.len() <= MAX_ITEMS && u64::try_from(ids.len())? <= self.next_unbond_id,
             "Unbond sequence or record count mismatch"
         );
         let mut sequence_numbers = BTreeSet::new();
@@ -1306,6 +1308,71 @@ impl LifecycleState {
             self.append_removal(schedule, request, effective, &owner, validator, amount)?;
         }
         Ok(())
+    }
+    /// Remove released unbond entries (state model step 4). The reward state's
+    /// gross unbonding drops by each entry's amount, as the penalty custody
+    /// removes the entry's tranches in the same block.
+    pub fn remove_released(&mut self, ids: &[String], rewards: &mut RewardState) -> Result<()> {
+        let mut next = self.clone();
+        let mut next_rewards = rewards.clone();
+        for id in ids {
+            let entry = next
+                .unbonding
+                .remove(id)
+                .context("Released unbond entry missing")?;
+            let gross = next_rewards
+                .unbonding
+                .get_mut(&entry.owner)
+                .context("Released unbond owner has no gross custody")?;
+            *gross = gross
+                .checked_sub(entry.amount)
+                .context("Released unbond exceeds gross custody")?;
+            if *gross == 0 {
+                next_rewards.unbonding.remove(&entry.owner);
+            }
+        }
+        next.release_empty_owners(&next_rewards);
+        next.validate()?;
+        next.validate_rewards(&next_rewards)?;
+        *self = next;
+        *rewards = next_rewards;
+        Ok(())
+    }
+    /// Free the slot of every owner holding nothing: no effective, scheduled
+    /// or pending principal, no unbonding entry and no reward position,
+    /// unbonding, unpaid amount or lock. `max_positions` then limits
+    /// concurrent stakers, not lifetime stakers (state model step 4).
+    fn release_empty_owners(&mut self, rewards: &RewardState) {
+        let held: BTreeSet<&String> = self
+            .effective
+            .positions
+            .keys()
+            .chain(self.schedules.values().flat_map(|s| s.view.positions.keys()))
+            .chain(
+                self.schedules
+                    .values()
+                    .flat_map(|s| s.additions.iter().map(|a| &a.owner)),
+            )
+            .chain(
+                self.schedules
+                    .values()
+                    .flat_map(|s| s.removals.iter().map(|r| &r.owner)),
+            )
+            .chain(self.unbonding.values().map(|e| &e.owner))
+            .chain(rewards.positions.keys())
+            .chain(rewards.unbonding.keys())
+            .chain(rewards.unpaid.keys())
+            .chain(rewards.locks.keys())
+            .collect();
+        let freed: Vec<String> = self
+            .reserved_owners
+            .iter()
+            .filter(|owner| !held.contains(owner))
+            .cloned()
+            .collect();
+        for owner in freed {
+            self.reserved_owners.remove(&owner);
+        }
     }
     /// Evidence processing and penalty settlement are not qualified in this profile.
     pub fn authorize_withdrawal(&self, _owner: &str, _unbond_id: &str) -> Result<()> {

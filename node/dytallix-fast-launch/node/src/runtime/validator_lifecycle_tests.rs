@@ -651,9 +651,12 @@ fn power_overflow_and_missing_unbond_records_fail_closed() {
         .unwrap();
     step(&mut state, &mut rewards, 2);
     step(&mut state, &mut rewards, 3);
+    // A removed entry is allowed (released unbonds are pruned), but not
+    // without the matching custody change.
     let mut bad = state.clone();
     bad.unbonding.clear();
-    assert!(bad.validate().is_err());
+    bad.validate().unwrap();
+    assert!(bad.validate_rewards(&rewards).is_err());
     let mut bad = state.clone();
     bad.next_unbond_id = 0;
     assert!(bad.validate().is_err());
@@ -739,4 +742,36 @@ fn both_consecutive_activation_footprints_are_reserved() {
         .schedule_with_capacity(2, "alice", 1, operation, second_bytes)
         .unwrap();
     assert_eq!(before, pending);
+}
+#[test]
+fn released_unbond_is_removed_and_frees_an_empty_staker_slot() {
+    let (mut state, mut rewards) = fixture();
+    step(&mut state, &mut rewards, 1);
+    state
+        .schedule(
+            1,
+            "dave",
+            0,
+            Operation::Unbond {
+                validator: "a".into(),
+                amount: 30,
+            },
+        )
+        .unwrap();
+    step(&mut state, &mut rewards, 2);
+    step(&mut state, &mut rewards, 3);
+    let id = state.unbonding.keys().next().unwrap().clone();
+    assert!(state.reserved_owners.contains("dave"));
+    assert_eq!(rewards.unbonding.get("dave"), Some(&30));
+    // Removing the released entry drops dave's gross custody and frees the
+    // slot dave no longer needs; alice keeps hers.
+    state.remove_released(&[id.clone()], &mut rewards).unwrap();
+    assert!(state.unbonding.is_empty() && !rewards.unbonding.contains_key("dave"));
+    assert!(!state.reserved_owners.contains("dave") && state.reserved_owners.contains("alice"));
+    // The ID sequence keeps counting, and a removed entry cannot go twice.
+    assert_eq!(state.next_unbond_id, 1);
+    assert!(state
+        .clone()
+        .remove_released(&[id], &mut rewards.clone())
+        .is_err());
 }

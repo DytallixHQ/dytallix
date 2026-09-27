@@ -1945,6 +1945,27 @@ fn signed_validator_register_rotate_exit_and_mature_withdraw_preserve_stable_own
         current(&app, &fixture.secondary).domain.account_id,
         fixture.secondary.id()
     );
+
+    // The next block start removes the released unbond, its tranches and its
+    // receipt, keeping the release total (state model step 4).
+    let owner = fixture.secondary.address();
+    commit(&mut app, 15, vec![]);
+    let penalty =
+        PenaltyState::decode(&app.storage.db.get(PENALTY_STATE_KEY).unwrap().unwrap()).unwrap();
+    assert!(penalty.releases.is_empty());
+    assert!(penalty.tranches.values().all(|t| t.owner != owner || t.unbond_id.is_none()));
+    assert_eq!((penalty.pruned_released, penalty.released_total().unwrap()), (100, 100));
+    let state = lifecycle_state(&app);
+    assert!(state.unbonding.values().all(|entry| entry.owner != owner));
+    let rewards = reward_state(&app);
+    assert!(!rewards.unbonding.contains_key(&owner));
+    // Its staker slot is freed once it holds nothing else.
+    let holds = rewards.positions.contains_key(&owner) || rewards.unpaid.contains_key(&owner);
+    assert_eq!(state.reserved_owners.contains(&owner), holds);
+    crate::supply::inspect_native(&app.storage).unwrap();
+    drop(app);
+    let reopened = fixture.open(&path);
+    verify_recovery(&reopened.storage).unwrap();
 }
 
 fn ordinary_id(fixture: &Fixture, signed: &SignedOrdinary) -> String {
