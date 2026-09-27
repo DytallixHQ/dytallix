@@ -48,7 +48,8 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | 1, 2 | #262 (`docs/architecture/liveness-v1.md`) |
 | 3, 4 | #263, #265, #266, #267, #268 (`docs/architecture/state-sync-v1.md`) |
 | 5 | #269. Running account totals: `supply:account_totals` (liquid uDGT and uDRT) is written at consensus genesis and updated by each block from the balance records it writes; the per-block supply check reads no other account; the complete check compares the totals with every record. |
-| 6 | Duplicate bypass: a reservation request carries its signed envelope's digest, so a re-signed copy of a reserved intent is refused (identity mismatch) in CheckTx, rechecks and proposals; only the same bytes are already reserved. The engine requires the flood mempool with recheck, which the per-head admission queue depends on, and a mempool `max_tx_bytes` no larger than the genesis block; the fixture sets it to the application limit. Mempool and P2P capacity values (size, total bytes, cache, peer rates) stay operator settings until D06-Q02. |
+| 6 | #270. Duplicate bypass: a reservation request carries its signed envelope's digest, so a re-signed copy of a reserved intent is refused (identity mismatch) in CheckTx, rechecks and proposals; only the same bytes are already reserved. The engine requires the flood mempool with recheck, which the per-head admission queue depends on, and a mempool `max_tx_bytes` no larger than the genesis block; the fixture sets it to the application limit. Mempool and P2P capacity values (size, total bytes, cache, peer rates) stay operator settings until D06-Q02. |
+| 7 | Metrics (`docs/architecture/metrics-v1.md`): the core set as Prometheus text files, `dytallix-engine.prom` and `dytallix-app.prom`, at an operator interval, each with its write time; no listener. |
 
 ## Policy questions (P01)
 
@@ -116,7 +117,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | BRG-002 | POLICY | N/A if D07-Q01 excludes bridges. |
 | BRG-003 | CLAIM | Add the boundary disclosure to the security model. |
 | BRG-004 | NOT E04 | P02. |
-| OBS-002 | GAP 7 | No metrics. |
+| OBS-002 | PARTIAL | Core metrics written as text files (gap 7 closed); thresholds and routing open (D12-Q02). |
 | OBS-003 | PARTIAL | Some drafts; runbooks missing (GAP 15). |
 | PERF-001 | NOT E04 | T05. |
 | PERF-002 | NOT E04 | T05. |

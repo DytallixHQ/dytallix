@@ -43,3 +43,24 @@ func TestStateSyncNeedsLightBlocksAndABoundedTrustPeriod(t *testing.T) {
 		t.Fatal("state provider built without the trusted header")
 	}
 }
+
+// Metrics directory and interval go together, within bounds; neither keeps
+// the default no-op provider.
+func TestMetricsNeedADirectoryAndABoundedInterval(t *testing.T) {
+	config := cfg.DefaultConfig()
+	if provider, _, err := metricsOption(config, "", 0); err != nil || provider == nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	for _, bad := range []struct {
+		dir      string
+		interval time.Duration
+	}{{dir, 0}, {"", time.Second}, {"relative", time.Second}, {dir, time.Millisecond}, {dir, 2 * time.Hour}, {dir + "/missing", time.Second}} {
+		if _, _, err := metricsOption(config, bad.dir, bad.interval); err == nil {
+			t.Fatal("accepted", bad)
+		}
+	}
+	if _, write, err := metricsOption(config, dir, time.Second); err != nil || write == nil {
+		t.Fatal(err)
+	}
+}

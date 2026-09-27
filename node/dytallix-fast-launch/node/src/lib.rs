@@ -43,6 +43,7 @@ pub mod recovery_fees;
 pub mod recovery_store;
 pub(crate) mod state_tree;
 pub mod snapshot;
+pub mod app_metrics;
 
 pub mod ordinary_authority;
 pub mod ordinary_transport;

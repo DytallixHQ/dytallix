@@ -267,6 +267,8 @@ mod linux {
         archive: bool,
         snapshots: bool,
         light_blocks: Option<&'a Path>,
+        /// Write both processes' metrics files (metrics v1) every second.
+        metrics: bool,
     }
 
     fn start_node(owner: &OwnerThread, paths: &Paths, index: usize, launch: &Launch) -> Result<Node> {
@@ -294,6 +296,11 @@ mod linux {
                 .arg(&snapshot_dir)
                 .args(["--snapshot-interval", &SNAPSHOT_INTERVAL.to_string()])
                 .args(["--snapshot-keep", &SNAPSHOT_KEEP.to_string()]);
+        }
+        if launch.metrics {
+            app.arg("--metrics-dir")
+                .arg(home.join("metrics"))
+                .args(["--metrics-interval-seconds", "1"]);
         }
         app.env_clear()
             .stdin(Stdio::from(app_in_read))
@@ -336,6 +343,12 @@ mod linux {
             .args(["--p2p-profile", "dytallix-pqc-loopback-v1", "--rpc-profile", "dytallix-pqc-unix-v1"]);
         if let Some(dir) = launch.light_blocks {
             engine.arg("--light-blocks").arg(dir);
+        }
+        if launch.metrics {
+            engine
+                .arg("--metrics-dir")
+                .arg(home.join("metrics"))
+                .args(["--metrics-interval", "1s"]);
         }
         engine
             .env_clear()
@@ -464,6 +477,44 @@ mod linux {
             .and_then(|record| record["height"].as_u64()))
     }
 
+    /// Node 0's metrics files (metrics v1): the core values a running chain
+    /// must show, each positive, and write times within the last minute.
+    fn metrics_values(paths: &Paths) -> Result<Value> {
+        let dir = paths.home(0).join("metrics");
+        let read = |file: &str, name: &str| -> Result<f64> {
+            let text = fs::read_to_string(dir.join(file))
+                .with_context(|| format!("Metrics file {file} missing"))?;
+            text.lines()
+                .find_map(|line| line.strip_prefix(&format!("{name} ")))
+                .with_context(|| format!("{name} missing from {file}"))?
+                .parse()
+                .with_context(|| format!("{name} is not a number"))
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_secs_f64();
+        let mut values = serde_json::Map::new();
+        for (file, name) in [
+            ("dytallix-engine.prom", "dytallix_engine_consensus_height"),
+            ("dytallix-engine.prom", "dytallix_engine_p2p_peers"),
+            ("dytallix-engine.prom", "dytallix_engine_consensus_validators"),
+            ("dytallix-app.prom", "dytallix_app_height"),
+            ("dytallix-app.prom", "dytallix_app_commit_seconds_count"),
+            ("dytallix-app.prom", "dytallix_app_snapshot_latest_height"),
+            ("dytallix-app.prom", "dytallix_app_supply_udrt{bucket=\"total\"}"),
+        ] {
+            let value = read(file, name)?;
+            ensure!(value > 0.0, "{name} is {value} on a running chain");
+            values.insert(name.into(), json!(value));
+        }
+        for (file, process) in [("dytallix-engine.prom", "engine"), ("dytallix-app.prom", "app")] {
+            let written =
+                read(file, &format!("dytallix_metrics_written_timestamp_seconds{{process=\"{process}\"}}"))?;
+            ensure!((now - written).abs() < 60.0, "{file} is stale by {} s", now - written);
+        }
+        Ok(Value::Object(values))
+    }
+
     /// Node 3 syncs from the snapshot: state sync on, trusting TRUST_HEIGHT
     /// and its hash, with no RPC servers.
     fn enable_state_sync(paths: &Paths, trust_hash: &str) -> Result<()> {
@@ -505,9 +556,15 @@ mod linux {
         ])?;
         for node in 0..4 {
             private_dir(&paths.home(node).join("snapshots"))?;
+            private_dir(&paths.home(node).join("metrics"))?;
         }
 
-        let committing = |index: usize| Launch { archive: index == 2, snapshots: true, light_blocks: None };
+        let committing = |index: usize| Launch {
+            archive: index == 2,
+            snapshots: true,
+            light_blocks: None,
+            metrics: index == 0,
+        };
         let mut nodes = Vec::new();
         for index in 0..3 {
             nodes.push(start_node(&owner, &paths, index, &committing(index))?);
@@ -532,6 +589,7 @@ mod linux {
             archive: false,
             snapshots: false,
             light_blocks: Some(&paths.light),
+            metrics: false,
         })?);
         let synced = wait_height(&paths, 3, exported + 3, JOIN_TIMEOUT)?;
         // Node 3 follows the chain: its own application reaches a later
@@ -541,6 +599,7 @@ mod linux {
         wait_height(&paths, 0, height + 1, STEP_TIMEOUT)?;
         let reference = app_hash_after(&paths, 0, height)?;
         let restored = restored_height(&paths)?;
+        let metrics = metrics_values(&paths)?;
         let result = json!({
             "chain_id": CHAIN,
             "export": {"from": TRUST_HEIGHT, "to": exported, "trust_hash": trust_hash},
@@ -548,6 +607,7 @@ mod linux {
                 "synced_height": synced.height, "application_height": height,
                 "application_hash": app_hash},
             "chain_app_hash": reference,
+            "node0_metrics": metrics,
         });
         for node in nodes.iter_mut().rev() {
             stop_node(&paths, node)?;

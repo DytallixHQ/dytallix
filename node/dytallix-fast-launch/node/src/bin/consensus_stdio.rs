@@ -364,6 +364,8 @@ fn run() -> Result<()> {
     let mut snapshot_dir = None;
     let mut snapshot_interval = None;
     let mut snapshot_keep = None;
+    let mut metrics_dir = None;
+    let mut metrics_interval = None;
     while let Some(arg) = args.next() {
         let value = args.next().context("Each argument requires a value")?;
         let slot = match arg.as_str() {
@@ -378,6 +380,8 @@ fn run() -> Result<()> {
             "--snapshot-dir" => &mut snapshot_dir,
             "--snapshot-interval" => &mut snapshot_interval,
             "--snapshot-keep" => &mut snapshot_keep,
+            "--metrics-dir" => &mut metrics_dir,
+            "--metrics-interval-seconds" => &mut metrics_interval,
             _ => bail!("Unsupported argument"),
         };
         ensure!(slot.replace(value).is_none(), "Duplicate argument");
@@ -489,8 +493,32 @@ fn run() -> Result<()> {
         }
     }
     .with_block_history(block_history);
+    let snapshot_dir = snapshots.as_ref().map(|config| config.dir.clone());
     if let Some(config) = snapshots {
         app = app.with_snapshots(config)?;
+    }
+    // Metrics v1: a text file at the operator's interval; no defaults.
+    match (metrics_dir, metrics_interval) {
+        (None, None) => {}
+        (Some(dir), Some(interval)) => {
+            let dir = std::path::PathBuf::from(dir);
+            let interval: u64 = interval.parse().context("Invalid --metrics-interval-seconds")?;
+            ensure!(
+                dir.is_absolute() && dir.is_dir() && (1..=3600).contains(&interval),
+                "--metrics-dir must be an existing absolute directory and the interval 1 to 3600 seconds"
+            );
+            let metrics = std::sync::Arc::new(dytallix_fast_node::app_metrics::AppMetrics::new());
+            app = app.with_metrics(metrics.clone());
+            std::thread::spawn(move || loop {
+                let snapshot = snapshot_dir
+                    .as_deref()
+                    .and_then(dytallix_fast_node::app_metrics::latest_snapshot);
+                // A failed write leaves the previous file, which then shows as stale.
+                let _ = metrics.write_file(&dir, snapshot);
+                std::thread::sleep(std::time::Duration::from_secs(interval));
+            });
+        }
+        _ => bail!("--metrics-dir and --metrics-interval-seconds go together"),
     }
     let stdin = std::io::stdin();
     let flags = unsafe { libc::fcntl(stdin.as_raw_fd(), libc::F_GETFL) };
