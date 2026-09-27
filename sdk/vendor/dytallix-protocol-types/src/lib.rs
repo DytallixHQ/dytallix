@@ -24,8 +24,17 @@ pub mod recovery_sponsor;
 /// Ordinary-v2 canonical authorization bytes; paid execution needs its own contract.
 pub mod ordinary;
 
+/// Provisional ordinary-v3 governance-capable codec. No consensus activation.
+pub mod ordinary_v3;
+
+/// Explicit ordinary-v3 fee-profile format. No values or activation selected.
+pub mod ordinary_fees_v3;
+
 /// Explicit ordinary fee profile format; no implicit activation or prices.
 pub mod ordinary_fees;
 
 /// Strict public ordinary RPC views. Reported context is not a light-client proof.
 pub mod ordinary_client;
+
+/// Legacy signature metadata, separate from signing backends.
+pub mod signature_algorithm;

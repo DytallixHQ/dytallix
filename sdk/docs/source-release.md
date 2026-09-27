@@ -11,9 +11,16 @@ contain all approved local changes. The manifest states this limit explicitly.
 The file hashes identify the complete working-tree snapshot used here.
 
 Do not edit the vendored codec or regenerate its vectors independently. When the
-canonical node crate changes, review that change, copy the exact complete crate,
-and update the provenance manifest. Update or qualify the SDK against the new
-snapshot before release.
+canonical node crate changes, review that change, then copy the exact complete
+crate and rewrite the provenance manifest with:
+
+```sh
+python3 scripts/sync_protocol_vendor.py --node-root /absolute/path/to/mainnet/node
+```
+
+Update or qualify the SDK against the new snapshot before release. The node
+repository's CI runs the drift check below with `--node-root`, so the vendored
+crate cannot fall behind the chain unnoticed.
 
 ## Verify source integrity
 

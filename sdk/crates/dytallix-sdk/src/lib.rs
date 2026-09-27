@@ -289,7 +289,7 @@ mod tests {
     use base64::Engine as _;
 
     use crate::keystore::Keystore;
-    use crate::transaction::TransactionBuilder;
+    use crate::transaction::{Message, TransactionBuilder};
     use crate::{Balance, DAddr, DytallixKeypair, FeeEstimate, Token};
 
     #[test]
@@ -327,6 +327,29 @@ mod tests {
         let keypair = DytallixKeypair::generate();
         let address = DAddr::from_public_key(keypair.public_key()).unwrap();
         assert!(address.as_str().starts_with("dytallix1"));
+    }
+
+    /// An amount and a payload together are refused, never sent as a
+    /// transfer with the payload dropped (E04 gap 8, K3).
+    #[test]
+    fn builder_refuses_an_amount_with_a_payload() {
+        let keypair = DytallixKeypair::generate();
+        let address = DAddr::from_public_key(keypair.public_key()).unwrap();
+        let builder = || {
+            TransactionBuilder::new()
+                .from(address.clone())
+                .to(address.clone())
+                .nonce(0)
+        };
+        let both = builder()
+            .amount(5, Token::DGT)
+            .data(b"stake:delegate:v:5".to_vec())
+            .build();
+        assert!(both.is_err());
+        let data_only = builder().data(b"stake:claim".to_vec()).build().unwrap();
+        assert!(matches!(data_only.msgs[..], [Message::Data { .. }]));
+        let amount_only = builder().amount(5, Token::DGT).build().unwrap();
+        assert!(matches!(amount_only.msgs[..], [Message::Send { .. }]));
     }
 
     #[test]
