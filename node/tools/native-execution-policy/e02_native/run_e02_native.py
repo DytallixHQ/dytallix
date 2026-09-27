@@ -27,6 +27,7 @@ import hashlib
 import json
 import os
 import platform
+import pwd
 import re
 import select
 import shutil
@@ -68,6 +69,14 @@ def check(name, ok, detail=""):
     log(f"CHECK {name} {'PASS' if ok else 'FAIL'} {detail}".rstrip())
     if not ok:
         raise RuntimeError(f"{name} failed: {detail}")
+
+
+def apparmor_denials():
+    """Recent kernel AppArmor denials, for a failed check's detail."""
+    r = subprocess.run(["journalctl", "-k", "-o", "cat", "--since", "-5 min"],
+                       capture_output=True, text=True, timeout=30)
+    lines = [l for l in r.stdout.splitlines() if 'apparmor="DENIED"' in l]
+    return " || ".join(lines[-8:])
 
 
 def run(*args, check_exit=True, timeout=60):
@@ -383,7 +392,10 @@ def helper_cases(policy, helper_sha512):
     for mode, status in (("good", 0), ("bad", 2)):
         r = run(*systemd_unit(binary, mode, helper_sha512, apparmor=supervisor), check_exit=False, timeout=30)
         ok = r.returncode == 0 and f"result_status={status}" in r.stdout
-        check(f"filter.owned_{mode}_request_under_apparmor", ok, (r.stdout + r.stderr).strip().replace("\n", " | "))
+        detail = (r.stdout + r.stderr).strip().replace("\n", " | ")
+        if not ok:
+            detail = f"exit={r.returncode} {detail} denials: {apparmor_denials()}"
+        check(f"filter.owned_{mode}_request_under_apparmor", ok, detail)
 
 
 def filter_checks(pause_bin):
@@ -418,6 +430,25 @@ def preflight():
     if ROOT.exists():
         raise SystemExit(f"{ROOT} already exists")
     log(f"kernel={platform.release()} parser={run('apparmor_parser', '--version').stdout.splitlines()[0]}")
+    ensure_service_user()
+
+
+SERVICE_USER = "dyt-e02-probe"
+
+
+def ensure_service_user():
+    """systemd resolves User= through the user database (exit 217 without a
+    record); setpriv takes the bare UID. Give the probe UID a system record."""
+    try:
+        pwd.getpwuid(UID)
+        return False
+    except KeyError:
+        pass
+    run("groupadd", "--system", "--gid", str(GID), SERVICE_USER)
+    run("useradd", "--system", "--uid", str(UID), "--gid", str(GID), "--no-create-home",
+        "--home-dir", "/nonexistent", "--shell", "/usr/sbin/nologin", SERVICE_USER)
+    log(f"service_user={SERVICE_USER} uid={UID} gid={GID} created")
+    return True
 
 
 def main():
