@@ -158,7 +158,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/ordinary_state.rs",
-          "sha256": "da8256326e8c2775e50a093b372e1e5787566c752d861aa6a303147aa6f8d20c"
+          "sha256": "80ed8691d9c52d3d65b96e0ec0327bdff1387d080a9a1ad0d0e34faf7bb02571"
         }
       ],
       "policy": "Origin codes name ML-DSA-65, ML-DSA-87 and legacy Dilithium5 for address derivation only; they select no permitted algorithm. Mainnet accounts require ML-DSA-65 exclusively",
@@ -169,11 +169,11 @@
       "files": [
         {
           "path": "dytallix-fast-launch/node/src/ordinary_validator.rs",
-          "sha256": "10f62f05feafc8aa989e9f2d2a0a998c085652a9461c02bdb1923a19324cdc0a"
+          "sha256": "538d12e95f9afea7978ece876a786608200e82bc43b16f70c609220a353a9743"
         },
         {
           "path": "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",
-          "sha256": "7f8959264154ed9bedcb3797e69761484121f27a141d3684c3b1d931bcf544da"
+          "sha256": "449ebd50f9c000be0226f6b2647f39020597d6e1942153e6927ade336a8785c5"
         }
       ],
       "policy": "Proof of possession for registered and rotated consensus keys",
