@@ -47,6 +47,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | --- | --- |
 | 1, 2 | #262 (`docs/architecture/liveness-v1.md`) |
 | 3, 4 | #263, #265, #266, #267, #268 (`docs/architecture/state-sync-v1.md`) |
+| 6 | Duplicate bypass: a reservation request carries its signed envelope's digest, so a re-signed copy of a reserved intent is refused (identity mismatch) in CheckTx, rechecks and proposals; only the same bytes are already reserved. The engine requires the flood mempool with recheck, which the per-head admission queue depends on, and a mempool `max_tx_bytes` no larger than the genesis block; the fixture sets it to the application limit. Mempool and P2P capacity values (size, total bytes, cache, peer rates) stay operator settings until D06-Q02. |
 | 5 | Running account totals: `supply:account_totals` (liquid uDGT and uDRT) is written at consensus genesis and updated by each block from the balance records it writes; the per-block supply check reads no other account; the complete check compares the totals with every record. |
 
 ## Policy questions (P01)
@@ -96,7 +97,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | SYNC-003 | PARTIAL | Replay checked; restored node would fail the complete check and observation (GAP 3, 4). |
 | SYNC-004 | NOT E04 | T05. |
 | MEM-001 | DONE | Exact nonce, conflicts refused, reset at head. |
-| MEM-002 | PARTIAL | Duplicate bypass, unpinned engine limits (GAP 6). |
+| MEM-002 | PARTIAL | Duplicate bypass closed and mempool rules pinned (gap 6); capacity values open (D06-Q02). |
 | MEM-003 | POLICY | Implemented rule not normative. D04-Q01, D06-Q02. |
 | MEM-004 | NOT E04 | T05. |
 | ORC-001 | POLICY | No oracle; gas price governed; utilization only. D01-Q02. |

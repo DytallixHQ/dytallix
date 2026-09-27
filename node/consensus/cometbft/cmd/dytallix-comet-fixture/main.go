@@ -33,6 +33,10 @@ type appValidator struct {
 	Power         int64  `json:"power"`
 	RewardAddress string `json:"reward_address"`
 }
+
+// The application's transaction byte limit, also the engine mempool's.
+const appMaxTxBytes = 262144
+
 type applicationConfig struct {
 	Profile        string           `json:"profile"`
 	Engine         string           `json:"engine"`
@@ -224,6 +228,8 @@ func generateWithTransportIPs(output, appFile, chainID, genesisTime string, base
 		config.P2P.PexReactor = false
 		config.P2P.SeedMode = false
 		config.Mempool.Type = "flood"
+		// The engine mempool refuses what the application would.
+		config.Mempool.MaxTxBytes = appMaxTxBytes
 		config.Consensus.CreateEmptyBlocks = true
 		config.Consensus.TimeoutCommit = time.Second
 		config.StateSync.Enable = false
@@ -300,7 +306,7 @@ func generateWithTransportIPs(output, appFile, chainID, genesisTime string, base
 		}
 	}
 	hash := sha256.Sum256(app)
-	application := applicationConfig{Profile: "cometbft-local-qualification", Engine: "cometbft-v0.40.0", ChainID: chainID, AppStateSHA256: hex.EncodeToString(hash[:]), GasPrice: 1, MaxTxBytes: 262144, MaxBlockBytes: 1048576, MaxTxs: 1000, Validators: appVals, Lifecycle: lifecycle}
+	application := applicationConfig{Profile: "cometbft-local-qualification", Engine: "cometbft-v0.40.0", ChainID: chainID, AppStateSHA256: hex.EncodeToString(hash[:]), GasPrice: 1, MaxTxBytes: appMaxTxBytes, MaxBlockBytes: 1048576, MaxTxs: 1000, Validators: appVals, Lifecycle: lifecycle}
 	if lifecycle != nil {
 		application.Profile = lifecycle.Profile
 	}

@@ -74,6 +74,7 @@ pub(crate) fn reservation_request(
         action_debits,
         wire_bytes,
         signature_work: 1,
+        envelope_digest: verified.envelope_hash(),
     })
 }
 

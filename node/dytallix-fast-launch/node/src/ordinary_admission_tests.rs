@@ -46,6 +46,7 @@ fn request(config: &OrdinaryConfig, id: u8, sponsor: bool) -> ReservationRequest
         unrestricted_debits: vec![],
         wire_bytes: 100,
         signature_work: 1,
+        envelope_digest: [id; 32],
     }
 }
 fn liquidity(amount: u128) -> Eligibility {

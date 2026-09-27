@@ -86,6 +86,10 @@ pub(crate) struct ReservationRequest {
     pub unrestricted_debits: Vec<ActionDebit>,
     pub wire_bytes: u64,
     pub signature_work: u64,
+    /// Digest of the exact signed envelope. Signatures are randomized, so a
+    /// re-signed copy of a reserved intent differs here and is refused as an
+    /// identity mismatch; only the same bytes are already reserved (E04 gap 6).
+    pub envelope_digest: [u8; 32],
 }
 impl ReservationRequest {
     /// Owners whose eligibility this request's requirements are checked against.
@@ -131,7 +135,7 @@ pub(crate) enum ReservationError {
     InvalidDebitSubset,
     #[error("Unrestricted eligibility exceeds total eligibility")]
     InvalidEligibility,
-    #[error("Canonical intent ID has inconsistent reservation inputs")]
+    #[error("Intent is already reserved with other inputs or another signed envelope")]
     IdentityMismatch,
     #[error("Counter is already reserved; explicit eviction is required")]
     NonceConflict,

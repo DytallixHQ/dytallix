@@ -1789,7 +1789,7 @@ fn ordinary_id(fixture: &Fixture, signed: &SignedOrdinary) -> String {
 }
 
 #[test]
-fn check_tx_retains_same_nonce_reservations_and_deduplicates_resigned_intent() {
+fn check_tx_retains_same_nonce_reservations_and_refuses_resigned_intent() {
     let fixture = Fixture::new();
     let dir = tempfile::tempdir().unwrap();
     let app = fixture.initialized(&dir.path().join("db"));
@@ -1810,8 +1810,13 @@ fn check_tx_retains_same_nonce_reservations_and_deduplicates_resigned_intent() {
     assert_admitted(app.check_tx(&fixture.ordinary_wire(&first)));
     assert_eq!(app.ordinary_admission_count().unwrap(), 1);
     assert_admitted(app.check_tx(&fixture.ordinary_wire(&first)));
+    // A re-signed copy has other bytes: it would occupy the engine mempool
+    // beside the original, so it is refused (E04 gap 6).
     let resigned = fixture.resign(first.body.clone(), &fixture.active);
-    assert_admitted(app.check_tx(&fixture.ordinary_wire(&resigned)));
+    assert_ne!(fixture.ordinary_wire(&resigned), fixture.ordinary_wire(&first));
+    let refused = app.check_tx(&fixture.ordinary_wire(&resigned));
+    assert_ne!(refused.code, 0);
+    assert!(refused.log.contains("another signed envelope"), "{}", refused.log);
     assert_eq!(app.ordinary_admission_count().unwrap(), 1);
     let mut invalid = first.clone();
     invalid.signature[0] ^= 1;

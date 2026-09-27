@@ -123,6 +123,12 @@ func validateIsolationForProfile(c *cfg.Config, profile string) error {
 	if c.PrivValidatorListenAddr != "" || c.P2P.LibP2PEnabled() || c.P2P.ExternalAddress != "" || c.P2P.Seeds != "" || c.P2P.PexReactor || c.P2P.SeedMode || c.P2P.TestFuzz || c.RPC.Unsafe || c.RPC.GRPCListenAddress != "" || c.RPC.PprofListenAddress != "" || c.RPC.TLSCertFile != "" || c.RPC.TLSKeyFile != "" || c.Instrumentation.Prometheus {
 		return errors.New("PQC engine forbids remote signer, libp2p, discovery, fuzzing, unsafe RPC and extra listeners")
 	}
+	// The application's admission queue binds to each committed head and is
+	// rebuilt from rechecks, so the engine keeps its flood mempool with recheck
+	// on (E04 gap 6). Capacity values stay operator settings (D06-Q02).
+	if c.Mempool.Type != cfg.MempoolTypeFlood || !c.Mempool.Recheck {
+		return errors.New("PQC engine requires the flood mempool with recheck")
+	}
 	// State sync takes the operator's light blocks, verified from the
 	// configured trusted height (Dytallix state sync v1, rule 5). Only the
 	// PQC-only build refuses RPC light-client servers in ValidateBasic below.
@@ -331,6 +337,10 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 	lower := strings.ToLower(genesis.ChainID)
 	if genesis.ChainID == "" || len(genesis.ChainID) > 64 || (!candidate && (strings.Contains(lower, "mainnet") || strings.Contains(lower, "production"))) || genesis.InitialHeight != 1 || len(genesis.Validators) < 1 || len(genesis.Validators) > MaxPeers {
 		return nil, errors.New("bounded genesis with the selected profile is required")
+	}
+	// A transaction larger than a block can never be included.
+	if int64(c.Mempool.MaxTxBytes) > genesis.ConsensusParams.Block.MaxBytes {
+		return nil, errors.New("mempool max_tx_bytes exceeds the genesis block size")
 	}
 	if len(genesis.ConsensusParams.Validator.PubKeyTypes) != 1 || genesis.ConsensusParams.Validator.PubKeyTypes[0] != mldsa65.KeyType {
 		return nil, errors.New("genesis must select only ML-DSA-65 validator keys")

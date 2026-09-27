@@ -30,6 +30,7 @@ fn ordinary(id: u8, nonce: u64) -> ReservationRequest {
         unrestricted_debits: vec![],
         wire_bytes: 100,
         signature_work: 2,
+        envelope_digest: [id; 32],
     }
 }
 fn sponsor(id: u8, nonce: u64) -> ReservationRequest {
@@ -135,12 +136,24 @@ fn exact_intent_deduplicates_and_conflicting_body_requires_explicit_eviction() {
     let o = ordinary(1, 0);
     l.reserve(&o, &liquid(20, 0)).unwrap();
     let before = l.clone();
-    // Signature envelope bytes are intentionally absent from request identity.
+    // The same signed envelope is already reserved.
     assert_eq!(
         l.reserve(&o, &liquid(0, 0)),
         Ok(ReservationStatus::AlreadyReserved)
     );
     assert_eq!(l, before); // This duplicate does not claim revalidation.
+    // A re-signed copy of the same intent is refused, so byte-distinct
+    // copies cannot fill the mempool with one reserved intent (E04 gap 6).
+    let resigned = ReservationRequest {
+        envelope_digest: [9; 32],
+        ..o.clone()
+    };
+    reject_unchanged(
+        &mut l,
+        &resigned,
+        &liquid(20, 0),
+        ReservationError::IdentityMismatch,
+    );
     reject_unchanged(
         &mut l,
         &ordinary(2, 0),

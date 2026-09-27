@@ -568,6 +568,7 @@ pub(crate) fn reservation_request(
         unrestricted_debits: expected_debits(verified, state, false, profile.account_creation_fee_udrt),
         wire_bytes: wire_bytes as u64,
         signature_work: 1 + proofs,
+        envelope_digest: verified.envelope_hash(),
     })
 }
 /// Rejected requests create no plan. Internal, BlockCapacity and
