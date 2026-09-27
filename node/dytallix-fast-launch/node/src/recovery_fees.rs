@@ -62,9 +62,10 @@ fn canonical<T: Serialize + DeserializeOwned>(bytes: &[u8], what: &str) -> Resul
     );
     Ok(value)
 }
-// Implementation bound for the isolated local profile. No pruning is authorized.
-// The book is stored per entry and read per account, so neither its bytes nor
-// its accounts are capped; the account creation fee bounds growth (B1c).
+// Implementation bound on retained sponsor receipts for the isolated local
+// profile. A receipt is pruned once its operation can no longer be submitted
+// (B1d). The book is stored per entry and read per account, so neither its
+// bytes nor its accounts are capped; the account creation fee bounds growth.
 const MAX_RECEIPTS: usize = 65536;
 const UNINITIALIZED_TARGET: &str = "Recovery target has no recovery record: unknown, or not \
 yet initialized by its first ordinary transaction";
@@ -88,6 +89,11 @@ pub struct SponsorReceipt {
     pub target_account_id: [u8; 32],
     pub block_height: u64,
     pub block_index: u32,
+    /// The operation's submission expiry. After it the operation cannot be
+    /// submitted again, so the receipt and its success entry are pruned at
+    /// this height (B1d); the sponsor nonce alone rejects a replayed
+    /// sponsorship.
+    pub retained_until: u64,
     pub success: bool,
     pub profile_version: u64,
     pub profile_digest: [u8; 32],
@@ -308,17 +314,8 @@ impl RecoveryBook {
                 "Success index mismatch"
             );
         }
-        // All sponsorship history is retained. Gaps cannot be silently accepted.
-        let mut counts: BTreeMap<&str, u64> = BTreeMap::new();
-        for (sponsor, _) in &counters {
-            *counts.entry(sponsor.as_str()).or_default() += 1;
-        }
-        for (id, account) in accounts {
-            ensure!(
-                counts.get(id.as_str()).copied().unwrap_or(0) == account.sponsor_nonce,
-                "Sponsor history does not cover its counter"
-            );
-        }
+        // Pruned receipts leave gaps below each sponsor's counter; retained
+        // counters are distinct and below it (`check_receipt`).
         Ok(())
     }
     /// Rules for one account record on its own.
@@ -368,6 +365,20 @@ impl RecoveryBook {
             self.sponsor_receipts.len() <= MAX_RECEIPTS,
             "Recovery receipt capacity exceeded"
         );
+        ensure!(
+            self.sponsor_receipts
+                .values()
+                .all(|r| r.retained_until > self.last_height),
+            "Recovery receipt outlived its operation's submission window"
+        );
+        ensure!(
+            self.operation_success.iter().all(|(operation, id)| {
+                self.sponsor_receipts
+                    .get(id)
+                    .is_some_and(|r| r.success && *operation == hex::encode(r.operation_id))
+            }),
+            "Success index mismatch"
+        );
         let chain = self.chain()?;
         for (id, account) in self.accounts.overlay() {
             self.check_account(id, account, &chain)?;
@@ -395,6 +406,25 @@ impl RecoveryBook {
         );
         self.check_capacity(&expected)
     }
+    /// Drop receipts whose operation's submission window has closed at
+    /// `height`, with their success entries (B1d). Retained receipts are
+    /// bounded and windowed, so this scans them in memory.
+    fn prune_receipts(&mut self, height: u64) {
+        let expired: Vec<String> = self
+            .sponsor_receipts
+            .iter()
+            .filter(|(_, receipt)| receipt.retained_until <= height)
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in expired {
+            if let Some(receipt) = self.sponsor_receipts.remove(&id) {
+                let operation = hex::encode(receipt.operation_id);
+                if self.operation_success.get(&operation) == Some(&id) {
+                    self.operation_success.remove(&operation);
+                }
+            }
+        }
+    }
     /// Checks on one receipt that do not compare it with other receipts.
     /// `sponsor_nonce` and `success_entry` are the sponsor's counter and the
     /// operation's success-index entry in the book that holds the receipt.
@@ -414,6 +444,11 @@ impl RecoveryBook {
         ensure!(
             receipt.block_height > 0 && receipt.block_height <= self.last_height,
             "Invalid receipt block position"
+        );
+        ensure!(
+            receipt.block_height < receipt.retained_until
+                && receipt.retained_until > self.last_height,
+            "Recovery receipt outlived its operation's submission window"
         );
         ensure!(
             receipt.profile_version == self.profile.version
@@ -921,6 +956,7 @@ impl RecoveryBook {
                 account.recovery = account.recovery.advance_height(height)?;
             }
             book.last_height = height;
+            book.prune_receipts(height);
             book.expiry_index = book.expected_expiries()?;
             book.validate()?;
             book
@@ -931,6 +967,7 @@ impl RecoveryBook {
             book.accounts = self.accounts.staged_at(height)?;
             book.origins = self.origins.staged_at(height)?;
             book.last_height = height;
+            book.prune_receipts(height);
             for account in book.accounts.overlay_values_mut() {
                 account.recovery = account.recovery.advance_height(height)?;
             }
@@ -1440,6 +1477,7 @@ impl RecoveryBlock {
             target_account_id: a.domain.account_id,
             block_height: height,
             block_index: index,
+            retained_until: signed.recovery.operation.action.submission_expiry,
             success,
             profile_version: p.version,
             profile_digest: wire::profile_digest(&p)?,

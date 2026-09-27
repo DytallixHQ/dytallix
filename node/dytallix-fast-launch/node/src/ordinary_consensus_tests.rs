@@ -3538,3 +3538,34 @@ fn block_account_reads_do_not_grow_with_initialized_accounts() {
     assert_eq!(book(&app).accounts.len(), 15);
     assert_eq!(send_block(&mut app, height), first);
 }
+
+#[test]
+fn sponsor_receipts_are_pruned_after_their_operation_expires_and_history_still_verifies() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let raw = wire(&fixture.sponsored(fixture.enroll(), 0, GAS_LIMIT));
+    let result = commit(&mut app, 1, vec![raw.clone()]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let committed = book(&app);
+    let (id, receipt) = committed.sponsor_receipts.iter().next().unwrap();
+    let (id, expiry) = (id.clone(), receipt.retained_until);
+    assert_eq!(expiry, fixture.enroll().operation.action.submission_expiry);
+    assert!(committed.operation_success.values().any(|entry| *entry == id));
+    for height in 2..expiry {
+        commit(&mut app, height, vec![]);
+    }
+    assert!(book(&app).sponsor_receipts.contains_key(&id));
+    // At the operation's expiry the receipt and its success entry are
+    // pruned; a replay is rejected by expiry and by the sponsor nonce.
+    let result = commit(&mut app, expiry, vec![raw]);
+    assert_ne!(result.tx_results[0].code, 0);
+    let pruned = book(&app);
+    assert!(pruned.sponsor_receipts.is_empty() && pruned.operation_success.is_empty());
+    assert_eq!(pruned.accounts[&hex::encode(fixture.payer.id())].sponsor_nonce, 1);
+    assert!(current(&app, &fixture.active).policy.is_some());
+    // The complete history check accepts the pruned receipt after a restart.
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+}
