@@ -50,6 +50,7 @@ fn profile() -> FeeProfile {
         signature_costs: BTreeMap::from([("mldsa65".into(), 3)]),
         validator_proof_profile_digest: [4; 32],
         validator_proof_costs: BTreeMap::from([("mldsa65".into(), 4)]),
+        account_creation_fee_udrt: 1_000,
     }
 }
 fn shared(p: &FeeProfile) -> SharedBlockMeter {

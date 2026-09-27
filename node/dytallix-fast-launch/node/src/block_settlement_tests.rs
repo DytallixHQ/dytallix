@@ -137,7 +137,8 @@ fn supply_requires_complete_supported_records_and_exact_encoding() {
     let before = f.data();
     for (key, value) in [
         ("supply:drt_genesis", vec![0; 15]),
-        ("supply:drt_burned", bincode::serialize(&0u128).unwrap()),
+        ("supply:drt_burned", vec![0; 15]),
+        ("supply:unsupported", bincode::serialize(&0u128).unwrap()),
         ("genesis:monetary:v1", vec![1]),
         ("emission:pool:unknown", bincode::serialize(&0u128).unwrap()),
         (

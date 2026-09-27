@@ -17,6 +17,8 @@ use serde::Serialize;
 use std::collections::BTreeMap;
 
 pub const DRT_GENESIS_KEY: &str = "supply:drt_genesis";
+/// Cumulative uDRT burned (account creation fees). Absent means zero.
+pub const DRT_BURNED_KEY: &str = "supply:drt_burned";
 const EMITTED: &str = "emission:circulating_supply";
 const POOLS: [&str; 4] = [
     "block_rewards",
@@ -159,6 +161,7 @@ pub struct DrtSupply {
     pub height: u64,
     pub genesis: u128,
     pub emitted: u128,
+    pub burned: u128,
     pub total: u128,
     pub liquid: u128,
     pub withheld_fees: u128,
@@ -175,7 +178,7 @@ impl DrtSupply {
             height: self.height,
             genesis: self.genesis.to_string(),
             emitted: self.emitted.to_string(),
-            burned: "0",
+            burned: self.burned.to_string(),
             total: self.total.to_string(),
             liquid: self.liquid.to_string(),
             withheld_fees: self.withheld_fees.to_string(),
@@ -196,7 +199,7 @@ pub struct SupplyResponse {
     pub height: u64,
     pub genesis: String,
     pub emitted: String,
-    pub burned: &'static str,
+    pub burned: String,
     pub total: String,
     pub liquid: String,
     pub withheld_fees: String,
@@ -268,9 +271,10 @@ const RELEVANT_PREFIXES: [&[u8]; 11] = [
     b"acct:balances:",
     b"emission:pool:",
 ];
-fn relevant_keys() -> [&'static [u8]; 6] {
+fn relevant_keys() -> [&'static [u8]; 7] {
     [
         DRT_GENESIS_KEY.as_bytes(),
+        DRT_BURNED_KEY.as_bytes(),
         EMITTED.as_bytes(),
         FEE_KEY.as_bytes(),
         b"genesis:monetary:v1",
@@ -350,9 +354,12 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         height > 0 || emitted == 0,
         "Emission exists before the first block"
     );
+    let burned = read(DRT_BURNED_KEY, false)?;
     let total = genesis
         .checked_add(emitted)
-        .context("Total DRT supply exceeds u128")?;
+        .context("Total DRT supply exceeds u128")?
+        .checked_sub(burned)
+        .context("Burned DRT exceeds issued supply")?;
     let withheld_fees = read(FEE_KEY, false)?;
     let issued = read(DGT_MINTED_KEY, true)?;
     ensure!(
@@ -494,6 +501,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         ensure!(
             !key.starts_with(b"supply:")
                 || key == DRT_GENESIS_KEY.as_bytes()
+                || key == DRT_BURNED_KEY.as_bytes()
                 || key == DGT_MINTED_KEY.as_bytes(),
             "Unsupported native supply record; accounting migration required"
         );
@@ -573,7 +581,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         .context("DRT custody sum exceeds u128")?;
     ensure!(
         held == total,
-        "DRT conservation failed: custody differs from genesis plus emission"
+        "DRT conservation failed: custody differs from genesis plus emission minus burns"
     );
     for name in allowed_pools {
         pools.entry((*name).into()).or_insert(0);
@@ -698,6 +706,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             height,
             genesis,
             emitted,
+            burned,
             total,
             liquid,
             withheld_fees,
@@ -898,6 +907,39 @@ mod reward_v2_tests {
     }
     fn put_amount(writes: &mut Writes, key: &str, value: u128) {
         writes.insert(key.as_bytes().to_vec(), bincode::serialize(&value).unwrap());
+    }
+    #[test]
+    fn burned_drt_reduces_total_supply_and_keeps_conservation() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut storage = Storage::open(dir.path().join("db")).unwrap();
+        crate::genesis::initialize(
+            &mut storage,
+            "burn-test",
+            Some(
+                br#"{"chain_id":"burn-test",
+                    "accounts":[{"address":"alice","balances":{"udrt":"1000"}}]}"#,
+            ),
+        )
+        .unwrap();
+        let storage = std::sync::Arc::new(storage);
+        let mut settlement = crate::settlement::Settlement::new(storage.clone());
+        settlement.burn("alice", 100).unwrap();
+        let writes = settlement.writes().unwrap();
+        let supply = validate_native(&storage, &writes).unwrap();
+        assert_eq!(
+            (supply.drt.genesis, supply.drt.burned, supply.drt.total, supply.drt.liquid),
+            (1000, 100, 900, 900)
+        );
+        assert_eq!(supply.drt.response().burned, "100");
+        // A burn counter without the matching debit breaks conservation.
+        let mut counter_only = Writes::new();
+        put_amount(&mut counter_only, DRT_BURNED_KEY, 100);
+        assert!(validate_native(&storage, &counter_only).is_err());
+        // More than was ever issued cannot be burned.
+        put_amount(&mut counter_only, DRT_BURNED_KEY, 1001);
+        assert!(validate_native(&storage, &counter_only).is_err());
+        // A burn cannot overdraw the payer.
+        assert!(settlement.burn("alice", 901).is_err());
     }
     #[test]
     fn governance_supply_state_is_bound_to_chain_and_height() {

@@ -539,6 +539,7 @@ fn ordinary_shared_profile() -> dytallix_protocol_types::ordinary_fees::FeeProfi
         signature_costs: BTreeMap::from([("mldsa65".into(), 3)]),
         validator_proof_profile_digest: [9; 32],
         validator_proof_costs: BTreeMap::from([("mldsa65".into(), 11)]),
+        account_creation_fee_udrt: 1_000,
     }
 }
 fn recovery_shared_meter(
@@ -718,5 +719,19 @@ fn checkpoint_rollback_restores_listed_entries_and_detects_others() {
     let mut book = original.clone();
     let checkpoint = book.checkpoint(&[], &[], &[]);
     book.operation_success.insert("extra".into(), "receipt".into());
+    assert!(book.rollback(checkpoint).is_err());
+}
+#[test]
+fn origins_must_belong_to_accounts_and_are_covered_by_rollback() {
+    let mut book = RecoveryBook::new(profile(), vec![account(1), account(2)]).unwrap();
+    let key = account(1).recovery.active_key.clone();
+    book.origins.insert(hex::encode([1; 32]), key.clone());
+    book.validate().unwrap();
+    book.origins.insert(hex::encode([9; 32]), key.clone());
+    assert!(book.validate().is_err());
+    book.origins.remove(&hex::encode([9; 32]));
+
+    let checkpoint = book.checkpoint(&[], &[], &[]);
+    book.origins.insert(hex::encode([2; 32]), key);
     assert!(book.rollback(checkpoint).is_err());
 }

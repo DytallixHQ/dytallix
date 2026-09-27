@@ -17,7 +17,7 @@ fn independent_profile_vector_and_all_field_mutations_match_exact_bytes() {
     let data = vectors();
     let original = profile();
     let bytes = hex::decode(data["expected_profile_hex"].as_str().unwrap()).unwrap();
-    assert_eq!(bytes.len(), 347);
+    assert_eq!(bytes.len(), 363);
     assert_eq!(profile_bytes(&original).unwrap(), bytes);
     assert_eq!(
         hex::encode(profile_digest(&original).unwrap()),
@@ -25,7 +25,7 @@ fn independent_profile_vector_and_all_field_mutations_match_exact_bytes() {
     );
     assert_eq!(decode_profile(&bytes).unwrap(), original);
     assert_eq!(serde_json::to_value(&original).unwrap(), data["profile"]);
-    assert_eq!(data["mutations"].as_array().unwrap().len(), 38);
+    assert_eq!(data["mutations"].as_array().unwrap().len(), 39);
     for case in data["mutations"].as_array().unwrap() {
         let pointer = case["pointer"].as_str().unwrap();
         let mut json = data["profile"].clone();
@@ -49,12 +49,18 @@ fn independent_profile_vector_and_all_field_mutations_match_exact_bytes() {
 #[test]
 fn format_contract_denomination_and_exact_algorithm_codes_reject_aliases() {
     let original = profile_bytes(&profile()).unwrap();
+    // Format 1 (without the account creation fee) is retired.
+    for format in [0u16, 1, 3, u16::MAX] {
+        let mut bytes = original.clone();
+        let start = PROFILE_PREFIX.len();
+        bytes[start..start + 2].copy_from_slice(&format.to_be_bytes());
+        assert!(decode_profile(&bytes).is_err());
+    }
     for value in [0u16, 2, u16::MAX] {
-        for start in [PROFILE_PREFIX.len(), PROFILE_PREFIX.len() + 2] {
-            let mut bytes = original.clone();
-            bytes[start..start + 2].copy_from_slice(&value.to_be_bytes());
-            assert!(decode_profile(&bytes).is_err());
-        }
+        let mut bytes = original.clone();
+        let start = PROFILE_PREFIX.len() + 2;
+        bytes[start..start + 2].copy_from_slice(&value.to_be_bytes());
+        assert!(decode_profile(&bytes).is_err());
         let mut p = profile();
         p.ordinary_fee_contract_version = value;
         assert!(p.validate().is_err());
@@ -306,4 +312,18 @@ fn duplicate_client_cost_entries_do_not_override_an_explicit_price() {
         assert_ne!(changed, original);
         assert!(serde_json::from_str::<FeeProfile>(&changed).is_err());
     }
+}
+#[test]
+fn account_creation_fee_is_explicit_positive_and_bound_to_the_digest() {
+    let mut p = profile();
+    assert_eq!(p.account_creation_fee_udrt, 2500);
+    let digest = profile_digest(&p).unwrap();
+    p.account_creation_fee_udrt = 2501;
+    assert_ne!(profile_digest(&p).unwrap(), digest);
+    p.account_creation_fee_udrt = 0;
+    assert!(p.validate().is_err());
+    assert!(profile_bytes(&p).is_err());
+    let mut json = vectors()["profile"].clone();
+    json.as_object_mut().unwrap().remove("account_creation_fee_udrt");
+    assert!(serde_json::from_value::<FeeProfile>(json).is_err());
 }

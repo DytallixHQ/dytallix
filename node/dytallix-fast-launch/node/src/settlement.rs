@@ -85,6 +85,8 @@ pub(crate) struct Settlement {
     pub(crate) accounts: BTreeMap<String, AccountState>,
     switches: BTreeMap<String, DeadManSwitchConfig>,
     pub(crate) fee_total: Option<u128>,
+    /// Staged cumulative burned uDRT (`supply:drt_burned`); None if unchanged.
+    pub(crate) burned_total: Option<u128>,
     pub(crate) lifecycle: BTreeMap<Vec<u8>, Vec<u8>>,
     pub(crate) rewards: Option<RewardState>,
     pub(crate) reward_timestamp: Option<u64>,
@@ -99,6 +101,7 @@ impl Settlement {
             accounts: BTreeMap::new(),
             switches: BTreeMap::new(),
             fee_total: None,
+            burned_total: None,
             lifecycle: BTreeMap::new(),
             rewards: None,
             reward_timestamp: None,
@@ -732,6 +735,27 @@ impl Settlement {
                 .context("Missing staged reward timestamp")?,
         )
     }
+    pub(crate) fn burned_total(&self) -> Result<u128> {
+        match self.burned_total {
+            Some(total) => Ok(total),
+            None => Ok(read::<u128>(&self.storage, crate::supply::DRT_BURNED_KEY)?.unwrap_or(0)),
+        }
+    }
+    /// Remove `amount` uDRT from `address` and from total supply.
+    pub(crate) fn burn(&mut self, address: &str, amount: u128) -> Result<()> {
+        let total = self
+            .burned_total()?
+            .checked_add(amount)
+            .context("Burned DRT total exceeds u128")?;
+        let account = self.account(address)?;
+        let balance = account
+            .balance_of("udrt")
+            .checked_sub(amount)
+            .ok_or_else(|| violation("Insufficient balance for burned fee"))?;
+        account.set_balance("udrt", balance);
+        self.burned_total = Some(total);
+        Ok(())
+    }
     pub(crate) fn ordinary_fee_total(&self) -> Result<u128> {
         match self.fee_total {
             Some(total) => Ok(total),
@@ -926,6 +950,12 @@ impl Settlement {
         }
         if let Some(total) = self.fee_total {
             writes.insert(FEE_KEY.as_bytes().to_vec(), bincode::serialize(&total)?);
+        }
+        if let Some(total) = self.burned_total {
+            writes.insert(
+                crate::supply::DRT_BURNED_KEY.as_bytes().to_vec(),
+                bincode::serialize(&total)?,
+            );
         }
         Ok(writes)
     }

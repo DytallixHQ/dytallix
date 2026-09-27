@@ -66,7 +66,7 @@ fn fixture() -> Fixture {
         processing_margin_blocks: 2,
         processing_margin_seconds: 2,
     };
-    let book = RecoveryBook::new(
+    let mut book = RecoveryBook::new(
         recovery_sponsor::FeeProfile {
             version: 1,
             activation_height: 1,
@@ -91,6 +91,7 @@ fn fixture() -> Fixture {
         accounts,
     )
     .unwrap();
+    book.origins = origins;
     let vectors: serde_json::Value = serde_json::from_str(include_str!(
         "../../../crates/protocol-types/tests/fixtures/ordinary_fee_v1_vectors.json"
     ))
@@ -101,7 +102,9 @@ fn fixture() -> Fixture {
     let config = OrdinaryConfig {
         version: 1,
         fee_profile,
-        origins,
+        account_template: AccountTemplate {
+            recovery: book.accounts.values().next().unwrap().recovery.config.clone(),
+        },
         initial_grants: BTreeMap::new(),
         max_state_bytes: 4_000_000,
         max_grants: 2,
@@ -166,16 +169,16 @@ fn fresh_state_roundtrip_preserves_explicit_origins_and_current_authority() {
         f.book.accounts[&original_id].recovery.domain.account_id,
         hex::decode(&original_id).unwrap().as_slice()
     );
-    let mut changed = f.config.clone();
+    let mut changed = f.book.clone();
     changed.origins.get_mut(&original_id).unwrap().public_key[0] ^= 1;
-    assert!(changed.validate(&f.lifecycle, &f.book).is_err());
+    assert!(f.config.validate(&f.lifecycle, &changed).is_err());
 }
 #[test]
 fn genesis_requires_exact_origins_nonce_mirrors_and_fresh_state() {
     let f = fixture();
-    let mut missing = f.config.clone();
+    let mut missing = f.book.clone();
     missing.origins.pop_first();
-    assert!(OrdinaryState::genesis(missing, &f.lifecycle, &f.book, &f.nonces).is_err());
+    assert!(OrdinaryState::genesis(f.config.clone(), &f.lifecycle, &missing, &f.nonces).is_err());
     let mut missing = f.nonces.clone();
     missing.pop_first();
     assert!(OrdinaryState::genesis(f.config.clone(), &f.lifecycle, &f.book, &missing).is_err());
@@ -416,6 +419,13 @@ fn combined_profile_rejects_reachable_replacement_algorithms_outside_ordinary_ro
         account.recovery.config.algorithms.remove("mldsa87");
     }
     f.book.validate().unwrap();
+    // The account template is another reachable path and must narrow too.
+    assert!(OrdinaryState::genesis(f.config.clone(), &f.lifecycle, &f.book, &f.nonces).is_err());
+    f.config
+        .account_template
+        .recovery
+        .algorithms
+        .remove("mldsa87");
     let state = OrdinaryState::genesis(f.config.clone(), &f.lifecycle, &f.book, &f.nonces).unwrap();
     let bytes = state.encode().unwrap();
     assert_eq!(
@@ -433,4 +443,22 @@ fn combined_profile_rejects_reachable_replacement_algorithms_outside_ordinary_ro
         .algorithms
         .insert("mldsa87".into(), 2592);
     assert!(OrdinaryState::decode(&bytes, &f.config, &f.lifecycle, &f.book, &f.nonces).is_err());
+}
+#[test]
+fn account_template_is_validated_against_both_account_roles_and_mainnet() {
+    let f = fixture();
+    f.config.validate(&f.lifecycle, &f.book).unwrap();
+    let mut zero = f.config.clone();
+    zero.account_template.recovery.recovery_delay = 0;
+    assert!(zero.validate(&f.lifecycle, &f.book).is_err());
+    let mut unknown = f.config.clone();
+    unknown.account_template.recovery.algorithms.insert("falcon1024".into(), 1793);
+    assert!(unknown.validate(&f.lifecycle, &f.book).is_err());
+    let mut wrong_length = f.config.clone();
+    wrong_length
+        .account_template
+        .recovery
+        .algorithms
+        .insert("mldsa65".into(), 1951);
+    assert!(wrong_length.validate(&f.lifecycle, &f.book).is_err());
 }

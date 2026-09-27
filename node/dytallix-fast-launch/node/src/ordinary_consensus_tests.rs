@@ -172,15 +172,19 @@ impl Fixture {
                 "evidence_max_age_blocks":3,"evidence_max_age_seconds":3,
                 "processing_margin_blocks":1,"processing_margin_seconds":1}
         })).unwrap();
-        config.recovery = Some(RecoveryBook::new(profile, accounts).unwrap());
+        let mut book = RecoveryBook::new(profile, accounts).unwrap();
+        book.origins = [&active, &payer, &secondary]
+            .into_iter()
+            .map(|k| (hex::encode(k.id()), k.identity.clone()))
+            .collect();
+        config.recovery = Some(book);
         let fee_profile = ordinary_profile(&config);
         config.ordinary = Some(OrdinaryConfig {
             version: 1,
             fee_profile,
-            origins: [&active, &payer, &secondary]
-                .into_iter()
-                .map(|k| (hex::encode(k.id()), k.identity.clone()))
-                .collect(),
+            account_template: crate::ordinary_state::AccountTemplate {
+                recovery: recovery_config.clone(),
+            },
             initial_grants: BTreeMap::new(),
             max_state_bytes: 4_000_000,
             max_grants: 16,
@@ -445,6 +449,7 @@ fn ordinary_profile(config: &ConsensusConfig) -> OrdinaryFeeProfile {
         )
         .unwrap(),
         validator_proof_costs: BTreeMap::from([("mldsa65".into(), 4)]),
+        account_creation_fee_udrt: 1_000,
     }
 }
 impl Fixture {
@@ -2258,7 +2263,7 @@ fn combined_genesis_rejects_reward_principal_without_registered_stable_owner() {
         .contains_key(&hex::encode(orphan.id())));
     assert!(!fixture
         .config
-        .ordinary
+        .recovery
         .as_ref()
         .unwrap()
         .origins
@@ -2304,7 +2309,7 @@ fn signed_operator_exit_cannot_release_protected_delegator_principal_or_charge_f
         .remove(&hex::encode(fixture.payer.id()));
     fixture
         .config
-        .ordinary
+        .recovery
         .as_mut()
         .unwrap()
         .origins
@@ -3002,4 +3007,32 @@ fn outside_write_to_an_untouched_mirror_is_caught_by_the_complete_check() {
         format!("{error:#}").contains("nonce"),
         "unexpected error: {error:#}"
     );
+}
+
+#[test]
+fn origins_are_stored_per_account_and_not_in_the_ordinary_state() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let stored = book(&app);
+    assert_eq!(stored.origins.len(), 3);
+    assert_eq!(stored.origins, fixture.config.recovery.as_ref().unwrap().origins);
+    let key = format!("recovery:v2:origin:{}", hex::encode(fixture.active.id()));
+    let raw = app.storage.db.get(&key).unwrap().expect("per-account origin entry");
+    assert_eq!(
+        serde_json::from_slice::<KeyIdentity>(&raw).unwrap(),
+        fixture.active.identity
+    );
+    let state = app.storage.db.get(ORDINARY_STATE_KEY).unwrap().unwrap();
+    assert!(!String::from_utf8(state).unwrap().contains("origins"));
+
+    // An origin that differs from the committed configuration is rejected.
+    let mut changed = fixture.active.identity.clone();
+    changed.public_key[0] ^= 1;
+    app.storage
+        .db
+        .put(&key, serde_json::to_vec(&changed).unwrap())
+        .unwrap();
+    let error = app.finalize_block(block(1, vec![])).unwrap_err();
+    assert!(format!("{error:#}").contains("origins differ"), "{error:#}");
 }
