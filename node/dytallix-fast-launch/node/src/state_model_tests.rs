@@ -24,11 +24,7 @@ fn full_scan_state_digest(storage: &Storage, writes: &Writes, governance_enabled
             values.insert(k.clone(), v.clone());
         }
     }
-    digest(
-        b"dytallix-cometbft-state-v1",
-        &values.iter().collect::<Vec<_>>(),
-    )
-    .unwrap()
+    hex::encode(crate::state_tree::rebuilt_root(values).unwrap())
 }
 
 /// The Inputs fixture uses two-block epochs and at most eight recorded epochs,
@@ -68,7 +64,7 @@ fn prefix_state_digest_matches_full_scan_digest() {
     writes.insert(MODE_KEY.as_bytes().to_vec(), b"3".to_vec());
     for writes in [Writes::new(), writes] {
         assert_eq!(
-            state_digest(&app.storage, &writes, false).unwrap(),
+            reference_state_digest(&app.storage, &writes, false).unwrap(),
             full_scan_state_digest(&app.storage, &writes, false)
         );
     }
@@ -89,10 +85,30 @@ fn state_digest_reads_only_state_keys() {
         }
     }
     let before = digest_reads();
-    state_digest(&app.storage, &Writes::new(), false).unwrap();
+    reference_state_digest(&app.storage, &Writes::new(), false).unwrap();
     assert_eq!(digest_reads() - before, prefixed_state_keys);
     // Block records alone exceed the state keys this digest reads.
     assert!(all_keys >= prefixed_state_keys + 16);
+}
+
+/// Phase B: committing a block reads the state tree along its changed paths,
+/// not the committed entries, so block cost does not grow with state.
+#[test]
+fn committed_blocks_read_no_state_entries_for_the_digest() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = committed_chain(&inputs, &dir.path().join("db"), 2);
+    let before = digest_reads();
+    for height in 3..=12 {
+        commit_next(&mut app, height);
+    }
+    assert_eq!(digest_reads() - before, 0);
+    // The committed root still equals a rebuild from every entry.
+    let head = read_head(&app.storage).unwrap().unwrap();
+    assert_eq!(
+        head.state_digest,
+        reference_state_digest(&app.storage, &Writes::new(), false).unwrap()
+    );
 }
 
 #[test]
@@ -165,11 +181,11 @@ fn staged_deletions_match_physically_deleted_state() {
         .iter()
         .map(|k| k.as_bytes().to_vec())
         .collect();
-    let staged = state_digest_with(&app.storage, &Writes::new(), &deleted, false).unwrap();
+    let staged = reference_state_digest_with(&app.storage, &Writes::new(), &deleted, false).unwrap();
     for key in &deleted {
         app.storage.db.delete(key).unwrap();
     }
-    assert_eq!(staged, state_digest(&app.storage, &Writes::new(), false).unwrap());
+    assert_eq!(staged, reference_state_digest(&app.storage, &Writes::new(), false).unwrap());
 }
 
 #[test]
@@ -180,7 +196,7 @@ fn a_block_cannot_write_and_delete_the_same_key() {
     let key = b"acct:overlap".to_vec();
     let writes = Writes::from([(key.clone(), b"1".to_vec())]);
     let deletes = Deletes::from([key]);
-    assert!(state_digest_with(&app.storage, &writes, &deletes, false).is_err());
+    assert!(reference_state_digest_with(&app.storage, &writes, &deletes, false).is_err());
 }
 
 #[test]

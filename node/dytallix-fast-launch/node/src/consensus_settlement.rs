@@ -812,6 +812,8 @@ pub enum QueryRequest<'a> {
     OrdinaryAccount(&'a str),
     OrdinaryReceipt(&'a str),
     EmergencyReceipt(&'a str),
+    /// A committed state key, lowercase hex, with its proof (phase B).
+    StateProof(&'a str),
 }
 #[cfg(test)]
 thread_local! { static RECOVERY_PASSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
@@ -907,22 +909,14 @@ fn governance_key_permitted(key: &[u8], governance_enabled: bool) -> bool {
     }
     !key.starts_with(b"gov:")
 }
-fn state_digest(storage: &Storage, writes: &Writes, governance_enabled: bool) -> Result<String> {
-    state_digest_with(storage, writes, &Deletes::new(), governance_enabled)
-}
-/// Reads only the committed state keys and the governance prefixes, so the cost
-/// does not grow with block records or transaction indexes. `deletes` removes
-/// stored keys before `writes` apply; the two sets must be disjoint.
-fn state_digest_with(
+/// Every committed consensus state entry, overlaid with `writes`. Refuses
+/// governance keys a configured candidate does not permit. O(state); for
+/// genesis and the complete check only (state model phase B).
+fn committed_entries(
     storage: &Storage,
     writes: &Writes,
-    deletes: &Deletes,
     governance_enabled: bool,
-) -> Result<String> {
-    ensure!(
-        deletes.iter().all(|key| !writes.contains_key(key)),
-        "A block cannot write and delete the same key"
-    );
+) -> Result<BTreeMap<Vec<u8>, Vec<u8>>> {
     // governance_key_permitted rejects keys only under these two prefixes.
     for prefix in [b"gov:".as_slice(), b"governance:"] {
         for item in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
@@ -937,7 +931,11 @@ fn state_digest_with(
         }
     }
     let mut values = BTreeMap::new();
-    for prefix in STATE_PREFIXES {
+    let mut prefixes: Vec<&[u8]> = STATE_PREFIXES.to_vec();
+    if governance_enabled {
+        prefixes.push(governance_store::PREFIX.as_bytes());
+    }
+    for prefix in prefixes {
         for item in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
             let (k, v) = item?;
             if !k.starts_with(prefix) {
@@ -953,19 +951,6 @@ fn state_digest_with(
             values.insert(key.to_vec(), v);
         }
     }
-    if governance_enabled {
-        let prefix = governance_store::PREFIX.as_bytes();
-        for item in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
-            let (k, v) = item?;
-            if !k.starts_with(prefix) {
-                break;
-            }
-            values.insert(k.to_vec(), v.to_vec());
-        }
-    }
-    for key in deletes {
-        values.remove(key);
-    }
     for (k, v) in writes {
         ensure!(
             governance_key_permitted(k, governance_enabled),
@@ -975,10 +960,100 @@ fn state_digest_with(
             values.insert(k.clone(), v.clone());
         }
     }
-    digest(
-        b"dytallix-cometbft-state-v1",
-        &values.iter().collect::<Vec<_>>(),
-    )
+    Ok(values)
+}
+/// Test reference: the digest of committed state plus `writes` minus
+/// `deletes`, rebuilt from every entry.
+#[cfg(test)]
+fn reference_state_digest_with(
+    storage: &Storage,
+    writes: &Writes,
+    deletes: &Deletes,
+    governance_enabled: bool,
+) -> Result<String> {
+    ensure!(
+        deletes.iter().all(|key| !writes.contains_key(key)),
+        "A block cannot write and delete the same key"
+    );
+    let mut entries = committed_entries(storage, &Writes::new(), governance_enabled)?;
+    for key in deletes {
+        entries.remove(key);
+    }
+    entries.extend(committed_entries_overlay(writes, governance_enabled)?);
+    Ok(hex::encode(crate::state_tree::rebuilt_root(entries)?))
+}
+#[cfg(test)]
+fn committed_entries_overlay(
+    writes: &Writes,
+    governance_enabled: bool,
+) -> Result<BTreeMap<Vec<u8>, Vec<u8>>> {
+    let mut out = BTreeMap::new();
+    for (k, v) in writes {
+        ensure!(
+            governance_key_permitted(k, governance_enabled),
+            "Governance writes require a configured consensus profile"
+        );
+        if selected(k, governance_enabled) {
+            out.insert(k.clone(), v.clone());
+        }
+    }
+    Ok(out)
+}
+#[cfg(test)]
+fn reference_state_digest(storage: &Storage, writes: &Writes, governance_enabled: bool) -> Result<String> {
+    reference_state_digest_with(storage, writes, &Deletes::new(), governance_enabled)
+}
+/// The committed state digest at `height`: the state tree root, read in O(1).
+fn state_digest(storage: &Storage, height: u64) -> Result<String> {
+    Ok(hex::encode(crate::state_tree::root(storage, height)?))
+}
+/// The state digest after applying a block's `writes` and `deletes` as
+/// `height`, and the tree records to commit with them. Reads only the
+/// changed paths; `deletes` and `writes` must be disjoint.
+fn next_state_digest(
+    storage: &Storage,
+    height: u64,
+    writes: &Writes,
+    deletes: &Deletes,
+    governance_enabled: bool,
+) -> Result<(String, crate::state_tree::Update)> {
+    ensure!(
+        deletes.iter().all(|key| !writes.contains_key(key)),
+        "A block cannot write and delete the same key"
+    );
+    let mut changes = BTreeMap::new();
+    for key in deletes {
+        if selected(key, governance_enabled) {
+            changes.insert(key.clone(), None);
+        }
+    }
+    for (k, v) in writes {
+        ensure!(
+            governance_key_permitted(k, governance_enabled),
+            "Governance writes require a configured consensus profile"
+        );
+        ensure!(
+            !k.starts_with(crate::state_tree::PREFIX),
+            "A block cannot write state tree records directly"
+        );
+        if selected(k, governance_enabled) {
+            changes.insert(k.clone(), Some(v.clone()));
+        }
+    }
+    let update = crate::state_tree::update(storage, height, changes)?;
+    Ok((hex::encode(update.root), update))
+}
+/// The complete check: the committed tree at `height` matches a root rebuilt
+/// from every committed entry, and holds exactly those entries.
+fn verify_state_tree(storage: &Storage, height: u64, governance_enabled: bool) -> Result<String> {
+    let entries = committed_entries(storage, &Writes::new(), governance_enabled)?;
+    let rebuilt = crate::state_tree::rebuilt_root(entries.clone())?;
+    ensure!(
+        rebuilt == crate::state_tree::root(storage, height)?,
+        "Committed state tree root differs from committed state"
+    );
+    crate::state_tree::verify_stored(storage, height, &entries)?;
+    Ok(hex::encode(rebuilt))
 }
 fn app_hash(state: &str, anchor: &Anchor) -> Result<String> {
     digest(b"dytallix-cometbft-app-v1", &(state, anchor))
@@ -1223,10 +1298,16 @@ pub(crate) fn append_genesis_anchor(
             governance_enabled = true;
         }
     }
-    let root = digest(
-        b"dytallix-cometbft-genesis-v1",
-        &state_digest(storage, &capture.writes, governance_enabled)?,
-    )?;
+    // The genesis state tree, version 0, over every genesis state entry.
+    let entries = committed_entries(storage, &capture.writes, governance_enabled)?;
+    let tree = crate::state_tree::update(storage, 0, entries.into_iter().map(|(k, v)| (k, Some(v))))?;
+    for key in &tree.deletes {
+        batch.delete(key);
+    }
+    for (key, value) in &tree.writes {
+        batch.put(key, value);
+    }
+    let root = digest(b"dytallix-cometbft-genesis-v1", &hex::encode(tree.root))?;
     batch.put(GENESIS_SOURCE_KEY, source);
     batch.put(GENESIS_APP_HASH_KEY, root.as_bytes());
     Ok(())
@@ -4946,14 +5027,22 @@ impl ConsensusApplication {
             result_digest: results_digest(&self.config, &results, &validator_updates)?,
             prior_app_hash: expected_info.app_hash.clone(),
         };
-        let next_state_digest =
-            state_digest_with(
-                &self.storage,
-                &writes,
-                &deletes,
-                self.config.governance.is_some(),
-            )?;
+        let (next_state_digest, tree) = next_state_digest(
+            &self.storage,
+            input.height,
+            &writes,
+            &deletes,
+            self.config.governance.is_some(),
+        )?;
         let next_app_hash = app_hash(&next_state_digest, &anchor)?;
+        // State tree records commit atomically with the state they cover.
+        for (key, value) in tree.writes {
+            ensure!(writes.insert(key, value).is_none(), "State tree record already staged");
+        }
+        for key in tree.deletes {
+            ensure!(!writes.contains_key(&key), "State tree record both written and removed");
+            deletes.insert(key);
+        }
         let head = Head {
             anchor,
             state_digest: next_state_digest,
@@ -4961,13 +5050,10 @@ impl ConsensusApplication {
         };
         writes.insert(b"meta:height".to_vec(), input.height.to_be_bytes().to_vec());
         writes.insert(b"meta:best_hash".to_vec(), input.hash.as_bytes().to_vec());
+        let expected_state_digest = state_digest(&self.storage, expected_info.height)?;
         Ok(Prepared {
             expected_info,
-            expected_state_digest: state_digest(
-                &self.storage,
-                &Writes::new(),
-                self.config.governance.is_some(),
-            )?,
+            expected_state_digest,
             writes,
             deletes,
             journal,
@@ -5022,11 +5108,7 @@ impl ConsensusApplication {
         }
         ensure!(
             current == prepared.expected_info
-                && state_digest(
-                    &self.storage,
-                    &Writes::new(),
-                    self.config.governance.is_some()
-                )? == prepared.expected_state_digest,
+                && state_digest(&self.storage, current.height)? == prepared.expected_state_digest,
             "Prepared block predecessor changed"
         );
         let mut batch = WriteBatch::default();
@@ -5119,6 +5201,7 @@ impl ConsensusApplication {
             QueryRequest::OrdinaryAccount(id) => self.query_ordinary_account_validated(id)?,
             QueryRequest::OrdinaryReceipt(id) => self.query_ordinary_receipt_validated(id)?,
             QueryRequest::EmergencyReceipt(id) => self.query_emergency_receipt_validated(id)?,
+            QueryRequest::StateProof(key) => self.query_state_proof_validated(key, info.height)?,
         };
         Ok((info, value))
     }
@@ -5241,6 +5324,51 @@ impl ConsensusApplication {
             )?),
             None => Ok(serde_json::Value::Null),
         }
+    }
+    pub fn query_state_proof(&self, key: &str) -> Result<serde_json::Value> {
+        self.query_at(QueryRequest::StateProof(key), 0)
+            .map(|(_, value)| value)
+    }
+    /// A committed consensus state value with its proof against the state
+    /// root at `height` (state model phase B, approved 27 September 2026).
+    /// A client checks the proof against `state_root`, then recomputes the
+    /// application hash from the root and `anchor` (or, at genesis, from the
+    /// root alone) and compares it with a verified block header.
+    fn query_state_proof_validated(&self, key: &str, height: u64) -> Result<serde_json::Value> {
+        ensure!(
+            !key.is_empty()
+                && key.len() <= 1_024
+                && key.len() % 2 == 0
+                && key
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+            "State proof query requires a lowercase hex key"
+        );
+        let raw = hex::decode(key)?;
+        ensure!(
+            selected(&raw, self.config.governance.is_some()),
+            "Key is not committed consensus state"
+        );
+        let (leaf, proof) = crate::state_tree::prove(&self.storage, height, &raw)?;
+        let value = self.storage.db.get(&raw)?;
+        ensure!(
+            leaf == value.as_deref().map(crate::state_tree::leaf_value),
+            "State tree and committed value differ"
+        );
+        let root = state_digest(&self.storage, height)?;
+        let head = read_head(&self.storage)?;
+        Ok(serde_json::json!({
+            "version": 1,
+            "tree": "jmt-0.12.0/sha3-256",
+            "height": height,
+            "key": key,
+            "value": value.map(|v| B64.encode(v)),
+            "leaf": leaf.map(hex::encode),
+            "state_root": root,
+            "anchor": head.as_ref().map(|h| &h.anchor),
+            "app_hash": current_info(&self.storage)?.app_hash,
+            "proof": proof,
+        }))
     }
     pub fn query(&self) -> Result<serde_json::Value> {
         self.query_at(QueryRequest::Status, 0)
@@ -5863,9 +5991,14 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             }
             previous = Some(record.head.clone());
         }
+        // The per-block check reads the committed root; the complete check
+        // also rebuilds it from every entry and checks the stored tree.
+        let committed = match from {
+            None => verify_state_tree(storage, height, config.governance.is_some())?,
+            Some(_) => state_digest(storage, height)?,
+        };
         ensure!(
-            previous.as_ref() == Some(head)
-                && state_digest(storage, &Writes::new(), config.governance.is_some())? == head.state_digest,
+            previous.as_ref() == Some(head) && committed == head.state_digest,
             "Consensus committed state differs"
         );
     } else {
@@ -5875,12 +6008,12 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                 && block_lifecycle::height(storage, "emission:last_height")? == 0,
             "Unmarked consensus history"
         );
+        let committed = match from {
+            None => verify_state_tree(storage, 0, config.governance.is_some())?,
+            Some(_) => state_digest(storage, 0)?,
+        };
         ensure!(
-            initial_info.app_hash
-                == digest(
-                    b"dytallix-cometbft-genesis-v1",
-                    &state_digest(storage, &Writes::new(), config.governance.is_some())?
-                )?,
+            initial_info.app_hash == digest(b"dytallix-cometbft-genesis-v1", &committed)?,
             "Initial consensus monetary state differs"
         );
         if let Some(best) = storage.db.get("meta:best_hash")? {

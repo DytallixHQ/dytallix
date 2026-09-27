@@ -56,11 +56,25 @@ enum QueryPath<'a> {
     OrdinaryReceipt(&'a str),
     OrdinaryAccount(&'a str),
     EmergencyReceipt(&'a str),
+    StateProof(&'a str),
 }
 fn query_path(path: &str) -> Result<QueryPath<'_>> {
     match path {
         "" | "/status" | "/supply" => Ok(QueryPath::Status),
         "/ordinary/profile" => Ok(QueryPath::OrdinaryProfile),
+        _ if path.starts_with("/state/proof/") => {
+            let key = path.strip_prefix("/state/proof/").unwrap();
+            ensure!(
+                !key.is_empty()
+                    && key.len() <= 1_024
+                    && key.len() % 2 == 0
+                    && key
+                        .bytes()
+                        .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)),
+                "State proof query requires a lowercase hex key"
+            );
+            Ok(QueryPath::StateProof(key))
+        }
         _ if path.starts_with("/emergency/receipt/") => {
             let id = path.strip_prefix("/emergency/receipt/").unwrap();
             ensure!(
@@ -244,6 +258,7 @@ fn handle(
                 QueryPath::OrdinaryReceipt(id) => QueryRequest::OrdinaryReceipt(id),
                 QueryPath::OrdinaryAccount(id) => QueryRequest::OrdinaryAccount(id),
                 QueryPath::EmergencyReceipt(id) => QueryRequest::EmergencyReceipt(id),
+                QueryPath::StateProof(key) => QueryRequest::StateProof(key),
             };
             let (info, value) = app.query_at(request, wanted)?;
             Ok(
@@ -691,6 +706,14 @@ mod transport_tests {
         assert!(query_path(&format!("/ordinary/receipt/{}", "AB".repeat(32))).is_err());
         assert!(query_path(&format!("/ordinary/receipt/{}", "gg".repeat(32))).is_err());
         assert!(query_path(&format!("{path}/extra")).is_err());
+        // State proofs take a lowercase, even-length hex key.
+        assert_eq!(
+            query_path("/state/proof/61636374").unwrap(),
+            QueryPath::StateProof("61636374")
+        );
+        for bad in ["", "abc", "ABCD", "zz", &"a".repeat(1_026)] {
+            assert!(query_path(&format!("/state/proof/{bad}")).is_err());
+        }
     }
     #[test]
     fn emergency_receipt_query_requires_exact_digest() {

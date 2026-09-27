@@ -41,6 +41,7 @@ pub mod consensus_settlement;
 
 pub mod recovery_fees;
 pub mod recovery_store;
+pub(crate) mod state_tree;
 
 pub mod ordinary_authority;
 pub mod ordinary_transport;
