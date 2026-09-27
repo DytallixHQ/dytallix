@@ -152,6 +152,7 @@ ROUTES = [
         "policy": "Unix ABCI and IPC RPC under dytallix_pqc_ipc; HTTP/1 loopback adapter; no TLS",
         "files": [
             "consensus/cometbft/cmd/dytallix-comet-bridge/application.go",
+            "consensus/cometbft/cmd/dytallix-comet-bridge/snapshots.go",
             "consensus/pqc-http-adapter/src/main.rs",
             "deploy/pqc-engine/supervise.py",
         ],

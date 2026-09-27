@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -18,7 +19,10 @@ import (
 const maxValidators = 64
 const maxValidatorUpdates = 2 * maxValidators
 
-type application struct{ child *child }
+type application struct {
+	child     *child
+	snapshots snapshotStore
+}
 
 var _ abci.Application = (*application)(nil)
 
@@ -252,11 +256,18 @@ func (a *application) FinalizeBlock(ctx context.Context, req *abci.RequestFinali
 }
 
 func (a *application) Commit(ctx context.Context, _ *abci.RequestCommit) (*abci.ResponseCommit, error) {
-	var result struct{}
+	// The application reports the start of its retained block window, or zero
+	// when it keeps every block (state sync v1, rule 2).
+	var result struct {
+		RetainHeight *uint64 `json:"retain_height"`
+	}
 	if err := a.child.call(ctx, "commit", struct{}{}, &result); err != nil {
 		return nil, err
 	}
-	return &abci.ResponseCommit{RetainHeight: 0}, nil
+	if result.RetainHeight == nil || *result.RetainHeight > math.MaxInt64 {
+		return nil, errors.New("application commit returned no valid retain height")
+	}
+	return &abci.ResponseCommit{RetainHeight: int64(*result.RetainHeight)}, nil
 }
 
 func (a *application) Query(ctx context.Context, req *abci.RequestQuery) (*abci.ResponseQuery, error) {
@@ -292,14 +303,8 @@ func (*application) ExtendVote(context.Context, *abci.RequestExtendVote) (*abci.
 func (*application) VerifyVoteExtension(context.Context, *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
 	return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, nil
 }
-func (*application) ListSnapshots(context.Context, *abci.RequestListSnapshots) (*abci.ResponseListSnapshots, error) {
-	return &abci.ResponseListSnapshots{}, nil
-}
 func (*application) OfferSnapshot(context.Context, *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
 	return &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}, nil
-}
-func (*application) LoadSnapshotChunk(context.Context, *abci.RequestLoadSnapshotChunk) (*abci.ResponseLoadSnapshotChunk, error) {
-	return &abci.ResponseLoadSnapshotChunk{}, nil
 }
 func (*application) ApplySnapshotChunk(context.Context, *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
 	return &abci.ResponseApplySnapshotChunk{Result: abci.ResponseApplySnapshotChunk_REJECT_SNAPSHOT}, nil

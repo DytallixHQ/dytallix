@@ -98,6 +98,9 @@ impl Fixture {
         Self::with_capacity(8)
     }
     fn with_capacity(max_active: usize) -> Self {
+        Self::build(max_active, 100)
+    }
+    fn build(max_active: usize, epoch_blocks: u64) -> Self {
         let accounts = [Account::new(), Account::new(), Account::new()];
         let keys = [
             ConsensusKey::new(),
@@ -125,7 +128,7 @@ impl Fixture {
             "reward_v2":{"version":2,"activation_height":1,"decimals":6,"profile":"development",
                 "max_validators":8,"max_positions":32,"validators":validators,"positions":positions},
             "adaptive_issuance":{"version":1,"profile":"development","decimals":6,
-                "epoch_blocks":100,"initial_epoch_budget_udrt":"100000","max_recorded_epochs":8,
+                "epoch_blocks":epoch_blocks,"initial_epoch_budget_udrt":"100000","max_recorded_epochs":8,
                 "controller":{"target_ppm":500000,"shock_threshold_ppm":100000,"volatility_threshold_ppm":1000000,
                     "window_samples":2,"integral_min":-2000000,"integral_max":2000000,
                     "soft":{"proportional":0,"integral":0,"derivative":0},
@@ -933,4 +936,60 @@ fn durable_withdrawal_receipt_survives_lost_ack_without_releasing_twice() {
         0
     );
     custody(&app, 100, 0, 0, 0);
+}
+
+/// A block with the epoch observation first at each two-block boundary.
+fn commit_epoch(app: &mut ConsensusApplication, height: u64, facts: Vec<EvidenceFact>) {
+    let parent = input(height - 1, vec![]).hash;
+    let txs = derived_observation_wire(&app.storage, &app.config, 2, height, &parent)
+        .unwrap()
+        .into_iter()
+        .collect();
+    commit_evidence(app, height, facts, txs);
+}
+
+/// State sync v1: under the penalty profile a block record leaves once past
+/// the evidence horizon and the retention floor. A restart replays only the
+/// window: a repeated fact naming a removed block is checked for shape, and
+/// the penalty incident and evidence record of a removed block stay in state.
+#[test]
+fn pruned_penalty_chain_restarts_from_the_window() {
+    let f = Fixture::build(8, 2);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let mut app = f.initialized(&path);
+    for height in 1..=5 {
+        commit_epoch(&mut app, height, vec![]);
+    }
+    let fact = evidence(&f.keys[0], 4, 100, 200);
+    let mut attack = evidence(&f.keys[1], 4, 100, 200);
+    attack.kind = "light_client_attack".into();
+    commit_epoch(&mut app, 6, vec![fact.clone(), attack.clone()]);
+    let incidents = penalties(&app).incidents;
+    assert_eq!(incidents.len(), 1);
+    // The fact again, admitted before the block the window next replays.
+    commit_epoch(&mut app, 7, vec![fact]);
+    for height in 8..=10 {
+        commit_epoch(&mut app, height, vec![]);
+    }
+    assert_eq!(retained_from(&app.storage).unwrap(), 6);
+    drop(app);
+    let mut app = f.open(&path);
+    verify_recovery(&app.storage).unwrap();
+    for height in 11..=30 {
+        commit_epoch(&mut app, height, vec![]);
+    }
+    assert!(app.storage.db.get(record_key(6)).unwrap().is_none());
+    let kept = penalties(&app).incidents;
+    assert_eq!(kept.keys().collect::<Vec<_>>(), incidents.keys().collect::<Vec<_>>());
+    assert!(kept.values().all(|incident| incident.admitted_height == 6));
+    assert_eq!(
+        app.storage
+            .db
+            .get(crate::settlement::evidence_key(6, 0).unwrap())
+            .unwrap(),
+        Some(crate::settlement::encode_evidence(&attack).unwrap())
+    );
+    drop(app);
+    verify_recovery(&f.open(&path).storage).unwrap();
 }

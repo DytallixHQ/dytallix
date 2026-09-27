@@ -2,7 +2,7 @@
 use anyhow::{bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use dytallix_fast_node::consensus_settlement::{
-    ConsensusApplication, ConsensusConfig, FinalizedBlockInput, ValidatorConfig,
+    BlockHistory, ConsensusApplication, ConsensusConfig, FinalizedBlockInput, ValidatorConfig,
 };
 use dytallix_fast_node::runtime::penalty_custody::EvidenceFact;
 use dytallix_fast_node::runtime::validator_lifecycle::LifecycleConfig;
@@ -238,7 +238,7 @@ fn handle(
         "finalize_block" => Ok(serde_json::to_value(app.finalize_block(block(payload)?)?)?),
         "commit" => {
             app.commit()?;
-            Ok(json!({}))
+            Ok(json!({"retain_height": app.retain_height()?}))
         }
         "query" => {
             ensure!(
@@ -328,6 +328,10 @@ fn run() -> Result<()> {
     let mut emergency_verifier_path = None;
     let mut candidate_path = None;
     let mut release_manifest_sha512 = None;
+    let mut block_history = None;
+    let mut snapshot_dir = None;
+    let mut snapshot_interval = None;
+    let mut snapshot_keep = None;
     while let Some(arg) = args.next() {
         let value = args.next().context("Each argument requires a value")?;
         let slot = match arg.as_str() {
@@ -338,6 +342,10 @@ fn run() -> Result<()> {
             "--development-root-config" => &mut development_root_path,
             "--development-emergency-verifier-config" => &mut emergency_verifier_path,
             "--development-candidate-config" => &mut candidate_path,
+            "--block-history" => &mut block_history,
+            "--snapshot-dir" => &mut snapshot_dir,
+            "--snapshot-interval" => &mut snapshot_interval,
+            "--snapshot-keep" => &mut snapshot_keep,
             _ => bail!("Unsupported argument"),
         };
         ensure!(slot.replace(value).is_none(), "Duplicate argument");
@@ -356,6 +364,25 @@ fn run() -> Result<()> {
         "Genesis exceeds local fixture limit"
     );
     let database = db_path.context("--db is required")?;
+    // A local setting: the retained window (default) or every block record.
+    let block_history = match block_history.as_deref() {
+        None | Some("window") => BlockHistory::Window,
+        Some("archive") => BlockHistory::Archive,
+        Some(_) => bail!("--block-history must be window or archive"),
+    };
+    // Snapshots are written only when the operator sets all three values
+    // (E05); there are no defaults.
+    let snapshots = match (snapshot_dir, snapshot_interval, snapshot_keep) {
+        (None, None, None) => None,
+        (Some(dir), Some(interval), Some(keep)) => {
+            Some(dytallix_fast_node::snapshot::SnapshotConfig {
+                dir: dir.into(),
+                interval: interval.parse().context("Invalid --snapshot-interval")?,
+                keep: keep.parse().context("Invalid --snapshot-keep")?,
+            })
+        }
+        _ => bail!("--snapshot-dir, --snapshot-interval and --snapshot-keep go together"),
+    };
     ensure!(
         candidate_path.is_none()
             || (development_root_path.is_some() && emergency_verifier_path.is_some()),
@@ -428,7 +455,11 @@ fn run() -> Result<()> {
         (None, None) => {
             ConsensusApplication::open(std::path::Path::new(&database), config.clone(), genesis)?
         }
-    };
+    }
+    .with_block_history(block_history);
+    if let Some(config) = snapshots {
+        app = app.with_snapshots(config)?;
+    }
     let stdin = std::io::stdin();
     let flags = unsafe { libc::fcntl(stdin.as_raw_fd(), libc::F_GETFL) };
     ensure!(
