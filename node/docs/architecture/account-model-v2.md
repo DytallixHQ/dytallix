@@ -94,6 +94,95 @@ Per-block cost becomes O(accounts touched), not O(all accounts).
 B1a and B1b do not depend on the decision. Genesis accounts keep working
 throughout, so existing fixtures remain valid.
 
+## Touched-account execution (approved, 26 September 2026)
+
+Implicit creation removes the fixed account set, so the ordinary engine must
+stop doing work for every registered account on every transaction. Paths below
+are relative to `dytallix-fast-launch/node/src/`.
+
+### Problem
+
+Each ordinary transaction currently:
+
+- meters three logical records (native account, recovery account, grant) for
+  **every** registered account before acceptance (`meter_records` in
+  `ordinary_execution.rs`). Validation gas therefore grows with the account
+  count. Past a few thousand accounts, every ordinary transaction exceeds its
+  signed gas limit and is rejected;
+- loads every account into the settlement overlay and builds a financial
+  snapshot of all of them (`snapshot`), so every block rewrites every `acct:`
+  key;
+- validates every nonce mirror and every grant twice
+  (`validate_nonce_mirrors`, `validate_grants` in `ordinary_authority.rs`),
+  and each mirror check runs `RecoveryBook::validate`, which is
+  O(accounts × counters);
+- reconciles the receipt against every registered account
+  (`reconcile_receipt`), and resolves the actor and validator principals by
+  linear search.
+
+Recovery transactions and block assembly repeat whole-book work in the same
+way: `sync_recovery_mirrors`, `reconcile_sponsor_charge`, `eligible_liquidity`,
+`recovery_book` and the end-of-block ordinary checks.
+
+### Rule
+
+A transaction reads, meters and validates only the accounts it touches.
+Global invariants over all accounts (every nonce mirror, grant, origin and
+principal) move to the complete history check, which runs at startup and
+after any outside write. Total supply stays in `supply::validate_native`,
+which runs every block.
+
+| Transaction | Touched accounts |
+| --- | --- |
+| Ordinary v2 | Actor, each `Send` recipient, each `DmsRegister` beneficiary (existence only), each `DmsClaim` owner. Validator and reward actions debit or credit only the actor |
+| Ordinary v2, `ValidatorExit` or an operator unbond below `min_self_bond` | Also the recovery record of each delegator on that validator (protection check) |
+| Recovery | Target and sponsor |
+| Block start | Accounts in the expiry index at this height |
+
+Governance v3 is not yet executed by consensus, and legacy signed requests are
+unreachable under the recovery profile. Both are covered in the last step.
+
+### Consensus-visible change
+
+Only metering changes an output. With the rule above, each touched account
+is charged for reading the same three records as today, and untouched
+accounts are not charged. `gas_used`, fee charges, rejected-transaction gas,
+block gas packing and stored ordinary receipts all change, so the change needs
+a fresh genesis. No mainnet exists, so this has no migration. Reward, pool,
+lifecycle and penalty reads are unchanged; they grow with stakers, not
+accounts.
+
+### Steps
+
+| Step | Content | Output change |
+| --- | --- | --- |
+| T1 (done) | Delete the unused fee-plan digest (`snapshot_digest`, `predecessor_digest`). O(1) account lookup by address (`RecoveryBook::account_by_address`). Make `RecoveryBook::validate` linear | None |
+| T2 (done) | Touched snapshot, touched mirror and grant checks (`validate_nonce_mirrors_for`, `validate_grants_for`), actor nonce advanced in place instead of cloning the book. Receipt reconciliation checks every account loaded into the settlement overlay (the overlay's key set is the access journal): touched accounts follow the receipt, all others must be unchanged. Metering left unchanged | None |
+| T3 (done) | Meter touched accounts only, plus the recovery record of each delegator checked for protection. The overlay, and so the per-action write diff and the block's `acct:` writes, now holds touched accounts only | Gas and fees (fresh genesis) |
+| T4 | Recovery mirrors for target and sponsor only; journal-based sponsor reconciliation; lazy eligibility for admission and proposals; end-of-block checks over changed keys only; light ordinary-state load outside the complete check | None |
+| T5 | Incremental recovery expiry index, dirty-only recovery diff, checkpoint and rollback instead of per-candidate clones | None |
+| T6 | Governance v3 and signed admission on touched accounts, before v3 is wired into consensus | None today |
+
+Each step keeps the existing suite green. T2 keeps the whole-set functions as
+test oracles.
+
+After T5, per-transaction cost no longer depends on the account count. Per
+block, four scans remain O(accounts): the state digest, the supply scan, the
+recovery-book load and the `origins` list inside the ordinary state. The
+state digest moves to the incremental Merkle root (state model phase B).
+`origins` and the closed-set checks go with B1c.
+
+### Tests
+
+- A `Send`'s gas, metered reads and loaded accounts stay constant with 3, 64
+  and 1,024 accounts.
+- Prepared writes contain `acct:` keys only for touched accounts.
+- For random transactions, the touched path and the whole-set oracle return
+  the same result.
+- A corrupted mirror on an untouched account no longer affects other
+  transactions, but the next complete check rejects it.
+- Determinism across independent databases.
+
 ## Tests
 
 - Accounts beyond 4,096; per-block reads proportional to touched accounts.

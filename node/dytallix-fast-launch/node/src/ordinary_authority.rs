@@ -126,6 +126,58 @@ pub(crate) fn validate_nonce_mirrors(
     }
     Ok(())
 }
+/// Accounts an ordinary transaction reads or changes: the actor, each `Send`
+/// recipient, each `DmsRegister` beneficiary and each `DmsClaim` owner.
+/// Validator and reward actions debit or credit only the actor.
+pub(crate) fn touched_accounts(body: &OrdinaryTransaction) -> BTreeSet<[u8; 32]> {
+    let mut touched = BTreeSet::from([body.domain.account_id]);
+    for action in &body.actions {
+        match action {
+            Action::Send { recipient, .. } => {
+                touched.insert(*recipient);
+            }
+            Action::DmsRegister { beneficiary, .. } => {
+                touched.insert(*beneficiary);
+            }
+            Action::DmsClaim { owner, .. } => {
+                touched.insert(*owner);
+            }
+            _ => {}
+        }
+    }
+    touched
+}
+/// `validate_nonce_mirrors` restricted to the given accounts. Unregistered IDs
+/// are skipped so that the authority check, not this invariant, rejects them.
+/// The whole book is validated at block start and by the complete check.
+pub(crate) fn validate_nonce_mirrors_for(
+    book: &RecoveryBook,
+    native_nonces: &BTreeMap<String, u64>,
+    ids: &BTreeSet<[u8; 32]>,
+) -> Result<()> {
+    for id in ids {
+        let key = hex::encode(id);
+        let Some(state) = book.accounts.get(&key) else {
+            continue;
+        };
+        state.recovery.validate()?;
+        let domain = &state.recovery.domain;
+        ensure!(
+            domain.account_id == *id && state.recovery.last_height == book.last_height,
+            "Recovery account key or height differs from book"
+        );
+        let address = AccountAddress::decode(network(domain.network)?, &state.address)?;
+        ensure!(
+            address.account_id() == &domain.account_id,
+            "Ordinary account address mapping differs from stable ID"
+        );
+        ensure!(
+            native_nonces.get(&state.address) == Some(&state.recovery.spending_nonce),
+            "Ordinary native nonce mirror missing or unequal"
+        );
+    }
+    Ok(())
+}
 /// Stale grants remain recorded but cannot be used. Their owners must register
 /// new grants. Do not delete them, copy a current generation, or resume them.
 pub(crate) fn validate_grants(book: &RecoveryBook, grants: &Grants) -> Result<()> {
@@ -134,29 +186,48 @@ pub(crate) fn validate_grants(book: &RecoveryBook, grants: &Grants) -> Result<()
         "Discretionary grant count exceeds owner capacity"
     );
     for (key, grant) in grants {
-        ensure!(
-            grant.version == 1 && *key == hex::encode(grant.owner),
-            "Invalid discretionary grant record key/version"
-        );
-        let owner = account(book, &grant.owner)?;
-        account(book, &grant.beneficiary)?;
-        ensure!(
-            grant.owner != grant.beneficiary && grant.period_blocks > 0,
-            "Invalid discretionary beneficiary or period"
-        );
-        ensure!(
-            grant.owner_generation <= owner.recovery.active_generation,
-            "Discretionary grant contains a future generation"
-        );
-        ensure!(
-            grant.last_active_height <= book.last_height,
-            "Discretionary grant activity is in the future"
-        );
-        grant
-            .last_active_height
-            .checked_add(grant.period_blocks)
-            .context("Discretionary grant deadline overflow")?;
+        validate_grant(book, key, grant)?;
     }
+    Ok(())
+}
+/// `validate_grants` restricted to the grants owned by the given accounts. The
+/// count bound follows from each key being a distinct registered owner.
+pub(crate) fn validate_grants_for(
+    book: &RecoveryBook,
+    grants: &Grants,
+    owners: &BTreeSet<[u8; 32]>,
+) -> Result<()> {
+    for owner in owners {
+        let key = hex::encode(owner);
+        if let Some(grant) = grants.get(&key) {
+            validate_grant(book, &key, grant)?;
+        }
+    }
+    Ok(())
+}
+fn validate_grant(book: &RecoveryBook, key: &str, grant: &DiscretionaryGrant) -> Result<()> {
+    ensure!(
+        grant.version == 1 && key == hex::encode(grant.owner),
+        "Invalid discretionary grant record key/version"
+    );
+    let owner = account(book, &grant.owner)?;
+    account(book, &grant.beneficiary)?;
+    ensure!(
+        grant.owner != grant.beneficiary && grant.period_blocks > 0,
+        "Invalid discretionary beneficiary or period"
+    );
+    ensure!(
+        grant.owner_generation <= owner.recovery.active_generation,
+        "Discretionary grant contains a future generation"
+    );
+    ensure!(
+        grant.last_active_height <= book.last_height,
+        "Discretionary grant activity is in the future"
+    );
+    grant
+        .last_active_height
+        .checked_add(grant.period_blocks)
+        .context("Discretionary grant deadline overflow")?;
     Ok(())
 }
 fn allowed_owner(book: &RecoveryBook, owner: &[u8; 32]) -> Result<()> {
@@ -237,8 +308,9 @@ fn prepare_body_phase(
 ) -> Result<AuthorityAssessment> {
     limits.validate()?;
     wire::signing_bytes(body, limits)?;
-    validate_nonce_mirrors(book, native_nonces)?;
-    validate_grants(book, grants)?;
+    let touched = touched_accounts(body);
+    validate_nonce_mirrors_for(book, native_nonces, &touched)?;
+    validate_grants_for(book, grants, &touched)?;
     ensure!(
         book.last_height == height,
         "Ordinary authority requires current block-start recovery state"
@@ -418,7 +490,7 @@ fn prepare_body_phase(
             debit_owners,
         });
     }
-    validate_grants(book, &staged_grants)?;
+    validate_grants_for(book, &staged_grants, &touched)?;
     Ok(AuthorityAssessment {
         transaction_id: wire::transaction_id(body, limits)?,
         envelope_hash: [0; 32],

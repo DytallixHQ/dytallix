@@ -19,7 +19,6 @@ use crate::{
 use dytallix_protocol_types::{
     ordinary::{self, Action},
     ordinary_fees::{self, FeeProfile},
-    sha3_256,
 };
 use dytallix_runtime_crypto::ordinary::VerifiedOrdinary;
 use serde::{Deserialize, Serialize};
@@ -350,7 +349,6 @@ pub(crate) struct FeePlan {
     authority_checkpoint: RecoveryBook,
     grant_checkpoint: Grants,
     history: FeeHistory,
-    predecessor_digest: [u8; 32],
 }
 impl FeePlan {
     pub(crate) fn receipt(&self) -> &FeeReceipt {
@@ -371,9 +369,6 @@ impl FeePlan {
     }
     pub(crate) fn history(&self) -> &FeeHistory {
         &self.history
-    }
-    pub(crate) fn predecessor_digest(&self) -> [u8; 32] {
-        self.predecessor_digest
     }
     pub(crate) fn is_executable(&self) -> bool {
         false
@@ -494,50 +489,6 @@ pub(crate) fn reservation_request(
         wire_bytes: wire_bytes as u64,
         signature_work: 1 + proofs,
     })
-}
-fn snapshot_digest(
-    book: &RecoveryBook,
-    grants: &Grants,
-    state: &FinancialState,
-) -> Result<[u8; 32]> {
-    let assets: Vec<_> = state
-        .balances
-        .iter()
-        .map(|(a, v)| {
-            (
-                a.owner,
-                match a.denomination {
-                    Denomination::Udgt => 1u8,
-                    Denomination::Udrt => 2u8,
-                },
-                *v,
-            )
-        })
-        .collect();
-    let eligible: Vec<_> = state
-        .eligible
-        .iter()
-        .map(|(a, v)| {
-            (
-                a.owner,
-                match a.denomination {
-                    Denomination::Udgt => 1u8,
-                    Denomination::Udrt => 2u8,
-                },
-                *v,
-            )
-        })
-        .collect();
-    let bytes = serde_json::to_vec(&(
-        book,
-        grants,
-        assets,
-        eligible,
-        &state.native_nonces,
-        state.withheld_udrt,
-    ))
-    .map_err(internal)?;
-    Ok(sha3_256(&bytes))
 }
 /// Rejected requests create no plan. Internal, BlockCapacity and
 /// IntegrationUnavailable require the caller to discard the whole block plan.
@@ -834,7 +785,6 @@ pub(crate) fn plan_fee_accounting(
             grants.clone()
         },
         history: retained,
-        predecessor_digest: snapshot_digest(book, grants, state)?,
     }))
 }
 #[cfg(test)]

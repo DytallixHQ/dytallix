@@ -12,7 +12,7 @@ use crate::{
         self as reservations, Asset, Denomination, Eligibility, ReservationRequest,
     },
     ordinary_validator::{self as validator, ValidatedValidatorAction, ValidatorError},
-    recovery_fees::RecoveryBook,
+    recovery_fees::{RecoveryAccount, RecoveryBook},
     settlement::Settlement,
     state::AccountState,
 };
@@ -68,14 +68,26 @@ fn asset(owner: [u8; 32], denomination: Denomination) -> Asset {
         denomination,
     }
 }
-fn snapshot(settlement: &mut Settlement, book: &RecoveryBook) -> Result<FinancialState> {
+/// Registered accounts among `ids`. Unregistered IDs are left to the authority
+/// check, which rejects them.
+fn registered<'a>(
+    book: &'a RecoveryBook,
+    ids: &'a BTreeSet<[u8; 32]>,
+) -> impl Iterator<Item = &'a RecoveryAccount> {
+    ids.iter()
+        .filter_map(|id| book.accounts.get(&hex::encode(id)))
+}
+fn snapshot<'a>(
+    settlement: &mut Settlement,
+    accounts: impl IntoIterator<Item = &'a RecoveryAccount>,
+) -> Result<FinancialState> {
     let mut state = FinancialState {
         balances: BTreeMap::new(),
         eligible: BTreeMap::new(),
         native_nonces: BTreeMap::new(),
         withheld_udrt: settlement.ordinary_fee_total().map_err(internal)?,
     };
-    for a in book.accounts.values() {
+    for a in accounts {
         let id = a.recovery.domain.account_id;
         let account = settlement.account(&a.address).map_err(internal)?.clone();
         state.native_nonces.insert(a.address.clone(), account.nonce);
@@ -94,6 +106,9 @@ fn snapshot(settlement: &mut Settlement, book: &RecoveryBook) -> Result<Financia
 /// Check the ordered reservation, action, and fee transitions for one receipt.
 /// The action checkpoint is kept only for a successful transaction. A paid
 /// failure must have the reservation checkpoint before its fee is applied.
+/// Every account loaded into any checkpoint is checked. Only touched accounts
+/// may change; every other loaded account must be identical in all four.
+#[allow(clippy::too_many_arguments)]
 fn reconcile_receipt(
     before: &Settlement,
     reserved_accounts: &BTreeMap<String, AccountState>,
@@ -102,6 +117,7 @@ fn reconcile_receipt(
     action_fee_total: u128,
     after: &Settlement,
     book: &RecoveryBook,
+    touched: &BTreeSet<[u8; 32]>,
     receipt: &FeeReceipt,
 ) -> Result<()> {
     let actor = book
@@ -126,8 +142,19 @@ fn reconcile_receipt(
             "Ordinary receipt fee custody differs from transaction delta",
         ));
     }
-    for registered in book.accounts.values() {
-        let address = registered.address.as_str();
+    let touched: BTreeSet<&str> = registered(book, touched)
+        .map(|a| a.address.as_str())
+        .collect();
+    let loaded: BTreeSet<&str> = before
+        .accounts
+        .keys()
+        .chain(reserved_accounts.keys())
+        .chain(action_accounts.keys())
+        .chain(after.accounts.keys())
+        .map(String::as_str)
+        .chain(touched.iter().copied())
+        .collect();
+    for address in loaded {
         let initial = before
             .accounts
             .get(address)
@@ -142,6 +169,15 @@ fn reconcile_receipt(
             .accounts
             .get(address)
             .ok_or_else(|| internal("Ordinary final account missing"))?;
+        if !touched.contains(address) {
+            if [held, applied, final_account]
+                .iter()
+                .any(|a| a.balances != initial.balances || a.nonce != initial.nonce)
+            {
+                return Err(internal("Ordinary transaction changed an untouched account"));
+            }
+            continue;
+        }
         let is_actor = address == actor;
         let mut expected_held = initial.clone();
         if is_actor {
@@ -194,7 +230,7 @@ pub(crate) fn eligible_liquidity(
     settlement: &mut Settlement,
     book: &RecoveryBook,
 ) -> Result<Eligibility> {
-    let total = snapshot(settlement, book)?.eligible;
+    let total = snapshot(settlement, book.accounts.values())?.eligible;
     let mut unrestricted = BTreeMap::new();
     for a in book.accounts.values() {
         for (denomination, name) in [(Denomination::Udgt, "udgt"), (Denomination::Udrt, "udrt")] {
@@ -244,13 +280,18 @@ fn validator_action(a: &Action) -> bool {
             | Action::ValidatorWithdraw { .. }
     )
 }
+/// Meter the records a transaction reads before acceptance: the native account,
+/// recovery account and grant record of each touched account, plus the shared
+/// reward, pool, lifecycle and penalty records. Untouched accounts are neither
+/// read nor charged.
 fn meter_records(
     meter: &mut OrdinaryMeter<'_>,
     settlement: &mut Settlement,
     book: &RecoveryBook,
     grants: &Grants,
+    touched: &BTreeSet<[u8; 32]>,
 ) -> Result<()> {
-    for a in book.accounts.values() {
+    for a in registered(book, touched) {
         meter.read(&logical::native_account(
             &a.address,
             settlement.account(&a.address).map_err(internal)?,
@@ -339,12 +380,21 @@ fn write_changes(
     }
     Ok(())
 }
-fn protected_owner(book: &RecoveryBook, address: &str) -> Result<()> {
+/// Delegators of an exiting or under-bonded validator are not touched accounts,
+/// so their recovery records are metered here, when protection is checked.
+fn protected_owner(
+    meter: &mut OrdinaryMeter<'_>,
+    book: &RecoveryBook,
+    address: &str,
+) -> Result<()> {
     let a = book
-        .accounts
-        .values()
-        .find(|a| a.address == address)
+        .account_by_address(address)
         .ok_or_else(|| internal("Validator principal owner missing recovery account"))?;
+    meter.read(&logical::recovery_account(
+        &a.recovery.domain.account_id,
+        a,
+        MAX_LOGICAL_BYTES,
+    )?)?;
     if !a.recovery.outgoing_allowed() {
         return Err(reject("Protected validator principal owner"));
     }
@@ -353,6 +403,7 @@ fn protected_owner(book: &RecoveryBook, address: &str) -> Result<()> {
 /// Include cumulative self-unbond effects before acceptance. This projection only
 /// resolves debit owners; it neither schedules operations nor checks paid rules.
 fn principal_owners(
+    meter: &mut OrdinaryMeter<'_>,
     book: &RecoveryBook,
     settlement: &Settlement,
     actor: &str,
@@ -411,7 +462,7 @@ fn principal_owners(
                     {
                         for (owner, positions) in &view.positions {
                             if positions.contains_key(validator_id) {
-                                protected_owner(book, owner)?;
+                                protected_owner(meter, book, owner)?;
                             }
                         }
                     }
@@ -423,7 +474,7 @@ fn principal_owners(
             Action::ValidatorExit { validator_id } => {
                 for (owner, positions) in &view.positions {
                     if positions.contains_key(validator_id) {
-                        protected_owner(book, owner)?;
+                        protected_owner(meter, book, owner)?;
                     }
                 }
             }
@@ -549,11 +600,19 @@ fn execute(
             "Ordinary receipt retention capacity exhausted"
         )));
     }
+    let touched = ordinary_authority::touched_accounts(body);
     let mut baseline = settlement.clone();
-    pre!(meter_records(&mut meter, &mut baseline, book, grants));
-    let financial = snapshot(&mut baseline, book)?;
-    ordinary_authority::validate_nonce_mirrors(book, &financial.native_nonces).map_err(internal)?;
-    ordinary_authority::validate_grants(book, grants).map_err(internal)?;
+    pre!(meter_records(
+        &mut meter,
+        &mut baseline,
+        book,
+        grants,
+        &touched
+    ));
+    let financial = snapshot(&mut baseline, registered(book, &touched))?;
+    ordinary_authority::validate_nonce_mirrors_for(book, &financial.native_nonces, &touched)
+        .map_err(internal)?;
+    ordinary_authority::validate_grants_for(book, grants, &touched).map_err(internal)?;
     let assessment = pre!(ordinary_authority::check_verified_preacceptance(
         book,
         &financial.native_nonces,
@@ -619,7 +678,13 @@ fn execute(
             tokens.insert(i, t);
         }
     }
-    pre!(principal_owners(book, &baseline, &actor, &body.actions));
+    pre!(principal_owners(
+        &mut meter,
+        book,
+        &baseline,
+        &actor,
+        &body.actions
+    ));
     let request = fees::reservation_request(&verified, profile, &financial)?;
     let required = pre!(reservations::calculate_requirements(
         request.payer,
@@ -708,6 +773,7 @@ fn execute(
             tokens.get(&i),
             book,
             &actor,
+            body.domain.account_id,
             body.authorization_generation,
             height,
             parent_height,
@@ -769,21 +835,32 @@ fn execute(
         action_fee_total,
         &effects,
         book,
+        &touched,
         &receipt,
     )?;
-    let mut next_book = book.clone();
-    next_book
-        .accounts
-        .get_mut(&hex::encode(body.domain.account_id))
-        .ok_or_else(|| internal("Actor disappeared"))?
-        .recovery
-        .spending_nonce = receipt.nonce_after();
-    ordinary_authority::validate_nonce_mirrors(
-        &next_book,
-        &snapshot(&mut effects, &next_book)?.native_nonces,
-    )
-    .map_err(internal)?;
-    ordinary_authority::validate_grants(&next_book, &next_grants).map_err(internal)?;
+    // Advance the actor's nonce in place; restore it if the touched mirrors or
+    // grants disagree, so an internal failure leaves the book unchanged.
+    let actor_key = hex::encode(body.domain.account_id);
+    let previous_nonce = std::mem::replace(
+        &mut book
+            .accounts
+            .get_mut(&actor_key)
+            .ok_or_else(|| internal("Actor disappeared"))?
+            .recovery
+            .spending_nonce,
+        receipt.nonce_after(),
+    );
+    let checked = snapshot(&mut effects, registered(book, &touched)).and_then(|after| {
+        ordinary_authority::validate_nonce_mirrors_for(book, &after.native_nonces, &touched)
+            .and_then(|()| ordinary_authority::validate_grants_for(book, &next_grants, &touched))
+            .map_err(internal)
+    });
+    if let Err(e) = checked {
+        if let Some(actor) = book.accounts.get_mut(&actor_key) {
+            actor.recovery.spending_nonce = previous_nonce;
+        }
+        return Err(e);
+    }
     let result = OrdinaryExecutionResult {
         success: outcome == Outcome::Success,
         accepted: true,
@@ -794,7 +871,6 @@ fn execute(
         reservation: Some(request),
     };
     *settlement = effects;
-    *book = next_book;
     *grants = next_grants;
     *history = next_history;
     Ok(result)
@@ -840,6 +916,7 @@ fn apply_action(
     token: Option<&ValidatedValidatorAction>,
     book: &RecoveryBook,
     actor: &str,
+    actor_id: [u8; 32],
     generation: u64,
     height: u64,
     parent_height: u64,
@@ -848,14 +925,6 @@ fn apply_action(
     grants: &mut Grants,
     claim_remaining: &mut BTreeMap<Asset, u128>,
 ) -> std::result::Result<(), ActionError> {
-    let actor_id = book
-        .accounts
-        .values()
-        .find(|a| a.address == actor)
-        .ok_or_else(|| action_internal("Actor missing"))?
-        .recovery
-        .domain
-        .account_id;
     match a {
         Action::Send {
             recipient,

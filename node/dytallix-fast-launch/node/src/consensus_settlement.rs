@@ -1816,10 +1816,9 @@ fn validate_ordinary_principals(
     rewards: &RewardState,
     lifecycle: Option<&LifecycleState>,
 ) -> Result<()> {
-    let registered: BTreeSet<&str> = book.accounts.values().map(|a| a.address.as_str()).collect();
     let owner = |value: &str| -> Result<()> {
         ensure!(
-            registered.contains(value),
+            book.account_by_address(value).is_some(),
             "Ordinary principal owner lacks registered stable account"
         );
         Ok(())
