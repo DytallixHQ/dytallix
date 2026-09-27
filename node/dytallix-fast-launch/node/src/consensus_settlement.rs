@@ -8,7 +8,7 @@ use crate::ordinary_fee_settlement::Outcome as OrdinaryOutcome;
 use crate::ordinary_meter::{RecoveryCeilings, SharedBlockMeter};
 use crate::ordinary_reservations::{ReservationId, ReservationLedger, ReservationRequest};
 use crate::ordinary_state::{self, OrdinaryConfig, OrdinaryState, STATE_KEY as ORDINARY_STATE_KEY};
-use crate::recovery_fees::{RecoveryBook, RecoveryResult, PREFIX as RECOVERY_PREFIX};
+use crate::recovery_fees::{RecoveryAccount, RecoveryBook, RecoveryResult, PREFIX as RECOVERY_PREFIX};
 use crate::{
     block_lifecycle::{self, Deletes, Writes},
     execution::stage_transaction,
@@ -1317,7 +1317,7 @@ fn committed_governance_parent(
             }),
         "Governance parent state, authority, or lifecycle differs"
     );
-    let ordinary = load_ordinary(&storage, config, Some(&recovery))?
+    let ordinary = load_ordinary(&storage, config, Some(&recovery), false)?
         .context("Governance ordinary state missing")?;
     ensure!(
         ordinary.last_height == info.height,
@@ -1689,12 +1689,20 @@ fn wire(config: &ConsensusConfig, raw: &[u8]) -> Result<WireTransaction> {
 fn ordinary_signed(config: &OrdinaryConfig, value: &str) -> Result<ordinary_wire::SignedOrdinary> {
     ordinary_wire::decode(&recovery_bytes(value)?, &config.fee_profile.limits).map_err(Into::into)
 }
+/// `full` runs every whole-account check and is used by the complete history
+/// check. Otherwise the state is loaded as committed by this node: each block
+/// validated its changed accounts before commit (`OrdinaryState::validate_block`).
 fn load_ordinary(
     storage: &Storage,
     config: &ConsensusConfig,
     book: Option<&RecoveryBook>,
+    full: bool,
 ) -> Result<Option<OrdinaryState>> {
     match &config.ordinary {
+        Some(expected) if !full => {
+            let book = book.context("Ordinary recovery state missing")?;
+            Ok(Some(ordinary_state::load_committed(storage, expected, book)?))
+        }
         Some(expected) => {
             let book = book.context("Ordinary recovery state missing")?;
             let nonces = ordinary_state::read_native_nonces(storage, book)?;
@@ -1771,6 +1779,31 @@ fn committed_ordinary_settlement(storage: Arc<Storage>) -> Result<Settlement> {
     let mut staged = Settlement::new(storage);
     staged.attach_reward_lifecycle(writes, timestamp)?;
     Ok(staged)
+}
+/// Registered accounts loaded into the block's settlement. Every account whose
+/// recovery record, native nonce or grant changed in the block is among them.
+fn changed_accounts(staged: &Settlement, book: &RecoveryBook) -> BTreeSet<[u8; 32]> {
+    staged
+        .accounts
+        .keys()
+        .filter_map(|address| book.account_by_address(address))
+        .map(|account| account.recovery.domain.account_id)
+        .collect()
+}
+fn staged_nonces_for(
+    staged: &mut Settlement,
+    book: &RecoveryBook,
+    ids: &BTreeSet<[u8; 32]>,
+) -> Result<BTreeMap<String, u64>> {
+    ids.iter()
+        .filter_map(|id| book.accounts.get(&hex::encode(id)))
+        .map(|account| {
+            Ok((
+                account.address.clone(),
+                staged.account(&account.address)?.nonce,
+            ))
+        })
+        .collect()
 }
 fn staged_nonces(staged: &mut Settlement, book: &RecoveryBook) -> Result<BTreeMap<String, u64>> {
     book.accounts
@@ -1916,11 +1949,35 @@ fn combined_transaction(
         }
         Ok(WireTransaction::Recovery { envelope_base64 }) => {
             let bytes = recovery_bytes(&envelope_base64).unwrap_or_else(|_| raw.to_vec());
-            let before = recovery.book.clone();
+            // A charged recovery changes only its target and sponsor records.
+            let before: BTreeMap<String, RecoveryAccount> = sponsor_wire::decode(&bytes)
+                .map(|signed| {
+                    [signed.sponsor.domain.account_id, signed.sponsor.sponsor_account_id]
+                        .iter()
+                        .map(hex::encode)
+                        .filter_map(|id| {
+                            recovery.book.accounts.get(&id).map(|a| (id, a.clone()))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let registered_before = recovery.book.accounts.len();
             let signatures_before = shared.usage().signatures;
             let result = recovery.execute_with_shared(height, index, &bytes, staged, shared)?;
             if result.charged {
-                ordinary_runtime::sync_recovery_mirrors(&before, &recovery.book, staged)?;
+                let receipt = result.receipt.as_ref().context("Charged recovery lacks receipt")?;
+                ensure!(
+                    [receipt.target_account_id, receipt.sponsor_account_id]
+                        .iter()
+                        .all(|id| before.contains_key(&hex::encode(id))),
+                    "Charged recovery accounts differ from its envelope"
+                );
+                ordinary_runtime::sync_recovery_mirrors(
+                    &before,
+                    registered_before,
+                    &recovery.book,
+                    staged,
+                )?;
             }
             let reservation = if result.charged {
                 let signed = sponsor_wire::decode(&bytes)?;
@@ -3525,7 +3582,7 @@ impl ConsensusApplication {
                 verify_recovery(&self.storage)?;
                 let book =
                     recovery_book(&self.storage, &self.config)?.context("Recovery missing")?;
-                let mut state = load_ordinary(&self.storage, &self.config, Some(&book))?
+                let mut state = load_ordinary(&self.storage, &self.config, Some(&book), false)?
                     .context("Ordinary missing")?;
                 let height = book
                     .last_height
@@ -3535,7 +3592,7 @@ impl ConsensusApplication {
                 let mut recovery = book.begin_block(height)?;
                 let mut shared = shared_meter(&state.config, &recovery)?;
                 let mut staged = committed_ordinary_settlement(self.storage.clone())?;
-                let liquidity = ordinary_runtime::eligible_liquidity(&mut staged, &recovery.book)?;
+                let mut liquidity = ordinary_runtime::LazyEligibility::new(&staged);
                 let head = current_info(&self.storage)?.app_hash;
                 self.admission
                     .lock()
@@ -3562,11 +3619,14 @@ impl ConsensusApplication {
                                 .reservation
                                 .as_ref()
                                 .context("Accepted admission lacks reservation")?;
-                            match self
+                            let mut admission = self
                                 .admission
                                 .lock()
-                                .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?
-                                .reserve(request, &liquidity)
+                                .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?;
+                            // A new reservation rechecks every retained one.
+                            let owners = admission.owners().into_iter().chain(request.owners());
+                            match admission
+                                .reserve(request, liquidity.covering(&recovery.book, owners)?)
                             {
                                 Ok(_) => output.code = 0,
                                 Err(error) => {
@@ -3593,11 +3653,13 @@ impl ConsensusApplication {
                         &mut shared,
                     )?;
                     if let Some(request) = reservation.as_ref() {
-                        match self
+                        let mut admission = self
                             .admission
                             .lock()
-                            .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?
-                            .reserve(request, &liquidity)
+                            .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?;
+                        let owners = admission.owners().into_iter().chain(request.owners());
+                        match admission
+                            .reserve(request, liquidity.covering(&recovery.book, owners)?)
                         {
                             Ok(_) => result.code = 0,
                             Err(error) => {
@@ -4123,11 +4185,11 @@ impl ConsensusApplication {
         }
         let book = recovery_book(&self.storage, &self.config)?.context("Recovery missing")?;
         let mut state =
-            load_ordinary(&self.storage, &self.config, Some(&book))?.context("Ordinary missing")?;
+            load_ordinary(&self.storage, &self.config, Some(&book), false)?.context("Ordinary missing")?;
         state.prune_receipts_for(height);
         let mut recovery = book.begin_block(height)?;
         let mut shared = shared_meter(&state.config, &recovery)?;
-        let liquidity = ordinary_runtime::eligible_liquidity(&mut staged, &recovery.book)?;
+        let mut liquidity = ordinary_runtime::LazyEligibility::new(&staged);
         let mut reservations = ReservationLedger::new(
             ordinary_fee_wire::profile_digest(&state.config.fee_profile)?,
             state.config.queue_limits()?,
@@ -4153,8 +4215,15 @@ impl ConsensusApplication {
                 &mut shared,
             )?;
             let selected = if result.code == 0 || result.code == 3 {
+                // Every retained reservation was added through `liquidity`, so
+                // only this request's owners can be missing from it.
                 match request.as_ref() {
-                    Some(request) => reservations.reserve(request, &liquidity).is_ok(),
+                    Some(request) => reservations
+                        .reserve(
+                            request,
+                            liquidity.covering(&recovery.book, request.owners())?,
+                        )
+                        .is_ok(),
                     None => false,
                 }
             } else {
@@ -4175,13 +4244,15 @@ impl ConsensusApplication {
             staged.rewards.as_ref().context("Reward state missing")?,
             staged.validators.as_ref(),
         )?;
-        state.validate(
+        let changed = changed_accounts(&staged, &recovery.book);
+        state.validate_block(
             self.config
                 .lifecycle
                 .as_ref()
                 .context("Lifecycle missing")?,
             &recovery.book,
-            &staged_nonces(&mut staged, &recovery.book)?,
+            &staged_nonces_for(&mut staged, &recovery.book, &changed)?,
+            &changed,
         )?;
         // No second candidate verification here. ProcessProposal and FinalizeBlock
         // independently repeat the selected ordered block against committed state.
@@ -4334,7 +4405,7 @@ impl ConsensusApplication {
             staged.finalize_validator_evidence()?;
         }
         let committed_recovery = recovery_book(&self.storage, &self.config)?;
-        let mut ordinary = load_ordinary(&self.storage, &self.config, committed_recovery.as_ref())?;
+        let mut ordinary = load_ordinary(&self.storage, &self.config, committed_recovery.as_ref(), false)?;
         if let Some(state) = ordinary.as_mut() {
             state.prune_receipts_for(input.height);
         }
@@ -4497,13 +4568,17 @@ impl ConsensusApplication {
                 staged.rewards.as_ref().context("Reward state missing")?,
                 staged.validators.as_ref(),
             )?;
-            state.validate(
+            // Only accounts this block loaded are checked and written; loading
+            // every account here would rewrite every acct: key each block.
+            let changed = changed_accounts(&staged, book);
+            state.validate_block(
                 self.config
                     .lifecycle
                     .as_ref()
                     .context("Lifecycle missing")?,
                 book,
-                &staged_nonces(&mut staged, book)?,
+                &staged_nonces_for(&mut staged, book, &changed)?,
+                &changed,
             )?;
         }
         let mut writes = staged.writes()?;
@@ -4846,7 +4921,7 @@ impl ConsensusApplication {
     fn query_ordinary_profile_validated(&self) -> Result<serde_json::Value> {
         use dytallix_protocol_types::ordinary_client::{ProfileView, CLIENT_VIEW_VERSION};
         let book = recovery_book(&self.storage, &self.config)?;
-        let state = load_ordinary(&self.storage, &self.config, book.as_ref())?;
+        let state = load_ordinary(&self.storage, &self.config, book.as_ref(), false)?;
         Ok(serde_json::to_value(ProfileView {
             version: CLIENT_VIEW_VERSION,
             enabled: state.is_some(),
@@ -4864,7 +4939,7 @@ impl ConsensusApplication {
         };
         valid_hash(id)?;
         let book = recovery_book(&self.storage, &self.config)?;
-        let state = load_ordinary(&self.storage, &self.config, book.as_ref())?;
+        let state = load_ordinary(&self.storage, &self.config, book.as_ref(), false)?;
         let Some(state) = state else {
             return Ok(serde_json::Value::Null);
         };
@@ -4900,7 +4975,7 @@ impl ConsensusApplication {
             .try_into()
             .map_err(|_| anyhow::anyhow!("Invalid ordinary transaction ID"))?;
         let book = recovery_book(&self.storage, &self.config)?;
-        let state = load_ordinary(&self.storage, &self.config, book.as_ref())?;
+        let state = load_ordinary(&self.storage, &self.config, book.as_ref(), false)?;
         match state.as_ref().and_then(|state| state.history.receipt(id)) {
             Some(receipt) => Ok(serde_json::to_value(
                 receipt.client_view(self.ordinary_client_context()?),
@@ -5053,7 +5128,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             "Recovery height differs from committed head"
         );
     }
-    let ordinary = load_ordinary(storage, &config, recovery.as_ref())?;
+    let ordinary = load_ordinary(storage, &config, recovery.as_ref(), from.is_none())?;
     let mut ordinary_positions = BTreeMap::new();
     if let Some(state) = &ordinary {
         ensure!(

@@ -85,6 +85,13 @@ impl OrdinaryAdmissionQueue {
     pub(crate) fn len(&self) -> usize {
         self.bound.as_ref().map_or(0, |bound| bound.ledger.len())
     }
+    /// Owners every retained reservation is rechecked against on the next one.
+    pub(crate) fn owners(&self) -> std::collections::BTreeSet<[u8; 32]> {
+        self.bound
+            .as_ref()
+            .map(|bound| bound.ledger.owners())
+            .unwrap_or_default()
+    }
 }
 
 #[cfg(test)]

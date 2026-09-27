@@ -2922,3 +2922,84 @@ fn expired_receipts_are_pruned_and_free_retention_capacity() {
     let app = fixture.open(&path);
     assert_eq!(app.info().unwrap().height, 4);
 }
+
+/// Native account keys in the pending block's writes.
+fn pending_account_writes(app: &ConsensusApplication) -> BTreeSet<String> {
+    app.pending
+        .as_ref()
+        .unwrap()
+        .writes
+        .keys()
+        .filter_map(|key| std::str::from_utf8(key).ok())
+        .filter_map(|key| {
+            key.strip_prefix("acct:balances:")
+                .or_else(|| key.strip_prefix("acct:nonce:"))
+        })
+        .map(str::to_owned)
+        .collect()
+}
+
+#[test]
+fn blocks_write_native_accounts_only_for_touched_accounts() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let untouched = fixture.secondary.address();
+
+    // Sponsored recovery: its target and sponsor.
+    let enroll = wire(&fixture.sponsored(fixture.enroll(), 0, GAS_LIMIT));
+    let result = app.finalize_block(block(1, vec![enroll])).unwrap();
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    assert_eq!(
+        pending_account_writes(&app),
+        BTreeSet::from([fixture.active.address(), fixture.payer.address()])
+    );
+    app.commit().unwrap();
+    assert_mirror(&app, &fixture.active, 1);
+
+    // Ordinary send: its sender and recipient.
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fixture.payer.id(), 100)],
+        1000,
+    );
+    let result = app
+        .finalize_block(block(2, vec![fixture.ordinary_wire(&tx)]))
+        .unwrap();
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let written = pending_account_writes(&app);
+    assert_eq!(
+        written,
+        BTreeSet::from([fixture.active.address(), fixture.payer.address()])
+    );
+    assert!(!written.contains(&untouched));
+    app.commit().unwrap();
+    assert_mirror(&app, &fixture.active, 2);
+    assert_mirror(&app, &fixture.secondary, 0);
+
+    // An empty block writes no native account.
+    app.finalize_block(block(3, vec![])).unwrap();
+    assert!(pending_account_writes(&app).is_empty());
+    app.commit().unwrap();
+}
+
+#[test]
+fn outside_write_to_an_untouched_mirror_is_caught_by_the_complete_check() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    commit(&mut app, 1, vec![]);
+    app.storage
+        .db
+        .put(
+            format!("acct:nonce:{}", fixture.secondary.address()),
+            bincode::serialize(&7u64).unwrap(),
+        )
+        .unwrap();
+    let error = app.finalize_block(block(2, vec![])).unwrap_err();
+    assert!(
+        format!("{error:#}").contains("nonce"),
+        "unexpected error: {error:#}"
+    );
+}
