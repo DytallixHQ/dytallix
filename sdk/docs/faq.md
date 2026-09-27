@@ -89,9 +89,9 @@ website gateway.
 
 You can still use:
 
-- `dytallix stake status`
-- `dytallix governance legacy proposals`
-- `dytallix governance legacy status <id>`
+- `dytallix legacy stake status`
+- `dytallix legacy governance proposals`
+- `dytallix legacy governance status <id>`
 
 For experimental write testing, point the CLI at a local node or direct node
 endpoint.

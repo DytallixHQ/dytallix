@@ -200,6 +200,18 @@ fn wallet_info() -> Result<()> {
         "Private key:    {} bytes",
         format_number(keypair.private_key().len() as u128)
     );
+    // The consensus-chain address depends on the chain (clients v1, K-c).
+    if let (Ok(chain), Ok(identity)) = (
+        crate::commands::consensus::ChainConfig::load(),
+        crate::commands::consensus::key_identity(&keypair),
+    ) {
+        let address = chain.pin()?.origin_address(&identity)?;
+        println!(
+            "Address:        {} (pinned chain {})",
+            address.encode(),
+            chain.chain_id
+        );
+    }
     Ok(())
 }
 

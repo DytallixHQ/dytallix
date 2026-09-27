@@ -1,15 +1,16 @@
 //! Governance on the consensus chain: ordinary-v3 transactions (clients v1,
-//! E04 gap 8). Capture the views, prepare a proposal, deposit or vote
-//! offline, sign it, then submit it; submission refreshes the views first.
-//! An admitted transaction whose governance rule fails is still charged.
-//! `legacy` keeps the testnet REST commands (`legacy-network` feature).
+//! E04 gap 8). `propose`, `deposit` and `vote` run in one step through the
+//! pinned chain's node (K-c). For offline signing, `prepare` builds a body
+//! from captured views, `sign` signs it and `submit` sends it after
+//! refreshing the views. An admitted transaction whose governance rule fails
+//! is still charged. The testnet REST commands are `dytallix legacy governance`.
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use dytallix_sdk::ordinary_v2::{
-    AccountAddress, AccountView, AddressNetwork, FeeQuote, KeypairSigner, ProfileView,
-    SigningContext,
+    parse_token_units, AccountAddress, AccountView, AddressNetwork, FeeQuote, KeypairSigner,
+    ProfileView, SigningContext,
 };
 use dytallix_sdk::ordinary_v3::{
     self as governance, Action, FeeProfileV3, FeeValues, GovernanceProfileView,
@@ -19,29 +20,16 @@ use dytallix_sdk::ordinary_v3::{
 use serde_json::{json, Value};
 
 use super::bytes_to_hex;
+use super::consensus::{self, Connection, WriteArgs};
 use super::ordinary::{
     client, decimal_u128, decimal_u64, load_signing_key, print_json, read_json, write_json,
     CapturedInputs,
 };
 
-#[cfg(feature = "legacy-network")]
-#[path = "governance_legacy.rs"]
-mod legacy;
-
 #[derive(Debug, Clone, Args)]
 pub struct GovernanceArgs {
     #[command(subcommand)]
     pub command: GovernanceCommand,
-}
-impl GovernanceArgs {
-    /// The legacy testnet commands keep the human-readable error output.
-    pub fn is_legacy(&self) -> bool {
-        #[cfg(feature = "legacy-network")]
-        if matches!(self.command, GovernanceCommand::Legacy(_)) {
-            return true;
-        }
-        false
-    }
 }
 
 #[derive(Debug, Clone, Args)]
@@ -109,48 +97,50 @@ impl From<Choice> for VoteChoice {
 
 #[derive(Debug, Clone, Subcommand)]
 pub enum GovernanceCommand {
-    /// Read the committed governance fee profile and next proposal ID.
-    QueryProfile {
-        #[arg(long)]
-        endpoint: String,
-        #[arg(long)]
-        output: PathBuf,
-    },
-    /// Prepare an unsigned proposal offline. It takes the captured next
-    /// proposal ID; if another proposal commits first, this one fails and is
-    /// charged, so submit it promptly.
+    /// Propose one change in one step. It takes the node's next proposal
+    /// ID; if another proposal commits first, this one fails and is charged.
     Propose {
-        #[command(flatten)]
-        inputs: GovernanceInputs,
         #[command(flatten)]
         change: ChangeArgs,
         /// Owner's account address, for --registry-add. It must be registered.
         #[arg(long, requires = "registry_add")]
         owner: Option<String>,
         #[command(flatten)]
-        body: BodyArgs,
-    },
-    /// Prepare an unsigned deposit offline.
-    Deposit {
+        connection: Connection,
         #[command(flatten)]
-        inputs: GovernanceInputs,
+        write: WriteArgs,
+    },
+    /// Deposit DGT on a proposal in one step.
+    Deposit {
         #[arg(long, value_parser = decimal_u64)]
         proposal_id: u64,
-        #[arg(long, value_parser = decimal_u128)]
-        amount_udgt: u128,
+        /// DGT, with up to six decimal places.
+        #[arg(long)]
+        amount: String,
         #[command(flatten)]
-        body: BodyArgs,
+        connection: Connection,
+        #[command(flatten)]
+        write: WriteArgs,
     },
-    /// Prepare an unsigned vote offline.
+    /// Vote on a proposal in one step.
     Vote {
-        #[command(flatten)]
-        inputs: GovernanceInputs,
         #[arg(long, value_parser = decimal_u64)]
         proposal_id: u64,
         #[arg(long, value_enum)]
         choice: Choice,
         #[command(flatten)]
-        body: BodyArgs,
+        connection: Connection,
+        #[command(flatten)]
+        write: WriteArgs,
+    },
+    /// Prepare an unsigned body offline from captured views.
+    Prepare(PrepareArgs),
+    /// Read the committed governance fee profile and next proposal ID.
+    QueryProfile {
+        #[arg(long)]
+        endpoint: String,
+        #[arg(long)]
+        output: PathBuf,
     },
     /// Sign an exact body offline with an explicitly selected existing key.
     Sign {
@@ -190,9 +180,52 @@ pub enum GovernanceCommand {
         #[arg(long)]
         signed: PathBuf,
     },
-    /// Legacy testnet REST governance. The consensus chain refuses these.
-    #[cfg(feature = "legacy-network")]
-    Legacy(legacy::LegacyArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PrepareArgs {
+    #[command(subcommand)]
+    pub command: PrepareCommand,
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum PrepareCommand {
+    /// Prepare an unsigned proposal offline. It takes the captured next
+    /// proposal ID; if another proposal commits first, this one fails and is
+    /// charged, so submit it promptly.
+    Propose {
+        #[command(flatten)]
+        inputs: GovernanceInputs,
+        #[command(flatten)]
+        change: ChangeArgs,
+        /// Owner's account address, for --registry-add. It must be registered.
+        #[arg(long, requires = "registry_add")]
+        owner: Option<String>,
+        #[command(flatten)]
+        body: BodyArgs,
+    },
+    /// Prepare an unsigned deposit offline.
+    Deposit {
+        #[command(flatten)]
+        inputs: GovernanceInputs,
+        #[arg(long, value_parser = decimal_u64)]
+        proposal_id: u64,
+        #[arg(long, value_parser = decimal_u128)]
+        amount_udgt: u128,
+        #[command(flatten)]
+        body: BodyArgs,
+    },
+    /// Prepare an unsigned vote offline.
+    Vote {
+        #[command(flatten)]
+        inputs: GovernanceInputs,
+        #[arg(long, value_parser = decimal_u64)]
+        proposal_id: u64,
+        #[arg(long, value_enum)]
+        choice: Choice,
+        #[command(flatten)]
+        body: BodyArgs,
+    },
 }
 
 struct Validated {
@@ -259,38 +292,89 @@ impl Validated {
 
 pub async fn run(args: GovernanceArgs) -> Result<()> {
     match args.command {
+        GovernanceCommand::Propose {
+            change,
+            owner,
+            connection,
+            write,
+        } => {
+            let session = connection.open()?;
+            let network = session.pin.network;
+            let report = consensus::submit_governance(
+                &session,
+                |id| proposal(id, network, change, owner),
+                write,
+            )
+            .await?;
+            print_json(&report)?;
+        }
+        GovernanceCommand::Deposit {
+            proposal_id,
+            amount,
+            connection,
+            write,
+        } => {
+            let amount = parse_token_units(&amount)?;
+            ensure!(amount > 0, "amount must be positive");
+            let session = connection.open()?;
+            let report = consensus::submit_governance(
+                &session,
+                |_| Ok(governance::deposit(proposal_id, amount)),
+                write,
+            )
+            .await?;
+            print_json(&report)?;
+        }
+        GovernanceCommand::Vote {
+            proposal_id,
+            choice,
+            connection,
+            write,
+        } => {
+            let session = connection.open()?;
+            let report = consensus::submit_governance(
+                &session,
+                |_| Ok(governance::vote(proposal_id, choice.into())),
+                write,
+            )
+            .await?;
+            print_json(&report)?;
+        }
+        GovernanceCommand::Prepare(PrepareArgs { command }) => match command {
+            PrepareCommand::Propose {
+                inputs,
+                change,
+                owner,
+                body,
+            } => {
+                let inputs = inputs.load()?;
+                let network = network(inputs.context.domain.network)?;
+                let action = proposal(inputs.governance.next_proposal_id, network, change, owner)?;
+                inputs.prepare(action, body)?;
+            }
+            PrepareCommand::Deposit {
+                inputs,
+                proposal_id,
+                amount_udgt,
+                body,
+            } => {
+                let inputs = inputs.load()?;
+                inputs.prepare(governance::deposit(proposal_id, amount_udgt), body)?;
+            }
+            PrepareCommand::Vote {
+                inputs,
+                proposal_id,
+                choice,
+                body,
+            } => {
+                let inputs = inputs.load()?;
+                inputs.prepare(governance::vote(proposal_id, choice.into()), body)?;
+            }
+        },
         GovernanceCommand::QueryProfile { endpoint, output } => {
             let value = client(&endpoint)?.query_governance_profile().await?;
             write_json(&output, &value)?;
             print_json(&value)?;
-        }
-        GovernanceCommand::Propose {
-            inputs,
-            change,
-            owner,
-            body,
-        } => {
-            let inputs = inputs.load()?;
-            let action = proposal(&inputs, change, owner)?;
-            inputs.prepare(action, body)?;
-        }
-        GovernanceCommand::Deposit {
-            inputs,
-            proposal_id,
-            amount_udgt,
-            body,
-        } => {
-            let inputs = inputs.load()?;
-            inputs.prepare(governance::deposit(proposal_id, amount_udgt), body)?;
-        }
-        GovernanceCommand::Vote {
-            inputs,
-            proposal_id,
-            choice,
-            body,
-        } => {
-            let inputs = inputs.load()?;
-            inputs.prepare(governance::vote(proposal_id, choice.into()), body)?;
         }
         GovernanceCommand::Sign {
             inputs,
@@ -349,18 +433,20 @@ pub async fn run(args: GovernanceArgs) -> Result<()> {
                 "CheckTx rejected the transaction; no committed result is claimed"
             );
         }
-        #[cfg(feature = "legacy-network")]
-        GovernanceCommand::Legacy(args) => legacy::run(args).await?,
     }
     Ok(())
 }
 
-fn proposal(inputs: &Validated, change: ChangeArgs, owner: Option<String>) -> Result<Action> {
+fn proposal(
+    id: u64,
+    network: AddressNetwork,
+    change: ChangeArgs,
+    owner: Option<String>,
+) -> Result<Action> {
     ensure!(
         owner.is_none() || change.registry_add.is_some(),
         "--owner applies only to --registry-add"
     );
-    let id = inputs.governance.next_proposal_id;
     let action = match change {
         ChangeArgs {
             max_active: Some(value),
@@ -381,7 +467,6 @@ fn proposal(inputs: &Validated, change: ChangeArgs, owner: Option<String>) -> Re
             ..
         } => {
             let owner = owner.context("--registry-add requires --owner")?;
-            let network = network(inputs.context.domain.network)?;
             AccountAddress::decode(network, &owner)
                 .map_err(|_| anyhow!("owner is not an account address on this network"))?;
             governance::registry_change(
@@ -421,26 +506,13 @@ fn refresh(
     governance_view: &GovernanceProfileView,
     account: &AccountView,
 ) -> Result<()> {
-    let captured = &inputs.context.committed;
-    let fresh = &governance_view.context;
-    ensure!(
-        fresh.chain_id == captured.chain_id
-            && fresh.genesis_digest == captured.genesis_digest
-            && fresh.height >= captured.height,
-        "refreshed state is on another chain or older than the captured state"
-    );
-    ensure!(
-        profile.context == *fresh && account.context == *fresh,
-        "the chain advanced between the refresh queries; submit again"
-    );
-    let mut context = inputs.context.clone();
-    context.committed = fresh.clone();
-    let current = governance::validate_views(&context, profile, governance_view, account)
-        .context("refreshed views differ from the captured authority or profile")?;
-    ensure!(
-        current == inputs.profile,
-        "the governance fee profile changed since capture; prepare again"
-    );
+    let (context, current) = governance::refresh_views(
+        &inputs.context,
+        &inputs.profile,
+        profile,
+        governance_view,
+        account,
+    )?;
     PreparedGovernance::from_body(signed.body.clone(), &current, &context)
         .context("the signed body is not valid for the next height")?;
     if let [Action::GovernanceProposal { proposal_id, .. }] = signed.body.actions.as_slice() {

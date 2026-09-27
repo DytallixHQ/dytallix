@@ -44,10 +44,10 @@
     "supportedPublicFlows": [
       "wallet create",
       "wallet info",
-      "balance",
+      "legacy balance",
       "faucet",
       "faucet status",
-      "send",
+      "legacy send",
       "chain status",
       "chain block",
       "chain epoch",
@@ -57,16 +57,16 @@
       "contract query",
       "contract info",
       "contract events",
-      "governance legacy proposals",
-      "governance legacy status",
-      "stake status"
+      "legacy governance proposals",
+      "legacy governance status",
+      "legacy stake status"
     ],
     "disabledOnPublicGateway": [
-      "stake delegate",
-      "stake undelegate",
-      "stake claim",
-      "governance legacy vote",
-      "governance legacy propose"
+      "legacy stake delegate",
+      "legacy stake undelegate",
+      "legacy stake claim",
+      "legacy governance vote",
+      "legacy governance propose"
     ]
   },
   "faucet": {

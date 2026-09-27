@@ -14,7 +14,7 @@ use crate::commands::{
 };
 use crate::output;
 
-/// Arguments for the `governance legacy` command.
+/// Arguments for the `legacy governance` command.
 #[derive(Debug, Clone, Args)]
 pub struct LegacyArgs {
     /// Legacy governance subcommand.
@@ -46,7 +46,7 @@ pub enum VoteChoice {
     Abstain,
 }
 
-/// Runs the `governance legacy` command.
+/// Runs the `legacy governance` command.
 pub async fn run(args: LegacyArgs) -> Result<()> {
     match args.command {
         LegacyCommand::Proposals => proposals().await,

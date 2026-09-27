@@ -33,6 +33,9 @@ pub mod ordinary_fees_v3;
 /// Governance action data for the parameter-change and validator-registry classes.
 pub mod governance_action;
 
+/// Native account balance and nonce records, as clients read them from state.
+pub mod native_account;
+
 /// Explicit ordinary fee profile format; no implicit activation or prices.
 pub mod ordinary_fees;
 

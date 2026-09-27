@@ -3,12 +3,15 @@
 pub mod balance;
 pub mod chain;
 pub mod config;
+pub mod consensus;
 pub mod contract;
 pub mod crypto;
 pub mod dev;
 pub mod faucet;
 pub mod governance;
 pub mod init;
+#[cfg(feature = "legacy-network")]
+pub mod legacy;
 pub mod node;
 pub mod ordinary;
 pub mod send;

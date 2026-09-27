@@ -10,7 +10,8 @@
 //! per-transaction v3 receipt yet (E04 gap 12); the spent nonce is the only
 //! committed evidence.
 use crate::ordinary_v2::{
-    self, error, AccountView, Error, OrdinarySigner, ProfileView, Result, SigningContext,
+    self, error, AccountView, ChainPin, Error, KeyIdentity, OrdinarySigner, ProfileView, Result,
+    SigningContext,
 };
 use base64::{engine::general_purpose::STANDARD, Engine};
 use dytallix_core::{keypair::KeyScheme, signature::verify_for_scheme};
@@ -67,6 +68,50 @@ pub fn validate_views(
         .ok_or_else(|| Error("governance fee profile is missing".into()))?;
     validate_context(fee_profile, expected)?;
     Ok(fee_profile.clone())
+}
+
+/// The signing context for `key` from one node's views at the same height,
+/// checked against the pin (as `ordinary_v2::context_from_views`). A
+/// governance transaction needs an account record: an account's first
+/// spend must be ordinary v2.
+pub fn context_from_views(
+    pin: &ChainPin,
+    profile: &ProfileView,
+    governance: &GovernanceProfileView,
+    account_id: &[u8; 32],
+    account: Option<&AccountView>,
+    key: &KeyIdentity,
+) -> Result<(SigningContext, FeeProfileV3)> {
+    let account = account.ok_or_else(|| {
+        Error("governance needs an initialized account; its first spend must be ordinary v2".into())
+    })?;
+    let (context, _) =
+        ordinary_v2::context_from_views(pin, profile, account_id, Some(account), key)?;
+    let fee_profile = validate_views(&context, profile, governance, account)?;
+    Ok((context, fee_profile))
+}
+
+/// Views read again before submission may be at a later height. They must
+/// show the captured authority, both captured profiles and the same v3
+/// profile. Returns the context at their head.
+pub fn refresh_views(
+    captured: &SigningContext,
+    captured_profile: &FeeProfileV3,
+    profile: &ProfileView,
+    governance: &GovernanceProfileView,
+    account: &AccountView,
+) -> Result<(SigningContext, FeeProfileV3)> {
+    need(
+        governance.context == profile.context,
+        "the chain advanced between the refresh queries; submit again",
+    )?;
+    let (context, _) = ordinary_v2::refresh_views(captured, profile, account)?;
+    let current = validate_views(&context, profile, governance, account)?;
+    need(
+        current == *captured_profile,
+        "the governance fee profile changed since capture; prepare again",
+    )?;
+    Ok((context, current))
 }
 
 fn validate_context(profile: &FeeProfileV3, context: &SigningContext) -> Result<()> {

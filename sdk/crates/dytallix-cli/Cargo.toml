@@ -43,3 +43,6 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true }
 sha2 = "0.10"
+
+[dev-dependencies]
+base64 = { workspace = true }
