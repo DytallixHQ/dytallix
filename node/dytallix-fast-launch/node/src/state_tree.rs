@@ -41,9 +41,14 @@ pub(crate) fn leaf_value(value: &[u8]) -> OwnedValue {
 /// Reads committed tree records, with an optional staged node overlay.
 struct Reader<'a> {
     storage: &'a Storage,
+    /// A tree rebuilt at version v starts from an empty root at v - 1.
+    empty_before: Option<Version>,
 }
 impl TreeReader for Reader<'_> {
     fn get_node_option(&self, key: &NodeKey) -> Result<Option<Node>> {
+        if self.empty_before == Some(key.version()) && key.nibble_path().is_empty() {
+            return Ok(Some(Node::Null));
+        }
         self.storage
             .db
             .get(node_key(key)?)?
@@ -101,12 +106,51 @@ pub(crate) fn update(
     version: Version,
     changes: impl IntoIterator<Item = (Vec<u8>, Option<Vec<u8>>)>,
 ) -> Result<Update> {
-    let reader = Reader { storage };
+    let reader = Reader {
+        storage,
+        empty_before: None,
+    };
+    put(&reader, version, changes)
+}
+
+/// Build the tree of `entries` as `version` in storage that holds no tree
+/// records: a restored snapshot (state sync v1, rule 4). Later blocks
+/// update it as usual.
+pub(crate) fn rebuild(
+    storage: &Storage,
+    version: Version,
+    entries: impl IntoIterator<Item = (Vec<u8>, Vec<u8>)>,
+) -> Result<Update> {
+    ensure!(
+        storage
+            .db
+            .iterator(IteratorMode::From(PREFIX, Direction::Forward))
+            .next()
+            .transpose()?
+            .is_none_or(|(key, _)| !key.starts_with(PREFIX)),
+        "State tree records already present"
+    );
+    let reader = Reader {
+        storage,
+        empty_before: version.checked_sub(1),
+    };
+    put(
+        &reader,
+        version,
+        entries.into_iter().map(|(key, value)| (key, Some(value))),
+    )
+}
+
+fn put(
+    reader: &Reader<'_>,
+    version: Version,
+    changes: impl IntoIterator<Item = (Vec<u8>, Option<Vec<u8>>)>,
+) -> Result<Update> {
     let set: BTreeMap<KeyHash, Option<OwnedValue>> = changes
         .into_iter()
         .map(|(key, value)| (key_hash(&key), value.as_deref().map(leaf_value)))
         .collect();
-    let (root, batch) = Tree::new(&reader).put_value_set(set, version)?;
+    let (root, batch) = Tree::new(reader).put_value_set(set, version)?;
     let mut writes = Writes::new();
     let mut deletes = Deletes::new();
     for (key, node) in batch.node_batch.nodes() {
@@ -140,7 +184,10 @@ pub(crate) fn update(
 
 /// The committed root at `version`.
 pub(crate) fn root(storage: &Storage, version: Version) -> Result<[u8; 32]> {
-    let reader = Reader { storage };
+    let reader = Reader {
+        storage,
+        empty_before: None,
+    };
     Ok(Tree::new(&reader)
         .get_root_hash_option(version)?
         .context("State tree root missing")?
@@ -169,7 +216,10 @@ pub(crate) fn verify_stored(
     version: Version,
     entries: &BTreeMap<Vec<u8>, Vec<u8>>,
 ) -> Result<()> {
-    let reader = Reader { storage };
+    let reader = Reader {
+        storage,
+        empty_before: None,
+    };
     let tree = Tree::new(&reader);
     let root = RootHash(root(storage, version)?);
     for (key, value) in entries {
@@ -212,7 +262,10 @@ pub(crate) fn prove(
     version: Version,
     key: &[u8],
 ) -> Result<(Option<OwnedValue>, SparseMerkleProof<Sha3_256>)> {
-    let reader = Reader { storage };
+    let reader = Reader {
+        storage,
+        empty_before: None,
+    };
     Tree::new(&reader).get_with_proof(key_hash(key), version)
 }
 

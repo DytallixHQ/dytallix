@@ -995,6 +995,36 @@ pub struct ConsensusApplication {
     admission: Mutex<crate::ordinary_admission::OrdinaryAdmissionQueue>,
     block_history: BlockHistory,
     snapshots: Option<crate::snapshot::SnapshotWriter>,
+    /// The database path, for a restore that replaces it.
+    db_path: std::path::PathBuf,
+    restore: Option<crate::snapshot::Restore>,
+}
+
+/// The application's answer to a snapshot the engine offers (state sync
+/// v1, rule 4), as CometBFT's offer results.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnapshotOffer {
+    Accept,
+    Reject,
+    RejectFormat,
+    /// State sync cannot run here: the node already holds state.
+    Abort,
+}
+/// The application's answer to one snapshot chunk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SnapshotChunk {
+    Accept,
+    /// Fetch this chunk again from another sender.
+    Retry,
+    RejectSnapshot,
+    Abort,
+}
+/// A path next to the database: `.restore` for the staging database,
+/// `.replaced` for the empty database a restore replaces.
+fn beside(path: &Path, suffix: &str) -> std::path::PathBuf {
+    let mut name = path.as_os_str().to_owned();
+    name.push(suffix);
+    name.into()
 }
 
 fn valid_hash(value: &str) -> Result<()> {
@@ -3231,13 +3261,16 @@ fn upgrade_history(
 
 impl ConsensusApplication {
     fn ensure_active_runtime(&self) -> Result<()> {
+        self.ensure_active_runtime_in(&self.storage)
+    }
+    fn ensure_active_runtime_in(&self, storage: &Storage) -> Result<()> {
         if let Some(policy) = &self.config.release_handover {
             let candidate = self
                 .runtime_candidate
                 .as_ref()
                 .context("Handover runtime candidate missing")?;
-            let active = if self.storage.db.get(MODE_KEY)?.is_some() {
-                handover_state(&self.storage, &self.config)?
+            let active = if storage.db.get(MODE_KEY)?.is_some() {
+                handover_state(storage, &self.config)?
                     .context("Handover state missing")?
                     .active_release_sha512()
                     .to_owned()
@@ -3825,6 +3858,14 @@ impl ConsensusApplication {
                 emergency_verifier = Some(EmergencyVerifier::new(input.verifier.clone())?);
             }
         }
+        // An interrupted restore is discarded (state sync v1, rule 4); the
+        // database it would have replaced was empty.
+        for suffix in [".restore", ".replaced"] {
+            let leftover = beside(path.as_ref(), suffix);
+            if leftover.exists() {
+                std::fs::remove_dir_all(&leftover)?;
+            }
+        }
         let storage = Arc::new(Storage::open(path.as_ref().to_path_buf())?);
         let initialized = check_stored_startup(&storage, &config, &genesis_bytes,
             root_genesis.as_ref(), emergency_verifier.as_ref())?;
@@ -3865,6 +3906,8 @@ impl ConsensusApplication {
             admission: Mutex::new(crate::ordinary_admission::OrdinaryAdmissionQueue::default()),
             block_history: BlockHistory::default(),
             snapshots: None,
+            db_path: path.as_ref().to_path_buf(),
+            restore: None,
         })
     }
     pub fn info(&self) -> Result<Info> {
@@ -5258,6 +5301,146 @@ impl ConsensusApplication {
                 accepted,
             },
         })
+    }
+    /// Consider a snapshot the engine offers at `height`, whose application
+    /// hash (`trusted_app_hash`, lowercase hex) its light client verified.
+    /// Only a node that holds no state accepts one (state sync v1, rule 4).
+    pub fn offer_snapshot(
+        &mut self,
+        height: u64,
+        format: u32,
+        chunks: u32,
+        hash: &[u8],
+        metadata: &[u8],
+        trusted_app_hash: &str,
+    ) -> Result<SnapshotOffer> {
+        if let Some(restore) = self.restore.take() {
+            restore.discard()?;
+        }
+        let _guard = self.storage.lock_execution()?;
+        if self.pending.is_some() || self.storage.db.iterator(IteratorMode::Start).next().is_some()
+        {
+            return Ok(SnapshotOffer::Abort);
+        }
+        if format != crate::snapshot::FORMAT {
+            return Ok(SnapshotOffer::RejectFormat);
+        }
+        let Ok(metadata) = crate::snapshot::Metadata::decode(metadata) else {
+            return Ok(SnapshotOffer::Reject);
+        };
+        if metadata.hash()?.as_slice() != hash
+            || metadata.height != height
+            || metadata.chunks.len() != usize::try_from(chunks)?
+            || metadata.app_hash != trusted_app_hash
+            || metadata.chain_id != self.config.chain_id
+        {
+            return Ok(SnapshotOffer::Reject);
+        }
+        let staging = beside(&self.db_path, ".restore");
+        self.restore = Some(crate::snapshot::Restore::begin(metadata, staging)?);
+        Ok(SnapshotOffer::Accept)
+    }
+    /// Apply the next chunk of the accepted snapshot. After the last one the
+    /// restored database must pass the startup check before it replaces the
+    /// live one.
+    pub fn apply_snapshot_chunk(&mut self, index: u32, chunk: &[u8]) -> Result<SnapshotChunk> {
+        use crate::snapshot::Applied;
+        let Some(restore) = self.restore.as_mut() else {
+            return Ok(SnapshotChunk::Abort);
+        };
+        let applied = restore.apply(usize::try_from(index)?, chunk);
+        match applied {
+            Ok(Applied::Accepted) => Ok(SnapshotChunk::Accept),
+            Ok(Applied::Refetch) => Ok(SnapshotChunk::Retry),
+            Ok(Applied::Complete) => {
+                let restore = self.restore.take().context("Restore vanished")?;
+                match self.finish_restore(restore) {
+                    Ok(()) => Ok(SnapshotChunk::Accept),
+                    Err(error) => {
+                        log::warn!("Restored snapshot refused: {error:#}");
+                        Ok(SnapshotChunk::RejectSnapshot)
+                    }
+                }
+            }
+            Err(error) => {
+                log::warn!("Snapshot chunk {index} refused: {error:#}");
+                self.restore
+                    .take()
+                    .context("Restore vanished")?
+                    .discard()?;
+                Ok(SnapshotChunk::RejectSnapshot)
+            }
+        }
+    }
+    /// Rebuild the state tree in the staging database, check it against the
+    /// trusted application hash and the startup check, then swap it in.
+    fn finish_restore(&mut self, restore: crate::snapshot::Restore) -> Result<()> {
+        let checked = (|| -> Result<()> {
+            let metadata = &restore.metadata;
+            let storage = restore.storage()?;
+            let entries =
+                committed_entries(storage, &Writes::new(), self.config.governance.is_some())?;
+            let update = crate::state_tree::rebuild(storage, metadata.height, entries)?;
+            ensure!(
+                hex::encode(update.root) == metadata.state_digest,
+                "Restored state root differs from the snapshot"
+            );
+            let mut batch = WriteBatch::default();
+            for key in &update.deletes {
+                batch.delete(key);
+            }
+            for (key, value) in &update.writes {
+                batch.put(key, value);
+            }
+            storage.db.write(batch)?;
+            let head = read_head(storage)?.context("Restored head missing")?;
+            ensure!(
+                head.anchor.height == metadata.height
+                    && head.state_digest == metadata.state_digest
+                    && head.app_hash == metadata.app_hash
+                    && app_hash(&head.state_digest, &head.anchor)? == head.app_hash,
+                "Restored head differs from the trusted application hash"
+            );
+            ensure!(
+                check_stored_startup(
+                    storage,
+                    &self.config,
+                    &self.genesis_bytes,
+                    self.root_genesis.as_ref(),
+                    self.emergency_verifier.as_ref(),
+                )?,
+                "Restored database holds no consensus state"
+            );
+            self.ensure_active_runtime_in(storage)
+        })();
+        if let Err(error) = checked {
+            restore.discard()?;
+            return Err(error);
+        }
+        let staging = restore.close();
+        self.swap_in(&staging)
+    }
+    /// Replace the empty live database with the checked staging database.
+    fn swap_in(&mut self, staging: &Path) -> Result<()> {
+        ensure!(
+            Arc::strong_count(&self.storage) == 1,
+            "Live storage is still shared"
+        );
+        // RocksDB locks a database by path within the process, so the live
+        // handle closes first; a read-only handle holds its place meanwhile.
+        let placeholder = Arc::new(Storage::open_read_only(staging.to_path_buf())?);
+        drop(std::mem::replace(&mut self.storage, placeholder));
+        let replaced = beside(&self.db_path, ".replaced");
+        std::fs::rename(&self.db_path, &replaced)?;
+        std::fs::rename(staging, &self.db_path)?;
+        if let Some(parent) = self.db_path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::File::open(parent)?.sync_all()?;
+        }
+        self.storage = Arc::new(Storage::open(self.db_path.clone())?);
+        std::fs::remove_dir_all(&replaced)?;
+        // The files passed the startup check under the staging path.
+        let sequence = self.storage.db.latest_sequence_number();
+        self.storage.mark_verified(sequence)
     }
     /// Keep every block record instead of the retained window (an archive
     /// node). A local setting: it changes no committed state.

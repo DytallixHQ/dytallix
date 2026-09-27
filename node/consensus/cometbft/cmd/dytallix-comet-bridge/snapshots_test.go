@@ -108,3 +108,78 @@ func TestSnapshotServingIsBounded(t *testing.T) {
 		}
 	}
 }
+
+func restoreChild(t *testing.T, request, result string) application {
+	t.Helper()
+	t.Setenv("DYTALLIX_BRIDGE_TEST_REQUEST", request)
+	t.Setenv("DYTALLIX_BRIDGE_TEST_RESPONSE", `{"ok":true,"result":{"result":"`+result+`"}}`)
+	return application{child: testChild(t, "restore")}
+}
+
+// The offer reaches the application with the verified application hash in
+// hex; every result maps to its engine result, and anything else aborts.
+func TestOfferSnapshotForwardsTheTrustedApplicationHash(t *testing.T) {
+	req := &abci.RequestOfferSnapshot{
+		Snapshot: &abci.Snapshot{Height: 12, Format: 1, Chunks: 2, Hash: []byte{1, 2}, Metadata: []byte("{}")},
+		AppHash:  bytes.Repeat([]byte{0xab}, 32),
+	}
+	request := `offer_snapshot {"app_hash":"` + hex.EncodeToString(req.AppHash) + `","chunks":2,"format":1,"hash":"AQI=","height":12,"metadata":"e30="}`
+	for result, want := range map[string]abci.ResponseOfferSnapshot_Result{
+		"accept":        abci.ResponseOfferSnapshot_ACCEPT,
+		"reject":        abci.ResponseOfferSnapshot_REJECT,
+		"reject_format": abci.ResponseOfferSnapshot_REJECT_FORMAT,
+		"abort":         abci.ResponseOfferSnapshot_ABORT,
+		"other":         abci.ResponseOfferSnapshot_ABORT,
+	} {
+		a := restoreChild(t, request, result)
+		res, err := a.OfferSnapshot(context.Background(), req)
+		if err != nil || res.Result != want {
+			t.Fatalf("%s: %v %v", result, res, err)
+		}
+	}
+	// A changed request makes the application call fail, which aborts.
+	a := restoreChild(t, "offer_snapshot {}", "accept")
+	if res, err := a.OfferSnapshot(context.Background(), req); err != nil || res.Result != abci.ResponseOfferSnapshot_ABORT {
+		t.Fatal(res, err)
+	}
+	// Refused before the application: no child exists here.
+	b := application{}
+	for _, bad := range []*abci.RequestOfferSnapshot{
+		{AppHash: req.AppHash},
+		{Snapshot: req.Snapshot, AppHash: []byte{1}},
+		{Snapshot: &abci.Snapshot{Metadata: make([]byte, maxSnapshotMetadata+1)}, AppHash: req.AppHash},
+	} {
+		if res, err := b.OfferSnapshot(context.Background(), bad); err != nil || res.Result != abci.ResponseOfferSnapshot_REJECT {
+			t.Fatal(res, err)
+		}
+	}
+}
+
+// A chunk to fetch again names itself and its sender; an oversized chunk
+// is fetched again without reaching the application.
+func TestApplySnapshotChunkMapsResultsAndRefetches(t *testing.T) {
+	req := &abci.RequestApplySnapshotChunk{Index: 3, Chunk: []byte("abc"), Sender: "peer"}
+	request := `apply_snapshot_chunk {"chunk":"YWJj","index":3}`
+	for result, want := range map[string]abci.ResponseApplySnapshotChunk_Result{
+		"accept":          abci.ResponseApplySnapshotChunk_ACCEPT,
+		"retry":           abci.ResponseApplySnapshotChunk_RETRY,
+		"reject_snapshot": abci.ResponseApplySnapshotChunk_REJECT_SNAPSHOT,
+		"abort":           abci.ResponseApplySnapshotChunk_ABORT,
+		"other":           abci.ResponseApplySnapshotChunk_ABORT,
+	} {
+		a := restoreChild(t, request, result)
+		res, err := a.ApplySnapshotChunk(context.Background(), req)
+		if err != nil || res.Result != want {
+			t.Fatalf("%s: %v %v", result, res, err)
+		}
+		if want == abci.ResponseApplySnapshotChunk_RETRY &&
+			(len(res.RefetchChunks) != 1 || res.RefetchChunks[0] != 3 || len(res.RejectSenders) != 1 || res.RejectSenders[0] != "peer") {
+			t.Fatal(res)
+		}
+	}
+	b := application{}
+	res, err := b.ApplySnapshotChunk(context.Background(), &abci.RequestApplySnapshotChunk{Index: 1, Chunk: make([]byte, maxSnapshotChunk+1)})
+	if err != nil || res.Result != abci.ResponseApplySnapshotChunk_RETRY || res.RefetchChunks[0] != 1 || res.RejectSenders != nil {
+		t.Fatal(res, err)
+	}
+}

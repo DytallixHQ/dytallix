@@ -1,6 +1,6 @@
 # State sync and bounded restart (state model phase C)
 
-Status: approved (P01, 27 September 2026: decisions below); C1 and C2
+Status: approved (P01, 27 September 2026: decisions below); C1 to C3
 implemented (notes below). Engineering task E04. Covers gaps 3 and 4 of the
 [E04.1 triage](../mainnet/e04-requirement-triage.md) (STATE-002, STATE-003,
 SYNC-002, SYNC-003) and D6 of [state model v2](state-model-v2.md). Paths:
@@ -146,6 +146,41 @@ records chain back from any trusted head.
   renames. A snapshot directory inside the database's writable root needs no
   policy change. The native checks do not yet exercise a snapshot; that
   belongs with the C5 join test.
+
+## C3 implementation notes
+
+- **Offer.** Only a node with no state and no pending block accepts a
+  snapshot; one with state answers abort. The format must be 1, the
+  metadata canonical with its SHA3-256 equal to the snapshot hash, and its
+  height, chunk count, chain and application hash equal to the offer and the
+  hash the light client verified. A new offer discards a restore in
+  progress.
+- **Chunks.** They arrive in order. A chunk that differs from its listed
+  hash, or is over 4 MiB, is fetched again from another sender (the bridge
+  answers retry, naming the chunk and rejecting its sender). Entries must be
+  strictly ascending, outside the state tree, and add up to the listed
+  counts. A snapshot is authenticated only once complete, so a false one is
+  bounded before then: at most 65,536 chunks, no key or value over 64 MiB.
+- **Checks.** Entries go to a staging database at `{db}.restore`. After the
+  last chunk the tree is rebuilt at the snapshot height (from an empty root
+  at the height before it) and must give the listed state digest; the head
+  must give the trusted application hash by the application hash formula;
+  and the full startup check must pass: configuration and genesis source,
+  root genesis receipt, the complete check over the retained window, the
+  control replays with the local verifier, and under handover the active
+  release. Any failure rejects the snapshot, removes the staging database
+  and leaves the node empty.
+- **Swap.** The live handle closes first (RocksDB locks a database by path
+  within a process, so a read-only handle to the staging database holds its
+  place), the empty live database is renamed to `{db}.replaced`, the staging
+  database to `{db}`, and it is reopened; `.replaced` is then removed. At
+  open, a leftover `.restore` or `.replaced` is removed: an interrupted
+  restore is discarded, and the database it would replace was empty. Both
+  sit beside the database, so its parent directory must be in a writable
+  root (E02).
+- **Limits.** The tree rebuild holds every state key in one update. That is
+  fine at current sizes; a streamed rebuild belongs with the T-level scale
+  tests. The engine still refuses state sync until C4 lifts its two gates.
 
 The AppArmor roles (E02) must allow the bridge to read the snapshot
 directory and the application to write it; that change returns to E02 and

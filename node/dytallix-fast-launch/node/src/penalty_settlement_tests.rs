@@ -993,3 +993,61 @@ fn pruned_penalty_chain_restarts_from_the_window() {
     drop(app);
     verify_recovery(&f.open(&path).storage).unwrap();
 }
+
+/// State sync v1, rule 4: a penalty chain's snapshot, taken after evidence
+/// and a validator set change, restores on an empty node that then follows
+/// the chain.
+#[test]
+fn penalty_chain_snapshot_restores_and_follows_the_chain() {
+    use crate::snapshot::{chunk_path, snapshot_dir, Metadata, METADATA_FILE};
+    let f = Fixture::build(8, 2);
+    let dir = tempfile::tempdir().unwrap();
+    let snapshots = dir.path().join("snapshots");
+    let mut source = f
+        .initialized(&dir.path().join("source"))
+        .with_snapshots(crate::snapshot::SnapshotConfig {
+            dir: snapshots.clone(),
+            interval: 12,
+            keep: 1,
+        })
+        .unwrap();
+    for height in 1..=12 {
+        let facts = if height == 6 {
+            vec![evidence(&f.keys[0], 4, 100, 200)]
+        } else {
+            vec![]
+        };
+        commit_epoch(&mut source, height, facts);
+    }
+    source.wait_for_snapshot().unwrap().unwrap();
+    let target_dir = snapshot_dir(&snapshots, 12);
+    let raw = std::fs::read(target_dir.join(METADATA_FILE)).unwrap();
+    let metadata = Metadata::decode(&raw).unwrap();
+    let mut target = f.open(&dir.path().join("target"));
+    let trusted = source.info().unwrap().app_hash;
+    let offered = target
+        .offer_snapshot(
+            12,
+            1,
+            u32::try_from(metadata.chunks.len()).unwrap(),
+            &metadata.hash().unwrap(),
+            &raw,
+            &trusted,
+        )
+        .unwrap();
+    assert_eq!(offered, SnapshotOffer::Accept);
+    for index in 0..metadata.chunks.len() {
+        let chunk = std::fs::read(chunk_path(&target_dir, index)).unwrap();
+        let applied = target
+            .apply_snapshot_chunk(u32::try_from(index).unwrap(), &chunk)
+            .unwrap();
+        assert_eq!(applied, SnapshotChunk::Accept);
+    }
+    assert_eq!(target.info().unwrap(), source.info().unwrap());
+    assert_eq!(penalties(&target).incidents, penalties(&source).incidents);
+    for height in 13..=16 {
+        commit_epoch(&mut source, height, vec![]);
+        commit_epoch(&mut target, height, vec![]);
+        assert_eq!(target.info().unwrap(), source.info().unwrap());
+    }
+}

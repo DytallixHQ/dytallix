@@ -24,6 +24,11 @@ pub const CHUNK_BYTES: usize = 4 << 20;
 pub const METADATA_FILE: &str = "metadata.json";
 /// Metadata read back from disk is bounded.
 pub const MAX_METADATA_BYTES: u64 = 1 << 20;
+/// Restore bounds. A snapshot is authenticated only once complete, so a
+/// false one must not hold unbounded memory or disk before then: 256 GiB of
+/// chunks, and no key or value above 64 MiB.
+pub const MAX_CHUNKS: usize = 1 << 16;
+pub const MAX_FIELD_BYTES: usize = 64 << 20;
 
 /// Operator snapshot settings, a local node setting. The interval and the
 /// count kept are E05 values; there are no defaults.
@@ -327,6 +332,142 @@ pub fn decode_entries(mut stream: &[u8]) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         entries.push((key, value));
     }
     Ok(entries)
+}
+
+/// What a chunk did to a restore in progress.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Applied {
+    /// More chunks are needed.
+    Accepted,
+    /// The chunk does not match its listed hash: fetch it again from
+    /// another sender.
+    Refetch,
+    /// Every chunk is in; the staging database is complete.
+    Complete,
+}
+
+/// A snapshot being restored into a staging database (state sync v1,
+/// rule 4). Chunks arrive in order; each must match its listed hash, and
+/// the entries must be strictly ascending, outside the state tree, and add
+/// up to the listed counts.
+pub struct Restore {
+    pub metadata: Metadata,
+    staging: PathBuf,
+    storage: Option<Storage>,
+    next: usize,
+    pending: Vec<u8>,
+    last_key: Option<Vec<u8>>,
+    entries: u64,
+    bytes: u64,
+}
+impl Restore {
+    /// Start restoring `metadata`, already matched to the trusted height and
+    /// application hash, into a new database at `staging`.
+    pub fn begin(metadata: Metadata, staging: PathBuf) -> Result<Self> {
+        ensure!(
+            metadata.chunks.len() <= MAX_CHUNKS,
+            "Snapshot exceeds the restore bound"
+        );
+        if staging.exists() {
+            std::fs::remove_dir_all(&staging)?;
+        }
+        let storage = Storage::open(staging.clone())?;
+        Ok(Self {
+            metadata,
+            staging,
+            storage: Some(storage),
+            next: 0,
+            pending: Vec::new(),
+            last_key: None,
+            entries: 0,
+            bytes: 0,
+        })
+    }
+    pub fn staging(&self) -> &Path {
+        &self.staging
+    }
+    pub fn storage(&self) -> Result<&Storage> {
+        self.storage.as_ref().context("Restore storage closed")
+    }
+    /// Apply chunk `index`. An error means the snapshot is unusable.
+    pub fn apply(&mut self, index: usize, chunk: &[u8]) -> Result<Applied> {
+        ensure!(index == self.next, "Snapshot chunk out of order");
+        let expected = self
+            .metadata
+            .chunks
+            .get(index)
+            .context("Snapshot chunk index outside the snapshot")?;
+        if chunk.len() > CHUNK_BYTES || hex::encode(Sha3_256::digest(chunk)) != *expected {
+            return Ok(Applied::Refetch);
+        }
+        self.pending.extend_from_slice(chunk);
+        let mut batch = rocksdb::WriteBatch::default();
+        let mut offset = 0;
+        while let Some((key, value, used)) = next_entry(&self.pending[offset..])? {
+            ensure!(
+                self.last_key.as_deref().is_none_or(|last| last < key) && !excluded(key),
+                "Snapshot entries out of order or inside the state tree"
+            );
+            batch.put(key, value);
+            self.last_key = Some(key.to_vec());
+            self.entries += 1;
+            offset += used;
+        }
+        self.pending.drain(..offset);
+        self.storage()?.db.write(batch)?;
+        self.bytes += u64::try_from(chunk.len())?;
+        self.next += 1;
+        if self.next < self.metadata.chunks.len() {
+            return Ok(Applied::Accepted);
+        }
+        ensure!(
+            self.pending.is_empty()
+                && self.entries == self.metadata.entries
+                && self.bytes == self.metadata.bytes,
+            "Snapshot stream differs from its metadata"
+        );
+        Ok(Applied::Complete)
+    }
+    /// Close the staging database and return its path.
+    pub fn close(mut self) -> PathBuf {
+        self.storage = None;
+        self.staging.clone()
+    }
+    /// Discard the staging database.
+    pub fn discard(mut self) -> Result<()> {
+        self.storage = None;
+        if self.staging.exists() {
+            std::fs::remove_dir_all(&self.staging)?;
+        }
+        Ok(())
+    }
+}
+
+/// The first complete entry of `stream` and the bytes it used, or None when
+/// the stream holds only part of one.
+fn next_entry(stream: &[u8]) -> Result<Option<(&[u8], &[u8], usize)>> {
+    let field = |at: usize| -> Result<Option<(usize, usize)>> {
+        let Some(length) = stream.get(at..at + 4) else {
+            return Ok(None);
+        };
+        let length = usize::try_from(u32::from_be_bytes(length.try_into()?))?;
+        ensure!(
+            length <= MAX_FIELD_BYTES,
+            "Snapshot entry exceeds the restore bound"
+        );
+        Ok((stream.len() >= at + 4 + length).then_some((at + 4, length)))
+    };
+    let Some((key_at, key_len)) = field(0)? else {
+        return Ok(None);
+    };
+    let Some((value_at, value_len)) = field(key_at + key_len)? else {
+        return Ok(None);
+    };
+    Ok(Some((
+        &stream[key_at..key_at + key_len],
+        &stream[value_at..value_at + value_len],
+        value_at + value_len,
+    )))
 }
 
 #[cfg(test)]

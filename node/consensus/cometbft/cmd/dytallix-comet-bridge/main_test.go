@@ -54,6 +54,12 @@ func TestBridgeChildHelper(t *testing.T) {
 			}
 		case "updates":
 			fmt.Println(os.Getenv("DYTALLIX_BRIDGE_TEST_RESPONSE"))
+		case "restore":
+			if req.Method+" "+string(req.Payload) != os.Getenv("DYTALLIX_BRIDGE_TEST_REQUEST") {
+				fmt.Println(`{"ok":false,"error":"restore request changed"}`)
+			} else {
+				fmt.Println(os.Getenv("DYTALLIX_BRIDGE_TEST_RESPONSE"))
+			}
 		case "count":
 			fmt.Println(`{"ok":true,"result":{"app_hash":"0000000000000000000000000000000000000000000000000000000000000000","tx_results":[]}}`)
 		default:
