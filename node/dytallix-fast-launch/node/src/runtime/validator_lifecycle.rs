@@ -881,15 +881,29 @@ impl LifecycleState {
     pub fn unbonding_total(&self) -> Result<u128> {
         checked_sum(self.unbonding_by_owner()?.into_values())
     }
+    /// Voting power of each operator owner in the effective set, for the
+    /// validator share of issuance (fees v1). A jailed or inactive validator
+    /// earns nothing; an owner of several validators sums their power.
+    pub fn payout_weights(&self, rewards: &RewardState) -> Result<BTreeMap<String, u128>> {
+        let set = HistoricalSet::of(&self.effective)?;
+        let mut weights = BTreeMap::new();
+        for (id, identity) in &set.validators {
+            let eligible = rewards
+                .validators
+                .get(id)
+                .is_none_or(|status| status.active && !status.jailed);
+            if eligible {
+                let weight: &mut u128 = weights.entry(identity.owner.clone()).or_default();
+                *weight = weight
+                    .checked_add(set.powers[id])
+                    .context("Validator payout weight exceeds u128")?;
+            }
+        }
+        Ok(weights)
+    }
     pub fn validate_rewards(&self, rewards: &RewardState) -> Result<()> {
         rewards.validate_internal()?;
-        for owner in rewards
-            .positions
-            .keys()
-            .chain(rewards.unbonding.keys())
-            .chain(rewards.unpaid.keys())
-            .chain(rewards.locks.keys())
-        {
+        for owner in rewards.owners() {
             ensure!(
                 self.reserved_owners.contains(owner),
                 "Reward owner slot was not reserved"
@@ -1604,10 +1618,7 @@ impl LifecycleState {
                     .flat_map(|s| s.removals.iter().map(|r| &r.owner)),
             )
             .chain(self.unbonding.values().map(|e| &e.owner))
-            .chain(rewards.positions.keys())
-            .chain(rewards.unbonding.keys())
-            .chain(rewards.unpaid.keys())
-            .chain(rewards.locks.keys())
+            .chain(rewards.owners())
             .collect();
         let freed: Vec<String> = self
             .reserved_owners

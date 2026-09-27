@@ -357,6 +357,8 @@ pub(crate) fn prepare_adaptive_interval(
             .get(REWARD_STATE_KEY)?
             .context("Reward-v2 genesis is required")?,
     )?;
+    // Voting power of each operator owner in this block's validator set.
+    let mut payout_weights: BTreeMap<String, u128> = BTreeMap::new();
     if let Some(raw) = storage
         .db
         .get(crate::runtime::validator_lifecycle::STATE_KEY)?
@@ -421,6 +423,7 @@ pub(crate) fn prepare_adaptive_interval(
         if !custody {
             validators.prune_history(next - 1, parent_time)?;
         }
+        payout_weights = validators.payout_weights(&rewards)?;
         writes.insert(
             crate::runtime::validator_lifecycle::STATE_KEY
                 .as_bytes()
@@ -432,6 +435,9 @@ pub(crate) fn prepare_adaptive_interval(
         rewards.stage_interval(next, parent_hash, planned.block_pools.staking_rewards)?,
         "Interval already allocated outside this block"
     );
+    // The validator share is owed by voting power (fees v1). Without a
+    // lifecycle there is no power, so it stays in the reserve.
+    rewards.stage_validator_payouts(planned.block_pools.validator_rewards, &payout_weights)?;
     writes.insert(REWARD_STATE_KEY.as_bytes().to_vec(), rewards.encode()?);
     let event = (next, timestamp, total, pools, None::<u128>, circulating);
     put(&mut writes, &format!("emission:event:{next}"), &event)?;

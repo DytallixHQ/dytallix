@@ -247,6 +247,7 @@ fn reward_fixture() -> RewardState {
         last_height: 7,
         last_interval_digest: None,
         last_interval_input_digest: None,
+        validator_payouts: Default::default(),
     }
 }
 #[test]
@@ -268,6 +269,11 @@ fn reward_module_vector_freezes_config_map_and_reserve_layout() {
     b.extend(7u64.to_le_bytes());
     b.push(0);
     b.push(0);
+    // Validator payouts: an empty map and three counters.
+    empty_maps(&mut b, 1);
+    for _ in 0..3 {
+        b.extend(0u128.to_le_bytes());
+    }
     assert_eq!(got.canonical_bytes(), payload_record("rewards:v2:state", b));
     let mut changed = state.clone();
     changed.total_claimed = u128::MAX;

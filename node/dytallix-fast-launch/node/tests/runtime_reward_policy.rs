@@ -48,9 +48,9 @@ fn interval_exact_original_entitlements_and_claims_survive_decode() {
     assert!(!state.unpaid.contains_key("bob"));
     state.stage_interval(2, "block1", 250_000).unwrap();
     let mut recovered = RewardState::decode(&state.encode().unwrap()).unwrap();
-    assert_eq!(recovered.claim("alice").unwrap(), 400_000);
-    assert_eq!(recovered.claim("bob").unwrap(), 100_000);
-    assert_eq!(recovered.claim("alice").unwrap(), 0);
+    assert_eq!(recovered.claim("alice").unwrap().0, 400_000);
+    assert_eq!(recovered.claim("bob").unwrap().0, 100_000);
+    assert_eq!(recovered.claim("alice").unwrap().0, 0);
     assert_eq!(recovered.total_claimed, 500_000);
     assert_eq!(recovered.rounding_reserve, 0);
     recovered.validate_internal().unwrap();
@@ -64,14 +64,14 @@ fn inactive_and_rounding_reserves_never_reach_later_entrants() {
     state.bond("alice", "v1", 2).unwrap();
     state.bond("bob", "v1", 1).unwrap();
     state.stage_interval(2, "b1", 2).unwrap();
-    assert_eq!(state.claim("alice").unwrap(), 1);
-    assert_eq!(state.claim("bob").unwrap(), 0);
+    assert_eq!(state.claim("alice").unwrap().0, 1);
+    assert_eq!(state.claim("bob").unwrap().0, 0);
     assert_eq!(state.rounding_reserve, 1);
     state.begin_unbond("alice", "v1", 2).unwrap();
     state.begin_unbond("bob", "v1", 1).unwrap();
     state.bond("carol", "v1", 1).unwrap();
     state.stage_interval(3, "b2", 5).unwrap();
-    assert_eq!(state.claim("carol").unwrap(), 5);
+    assert_eq!(state.claim("carol").unwrap().0, 5);
     assert_eq!(state.inactive_reserve, 17);
     assert_eq!(state.rounding_reserve, 1);
     assert_eq!(state.total_unbonding().unwrap(), 3);
@@ -129,7 +129,7 @@ fn resource_limits_bound_positions_and_unpaid_churn() {
     // Reject admission before the next interval rather than failing allocation.
     state.stage_interval(2, "b1", 1).unwrap();
     assert_eq!(state.inactive_reserve, 1);
-    assert_eq!(state.claim("alice").unwrap(), 1);
+    assert_eq!(state.claim("alice").unwrap().0, 1);
 }
 
 #[test]
