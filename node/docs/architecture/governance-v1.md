@@ -148,6 +148,13 @@ difference is marked.
   were narrowed so governed values can change: an unbond's stored
   configuration must match only the evidence limits, and the validator proof
   profile digest excludes operators, `min_self_bond` and `max_active`.
+- Fee history keeps a profile only while a retained receipt uses it. An
+  earlier profile may remain beside the current one if it has a lower version
+  and differs only in governed values; each receipt is checked against its
+  own profile. With governance configured, `max_retained_profiles` must be at
+  least 2. (Found after the first commit: an ordinary receipt under the old
+  profile would have halted the block that executed a fee change, and old
+  profiles were never pruned.)
 - Governance transactions keep no retained receipt. The result is in the
   block record and app hash, and the nonce prevents replay. The complete
   check accepts them like pruned ordinary receipts.

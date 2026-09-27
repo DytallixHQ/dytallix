@@ -3692,8 +3692,16 @@ mod governance {
         let data = governance_actions::encode(&ParameterChange::Fees(values)).unwrap();
         let block = vec![propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data)];
         commit(&mut app, 1, block);
-        let txs = vec![deposit(&app, &f.payer, 1, 5)];
-        commit(&mut app, 2, txs);
+        // An ordinary receipt under the old profile is still retained when
+        // the change executes.
+        let old = f.ordinary(
+            &current(&app, &f.secondary),
+            &f.secondary,
+            vec![send(f.payer.id(), 1)],
+            1000,
+        );
+        let txs = vec![deposit(&app, &f.payer, 1, 5), f.ordinary_wire(&old)];
+        assert_eq!(codes(&commit(&mut app, 2, txs)), vec![0, 0]);
         let txs = vec![vote(&app, &f.active, 1, v3::VoteChoice::Yes)];
         commit(&mut app, 3, txs);
         for height in 4..=7 {
@@ -3726,6 +3734,15 @@ mod governance {
         assert_eq!(codes(&result), vec![0], "{:?}", result.tx_results);
         let paid = drt - balance(&app, &f.payer.address()) - 1;
         assert_eq!(paid % 3, 0, "fee is charged at the governed gas price");
+        // Both profiles are retained while their receipts are; an expired
+        // receipt takes its profile with it.
+        let mut state = load_ordinary(&app.storage, &app.config, Some(&book(&app)), false)
+            .unwrap()
+            .unwrap();
+        assert_eq!(state.history.profiles().len(), 2);
+        state.history.prune_expired(2 + state.receipt_window(), state.receipt_window());
+        assert_eq!(state.history.profiles().len(), 1);
+        assert!(state.history.profiles().values().all(|p| *p == ordinary));
         drop(app);
         f.open(dir.path());
     }

@@ -262,6 +262,15 @@ impl FeeHistory {
     pub(crate) fn prune_expired(&mut self, height: u64, lifetime: u64) {
         self.receipts
             .retain(|_, receipt| receipt.block_height.saturating_add(lifetime) > height);
+        // A profile is kept only for its retained receipts; the current one
+        // returns with its next receipt. Governed fee changes (T6) would
+        // otherwise fill the profile bound.
+        let used: std::collections::BTreeSet<String> = self
+            .receipts
+            .values()
+            .map(|r| hex::encode(r.profile_digest))
+            .collect();
+        self.profiles.retain(|digest, _| used.contains(digest));
     }
     pub(crate) fn validate(&self) -> Result<()> {
         if self.receipts.len() > MAX_RECEIPTS || self.profiles.len() > MAX_RECEIPTS {

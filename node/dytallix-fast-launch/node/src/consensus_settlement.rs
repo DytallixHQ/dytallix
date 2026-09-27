@@ -353,6 +353,14 @@ impl ConsensusConfig {
                     .is_some_and(|ordinary| ordinary.fee_profile == governance.fee_profile.base),
                 "Governance fee profile must extend the ordinary fee profile"
             );
+            // After a governed fee change the old profile stays while its
+            // receipts are retained, beside the new one.
+            ensure!(
+                self.ordinary
+                    .as_ref()
+                    .is_some_and(|ordinary| ordinary.max_retained_profiles >= 2),
+                "Governance needs room for two retained fee profiles"
+            );
             governance.validate_for_activation()?;
         }
         ensure!(
