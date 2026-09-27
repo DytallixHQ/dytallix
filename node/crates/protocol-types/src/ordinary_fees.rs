@@ -6,7 +6,7 @@ use crate::recovery_wire::WireError;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 use std::collections::{BTreeMap, BTreeSet};
-pub const FORMAT_VERSION: u16 = 1;
+pub const FORMAT_VERSION: u16 = 2;
 pub const ORDINARY_FEE_CONTRACT_VERSION: u16 = 1;
 pub const PROFILE_PREFIX: &[u8] = b"DYTALLIX/ORDINARY-FEE-PROFILE\0";
 pub const MAX_PROFILE_BYTES: usize = 512;
@@ -76,6 +76,9 @@ pub struct FeeProfile {
     pub validator_proof_profile_digest: [u8; 32],
     #[serde(with = "costs_view")]
     pub validator_proof_costs: BTreeMap<String, u64>,
+    /// uDRT burned when a `Send` creates its recipient's account.
+    #[serde(with = "decimal_u128")]
+    pub account_creation_fee_udrt: u128,
 }
 impl FeeProfile {
     pub fn validate(&self) -> Result<()> {
@@ -102,6 +105,10 @@ impl FeeProfile {
                 && self.max_block_signature_checks > 0
                 && self.max_fee_cap > 0,
             "inconsistent ordinary capacity limits",
+        )?;
+        need(
+            self.account_creation_fee_udrt > 0,
+            "explicit positive account creation fee required",
         )?;
         validate_costs(&self.signature_costs)?;
         validate_costs(&self.validator_proof_costs)?;
@@ -209,6 +216,7 @@ pub fn profile_bytes(p: &FeeProfile) -> Result<Vec<u8>> {
     append_costs(&mut b, &p.signature_costs)?;
     b.extend_from_slice(&p.validator_proof_profile_digest);
     append_costs(&mut b, &p.validator_proof_costs)?;
+    b.extend_from_slice(&p.account_creation_fee_udrt.to_be_bytes());
     need(
         b.len() <= MAX_PROFILE_BYTES,
         "ordinary fee profile exceeds codec bound",
@@ -323,6 +331,7 @@ pub fn decode_profile(bytes: &[u8]) -> Result<FeeProfile> {
         signature_costs: BTreeMap::new(),
         validator_proof_profile_digest: [0; 32],
         validator_proof_costs: BTreeMap::new(),
+        account_creation_fee_udrt: 0,
     };
     for c in &mut p.action_costs {
         *c = r.u64()?;
@@ -331,6 +340,7 @@ pub fn decode_profile(bytes: &[u8]) -> Result<FeeProfile> {
     p.limits.allowed_algorithms = p.signature_costs.keys().cloned().collect();
     p.validator_proof_profile_digest = r.id()?;
     p.validator_proof_costs = r.costs()?;
+    p.account_creation_fee_udrt = r.u128()?;
     need(
         r.offset == bytes.len(),
         "trailing ordinary fee profile bytes",

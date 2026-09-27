@@ -102,6 +102,9 @@ fn fixture() -> Fixture {
     let config = OrdinaryConfig {
         version: 1,
         fee_profile,
+        account_template: AccountTemplate {
+            recovery: book.accounts.values().next().unwrap().recovery.config.clone(),
+        },
         initial_grants: BTreeMap::new(),
         max_state_bytes: 4_000_000,
         max_grants: 2,
@@ -416,6 +419,13 @@ fn combined_profile_rejects_reachable_replacement_algorithms_outside_ordinary_ro
         account.recovery.config.algorithms.remove("mldsa87");
     }
     f.book.validate().unwrap();
+    // The account template is another reachable path and must narrow too.
+    assert!(OrdinaryState::genesis(f.config.clone(), &f.lifecycle, &f.book, &f.nonces).is_err());
+    f.config
+        .account_template
+        .recovery
+        .algorithms
+        .remove("mldsa87");
     let state = OrdinaryState::genesis(f.config.clone(), &f.lifecycle, &f.book, &f.nonces).unwrap();
     let bytes = state.encode().unwrap();
     assert_eq!(
@@ -433,4 +443,22 @@ fn combined_profile_rejects_reachable_replacement_algorithms_outside_ordinary_ro
         .algorithms
         .insert("mldsa87".into(), 2592);
     assert!(OrdinaryState::decode(&bytes, &f.config, &f.lifecycle, &f.book, &f.nonces).is_err());
+}
+#[test]
+fn account_template_is_validated_against_both_account_roles_and_mainnet() {
+    let f = fixture();
+    f.config.validate(&f.lifecycle, &f.book).unwrap();
+    let mut zero = f.config.clone();
+    zero.account_template.recovery.recovery_delay = 0;
+    assert!(zero.validate(&f.lifecycle, &f.book).is_err());
+    let mut unknown = f.config.clone();
+    unknown.account_template.recovery.algorithms.insert("falcon1024".into(), 1793);
+    assert!(unknown.validate(&f.lifecycle, &f.book).is_err());
+    let mut wrong_length = f.config.clone();
+    wrong_length
+        .account_template
+        .recovery
+        .algorithms
+        .insert("mldsa65".into(), 1951);
+    assert!(wrong_length.validate(&f.lifecycle, &f.book).is_err());
 }

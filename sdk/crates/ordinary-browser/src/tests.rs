@@ -198,7 +198,7 @@ fn independent_full_wire_vectors_cover_both_algorithms_and_all_twelve_actions() 
     );
 }
 #[test]
-fn independent_profile_vector_and_38_mutations_are_exact() {
+fn independent_profile_vector_and_39_mutations_are_exact() {
     let v = fee_vectors();
     assert_eq!(
         profile_digest(&json_string(&v["profile"])).unwrap(),
@@ -208,7 +208,7 @@ fn independent_profile_vector_and_38_mutations_are_exact() {
         hex::encode(profile_bytes(&json_string(&v["profile"])).unwrap()),
         v["expected_profile_hex"]
     );
-    assert_eq!(v["mutations"].as_array().unwrap().len(), 38);
+    assert_eq!(v["mutations"].as_array().unwrap().len(), 39);
     for m in v["mutations"].as_array().unwrap() {
         let mut p = v["profile"].clone();
         *p.pointer_mut(m["pointer"].as_str().unwrap()).unwrap() = m["value"].clone();

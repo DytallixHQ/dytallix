@@ -135,6 +135,7 @@ impl Fixture {
             signature_costs: BTreeMap::from([("mldsa65".into(), 1)]),
             validator_proof_profile_digest: [1; 32],
             validator_proof_costs: BTreeMap::from([("mldsa65".into(), 1)]),
+            account_creation_fee_udrt: 1_000,
         };
         let candidate = GovernanceCandidateConfig {
             schema_version: CANDIDATE_SCHEMA_VERSION,

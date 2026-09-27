@@ -42,6 +42,7 @@ fn profile() -> FeeProfileV3 {
             signature_costs: BTreeMap::from([("mldsa65".into(), 3)]),
             validator_proof_profile_digest: [9; 32],
             validator_proof_costs: BTreeMap::from([("mldsa65".into(), 11)]),
+            account_creation_fee_udrt: 1_000,
         },
         version: 2,
         activation_height: 2,

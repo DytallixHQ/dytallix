@@ -182,6 +182,9 @@ impl Fixture {
         config.ordinary = Some(OrdinaryConfig {
             version: 1,
             fee_profile,
+            account_template: crate::ordinary_state::AccountTemplate {
+                recovery: recovery_config.clone(),
+            },
             initial_grants: BTreeMap::new(),
             max_state_bytes: 4_000_000,
             max_grants: 16,
@@ -446,6 +449,7 @@ fn ordinary_profile(config: &ConsensusConfig) -> OrdinaryFeeProfile {
         )
         .unwrap(),
         validator_proof_costs: BTreeMap::from([("mldsa65".into(), 4)]),
+        account_creation_fee_udrt: 1_000,
     }
 }
 impl Fixture {

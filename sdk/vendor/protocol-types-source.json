@@ -7,7 +7,7 @@
   "source_head": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
   "source_kind": "working_tree_snapshot",
   "source_head_is_complete_snapshot": false,
-  "source_description": "Exact canonical protocol crate working-tree bytes after approved ordinary client integration; uncommitted source additions are included. The file hashes, not source_head alone, identify this snapshot.",
+  "source_description": "Exact canonical protocol crate working-tree bytes after approved ordinary client integration; uncommitted source additions are included. The file hashes, not source_head alone, identify this snapshot. Updated for the account creation fee (fee profile format 2) from exocognosis/dytallix mainnet/node.",
   "hash_algorithm": "sha256",
   "files": [
     {
@@ -55,8 +55,8 @@
     {
       "path": "src/ordinary_fees.rs",
       "source_path": "crates/protocol-types/src/ordinary_fees.rs",
-      "bytes": 16653,
-      "sha256": "2acd329db4145b28e37725f5330a430c662e1d7d5ad545803d0691e21b754c3c"
+      "bytes": 17086,
+      "sha256": "0c88f4eceef819e24fa94396862bd6f9328a0b2d62d9eeadc04019255c5739e2"
     },
     {
       "path": "src/recovery.rs",
@@ -103,8 +103,8 @@
     {
       "path": "tests/fixtures/ordinary_fee_v1_vectors.json",
       "source_path": "crates/protocol-types/tests/fixtures/ordinary_fee_v1_vectors.json",
-      "bytes": 40960,
-      "sha256": "7efe727cdef122b8e8fe2afc596f9bc9bddd2c92da209ad97f5044518c35152d"
+      "bytes": 43333,
+      "sha256": "9796b134976e415eedfc40b5e3babb4192538759badca7a2296254e7b97fdbf3"
     },
     {
       "path": "tests/fixtures/ordinary_v2_vectors.json",
@@ -121,8 +121,8 @@
     {
       "path": "tests/ordinary_fees.rs",
       "source_path": "crates/protocol-types/tests/ordinary_fees.rs",
-      "bytes": 11663,
-      "sha256": "596ad3024b60ca8a3763653162e9b7066c3e95d568d7cfe02d9dbff3f102f0fb"
+      "bytes": 12533,
+      "sha256": "773ce4db6b1736b495ab14d061332b12a8261e163d2c5a959c2589952bd1c214"
     },
     {
       "path": "tests/recovery.rs",

@@ -9,6 +9,17 @@ fn config() -> OrdinaryConfig {
     OrdinaryConfig {
         version: 1,
         fee_profile: serde_json::from_value(vectors["profile"].clone()).unwrap(),
+        account_template: crate::ordinary_state::AccountTemplate {
+            recovery: dytallix_protocol_types::recovery::RecoveryConfig {
+                timing_version: 1,
+                recovery_delay: 2,
+                finalization_window: 2,
+                policy_delay: 2,
+                policy_window: 2,
+                submission_lifetime: 50,
+                algorithms: BTreeMap::from([("mldsa65".into(), 1952)]),
+            },
+        },
         initial_grants: BTreeMap::new(),
         max_state_bytes: 100000,
         max_grants: 1,
