@@ -1,36 +1,28 @@
 //! Post-Quantum Cryptographic signature verification module
 //!
 //! Signature verification uses the pure-Rust FIPS 204 backend. ML-DSA-65 is
-//! the operational algorithm. Other algorithm labels are parsed so that they
-//! can be rejected with structured errors.
+//! the only approved algorithm, so it is the only one this module can name.
+//! Every other label, including pre-standard Dilithium and ML-DSA-87, fails
+//! to parse with `UnsupportedAlgorithm`.
 
 use std::str::FromStr;
 use thiserror::Error;
 
-
 use fips204::ml_dsa_65;
 use fips204::traits::{SerDes, Verifier};
 
-/// PQC algorithm identifiers
+/// Approved PQC signature algorithms.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum PQCAlgorithm {
-    Dilithium5,
-    MlDsa87,
     #[default]
     MlDsa65,
-    Falcon1024,
-    SphincsPlus,
 }
 
 impl PQCAlgorithm {
     /// Get algorithm identifier string
     pub fn as_str(&self) -> &'static str {
         match self {
-            PQCAlgorithm::Dilithium5 => "dilithium5",
-            PQCAlgorithm::MlDsa87 => "mldsa87",
             PQCAlgorithm::MlDsa65 => "mldsa65",
-            PQCAlgorithm::Falcon1024 => "falcon1024",
-            PQCAlgorithm::SphincsPlus => "sphincs_sha2_128s_simple",
         }
     }
 }
@@ -40,11 +32,7 @@ impl FromStr for PQCAlgorithm {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "dilithium5" => Ok(PQCAlgorithm::Dilithium5),
-            "mldsa87" => Ok(PQCAlgorithm::MlDsa87),
             "mldsa65" => Ok(PQCAlgorithm::MlDsa65),
-            "falcon1024" => Ok(PQCAlgorithm::Falcon1024),
-            "sphincs_sha2_128s_simple" => Ok(PQCAlgorithm::SphincsPlus),
             _ => Err(PQCVerifyError::UnsupportedAlgorithm(s.to_string())),
         }
     }
@@ -83,51 +71,21 @@ mod fail_closed_tests {
     }
 }
 
-/// Main verification function supporting multiple PQC algorithms
-///
-/// # Arguments
-/// * `pubkey` - The public key bytes
-/// * `msg` - The message that was signed
-/// * `sig` - The signature bytes
-/// * `alg` - The algorithm to use for verification
+/// Verify a signature with an approved PQC algorithm.
 ///
 /// # Returns
 /// * `Ok(())` if verification succeeds
 /// * `Err(PQCVerifyError)` with structured error information
-///
-/// # Example
-/// ```rust,ignore
-/// use dytallix_fast_node::crypto::pqc_verify::{verify, PQCAlgorithm};
-///
-/// let result = verify(
-///     &public_key_bytes,
-///     &message_bytes,
-///     &signature_bytes,
-///     PQCAlgorithm::Dilithium5,
-/// );
-/// ```
 pub fn verify(
     pubkey: &[u8],
     msg: &[u8],
     sig: &[u8],
     alg: PQCAlgorithm,
 ) -> Result<(), PQCVerifyError> {
-
-
-    {
-        return match alg {
-            // Never reinterpret pre-standard Dilithium bytes as FIPS 204 ML-DSA.
-            PQCAlgorithm::MlDsa65 => verify_mldsa65_fips204(pubkey, msg, sig),
-            _ => Err(PQCVerifyError::UnsupportedAlgorithm(
-                alg.as_str().to_string(),
-            )),
-        };
+    match alg {
+        PQCAlgorithm::MlDsa65 => verify_mldsa65_fips204(pubkey, msg, sig),
     }
-
 }
-
-
-
 
 /// Verify the operational default algorithm (ML-DSA-65).
 /// This maintains backward compatibility with existing ActivePQC::verify calls
@@ -146,79 +104,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_algorithm_parsing() {
-        assert_eq!(
-            PQCAlgorithm::from_str("dilithium5").unwrap(),
-            PQCAlgorithm::Dilithium5
-        );
-        assert_eq!(
-            PQCAlgorithm::from_str("falcon1024").unwrap(),
-            PQCAlgorithm::Falcon1024
-        );
-        assert_eq!(
-            PQCAlgorithm::from_str("mldsa65").unwrap(),
-            PQCAlgorithm::MlDsa65
-        );
-        assert_eq!(
-            PQCAlgorithm::from_str("sphincs_sha2_128s_simple").unwrap(),
-            PQCAlgorithm::SphincsPlus
-        );
-        assert!(PQCAlgorithm::from_str("unknown").is_err());
-        assert!(PQCAlgorithm::from_str("dilithium3").is_err());
+    fn only_approved_algorithms_parse() {
+        assert_eq!(PQCAlgorithm::from_str("mldsa65").unwrap(), PQCAlgorithm::MlDsa65);
         assert_eq!(PQCAlgorithm::default(), PQCAlgorithm::MlDsa65);
-    }
-
-    #[test]
-    fn test_algorithm_strings() {
-        assert_eq!(PQCAlgorithm::Dilithium5.as_str(), "dilithium5");
         assert_eq!(PQCAlgorithm::MlDsa65.as_str(), "mldsa65");
-        assert_eq!(PQCAlgorithm::Falcon1024.as_str(), "falcon1024");
-        assert_eq!(
-            PQCAlgorithm::SphincsPlus.as_str(),
-            "sphincs_sha2_128s_simple"
-        );
+        for label in [
+            "dilithium5",
+            "dilithium3",
+            "mldsa87",
+            "mldsa44",
+            "falcon1024",
+            "sphincs_sha2_128s_simple",
+            "ed25519",
+            "secp256k1",
+            "MLDSA65",
+            "",
+        ] {
+            assert!(matches!(
+                PQCAlgorithm::from_str(label),
+                Err(PQCVerifyError::UnsupportedAlgorithm(_))
+            ));
+        }
     }
 
     #[test]
-    fn test_mock_verification() {
-    }
-
-    #[test]
-    fn test_default_verify_compatibility() {
-        // Test the compatibility function with mock data
-        assert!(!verify_default(&[], &[], &[])); // Should fail for empty inputs
-
-         // Mock should succeed
-    }
-
-
-
-    #[test]
-    fn test_fips204_build_rejects_non_dilithium_algorithms() {
-        let result = verify(
-            b"pubkey",
-            b"message",
-            b"signature",
-            PQCAlgorithm::Falcon1024,
-        );
+    fn malformed_inputs_fail() {
+        assert!(!verify_default(&[], &[], &[]));
         assert!(matches!(
-            result,
-            Err(PQCVerifyError::UnsupportedAlgorithm(_))
-        ));
-
-        let result = verify(
-            b"pubkey",
-            b"message",
-            b"signature",
-            PQCAlgorithm::SphincsPlus,
-        );
-        assert!(matches!(
-            result,
-            Err(PQCVerifyError::UnsupportedAlgorithm(_))
+            verify(b"pubkey", b"message", b"signature", PQCAlgorithm::MlDsa65),
+            Err(PQCVerifyError::InvalidPublicKey { .. })
         ));
     }
 }
-
 
 fn verify_mldsa65_fips204(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), PQCVerifyError> {
     let pk_array: [u8; ml_dsa_65::PK_LEN] =

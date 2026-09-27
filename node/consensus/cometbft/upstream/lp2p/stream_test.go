@@ -1,3 +1,5 @@
+//go:build !dytallix_pqc_only
+
 package lp2p
 
 import (

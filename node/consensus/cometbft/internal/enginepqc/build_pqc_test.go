@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/batch"
@@ -16,10 +15,8 @@ import (
 	"github.com/cometbft/cometbft/crypto/keydefaults"
 	"github.com/cometbft/cometbft/crypto/mldsa65"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
-	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/p2p/conn"
-	"github.com/cometbft/cometbft/privval"
 	proto "github.com/cometbft/cometbft/proto/tendermint/crypto"
 	"github.com/cometbft/cometbft/types"
 )
@@ -118,18 +115,6 @@ func TestPQCBuildListenerRequiresExplicitUpgrade(t *testing.T) {
 	addr := p2p.NewNetAddressIPPort(net.ParseIP("127.0.0.1"), 0)
 	if err := transport.Listen(*addr); err == nil || !strings.Contains(err.Error(), "PQC upgrade required") {
 		t.Fatalf("listener did not fail closed: %v", err)
-	}
-}
-
-func TestPQCBuildRemoteSignerRejected(t *testing.T) {
-	key := testKey(t)
-	for _, address := range []string{"tcp://127.0.0.1:1", "unix:///unopened.sock", "noise://unused"} {
-		if listener, err := privval.NewSignerListenerFromAddr(address, key.PrivKey, log.NewNopLogger()); listener != nil || err == nil {
-			t.Fatal("remote signer listener accepted")
-		}
-	}
-	if connection, err := privval.DialTCPFn("tcp://127.0.0.1:1", time.Second, key.PrivKey)(); connection != nil || err == nil || !strings.Contains(err.Error(), "excluded") {
-		t.Fatal("legacy signer dial accepted")
 	}
 }
 

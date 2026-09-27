@@ -468,15 +468,9 @@ fn frozen_mldsa87_signature_matches_explicit_backend_selection() {
         result,
         Err(dytallix_runtime_crypto::ordinary::OrdinaryVerificationError::UnsupportedAlgorithm)
     ));
-    let message = wire::signing_bytes(&value.body, &limits()).unwrap();
-    let general = dytallix_runtime_crypto::verify(
-        &value.body.key.public_key,
-        &message,
-        &value.signature,
-        dytallix_runtime_crypto::PQCAlgorithm::MlDsa87,
-    );
+    // The general verifier cannot even name ML-DSA-87.
     assert!(matches!(
-        general,
+        "mldsa87".parse::<dytallix_runtime_crypto::PQCAlgorithm>(),
         Err(dytallix_runtime_crypto::PQCVerifyError::UnsupportedAlgorithm(_))
     ));
 }

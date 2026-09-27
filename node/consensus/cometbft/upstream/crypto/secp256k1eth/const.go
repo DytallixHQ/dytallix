@@ -1,3 +1,5 @@
+//go:build !dytallix_pqc_only
+
 package secp256k1eth
 
 const (
