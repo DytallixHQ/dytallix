@@ -97,7 +97,7 @@ fn account<'a>(book: &'a RecoveryBook, id: &[u8; 32]) -> Result<&'a RecoveryAcco
         .get(&hex::encode(id))
         .context("Unregistered ordinary account reference")
 }
-fn network(code: u8) -> Result<AddressNetwork> {
+pub(crate) fn network(code: u8) -> Result<AddressNetwork> {
     Ok(match code {
         1 => AddressNetwork::Mainnet,
         2 => AddressNetwork::Testnet,
@@ -346,11 +346,11 @@ fn prepare_body_phase(
     for (index, action) in body.actions.iter().enumerate() {
         let mut debit_owners = BTreeSet::from([actor_id]);
         match action {
-            Action::Send {
-                recipient, amount, ..
-            } => {
+            Action::Send { amount, .. } => {
+                // Any account ID may receive (B1c): a transfer to one with no
+                // account creates it and burns the account creation fee.
+                // Protected accounts may receive funds.
                 ensure!(*amount > 0, "Ordinary transfer amount must be positive");
-                account(book, recipient)?; // Protected recipients may receive funds.
             }
             Action::Data { .. } => {}
             Action::DmsRegister {

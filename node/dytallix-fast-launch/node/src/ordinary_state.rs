@@ -14,7 +14,7 @@ use anyhow::{ensure, Context, Result};
 use dytallix_protocol_types::{
     address::{AccountAddress, AddressNetwork, OriginKeyAlgorithm},
     ordinary_fees::{self, FeeProfile},
-    recovery::{KeyIdentity, RecoveryConfig},
+    recovery::RecoveryConfig,
     sha3_256,
 };
 use rocksdb::{Direction, IteratorMode};
@@ -576,6 +576,52 @@ pub(crate) fn assert_absent(storage: &Storage) -> Result<()> {
             !key.starts_with(STATE_PREFIX),
             "Fresh ordinary genesis rejects existing ordinary state"
         );
+    }
+    Ok(())
+}
+/// A native address that decodes on some network and re-encodes unchanged.
+pub(crate) fn canonical_account_address(address: &str) -> bool {
+    [AddressNetwork::Mainnet, AddressNetwork::Testnet, AddressNetwork::Development]
+        .into_iter()
+        .any(|network| {
+            AccountAddress::decode(network, address).is_ok_and(|decoded| decoded.encode() == address)
+        })
+}
+/// Complete check of native account records under the combined profile.
+/// Balance and nonce records come in pairs under canonical addresses, and an
+/// account without a recovery record (created by receiving) has nonce 0.
+/// Registered accounts' nonces are checked against their recovery records.
+pub(crate) fn validate_native_accounts(storage: &Storage, book: &RecoveryBook) -> Result<()> {
+    let scan = |prefix: &[u8]| -> Result<BTreeMap<String, Vec<u8>>> {
+        let mut records = BTreeMap::new();
+        for entry in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
+            let (key, value) = entry?;
+            let Some(address) = key.strip_prefix(prefix) else {
+                break;
+            };
+            let address = std::str::from_utf8(address).context("Native account key is not UTF-8")?;
+            records.insert(address.to_owned(), value.to_vec());
+        }
+        Ok(records)
+    };
+    let balances = scan(b"acct:balances:")?;
+    let nonces = scan(b"acct:nonce:")?;
+    ensure!(
+        balances.keys().eq(nonces.keys()),
+        "Native balance and nonce records differ"
+    );
+    for (address, raw) in &nonces {
+        ensure!(
+            canonical_account_address(address),
+            "Native account address is not canonical"
+        );
+        if book.account_by_address(address).is_none() {
+            let nonce: u64 = bincode::deserialize(raw).context("Invalid native nonce")?;
+            ensure!(
+                nonce == 0 && bincode::serialize(&nonce)? == *raw,
+                "Account without a recovery record has a nonzero nonce"
+            );
+        }
     }
     Ok(())
 }

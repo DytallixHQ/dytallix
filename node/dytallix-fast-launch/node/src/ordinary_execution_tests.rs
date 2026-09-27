@@ -441,6 +441,9 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &f.settlement,
             &f.book,
             &touched,
+            AddressNetwork::Development,
+            &BTreeSet::new(),
+            0,
             &receipt,
         )
         .unwrap();
@@ -467,6 +470,9 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &misallocated,
             &f.book,
             &touched,
+            AddressNetwork::Development,
+            &BTreeSet::new(),
+            0,
             &receipt
         )
         .is_err());
@@ -482,6 +488,9 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &wrong_nonce,
             &f.book,
             &touched,
+            AddressNetwork::Development,
+            &BTreeSet::new(),
+            0,
             &receipt
         )
         .is_err());
@@ -497,6 +506,9 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             &wrong_fee_total,
             &f.book,
             &touched,
+            AddressNetwork::Development,
+            &BTreeSet::new(),
+            0,
             &receipt
         )
         .is_err());
@@ -512,6 +524,9 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
                 &f.settlement,
                 &f.book,
                 &BTreeSet::from([ACTOR]),
+                AddressNetwork::Development,
+                &BTreeSet::new(),
+                0,
                 &receipt
             )
             .is_err());

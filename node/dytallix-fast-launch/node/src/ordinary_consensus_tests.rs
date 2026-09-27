@@ -1382,11 +1382,13 @@ fn independent_databases_commit_identical_mixed_inputs_and_roots() {
     let mut a = fixture.initialized(&first.path().join("db"));
     let mut b = fixture.initialized(&second.path().join("db"));
     assert_eq!(data(&a), data(&b));
+    let fresh = Key::new();
     let signed = fixture.ordinary(
         &current(&a, &fixture.secondary),
         &fixture.secondary,
         vec![
             send(fixture.payer.id(), 100),
+            send(fresh.id(), 5),
             OrdinaryAction::Data {
                 data: "deterministic".into(),
             },
@@ -3035,4 +3037,158 @@ fn origins_are_stored_per_account_and_not_in_the_ordinary_state() {
         .unwrap();
     let error = app.finalize_block(block(1, vec![])).unwrap_err();
     assert!(format!("{error:#}").contains("origins differ"), "{error:#}");
+}
+
+const CREATION_FEE: u128 = 1_000;
+
+fn burned(app: &ConsensusApplication) -> u128 {
+    crate::supply::inspect_native(&app.storage).unwrap().drt.burned
+}
+
+#[test]
+fn send_to_a_new_address_creates_the_account_and_burns_the_fee_once() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let other = Key::new();
+    assert!(app
+        .storage
+        .db
+        .get(format!("acct:balances:{}", fresh.address()))
+        .unwrap()
+        .is_none());
+
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), 100)],
+        1000,
+    );
+    let raw = fixture.ordinary_wire(&tx);
+    assert_admitted(app.check_tx(&raw));
+    let result = commit(&mut app, 1, vec![raw]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let gas_fee = result.tx_results[0].gas_used.max(10) as u128 * 2;
+    assert_eq!(balance(&app, &fresh.address()), 100);
+    assert_eq!(ordinary_nonce(&app, &fresh.address()), 0);
+    assert!(!book(&app).accounts.contains_key(&hex::encode(fresh.id())));
+    assert_eq!(
+        balance(&app, &fixture.active.address()),
+        INITIAL_DRT - 100 - gas_fee - CREATION_FEE
+    );
+    assert_eq!(burned(&app), CREATION_FEE);
+
+    // An existing recipient costs nothing extra; two transfers to one new
+    // recipient in the same transaction burn one fee.
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), 50), send(other.id(), 7), send(other.id(), 3)],
+        1000,
+    );
+    let result = commit(&mut app, 2, vec![fixture.ordinary_wire(&tx)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    assert_eq!(balance(&app, &fresh.address()), 150);
+    assert_eq!(balance(&app, &other.address()), 10);
+    assert_eq!(burned(&app), 2 * CREATION_FEE);
+
+    // A fresh process passes the complete check.
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+}
+
+#[test]
+fn failed_transfer_to_a_new_address_creates_and_burns_nothing() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    // Accepted, then out of gas at the second action: the transfer rolls back.
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![
+            send(fresh.id(), 100),
+            OrdinaryAction::Data {
+                data: "not committed".into(),
+            },
+        ],
+        25,
+    );
+    let result = commit(&mut app, 1, vec![fixture.ordinary_wire(&tx)]);
+    assert_ne!(result.tx_results[0].code, 0);
+    assert_eq!(result.tx_results[0].gas_used, 25);
+    assert_eq!(balance(&app, &fixture.active.address()), INITIAL_DRT - 50);
+    assert!(app
+        .storage
+        .db
+        .get(format!("acct:balances:{}", fresh.address()))
+        .unwrap()
+        .is_none());
+    assert_eq!(burned(&app), 0);
+}
+
+#[test]
+fn creation_fee_is_reserved_before_acceptance() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    // The amount and fee cap fit the balance; adding the creation fee does not.
+    let amount = INITIAL_DRT - 2_000 - 500;
+    let to_new = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), amount)],
+        1000,
+    );
+    let raw = fixture.ordinary_wire(&to_new);
+    assert_ne!(app.check_tx(&raw).code, 0);
+    let result = commit(&mut app, 1, vec![raw]);
+    assert_ne!(result.tx_results[0].code, 0);
+    assert!(result.tx_results[0].log.contains("Insufficient"), "{:?}", result.tx_results);
+    assert_eq!(balance(&app, &fixture.active.address()), INITIAL_DRT);
+    assert!(app
+        .storage
+        .db
+        .get(format!("acct:balances:{}", fresh.address()))
+        .unwrap()
+        .is_none());
+    assert_mirror(&app, &fixture.active, 0);
+    // The same amount to an existing account is accepted.
+    let to_existing = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fixture.payer.id(), amount)],
+        1000,
+    );
+    let result = commit(&mut app, 2, vec![fixture.ordinary_wire(&to_existing)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+}
+
+#[test]
+fn complete_check_rejects_a_created_account_with_a_nonzero_nonce() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), 100)],
+        1000,
+    );
+    let result = commit(&mut app, 1, vec![fixture.ordinary_wire(&tx)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    app.storage
+        .db
+        .put(
+            format!("acct:nonce:{}", fresh.address()),
+            bincode::serialize(&1u64).unwrap(),
+        )
+        .unwrap();
+    let error = app.finalize_block(block(2, vec![])).unwrap_err();
+    assert!(format!("{error:#}").contains("nonzero nonce"), "{error:#}");
 }

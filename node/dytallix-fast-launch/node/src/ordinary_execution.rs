@@ -17,6 +17,7 @@ use crate::{
     state::AccountState,
 };
 use dytallix_protocol_types::{
+    address::{AccountAddress, AddressNetwork},
     ordinary::{self, Action, SignedOrdinary},
     ordinary_fees::{self, FeeProfile},
 };
@@ -62,6 +63,11 @@ fn address(book: &RecoveryBook, id: &[u8; 32]) -> Result<String> {
         .map(|a| a.address.clone())
         .ok_or_else(|| reject("Unregistered ordinary account"))
 }
+/// Native address of an account ID on the transaction's network. A registered
+/// account's stored address is exactly this encoding.
+fn native_address(network: AddressNetwork, id: &[u8; 32]) -> String {
+    AccountAddress::from_account_id(network, *id).encode()
+}
 fn asset(owner: [u8; 32], denomination: Denomination) -> Asset {
     Asset {
         owner,
@@ -82,6 +88,7 @@ fn snapshot<'a>(
     accounts: impl IntoIterator<Item = &'a RecoveryAccount>,
 ) -> Result<FinancialState> {
     let mut state = FinancialState {
+        absent_recipients: BTreeSet::new(),
         balances: BTreeMap::new(),
         eligible: BTreeMap::new(),
         native_nonces: BTreeMap::new(),
@@ -118,6 +125,9 @@ fn reconcile_receipt(
     after: &Settlement,
     book: &RecoveryBook,
     touched: &BTreeSet<[u8; 32]>,
+    network: AddressNetwork,
+    created: &BTreeSet<String>,
+    creation_fee: u128,
     receipt: &FeeReceipt,
 ) -> Result<()> {
     let actor = book
@@ -142,33 +152,48 @@ fn reconcile_receipt(
             "Ordinary receipt fee custody differs from transaction delta",
         ));
     }
-    let touched: BTreeSet<&str> = registered(book, touched)
-        .map(|a| a.address.as_str())
-        .collect();
+    // Accounts created by this transaction: every absent recipient on success,
+    // none otherwise. Each burns the creation fee exactly once.
+    let created_now = created
+        .iter()
+        .filter(|address| after.accounts.contains_key(*address))
+        .count();
+    let burned = after
+        .burned_total()
+        .map_err(internal)?
+        .checked_sub(before.burned_total().map_err(internal)?)
+        .ok_or_else(|| internal("Burned total regressed"))?;
+    let expected_created = if receipt.outcome() == Outcome::Success { created.len() } else { 0 };
+    if created_now != expected_created
+        || Some(burned) != creation_fee.checked_mul(expected_created as u128)
+    {
+        return Err(internal(
+            "Ordinary account creation differs from its burned fee",
+        ));
+    }
+    let touched: BTreeSet<String> = touched.iter().map(|id| native_address(network, id)).collect();
     let loaded: BTreeSet<&str> = before
         .accounts
         .keys()
         .chain(reserved_accounts.keys())
         .chain(action_accounts.keys())
         .chain(after.accounts.keys())
+        .chain(touched.iter())
         .map(String::as_str)
-        .chain(touched.iter().copied())
         .collect();
+    // A created account has no prior record; it starts empty.
+    let pick = |map: &BTreeMap<String, AccountState>, address: &str, what: &str| {
+        match map.get(address) {
+            Some(account) => Ok(account.clone()),
+            None if created.contains(address) => Ok(AccountState::default()),
+            None => Err(internal(format!("Ordinary {what} account missing"))),
+        }
+    };
     for address in loaded {
-        let initial = before
-            .accounts
-            .get(address)
-            .ok_or_else(|| internal("Ordinary before account missing"))?;
-        let held = reserved_accounts
-            .get(address)
-            .ok_or_else(|| internal("Ordinary reserved account missing"))?;
-        let applied = action_accounts
-            .get(address)
-            .ok_or_else(|| internal("Ordinary action account missing"))?;
-        let final_account = after
-            .accounts
-            .get(address)
-            .ok_or_else(|| internal("Ordinary final account missing"))?;
+        let initial = &pick(&before.accounts, address, "before")?;
+        let held = &pick(reserved_accounts, address, "reserved")?;
+        let applied = &pick(action_accounts, address, "action")?;
+        let final_account = &pick(&after.accounts, address, "final")?;
         if !touched.contains(address) {
             if [held, applied, final_account]
                 .iter()
@@ -351,7 +376,16 @@ fn meter_records(
     book: &RecoveryBook,
     grants: &Grants,
     touched: &BTreeSet<[u8; 32]>,
+    network: AddressNetwork,
 ) -> Result<()> {
+    // Unregistered touched accounts are transfer recipients. Charge a read of
+    // the native record, empty if the account does not exist yet. They are not
+    // loaded, so an absent recipient can only be created by its transfer.
+    for id in touched.iter().filter(|id| !book.accounts.contains_key(&hex::encode(id))) {
+        let address = native_address(network, id);
+        let record = settlement.peek(&address).map_err(internal)?.unwrap_or_default();
+        meter.read(&logical::native_account(&address, &record, MAX_LOGICAL_BYTES)?)?;
+    }
     for a in registered(book, touched) {
         meter.read(&logical::native_account(
             &a.address,
@@ -663,15 +697,29 @@ fn execute(
         )));
     }
     let touched = ordinary_authority::touched_accounts(body);
+    let network = pre!(ordinary_authority::network(body.domain.network).map_err(reject));
     let mut baseline = settlement.clone();
     pre!(meter_records(
         &mut meter,
         &mut baseline,
         book,
         grants,
-        &touched
+        &touched,
+        network
     ));
-    let financial = snapshot(&mut baseline, registered(book, &touched))?;
+    let mut financial = snapshot(&mut baseline, registered(book, &touched))?;
+    // Existing unregistered recipients are loaded so the receipt check sees
+    // their prior balances; absent ones are created only by their transfer.
+    let mut created = BTreeSet::new();
+    for id in touched.iter().filter(|id| !book.accounts.contains_key(&hex::encode(id))) {
+        let address = native_address(network, id);
+        if baseline.exists(&address).map_err(internal)? {
+            baseline.account(&address).map_err(internal)?;
+        } else {
+            financial.absent_recipients.insert(*id);
+            created.insert(address);
+        }
+    }
     ordinary_authority::validate_nonce_mirrors_for(book, &financial.native_nonces, &touched)
         .map_err(internal)?;
     ordinary_authority::validate_grants_for(book, grants, &touched).map_err(internal)?;
@@ -836,6 +884,8 @@ fn execute(
             book,
             &actor,
             body.domain.account_id,
+            network,
+            profile.account_creation_fee_udrt,
             body.authorization_generation,
             height,
             parent_height,
@@ -898,6 +948,9 @@ fn execute(
         &effects,
         book,
         &touched,
+        network,
+        &created,
+        profile.account_creation_fee_udrt,
         &receipt,
     )?;
     // Advance the actor's nonce in place; restore it if the touched mirrors or
@@ -982,6 +1035,8 @@ fn apply_action(
     book: &RecoveryBook,
     actor: &str,
     actor_id: [u8; 32],
+    network: AddressNetwork,
+    creation_fee: u128,
     generation: u64,
     height: u64,
     parent_height: u64,
@@ -995,16 +1050,24 @@ fn apply_action(
             recipient,
             denomination,
             amount,
-        } => transfer(
-            s,
-            actor,
-            &address(book, recipient)?,
-            match denomination {
-                ordinary::Denomination::Udgt => "udgt",
-                ordinary::Denomination::Udrt => "udrt",
-            },
-            *amount,
-        )?,
+        } => {
+            let to = native_address(network, recipient);
+            // The first transfer to an absent account creates it; the actor
+            // pays the reserved creation fee, which is burned.
+            if !s.exists(&to).map_err(action_internal)? {
+                s.burn(actor, creation_fee).map_err(action_internal)?;
+            }
+            transfer(
+                s,
+                actor,
+                &to,
+                match denomination {
+                    ordinary::Denomination::Udgt => "udgt",
+                    ordinary::Denomination::Udrt => "udrt",
+                },
+                *amount,
+            )?
+        }
         Action::Data { .. } => {}
         Action::DmsRegister {
             beneficiary,

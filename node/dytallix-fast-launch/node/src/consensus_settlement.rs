@@ -1706,6 +1706,7 @@ fn load_ordinary(
         Some(expected) => {
             let book = book.context("Ordinary recovery state missing")?;
             let nonces = ordinary_state::read_native_nonces(storage, book)?;
+            ordinary_state::validate_native_accounts(storage, book)?;
             let rewards = RewardState::decode(
                 &storage
                     .db
@@ -1844,6 +1845,40 @@ fn recovery_book(storage: &Storage, config: &ConsensusConfig) -> Result<Option<R
         }
         _ => anyhow::bail!("Recovery state and configuration differ"),
     }
+}
+/// Accounts created in this block: native records staged with no committed
+/// balance record. Only a `Send` creates accounts (B1c), each burning the
+/// account creation fee once, so the block's burn must equal the fee times
+/// their number. A new account has nonce 0, a canonical address and no
+/// registration.
+fn check_account_creations(
+    storage: &Storage,
+    staged: &Settlement,
+    book: &RecoveryBook,
+    fee: u128,
+) -> Result<()> {
+    let mut created = 0u128;
+    for (address, account) in &staged.accounts {
+        if storage.db.get(format!("acct:balances:{address}"))?.is_some() {
+            continue;
+        }
+        ensure!(
+            account.nonce == 0
+                && ordinary_state::canonical_account_address(address)
+                && book.account_by_address(address).is_none(),
+            "Invalid account creation"
+        );
+        created += 1;
+    }
+    let committed = match storage.db.get(crate::supply::DRT_BURNED_KEY)? {
+        Some(raw) => bincode::deserialize::<u128>(&raw)?,
+        None => 0,
+    };
+    ensure!(
+        Some(staged.burned_total()?) == fee.checked_mul(created).and_then(|v| v.checked_add(committed)),
+        "Block burns differ from the accounts it created"
+    );
+    Ok(())
 }
 fn validate_ordinary_principals(
     book: &RecoveryBook,
@@ -4312,6 +4347,12 @@ impl ConsensusApplication {
             &staged_nonces_for(&mut staged, &recovery.book, &changed)?,
             &changed,
         )?;
+        check_account_creations(
+            &self.storage,
+            &staged,
+            &recovery.book,
+            state.config.fee_profile.account_creation_fee_udrt,
+        )?;
         // No second candidate verification here. ProcessProposal and FinalizeBlock
         // independently repeat the selected ordered block against committed state.
         Ok(out)
@@ -4637,6 +4678,12 @@ impl ConsensusApplication {
                 book,
                 &staged_nonces_for(&mut staged, book, &changed)?,
                 &changed,
+            )?;
+            check_account_creations(
+                &self.storage,
+                &staged,
+                book,
+                state.config.fee_profile.account_creation_fee_udrt,
             )?;
         }
         let mut writes = staged.writes()?;

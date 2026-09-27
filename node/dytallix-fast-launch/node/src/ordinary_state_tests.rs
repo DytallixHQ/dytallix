@@ -2,7 +2,7 @@
 use super::*;
 use crate::{ordinary_authority::DiscretionaryGrant, recovery_fees::RecoveryAccount};
 use dytallix_protocol_types::{
-    recovery::{RecoveryConfig, RecoveryDomain, RecoveryState},
+    recovery::{KeyIdentity, RecoveryConfig, RecoveryDomain, RecoveryState},
     recovery_sponsor,
 };
 struct Fixture {
