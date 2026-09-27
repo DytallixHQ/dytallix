@@ -1344,21 +1344,34 @@ fn run_historical_test_helper(config: &VerifiedHelperConfig<'_>) -> Result<Helpe
     file.sync_all()?;
     drop(file);
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o500))?;
-    let mut process = ChildGuard(
-            Command::new(&executable)
-                .env_clear()
-                .arg("--profile")
-                .arg(&config.profile)
-                .arg("--policy-json")
-                .arg(std::str::from_utf8(&config.policy_json)?)
-                .arg("--max-input-bytes")
-                .arg(config.max_request_bytes.to_string())
-                .stdin(Stdio::piped())
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
-                .spawn()
-                .context("Cannot execute verified root helper snapshot; check scratch mount execution policy")?,
-        );
+    let mut command = Command::new(&executable);
+    command
+        .env_clear()
+        .arg("--profile")
+        .arg(&config.profile)
+        .arg("--policy-json")
+        .arg(std::str::from_utf8(&config.policy_json)?)
+        .arg("--max-input-bytes")
+        .arg(config.max_request_bytes.to_string())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    // Concurrent tests fork children that hold the snapshot's write
+    // descriptor until their own exec closes it, so exec can briefly fail
+    // with ETXTBSY. Retry that one error within a bound.
+    let mut busy_retries = 0;
+    let child = loop {
+        match command.spawn() {
+            Err(error) if error.raw_os_error() == Some(libc::ETXTBSY) && busy_retries < 50 => {
+                busy_retries += 1;
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            result => break result.context(
+                "Cannot execute verified root helper snapshot; check scratch mount execution policy",
+            )?,
+        }
+    };
+    let mut process = ChildGuard(child);
     let mut input = process.0.stdin.take().context("Missing verifier input")?;
     let output = process.0.stdout.take().context("Missing verifier output")?;
     let stderr = process
