@@ -81,6 +81,18 @@ impl LifecycleConfig {
         );
         Ok(())
     }
+    /// The part of the configuration an unbond's maturity depends on. These
+    /// limits are not governed, so an unbond's copy keeps matching after a
+    /// governed change to validator limits or operators (T6).
+    pub fn same_evidence_limits(&self, other: &Self) -> bool {
+        self.version == other.version
+            && self.profile == other.profile
+            && self.chain_id == other.chain_id
+            && self.evidence_max_age_blocks == other.evidence_max_age_blocks
+            && self.evidence_max_age_seconds == other.evidence_max_age_seconds
+            && self.processing_margin_blocks == other.processing_margin_blocks
+            && self.processing_margin_seconds == other.processing_margin_seconds
+    }
     /// True when no evidence or withdrawal can still need a record that
     /// ended at (`end_height`, `end_time`): both evidence limits plus the
     /// processing margins have passed at the parent, as for unbond maturity
@@ -151,7 +163,7 @@ impl UnbondEntry {
     ) -> Result<bool> {
         config.validate()?;
         ensure!(
-            &self.evidence_config == config,
+            self.evidence_config.same_evidence_limits(config),
             "Unbond evidence configuration changed"
         );
         let (Some(last_height), Some(last_time)) =
@@ -836,38 +848,6 @@ impl LifecycleState {
             .cloned()
             .unwrap_or_default())
     }
-    /// Return each eligible owner's effective bonded principal at the exact
-    /// finalized height. The caller must supply the approved eligibility set.
-    pub fn bonded_owner_weights_at_finalized_height(
-        &self,
-        finalized_height: u64,
-        eligible_owners: &BTreeSet<String>,
-    ) -> Result<BTreeMap<String, u128>> {
-        self.validate()?;
-        ensure!(
-            finalized_height > 0 && finalized_height == self.last_height,
-            "Governance bond snapshot requires the current finalized height"
-        );
-        ensure!(
-            !eligible_owners.is_empty() && eligible_owners.len() <= self.max_positions,
-            "Governance eligible owner count outside limit"
-        );
-        let mut weights = BTreeMap::new();
-        for owner in eligible_owners {
-            let positions = self
-                .effective
-                .positions
-                .get(owner)
-                .context("Governance eligible owner has no effective bond")?;
-            let weight = checked_sum(positions.values().copied())?;
-            ensure!(
-                weight > 0,
-                "Governance eligible owner has no effective bond"
-            );
-            weights.insert(owner.clone(), weight);
-        }
-        Ok(weights)
-    }
     pub fn pending_bonds_by_owner(&self) -> Result<BTreeMap<String, u128>> {
         let mut result = BTreeMap::new();
         for entry in self.schedules.values().flat_map(|s| &s.additions) {
@@ -1014,7 +994,7 @@ impl LifecycleState {
                         && remove.request_height == schedule.request_height
                         && remove.last_exposure_height.is_none()
                         && remove.last_exposure_time_seconds.is_none()
-                        && remove.evidence_config == self.config
+                        && remove.evidence_config.same_evidence_limits(&self.config)
                         && ids.insert(remove.id.clone()),
                     "Invalid pending unbond"
                 );
@@ -1060,7 +1040,7 @@ impl LifecycleState {
                     && entry.effective_height <= self.last_height
                     && entry.last_exposure_height == entry.effective_height.checked_sub(1)
                     && entry.last_exposure_time_seconds.is_some()
-                    && entry.evidence_config == self.config,
+                    && entry.evidence_config.same_evidence_limits(&self.config),
                 "Invalid finalized unbond history"
             );
             // Exposure at the last height is checked against penalty tranches

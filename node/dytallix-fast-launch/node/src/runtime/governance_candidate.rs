@@ -1,15 +1,87 @@
-//! Inert E04 governance candidate input. This module does not activate v3,
-//! authorize an action class, or write consensus state.
-use super::governance_ballot::Rules as BallotRules;
-use super::governance_deposit_stage::DepositRules;
-use anyhow::{bail, ensure, Context, Result};
+//! Governance v1 configuration (T6, `docs/architecture/governance-v1.md`).
+//! Every numeric value is an E05 input; no field has a default. Rules approved
+//! on 25 and 27 September 2026 are fixed by these types: bonded-stake voting
+//! by each owner, no delegation, no cancellation, parameter change and
+//! validator registry as the only action classes.
+use anyhow::{ensure, Context, Result};
 use dytallix_protocol_types::ordinary_fees_v3::FeeProfileV3;
 use serde::{Deserialize, Serialize};
 
-pub const CANDIDATE_SCHEMA_VERSION: u16 = 1;
+pub const CANDIDATE_SCHEMA_VERSION: u16 = 2;
+const DGT_SUPPLY: u128 = dytallix_protocol_types::units::DGT_TOTAL_BASE_UNITS;
 
-/// An action class needs a separate approval and an exact byte bound.
-/// No action class is approved in the current E04 decision record.
+/// Action class codes. Upgrades stay root-signed; treasury spending is
+/// POST MAINNET.
+pub const CLASS_PARAMETER_CHANGE: u16 = 1;
+pub const CLASS_VALIDATOR_REGISTRY: u16 = 2;
+pub const IMPLEMENTED_CLASSES: [u16; 2] = [CLASS_PARAMETER_CHANGE, CLASS_VALIDATOR_REGISTRY];
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BallotRules {
+    pub version: u16,
+    pub chain_id: String,
+    pub genesis_digest: [u8; 32],
+    pub quorum_bps: u16,
+    pub approval_bps: u16,
+    pub veto_bps: u16,
+    pub voting_period_blocks: u64,
+    pub timelock_blocks: u64,
+    pub max_voters: u32,
+}
+impl BallotRules {
+    pub fn validate(&self) -> Result<()> {
+        ensure!(self.version == 1, "Unsupported governance ballot version");
+        ensure!(
+            !self.chain_id.is_empty()
+                && self.chain_id.len() <= 128
+                && !self.chain_id.chars().any(char::is_control),
+            "Invalid governance chain ID"
+        );
+        ensure!(
+            self.genesis_digest != [0; 32],
+            "Governance genesis digest is absent"
+        );
+        ensure!(
+            self.quorum_bps <= 10_000 && self.approval_bps <= 10_000 && self.veto_bps <= 10_000,
+            "Governance basis points exceed 10000"
+        );
+        ensure!(
+            self.voting_period_blocks > 0 && self.timelock_blocks > 0 && self.max_voters > 0,
+            "Governance periods and voter capacity must be explicit and positive"
+        );
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DepositRules {
+    pub deposit_period_blocks: u64,
+    pub minimum_deposit_udgt: u128,
+    pub max_action_bytes: u32,
+    pub max_depositors: u32,
+}
+impl DepositRules {
+    pub fn validate(&self) -> Result<()> {
+        ensure!(
+            self.deposit_period_blocks > 0,
+            "Deposit period must be positive"
+        );
+        ensure!(
+            self.minimum_deposit_udgt > 0 && self.minimum_deposit_udgt <= DGT_SUPPLY,
+            "Minimum governance deposit is outside DGT supply"
+        );
+        ensure!(
+            self.max_action_bytes > 0 && self.max_depositors > 0,
+            "Governance action and depositor bounds must be positive"
+        );
+        Ok(())
+    }
+}
+
+/// An enabled action class and its byte bound. `approval_digest` identifies
+/// the P01 approval record for the class.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ActionClassLimit {
@@ -18,32 +90,75 @@ pub struct ActionClassLimit {
     pub approval_digest: [u8; 32],
 }
 
-/// Exact proposal, vote, delegation, and cancellation rules approved for
-/// engineering. This type does not implement any of those state transitions.
+/// Inclusive bounds fixed at genesis. A governed value outside them fails
+/// execution.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Bounds<T> {
+    pub min: T,
+    pub max: T,
+}
+impl<T: PartialOrd + Copy> Bounds<T> {
+    pub fn contains(&self, value: T) -> bool {
+        self.min <= value && value <= self.max
+    }
+    fn validate(&self, floor: T) -> Result<()> {
+        ensure!(
+            floor <= self.min && self.min <= self.max,
+            "Governed parameter bounds are inverted or below their floor"
+        );
+        Ok(())
+    }
+}
+
+/// Bounds for the parameters governance may change (P01, 27 September
+/// 2026): new ordinary fee profile versions and two validator limits.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ParameterBounds {
+    pub gas_price: Bounds<u64>,
+    /// Every per-resource cost in a governed fee profile.
+    pub resource_cost: Bounds<u64>,
+    pub account_creation_fee_udrt: Bounds<u128>,
+    pub min_self_bond: Bounds<u128>,
+    pub max_active: Bounds<u64>,
+}
+impl ParameterBounds {
+    pub fn validate(&self) -> Result<()> {
+        self.gas_price.validate(1)?;
+        // A resource may be free, as in a genesis profile.
+        self.resource_cost.validate(0)?;
+        self.account_creation_fee_udrt.validate(1)?;
+        self.min_self_bond.validate(1)?;
+        self.max_active.validate(1)?;
+        ensure!(
+            self.max_active.max <= 64,
+            "Governed active validator bound exceeds 64"
+        );
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProposerEligibility {
     RegisteredOwnerWithEffectiveBondAtFinalizedParent,
 }
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ValidatorVoting {
     OwnEffectiveBondOnly,
 }
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum VoteDelegation {
     Disabled,
 }
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Cancellation {
     Disabled,
 }
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EntryPolicy {
@@ -53,22 +168,6 @@ pub struct EntryPolicy {
     pub cancellation: Cancellation,
 }
 
-/// Exact execution transitions remain unapproved. There is no `Approved`
-/// variant that can turn a document reference into runtime authority.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PolicyDecision {
-    Pending,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PendingPolicies {
-    pub exact_state_transitions: PolicyDecision,
-}
-
-/// Every numeric input must come from a later candidate decision. No field
-/// has a default. `validate_shape` checks the input but grants no activation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GovernanceCandidateConfig {
@@ -80,8 +179,8 @@ pub struct GovernanceCandidateConfig {
     pub ballot: BallotRules,
     pub deposit: DepositRules,
     pub action_classes: Vec<ActionClassLimit>,
+    pub parameter_bounds: ParameterBounds,
     pub entry_policy: EntryPolicy,
-    pub pending_policies: PendingPolicies,
 }
 
 impl GovernanceCandidateConfig {
@@ -109,6 +208,7 @@ impl GovernanceCandidateConfig {
             .map_err(|e| anyhow::anyhow!("Invalid governance fee profile: {e}"))?;
         self.ballot.validate()?;
         self.deposit.validate()?;
+        self.parameter_bounds.validate()?;
         ensure!(
             self.ballot.chain_id == self.chain_id
                 && self.ballot.genesis_digest == self.genesis_digest,
@@ -150,15 +250,31 @@ impl GovernanceCandidateConfig {
         Ok(())
     }
 
-    /// Current decisions permit local engineering only. Exact state
-    /// transitions remain pending, so this input cannot activate governance.
+    /// A candidate activates when every enabled class has an executor.
     pub fn validate_for_activation(&self) -> Result<()> {
         self.validate_shape()?;
         ensure!(
             !self.action_classes.is_empty(),
-            "Governance action classes are not approved"
+            "Governance enables no action class"
         );
-        bail!("Governance exact state transitions remain unapproved")
+        ensure!(
+            self.action_classes
+                .iter()
+                .all(|class| IMPLEMENTED_CLASSES.contains(&class.class)),
+            "Governance action class has no approved executor"
+        );
+        Ok(())
+    }
+
+    pub fn class(&self, class: u16) -> Option<&ActionClassLimit> {
+        self.action_classes.iter().find(|item| item.class == class)
+    }
+
+    pub fn store_rules(&self) -> super::governance_store::StoreRules {
+        super::governance_store::StoreRules {
+            deposit: self.deposit.clone(),
+            ballot: self.ballot.clone(),
+        }
     }
 }
 
@@ -170,13 +286,13 @@ pub fn require_candidate_config(input: Option<&GovernanceCandidateConfig>) -> Re
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use dytallix_protocol_types::{ordinary, ordinary_fees::FeeProfile};
     use std::collections::{BTreeMap, BTreeSet};
 
     // Test values have no production authority.
-    fn example() -> GovernanceCandidateConfig {
+    pub(crate) fn example() -> GovernanceCandidateConfig {
         let base = FeeProfile {
             ordinary_fee_contract_version: 1,
             version: 1,
@@ -238,8 +354,23 @@ mod tests {
                 deposit_period_blocks: 1,
                 minimum_deposit_udgt: 1,
                 max_action_bytes: 100,
+                max_depositors: 4,
             },
-            action_classes: vec![],
+            action_classes: vec![ActionClassLimit {
+                class: CLASS_PARAMETER_CHANGE,
+                max_data_bytes: 100,
+                approval_digest: [4; 32],
+            }],
+            parameter_bounds: ParameterBounds {
+                gas_price: Bounds { min: 1, max: 10 },
+                resource_cost: Bounds { min: 1, max: 100 },
+                account_creation_fee_udrt: Bounds {
+                    min: 1,
+                    max: 10_000,
+                },
+                min_self_bond: Bounds { min: 1, max: 1_000 },
+                max_active: Bounds { min: 1, max: 64 },
+            },
             entry_policy: EntryPolicy {
                 proposer_eligibility:
                     ProposerEligibility::RegisteredOwnerWithEffectiveBondAtFinalizedParent,
@@ -247,26 +378,26 @@ mod tests {
                 vote_delegation: VoteDelegation::Disabled,
                 cancellation: Cancellation::Disabled,
             },
-            pending_policies: PendingPolicies {
-                exact_state_transitions: PolicyDecision::Pending,
-            },
         }
     }
 
     #[test]
-    fn missing_and_pending_config_cannot_activate() {
+    fn activation_needs_an_enabled_class_with_an_executor() {
         assert!(require_candidate_config(None).is_err());
         let config = example();
-        assert!(config.validate_shape().is_ok());
-        assert!(require_candidate_config(Some(&config)).is_err());
-        let mut with_class = config;
-        with_class.action_classes.push(ActionClassLimit {
-            class: 1,
+        assert!(config.validate_for_activation().is_ok());
+        let mut none = config.clone();
+        none.action_classes.clear();
+        assert!(none.validate_shape().is_ok());
+        assert!(none.validate_for_activation().is_err());
+        let mut unknown = config;
+        unknown.action_classes.push(ActionClassLimit {
+            class: 3,
             max_data_bytes: 1,
             approval_digest: [4; 32],
         });
-        assert!(with_class.validate_shape().is_ok());
-        assert!(with_class.validate_for_activation().is_err());
+        assert!(unknown.validate_shape().is_ok());
+        assert!(unknown.validate_for_activation().is_err());
     }
 
     #[test]
@@ -278,24 +409,23 @@ mod tests {
         config.deposit.deposit_period_blocks = 0;
         assert!(config.validate_shape().is_err());
         config = example();
+        config.deposit.max_depositors = 0;
+        assert!(config.validate_shape().is_err());
+        config = example();
         config.activation_height = 0;
         assert!(config.validate_shape().is_err());
         config = example();
         config.fee_profile.governance_action_costs[0] = 0;
         assert!(config.validate_shape().is_err());
         config = example();
-        config.action_classes = vec![
-            ActionClassLimit {
-                class: 1,
-                max_data_bytes: 1,
-                approval_digest: [4; 32],
-            },
-            ActionClassLimit {
-                class: 1,
-                max_data_bytes: 1,
-                approval_digest: [4; 32],
-            },
-        ];
+        config.parameter_bounds.max_active.max = 65;
+        assert!(config.validate_shape().is_err());
+        config = example();
+        config.parameter_bounds.gas_price = Bounds { min: 5, max: 4 };
+        assert!(config.validate_shape().is_err());
+        config = example();
+        let class = config.action_classes[0].clone();
+        config.action_classes.push(class);
         assert!(config.validate_shape().is_err());
     }
 
@@ -303,7 +433,7 @@ mod tests {
     fn incomplete_json_cannot_supply_defaults() {
         let config = example();
         let mut value = serde_json::to_value(config).unwrap();
-        value.as_object_mut().unwrap().remove("pending_policies");
+        value.as_object_mut().unwrap().remove("parameter_bounds");
         assert!(serde_json::from_value::<GovernanceCandidateConfig>(value).is_err());
     }
 }

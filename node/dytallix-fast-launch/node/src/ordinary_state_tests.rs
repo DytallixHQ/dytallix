@@ -206,9 +206,12 @@ fn lifecycle_role_profile_is_exact_and_does_not_expand_with_account_algorithms()
         validator_profile_digest(&f.lifecycle).unwrap()
     );
     assert!(f.config.validate(&role, &f.book).is_err());
+    // Governed values (T6) do not change the role profile.
     let mut role = f.lifecycle.clone();
     role.min_self_bond += 1;
-    assert_ne!(
+    role.max_active -= 1;
+    role.approved_operators.insert("governed".into(), "operator".into());
+    assert_eq!(
         validator_profile_digest(&role).unwrap(),
         validator_profile_digest(&f.lifecycle).unwrap()
     );

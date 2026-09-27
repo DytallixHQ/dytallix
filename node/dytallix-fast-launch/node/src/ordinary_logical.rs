@@ -8,7 +8,6 @@ use crate::{
     ordinary_meter::{LogicalField, LogicalRecord, LogicalValue, MeterError},
     recovery_fees::RecoveryAccount,
     runtime::{
-        governance_state::{GovernanceState, STATE_KEY as GOVERNANCE_STATE_KEY},
         penalty_custody::{self, PenaltyState},
         reward_runtime::{RewardState, REWARD_STATE_KEY},
         validator_lifecycle::{
@@ -146,15 +145,13 @@ pub(crate) fn lifecycle(state: &LifecycleState, max: u32) -> Result<LogicalRecor
 pub(crate) fn penalty(state: &PenaltyState, max: u32) -> Result<LogicalRecord> {
     payload(penalty_custody::STATE_KEY, state, max)
 }
-pub(crate) fn governance_state(state: &GovernanceState, max: u32) -> Result<LogicalRecord> {
-    let bytes = state
-        .encode()
-        .map_err(|_| MeterError::Internal("governance logical state encoding failed"))?;
-    LogicalRecord::new(
-        GOVERNANCE_STATE_KEY.as_bytes(),
-        &[field(1, LogicalValue::Bytes(bytes))],
-        max,
-    )
+/// One governance entry (T6): its key and typed value, as stored.
+pub(crate) fn governance_entry<T: Serialize + ?Sized>(
+    key: &str,
+    value: &T,
+    max: u32,
+) -> Result<LogicalRecord> {
+    payload(key, value, max)
 }
 pub(crate) fn staking_pool(amount: u128, max: u32) -> Result<LogicalRecord> {
     LogicalRecord::new(

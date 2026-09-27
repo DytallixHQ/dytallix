@@ -56,6 +56,23 @@ pub struct AccountTemplate {
 /// signature size and verification mode into a domain-separated role digest.
 /// JSON follows LifecycleConfig's fixed field order and sorted operator map.
 /// Changing any lifecycle field requires an explicit new matching fee profile.
+/// True when two fee profiles differ only in values governance may change:
+/// version, activation height, gas price, per-resource costs and the account
+/// creation fee.
+pub(crate) fn same_ungoverned(a: &FeeProfile, b: &FeeProfile) -> bool {
+    a.ordinary_fee_contract_version == b.ordinary_fee_contract_version
+        && a.denomination == b.denomination
+        && a.minimum_gas == b.minimum_gas
+        && a.max_transaction_gas == b.max_transaction_gas
+        && a.max_block_transaction_gas == b.max_block_transaction_gas
+        && a.max_block_transaction_bytes == b.max_block_transaction_bytes
+        && a.max_block_signature_checks == b.max_block_signature_checks
+        && a.max_fee_cap == b.max_fee_cap
+        && a.limits == b.limits
+        && a.validator_proof_profile_digest == b.validator_proof_profile_digest
+        && a.signature_costs.keys().eq(b.signature_costs.keys())
+        && a.validator_proof_costs.keys().eq(b.validator_proof_costs.keys())
+}
 pub(crate) fn validator_profile_digest(lifecycle: &LifecycleConfig) -> Result<[u8; 32]> {
     lifecycle.validate()?;
     let mut bytes = b"DYTALLIX/ORDINARY-VALIDATOR-PROOF-PROFILE\0".to_vec();
@@ -64,7 +81,13 @@ pub(crate) fn validator_profile_digest(lifecycle: &LifecycleConfig) -> Result<[u
     bytes.extend_from_slice(&1952u32.to_be_bytes());
     bytes.extend_from_slice(&3309u32.to_be_bytes());
     bytes.extend_from_slice(b"PURE-ML-DSA/EMPTY-CONTEXT\0");
-    let config = serde_json::to_vec(lifecycle)?;
+    // The exact role, less the values governance may change (T6): operators,
+    // the minimum self-bond and the active-set bound.
+    let mut role = lifecycle.clone();
+    role.approved_operators.clear();
+    role.min_self_bond = 0;
+    role.max_active = 0;
+    let config = serde_json::to_vec(&role)?;
     bytes.extend_from_slice(
         &u32::try_from(config.len())
             .context("Lifecycle role length overflow")?
@@ -414,9 +437,19 @@ impl OrdinaryState {
             self.history.profiles().len() <= self.config.max_retained_profiles as usize,
             "Ordinary profile retention capacity exceeded"
         );
+        // The current profile, or an earlier one still used by a retained
+        // receipt that differs from it only in governed values (T6).
+        let referenced: BTreeSet<String> = self
+            .history
+            .receipts()
+            .map(|r| hex::encode(r.profile_digest()))
+            .collect();
         for (digest, profile) in self.history.profiles() {
             ensure!(
-                *digest == hex::encode(current) && *profile == self.config.fee_profile,
+                (*digest == hex::encode(current) && *profile == self.config.fee_profile)
+                    || (referenced.contains(digest)
+                        && profile.version < self.config.fee_profile.version
+                        && same_ungoverned(profile, &self.config.fee_profile)),
                 "Unapproved ordinary fee profile replacement or migration"
             );
         }
@@ -447,16 +480,25 @@ impl OrdinaryState {
                     "Ordinary retained receipt exceeds committed authority"
                 );
             }
+            // Each receipt against the profile it was charged under.
+            let profile = self
+                .history
+                .profiles()
+                .get(&hex::encode(receipt.profile_digest()))
+                .context("Ordinary receipt profile missing")?;
             ensure!(
-                receipt.block_height() >= self.config.fee_profile.activation_height,
+                receipt.block_height() >= profile.activation_height,
                 "Ordinary receipt predates profile activation"
             );
             ensure!(
                 receipt.block_height().saturating_add(self.receipt_window()) > self.last_height,
                 "Ordinary receipt outside the retention window"
             );
+            // A receipt under an earlier governed profile was charged before
+            // the current one took effect.
             ensure!(
-                receipt.profile_digest() == current,
+                receipt.profile_digest() == current
+                    || receipt.block_height() < self.config.fee_profile.activation_height,
                 "Ordinary receipt profile differs from retained committed profile"
             );
             ensure!(

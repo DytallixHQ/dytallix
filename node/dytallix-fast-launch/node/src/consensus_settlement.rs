@@ -2,7 +2,7 @@
 //! The engine supplies finality. This module never creates a finality certificate.
 use crate::emergency_freeze::{self as emergency, ControlVerifier};
 use crate::emergency_verifier::{EmergencyVerifier, EmergencyVerifierConfig};
-use crate::governance_signed_admission::{AdmissionParent, PreadmissionAssessment};
+use crate::governance_execution;
 use crate::ordinary_authority;
 use crate::ordinary_execution::{self as ordinary_runtime, OrdinaryExecutionResult};
 use crate::ordinary_fee_settlement::Outcome as OrdinaryOutcome;
@@ -17,9 +17,7 @@ use crate::{
     runtime::{
         emission::EmissionEngine,
         governance_candidate::GovernanceCandidateConfig,
-        governance_state::{
-            GovernanceState, GOVERNANCE_STATE_VERSION, STATE_KEY as GOVERNANCE_STATE_KEY,
-        },
+        governance_store,
         issuance_timing::{EpochObservation, TimingState, TIMING_STATE_KEY},
         penalty_custody::{
             EvidenceFact, PenaltyConfig, PenaltyState, STATE_KEY as PENALTY_STATE_KEY,
@@ -348,6 +346,20 @@ impl ConsensusConfig {
                 governance.chain_id == self.chain_id
                     && hex::encode(governance.genesis_digest) == self.app_state_sha256,
                 "Governance candidate chain or genesis differs"
+            );
+            ensure!(
+                self.ordinary
+                    .as_ref()
+                    .is_some_and(|ordinary| ordinary.fee_profile == governance.fee_profile.base),
+                "Governance fee profile must extend the ordinary fee profile"
+            );
+            // After a governed fee change the old profile stays while its
+            // receipts are retained, beside the new one.
+            ensure!(
+                self.ordinary
+                    .as_ref()
+                    .is_some_and(|ordinary| ordinary.max_retained_profiles >= 2),
+                "Governance needs room for two retained fee profiles"
             );
             governance.validate_for_activation()?;
         }
@@ -874,23 +886,24 @@ const STATE_PREFIXES: [&[u8]; 17] = [
 ];
 /// Individual keys in the consensus state commitment, outside STATE_PREFIXES.
 fn state_keys(governance_enabled: bool) -> Vec<&'static [u8]> {
-    let mut keys = vec![
+    let keys = vec![
         MODE_KEY.as_bytes(),
         b"meta:chain_id".as_slice(),
         b"execution:v1:withheld_udrt".as_slice(),
     ];
-    if governance_enabled {
-        keys.push(GOVERNANCE_STATE_KEY.as_bytes());
-    }
+    let _ = governance_enabled;
     keys
 }
 fn selected(key: &[u8], governance_enabled: bool) -> bool {
     STATE_PREFIXES.iter().any(|prefix| key.starts_with(prefix))
         || state_keys(governance_enabled).contains(&key)
+        || (governance_enabled && key.starts_with(governance_store::PREFIX.as_bytes()))
 }
+/// Governance entries exist only under a configured candidate, and only in
+/// the per-entry layout (T6). The legacy `gov:` module never writes state.
 fn governance_key_permitted(key: &[u8], governance_enabled: bool) -> bool {
     if key.starts_with(b"governance:") {
-        return governance_enabled && key == GOVERNANCE_STATE_KEY.as_bytes();
+        return governance_enabled && key.starts_with(governance_store::PREFIX.as_bytes());
     }
     !key.starts_with(b"gov:")
 }
@@ -938,6 +951,16 @@ fn state_digest_with(
     for key in state_keys(governance_enabled) {
         if let Some(v) = storage.db.get(key)? {
             values.insert(key.to_vec(), v);
+        }
+    }
+    if governance_enabled {
+        let prefix = governance_store::PREFIX.as_bytes();
+        for item in storage.db.iterator(IteratorMode::From(prefix, Direction::Forward)) {
+            let (k, v) = item?;
+            if !k.starts_with(prefix) {
+                break;
+            }
+            values.insert(k.to_vec(), v.to_vec());
         }
     }
     for key in deletes {
@@ -1175,21 +1198,28 @@ pub(crate) fn append_genesis_anchor(
         }
         if let Some(governance) = &config.governance {
             config.validate()?;
-            let state = GovernanceState::new(
-                GOVERNANCE_STATE_VERSION,
-                governance.chain_id.clone(),
-                governance.genesis_digest,
-                0,
-            )?;
-            let encoded = state.encode()?;
-            ensure!(
+            let reward = RewardState::decode(
                 capture
                     .writes
-                    .insert(GOVERNANCE_STATE_KEY.as_bytes().to_vec(), encoded.clone())
-                    .is_none(),
-                "Governance genesis already staged"
+                    .get(REWARD_STATE_KEY.as_bytes())
+                    .context("Governance genesis requires reward state")?,
+            )?;
+            // Every staker can be in a ballot snapshot, so a snapshot never
+            // exceeds its bound.
+            ensure!(
+                governance.ballot.max_voters as usize >= reward.config.max_positions,
+                "Governance voter bound is below the staker bound"
             );
-            batch.put(GOVERNANCE_STATE_KEY, encoded);
+            for (key, value) in governance_store::genesis_writes(
+                &governance.chain_id,
+                governance.genesis_digest,
+            )? {
+                ensure!(
+                    capture.writes.insert(key.clone(), value.clone()).is_none(),
+                    "Governance genesis already staged"
+                );
+                batch.put(key, value);
+            }
             governance_enabled = true;
         }
     }
@@ -1216,139 +1246,6 @@ fn current_info(storage: &Storage) -> Result<Info> {
         })
     }
 }
-/// Read one governance parent from the committed consensus state. The caller
-/// holds the execution lock. This does not activate an E04 candidate.
-struct GovernanceCommittedParent {
-    height: u64,
-    app_hash: [u8; 32],
-    candidate: GovernanceCandidateConfig,
-    recovery: RecoveryBook,
-    lifecycle: LifecycleState,
-    governance: GovernanceState,
-    native_nonces: BTreeMap<String, u64>,
-}
-impl GovernanceCommittedParent {
-    fn assess_signed(&self, signed: &SignedOrdinaryV3) -> Result<PreadmissionAssessment> {
-        ensure!(
-            self.height == self.governance.finalized_height()
-                && self.candidate.chain_id == self.governance.chain_id()
-                && self.candidate.genesis_digest == self.governance.genesis_digest(),
-            "Governance candidate differs from verified committed parent"
-        );
-        crate::governance_signed_admission::assess_signed(
-            signed,
-            &AdmissionParent {
-                candidate: &self.candidate,
-                recovery: &self.recovery,
-                native_nonces: &self.native_nonces,
-                lifecycle: &self.lifecycle,
-                governance: &self.governance,
-                app_hash: self.app_hash,
-            },
-        )
-    }
-}
-fn committed_governance_parent(
-    storage: Arc<Storage>,
-    config: &ConsensusConfig,
-    genesis_digest: [u8; 32],
-) -> Result<GovernanceCommittedParent> {
-    let stored_config: ConsensusConfig = decode(
-        &storage
-            .db
-            .get(MODE_KEY)?
-            .context("Committed consensus configuration missing")?,
-    )?;
-    ensure!(stored_config == *config, "Governance candidate differs from committed configuration");
-    let candidate = config
-        .governance
-        .as_ref()
-        .context("Governance candidate is not configured")?;
-    candidate.validate_shape()?;
-    ensure!(
-        storage.get_chain_id().as_deref() == Some(config.chain_id.as_str())
-            && hex::encode(genesis_digest) == config.app_state_sha256
-            && candidate.chain_id == config.chain_id
-            && candidate.genesis_digest == genesis_digest,
-        "Governance parent chain or genesis differs"
-    );
-    let info = current_info(&storage)?;
-    valid_hash(&info.app_hash)?;
-    ensure!(
-        block_lifecycle::height(&storage, "meta:height")? == info.height,
-        "Governance parent height differs from committed metadata"
-    );
-    let state = state_digest(&storage, &Writes::new(), true)?;
-    if let Some(head) = read_head(&storage)? {
-        let record: BlockRecord = decode(
-            &storage
-                .db
-                .get(record_key(info.height))?
-                .context("Governance parent block record missing")?,
-        )?;
-        ensure!(
-            head.anchor.height == info.height
-                && head.state_digest == state
-                && head.app_hash == info.app_hash
-                && record.input.height == info.height
-                && record.result.app_hash == info.app_hash
-                && serde_json::to_vec(&record.head)? == serde_json::to_vec(&head)?
-                && app_hash(&state, &head.anchor)? == info.app_hash,
-            "Governance parent app hash differs from committed state"
-        );
-    } else {
-        ensure!(
-            info.height == 0
-                && digest(b"dytallix-cometbft-genesis-v1", &state)? == info.app_hash,
-            "Governance genesis app hash differs from committed state"
-        );
-    }
-    let app_hash: [u8; 32] = hex::decode(&info.app_hash)?
-        .try_into()
-        .map_err(|_| anyhow::anyhow!("Governance parent app hash length differs"))?;
-    // Governance still reads every account (T6), so it loads the complete book.
-    let recovery =
-        recovery_book_complete(&storage, config)?.context("Governance recovery state missing")?;
-    let lifecycle = lifecycle_state(&storage)?.context("Governance lifecycle state missing")?;
-    let governance = GovernanceState::decode(
-        &storage
-            .db
-            .get(GOVERNANCE_STATE_KEY)?
-            .context("Governance state missing")?,
-    )?;
-    ensure!(
-        config.lifecycle.as_ref() == Some(&lifecycle.config)
-            && lifecycle.config.chain_id == config.chain_id
-            && lifecycle.last_height == info.height
-            && recovery.last_height == info.height
-            && governance.chain_id() == config.chain_id
-            && governance.genesis_digest() == genesis_digest
-            && governance.finalized_height() == info.height
-            && recovery.accounts.all()?.values().all(|account| {
-                account.recovery.domain.chain_id == config.chain_id
-                    && account.recovery.domain.genesis_digest == genesis_digest
-            }),
-        "Governance parent state, authority, or lifecycle differs"
-    );
-    let ordinary = load_ordinary(&storage, config, Some(&recovery), false)?
-        .context("Governance ordinary state missing")?;
-    ensure!(
-        ordinary.last_height == info.height,
-        "Governance ordinary state height differs"
-    );
-    let mut staged = Settlement::new(storage);
-    let native_nonces = staged_nonces(&mut staged, &recovery)?;
-    crate::ordinary_authority::validate_nonce_mirrors(&recovery, &native_nonces)?;
-    Ok(GovernanceCommittedParent {
-        height: info.height,
-        app_hash,
-        candidate: candidate.clone(),
-        recovery,
-        lifecycle,
-        governance,
-        native_nonces,
-    })
-}
 fn timing(storage: &Storage) -> Result<TimingState> {
     TimingState::decode(
         &storage
@@ -1358,6 +1255,7 @@ fn timing(storage: &Storage) -> Result<TimingState> {
     )
 }
 fn check_reward_validators(storage: &Storage, config: &ConsensusConfig) -> Result<()> {
+    let config = &effective_config(storage, config)?;
     let reward = RewardState::decode(
         &storage
             .db
@@ -1706,6 +1604,37 @@ fn wire(config: &ConsensusConfig, raw: &[u8]) -> Result<WireTransaction> {
 fn ordinary_signed(config: &OrdinaryConfig, value: &str) -> Result<ordinary_wire::SignedOrdinary> {
     ordinary_wire::decode(&recovery_bytes(value)?, &config.fee_profile.limits).map_err(Into::into)
 }
+fn ordinary_v3_signed(
+    candidate: &GovernanceCandidateConfig,
+    staged: &Settlement,
+    value: &str,
+) -> Result<SignedOrdinaryV3> {
+    let limits = governance_execution::fee_profile(candidate, staged)
+        .map_err(|e| anyhow::anyhow!("{e}"))?
+        .limits();
+    dytallix_protocol_types::ordinary_v3::decode(&recovery_bytes(value)?, &limits).map_err(Into::into)
+}
+/// Genesis configuration with the governed parameter values in place (T6).
+/// Stored lifecycle and ordinary configurations must equal these.
+fn effective_config(storage: &Storage, config: &ConsensusConfig) -> Result<ConsensusConfig> {
+    let mut effective = config.clone();
+    if config.governance.is_some() {
+        let parameters = governance_store::GovernedParameters::read(storage)?;
+        if let Some(lifecycle) = &config.lifecycle {
+            effective.lifecycle = Some(crate::governance_actions::effective_lifecycle(
+                lifecycle,
+                &parameters,
+            )?);
+        }
+        if let Some(ordinary) = &config.ordinary {
+            effective.ordinary = Some(crate::governance_actions::effective_ordinary(
+                ordinary,
+                &parameters,
+            ));
+        }
+    }
+    Ok(effective)
+}
 /// `full` runs every whole-account check and is used by the complete history
 /// check. Otherwise the state is loaded as committed by this node: each block
 /// validated its changed accounts before commit (`OrdinaryState::validate_block`).
@@ -1715,6 +1644,7 @@ fn load_ordinary(
     book: Option<&RecoveryBook>,
     full: bool,
 ) -> Result<Option<OrdinaryState>> {
+    let config = &effective_config(storage, config)?;
     match &config.ordinary {
         Some(expected) if !full => {
             let book = book.context("Ordinary recovery state missing")?;
@@ -1821,18 +1751,6 @@ fn staged_nonces_for(
         }
     }
     Ok(nonces)
-}
-fn staged_nonces(staged: &mut Settlement, book: &RecoveryBook) -> Result<BTreeMap<String, u64>> {
-    book.accounts
-        .all()?
-        .values()
-        .map(|account| {
-            Ok((
-                account.address.clone(),
-                staged.account(&account.address)?.nonce,
-            ))
-        })
-        .collect()
 }
 fn recovery_bytes(value: &str) -> Result<Vec<u8>> {
     let raw = B64.decode(value).context("Invalid recovery base64")?;
@@ -2081,6 +1999,38 @@ fn combined_transaction(
             )?;
             Ok((TxResult::from_ordinary(&result)?, result.reservation))
         }
+        Ok(WireTransaction::OrdinaryV3 { envelope_base64 }) => {
+            let candidate = config
+                .governance
+                .as_ref()
+                .context("Governance profile missing")?;
+            let signed = match ordinary_v3_signed(candidate, staged, &envelope_base64) {
+                Ok(signed) => signed,
+                Err(_) => {
+                    let before = shared.usage().gas;
+                    shared.rejected_wire(raw.len() as u64, &state.config.fee_profile)?;
+                    let gas = i64::try_from(shared.usage().gas - before)?;
+                    return Ok((
+                        TxResult {
+                            code: 1,
+                            gas_wanted: gas,
+                            gas_used: gas,
+                            log: "Malformed governance envelope".into(),
+                        },
+                        None,
+                    ));
+                }
+            };
+            let result = governance_execution::execute_signed(
+                &signed,
+                candidate,
+                &mut recovery.book,
+                staged,
+                height,
+                shared,
+            )?;
+            Ok((TxResult::from_ordinary(&result)?, result.reservation))
+        }
         Ok(WireTransaction::Recovery { envelope_base64 }) => {
             let bytes = recovery_bytes(&envelope_base64).unwrap_or_else(|_| raw.to_vec());
             // A charged recovery changes only its target and sponsor records.
@@ -2175,6 +2125,21 @@ fn candidate_keys(config: &ConsensusConfig, raw: &[u8], state: &OrdinaryState) -
                     keys.actor = hex::encode(signed.body.domain.account_id);
                     keys.accounts.push(keys.actor.clone());
                     keys.ordinary_receipt = hex::encode(id);
+                }
+            }
+        }
+        Ok(WireTransaction::OrdinaryV3 { envelope_base64 }) => {
+            // A governance transaction changes only its actor's record; its
+            // governance entries roll back with the staged settlement.
+            if let Ok(bytes) = recovery_bytes(&envelope_base64) {
+                if let Some(Ok(signed)) = config.governance.as_ref().map(|candidate| {
+                    dytallix_protocol_types::ordinary_v3::decode(
+                        &bytes,
+                        &candidate.fee_profile.limits(),
+                    )
+                }) {
+                    keys.actor = hex::encode(signed.body.domain.account_id);
+                    keys.accounts.push(keys.actor.clone());
                 }
             }
         }
@@ -3835,6 +3800,43 @@ impl ConsensusApplication {
                         return Ok(Some(output));
                     }
                 }
+                if let (Ok(WireTransaction::OrdinaryV3 { envelope_base64 }), Some(candidate)) =
+                    (wire(&self.config, raw), self.config.governance.as_ref())
+                {
+                    staged.governance = Some(governance_execution::open_store(&staged, candidate)?);
+                    if let Ok(signed) = ordinary_v3_signed(candidate, &staged, &envelope_base64) {
+                        let result = governance_execution::admission_only(
+                            &signed,
+                            candidate,
+                            &mut recovery.book,
+                            &mut staged,
+                            height,
+                            &mut shared,
+                        )?;
+                        let mut output = TxResult::from_ordinary(&result)?;
+                        if result.accepted {
+                            let request = result
+                                .reservation
+                                .as_ref()
+                                .context("Accepted admission lacks reservation")?;
+                            let mut admission = self
+                                .admission
+                                .lock()
+                                .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?;
+                            let owners = admission.owners().into_iter().chain(request.owners());
+                            match admission
+                                .reserve(request, liquidity.covering(network, owners)?)
+                            {
+                                Ok(_) => output.code = 0,
+                                Err(error) => {
+                                    output.code = 1;
+                                    output.log = format!("Admission reservation rejected: {error}");
+                                }
+                            }
+                        }
+                        return Ok(Some(output));
+                    }
+                }
                 if !matches!(
                     wire(&self.config, raw),
                     Ok(WireTransaction::EpochObservation { .. })
@@ -3928,24 +3930,26 @@ impl ConsensusApplication {
         let bytes: [u8; 32] = hex::decode(id)?
             .try_into()
             .map_err(|_| anyhow::anyhow!("Invalid admission ID"))?;
-        let id = if recovery_sponsorship {
+        self.evict_admission(if recovery_sponsorship {
             ReservationId::RecoverySponsorship(bytes)
         } else {
             ReservationId::Ordinary(bytes)
-        };
+        })
+    }
+    fn evict_admission(&self, id: ReservationId) -> Result<bool> {
         let _guard = self.storage.lock_execution()?;
         verify_recovery(&self.storage)?;
-        let config = self
-            .config
+        // The queue context is the fee profile in force, which governance
+        // can change (T6).
+        let config = effective_config(&self.storage, &self.config)?
             .ordinary
-            .as_ref()
             .context("Ordinary profile missing")?;
         let head = current_info(&self.storage)?.app_hash;
         let mut queue = self
             .admission
             .lock()
             .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?;
-        queue.reset(&head, config)?;
+        queue.reset(&head, &config)?;
         Ok(queue.evict(id)?)
     }
     /// Trusted engine recheck explicitly releases the old intent reservation and
@@ -3977,7 +3981,7 @@ impl ConsensusApplication {
         ) {
             return self.check_tx_result(raw);
         }
-        let id = (|| -> Result<(String, bool)> {
+        let id = (|| -> Result<ReservationId> {
             match wire(&self.config, raw)? {
                 WireTransaction::OrdinaryV2 { envelope_base64 } => {
                     let config = self
@@ -3986,27 +3990,42 @@ impl ConsensusApplication {
                         .as_ref()
                         .context("Ordinary profile missing")?;
                     let signed = ordinary_signed(config, &envelope_base64)?;
-                    Ok((
-                        hex::encode(ordinary_wire::transaction_id(
+                    Ok(ReservationId::Ordinary(ordinary_wire::transaction_id(
+                        &signed.body,
+                        &config.fee_profile.limits,
+                    )?))
+                }
+                WireTransaction::OrdinaryV3 { envelope_base64 } => {
+                    let candidate = self
+                        .config
+                        .governance
+                        .as_ref()
+                        .context("Governance profile missing")?;
+                    let limits = candidate.fee_profile.limits();
+                    let signed = dytallix_protocol_types::ordinary_v3::decode(
+                        &recovery_bytes(&envelope_base64)?,
+                        &limits,
+                    )?;
+                    Ok(ReservationId::OrdinaryV3 {
+                        transaction_id: dytallix_protocol_types::ordinary_v3::transaction_id(
                             &signed.body,
-                            &config.fee_profile.limits,
-                        )?),
-                        false,
-                    ))
+                            &limits,
+                        )?,
+                        profile_digest: signed.body.fee_profile_digest,
+                    })
                 }
                 WireTransaction::Recovery { envelope_base64 } => {
                     let signed = sponsor_wire::decode(&recovery_bytes(&envelope_base64)?)?;
-                    Ok((
-                        hex::encode(sponsor_wire::authorization_id(&signed.sponsor)?),
-                        true,
+                    Ok(ReservationId::RecoverySponsorship(
+                        sponsor_wire::authorization_id(&signed.sponsor)?,
                     ))
                 }
                 _ => anyhow::bail!("Recheck requires ordinary or recovery intent"),
             }
         })();
         match id {
-            Ok((id, sponsor)) => {
-                if self.evict_ordinary_admission(&id, sponsor).is_err() {
+            Ok(id) => {
+                if self.evict_admission(id).is_err() {
                     return Ok(TxResult::invalid("Admission recheck state invalid"));
                 }
                 self.check_tx_result(raw)
@@ -4017,17 +4036,15 @@ impl ConsensusApplication {
     pub fn ordinary_admission_count(&self) -> Result<usize> {
         let _guard = self.storage.lock_execution()?;
         verify_recovery(&self.storage)?;
-        let config = self
-            .config
+        let config = effective_config(&self.storage, &self.config)?
             .ordinary
-            .as_ref()
             .context("Ordinary profile missing")?;
         let head = current_info(&self.storage)?.app_hash;
         let mut queue = self
             .admission
             .lock()
             .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?;
-        queue.reset(&head, config)?;
+        queue.reset(&head, &config)?;
         Ok(queue.len())
     }
     // Call with the execution lock held. Commit publishes this key atomically.
@@ -4292,17 +4309,6 @@ impl ConsensusApplication {
             timing.last_height.checked_add(1) == Some(height),
             "Proposal height differs"
         );
-        if let Some(candidate) = &self.config.governance {
-            let verified = committed_governance_parent(
-                self.storage.clone(),
-                &self.config,
-                candidate.genesis_digest,
-            )?;
-            ensure!(
-                verified.height.checked_add(1) == Some(height),
-                "Governance proposal parent height differs"
-            );
-        }
         ensure!(
             time_seconds >= 0 && (0..1_000_000_000).contains(&time_nanos),
             "Invalid proposal timestamp"
@@ -4385,6 +4391,16 @@ impl ConsensusApplication {
             load_ordinary(&self.storage, &self.config, Some(&book), false)?.context("Ordinary missing")?;
         state.prune_receipts_for(height);
         let mut recovery = book.begin_block(height)?;
+        if let Some(candidate) = &self.config.governance {
+            staged.governance = Some(governance_execution::open_store(&staged, candidate)?);
+            governance_execution::begin_block(
+                &mut staged,
+                &mut state,
+                &recovery.book,
+                candidate,
+                height,
+            )?;
+        }
         let mut shared = shared_meter(&state.config, &recovery)?;
         let mut liquidity = ordinary_runtime::LazyEligibility::new(&staged);
         let network = ordinary_authority::chain_network(&recovery.book)?;
@@ -4471,6 +4487,9 @@ impl ConsensusApplication {
             state.config.fee_profile.account_creation_fee_udrt,
         )?;
         check_changed_recovery_accounts(&self.config, &recovery.book)?;
+        if let Some(store) = &staged.governance {
+            store.validate_block()?;
+        }
         // No second candidate verification here. ProcessProposal and FinalizeBlock
         // independently repeat the selected ordered block against committed state.
         Ok(out)
@@ -4525,17 +4544,6 @@ impl ConsensusApplication {
             expected_info.height.checked_add(1) == Some(input.height),
             "Finalized height is not next"
         );
-        if let Some(candidate) = &self.config.governance {
-            let verified = committed_governance_parent(
-                self.storage.clone(),
-                &self.config,
-                candidate.genesis_digest,
-            )?;
-            ensure!(
-                verified.height.checked_add(1) == Some(input.height),
-                "Governance block parent height differs"
-            );
-        }
         ensure!(
             self.storage.db.get(MODE_KEY)?.is_some(),
             "InitChain required"
@@ -4630,6 +4638,19 @@ impl ConsensusApplication {
             .as_ref()
             .map(|book| book.begin_block(input.height))
             .transpose()?;
+        // Governance transitions due at this height run before any
+        // transaction (P01, 27 September 2026), and before the block meter
+        // binds the fee profile they can change.
+        if let Some(candidate) = &self.config.governance {
+            staged.governance = Some(governance_execution::open_store(&staged, candidate)?);
+            governance_execution::begin_block(
+                &mut staged,
+                ordinary.as_mut().context("Governance requires ordinary state")?,
+                &recovery.as_ref().context("Governance requires recovery state")?.book,
+                candidate,
+                input.height,
+            )?;
+        }
         let mut shared = ordinary
             .as_ref()
             .map(|state| {
@@ -4886,6 +4907,17 @@ impl ConsensusApplication {
                 ensure!(
                     writes.insert(key, value).is_none(),
                     "Recovery entry already staged"
+                );
+            }
+            deletes.extend(removed);
+        }
+        if let Some(store) = &staged.governance {
+            store.validate_block()?;
+            let (changed, removed) = store.changes()?;
+            for (key, value) in changed {
+                ensure!(
+                    writes.insert(key, value).is_none(),
+                    "Governance entry already staged"
                 );
             }
             deletes.extend(removed);
@@ -5339,15 +5371,15 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     let current = read_head(storage)?;
     let height = block_lifecycle::height(storage, "meta:height")?;
     if let Some(governance_config) = &config.governance {
-        let raw = storage
-            .db
-            .get(GOVERNANCE_STATE_KEY)?
-            .context("Configured governance state missing")?;
-        let governance = GovernanceState::decode(&raw)?;
+        let header = match from {
+            None => governance_store::validate_complete(storage, &governance_config.store_rules())?,
+            Some(_) => governance_store::Header::read(storage)?
+                .context("Configured governance state missing")?,
+        };
         ensure!(
-            governance.chain_id() == config.chain_id
-                && governance.genesis_digest() == governance_config.genesis_digest
-                && governance.finalized_height() == height,
+            header.chain_id == config.chain_id
+                && header.genesis_digest == governance_config.genesis_digest
+                && header.height == height,
             "Governance state differs from committed chain or height"
         );
     }
@@ -5794,6 +5826,13 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                                     Ok(WireTransaction::OrdinaryV2 { .. })
                                 ))
                             || recovery_receipt_pruned(&record.input.txs[index])
+                            // Governance transactions keep no receipt: their
+                            // result is in the block record, and the nonce
+                            // prevents replay (T6).
+                            || matches!(
+                                wire(&config, &record.input.txs[index]),
+                                Ok(WireTransaction::OrdinaryV3 { .. })
+                            )
                             || (boundary && index == 0 && result == &TxResult::observation())
                             || (result == &emergency_result()
                                 && matches!(

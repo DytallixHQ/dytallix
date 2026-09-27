@@ -1,11 +1,5 @@
-use super::super::governance_ballot::BondSnapshot;
 use super::super::reward_runtime::RewardConfig;
 use super::*;
-use crate::recovery_fees::{RecoveryAccount, RecoveryBook};
-use dytallix_protocol_types::{
-    recovery::{KeyIdentity, RecoveryConfig, RecoveryDomain, RecoveryState},
-    recovery_sponsor::FeeProfile,
-};
 use fips204::{
     ml_dsa_65,
     traits::{KeyGen, SerDes, Signer},
@@ -146,149 +140,6 @@ fn bond_activates_at_h_plus_two_with_exact_micro_unit_power() {
     assert_eq!(
         LifecycleState::decode(&state.encode().unwrap()).unwrap(),
         state
-    );
-}
-#[test]
-fn governance_owner_snapshot_uses_effective_bonds_at_finalized_height() {
-    let (mut state, mut rewards) = fixture();
-    let owners = BTreeSet::from(["alice".to_string(), "dave".to_string()]);
-    assert!(state
-        .bonded_owner_weights_at_finalized_height(0, &owners)
-        .is_err());
-    step(&mut state, &mut rewards, 1);
-    let first = state
-        .bonded_owner_weights_at_finalized_height(1, &owners)
-        .unwrap();
-    let parent = BondSnapshot::from_finalized_lifecycle(&state, 1, [9; 32], &owners, 2).unwrap();
-    assert_eq!(parent.finalized_height, 1);
-    assert_eq!(parent.source_app_hash, [9; 32]);
-    assert_eq!(parent.owner_weights, first);
-    assert_eq!(parent.total_weight, 130);
-    assert!(BondSnapshot::from_finalized_lifecycle(&state, 2, [9; 32], &owners, 2).is_err());
-    assert!(BondSnapshot::from_finalized_lifecycle(&state, 1, [0; 32], &owners, 2).is_err());
-    assert!(BondSnapshot::from_finalized_lifecycle(&state, 1, [9; 32], &owners, 1).is_err());
-    assert_eq!(
-        first,
-        BTreeMap::from([("alice".into(), 100), ("dave".into(), 30)])
-    );
-    assert!(state
-        .bonded_owner_weights_at_finalized_height(2, &owners)
-        .is_err());
-    assert!(state
-        .bonded_owner_weights_at_finalized_height(1, &BTreeSet::from(["absent".into()]))
-        .is_err());
-    state
-        .schedule(
-            1,
-            "alice",
-            0,
-            Operation::Bond {
-                validator: "a".into(),
-                amount: 7,
-            },
-        )
-        .unwrap();
-    step(&mut state, &mut rewards, 2);
-    let pending = BondSnapshot::from_finalized_lifecycle(&state, 2, [8; 32], &owners, 2).unwrap();
-    assert_eq!(pending.owner_weights, first);
-    assert_eq!(
-        state
-            .bonded_owner_weights_at_finalized_height(2, &owners)
-            .unwrap(),
-        first
-    );
-    step(&mut state, &mut rewards, 3);
-    assert_eq!(
-        state
-            .bonded_owner_weights_at_finalized_height(3, &owners)
-            .unwrap(),
-        BTreeMap::from([("alice".into(), 107), ("dave".into(), 30)])
-    );
-    assert_eq!(first["alice"], 100);
-}
-
-#[test]
-fn governance_electorate_uses_registered_stable_account_ids() {
-    let (mut state, mut rewards) = fixture();
-    step(&mut state, &mut rewards, 1);
-    let account_id = [1; 32];
-    let owner = hex::encode(account_id);
-    state
-        .config
-        .approved_operators
-        .insert("a".into(), owner.clone());
-    state.effective.validators.get_mut("a").unwrap().owner = owner.clone();
-    let positions = state.effective.positions.remove("alice").unwrap();
-    state.effective.positions.insert(owner.clone(), positions);
-    state.reserved_owners.remove("alice");
-    state.reserved_owners.insert(owner.clone());
-    state.history = ValidatorHistory::new(HistoricalSet::of(&state.effective).unwrap());
-    state.validate().unwrap();
-
-    let profile = FeeProfile {
-        version: 1,
-        activation_height: 1,
-        denomination: "udrt".into(),
-        gas_price: 1,
-        minimum_gas: 10,
-        max_transaction_gas: 100_000,
-        max_block_gas: 200_000,
-        max_block_recovery_bytes: 262_144,
-        max_block_recovery_signatures: 16,
-        max_fee_cap: 100_000,
-        max_pending_accounts: 2,
-        max_due_expiry_events_per_height: 2,
-        mandatory_expiry_gas_budget: 20,
-        expiry_event_gas_cost: 10,
-        action_costs: [10; 9],
-        wire_byte_cost: 1,
-        read_byte_cost: 1,
-        write_byte_cost: 1,
-        signature_costs: BTreeMap::from([("mldsa65".into(), 10)]),
-    };
-    let account = RecoveryAccount {
-        address: "registered-owner".into(),
-        recovery: RecoveryState::new(
-            RecoveryDomain {
-                network: 3,
-                chain_id: state.config.chain_id.clone(),
-                genesis_digest: [3; 32],
-                account_id,
-            },
-            RecoveryConfig {
-                timing_version: 1,
-                recovery_delay: 2,
-                finalization_window: 3,
-                policy_delay: 2,
-                policy_window: 3,
-                submission_lifetime: 100,
-                algorithms: BTreeMap::from([("mldsa65".into(), 1952)]),
-            },
-            KeyIdentity {
-                algorithm: "mldsa65".into(),
-                public_key: vec![1; 1952],
-            },
-            0,
-        )
-        .unwrap(),
-        sponsor_nonce: 0,
-    };
-    let mut book = RecoveryBook::new(profile, vec![account]).unwrap();
-    for account in book.accounts.values_mut() {
-        account.recovery = account.recovery.advance_height(1).unwrap();
-    }
-    book.last_height = 1;
-    book.validate().unwrap();
-
-    let snapshot =
-        BondSnapshot::from_finalized_registered_accounts(&state, &book, 1, [9; 32], 1).unwrap();
-    assert_eq!(snapshot.owner_weights, BTreeMap::from([(owner, 100)]));
-    assert_eq!(snapshot.total_weight, 100);
-    assert!(
-        BondSnapshot::from_finalized_registered_accounts(&state, &book, 2, [9; 32], 1).is_err()
-    );
-    assert!(
-        BondSnapshot::from_finalized_registered_accounts(&state, &book, 1, [9; 32], 0).is_err()
     );
 }
 #[test]
@@ -544,6 +395,18 @@ fn dual_maturity_is_strict_and_cannot_authorize_withdrawal() {
     let mut changed = state.config.clone();
     changed.evidence_max_age_blocks += 1;
     assert!(entry.maturity_satisfied(&changed, 100, 1000, true).is_err());
+    // Governed values (T6) leave an existing unbond valid and maturing.
+    let mut governed = state.clone();
+    governed.config.min_self_bond = 20;
+    governed.config.max_active = 2;
+    governed
+        .config
+        .approved_operators
+        .insert("d".into(), "dave".into());
+    governed.validate().unwrap();
+    assert!(entry
+        .maturity_satisfied(&governed.config, 15, 371, true)
+        .unwrap());
 }
 #[test]
 fn same_block_pending_principal_cannot_gain_false_exposure() {

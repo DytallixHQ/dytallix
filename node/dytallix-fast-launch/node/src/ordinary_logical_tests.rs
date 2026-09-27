@@ -1,5 +1,6 @@
 use super::*;
 use crate::runtime::{
+    governance_store::{Header, HEADER_KEY},
     penalty_custody::PenaltyConfig,
     reward_runtime::RewardConfig,
     validator_lifecycle::HistoricalSet,
@@ -445,19 +446,21 @@ fn staking_pool_vector_keeps_sixteen_byte_amount_and_exact_bound() {
 }
 
 #[test]
-fn governance_state_vector_uses_canonical_bounded_payload() {
-    let state = GovernanceState::new(1, "c".into(), [3; 32], 7).unwrap();
-    let got = governance_state(&state, MAX).unwrap();
-    let mut payload = 1u16.to_le_bytes().to_vec();
+fn governance_header_vector_uses_canonical_bounded_payload() {
+    let mut header = Header::genesis("c".into(), [3; 32]).unwrap();
+    header.height = 7;
+    let got = governance_entry(HEADER_KEY, &header, MAX).unwrap();
+    let mut payload = 2u16.to_le_bytes().to_vec();
     string(&mut payload, "c");
     payload.extend([3; 32]);
     payload.extend(7u64.to_le_bytes());
     payload.extend(1u64.to_le_bytes());
     payload.extend(0u64.to_le_bytes());
-    assert_eq!(got.key(), b"governance:v1:state");
+    payload.extend(0u128.to_le_bytes());
+    assert_eq!(got.key(), b"governance:v2:header");
     assert_eq!(
         got.canonical_bytes(),
-        payload_record("governance:v1:state", payload)
+        payload_record("governance:v2:header", payload)
     );
-    assert!(governance_state(&state, got.byte_len() as u32 - 1).is_err());
+    assert!(governance_entry(HEADER_KEY, &header, got.byte_len() as u32 - 1).is_err());
 }

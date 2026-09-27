@@ -1,6 +1,8 @@
 # E04 ordinary-v3 fee and nonce settlement map
 
-Status: implementation map only. No ordinary-v3 fee or nonce settlement is active.
+Status: superseded (27 September 2026). Governance v1 (T6) replaced the
+modules this map describes; see `mainnet/node/docs/architecture/governance-v1.md`.
+The map below is kept as the record of the earlier local components.
 
 `src/` paths start at `dytallix-fast-launch/node`. `crates/` paths start at `dytallix-node`.
 

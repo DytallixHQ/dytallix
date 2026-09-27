@@ -197,6 +197,9 @@ accounts and sponsor receipts; governance proposals and votes; lifecycle
 validators; penalty incidents. A block then writes O(changed entities), and
 each entity can be proven individually under D3.
 
+Governance is done (T6, [governance v1](governance-v1.md)): one entry per
+proposal, vote, snapshot weight and due transition, removed when finished.
+
 ### D5. Replace lifetime receipt retention with an expiry window
 
 Ordinary transactions already carry a strictly increasing `spending_nonce` and
