@@ -37,6 +37,14 @@ LIVE_REQUIREMENTS = [
 class Invalid(ValueError):
     pass
 
+# The unit's syscall policy: one systemd deny expression. Message-based FD
+# import and io_uring are denied with the AppArmor rules below.
+SYSTEM_CALL_DENY = ('~@mount memfd_create ptrace process_vm_writev recvmsg recvmmsg '
+                    'pidfd_getfd io_uring_setup io_uring_enter io_uring_register')
+# Added when the unit has no network sockets.
+NO_SOCKET_DENY = 'socket socketpair'
+
+
 def require(ok, message):
     if not ok:
         raise Invalid(message)
@@ -200,15 +208,15 @@ def render(catalog_bytes, mapping, request):
     properties={'NoExecPaths':['/']+writable,'ExecPaths':code,'BindReadOnlyPaths':code,'ProtectSystem':'strict',
                 'ReadOnlyPaths':sorted(readonly+request.get('readonly_directories',[])),'ReadWritePaths':writable,'NoNewPrivileges':True,
                 'CapabilityBoundingSet':[],'RestrictNamespaces':True,'SystemCallArchitectures':['native'],
-                'MemoryDenyWriteExecute':True,'SystemCallFilter':['~@mount','memfd_create','ptrace','process_vm_writev'],
+                'MemoryDenyWriteExecute':True,
                 'SystemCallErrorNumber':'EPERM',
                 'InaccessiblePaths':['/dev/shm'],'AppArmorProfile':name,'PrivateDevices':True,
                 'PrivateTmp':True,'RestrictSUIDSGID':True,'RestrictAddressFamilies':sorted(socket_families)}
     # SystemCallFilter is one space-joined deny expression; do not emit separate allow lines.
-    properties['SystemCallFilter']='~@mount memfd_create ptrace process_vm_writev recvmsg recvmmsg pidfd_getfd io_uring_setup io_uring_enter io_uring_register'
+    properties['SystemCallFilter']=SYSTEM_CALL_DENY
     if not sockets and not launch_channel:
         properties.pop('RestrictAddressFamilies')
-        properties['SystemCallFilter'] += ' socket socketpair'
+        properties['SystemCallFilter'] += ' ' + NO_SOCKET_DENY
     if request['network']['mode']=='private':properties['PrivateNetwork']=True
     else:properties.update({'PrivateNetwork':False,'NetworkNamespacePath':request['network']['namespace_path']})
     lines=['abi <abi/4.0>,',

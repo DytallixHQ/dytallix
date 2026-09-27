@@ -26,3 +26,8 @@ required-features = ["qualification-fixtures"]
 name = "release-runtime-pause-qualification"
 path = "src/bin/pause_qualification.rs"
 required-features = ["qualification-fixtures"]
+
+[[bin]]
+name = "release-runtime-profile-admission"
+path = "src/bin/profile_admission.rs"
+required-features = ["qualification-fixtures"]

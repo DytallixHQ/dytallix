@@ -206,6 +206,21 @@ mod tests {
         }
     }
     #[test]
+    fn non_root_check_requires_the_exact_enforced_supervisor_label() {
+        let supervisor = format!("dyt-role-{}-node0-supervisor", "a".repeat(20));
+        validate_own_label(&format!("{supervisor} (enforce)\n"), &supervisor).unwrap();
+        validate_own_label(&format!("{supervisor} (enforce)"), &supervisor).unwrap();
+        for invalid in [
+            format!("{supervisor} (complain)\n"),
+            format!("{supervisor} (mixed)\n"),
+            format!("{supervisor}//&dyt-role-x-workload (enforce)\n"),
+            format!("{supervisor} (enforce)\nextra"),
+            "unconfined\n".to_owned(),
+        ] {
+            assert!(validate_own_label(&invalid, &supervisor).is_err(), "{invalid}");
+        }
+    }
+    #[test]
     fn profile_inventory_requires_exact_enforce_entries() {
         let labels = ["unit-supervisor", "unit-application-owner", "unit-workload", "unit-helper"];
         let raw = labels.iter().map(|label| format!("{label} (enforce)\n")).collect::<String>();
@@ -278,10 +293,25 @@ pub fn validate_four_role_labels(
 }
 
 /// Read fresh kernel state. A rendered profile list is not enforcement evidence.
+///
+/// The kernel lists loaded profiles only to root (`profiles_open` requires
+/// `aa_current_policy_view_capable`: euid or egid 0), and the supervisor runs as
+/// its unit's non-root UID. Root callers, such as a privileged pre-start check,
+/// read the inventory. Other callers must be running under exactly the
+/// supervisor profile in enforce mode, which proves that profile is loaded and
+/// enforced. The remaining profiles are proven where they are used: a child is
+/// released only after its exact stacked label reads `(enforce)` (the kernel
+/// reports a stack as enforce only when every component profile is), the
+/// application checks the helper's label the same way, and the `Px` exec to an
+/// absent profile fails.
 pub fn require_enforced_profiles(labels: &[&str]) -> Result<()> {
     ensure!(cfg!(target_os = "linux") && labels.len() == 4,
         "Four Linux AppArmor profiles required");
     validate_four_role_labels(labels[0], labels[1], labels[2], labels[3])?;
+    if unsafe { libc::geteuid() } != 0 {
+        let current = read_bounded("/proc/self/attr/current", 512)?;
+        return validate_own_label(&current, labels[0]);
+    }
     let body = labels[0]
         .strip_prefix("dyt-role-")
         .and_then(|value| value.strip_suffix("-supervisor"))
@@ -291,6 +321,13 @@ pub fn require_enforced_profiles(labels: &[&str]) -> Result<()> {
     let helper = format!("dyt-role-{body}-helper");
     let raw = read_bounded("/sys/kernel/security/apparmor/profiles", 4 * 1024 * 1024)?;
     validate_profile_inventory(&raw, &[labels[0], &application, &workload, &helper])
+}
+fn validate_own_label(current: &str, supervisor: &str) -> Result<()> {
+    ensure!(
+        current.strip_suffix('\n').unwrap_or(current) == format!("{supervisor} (enforce)"),
+        "Supervisor must run under its own profile in enforce mode"
+    );
+    Ok(())
 }
 fn validate_profile_inventory(raw: &str, labels: &[&str]) -> Result<()> {
     ensure!(labels.len() == 4, "Four profile labels required");
