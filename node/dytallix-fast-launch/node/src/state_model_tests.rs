@@ -696,3 +696,46 @@ fn account_totals_follow_balances_and_are_audited() {
         .to_string();
     assert!(error.contains("block's balance changes"), "{error}");
 }
+
+/// Metrics v1: a committed chain records the core application set.
+#[test]
+fn committed_chain_records_the_core_application_metrics() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let metrics = std::sync::Arc::new(crate::app_metrics::AppMetrics::new());
+    let mut app = inputs
+        .initialized(&dir.path().join("db"))
+        .with_metrics(metrics.clone());
+    app.finalize_block(block(1, vec![signed_wire(inputs.send())]))
+        .unwrap();
+    app.commit().unwrap();
+    for height in 2..=10 {
+        commit_next(&mut app, height);
+    }
+    let text = metrics.render(0, None);
+    let value = |name: &str| -> String {
+        text.lines()
+            .find_map(|line| line.strip_prefix(&format!("{name} ")))
+            .unwrap_or_else(|| panic!("missing {name} in\n{text}"))
+            .to_owned()
+    };
+    assert_eq!(value("dytallix_app_height"), "10");
+    assert_eq!(value("dytallix_app_commit_seconds_count"), "10");
+    assert_eq!(value("dytallix_app_block_execution_seconds_count"), "10");
+    assert_eq!(
+        value("dytallix_app_retained_from_height"),
+        retained_from(&app.storage).unwrap().to_string()
+    );
+    // Window of four after block 10: blocks 2 to 6 left, block 1 is pinned.
+    assert_eq!(value("dytallix_app_block_records_pruned_total"), "5");
+    let supply = crate::supply::inspect_native(&app.storage).unwrap();
+    assert_eq!(
+        value("dytallix_app_supply_udrt{bucket=\"total\"}"),
+        supply.drt.total.to_string()
+    );
+    assert_eq!(
+        value("dytallix_app_supply_udgt{bucket=\"staked\"}"),
+        supply.dgt.staked.to_string()
+    );
+    assert!(text.contains("dytallix_app_startup_check_seconds "));
+}

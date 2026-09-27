@@ -998,6 +998,8 @@ pub struct ConsensusApplication {
     /// The database path, for a restore that replaces it.
     db_path: std::path::PathBuf,
     restore: Option<crate::snapshot::Restore>,
+    metrics: Option<Arc<crate::app_metrics::AppMetrics>>,
+    startup_check_seconds: f64,
 }
 
 /// The application's answer to a snapshot the engine offers (state sync
@@ -3868,8 +3870,10 @@ impl ConsensusApplication {
             }
         }
         let storage = Arc::new(Storage::open(path.as_ref().to_path_buf())?);
+        let started = std::time::Instant::now();
         let initialized = check_stored_startup(&storage, &config, &genesis_bytes,
             root_genesis.as_ref(), emergency_verifier.as_ref())?;
+        let startup_check_seconds = started.elapsed().as_secs_f64();
         let runtime_candidate = candidate
             .map(|input| {
                 let expected_release = if initialized {
@@ -3909,6 +3913,8 @@ impl ConsensusApplication {
             snapshots: None,
             db_path: path.as_ref().to_path_buf(),
             restore: None,
+            metrics: None,
+            startup_check_seconds,
         })
     }
     pub fn info(&self) -> Result<Info> {
@@ -4808,6 +4814,14 @@ impl ConsensusApplication {
         }
     }
     pub fn finalize_block(&mut self, input: FinalizedBlockInput) -> Result<FinalizeResult> {
+        let started = std::time::Instant::now();
+        let result = self.finalize_block_inner(input);
+        if let (Ok(_), Some(metrics)) = (&result, &self.metrics) {
+            metrics.block_executed(started.elapsed().as_secs_f64());
+        }
+        result
+    }
+    fn finalize_block_inner(&mut self, input: FinalizedBlockInput) -> Result<FinalizeResult> {
         let _guard = self.storage.lock_execution()?;
         verify_recovery(&self.storage)?;
         if let Some(pending) = &self.pending {
@@ -5451,6 +5465,13 @@ impl ConsensusApplication {
         let sequence = self.storage.db.latest_sequence_number();
         self.storage.mark_verified(sequence)
     }
+    /// Record the core metric set into `metrics` (metrics v1); the caller
+    /// writes the file at the operator's interval.
+    pub fn with_metrics(mut self, metrics: Arc<crate::app_metrics::AppMetrics>) -> Self {
+        metrics.startup_checked(self.startup_check_seconds);
+        self.metrics = Some(metrics);
+        self
+    }
     /// Keep every block record instead of the retained window (an archive
     /// node). A local setting: it changes no committed state.
     pub fn with_block_history(mut self, history: BlockHistory) -> Self {
@@ -5492,6 +5513,7 @@ impl ConsensusApplication {
         &mut self,
         write: impl FnOnce(&Storage, WriteBatch) -> Result<()>,
     ) -> Result<Info> {
+        let started = std::time::Instant::now();
         let guard = self.storage.lock_execution()?;
         verify_recovery(&self.storage)?;
         let Some(prepared) = &self.pending else {
@@ -5565,10 +5587,12 @@ impl ConsensusApplication {
         );
         batch.put(HEAD_KEY, serde_json::to_vec(&prepared.record.head)?);
         let head = prepared.record.head.clone();
+        let mut pruned = 0u64;
         if self.block_history == BlockHistory::Window {
             if let Some((deletes, retained)) =
                 prune_plan(&self.storage, &self.config, &prepared.record)?
             {
+                pruned = u64::try_from(deletes.len())?;
                 for height in deletes {
                     batch.delete(record_key(height));
                 }
@@ -5596,6 +5620,33 @@ impl ConsensusApplication {
                 if let Err(error) = writer.start(&self.storage.db, header) {
                     log::warn!("Snapshot at {} not started: {error:#}", expected_next.height);
                 }
+            }
+        }
+        // Metrics never affect the committed block (metrics v1).
+        if let Some(metrics) = &self.metrics {
+            let recorded = (|| -> Result<()> {
+                let supply = crate::supply::validate_native_block(
+                    &self.storage,
+                    &Writes::new(),
+                    &Deletes::new(),
+                )?;
+                let entries = self
+                    .admission
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("Admission queue lock poisoned"))?
+                    .len();
+                metrics.committed(
+                    started.elapsed().as_secs_f64(),
+                    expected_next.height,
+                    retained_from(&self.storage)?,
+                    pruned,
+                    &supply,
+                    u64::try_from(entries)?,
+                );
+                Ok(())
+            })();
+            if let Err(error) = recorded {
+                log::warn!("Metrics not recorded at {}: {error:#}", expected_next.height);
             }
         }
         drop(guard);

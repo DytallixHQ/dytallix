@@ -11,10 +11,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
+	"time"
 
 	"dytallix.local/consensus/cometbft/internal/enginepqc"
 	"dytallix.local/consensus/cometbft/internal/lightblocks"
+	"dytallix.local/consensus/cometbft/internal/metricsfile"
 	"dytallix.local/consensus/cometbft/internal/pqcp2p"
 	"dytallix.local/consensus/cometbft/internal/startupdiag"
 	cfg "github.com/cometbft/cometbft/config"
@@ -61,6 +64,36 @@ func stateSyncOption(ctx context.Context, runtime *enginepqc.Runtime, dirs []str
 	return []node.Option{node.StateProvider(provider)}, nil
 }
 
+// metricsOption builds the metrics provider and file writer for an operator
+// directory and interval (metrics v1), or the default no-op provider when
+// neither is set.
+func metricsOption(config *cfg.Config, dir string, interval time.Duration) (node.MetricsProvider, func(context.Context), error) {
+	if dir == "" && interval == 0 {
+		return node.DefaultMetricsProvider(config.Instrumentation), func(context.Context) {}, nil
+	}
+	if dir == "" || !filepath.IsAbs(dir) || interval < time.Second || interval > time.Hour {
+		return nil, nil, errors.New("--metrics-dir (absolute) and --metrics-interval (1s to 1h) go together")
+	}
+	if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
+		return nil, nil, errors.New("--metrics-dir must be an existing directory")
+	}
+	registry := metricsfile.NewRegistry()
+	write := func(ctx context.Context) {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			// A failed write leaves the previous file, which then shows as stale.
+			_ = registry.WriteFile(dir, "dytallix-engine.prom", "engine", time.Now())
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}
+	return metricsfile.Provider(registry), write, nil
+}
+
 func run() error {
 	if len(os.Args) < 2 || os.Args[1] != "start" {
 		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("usage: dytallix-pqc-engine start --home HOME --p2p-profile PROFILE [--candidate-staging] [--light-blocks DIR]...")))
@@ -73,6 +106,8 @@ func run() error {
 	candidateStaging := flags.Bool("candidate-staging", false, "run the candidate only on a reserved E01 staging chain")
 	var lightBlocks exports
 	flags.Var(&lightBlocks, "light-blocks", "operator light block export for state sync; repeat for witnesses")
+	metricsDir := flags.String("metrics-dir", "", "directory for the dytallix-engine.prom metrics file")
+	metricsInterval := flags.Duration("metrics-interval", 0, "metrics file write interval")
 	if err := flags.Parse(os.Args[2:]); err != nil {
 		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, err))
 	}
@@ -105,11 +140,15 @@ func run() error {
 	if err != nil {
 		return startupdiag.At(3, err)
 	}
+	metrics, writeMetrics, err := metricsOption(runtime.Config, *metricsDir, *metricsInterval)
+	if err != nil {
+		return startupdiag.At(3, err)
+	}
 	options = append(options, node.WithAuthenticatedTransport(runtime.Upgrade(logger)))
 	engine, err := node.NewNodeWithContext(ctx, runtime.Config, runtime.Validator, runtime.NodeKey,
 		proxy.DefaultClientCreator(runtime.Config.ProxyApp, runtime.Config.ABCI, runtime.Config.DBDir()),
 		func() (*types.GenesisDoc, error) { return runtime.Genesis, nil }, cfg.DefaultDBProvider,
-		node.DefaultMetricsProvider(runtime.Config.Instrumentation), logger, options...)
+		metrics, logger, options...)
 	if err != nil {
 		return startupdiag.At(4, err)
 	}
@@ -121,6 +160,7 @@ func run() error {
 	if err = engine.Start(); err != nil {
 		return startupdiag.At(6, err)
 	}
+	go writeMetrics(ctx)
 	<-ctx.Done()
 	return startupdiag.At(7, engine.Stop())
 }
