@@ -280,13 +280,18 @@ fn validator_action(a: &Action) -> bool {
             | Action::ValidatorWithdraw { .. }
     )
 }
+/// Meter the records a transaction reads before acceptance: the native account,
+/// recovery account and grant record of each touched account, plus the shared
+/// reward, pool, lifecycle and penalty records. Untouched accounts are neither
+/// read nor charged.
 fn meter_records(
     meter: &mut OrdinaryMeter<'_>,
     settlement: &mut Settlement,
     book: &RecoveryBook,
     grants: &Grants,
+    touched: &BTreeSet<[u8; 32]>,
 ) -> Result<()> {
-    for a in book.accounts.values() {
+    for a in registered(book, touched) {
         meter.read(&logical::native_account(
             &a.address,
             settlement.account(&a.address).map_err(internal)?,
@@ -375,10 +380,21 @@ fn write_changes(
     }
     Ok(())
 }
-fn protected_owner(book: &RecoveryBook, address: &str) -> Result<()> {
+/// Delegators of an exiting or under-bonded validator are not touched accounts,
+/// so their recovery records are metered here, when protection is checked.
+fn protected_owner(
+    meter: &mut OrdinaryMeter<'_>,
+    book: &RecoveryBook,
+    address: &str,
+) -> Result<()> {
     let a = book
         .account_by_address(address)
         .ok_or_else(|| internal("Validator principal owner missing recovery account"))?;
+    meter.read(&logical::recovery_account(
+        &a.recovery.domain.account_id,
+        a,
+        MAX_LOGICAL_BYTES,
+    )?)?;
     if !a.recovery.outgoing_allowed() {
         return Err(reject("Protected validator principal owner"));
     }
@@ -387,6 +403,7 @@ fn protected_owner(book: &RecoveryBook, address: &str) -> Result<()> {
 /// Include cumulative self-unbond effects before acceptance. This projection only
 /// resolves debit owners; it neither schedules operations nor checks paid rules.
 fn principal_owners(
+    meter: &mut OrdinaryMeter<'_>,
     book: &RecoveryBook,
     settlement: &Settlement,
     actor: &str,
@@ -445,7 +462,7 @@ fn principal_owners(
                     {
                         for (owner, positions) in &view.positions {
                             if positions.contains_key(validator_id) {
-                                protected_owner(book, owner)?;
+                                protected_owner(meter, book, owner)?;
                             }
                         }
                     }
@@ -457,7 +474,7 @@ fn principal_owners(
             Action::ValidatorExit { validator_id } => {
                 for (owner, positions) in &view.positions {
                     if positions.contains_key(validator_id) {
-                        protected_owner(book, owner)?;
+                        protected_owner(meter, book, owner)?;
                     }
                 }
             }
@@ -585,7 +602,13 @@ fn execute(
     }
     let touched = ordinary_authority::touched_accounts(body);
     let mut baseline = settlement.clone();
-    pre!(meter_records(&mut meter, &mut baseline, book, grants));
+    pre!(meter_records(
+        &mut meter,
+        &mut baseline,
+        book,
+        grants,
+        &touched
+    ));
     let financial = snapshot(&mut baseline, registered(book, &touched))?;
     ordinary_authority::validate_nonce_mirrors_for(book, &financial.native_nonces, &touched)
         .map_err(internal)?;
@@ -655,7 +678,13 @@ fn execute(
             tokens.insert(i, t);
         }
     }
-    pre!(principal_owners(book, &baseline, &actor, &body.actions));
+    pre!(principal_owners(
+        &mut meter,
+        book,
+        &baseline,
+        &actor,
+        &body.actions
+    ));
     let request = fees::reservation_request(&verified, profile, &financial)?;
     let required = pre!(reservations::calculate_requirements(
         request.payer,

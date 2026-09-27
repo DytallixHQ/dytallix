@@ -82,6 +82,15 @@ struct Fixture {
     _temp: tempfile::TempDir,
 }
 fn fixture() -> Fixture {
+    fixture_with(&[ACTOR, OWNER, OTHER])
+}
+/// A distinct registered account ID for scale tests.
+fn filler(i: usize) -> [u8; 32] {
+    let mut id = [0xEE; 32];
+    id[..8].copy_from_slice(&(i as u64).to_be_bytes());
+    id
+}
+fn fixture_with(ids: &[[u8; 32]]) -> Fixture {
     let rp = RecoveryProfile {
         version: 1,
         activation_height: 1,
@@ -103,8 +112,9 @@ fn fixture() -> Fixture {
         write_byte_cost: 0,
         signature_costs: BTreeMap::from([("mldsa65".into(), 1)]),
     };
-    let accounts = [ACTOR, OWNER, OTHER]
-        .into_iter()
+    let accounts = ids
+        .iter()
+        .copied()
         .map(|id| RecoveryAccount {
             address: AccountAddress::from_account_id(AddressNetwork::Development, id).encode(),
             recovery: RecoveryState::new(
@@ -792,8 +802,9 @@ fn positive_logical_costs_charge_each_read_final_write_and_metadata_once() {
     set(&mut f, ACTOR, "udrt", 3_000_000);
     let s = signed(&f, &p, vec![send(OWNER, 10)], 1_000_000, 2_000_000);
     let wire = ordinary::encode(&s, &p.limits).unwrap().len() as u64;
+    // Only the touched accounts (sender and recipient) are read and charged.
     let mut read_bytes = 0;
-    for a in f.book.accounts.values() {
+    for a in [ACTOR, OWNER].map(|id| &f.book.accounts[&hex::encode(id)]) {
         read_bytes += logical::native_account(
             &a.address,
             &f.settlement.accounts[&a.address],
@@ -912,11 +923,56 @@ fn cumulative_operator_self_unbond_checks_every_affected_protected_principal_own
         validator_id: "validator".into(),
         amount_udgt: 6,
     };
-    assert!(principal_owners(&f.book, &f.settlement, &actor, &[first.clone()]).is_ok());
+    let p = profile();
+    let s = signed(&f, &p, vec![first.clone(), second.clone()], 1000, 2000);
+    let mut block = shared(&p);
+    let mut meter = OrdinaryMeter::new(&p, &s.body, &mut block).unwrap();
+    assert!(principal_owners(&mut meter, &f.book, &f.settlement, &actor, &[first.clone()]).is_ok());
     let before = fingerprint(&f);
     assert!(matches!(
-        principal_owners(&f.book, &f.settlement, &actor, &[first, second]),
+        principal_owners(&mut meter, &f.book, &f.settlement, &actor, &[first, second]),
         Err(PlanError::Rejected(_))
     ));
     assert_eq!(fingerprint(&f), before);
+}
+#[test]
+fn send_gas_and_loaded_accounts_do_not_grow_with_registered_accounts() {
+    let mut p = profile();
+    p.max_transaction_gas = 1_000_000;
+    p.max_block_transaction_gas = 10_000_000;
+    p.max_fee_cap = 2_000_000;
+    p.wire_byte_cost = 1;
+    p.read_byte_cost = 2;
+    p.write_byte_cost = 3;
+    let mut gas = BTreeSet::new();
+    for extra in [0, 61, 1021] {
+        let ids: Vec<_> = [ACTOR, OWNER, OTHER]
+            .into_iter()
+            .chain((0..extra).map(filler))
+            .collect();
+        let mut f = fixture_with(&ids);
+        set(&mut f, ACTOR, "udrt", 3_000_000);
+        // Commit the fixture balances and start from an empty overlay, as a
+        // block does.
+        let storage = f.settlement.storage.clone();
+        for (key, value) in f.settlement.writes().unwrap() {
+            storage.db.put(key, value).unwrap();
+        }
+        f.settlement = Settlement::new(storage);
+        let s = signed(&f, &p, vec![send(OWNER, 10)], 1_000_000, 2_000_000);
+        let result = run(&mut f, &p, &s, 0, &mut shared(&p)).unwrap();
+        assert!(result.success);
+        gas.insert(result.gas_used);
+        let loaded: BTreeSet<_> = f.settlement.accounts.keys().cloned().collect();
+        assert_eq!(loaded, BTreeSet::from([addr(&f, ACTOR), addr(&f, OWNER)]));
+        let account_writes = f
+            .settlement
+            .writes()
+            .unwrap()
+            .into_keys()
+            .filter(|key| key.starts_with(b"acct:"))
+            .count();
+        assert_eq!(account_writes, 4);
+    }
+    assert_eq!(gas.len(), 1, "gas differs by account count: {gas:?}");
 }

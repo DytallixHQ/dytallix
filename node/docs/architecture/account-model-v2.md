@@ -156,9 +156,9 @@ accounts.
 
 | Step | Content | Output change |
 | --- | --- | --- |
-| T1 | Delete the unused fee-plan digest (`snapshot_digest`, `predecessor_digest`). O(1) account lookup by address. Make `RecoveryBook::validate` linear. Add an access journal to `Settlement` that records every account it loads | None |
-| T2 | Touched snapshot, touched mirror and grant checks, touched receipt reconciliation (checked against the journal), per-action write diff, O(1) grant-capacity check. Metering left unchanged | None |
-| T3 | Meter touched accounts only | Gas and fees (fresh genesis) |
+| T1 (done) | Delete the unused fee-plan digest (`snapshot_digest`, `predecessor_digest`). O(1) account lookup by address (`RecoveryBook::account_by_address`). Make `RecoveryBook::validate` linear | None |
+| T2 (done) | Touched snapshot, touched mirror and grant checks (`validate_nonce_mirrors_for`, `validate_grants_for`), actor nonce advanced in place instead of cloning the book. Receipt reconciliation checks every account loaded into the settlement overlay (the overlay's key set is the access journal): touched accounts follow the receipt, all others must be unchanged. Metering left unchanged | None |
+| T3 (done) | Meter touched accounts only, plus the recovery record of each delegator checked for protection. The overlay, and so the per-action write diff and the block's `acct:` writes, now holds touched accounts only | Gas and fees (fresh genesis) |
 | T4 | Recovery mirrors for target and sponsor only; journal-based sponsor reconciliation; lazy eligibility for admission and proposals; end-of-block checks over changed keys only; light ordinary-state load outside the complete check | None |
 | T5 | Incremental recovery expiry index, dirty-only recovery diff, checkpoint and rollback instead of per-candidate clones | None |
 | T6 | Governance v3 and signed admission on touched accounts, before v3 is wired into consensus | None today |
