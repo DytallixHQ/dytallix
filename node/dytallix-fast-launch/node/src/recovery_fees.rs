@@ -54,6 +54,10 @@ fn canonical<T: Serialize + DeserializeOwned>(bytes: &[u8], what: &str) -> Resul
 // The book is stored per entry, so no whole-book byte bound applies.
 pub(crate) const MAX_ACCOUNTS: usize = 4096;
 const MAX_RECEIPTS: usize = 65536;
+const UNINITIALIZED_TARGET: &str = "Recovery target has no recovery record: unknown, or not \
+yet initialized by its first ordinary transaction";
+const UNINITIALIZED_SPONSOR: &str = "Recovery sponsor has no recovery record: unknown, or not \
+yet initialized by its first ordinary transaction";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -1072,11 +1076,14 @@ impl RecoveryBlock {
             target_id != sponsor_id,
             "Recovery sponsor must be independent"
         );
+        // Recovery never creates or initializes an account (B1c): an account
+        // created by a transfer gets its record from its first ordinary
+        // transaction.
         let Some(target) = self.book.accounts.get(&target_id).cloned() else {
-            return Ok(RecoveryResult::rejected(gas, "Unknown recovery target"));
+            return Ok(RecoveryResult::rejected(gas, UNINITIALIZED_TARGET));
         };
         let Some(sponsor) = self.book.accounts.get(&sponsor_id).cloned() else {
-            return Ok(RecoveryResult::rejected(gas, "Unknown recovery sponsor"));
+            return Ok(RecoveryResult::rejected(gas, UNINITIALIZED_SPONSOR));
         };
         let auth_id = wire::authorization_id(a)?;
         let auth_key = hex::encode(auth_id);

@@ -3433,3 +3433,64 @@ fn initialized_account_must_keep_the_chain_template() {
     let error = app.finalize_block(block(3, vec![])).unwrap_err();
     assert!(format!("{error:#}").contains("chain template"), "{error:#}");
 }
+
+#[test]
+fn recovery_enrolls_an_initialized_implicit_account_and_refuses_an_uninitialized_one() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 1, vec![raw]).tx_results[0].code, 0);
+    let guardians: Vec<_> = fixture.guardians.iter().collect();
+    let enroll = |state: &RecoveryState| {
+        let operation = RecoveryOperation {
+            domain: state.domain.clone(),
+            action: Action {
+                submission_expiry: 40,
+                kind: ActionKind::Enroll {
+                    active: ActiveAuthorization {
+                        generation: state.active_generation,
+                        nonce: state.spending_nonce,
+                    },
+                    policy: fixture.policy(),
+                },
+            },
+        };
+        fixture.signed(operation, &[&fresh], &guardians)
+    };
+
+    // Before its first spend the account has no recovery record: it can be
+    // neither a recovery target nor a sponsor, and nothing is charged.
+    let payer_before = balance(&app, &fixture.payer.address());
+    let early = wire(&fixture.sponsored(enroll(&uninitialized(&app, &fixture, &fresh)), 0, GAS_LIMIT));
+    let as_sponsor = wire(&fixture.sponsored_by(fixture.enroll(), fresh.id(), &fresh, 0, 0, GAS_LIMIT));
+    for (raw, role) in [(early, "target"), (as_sponsor, "sponsor")] {
+        assert_ne!(app.check_tx(&raw).code, 0, "{role}");
+        let height = current_info(&app.storage).unwrap().height + 1;
+        let result = commit(&mut app, height, vec![raw]);
+        let log = &result.tx_results[0].log;
+        assert!(
+            log.contains(&format!("Recovery {role} has no recovery record"))
+                && log.contains("first ordinary transaction"),
+            "{role}: {log}"
+        );
+    }
+    assert_eq!(balance(&app, &fixture.payer.address()), payer_before);
+    assert_eq!(balance(&app, &fresh.address()), 50_000);
+    assert!(!registered(&app, &fresh));
+
+    // Once initialized, it enrolls guardians like a genesis account.
+    let raw = first_spend(&app, &fixture, &fresh, vec![send(fixture.payer.id(), 1)], 1000);
+    assert_eq!(commit(&mut app, 4, vec![raw]).tx_results[0].code, 0);
+    let raw = wire(&fixture.sponsored(enroll(&current(&app, &fresh)), 0, GAS_LIMIT));
+    assert_admitted(app.check_tx(&raw));
+    let result = commit(&mut app, 5, vec![raw]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let state = current(&app, &fresh);
+    assert_eq!(state.policy, Some(fixture.policy()));
+    assert_mirror(&app, &fresh, state.spending_nonce);
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+}
