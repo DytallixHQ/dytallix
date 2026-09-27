@@ -2875,6 +2875,16 @@ const CREATION_FEE: u128 = 1_000;
 fn burned(app: &ConsensusApplication) -> u128 {
     crate::supply::inspect_native(&app.storage).unwrap().drt.burned
 }
+/// Fees a block's ordinary transactions paid (fixture price 2, minimum gas
+/// 10). Every fee is burned (fees v1).
+fn charged(result: &FinalizeResult) -> u128 {
+    result
+        .tx_results
+        .iter()
+        .filter(|r| r.code == 0 || r.code == 3)
+        .map(|r| r.gas_used.max(10) as u128 * 2)
+        .sum()
+}
 
 #[test]
 fn send_to_a_new_address_creates_the_account_and_burns_the_fee_once() {
@@ -2908,7 +2918,7 @@ fn send_to_a_new_address_creates_the_account_and_burns_the_fee_once() {
         balance(&app, &fixture.active.address()),
         INITIAL_DRT - 100 - gas_fee - CREATION_FEE
     );
-    assert_eq!(burned(&app), CREATION_FEE);
+    assert_eq!(burned(&app), CREATION_FEE + gas_fee);
 
     // An existing recipient costs nothing extra; two transfers to one new
     // recipient in the same transaction burn one fee.
@@ -2922,12 +2932,84 @@ fn send_to_a_new_address_creates_the_account_and_burns_the_fee_once() {
     assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
     assert_eq!(balance(&app, &fresh.address()), 150);
     assert_eq!(balance(&app, &other.address()), 10);
-    assert_eq!(burned(&app), 2 * CREATION_FEE);
+    assert_eq!(burned(&app), 2 * CREATION_FEE + gas_fee + charged(&result));
 
     // A fresh process passes the complete check.
     drop(app);
     let reopened = fixture.open(&dir.path().join("db"));
     verify_recovery(&reopened.storage).unwrap();
+}
+
+#[test]
+fn validators_are_paid_by_power_and_every_fee_is_burned() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    for height in 1..=3 {
+        commit(&mut app, height, vec![]);
+    }
+    // The only validator's operator is owed the whole validator share.
+    let owner = fixture.active.address();
+    let rewards = reward_state(&app);
+    let supply = crate::supply::inspect_native(&app.storage).unwrap();
+    let owed = rewards.validator_payouts.unpaid[&owner];
+    assert!(owed > 0);
+    assert_eq!(
+        owed + rewards.validator_payouts.reserve,
+        supply.drt.pools["validator_rewards"]
+    );
+    let before = balance(&app, &owner);
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![OrdinaryAction::RewardClaim],
+        1000,
+    );
+    let result = commit(&mut app, 4, vec![fixture.ordinary_wire(&tx)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let after = reward_state(&app);
+    let staking = after.total_claimed - rewards.total_claimed;
+    let validator = after.validator_payouts.total_claimed;
+    // Block 4's share was allocated at block start, before the claim.
+    assert!(validator > owed);
+    assert!(!after.validator_payouts.unpaid.contains_key(&owner));
+    let fee = charged(&result);
+    assert_eq!(balance(&app, &owner), before + staking + validator - fee);
+    let supply = crate::supply::inspect_native(&app.storage).unwrap();
+    assert_eq!(supply.drt.withheld_fees, 0);
+    assert_eq!(supply.drt.burned, fee);
+    assert_eq!(
+        supply.drt.pools["validator_rewards"],
+        after.validator_payouts.reserve
+    );
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+    // A committed state that still withholds a fee is refused, even when
+    // the amount is conserved.
+    let moved = 5u128;
+    let mut balances: BTreeMap<String, u128> = bincode::deserialize(
+        &reopened
+            .storage
+            .db
+            .get(format!("acct:balances:{owner}"))
+            .unwrap()
+            .unwrap(),
+    )
+    .unwrap();
+    *balances.get_mut("udrt").unwrap() -= moved;
+    reopened
+        .storage
+        .db
+        .put(format!("acct:balances:{owner}"), bincode::serialize(&balances).unwrap())
+        .unwrap();
+    reopened
+        .storage
+        .db
+        .put(crate::settlement::FEE_KEY, bincode::serialize(&moved).unwrap())
+        .unwrap();
+    let error = verify_recovery(&reopened.storage).unwrap_err().to_string();
+    assert!(error.contains("unburned"), "{error}");
 }
 
 #[test]
@@ -2958,7 +3040,8 @@ fn failed_transfer_to_a_new_address_creates_and_burns_nothing() {
         .get(format!("acct:balances:{}", fresh.address()))
         .unwrap()
         .is_none());
-    assert_eq!(burned(&app), 0);
+    // No creation fee; only the transaction fee is burned.
+    assert_eq!(burned(&app), 50);
 }
 
 #[test]
@@ -3195,6 +3278,7 @@ fn an_account_can_be_created_and_first_spent_in_one_block() {
     assert_ne!(result.tx_results[0].code, 0);
     assert_eq!(result.tx_results[1].code, 0, "{:?}", result.tx_results);
     assert!(!registered(&app, &fresh));
+    let mut fees = charged(&result);
 
     let other = Key::new();
     let fund = funding(&app, &fixture, &other, 50_000);
@@ -3202,7 +3286,8 @@ fn an_account_can_be_created_and_first_spent_in_one_block() {
     let result = commit(&mut app, 2, vec![fund, spend]);
     assert!(result.tx_results.iter().all(|r| r.code == 0), "{:?}", result.tx_results);
     assert_mirror(&app, &other, 1);
-    assert_eq!(burned(&app), 2 * CREATION_FEE);
+    fees += charged(&result);
+    assert_eq!(burned(&app), 2 * CREATION_FEE + fees);
     drop(app);
     let reopened = fixture.open(&dir.path().join("db"));
     verify_recovery(&reopened.storage).unwrap();

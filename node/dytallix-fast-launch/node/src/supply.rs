@@ -217,6 +217,7 @@ fn validate_timed_pools(
     issued: &PoolAmounts,
     emitted: u128,
     staking_claimed: u128,
+    validator_claimed: u128,
     pools: &BTreeMap<String, u128>,
 ) -> Result<()> {
     let expected = timed_amounts(issued);
@@ -238,6 +239,12 @@ fn validate_timed_pools(
             ensure!(
                 held.checked_add(staking_claimed) == Some(issued_amount),
                 "Staking custody plus claims differs from cumulative staking issuance"
+            );
+        } else if name == "validator_rewards" {
+            // Paid by voting power and claimed by operator owners (fees v1).
+            ensure!(
+                held.checked_add(validator_claimed) == Some(issued_amount),
+                "Validator custody plus claims differs from cumulative validator issuance"
             );
         } else {
             ensure!(
@@ -589,13 +596,14 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
         pools.entry((*name).into()).or_insert(0);
     }
     if let Some(timing) = &timing {
+        let rewards = reward_state
+            .as_ref()
+            .context("Missing timed reward state")?;
         validate_timed_pools(
             &timing.total_issued,
             emitted,
-            reward_state
-                .as_ref()
-                .context("Missing timed reward state")?
-                .total_claimed,
+            rewards.total_claimed,
+            rewards.validator_payouts.total_claimed,
             &pools,
         )?;
     }
@@ -609,13 +617,7 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             bonded_owners == expected_bonded,
             "Reward positions differ from funded delegator bonds"
         );
-        for owner in rewards
-            .positions
-            .keys()
-            .chain(rewards.unbonding.keys())
-            .chain(rewards.unpaid.keys())
-            .chain(rewards.locks.keys())
-        {
+        for owner in rewards.owners() {
             ensure!(
                 values.contains_key(format!("acct:balances:{owner}").as_bytes()),
                 "Reward owner has no funding account record"
@@ -664,6 +666,19 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             pools["staking_rewards"] == liability,
             "Staking pool differs from unpaid rewards and reserves"
         );
+        // The validator pool backs exactly the payouts owed and its reserve,
+        // when payouts are tracked from the pool's first credit.
+        let payouts = &rewards.validator_payouts;
+        if timing.is_some() {
+            ensure!(
+                pools["validator_rewards"]
+                    == payouts
+                        .total_unpaid()?
+                        .checked_add(payouts.reserve)
+                        .context("Validator payout liability exceeds u128")?,
+                "Validator pool differs from unpaid payouts and reserve"
+            );
+        }
         rewards.total_unbonding()?
     } else {
         0
@@ -1195,7 +1210,7 @@ mod issuance_timing_supply_tests {
             treasury: 0,
             issuance_reserve: 0,
         };
-        validate_timed_pools(&issued, 0, 0, &timed_amounts(&issued)).unwrap();
+        validate_timed_pools(&issued, 0, 0, 0, &timed_amounts(&issued)).unwrap();
     }
     #[test]
     fn mid_epoch_custody_preserves_claimed_and_unpaid_staking_supply() {
@@ -1203,14 +1218,19 @@ mod issuance_timing_supply_tests {
         let mut pools = timed_amounts(&issued);
         let claimed = 5;
         *pools.get_mut("staking_rewards").unwrap() -= claimed;
-        validate_timed_pools(&issued, issued.total().unwrap(), claimed, &pools).unwrap();
+        validate_timed_pools(&issued, issued.total().unwrap(), claimed, 0, &pools).unwrap();
         assert_eq!(
             pools.values().sum::<u128>() + claimed,
             issued.total().unwrap()
         );
         // Claimed rewards move to liquid custody and cannot also remain in the pool.
         *pools.get_mut("staking_rewards").unwrap() += claimed;
-        assert!(validate_timed_pools(&issued, issued.total().unwrap(), claimed, &pools).is_err());
+        assert!(validate_timed_pools(&issued, issued.total().unwrap(), claimed, 0, &pools).is_err());
+        // Validator payouts claimed from their pool follow the same rule.
+        *pools.get_mut("staking_rewards").unwrap() -= claimed;
+        *pools.get_mut("validator_rewards").unwrap() -= 3;
+        validate_timed_pools(&issued, issued.total().unwrap(), claimed, 3, &pools).unwrap();
+        assert!(validate_timed_pools(&issued, issued.total().unwrap(), claimed, 0, &pools).is_err());
     }
     #[test]
     fn timed_custody_rejects_pool_reassignment_counter_tampering_and_legacy_names() {
@@ -1220,12 +1240,12 @@ mod issuance_timing_supply_tests {
         let mut reassigned = original.clone();
         *reassigned.get_mut("validator_rewards").unwrap() -= 1;
         *reassigned.get_mut("treasury").unwrap() += 1;
-        assert!(validate_timed_pools(&issued, total, 0, &reassigned).is_err());
-        assert!(validate_timed_pools(&issued, total + 1, 0, &original).is_err());
+        assert!(validate_timed_pools(&issued, total, 0, 0, &reassigned).is_err());
+        assert!(validate_timed_pools(&issued, total + 1, 0, 0, &original).is_err());
         let mut renamed = original;
         let value = renamed.remove("validator_rewards").unwrap();
         renamed.insert("block_rewards".into(), value);
-        assert!(validate_timed_pools(&issued, total, 0, &renamed).is_err());
+        assert!(validate_timed_pools(&issued, total, 0, 0, &renamed).is_err());
     }
     #[test]
     fn orphan_timing_records_and_adaptive_pool_names_cannot_select_legacy_accounting() {

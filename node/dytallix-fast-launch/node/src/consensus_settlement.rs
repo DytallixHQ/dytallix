@@ -1905,13 +1905,7 @@ fn validate_ordinary_principals(
         );
         Ok(())
     };
-    for value in rewards
-        .positions
-        .keys()
-        .chain(rewards.unbonding.keys())
-        .chain(rewards.unpaid.keys())
-        .chain(rewards.locks.keys())
-    {
+    for value in rewards.owners() {
         owner(value)?;
     }
     if let Some(lifecycle) = lifecycle {
@@ -4828,6 +4822,9 @@ impl ConsensusApplication {
         if let Some(block) = &recovery {
             check_changed_recovery_accounts(&self.config, &block.book)?;
         }
+        // Every fee this block charged is burned (fees v1, P01 27 September
+        // 2026), after the per-transaction and creation-fee reconciliations.
+        staged.burn_withheld_fees()?;
         let mut writes = staged.writes()?;
         if let Some(plan) = emergency_plan {
             writes.insert(
@@ -5364,6 +5361,17 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         "Stored consensus chain differs"
     );
     crate::supply::validate_native(storage, &Writes::new())?;
+    // Each block burns its fees, so none are withheld at a commit (fees v1).
+    ensure!(
+        storage
+            .db
+            .get(settlement::FEE_KEY)?
+            .map(|raw| bincode::deserialize::<u128>(&raw))
+            .transpose()?
+            .unwrap_or(0)
+            == 0,
+        "Committed state withholds unburned fees"
+    );
     check_reward_validators(storage, &config)?;
     let lifecycle = lifecycle_state(storage)?;
     let penalties = penalty_state(storage)?;

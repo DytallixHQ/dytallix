@@ -117,6 +117,44 @@ pub struct RewardState {
     pub last_height: u64,
     pub last_interval_digest: Option<[u8; 32]>,
     pub last_interval_input_digest: Option<[u8; 32]>,
+    pub validator_payouts: ValidatorPayouts,
+}
+/// The validator share of issuance, divided every block by voting power
+/// among the active validators and owed to each operator's owner (fees v1,
+/// P01 27 September 2026). Claimed with the staking rewards.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidatorPayouts {
+    pub unpaid: BTreeMap<String, u128>,
+    /// Rounding remainders and blocks with no eligible validator.
+    pub reserve: u128,
+    pub total_budget: u128,
+    pub total_claimed: u128,
+}
+impl ValidatorPayouts {
+    pub fn total_unpaid(&self) -> Result<u128> {
+        sum(self.unpaid.values().copied())
+    }
+    fn validate(&self, max_owners: usize) -> Result<()> {
+        ensure!(
+            self.unpaid.len() <= max_owners,
+            "Validator payout owner limit exceeded"
+        );
+        for (owner, amount) in &self.unpaid {
+            valid_id(owner)?;
+            ensure!(*amount > 0, "Zero validator payout entry");
+        }
+        ensure!(
+            sum(self
+                .unpaid
+                .values()
+                .copied()
+                .chain([self.reserve, self.total_claimed]))?
+                == self.total_budget,
+            "Validator payout conservation failed"
+        );
+        Ok(())
+    }
 }
 fn valid_id(id: &str) -> Result<()> {
     ensure!(
@@ -159,6 +197,7 @@ impl RewardState {
             last_height: 0,
             last_interval_digest: None,
             last_interval_input_digest: None,
+            validator_payouts: ValidatorPayouts::default(),
         };
         state.validate_internal()?;
         Ok(state)
@@ -236,13 +275,7 @@ impl RewardState {
             lock.validate()?;
         }
         // Reserve owner slots at admission, before an interval can create a claim.
-        let owners: BTreeSet<_> = self
-            .positions
-            .keys()
-            .chain(self.unbonding.keys())
-            .chain(self.unpaid.keys())
-            .chain(self.locks.keys())
-            .collect();
+        let owners: BTreeSet<_> = self.owners().collect();
         ensure!(
             owners.len() <= self.config.max_positions,
             "Reward owner limit exceeded"
@@ -256,6 +289,7 @@ impl RewardState {
             ]))? == self.total_budget,
             "Reward liability conservation failed"
         );
+        self.validator_payouts.validate(self.config.max_positions)?;
         ensure!(
             (self.last_height == 0) == self.last_interval_digest.is_none()
                 && self.last_interval_digest.is_some() == self.last_interval_input_digest.is_some(),
@@ -265,6 +299,55 @@ impl RewardState {
             self.last_height > 0 || self.total_budget == 0,
             "Reward budget precedes activation"
         );
+        Ok(())
+    }
+    /// Every owner with a reward record: bonds, unbonding, unpaid staking or
+    /// validator rewards, or a vesting lock.
+    pub fn owners(&self) -> impl Iterator<Item = &String> {
+        self.positions
+            .keys()
+            .chain(self.unbonding.keys())
+            .chain(self.unpaid.keys())
+            .chain(self.validator_payouts.unpaid.keys())
+            .chain(self.locks.keys())
+    }
+    /// Divide one block's validator budget by `weights` (voting power per
+    /// operator owner). Floors go to owners; the remainder, or the whole
+    /// budget when no validator is eligible, stays in the reserve.
+    pub fn stage_validator_payouts(
+        &mut self,
+        budget: u128,
+        weights: &BTreeMap<String, u128>,
+    ) -> Result<()> {
+        self.validate_internal()?;
+        let mut next = self.clone();
+        let payouts = &mut next.validator_payouts;
+        payouts.total_budget = payouts
+            .total_budget
+            .checked_add(budget)
+            .context("Validator payout budget exceeds u128")?;
+        if weights.values().all(|weight| *weight == 0) {
+            payouts.reserve = payouts
+                .reserve
+                .checked_add(budget)
+                .context("Validator payout reserve exceeds u128")?;
+        } else {
+            let allocation = allocate_reward_budget(budget, weights)?;
+            payouts.reserve = payouts
+                .reserve
+                .checked_add(allocation.reserve)
+                .context("Validator payout reserve exceeds u128")?;
+            for (owner, amount) in allocation.entitlements {
+                if amount > 0 {
+                    let unpaid = payouts.unpaid.entry(owner).or_default();
+                    *unpaid = unpaid
+                        .checked_add(amount)
+                        .context("Validator payout exceeds u128")?;
+                }
+            }
+        }
+        next.validate_internal()?;
+        *self = next;
         Ok(())
     }
     pub fn total_bonded(&self) -> Result<u128> {
@@ -355,18 +438,31 @@ impl RewardState {
         Ok(true)
     }
     /// Discharge the owner's liability. The caller stages its pool-to-account transfer.
-    pub fn claim(&mut self, owner: &str) -> Result<u128> {
+    /// Returns the staking and validator amounts, each paid from its pool.
+    pub fn claim(&mut self, owner: &str) -> Result<(u128, u128)> {
         self.validate_internal()?;
         let amount = self.unpaid.get(owner).copied().unwrap_or(0);
+        let validator = self
+            .validator_payouts
+            .unpaid
+            .get(owner)
+            .copied()
+            .unwrap_or(0);
         let mut next = self.clone();
         next.total_claimed = next
             .total_claimed
             .checked_add(amount)
             .context("Claim total exceeds u128")?;
         next.unpaid.remove(owner);
+        next.validator_payouts.total_claimed = next
+            .validator_payouts
+            .total_claimed
+            .checked_add(validator)
+            .context("Validator claim total exceeds u128")?;
+        next.validator_payouts.unpaid.remove(owner);
         next.validate_internal()?;
         *self = next;
-        Ok(amount)
+        Ok((amount, validator))
     }
     /// Caller must debit spendable DGT in the same atomic transition.
     pub fn bond(&mut self, owner: &str, validator: &str, amount: u128) -> Result<()> {

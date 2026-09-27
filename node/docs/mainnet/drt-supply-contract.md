@@ -14,13 +14,22 @@ All amounts are raw `udrt` integers. Define:
 - F: cumulative withheld DRT fees.
 - P: sum of DRT held in the four emission pools.
 
-The selected lifecycle has no settled burn transition. It must satisfy:
+**Update (fees v1, 27 September 2026).** The consensus lifecycle now burns: the account
+creation fee (P01, 26 September) and every transaction fee (P01, 27 September;
+`docs/architecture/fees-v1.md`). With B the cumulative burned DRT (`supply:drt_burned`):
+
+    Total = G + E - B = L + F + P.
+
+During a block, fees collect in F; at the end of the block F moves to B, so F is zero at
+every commit. The complete check refuses a committed state with F above zero. The
+paragraphs below describe the earlier version 1 lifecycle, which had no burn.
+
+The version 1 lifecycle had no settled burn transition. It satisfied:
 
     Total = G + E = L + F + P.
 
-Withheld fees remain part of supply. A diagnostic burn event does not change this identity.
-The general mainnet identity will include recognized burns: Total = G + E - B. Implement B
-only with an approved atomic burn transition. This implementation rejects unknown DRT
+Withheld fees remained part of supply. Implement B only with an approved atomic burn
+transition. This implementation rejects unknown DRT
 supply records. It cannot silently apply a future supply format as version 1.
 
 The staking reward index, pending staking emission, accrued reward claims, and rounding

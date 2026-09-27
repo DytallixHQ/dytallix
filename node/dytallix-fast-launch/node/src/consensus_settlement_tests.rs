@@ -256,7 +256,9 @@ fn independent_databases_commit_identical_inputs_and_exact_block_issuance() {
     assert_eq!(supply.drt.pools["staking_rewards"], 300);
     assert_eq!(supply.drt.pools["treasury"], 300);
     assert_eq!(supply.drt.pools["issuance_reserve"], 1);
-    assert_eq!(supply.drt.total, INITIAL_DRT + 1001);
+    // The one signed transaction's fee is burned (fees v1).
+    assert_eq!(supply.drt.burned, 50_000);
+    assert_eq!(supply.drt.total, INITIAL_DRT + 1001 - 50_000);
     assert_eq!(balances(&a, "recipient")["udgt"], 10);
 }
 
@@ -415,7 +417,7 @@ fn decided_transactions_return_ordered_results_without_pending_admission() {
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         50000
     );
 }
@@ -444,7 +446,8 @@ fn signed_claim_commits_current_block_reward_pool_and_liquid_custody_together() 
         balances(&app, &inputs.owner)["udrt"],
         INITIAL_DRT + 150 - 50000
     );
-    assert_eq!(supply.drt.total, INITIAL_DRT + 501);
+    assert_eq!(supply.drt.total, INITIAL_DRT + 501 - 50_000);
+    assert_eq!(supply.drt.withheld_fees, 0);
     assert_eq!(
         supply.drt.liquid + supply.drt.withheld_fees + supply.drt.pools.values().sum::<u128>(),
         supply.drt.total
@@ -633,7 +636,7 @@ fn admission_rejects_committed_success_and_accepted_failure_by_normalized_hash()
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         100000
     );
     let committed = data(&app);
@@ -782,7 +785,7 @@ fn admission_receipts_follow_durable_commit_across_failures_and_recovery() {
             crate::supply::inspect_native(&recovered.storage)
                 .unwrap()
                 .drt
-                .withheld_fees,
+                .burned,
             50000
         );
         let selected = recovered

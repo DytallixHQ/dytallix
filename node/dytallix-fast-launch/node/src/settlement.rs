@@ -156,6 +156,29 @@ impl Settlement {
             .clone()
             .ok_or_else(|| violation("Reward operations require versioned block settlement").into())
     }
+    fn pool(&self, key: &str) -> Result<u128> {
+        let raw = self
+            .lifecycle
+            .get(key.as_bytes())
+            .with_context(|| format!("Missing staged pool {key}"))?;
+        bincode::deserialize(raw).context("Invalid staged pool")
+    }
+    /// Burn the block's withheld fees (fees v1, P01 27 September 2026). Every
+    /// fee a block charged leaves supply at the end of that block; the
+    /// withheld counter is zero at every commit.
+    pub(crate) fn burn_withheld_fees(&mut self) -> Result<u128> {
+        let withheld = self.ordinary_fee_total()?;
+        if withheld == 0 {
+            return Ok(0);
+        }
+        let burned = self
+            .burned_total()?
+            .checked_add(withheld)
+            .context("Burned DRT total exceeds u128")?;
+        self.burned_total = Some(burned);
+        self.fee_total = Some(0);
+        Ok(withheld)
+    }
     pub(crate) fn reward_pool(&self) -> Result<u128> {
         let key = b"emission:pool:staking_rewards";
         let raw = self
@@ -438,23 +461,35 @@ impl Settlement {
         }
         Ok(())
     }
+    /// Pay the owner's staking rewards and validator payouts, each from its
+    /// own pool.
     pub(crate) fn reward_claim(&mut self, owner: &str) -> Result<u128> {
         let mut next = self.reward_plan()?;
-        let amount = next.claim(owner).map_err(|e| violation(&e.to_string()))?;
-        let pool = self
-            .reward_pool()?
-            .checked_sub(amount)
-            .context("Reward liability exceeds pool backing")?;
+        let (staking, validator) = next.claim(owner).map_err(|e| violation(&e.to_string()))?;
+        for (key, amount) in [
+            ("emission:pool:staking_rewards", staking),
+            ("emission:pool:validator_rewards", validator),
+        ] {
+            // Paths without validator payouts never stage that pool.
+            if amount == 0 && key.ends_with("validator_rewards") {
+                continue;
+            }
+            let pool = self
+                .pool(key)?
+                .checked_sub(amount)
+                .context("Reward liability exceeds pool backing")?;
+            self.lifecycle
+                .insert(key.as_bytes().to_vec(), bincode::serialize(&pool)?);
+        }
+        let amount = staking
+            .checked_add(validator)
+            .ok_or_else(|| violation("Reward claim exceeds u128"))?;
         let balance = self
             .account(owner)?
             .balance_of("udrt")
             .checked_add(amount)
             .ok_or_else(|| violation("Reward recipient balance exceeds u128"))?;
         self.account(owner)?.set_balance("udrt", balance);
-        self.lifecycle.insert(
-            b"emission:pool:staking_rewards".to_vec(),
-            bincode::serialize(&pool)?,
-        );
         self.rewards = Some(next);
         Ok(amount)
     }
@@ -726,6 +761,7 @@ impl Settlement {
                 .keys()
                 .chain(rewards.unbonding.keys())
                 .chain(rewards.unpaid.keys())
+                .chain(rewards.validator_payouts.unpaid.keys())
                 .collect();
             for owner in owners {
                 let key = delegator_key(owner);

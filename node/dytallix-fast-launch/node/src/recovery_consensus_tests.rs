@@ -408,7 +408,7 @@ fn signed_recovery_commits_authority_fee_and_receipts_only_at_commit() {
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         actual
     );
     let stored = book(&app);
@@ -588,7 +588,7 @@ fn accepted_recovery_out_of_gas_charges_limit_and_leaves_target_unchanged() {
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         200
     );
     let retry = commit(
@@ -857,7 +857,7 @@ fn recovery_profile_rejects_legacy_ordinary_signing_without_fee_or_nonce_changes
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         0
     );
     let stored = book(&app);
@@ -932,7 +932,7 @@ fn ordinary_v2_paid_consensus_remains_disabled_after_signing_implementation() {
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         0
     );
     let stored = book(&app);
@@ -969,7 +969,7 @@ fn future_recovery_activation_keeps_empty_blocks_available_before_fee_execution(
             crate::supply::inspect_native(&app.storage)
                 .unwrap()
                 .drt
-                .withheld_fees,
+                .burned,
             0
         );
     }
@@ -1063,7 +1063,7 @@ fn assert_rejection_without_charge(
     let fees = crate::supply::inspect_native(&app.storage)
         .unwrap()
         .drt
-        .withheld_fees;
+        .burned;
     let durable = data(app);
     let result = app
         .finalize_block(block(height, vec![wire(&envelope)]))
@@ -1084,7 +1084,7 @@ fn assert_rejection_without_charge(
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         fees
     );
 }
@@ -1270,7 +1270,7 @@ fn commit_action_restart_and_retry(
     let fees_before = crate::supply::inspect_native(&app.storage)
         .unwrap()
         .drt
-        .withheld_fees;
+        .burned;
     let input = block(height, vec![wire(&envelope)]);
     let durable = data(&app);
     let result = app.finalize_block(input.clone()).unwrap();
@@ -1297,7 +1297,7 @@ fn commit_action_restart_and_retry(
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees
+            .burned
             - fees_before,
         receipt.settled_fee
     );
@@ -1761,7 +1761,7 @@ fn signed_maximum_sponsor_nonce_request_rejects_without_blocking_valid_request()
         crate::supply::inspect_native(&app.storage)
             .unwrap()
             .drt
-            .withheld_fees,
+            .burned,
         charged
     );
     let stored = book(&app);

@@ -663,3 +663,37 @@ fn history_past_the_evidence_horizon_is_pruned_and_the_current_set_stays() {
     );
     state.validate().unwrap();
 }
+
+#[test]
+fn validator_payouts_follow_voting_power_and_skip_jailed_validators() {
+    let (mut state, mut rewards) = fixture();
+    step(&mut state, &mut rewards, 1);
+    // a: alice 100 + dave 30; b: bob 100. The operator owner is paid.
+    assert_eq!(
+        state.payout_weights(&rewards).unwrap(),
+        BTreeMap::from([("alice".into(), 130), ("bob".into(), 100)])
+    );
+    rewards.stage_validator_payouts(1_001, &state.payout_weights(&rewards).unwrap()).unwrap();
+    assert_eq!(rewards.validator_payouts.unpaid["alice"], 565);
+    assert_eq!(rewards.validator_payouts.unpaid["bob"], 435);
+    assert_eq!(rewards.validator_payouts.reserve, 1);
+    rewards.validators.get_mut("b").unwrap().jailed = true;
+    assert_eq!(
+        state.payout_weights(&rewards).unwrap(),
+        BTreeMap::from([("alice".into(), 130)])
+    );
+    // No eligible validator: the budget stays in the reserve.
+    rewards.stage_validator_payouts(7, &BTreeMap::new()).unwrap();
+    assert_eq!(rewards.validator_payouts.reserve, 8);
+    assert_eq!(rewards.claim("alice").unwrap(), (0, 565));
+    assert_eq!(rewards.validator_payouts.total_claimed, 565);
+    assert!(!rewards.validator_payouts.unpaid.contains_key("alice"));
+    rewards.validate_internal().unwrap();
+    rewards.validators.get_mut("b").unwrap().jailed = false;
+    state.validate_rewards(&rewards).unwrap();
+    // A payout owed to an owner keeps that owner's reward slot.
+    assert!(rewards.owners().any(|owner| owner == "bob"));
+    let mut broken = rewards.clone();
+    broken.validator_payouts.reserve += 1;
+    assert!(broken.validate_internal().is_err());
+}
