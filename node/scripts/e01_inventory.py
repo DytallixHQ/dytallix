@@ -95,7 +95,7 @@ ROUTES = [
     {
         "role": "peer_key_establishment_and_identity",
         "algorithm": "ML-KEM-768 + ML-DSA-65",
-        "policy": "Authenticated pinned peers; no classical or plaintext fallback",
+        "policy": "Authenticated pinned peers; no classical or plaintext fallback. The E03 negative-peer probe carries a copy of these files with an additive staging-only rejection observer; a change here requires refreshing that copy and its method review",
         "files": [
             "consensus/cometbft/internal/pqcp2p/establishment.go",
             "consensus/cometbft/internal/pqcp2p/connection.go",
