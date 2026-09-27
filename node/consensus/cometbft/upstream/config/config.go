@@ -1143,18 +1143,8 @@ func TestStateSyncConfig() *StateSyncConfig {
 // ValidateBasic performs basic validation.
 func (cfg *StateSyncConfig) ValidateBasic() error {
 	if cfg.Enable {
-		if len(cfg.RPCServers) == 0 {
-			return cmterrors.ErrRequiredField{Field: "rpc_servers"}
-		}
-
-		if len(cfg.RPCServers) < 2 {
-			return ErrNotEnoughRPCServers
-		}
-
-		for _, server := range cfg.RPCServers {
-			if len(server) == 0 {
-				return ErrEmptyRPCServerEntry
-			}
+		if err := validateStateSyncSources(cfg.RPCServers); err != nil {
+			return err
 		}
 
 		if cfg.DiscoveryTime != 0 && cfg.DiscoveryTime < 5*time.Second {

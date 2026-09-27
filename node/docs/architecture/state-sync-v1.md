@@ -1,6 +1,6 @@
 # State sync and bounded restart (state model phase C)
 
-Status: approved (P01, 27 September 2026: decisions below); C1 to C3
+Status: approved (P01, 27 September 2026: decisions below); C1 to C4
 implemented (notes below). Engineering task E04. Covers gaps 3 and 4 of the
 [E04.1 triage](../mainnet/e04-requirement-triage.md) (STATE-002, STATE-003,
 SYNC-002, SYNC-003) and D6 of [state model v2](state-model-v2.md). Paths:
@@ -181,6 +181,34 @@ records chain back from any trusted head.
 - **Limits.** The tree rebuild holds every state key in one update. That is
   fine at current sizes; a streamed rebuild belongs with the T-level scale
   tests. The engine still refuses state sync until C4 lifts its two gates.
+
+## C4 implementation notes
+
+- **Gates.** The engine's isolation check no longer forbids state sync but
+  requires the PQC-only build, and upstream `validateBuildServices` no
+  longer excludes it. In that build `StateSyncConfig.ValidateBasic` refuses
+  `rpc_servers`, since the HTTP light client is not built, and keeps
+  upstream's other rules: trusted height, hash and period, chunk timeout and
+  chunk fetchers.
+- **Light blocks.** `dytallix-pqc-engine start ... --light-blocks DIR`,
+  repeated for witnesses. The first export is the primary; the others are
+  exports from other nodes the operator runs. A single export is its own
+  witness, which adds no cross-check. State sync without an export, or an
+  export without state sync, refuses to start, and so does a trust period
+  not below the genesis evidence age (`evidence.max_age_duration`).
+- **Verification.** CometBFT's light client (`internal/lightblocks`)
+  verifies sequentially from the trusted height, so every height from it
+  through the snapshot height plus two must be exported. The consensus
+  parameters at the snapshot height plus one must hash to that verified
+  header's consensus hash. A witness holding a conflicting, validly signed
+  header stops verification.
+- **Export.** `dytallix-light-export --home HOME --from T --to H+2 --output
+  DIR` reads the block and state stores of a stopped node, or a copy of its
+  home, and prints the trust height and hash to configure. Each height is
+  `{height:020}.block` (a LightBlock protobuf) and `{height:020}.params`.
+- **Checks.** E01 records the route as `state_sync_light_client`; the Go
+  graph check passes, since the light client adds no HTTP, TLS or classical
+  key package. A two-node join through the engine is C5.
 
 The AppArmor roles (E02) must allow the bridge to read the snapshot
 directory and the application to write it; that change returns to E02 and

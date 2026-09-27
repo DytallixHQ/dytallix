@@ -120,8 +120,14 @@ func validateIsolationForProfile(c *cfg.Config, profile string) error {
 	if c == nil || c.P2P == nil || c.RPC == nil || c.StateSync == nil || c.Instrumentation == nil {
 		return errors.New("incomplete engine configuration")
 	}
-	if c.PrivValidatorListenAddr != "" || c.P2P.LibP2PEnabled() || c.P2P.ExternalAddress != "" || c.P2P.Seeds != "" || c.P2P.PexReactor || c.P2P.SeedMode || c.StateSync.Enable || c.P2P.TestFuzz || c.RPC.Unsafe || c.RPC.GRPCListenAddress != "" || c.RPC.PprofListenAddress != "" || c.RPC.TLSCertFile != "" || c.RPC.TLSKeyFile != "" || c.Instrumentation.Prometheus {
-		return errors.New("PQC engine forbids remote signer, libp2p, discovery, state sync, fuzzing, unsafe RPC and extra listeners")
+	if c.PrivValidatorListenAddr != "" || c.P2P.LibP2PEnabled() || c.P2P.ExternalAddress != "" || c.P2P.Seeds != "" || c.P2P.PexReactor || c.P2P.SeedMode || c.P2P.TestFuzz || c.RPC.Unsafe || c.RPC.GRPCListenAddress != "" || c.RPC.PprofListenAddress != "" || c.RPC.TLSCertFile != "" || c.RPC.TLSKeyFile != "" || c.Instrumentation.Prometheus {
+		return errors.New("PQC engine forbids remote signer, libp2p, discovery, fuzzing, unsafe RPC and extra listeners")
+	}
+	// State sync takes the operator's light blocks, verified from the
+	// configured trusted height (Dytallix state sync v1, rule 5). Only the
+	// PQC-only build refuses RPC light-client servers in ValidateBasic below.
+	if c.StateSync.Enable && BuildProfile != "dytallix_pqc_only" {
+		return errors.New("PQC engine state sync requires the PQC-only build")
 	}
 	if c.ABCI != "socket" || c.ProxyApp != "unix://"+filepath.Join(c.RootDir, "abci", "app.sock") || !strings.HasPrefix(c.P2P.ListenAddress, "tcp://") || !strings.HasPrefix(c.RPC.ListenAddress, "tcp://") || !loopback(strings.TrimPrefix(c.RPC.ListenAddress, "tcp://")) {
 		return errors.New("PQC engine requires explicit TCP P2P, loopback RPC and local Unix ABCI")
@@ -234,6 +240,24 @@ func validatePinsForProfile(tc TransportConfig, c *cfg.Config, key *p2p.NodeKey,
 
 // Load opens only staging profiles. It never creates or replaces an identity
 // or signer state. No database or network service starts until guards pass.
+// ReadConfig reads a home's engine configuration without loading keys or
+// checking a profile, for offline tools that read its stores.
+func ReadConfig(home string) (*cfg.Config, error) {
+	if !filepath.IsAbs(home) || filepath.Clean(home) != home {
+		return nil, errors.New("clean absolute home is required")
+	}
+	raw, err := privateFile(filepath.Join(home, "config", "config.toml"), 1<<20)
+	if err != nil {
+		return nil, err
+	}
+	c, err := decodeConfig(raw)
+	if err != nil {
+		return nil, err
+	}
+	c.SetRoot(home)
+	return c, nil
+}
+
 func Load(home, profile string) (*Runtime, error) {
 	return load(home, profile, false)
 }

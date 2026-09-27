@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"net"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,12 +34,35 @@ func isolatedConfig(t *testing.T) *cfg.Config {
 	c.Instrumentation.Prometheus = false
 	return c
 }
+
+// syncing configures state sync from a trusted height, with no RPC servers.
+func syncing(c *cfg.Config) {
+	c.StateSync.Enable = true
+	c.StateSync.RPCServers = nil
+	c.StateSync.TrustHeight = 7
+	c.StateSync.TrustHash = strings.Repeat("ab", 32)
+}
+
+// Only the PQC-only build takes state sync, from operator light blocks.
+func TestIsolationTakesStateSyncFromLightBlocksInThePQCBuild(t *testing.T) {
+	c := isolatedConfig(t)
+	syncing(c)
+	err := ValidateIsolation(c)
+	if (BuildProfile == "dytallix_pqc_only") != (err == nil) {
+		t.Fatal(BuildProfile, err)
+	}
+}
+
 func TestIsolationRejectsAlternativeNetworkAndSignerPaths(t *testing.T) {
 	changes := map[string]func(*cfg.Config){
-		"remote signer":       func(c *cfg.Config) { c.PrivValidatorListenAddr = "tcp://127.0.0.1:31002" },
-		"libp2p":              func(c *cfg.Config) { c.P2P.LibP2PConfig.Enabled = true },
-		"discovery":           func(c *cfg.Config) { c.P2P.PexReactor = true },
-		"state sync":          func(c *cfg.Config) { c.StateSync.Enable = true },
+		"remote signer": func(c *cfg.Config) { c.PrivValidatorListenAddr = "tcp://127.0.0.1:31002" },
+		"libp2p":        func(c *cfg.Config) { c.P2P.LibP2PConfig.Enabled = true },
+		"discovery":     func(c *cfg.Config) { c.P2P.PexReactor = true },
+		"state sync":    func(c *cfg.Config) { c.StateSync.Enable = true },
+		"state sync over RPC": func(c *cfg.Config) {
+			syncing(c)
+			c.StateSync.RPCServers = []string{"127.0.0.1:1", "127.0.0.1:2"}
+		},
 		"public P2P":          func(c *cfg.Config) { c.P2P.ListenAddress = "tcp://0.0.0.0:31000" },
 		"public RPC":          func(c *cfg.Config) { c.RPC.ListenAddress = "tcp://0.0.0.0:31001" },
 		"TCP ABCI":            func(c *cfg.Config) { c.ProxyApp = "tcp://127.0.0.1:31002" },

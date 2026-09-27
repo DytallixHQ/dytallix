@@ -10,8 +10,10 @@ import (
 )
 
 func validateBuildServices(c *cfg.Config) error {
-	if c.StateSync.Enable || c.RPC.GRPCListenAddress != "" || c.ABCI != "socket" || c.RPC.IsPprofEnabled() || c.Instrumentation.IsPrometheusEnabled() || c.RPC.IsTLSEnabled() || c.TxIndex.Indexer == "psql" {
-		return errors.New("dytallix_pqc_only excludes state sync, gRPC, RPC TLS, profiling, Prometheus listener and SQL indexer")
+	// State sync runs only with a state provider the engine injects; the
+	// HTTP light client is not built (Dytallix state sync v1, rule 5).
+	if c.RPC.GRPCListenAddress != "" || c.ABCI != "socket" || c.RPC.IsPprofEnabled() || c.Instrumentation.IsPrometheusEnabled() || c.RPC.IsTLSEnabled() || c.TxIndex.Indexer == "psql" {
+		return errors.New("dytallix_pqc_only excludes gRPC, RPC TLS, profiling, Prometheus listener and SQL indexer")
 	}
 	return nil
 }
