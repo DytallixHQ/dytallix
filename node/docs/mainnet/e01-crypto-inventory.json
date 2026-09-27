@@ -226,7 +226,7 @@
           "sha256": "3e6ec0e29b874c3b0d8364e19666ef52fe1f20bc4528b6a6911b1d61216bb643"
         }
       ],
-      "policy": "Authenticated pinned peers; no classical or plaintext fallback",
+      "policy": "Authenticated pinned peers; no classical or plaintext fallback. The E03 negative-peer probe carries a copy of these files with an additive staging-only rejection observer; a change here requires refreshing that copy and its method review",
       "role": "peer_key_establishment_and_identity"
     },
     {
