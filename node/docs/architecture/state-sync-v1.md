@@ -1,6 +1,6 @@
 # State sync and bounded restart (state model phase C)
 
-Status: approved (P01, 27 September 2026: decisions below); C1
+Status: approved (P01, 27 September 2026: decisions below); C1 and C2
 implemented (notes below). Engineering task E04. Covers gaps 3 and 4 of the
 [E04.1 triage](../mainnet/e04-requirement-triage.md) (STATE-002, STATE-003,
 SYNC-002, SYNC-003) and D6 of [state model v2](state-model-v2.md). Paths:
@@ -110,6 +110,42 @@ records chain back from any trusted head.
   the same (tested).
 - **Until C3 and C4.** A node that joins after its peers have pruned cannot
   sync from genesis. Keep an archive node where that matters.
+
+## C2 implementation notes
+
+- **Settings.** `--snapshot-dir`, `--snapshot-interval` and
+  `--snapshot-keep` on the application command, all three or none. The
+  interval (N) and count kept (K) are E05 values: there are no defaults, and
+  without them no snapshot is written.
+- **Writer.** When a due height commits, the application takes a RocksDB
+  checkpoint while it still holds the execution lock, then a background
+  thread writes the files from the checkpoint and removes it. The checkpoint
+  uses hard links, so the directory should be on the database's filesystem.
+  A snapshot still being written makes the next due height skip. A failure
+  is logged and never affects commit.
+- **Content.** Every database entry except the state tree's records
+  (`merkle:`), which a joining node rebuilds: committed state, block records
+  (window and pinned), head, window start and the local metadata the startup
+  check reads. Entries are sorted by key and encoded as a 32-bit big-endian
+  key length, key, value length and value, as one stream cut into chunks of
+  at most 4 MiB. An entry larger than a chunk spans chunks.
+- **Files.** `{height:020}/metadata.json` (format 1, chain, height,
+  application hash, state digest, window start, entry and byte counts, and
+  each chunk's SHA3-256) and `{height:020}/chunk-{index:06}`. A snapshot is
+  written under `.staging-{height:020}` and published by renaming it; the
+  latest K are kept, and partial directories are removed when the writer
+  starts.
+- **Serving.** The bridge's `--snapshot-dir` names the same directory.
+  `ListSnapshots` offers published snapshots, newest first, with the
+  metadata bytes as snapshot metadata and their SHA3-256 as the snapshot
+  hash. `LoadSnapshotChunk` returns a listed chunk of at most 4 MiB. Neither
+  calls the application. Anything unreadable is not offered: an ABCI error
+  would stop the engine's application connection.
+- **E02.** The rendered AppArmor profile grants `rwk` under each declared
+  writable root, and the service's system call filter allows links and
+  renames. A snapshot directory inside the database's writable root needs no
+  policy change. The native checks do not yet exercise a snapshot; that
+  belongs with the C5 join test.
 
 The AppArmor roles (E02) must allow the bridge to read the snapshot
 directory and the application to write it; that change returns to E02 and

@@ -994,6 +994,7 @@ pub struct ConsensusApplication {
     pending: Option<Prepared>,
     admission: Mutex<crate::ordinary_admission::OrdinaryAdmissionQueue>,
     block_history: BlockHistory,
+    snapshots: Option<crate::snapshot::SnapshotWriter>,
 }
 
 fn valid_hash(value: &str) -> Result<()> {
@@ -3863,6 +3864,7 @@ impl ConsensusApplication {
             pending: None,
             admission: Mutex::new(crate::ordinary_admission::OrdinaryAdmissionQueue::default()),
             block_history: BlockHistory::default(),
+            snapshots: None,
         })
     }
     pub fn info(&self) -> Result<Info> {
@@ -5263,6 +5265,19 @@ impl ConsensusApplication {
         self.block_history = history;
         self
     }
+    /// Write a snapshot at every `interval`th height into `config.dir`,
+    /// keeping the latest `keep` (state sync v1, rule 3). A local setting.
+    pub fn with_snapshots(mut self, config: crate::snapshot::SnapshotConfig) -> Result<Self> {
+        self.snapshots = Some(crate::snapshot::SnapshotWriter::new(config)?);
+        Ok(self)
+    }
+    /// Wait for the snapshot being written, if any.
+    pub fn wait_for_snapshot(&mut self) -> Result<Option<crate::snapshot::Metadata>> {
+        match &mut self.snapshots {
+            Some(writer) => writer.wait(),
+            None => Ok(None),
+        }
+    }
     /// The height below which the engine may drop its blocks: the window
     /// start, or zero for an archive node or a node that holds every record.
     pub fn retain_height(&self) -> Result<u64> {
@@ -5357,6 +5372,7 @@ impl ConsensusApplication {
             serde_json::to_vec(&prepared.record)?,
         );
         batch.put(HEAD_KEY, serde_json::to_vec(&prepared.record.head)?);
+        let head = prepared.record.head.clone();
         if self.block_history == BlockHistory::Window {
             if let Some((deletes, retained)) =
                 prune_plan(&self.storage, &self.config, &prepared.record)?
@@ -5375,6 +5391,22 @@ impl ConsensusApplication {
         let sequence = self.storage.db.latest_sequence_number();
         verify_history(&HistoryRead::shared(&self.storage), Some(expected_next.height))?;
         self.storage.mark_verified(sequence)?;
+        // Snapshot failures never affect consensus (state sync v1, rule 3).
+        if let Some(writer) = &mut self.snapshots {
+            if writer.due(expected_next.height) {
+                let header = crate::snapshot::Header {
+                    chain_id: self.config.chain_id.clone(),
+                    height: expected_next.height,
+                    app_hash: head.app_hash,
+                    state_digest: head.state_digest,
+                    retained_from: retained_from(&self.storage)?,
+                };
+                if let Err(error) = writer.start(&self.storage.db, header) {
+                    log::warn!("Snapshot at {} not started: {error:#}", expected_next.height);
+                }
+            }
+        }
+        drop(guard);
         Ok(expected_next)
     }
     // Caller holds the execution lock and has validated the committed state.

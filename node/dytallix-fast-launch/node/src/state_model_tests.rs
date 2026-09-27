@@ -381,3 +381,98 @@ fn records_that_replays_read_are_pinned() {
         assert_eq!(pinned(3, &record, &none), kept);
     }
 }
+
+fn snapshot_app(
+    inputs: &Inputs,
+    dir: &std::path::Path,
+    interval: u64,
+) -> ConsensusApplication {
+    let mut app = inputs
+        .initialized(&dir.join("db"))
+        .with_snapshots(crate::snapshot::SnapshotConfig {
+            dir: dir.join("snapshots"),
+            interval,
+            keep: 2,
+        })
+        .unwrap();
+    app.finalize_block(block(1, vec![signed_wire(inputs.send())]))
+        .unwrap();
+    app.commit().unwrap();
+    app
+}
+
+/// State sync v1, rule 3: at every interval the chain writes a snapshot of
+/// its database as committed at that height, without the state tree's
+/// records, and keeps the latest ones.
+#[test]
+fn committed_chain_writes_snapshots_of_its_committed_database() {
+    use crate::snapshot::{chunk_path, decode_entries, snapshot_dir, Metadata, METADATA_FILE};
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = snapshot_app(&inputs, dir.path(), 4);
+    let mut written = BTreeMap::new();
+    for height in 2..=12 {
+        commit_next(&mut app, height);
+        if let Some(metadata) = app.wait_for_snapshot().unwrap() {
+            written.insert(metadata.height, app.info().unwrap().app_hash);
+        }
+    }
+    assert_eq!(written.keys().copied().collect::<Vec<_>>(), [4, 8, 12]);
+    let root = dir.path().join("snapshots");
+    assert_eq!(crate::snapshot::published(&root).unwrap(), [8, 12]);
+    let read = |height| {
+        let target = snapshot_dir(&root, height);
+        let metadata =
+            Metadata::decode(&std::fs::read(target.join(METADATA_FILE)).unwrap()).unwrap();
+        let mut stream = Vec::new();
+        for index in 0..metadata.chunks.len() {
+            stream.extend(std::fs::read(chunk_path(&target, index)).unwrap());
+        }
+        (metadata, decode_entries(&stream).unwrap())
+    };
+    let (earlier, _) = read(8);
+    assert_eq!((earlier.height, &earlier.app_hash), (8, &written[&8]));
+    let (metadata, entries) = read(12);
+    let head = read_head(&app.storage).unwrap().unwrap();
+    assert_eq!(metadata.chain_id, app.config.chain_id);
+    assert_eq!(
+        (metadata.height, &metadata.app_hash, &metadata.state_digest),
+        (12, &head.app_hash, &head.state_digest)
+    );
+    assert_eq!(metadata.retained_from, retained_from(&app.storage).unwrap());
+    let expected: Vec<_> = app
+        .storage
+        .db
+        .iterator(IteratorMode::Start)
+        .map(|item| {
+            let (key, value) = item.unwrap();
+            (key.to_vec(), value.to_vec())
+        })
+        .filter(|(key, _)| !key.starts_with(crate::state_tree::PREFIX))
+        .collect();
+    assert_eq!(entries, expected);
+    assert!(entries.iter().any(|(key, _)| key == HEAD_KEY.as_bytes()));
+}
+
+/// Rule 3: a snapshot that cannot be written never affects the chain; the
+/// next due height writes one.
+#[test]
+fn a_snapshot_failure_does_not_affect_commit() {
+    use std::os::unix::fs::PermissionsExt;
+    // Directory permissions do not bind root.
+    if unsafe { libc::geteuid() } == 0 {
+        return;
+    }
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = snapshot_app(&inputs, dir.path(), 2);
+    let root = dir.path().join("snapshots");
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o500)).unwrap();
+    commit_next(&mut app, 2);
+    assert_eq!(app.wait_for_snapshot().unwrap(), None);
+    std::fs::set_permissions(&root, std::fs::Permissions::from_mode(0o700)).unwrap();
+    commit_next(&mut app, 3);
+    commit_next(&mut app, 4);
+    assert_eq!(app.wait_for_snapshot().unwrap().unwrap().height, 4);
+    assert_eq!(app.info().unwrap().height, 4);
+}

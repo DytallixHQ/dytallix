@@ -186,6 +186,7 @@ func privateSocketPath(raw string) (string, error) {
 func run() error {
 	flags := flag.NewFlagSet("dytallix-comet-bridge", flag.ContinueOnError)
 	socket := flags.String("socket", "", "private unix:// ABCI socket")
+	snapshotDir := flags.String("snapshot-dir", "", "directory of application snapshot files to serve (state sync v1)")
 	var mode, inputFD, outputFD singleFlag
 	flags.Var(&mode, "application-channel", "explicit inherited-pipes-v1 application channel (Linux only)")
 	flags.Var(&inputFD, "application-input-fd", "inherited write descriptor for application stdin")
@@ -211,7 +212,7 @@ func run() error {
 	} else {
 		defer process.closeInherited()
 	}
-	app := &application{child: process}
+	app := &application{child: process, snapshots: snapshotStore{dir: *snapshotDir}}
 	server, err := abciserver.NewServer(*socket, "socket", app)
 	if err != nil {
 		return startupdiag.At(4, err)

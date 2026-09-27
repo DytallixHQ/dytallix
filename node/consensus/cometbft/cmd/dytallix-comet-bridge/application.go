@@ -19,7 +19,10 @@ import (
 const maxValidators = 64
 const maxValidatorUpdates = 2 * maxValidators
 
-type application struct{ child *child }
+type application struct {
+	child     *child
+	snapshots snapshotStore
+}
 
 var _ abci.Application = (*application)(nil)
 
@@ -300,14 +303,8 @@ func (*application) ExtendVote(context.Context, *abci.RequestExtendVote) (*abci.
 func (*application) VerifyVoteExtension(context.Context, *abci.RequestVerifyVoteExtension) (*abci.ResponseVerifyVoteExtension, error) {
 	return &abci.ResponseVerifyVoteExtension{Status: abci.ResponseVerifyVoteExtension_REJECT}, nil
 }
-func (*application) ListSnapshots(context.Context, *abci.RequestListSnapshots) (*abci.ResponseListSnapshots, error) {
-	return &abci.ResponseListSnapshots{}, nil
-}
 func (*application) OfferSnapshot(context.Context, *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
 	return &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_REJECT}, nil
-}
-func (*application) LoadSnapshotChunk(context.Context, *abci.RequestLoadSnapshotChunk) (*abci.ResponseLoadSnapshotChunk, error) {
-	return &abci.ResponseLoadSnapshotChunk{}, nil
 }
 func (*application) ApplySnapshotChunk(context.Context, *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
 	return &abci.ResponseApplySnapshotChunk{Result: abci.ResponseApplySnapshotChunk_REJECT_SNAPSHOT}, nil

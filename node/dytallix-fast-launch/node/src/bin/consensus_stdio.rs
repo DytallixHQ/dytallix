@@ -329,6 +329,9 @@ fn run() -> Result<()> {
     let mut candidate_path = None;
     let mut release_manifest_sha512 = None;
     let mut block_history = None;
+    let mut snapshot_dir = None;
+    let mut snapshot_interval = None;
+    let mut snapshot_keep = None;
     while let Some(arg) = args.next() {
         let value = args.next().context("Each argument requires a value")?;
         let slot = match arg.as_str() {
@@ -340,6 +343,9 @@ fn run() -> Result<()> {
             "--development-emergency-verifier-config" => &mut emergency_verifier_path,
             "--development-candidate-config" => &mut candidate_path,
             "--block-history" => &mut block_history,
+            "--snapshot-dir" => &mut snapshot_dir,
+            "--snapshot-interval" => &mut snapshot_interval,
+            "--snapshot-keep" => &mut snapshot_keep,
             _ => bail!("Unsupported argument"),
         };
         ensure!(slot.replace(value).is_none(), "Duplicate argument");
@@ -363,6 +369,19 @@ fn run() -> Result<()> {
         None | Some("window") => BlockHistory::Window,
         Some("archive") => BlockHistory::Archive,
         Some(_) => bail!("--block-history must be window or archive"),
+    };
+    // Snapshots are written only when the operator sets all three values
+    // (E05); there are no defaults.
+    let snapshots = match (snapshot_dir, snapshot_interval, snapshot_keep) {
+        (None, None, None) => None,
+        (Some(dir), Some(interval), Some(keep)) => {
+            Some(dytallix_fast_node::snapshot::SnapshotConfig {
+                dir: dir.into(),
+                interval: interval.parse().context("Invalid --snapshot-interval")?,
+                keep: keep.parse().context("Invalid --snapshot-keep")?,
+            })
+        }
+        _ => bail!("--snapshot-dir, --snapshot-interval and --snapshot-keep go together"),
     };
     ensure!(
         candidate_path.is_none()
@@ -438,6 +457,9 @@ fn run() -> Result<()> {
         }
     }
     .with_block_history(block_history);
+    if let Some(config) = snapshots {
+        app = app.with_snapshots(config)?;
+    }
     let stdin = std::io::stdin();
     let flags = unsafe { libc::fcntl(stdin.as_raw_fd(), libc::F_GETFL) };
     ensure!(
