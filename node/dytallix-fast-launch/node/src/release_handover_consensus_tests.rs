@@ -608,7 +608,7 @@ fn handover_startup_rejects_missing_verifier_and_structurally_consistent_bad_sig
     record.input.txs[0] = serde_json::to_vec(&receipt.control).unwrap();
     record.head.anchor.input_digest = digest(b"dytallix-cometbft-input-v1", &record.input).unwrap();
     record.head.state_digest =
-        state_digest(&app.storage, &writes, app.config.governance.is_some()).unwrap();
+        reference_state_digest(&app.storage, &writes, app.config.governance.is_some()).unwrap();
     record.head.app_hash = app_hash(&record.head.state_digest, &record.head.anchor).unwrap();
     record.result.app_hash = record.head.app_hash.clone();
     let mut batch = WriteBatch::default();

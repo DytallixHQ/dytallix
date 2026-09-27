@@ -12,7 +12,7 @@ fn unconfigured_governance_records_cannot_escape_application_commitment() {
         b"governance:v1:ballot:00000000000000000001",
     ] {
         app.storage.db.put(key, b"unapproved").unwrap();
-        assert!(state_digest(&app.storage, &Writes::new(), false).is_err());
+        assert!(reference_state_digest(&app.storage, &Writes::new(), false).is_err());
         assert!(verify_recovery(&app.storage).is_err());
         assert!(app.info().is_err());
         app.storage.db.delete(key).unwrap();
@@ -22,7 +22,7 @@ fn unconfigured_governance_records_cannot_escape_application_commitment() {
         b"governance:v1:ballot:00000000000000000001".to_vec(),
         b"unapproved".to_vec(),
     );
-    assert!(state_digest(&app.storage, &writes, false).is_err());
+    assert!(reference_state_digest(&app.storage, &writes, false).is_err());
     verify_recovery(&app.storage).unwrap();
 }
 
@@ -31,7 +31,7 @@ fn configured_digest_selects_only_the_governance_state_key() {
     let f = Fixture::new();
     let dir = tempfile::tempdir().unwrap();
     let app = f.initialized(dir.path());
-    let base = state_digest(&app.storage, &Writes::new(), false).unwrap();
+    let base = reference_state_digest(&app.storage, &Writes::new(), false).unwrap();
     let genesis_digest = hex::decode(&app.config.app_state_sha256)
         .unwrap()
         .try_into()
@@ -39,19 +39,19 @@ fn configured_digest_selects_only_the_governance_state_key() {
     let mut writes =
         governance_store::genesis_writes(&app.config.chain_id, genesis_digest).unwrap();
     let key = governance_store::HEADER_KEY.as_bytes().to_vec();
-    assert!(state_digest(&app.storage, &writes, false).is_err());
-    assert_ne!(state_digest(&app.storage, &writes, true).unwrap(), base);
+    assert!(reference_state_digest(&app.storage, &writes, false).is_err());
+    assert_ne!(reference_state_digest(&app.storage, &writes, true).unwrap(), base);
     // Only the per-entry layout is governance state; the old blob and the
     // legacy module's keys are refused.
     for forbidden in [b"governance:v1:state".as_slice(), b"gov:proposal:1"] {
         writes.insert(forbidden.to_vec(), b"forbidden".to_vec());
-        assert!(state_digest(&app.storage, &writes, true).is_err());
+        assert!(reference_state_digest(&app.storage, &writes, true).is_err());
         writes.remove(forbidden);
     }
-    let expected = state_digest(&app.storage, &writes, true).unwrap();
+    let expected = reference_state_digest(&app.storage, &writes, true).unwrap();
     app.storage.db.put(&key, &writes[&key]).unwrap();
     assert_eq!(
-        state_digest(&app.storage, &Writes::new(), true).unwrap(),
+        reference_state_digest(&app.storage, &Writes::new(), true).unwrap(),
         expected
     );
     assert!(verify_recovery(&app.storage).is_err());
@@ -183,4 +183,57 @@ fn bounded_history_cache_and_linear_trace_match_full_prefix_recovery() {
     assert!(verify_recovery_with(&HistoryRead::with_budget(&app.storage, 0)).is_err());
     app.storage.db.put(&key, saved).unwrap();
     verify_recovery(&app.storage).unwrap();
+}
+
+/// Phase B: a committed value's proof verifies against the state root, and
+/// the root with the anchor gives the committed application hash.
+#[test]
+fn state_proofs_verify_against_the_committed_application_hash() {
+    use jmt::{proof::SparseMerkleProof, RootHash};
+    let f = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = f.initialized(dir.path());
+    commit(&mut app, 1, vec![]);
+    commit(&mut app, 2, vec![]);
+    let key = format!("acct:balances:{}", f.active.address()).into_bytes();
+    let response = app.query_state_proof(&hex::encode(&key)).unwrap();
+    let root: [u8; 32] = hex::decode(response["state_root"].as_str().unwrap())
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let proof: SparseMerkleProof<sha3::Sha3_256> =
+        serde_json::from_value(response["proof"].clone()).unwrap();
+    let value = B64.decode(response["value"].as_str().unwrap()).unwrap();
+    assert_eq!(app.storage.db.get(&key).unwrap(), Some(value.clone()));
+    let leaf = crate::state_tree::leaf_value(&value);
+    proof
+        .verify_existence(RootHash(root), crate::state_tree::key_hash(&key), &leaf)
+        .unwrap();
+    let anchor: Anchor = serde_json::from_value(response["anchor"].clone()).unwrap();
+    assert_eq!(
+        app_hash(response["state_root"].as_str().unwrap(), &anchor).unwrap(),
+        response["app_hash"].as_str().unwrap()
+    );
+    assert_eq!(response["app_hash"], app.info().unwrap().app_hash);
+    // A changed value does not verify.
+    assert!(proof
+        .verify_existence(
+            RootHash(root),
+            crate::state_tree::key_hash(&key),
+            crate::state_tree::leaf_value(b"forged")
+        )
+        .is_err());
+    // An absent state key has a non-existence proof.
+    let absent = b"acct:balances:absent".to_vec();
+    let response = app.query_state_proof(&hex::encode(&absent)).unwrap();
+    assert!(response["value"].is_null());
+    let proof: SparseMerkleProof<sha3::Sha3_256> =
+        serde_json::from_value(response["proof"].clone()).unwrap();
+    proof
+        .verify_nonexistence(RootHash(root), crate::state_tree::key_hash(&absent))
+        .unwrap();
+    // Keys outside consensus state and malformed keys are refused.
+    assert!(app.query_state_proof(&hex::encode(b"tx:index")).is_err());
+    assert!(app.query_state_proof("ABCD").is_err());
+    assert!(app.query_state_proof("abc").is_err());
 }

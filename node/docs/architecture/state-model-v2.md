@@ -236,7 +236,7 @@ Deferred from A3, because each needs a redesign rather than a window:
 | Validator-set history and unbonding records (P11, P13) | Step 4 (stake withdrawals) | Both rework the lifecycle module, whose history entries cross-validate each other |
 | Issuance journal and epoch cap (P8) | Phase B, with deletions | Needs a controller checkpoint plus pruning of per-epoch records. Until then, `max_recorded_epochs` (up to 1,000,000) and the epoch length bound it; with daily epochs the per-block replay grows by about 365 controller steps a year. Step 3 made the observations deterministic but left the journal unchanged |
 | Emission events in the state commitment (P9, digest side) | Phase B, D3 | An incremental Merkle root removes the per-block read of all state keys |
-| B | D4, D3, deletions (app hash v2) | Tree root equals a naive reference over the same key set (property tests); inclusion and non-inclusion proofs verify; determinism across independent databases; supply invariants; G35 profile PASS |
+| B | D4, D3, deletions (app hash v2) | Tree root equals a naive reference over the same key set (property tests); inclusion and non-inclusion proofs verify; determinism across independent databases; supply invariants; G35 profile PASS. D3 done ([state root v2](state-root-v2.md)); deletions done (B1a) |
 | C | D6, block-record pruning | A new node joins from a snapshot and matches the application hash; pruned nodes keep full consensus correctness |
 
 Each phase keeps the node test suite green and the G35 dependency check at
