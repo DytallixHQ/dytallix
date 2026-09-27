@@ -230,6 +230,12 @@ impl FeeReceipt {
 }
 /// Retained evidence. The combined state adapter commits this with both nonce
 /// mirrors, money, ordered block result and head, without pruning.
+/// Prior values of the history entries one proposal candidate may add.
+pub(crate) struct HistoryCheckpoint {
+    receipt: (String, Option<FeeReceipt>),
+    profile: (String, Option<FeeProfile>),
+    sizes: (usize, usize),
+}
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct FeeHistory {
@@ -270,73 +276,122 @@ impl FeeHistory {
                 .profiles
                 .get(&hex::encode(r.profile_digest))
                 .ok_or_else(|| internal("Retained receipt requires missing profile"))?;
-            if r.version != 1
-                || *id != hex::encode(r.transaction_id)
-                || r.contract_version != p.ordinary_fee_contract_version
-                || r.profile_version != p.version
-                || r.block_height == 0
-                || r.gas_used > r.gas_limit
-                || r.metadata_gas != p.receipt_metadata_cost
-                || r.nonce_before.checked_add(1) != Some(r.nonce_after)
-                || !positions.insert((r.block_height, r.block_index))
+            if !positions.insert((r.block_height, r.block_index))
                 || !nonces.insert((r.actor, r.nonce_before))
             {
                 return Err(internal("Retained ordinary receipt invariant failed"));
             }
-            p.validate_request(r.gas_limit, r.reserved_cap)
-                .map_err(internal)?;
-            if r.charge != u128::from(r.gas_used.max(p.minimum_gas)) * u128::from(p.gas_price)
-                || r.reserved_cap.checked_sub(r.charge) != Some(r.released_cap)
-            {
-                return Err(internal("Retained ordinary fee conservation failed"));
-            }
-            match r.outcome {
-                Outcome::Success
-                    if r.failing_action.is_none()
-                        && r.rule_code.is_none()
-                        && r.failure_phase.is_none()
-                        && r.rule_class.is_none() => {}
-                Outcome::OutOfGas
-                    if r.gas_used == r.gas_limit
-                        && r.rule_code.as_deref() == Some("OUT_OF_GAS")
-                        && r.rule_class.is_none()
-                        && r.failing_action.is_some()
-                        && matches!(
-                            r.failure_phase.as_deref(),
-                            Some("action" | "ACTION" | "WRITE")
-                        ) => {}
-                Outcome::ApplicationFailure
-                    if r.failing_action.is_some()
-                        && matches!(r.failure_phase.as_deref(), Some("action" | "APPLICATION"))
-                        && matches!(
-                            (r.rule_class.as_deref(), r.rule_code.as_deref()),
-                            (
-                                Some("ACTION_STATE_PRECONDITION"),
-                                Some("DMS_INACTIVITY_DELAY")
-                            ) | (
-                                Some("ACTION_CAPACITY"),
-                                Some("SEND_RECIPIENT_CAPACITY" | "LIFECYCLE_CAPACITY")
-                            ) | (
-                                Some("ACTION_STATE_PRECONDITION"),
-                                Some(
-                                    "UNBOND_ALREADY_RELEASED"
-                                        | "UNBOND_PENALTIES_PENDING"
-                                        | "UNBOND_NOT_MATURE"
-                                        | "BOND_TARGET_UNAVAILABLE"
-                                        | "UNBOND_PRINCIPAL_UNAVAILABLE"
-                                        | "VALIDATOR_ALREADY_REGISTERED"
-                                        | "VALIDATOR_TARGET_UNAVAILABLE"
-                                        | "VALIDATOR_EXPOSURE_BARRED"
-                                        | "CONSENSUS_KEY_ALREADY_USED"
-                                        | "BOND_PRINCIPAL_ZERO"
-                                        | "VALIDATOR_SELF_BOND_MINIMUM"
-                                        | "EXIT_PENDING_ADDITIONS"
-                                        | "VALIDATOR_SET_EMPTY"
-                                )
+            Self::check_receipt(id, r, p)?;
+        }
+        Ok(())
+    }
+    pub(crate) fn len(&self) -> usize {
+        self.receipts.len()
+    }
+    /// Retain a receipt built by `runtime_receipt`. Its block position and
+    /// actor nonce are new because both only increase within a chain.
+    pub(crate) fn retain(&mut self, profile: &FeeProfile, receipt: FeeReceipt) -> Result<()> {
+        let digest = hex::encode(receipt.profile_digest);
+        if digest != hex::encode(ordinary_fees::profile_digest(profile).map_err(internal)?) {
+            return Err(internal("Retained fee profile digest mismatch"));
+        }
+        self.profiles
+            .entry(digest)
+            .or_insert_with(|| profile.clone());
+        self.receipts
+            .insert(hex::encode(receipt.transaction_id), receipt);
+        Ok(())
+    }
+    /// Capture one receipt and one profile entry for a proposal candidate.
+    pub(crate) fn checkpoint(&self, receipt: &str, profile: &str) -> HistoryCheckpoint {
+        HistoryCheckpoint {
+            receipt: (receipt.to_owned(), self.receipts.get(receipt).cloned()),
+            profile: (profile.to_owned(), self.profiles.get(profile).cloned()),
+            sizes: (self.receipts.len(), self.profiles.len()),
+        }
+    }
+    pub(crate) fn rollback(&mut self, checkpoint: HistoryCheckpoint) -> Result<()> {
+        let (key, value) = checkpoint.receipt;
+        match value {
+            Some(value) => self.receipts.insert(key, value),
+            None => self.receipts.remove(&key),
+        };
+        let (key, value) = checkpoint.profile;
+        match value {
+            Some(value) => self.profiles.insert(key, value),
+            None => self.profiles.remove(&key),
+        };
+        if (self.receipts.len(), self.profiles.len()) != checkpoint.sizes {
+            return Err(internal("Ordinary history rollback does not restore the history"));
+        }
+        Ok(())
+    }
+    /// Checks on one receipt against its profile, without other receipts.
+    fn check_receipt(id: &str, r: &FeeReceipt, p: &FeeProfile) -> Result<()> {
+        if r.version != 1
+            || id != hex::encode(r.transaction_id)
+            || r.contract_version != p.ordinary_fee_contract_version
+            || r.profile_version != p.version
+            || r.block_height == 0
+            || r.gas_used > r.gas_limit
+            || r.metadata_gas != p.receipt_metadata_cost
+            || r.nonce_before.checked_add(1) != Some(r.nonce_after)
+        {
+            return Err(internal("Retained ordinary receipt invariant failed"));
+        }
+        p.validate_request(r.gas_limit, r.reserved_cap)
+            .map_err(internal)?;
+        if r.charge != u128::from(r.gas_used.max(p.minimum_gas)) * u128::from(p.gas_price)
+            || r.reserved_cap.checked_sub(r.charge) != Some(r.released_cap)
+        {
+            return Err(internal("Retained ordinary fee conservation failed"));
+        }
+        match r.outcome {
+            Outcome::Success
+                if r.failing_action.is_none()
+                    && r.rule_code.is_none()
+                    && r.failure_phase.is_none()
+                    && r.rule_class.is_none() => {}
+            Outcome::OutOfGas
+                if r.gas_used == r.gas_limit
+                    && r.rule_code.as_deref() == Some("OUT_OF_GAS")
+                    && r.rule_class.is_none()
+                    && r.failing_action.is_some()
+                    && matches!(
+                        r.failure_phase.as_deref(),
+                        Some("action" | "ACTION" | "WRITE")
+                    ) => {}
+            Outcome::ApplicationFailure
+                if r.failing_action.is_some()
+                    && matches!(r.failure_phase.as_deref(), Some("action" | "APPLICATION"))
+                    && matches!(
+                        (r.rule_class.as_deref(), r.rule_code.as_deref()),
+                        (
+                            Some("ACTION_STATE_PRECONDITION"),
+                            Some("DMS_INACTIVITY_DELAY")
+                        ) | (
+                            Some("ACTION_CAPACITY"),
+                            Some("SEND_RECIPIENT_CAPACITY" | "LIFECYCLE_CAPACITY")
+                        ) | (
+                            Some("ACTION_STATE_PRECONDITION"),
+                            Some(
+                                "UNBOND_ALREADY_RELEASED"
+                                    | "UNBOND_PENALTIES_PENDING"
+                                    | "UNBOND_NOT_MATURE"
+                                    | "BOND_TARGET_UNAVAILABLE"
+                                    | "UNBOND_PRINCIPAL_UNAVAILABLE"
+                                    | "VALIDATOR_ALREADY_REGISTERED"
+                                    | "VALIDATOR_TARGET_UNAVAILABLE"
+                                    | "VALIDATOR_EXPOSURE_BARRED"
+                                    | "CONSENSUS_KEY_ALREADY_USED"
+                                    | "BOND_PRINCIPAL_ZERO"
+                                    | "VALIDATOR_SELF_BOND_MINIMUM"
+                                    | "EXIT_PENDING_ADDITIONS"
+                                    | "VALIDATOR_SET_EMPTY"
                             )
-                        ) => {}
-                _ => return Err(internal("Retained ordinary failure classification invalid")),
-            }
+                        )
+                    ) => {}
+            _ => return Err(internal("Retained ordinary failure classification invalid")),
         }
         Ok(())
     }
@@ -792,7 +847,9 @@ pub(crate) fn plan_fee_accounting(
 mod tests;
 
 /// Used only by the metered runtime after it determines the action outcome.
-pub(crate) fn retain_runtime_receipt(
+/// Builds and checks the receipt; the caller retains it with
+/// `FeeHistory::retain` once every other check has passed.
+pub(crate) fn runtime_receipt(
     history: &FeeHistory,
     verified: &VerifiedOrdinary,
     profile: &FeeProfile,
@@ -801,13 +858,15 @@ pub(crate) fn retain_runtime_receipt(
     index: u32,
     outcome: Outcome,
     failure: Option<(u16, &'static str, &'static str, &'static str)>,
-) -> Result<(FeeHistory, FeeReceipt)> {
+) -> Result<FeeReceipt> {
     if !summary.accepted()
         || (outcome == Outcome::OutOfGas) != summary.exhausted()
         || (outcome == Outcome::Success && summary.processed_actions() != summary.action_count())
         || failure.is_some_and(|f| usize::from(f.0) >= verified.body().actions.len())
         || history.receipt(verified.transaction_id()).is_some()
         || history.receipts.len() >= MAX_RECEIPTS
+        || (history.profiles.len() >= MAX_RECEIPTS
+            && !history.profiles.contains_key(&hex::encode(verified.body().fee_profile_digest)))
     {
         return Err(internal("Invalid runtime receipt predecessor"));
     }
@@ -851,13 +910,8 @@ pub(crate) fn retain_runtime_receipt(
             .checked_add(1)
             .ok_or_else(|| internal("Nonce exhausted"))?,
     };
-    let mut next = history.clone();
-    next.profiles
-        .insert(hex::encode(receipt.profile_digest), profile.clone());
-    next.receipts
-        .insert(hex::encode(receipt.transaction_id), receipt.clone());
-    next.validate()?;
-    Ok((next, receipt))
+    FeeHistory::check_receipt(&hex::encode(receipt.transaction_id), &receipt, profile)?;
+    Ok(receipt)
 }
 
 pub(crate) fn expected_spending_debits(

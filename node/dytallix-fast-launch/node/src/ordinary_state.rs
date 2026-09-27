@@ -244,6 +244,13 @@ impl OrdinaryConfig {
         })
     }
 }
+/// Prior values of the state entries one ordinary candidate may change.
+pub(crate) struct StateCheckpoint {
+    grant: (String, Option<crate::ordinary_authority::DiscretionaryGrant>),
+    grants: usize,
+    history: crate::ordinary_fee_settlement::HistoryCheckpoint,
+    last_height: u64,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct OrdinaryState {
@@ -283,6 +290,31 @@ impl OrdinaryState {
         };
         state.validate(lifecycle, book, native_nonces)?;
         Ok(state)
+    }
+    /// Capture what one ordinary candidate may change: the actor's grant and
+    /// its receipt and profile entries. The configuration never changes.
+    pub(crate) fn checkpoint(&self, actor: &str, receipt: &str, profile: &str) -> StateCheckpoint {
+        StateCheckpoint {
+            grant: (actor.to_owned(), self.grants.get(actor).cloned()),
+            grants: self.grants.len(),
+            history: self.history.checkpoint(receipt, profile),
+            last_height: self.last_height,
+        }
+    }
+    pub(crate) fn rollback(&mut self, checkpoint: StateCheckpoint) -> Result<()> {
+        let (key, value) = checkpoint.grant;
+        match value {
+            Some(value) => self.grants.insert(key, value),
+            None => self.grants.remove(&key),
+        };
+        self.history
+            .rollback(checkpoint.history)
+            .map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        ensure!(
+            self.grants.len() == checkpoint.grants && self.last_height == checkpoint.last_height,
+            "Ordinary rollback does not restore the state"
+        );
+        Ok(())
     }
     /// Retained receipts cover this many blocks: the fee profile's maximum
     /// transaction lifetime. The profile cannot change without a migration.

@@ -644,8 +644,9 @@ fn execute(
             "Ordinary fee profile or activation mismatch"
         )));
     }
-    history.validate()?;
-    if history.receipts().count() > limits.max_receipts
+    // The retained history is validated when loaded and at the end of each
+    // block; within a block it only gains receipts checked by `retain`.
+    if history.len() > limits.max_receipts
         || history.profiles().len() > limits.max_retained_profiles
         || grants.len() > limits.max_grants
     {
@@ -656,7 +657,7 @@ fn execute(
             "Ordinary transaction ID already accepted"
         )));
     }
-    if history.receipts().count() >= limits.max_receipts {
+    if history.len() >= limits.max_receipts {
         pre!(Err::<(), _>(reject(
             "Ordinary receipt retention capacity exhausted"
         )));
@@ -872,7 +873,7 @@ fn execute(
         }
     }
     let summary = meter.finish()?;
-    let (next_history, receipt) = fees::retain_runtime_receipt(
+    let receipt = fees::runtime_receipt(
         history, &verified, profile, &summary, height, index, outcome, failure,
     )?;
     let reserved_accounts = reserved.accounts.clone();
@@ -922,6 +923,10 @@ fn execute(
         }
         return Err(e);
     }
+    // Retain first: it is the only fallible publication step.
+    history.retain(profile, receipt.clone())?;
+    #[cfg(test)]
+    history.validate()?;
     let result = OrdinaryExecutionResult {
         success: outcome == Outcome::Success,
         accepted: true,
@@ -933,7 +938,6 @@ fn execute(
     };
     *settlement = effects;
     *grants = next_grants;
-    *history = next_history;
     Ok(result)
 }
 fn debit(s: &mut Settlement, a: &str, d: &str, n: u128) -> Result<()> {
