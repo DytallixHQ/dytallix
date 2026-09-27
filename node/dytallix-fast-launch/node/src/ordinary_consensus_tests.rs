@@ -3003,6 +3003,14 @@ fn validators_are_paid_by_power_and_every_fee_is_burned() {
         .db
         .put(format!("acct:balances:{owner}"), bincode::serialize(&balances).unwrap())
         .unwrap();
+    // Keep the running account totals consistent, so the fee rule is reached.
+    let key = crate::supply::ACCOUNT_TOTALS_KEY;
+    let mut totals = crate::supply::AccountTotals::decode(
+        &reopened.storage.db.get(key).unwrap().unwrap(),
+    )
+    .unwrap();
+    totals.udrt -= moved;
+    reopened.storage.db.put(key, totals.encode().unwrap()).unwrap();
     reopened
         .storage
         .db

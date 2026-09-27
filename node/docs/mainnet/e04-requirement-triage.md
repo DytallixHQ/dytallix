@@ -41,6 +41,14 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | 14 | Legacy modules still compiled into the consensus crate but unreachable (`fee_burn`, legacy emission pools, `alerts`, `metrics`, legacy mempool). | — | S–M |
 | 15 | Runbooks: fork, supply mismatch, key compromise, resource exhaustion. | OBS-003 | M (docs) |
 
+### Progress
+
+| Gaps | Closed by |
+| --- | --- |
+| 1, 2 | #262 (`docs/architecture/liveness-v1.md`) |
+| 3, 4 | #263, #265, #266, #267, #268 (`docs/architecture/state-sync-v1.md`) |
+| 5 | Running account totals: `supply:account_totals` (liquid uDGT and uDRT) is written at consensus genesis and updated by each block from the balance records it writes; the per-block supply check reads no other account; the complete check compares the totals with every record. |
+
 ## Policy questions (P01)
 
 | Decision | Question | Rows |
@@ -75,7 +83,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | VAL-004 | POLICY | Penalties refuse vesting locks, so vesting stake cannot withdraw. D09-Q05. |
 | ECON-001 | POLICY | Utilization target unchanged. D01. |
 | ECON-003 | POLICY | 40/30/30 and payouts done; `E_min` unset. D01-Q01, D03-Q01. |
-| ECON-004 | PARTIAL | Conservation checked every block; account scan (GAP 5); vesting with penalties. |
+| ECON-004 | PARTIAL | Conservation checked every block, from running account totals (gap 5 closed); vesting with penalties. |
 | GOV-001 | NOT E04 | Rules done; values E05. |
 | GOV-002 | DONE | Timelock, bound action, one execution, refunds. |
 | GOV-004 | CLAIM | Linear stake weighting; remove quadratic voting and decay claims. |
