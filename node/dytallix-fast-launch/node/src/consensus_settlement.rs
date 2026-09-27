@@ -972,6 +972,8 @@ struct EmergencyTrace {
 pub enum QueryRequest<'a> {
     Status,
     OrdinaryProfile,
+    /// The governance (ordinary-v3) fee profile (clients v1, decision 2).
+    GovernanceProfile,
     OrdinaryAccount(&'a str),
     OrdinaryReceipt(&'a str),
     EmergencyReceipt(&'a str),
@@ -5687,6 +5689,7 @@ impl ConsensusApplication {
         let value = match request {
             QueryRequest::Status => self.query_validated()?,
             QueryRequest::OrdinaryProfile => self.query_ordinary_profile_validated()?,
+            QueryRequest::GovernanceProfile => self.query_governance_profile_validated()?,
             QueryRequest::OrdinaryAccount(id) => self.query_ordinary_account_validated(id)?,
             QueryRequest::OrdinaryReceipt(id) => self.query_ordinary_receipt_validated(id)?,
             QueryRequest::EmergencyReceipt(id) => self.query_emergency_receipt_validated(id)?,
@@ -5754,6 +5757,35 @@ impl ConsensusApplication {
             enabled: state.is_some(),
             context: self.ordinary_client_context()?,
             config: state.map(|state| state.config.client_view()),
+        })?)
+    }
+    pub fn query_governance_profile(&self) -> Result<serde_json::Value> {
+        self.query_at(QueryRequest::GovernanceProfile, 0)
+            .map(|(_, value)| value)
+    }
+    /// The committed v3 fee profile (the candidate's, or the governed
+    /// replacement, `governance_actions::governance_fee`) and the next
+    /// proposal ID. See `GovernanceProfileView` for a change due next block.
+    fn query_governance_profile_validated(&self) -> Result<serde_json::Value> {
+        use dytallix_protocol_types::ordinary_client::{GovernanceProfileView, CLIENT_VIEW_VERSION};
+        let (fee_profile, next_proposal_id) = match &self.config.governance {
+            Some(candidate) => {
+                let parameters = governance_store::GovernedParameters::read(&self.storage)?;
+                let header = governance_store::Header::read(&self.storage)?
+                    .context("Governance state missing")?;
+                (
+                    Some(crate::governance_actions::governance_fee(candidate, &parameters).clone()),
+                    header.next_proposal_id,
+                )
+            }
+            None => (None, 0),
+        };
+        Ok(serde_json::to_value(GovernanceProfileView {
+            version: CLIENT_VIEW_VERSION,
+            enabled: fee_profile.is_some(),
+            context: self.ordinary_client_context()?,
+            fee_profile,
+            next_proposal_id,
         })?)
     }
     pub fn query_ordinary_account(&self, id: &str) -> Result<serde_json::Value> {

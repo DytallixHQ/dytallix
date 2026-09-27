@@ -3832,6 +3832,17 @@ mod governance {
         let f = governed();
         let dir = tempfile::tempdir().unwrap();
         let mut app = f.initialized(dir.path());
+        // Clients read the v3 profile they sign against (clients v1).
+        let view = |app: &ConsensusApplication| {
+            serde_json::from_value::<dytallix_protocol_types::ordinary_client::GovernanceProfileView>(
+                app.query_governance_profile().unwrap(),
+            )
+            .unwrap()
+        };
+        let candidate = f.config.governance.as_ref().unwrap().fee_profile.clone();
+        assert_eq!(view(&app).fee_profile, Some(candidate.clone()));
+        assert!(view(&app).enabled);
+        assert_eq!(view(&app).next_proposal_id, 1);
         let base = &f.config.ordinary.as_ref().unwrap().fee_profile;
         let values = governance_actions::FeeValues {
             gas_price: 3,
@@ -3864,7 +3875,9 @@ mod governance {
         for height in 4..=7 {
             commit(&mut app, height, vec![]);
         }
-        // A transaction signed for the old profile is refused at height 8.
+        // The view is committed state: it shows the old profile until the
+        // change executes, and a request signed for it is refused at height 8.
+        assert_eq!(view(&app).fee_profile, Some(candidate.clone()));
         let stale = vote(&app, &f.secondary, 1, v3::VoteChoice::Yes);
         let result = commit(&mut app, 8, vec![stale]);
         assert_eq!(codes(&result), vec![1]);
@@ -3875,6 +3888,8 @@ mod governance {
         let v3_profile = parameters.governance_fee.clone().unwrap();
         assert_eq!(v3_profile.base, ordinary);
         assert_eq!((v3_profile.version, v3_profile.activation_height), (3, 8));
+        assert_eq!(view(&app).fee_profile, Some(v3_profile.clone()));
+        assert_eq!(view(&app).next_proposal_id, 2);
         // The new profile is in force: a send pays at gas price 3.
         let drt = balance(&app, &f.payer.address());
         let mut signed = f.ordinary(&current(&app, &f.payer), &f.payer, vec![send(f.secondary.id(), 1)], 1000);
@@ -4093,4 +4108,16 @@ mod governance {
         drop(app);
         f.open(dir.path());
     }
+}
+
+/// Without a governance candidate the v3 profile view is disabled.
+#[test]
+fn governance_profile_view_is_disabled_without_governance() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = fixture.initialized(&dir.path().join("db"));
+    let view: dytallix_protocol_types::ordinary_client::GovernanceProfileView =
+        serde_json::from_value(app.query_governance_profile().unwrap()).unwrap();
+    assert!(!view.enabled && view.fee_profile.is_none() && view.next_proposal_id == 0);
+    assert_eq!(view.context.height, 0);
 }

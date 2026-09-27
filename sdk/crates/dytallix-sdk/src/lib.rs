@@ -33,6 +33,7 @@ pub mod keystore;
 ))]
 pub mod ordinary_client;
 pub mod ordinary_v2;
+pub mod ordinary_v3;
 pub mod transaction;
 
 use std::fmt;

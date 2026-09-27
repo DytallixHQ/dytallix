@@ -30,6 +30,9 @@ pub mod ordinary_v3;
 /// Explicit ordinary-v3 fee-profile format. No values or activation selected.
 pub mod ordinary_fees_v3;
 
+/// Governance action data for the parameter-change and validator-registry classes.
+pub mod governance_action;
+
 /// Explicit ordinary fee profile format; no implicit activation or prices.
 pub mod ordinary_fees;
 

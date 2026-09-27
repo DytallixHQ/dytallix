@@ -46,7 +46,7 @@ enum Commands {
     Faucet(FaucetArgs),
     /// Staking status and direct-node staking writes.
     Stake(StakeArgs),
-    /// Governance reads and direct-node governance writes.
+    /// Prepare, sign, and submit ordinary-v3 governance transactions.
     Governance(GovernanceArgs),
     /// Deploy and interact with smart contracts.
     Contract(ContractArgs),
@@ -65,7 +65,12 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-    let ordinary_command = matches!(&cli.command, Commands::Ordinary(_));
+    // Consensus-chain commands report errors as JSON, like their output.
+    let ordinary_command = match &cli.command {
+        Commands::Ordinary(_) => true,
+        Commands::Governance(args) => !args.is_legacy(),
+        _ => false,
+    };
     let result = match cli.command {
         Commands::Init => commands::init::run().await,
         Commands::Wallet(args) => commands::wallet::run(args).await,

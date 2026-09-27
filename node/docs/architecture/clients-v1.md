@@ -78,11 +78,47 @@ and application hash.
   them, and each vector is a valid signed request for the vector profile.
   The SDK workspace runs the same check through the vendored crate.
 
+## K-b implementation notes
+
+- **Node query.** `/ordinary/profile_v3` returns `GovernanceProfileView`:
+  the committed v3 fee profile (the candidate's, or the governed one after
+  a fee change executes) and `next_proposal_id`, bound to the committed
+  head. It is committed state: a fee change due at the next height
+  replaces the profile before that block's transactions, which refuses a
+  request signed for the old one. Without governance the view is disabled,
+  with a null profile and ID zero.
+- **Action data.** `FeeValues`, `ParameterChange` and `RegistryChange` move
+  to `protocol-types::governance_action`, one definition for the chain and
+  clients. Their `action_data` is an encoder written without bincode; a
+  node test checks it equals the chain's bincode bytes and decodes back
+  canonically.
+- **SDK.** `ordinary_v3` validates the v2 identity views plus the v3 view
+  against the caller's `SigningContext`, prepares one governance action
+  per body (contract version 2, the v3 profile's version and digest, next
+  height activation and lifetime), signs and verifies, and writes the
+  `ordinary_v3` transport. `CometClient` adds the v3 query, CheckTx and
+  broadcast. SDK tests reproduce the shared v3 vectors. The v3 path has no
+  receipt check: the chain writes no per-transaction v3 receipt yet (gap
+  12), so the spent nonce is the committed evidence.
+- **CLI.** `dytallix governance` has `query-profile`, `propose` (maximum
+  active validators, minimum self-bond, fee values from a file, registry
+  add with a registered owner address, or registry remove), `deposit`,
+  `vote` (yes, no, no-with-veto, abstain), `sign`, `inspect` and `submit`.
+  A proposal takes the captured `next_proposal_id`; an admitted
+  transaction whose governance rule fails is charged. `submit` accepts
+  refreshed views at a later height, since the chain commits empty blocks,
+  if they show the same authority and profile, the body is valid for the
+  next height and a proposal still holds the next ID. `ordinary submit`
+  still requires the captured height; K-c brings it to the same rule. The
+  legacy REST commands move to `governance legacy`, built only with the
+  `legacy-network` feature.
+- **Errors.** SDK errors read `ordinary: ...` for both versions.
+
 ## Steps
 
 | Step | Content |
 | --- | --- |
 | K-a | Builder safety fix; exact vendoring with a sync script and CI drift check; independent v2 and v3 vector generator |
 | K-b | SDK ordinary v3 and the v3 fee profile source; CLI governance on v3 |
-| K-c | CLI send, stake and balance on ordinary v2 with v1 addresses; first spend |
+| K-c | CLI send, stake and balance on ordinary v2 with v1 addresses; first spend; `ordinary submit` refresh at later heights; `legacy-network` non-default |
 | K-d | SDK state-proof verification; CLI balance and account reads verified |

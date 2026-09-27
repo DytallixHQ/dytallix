@@ -4,7 +4,7 @@
   "package_version": "0.1.0",
   "vendor_path": "vendor/dytallix-protocol-types",
   "source_repository": "https://github.com/exocognosis/dytallix",
-  "source_head": "2e4b0fc508eae3267737c658af94e2c8016de73e",
+  "source_head": "2df1610463093524226226779041ed1f217712c9",
   "source_kind": "working_tree_snapshot",
   "source_head_is_complete_snapshot": false,
   "source_description": "Exact bytes of mainnet/node/crates/protocol-types and mainnet/node/LICENSE, copied by scripts/sync_protocol_vendor.py. The file hashes, not source_head alone, identify this snapshot.",
@@ -29,6 +29,12 @@
       "sha256": "215409ad82d86db24eabc74a4b79c5ffc29ebb4eebfe677b170051b698565ad6"
     },
     {
+      "path": "src/governance_action.rs",
+      "source_path": "crates/protocol-types/src/governance_action.rs",
+      "bytes": 4642,
+      "sha256": "0cff441d1a7f2b03fa4c9be9621a6e405e232200923f0e08aae63e9b8a89ff7e"
+    },
+    {
       "path": "src/hash.rs",
       "source_path": "crates/protocol-types/src/hash.rs",
       "bytes": 1634,
@@ -37,8 +43,8 @@
     {
       "path": "src/lib.rs",
       "source_path": "crates/protocol-types/src/lib.rs",
-      "bytes": 1358,
-      "sha256": "ef4b1d11c485dad3603fcb126e37fde6a3268de43c6405383022ac460fe502e9"
+      "bytes": 1470,
+      "sha256": "8dc13255bd4a111e202b92b84fff83781fd493a0ca3a1b39c19fe6f4a76b04b5"
     },
     {
       "path": "src/ordinary.rs",
@@ -49,8 +55,8 @@
     {
       "path": "src/ordinary_client.rs",
       "source_path": "crates/protocol-types/src/ordinary_client.rs",
-      "bytes": 12035,
-      "sha256": "3688d2c965cb946d57372af36ce76e57b2625eef2dc7629f804d1ba1de2cc66b"
+      "bytes": 12874,
+      "sha256": "2882a78a415df87557da254d4a875080056f27ff4c905516656655d9aff5e234"
     },
     {
       "path": "src/ordinary_fees.rs",
@@ -169,8 +175,8 @@
     {
       "path": "tests/ordinary_v3.rs",
       "source_path": "crates/protocol-types/tests/ordinary_v3.rs",
-      "bytes": 12100,
-      "sha256": "95b0d8c2ed6ff963c8e2f4b19b1f617490f6344c844afdc148fbbfce12723983"
+      "bytes": 12242,
+      "sha256": "dda770e56671b684dc735555d152d5d2d1402a1b1464c9456b8e0862398d2ccc"
     },
     {
       "path": "tests/recovery.rs",

@@ -31,13 +31,13 @@ pub struct OrdinaryArgs {
 pub struct CapturedInputs {
     /// Captured committed profile query JSON.
     #[arg(long)]
-    profile: PathBuf,
+    pub(crate) profile: PathBuf,
     /// Captured committed account query JSON.
     #[arg(long)]
-    account: PathBuf,
+    pub(crate) account: PathBuf,
     /// Explicit expected domain, authority, counters, and committed state.
     #[arg(long)]
-    context: PathBuf,
+    pub(crate) context: PathBuf,
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -376,7 +376,7 @@ pub async fn run(args: OrdinaryArgs) -> Result<()> {
     Ok(())
 }
 
-fn client(endpoint: &str) -> Result<CometClient> {
+pub(crate) fn client(endpoint: &str) -> Result<CometClient> {
     Ok(CometClient::new(endpoint, MAX_RESPONSE_BYTES)?)
 }
 
@@ -416,7 +416,10 @@ fn exact_scheme(algorithm: &str) -> Result<KeyScheme> {
         _ => Err(anyhow!("strict local profile requires exactly mldsa65")),
     }
 }
-fn load_signing_key(wallet: Option<&str>, key_file: Option<&Path>) -> Result<DytallixKeypair> {
+pub(crate) fn load_signing_key(
+    wallet: Option<&str>,
+    key_file: Option<&Path>,
+) -> Result<DytallixKeypair> {
     match (wallet, key_file) {
         (None, Some(path)) => {
             let input: PrivateKeyInput = read_json(path, true)?;
@@ -562,13 +565,13 @@ fn read_bounded(path: &Path, private: bool) -> Result<Vec<u8>> {
     );
     Ok(bytes)
 }
-fn read_json<T: DeserializeOwned>(path: &Path, private: bool) -> Result<T> {
+pub(crate) fn read_json<T: DeserializeOwned>(path: &Path, private: bool) -> Result<T> {
     let bytes = read_bounded(path, private)?;
     // Do not include deserializer errors: malformed private fields may appear in them.
     serde_json::from_slice(&bytes)
         .map_err(|_| anyhow!("input file does not match the required JSON schema"))
 }
-fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
+pub(crate) fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
     ensure!(
         bytes.len() <= MAX_FILE_BYTES,
         "output exceeds the 1 MiB limit"
@@ -587,14 +590,14 @@ fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
     file.sync_all()?;
     Ok(())
 }
-fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
+pub(crate) fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     write_new(path, &serde_json::to_vec_pretty(value)?)
 }
-fn print_json(value: &impl Serialize) -> Result<()> {
+pub(crate) fn print_json(value: &impl Serialize) -> Result<()> {
     println!("{}", serde_json::to_string(value)?);
     Ok(())
 }
-fn decimal_u128(raw: &str) -> std::result::Result<u128, String> {
+pub(crate) fn decimal_u128(raw: &str) -> std::result::Result<u128, String> {
     if raw.is_empty()
         || !raw.bytes().all(|b| b.is_ascii_digit())
         || (raw.len() > 1 && raw.starts_with('0'))
@@ -603,10 +606,10 @@ fn decimal_u128(raw: &str) -> std::result::Result<u128, String> {
     }
     raw.parse().map_err(|_| "decimal value exceeds u128".into())
 }
-fn decimal_u64(raw: &str) -> std::result::Result<u64, String> {
+pub(crate) fn decimal_u64(raw: &str) -> std::result::Result<u64, String> {
     u64::try_from(decimal_u128(raw)?).map_err(|_| "decimal value exceeds u64".into())
 }
-fn canonical_id(raw: &str) -> Result<[u8; 32]> {
+pub(crate) fn canonical_id(raw: &str) -> Result<[u8; 32]> {
     ensure!(
         raw.len() == 64
             && raw

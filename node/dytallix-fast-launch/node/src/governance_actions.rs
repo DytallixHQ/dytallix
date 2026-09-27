@@ -21,40 +21,9 @@ use crate::{
 use bincode::Options;
 use dytallix_protocol_types::{ordinary_fees::FeeProfile, ordinary_fees_v3::FeeProfileV3};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
-/// The fee values governance may set (gas price, per-resource costs and the
-/// account creation fee). Every other profile field stays unchanged.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct FeeValues {
-    pub gas_price: u64,
-    pub transaction_overhead: u64,
-    pub receipt_metadata_cost: u64,
-    pub wire_byte_cost: u64,
-    pub read_byte_cost: u64,
-    pub write_byte_cost: u64,
-    pub action_costs: [u64; 12],
-    pub signature_costs: BTreeMap<String, u64>,
-    pub validator_proof_costs: BTreeMap<String, u64>,
-    pub governance_action_costs: [u64; 3],
-    pub account_creation_fee_udrt: u128,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ParameterChange {
-    Fees(FeeValues),
-    MinSelfBond(u128),
-    MaxActive(u64),
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RegistryChange {
-    /// Approve an operator: validator ID and its owner's native address.
-    Add { validator_id: String, owner: String },
-    /// Withdraw an approval that no retained validator record uses.
-    Remove { validator_id: String },
-}
+// One definition for clients and the chain; `encode` below is the chain's rule.
+pub use dytallix_protocol_types::governance_action::{FeeValues, ParameterChange, RegistryChange};
 
 fn options() -> impl Options {
     bincode::DefaultOptions::new()

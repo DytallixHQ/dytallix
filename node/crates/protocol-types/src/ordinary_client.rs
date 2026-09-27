@@ -2,7 +2,7 @@
 //! A committed context identifies the node's reported state. It is not a
 //! light-client proof or authenticated authority. Clients must check their own
 //! expected domain, profile and trusted context before signing.
-use crate::{ordinary_fees::FeeProfile, recovery::KeyIdentity};
+use crate::{ordinary_fees::FeeProfile, ordinary_fees_v3::FeeProfileV3, recovery::KeyIdentity};
 use serde::{Deserialize, Serialize};
 pub const CLIENT_VIEW_VERSION: u16 = 1;
 
@@ -43,6 +43,23 @@ pub struct ProfileView {
     pub context: CommittedContext,
     #[serde(deserialize_with = "required_option")]
     pub config: Option<PublicOrdinaryConfig>,
+}
+/// The committed governance (ordinary-v3) fee profile at `context`: the
+/// candidate's profile with executed governed changes, and the ID the next
+/// proposal must carry. A fee change due at the next height replaces the
+/// profile before that block's transactions, which refuses requests signed
+/// for the old one. Without a governance candidate `fee_profile` is null and
+/// `next_proposal_id` is zero (proposal IDs start at one).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GovernanceProfileView {
+    pub version: u16,
+    pub enabled: bool,
+    pub context: CommittedContext,
+    #[serde(deserialize_with = "required_option")]
+    pub fee_profile: Option<FeeProfileV3>,
+    #[serde(with = "decimal_u64")]
+    pub next_proposal_id: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

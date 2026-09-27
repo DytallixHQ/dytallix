@@ -131,7 +131,8 @@ impl TransactionBuilder {
         // amount and drop the payload (E04 gap 8, K3).
         if amount > 0 && !data.is_empty() {
             return Err(SdkError::TransactionRejected(
-                "a transaction carries either a token amount or a data payload, not both".to_owned(),
+                "a transaction carries either a token amount or a data payload, not both"
+                    .to_owned(),
             ));
         }
 

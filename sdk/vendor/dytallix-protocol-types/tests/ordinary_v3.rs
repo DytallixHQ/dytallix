@@ -259,7 +259,8 @@ fn independent_v3_vectors_match_the_codec() {
     let data: Value =
         serde_json::from_str(include_str!("fixtures/ordinary_v3_vectors.json")).unwrap();
     let l: v3::V3Limits = serde_json::from_value(data["limits"].clone()).unwrap();
-    let profile: FeeProfileV3 = serde_json::from_value(data["fee_profile"]["input"].clone()).unwrap();
+    let profile: FeeProfileV3 =
+        serde_json::from_value(data["fee_profile"]["input"].clone()).unwrap();
     assert_eq!(
         hex::encode(fees::profile_bytes(&profile).unwrap()),
         data["fee_profile"]["expected_profile_hex"]
@@ -278,14 +279,26 @@ fn independent_v3_vectors_match_the_codec() {
         assert_eq!(v3::encode(&value, &l).unwrap(), envelope);
         assert_eq!(v3::decode_body(&body, &l).unwrap(), value.body);
         assert_eq!(v3::decode(&envelope, &l).unwrap(), value);
-        assert_eq!(hex::encode(v3::transaction_id(&value.body, &l).unwrap()), vector["expected_transaction_id"]);
-        assert_eq!(hex::encode(v3::envelope_hash(&value, &l).unwrap()), vector["expected_envelope_hash"]);
-        assert_eq!(hex::encode(v3::key_id(&value.body.key).unwrap()), vector["expected_key_id"]);
+        assert_eq!(
+            hex::encode(v3::transaction_id(&value.body, &l).unwrap()),
+            vector["expected_transaction_id"]
+        );
+        assert_eq!(
+            hex::encode(v3::envelope_hash(&value, &l).unwrap()),
+            vector["expected_envelope_hash"]
+        );
+        assert_eq!(
+            hex::encode(v3::key_id(&value.body.key).unwrap()),
+            vector["expected_key_id"]
+        );
         assert_eq!(serde_json::to_value(&value).unwrap(), vector["input"]);
         // Each vector is a valid signed request for the vector profile.
         profile.validate_signed_request(&value.body, 30).unwrap();
-        if let [v3::Action::GovernanceProposal { action_class, action_data, .. }] =
-            value.body.actions.as_slice()
+        if let [v3::Action::GovernanceProposal {
+            action_class,
+            action_data,
+            ..
+        }] = value.body.actions.as_slice()
         {
             assert_eq!(
                 hex::encode(v3::governance_action_digest(*action_class, action_data).unwrap()),
