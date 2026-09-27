@@ -1827,8 +1827,9 @@ fn recovery_book(storage: &Storage, config: &ConsensusConfig) -> Result<Option<R
         (Some(initial), Some(current)) => {
             ensure!(
                 current.profile == initial.profile
-                    && current.accounts.keys().eq(initial.accounts.keys()),
-                "Recovery profile or account inventory differs"
+                    && current.accounts.keys().eq(initial.accounts.keys())
+                    && current.origins == initial.origins,
+                "Recovery profile, account inventory or origins differ"
             );
             for (id, account) in &current.accounts {
                 let origin = &initial.accounts[id];

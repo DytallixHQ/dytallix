@@ -9,7 +9,6 @@ fn config() -> OrdinaryConfig {
     OrdinaryConfig {
         version: 1,
         fee_profile: serde_json::from_value(vectors["profile"].clone()).unwrap(),
-        origins: BTreeMap::new(),
         initial_grants: BTreeMap::new(),
         max_state_bytes: 100000,
         max_grants: 1,

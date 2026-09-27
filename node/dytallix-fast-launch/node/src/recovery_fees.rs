@@ -24,6 +24,7 @@ const ACCOUNT_PREFIX: &str = "recovery:v2:account:";
 const RECEIPT_PREFIX: &str = "recovery:v2:receipt:";
 const OPERATION_PREFIX: &str = "recovery:v2:operation:";
 const EXPIRY_PREFIX: &str = "recovery:v2:expiry:";
+const ORIGIN_PREFIX: &str = "recovery:v2:origin:";
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -103,6 +104,11 @@ pub struct RecoveryBook {
     pub sponsor_receipts: BTreeMap<String, SponsorReceipt>,
     pub operation_success: BTreeMap<String, String>,
     pub expiry_index: BTreeMap<u64, BTreeSet<String>>,
+    /// Each account's immutable origin public key, from which its ID was
+    /// derived. Present under the combined ordinary profile; the ordinary
+    /// configuration checks that it covers every account and hashes to its ID.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub origins: BTreeMap<String, KeyIdentity>,
 }
 impl RecoveryBook {
     pub(crate) fn new(profile: FeeProfile, accounts: Vec<RecoveryAccount>) -> Result<Self> {
@@ -114,6 +120,7 @@ impl RecoveryBook {
             sponsor_receipts: BTreeMap::new(),
             operation_success: BTreeMap::new(),
             expiry_index: BTreeMap::new(),
+            origins: BTreeMap::new(),
         };
         for account in accounts {
             ensure!(
@@ -198,6 +205,10 @@ impl RecoveryBook {
                 );
             }
         }
+        ensure!(
+            self.origins.keys().all(|id| self.accounts.contains_key(id)),
+            "Recovery origin without account"
+        );
         let expected = self.expected_expiries()?;
         ensure!(
             expected == self.expiry_index,
@@ -448,6 +459,12 @@ impl RecoveryBook {
                 );
             }
         }
+        for (id, key) in &self.origins {
+            entries.insert(
+                format!("{ORIGIN_PREFIX}{id}").into_bytes(),
+                serde_json::to_vec(key)?,
+            );
+        }
         Ok(entries)
     }
     /// Writes and deletions that turn `committed`'s stored entries into this
@@ -489,6 +506,7 @@ impl RecoveryBook {
         }
         diff(RECEIPT_PREFIX, &self.sponsor_receipts, &committed.sponsor_receipts, &mut writes, &mut deletes)?;
         diff(OPERATION_PREFIX, &self.operation_success, &committed.operation_success, &mut writes, &mut deletes)?;
+        diff(ORIGIN_PREFIX, &self.origins, &committed.origins, &mut writes, &mut deletes)?;
         let expiry_keys = |book: &Self| -> BTreeSet<Vec<u8>> {
             book.expiry_index
                 .iter()
@@ -562,6 +580,7 @@ impl RecoveryBook {
         let mut sponsor_receipts = BTreeMap::new();
         let mut operation_success = BTreeMap::new();
         let mut expiry_index: BTreeMap<u64, BTreeSet<String>> = BTreeMap::new();
+        let mut origins = BTreeMap::new();
         let mut stored = BTreeMap::new();
         for item in storage
             .db
@@ -580,6 +599,8 @@ impl RecoveryBook {
                 sponsor_receipts.insert(id.to_owned(), canonical(&value, "receipt")?);
             } else if let Some(operation) = text.strip_prefix(OPERATION_PREFIX) {
                 operation_success.insert(operation.to_owned(), canonical(&value, "success index")?);
+            } else if let Some(id) = text.strip_prefix(ORIGIN_PREFIX) {
+                origins.insert(id.to_owned(), canonical(&value, "origin")?);
             } else if let Some(rest) = text.strip_prefix(EXPIRY_PREFIX) {
                 let (height, id) = rest.split_once(':').context("Invalid recovery expiry key")?;
                 let parsed: u64 = height.parse().context("Invalid recovery expiry height")?;
@@ -624,6 +645,7 @@ impl RecoveryBook {
             sponsor_receipts,
             operation_success,
             expiry_index,
+            origins,
         };
         let non_account = |entries: BTreeMap<Vec<u8>, Vec<u8>>| -> BTreeMap<Vec<u8>, Vec<u8>> {
             entries
@@ -679,7 +701,7 @@ pub(crate) struct BookCheckpoint {
     receipts: Vec<(String, Option<SponsorReceipt>)>,
     operations: Vec<(String, Option<String>)>,
     expiry_index: BTreeMap<u64, BTreeSet<String>>,
-    sizes: (usize, usize, usize),
+    sizes: (usize, usize, usize, usize),
     last_height: u64,
 }
 impl RecoveryBook {
@@ -703,7 +725,12 @@ impl RecoveryBook {
                 .map(|k| (k.clone(), self.operation_success.get(k).cloned()))
                 .collect(),
             expiry_index: self.expiry_index.clone(),
-            sizes: (self.accounts.len(), self.sponsor_receipts.len(), self.operation_success.len()),
+            sizes: (
+                self.accounts.len(),
+                self.sponsor_receipts.len(),
+                self.operation_success.len(),
+                self.origins.len(),
+            ),
             last_height: self.last_height,
         }
     }
@@ -721,8 +748,12 @@ impl RecoveryBook {
         restore(&mut self.operation_success, checkpoint.operations);
         self.expiry_index = checkpoint.expiry_index;
         ensure!(
-            (self.accounts.len(), self.sponsor_receipts.len(), self.operation_success.len())
-                == checkpoint.sizes
+            (
+                self.accounts.len(),
+                self.sponsor_receipts.len(),
+                self.operation_success.len(),
+                self.origins.len(),
+            ) == checkpoint.sizes
                 && self.last_height == checkpoint.last_height,
             "Recovery rollback does not restore the book"
         );

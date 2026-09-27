@@ -114,12 +114,11 @@ fn fixture_with_operational_keys() -> (Fixture, BTreeMap<&'static str, ClientKey
             .unwrap(),
         },
     );
+    book.origins.remove(&old_id).unwrap();
+    book.origins
+        .insert(hex::encode(actor65.id), actor65.identity());
     book.validate().unwrap();
     let ordinary = fixture.config.ordinary.as_mut().unwrap();
-    ordinary.origins.remove(&old_id).unwrap();
-    ordinary
-        .origins
-        .insert(hex::encode(actor65.id), actor65.identity());
     ordinary
         .fee_profile
         .limits

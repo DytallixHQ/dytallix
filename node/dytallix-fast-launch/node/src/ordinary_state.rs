@@ -32,7 +32,6 @@ const COMPONENT_HISTORY_BOUND: u32 = 65_536;
 pub struct OrdinaryConfig {
     pub version: u16,
     pub fee_profile: FeeProfile,
-    pub origins: BTreeMap<String, KeyIdentity>,
     pub(crate) initial_grants: Grants,
     pub max_state_bytes: u64,
     pub max_grants: u32,
@@ -134,12 +133,12 @@ impl OrdinaryConfig {
             &BTreeSet::from(["mldsa65".to_owned()]),
         )?;
         ensure!(
-            self.origins.len() == book.accounts.len(),
+            book.origins.len() == book.accounts.len(),
             "Explicit origin records must cover exactly the registered accounts"
         );
         let mut addresses = BTreeSet::new();
         for (id, account) in &book.accounts {
-            self.validate_account(lifecycle, id, account)?;
+            self.validate_account(lifecycle, book, id, account)?;
             addresses.insert(account.address.as_str());
         }
         for owner in lifecycle.approved_operators.values() {
@@ -166,6 +165,7 @@ impl OrdinaryConfig {
     fn validate_account(
         &self,
         lifecycle: &LifecycleConfig,
+        book: &RecoveryBook,
         id: &str,
         account: &RecoveryAccount,
     ) -> Result<()> {
@@ -190,7 +190,7 @@ impl OrdinaryConfig {
                 "Mainnet operational profile requires ML-DSA-65 exclusively"
             );
         }
-        let key = self
+        let key = book
             .origins
             .get(id)
             .context("Ordinary origin record missing")?;
@@ -368,7 +368,7 @@ impl OrdinaryState {
         for id in changed {
             let key = hex::encode(id);
             if let Some(account) = book.accounts.get(&key) {
-                self.config.validate_account(lifecycle, &key, account)?;
+                self.config.validate_account(lifecycle, book, &key, account)?;
             }
         }
         ordinary_authority::validate_nonce_mirrors_for(book, native_nonces, changed)?;
