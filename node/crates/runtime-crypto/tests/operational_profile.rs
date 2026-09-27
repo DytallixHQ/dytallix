@@ -22,20 +22,9 @@ fn operational_signatures_use_exact_identifier_sizes_and_message() {
     )
     .unwrap();
     assert!(!ActivePQC::verify(&public, b"changed message", &signature));
-    assert!(verify(
-        &public,
-        b"operational profile test",
-        &signature,
-        PQCAlgorithm::MlDsa87
-    )
-    .is_err());
-    assert!(verify(
-        &public,
-        b"operational profile test",
-        &signature,
-        PQCAlgorithm::Dilithium5
-    )
-    .is_err());
+    for label in ["mldsa87", "dilithium5"] {
+        assert!(label.parse::<PQCAlgorithm>().is_err());
+    }
 }
 
 

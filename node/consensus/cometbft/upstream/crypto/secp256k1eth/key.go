@@ -1,3 +1,5 @@
+//go:build !dytallix_pqc_only
+
 // Package secp256k1eth implements an Ethereum-compatible secp256k1 signature
 // scheme for use as a CometBFT validator key type.
 //

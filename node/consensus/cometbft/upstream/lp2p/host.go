@@ -1,3 +1,5 @@
+//go:build !dytallix_pqc_only
+
 // Package lp2p implements auxiliary functions for go-libp2p integration in CometBFT.
 // The name is chosen to avoid conflicts with the p2p package.
 package lp2p

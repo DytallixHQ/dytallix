@@ -219,9 +219,8 @@ impl Mempool {
     }
 
     pub fn with_config(config: MempoolConfig) -> Self {
-        // Use a policy that allows all PQC algorithms for testing/development
-        use dytallix_signature_policy::SignaturePolicy;
-        let policy_manager = PolicyManager::new(SignaturePolicy::allow_all_pqc());
+        // ML-DSA-65 only, matching the verifier.
+        let policy_manager = PolicyManager::default();
 
         Self {
             config,
@@ -729,9 +728,8 @@ fn verify_pqc_signature(tx: &Transaction, signature: &str, public_key: &str) -> 
 
     tracing::info!("Transaction hash: {}", hex::encode(&tx_hash));
 
-    // 5. Verify signature using new multi-algorithm verification
-    // For mempool transactions, we use the default algorithm (Dilithium5)
-    // as the Transaction struct doesn't include algorithm field
+    // 5. Verify the signature with the operational algorithm (ML-DSA-65);
+    // the Transaction struct has no algorithm field.
     match crate::crypto::pqc_verify::verify(
         &pk_bytes,
         &tx_hash,
@@ -837,8 +835,6 @@ impl Mempool {
     fn validate_signature_policy(&self, tx: &Transaction) -> Result<(), PolicyError> {
         if let Some(alg) = tx.signature_algorithm() {
             if self.policy_manager.policy().should_enforce_at_mempool() {
-                // All transactions currently use Dilithium5
-                // The algorithm is already in dytallix_pqc::SignatureAlgorithm format
                 self.policy_manager.validate_transaction_algorithm(&alg)?;
             }
         }

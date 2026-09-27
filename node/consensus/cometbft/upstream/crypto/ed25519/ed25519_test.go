@@ -1,3 +1,5 @@
+//go:build !dytallix_pqc_only
+
 package ed25519_test
 
 import (

@@ -1,0 +1,381 @@
+{
+  "enforcement": [
+    {
+      "check": "scripts/check_consensus_cargo_profile.py",
+      "scope": "Locked Rust graph of dytallix-fast-node (pqc-consensus): no classical, TLS, HTTP or legacy PQC crates; FIPS 204 limited to ML-DSA-65"
+    },
+    {
+      "check": "scripts/check_consensus_go_graph.py",
+      "scope": "PQC-only Go graphs of the engine, bridge and root verifier: no prohibited packages; classical fork packages unbuildable under the tags; no remote-signer sources"
+    },
+    {
+      "check": "go vet / go test / go build -tags dytallix_pqc_only,dytallix_pqc_ipc",
+      "scope": "The production Go build and its tests"
+    },
+    {
+      "check": "scripts/e01_inventory.py --check",
+      "scope": "Routed files match this inventory"
+    }
+  ],
+  "g35_accepted": false,
+  "production_activation_authorized": false,
+  "required_production_configuration": [
+    {
+      "path": "config/config.toml",
+      "production_value_status": "UNSET",
+      "required": "Explicit P2P IP endpoint, exact persistent peers, loopback RPC, Unix ABCI, no remote signer or TLS"
+    },
+    {
+      "path": "config/genesis.json",
+      "production_value_status": "UNSET",
+      "required": "Approved chain ID and ML-DSA-65 validator set"
+    },
+    {
+      "path": "config/pqc_transport.json",
+      "production_value_status": "UNSET",
+      "required": "Candidate profile, exact chain ID, local full public key, full peer-key and endpoint pins, bounded handshake timeout"
+    },
+    {
+      "path": "config/pqc_peer_seed.bin",
+      "production_value_status": "UNSET",
+      "required": "Owner-only ML-DSA-65 peer seed, separate from the validator key"
+    },
+    {
+      "path": "config/priv_validator_key.json",
+      "production_value_status": "UNSET",
+      "required": "Approved distinct ML-DSA-65 validator identity"
+    },
+    {
+      "path": "data/priv_validator_state.json",
+      "production_value_status": "UNSET",
+      "required": "Persisted validator signing state"
+    },
+    {
+      "path": "/etc/dytallix-pqc/<instance>.json",
+      "production_value_status": "UNSET",
+      "required": "Service manifest with pinned executable and configuration hashes"
+    }
+  ],
+  "routes": [
+    {
+      "algorithm": "ML-DSA-65 (FIPS 204)",
+      "files": [
+        {
+          "path": "crates/runtime-crypto/src/ordinary.rs",
+          "sha256": "5a2afc1deafbc2beed1d2b198b016d6c895744008069744d9a7011002403201c"
+        },
+        {
+          "path": "crates/protocol-types/src/ordinary.rs",
+          "sha256": "38e966bc399380a5ebdb0960031ad7b78c1d0eb7d0fcb965eea3948aec136ee3"
+        }
+      ],
+      "policy": "Verifier accepts exact mldsa65; the wire codec reserves ML-DSA-87 (code 2), which every verifier rejects",
+      "role": "ordinary_transaction"
+    },
+    {
+      "algorithm": "ML-DSA-65 (FIPS 204)",
+      "files": [
+        {
+          "path": "crates/runtime-crypto/src/recovery.rs",
+          "sha256": "1d9de45b871dab83dd6f5b9067c002d8a66a4f261bf407210692fe689c134279"
+        },
+        {
+          "path": "crates/runtime-crypto/src/recovery_sponsor.rs",
+          "sha256": "4079de8ada055a8f8fd5f8e5195e64fd5d9e8015498042d2250a3cf94ee38c0a"
+        },
+        {
+          "path": "crates/protocol-types/src/recovery_wire.rs",
+          "sha256": "b9b9fc31d79e3379747c780d4a65405197c351786c830993863dfde616dc44c9"
+        },
+        {
+          "path": "crates/protocol-types/src/recovery_sponsor.rs",
+          "sha256": "182b80b941b5cf7a24cfea762bab5d47099d8dbf6be2a3d15bba0c0780aef1f6"
+        }
+      ],
+      "policy": "Recovery and sponsor signatures; the wire codecs reserve ML-DSA-87, which the verifiers reject",
+      "role": "recovery_transaction"
+    },
+    {
+      "algorithm": "ML-DSA-65 (FIPS 204)",
+      "files": [
+        {
+          "path": "crates/runtime-crypto/src/ordinary_v3.rs",
+          "sha256": "e38eaac4813ecba87a5f538d53621d0b3fe2300c2a06700303e54c94524b1835"
+        }
+      ],
+      "policy": "Mainnet network requires mldsa65; not yet executed by consensus",
+      "role": "governance_v3_transaction"
+    },
+    {
+      "algorithm": "ML-DSA-65 (FIPS 204)",
+      "files": [
+        {
+          "path": "crates/runtime-crypto/src/lib.rs",
+          "sha256": "ef019bf721aa7018d6ca3a25242017afbbf7e9cfa225ba25b4944b7326f43f25"
+        },
+        {
+          "path": "crates/runtime-crypto/src/pqc_verify.rs",
+          "sha256": "b468ebc17a5fcb49ad870832a58b5fbb7f91ce24f1effdd1af91db038ce49225"
+        },
+        {
+          "path": "crates/runtime-crypto/src/dilithium_fips204.rs",
+          "sha256": "052aca92633925314704c76bc0a2e96a99711992be5f141205eea4054c73bd48"
+        },
+        {
+          "path": "crates/protocol-types/src/signature_algorithm.rs",
+          "sha256": "eeb1092582156abc4918b9ac7f2338f37878e36588765ffff801f105667ab43f"
+        },
+        {
+          "path": "crates/signature-policy/src/lib.rs",
+          "sha256": "a9619caba95ec041635be422035c361206047f9150d23950ca6f86dde42e9277"
+        },
+        {
+          "path": "crates/storage/src/tx.rs",
+          "sha256": "8c4474131d31d0e29d42027fac308d437d183fe3dbd09ce3e5b095081d1f23b5"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/signed_transaction.rs",
+          "sha256": "e66eeb7004a7ac4a42aa5a77ad641d6ffe31907977b6a577909ee25ec6934d2d"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/types/tx.rs",
+          "sha256": "27933b90067a00244ba2269ab84e8ecd169bab53ab258b7eb0811afa9462290a"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/mempool/mod.rs",
+          "sha256": "882b11cbaa3a5755e0ceb0ae5064fdb05f0fc3664374bd035192a4b86ee882e5"
+        }
+      ],
+      "policy": "Only mldsa65 is representable in the verifier and signature policy; the path is disabled whenever the recovery profile is configured, which mainnet requires",
+      "role": "legacy_signed_transaction"
+    },
+    {
+      "algorithm": "SHA3-256 over the origin public key (no signature)",
+      "files": [
+        {
+          "path": "crates/protocol-types/src/address.rs",
+          "sha256": "215409ad82d86db24eabc74a4b79c5ffc29ebb4eebfe677b170051b698565ad6"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/ordinary_state.rs",
+          "sha256": "da8256326e8c2775e50a093b372e1e5787566c752d861aa6a303147aa6f8d20c"
+        }
+      ],
+      "policy": "Origin codes name ML-DSA-65, ML-DSA-87 and legacy Dilithium5 for address derivation only; they select no permitted algorithm. Mainnet accounts require ML-DSA-65 exclusively",
+      "role": "account_address_derivation"
+    },
+    {
+      "algorithm": "ML-DSA-65 (FIPS 204)",
+      "files": [
+        {
+          "path": "dytallix-fast-launch/node/src/ordinary_validator.rs",
+          "sha256": "10f62f05feafc8aa989e9f2d2a0a998c085652a9461c02bdb1923a19324cdc0a"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",
+          "sha256": "7f8959264154ed9bedcb3797e69761484121f27a141d3684c3b1d931bcf544da"
+        }
+      ],
+      "policy": "Proof of possession for registered and rotated consensus keys",
+      "role": "validator_key_proof"
+    },
+    {
+      "algorithm": "ML-DSA-65 (Comet ml_dsa_65)",
+      "files": [
+        {
+          "path": "consensus/cometbft/internal/enginepqc/engine.go",
+          "sha256": "32c89ff738c1a1b1ce5194b2250c5d26d3850652aa7f06ee39d67b6f80e45d00"
+        },
+        {
+          "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
+          "sha256": "f2bb490f68ea54ca34bf78de363a6f6b3be316ab1c5d005091452ed1e7a79103"
+        },
+        {
+          "path": "consensus/cometbft/upstream/privval/file.go",
+          "sha256": "898d3e85bfe7ce63dfe0f51409dd9255f6f5edcdf88474f7568eba68933d9b65"
+        },
+        {
+          "path": "consensus/cometbft/upstream/node/privval_socket_pqc.go",
+          "sha256": "2a2978d170986f5e074bf60ad046e052e00195ddd1a12626302a081f6069e926"
+        }
+      ],
+      "policy": "Genesis and local validator keys must be ml_dsa_65; the validator key and state load from checked bytes; remote signing is not compiled into PQC-only builds",
+      "role": "consensus_validator_signature"
+    },
+    {
+      "algorithm": "ML-KEM-768 + ML-DSA-65",
+      "files": [
+        {
+          "path": "consensus/cometbft/internal/pqcp2p/establishment.go",
+          "sha256": "ef82f834256746618140b6f6967408418b13a5a593e33aabeb48bfec0a465a3d"
+        },
+        {
+          "path": "consensus/cometbft/internal/pqcp2p/connection.go",
+          "sha256": "580716d9661dafffabf45ee8a26ea44292ae652994681cc7c61bd4f33434c7b2"
+        },
+        {
+          "path": "consensus/cometbft/internal/pqcp2p/identity.go",
+          "sha256": "bf31f1f86fe823fdf1e4b1ef4a4cba7e014489cf24d9a7b34894176c9252ffb7"
+        },
+        {
+          "path": "consensus/cometbft/internal/pqcp2p/seed_identity.go",
+          "sha256": "40415e91039a74abf5eccfbd044e324f1b7169ef2568352e4e473cd54e094d06"
+        },
+        {
+          "path": "consensus/cometbft/internal/enginepqc/seed_key.go",
+          "sha256": "3e6ec0e29b874c3b0d8364e19666ef52fe1f20bc4528b6a6911b1d61216bb643"
+        }
+      ],
+      "policy": "Authenticated pinned peers; no classical or plaintext fallback",
+      "role": "peer_key_establishment_and_identity"
+    },
+    {
+      "algorithm": "Full ML-DSA-65 peer-key pins",
+      "files": [
+        {
+          "path": "consensus/cometbft/internal/enginepqc/engine.go",
+          "sha256": "32c89ff738c1a1b1ce5194b2250c5d26d3850652aa7f06ee39d67b6f80e45d00"
+        },
+        {
+          "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",
+          "sha256": "3911f01507c0148d0157dba314197dcf8ec1bfcc00d56d9699554b7b32fad210"
+        },
+        {
+          "path": "consensus/cometbft/internal/enginepqc/remote_address.go",
+          "sha256": "09211c297e9b615a75ddba3190ecc17736db2648b3d163e2c7bb161464a570f4"
+        },
+        {
+          "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
+          "sha256": "4796e50e35ad7d1c24ea9e29499066e911389f2b073802cffc8d73213377fe67"
+        }
+      ],
+      "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
+      "role": "peer_admission_and_startup"
+    },
+    {
+      "algorithm": "SLH-DSA-SHAKE-256s",
+      "files": [
+        {
+          "path": "consensus/root-authorization/authorization.go",
+          "sha256": "6f250142b8ce4680df630962dc72d73d9f1483b482dcc4e1768f0a3bb5dcbf26"
+        },
+        {
+          "path": "consensus/root-authorization/key_validation.go",
+          "sha256": "ce8403398014deecc825e43a4fc3e6d18f313f69bcaea364e5104c067275bacd"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/emergency_verifier.rs",
+          "sha256": "c5eed2d2be4f9312179ea44dc6fecd151cb80af6dbff8fe9e7a34161a866eb26"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs",
+          "sha256": "57bf05eda1f4676ceabc6b8b58e71e513970feb340a99d62ab75d6d1dafe31eb"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/release_handover.rs",
+          "sha256": "8e69c10328c88271e8502d15326ed56cf09a98d2cf3344183d99a02c2d85590f"
+        }
+      ],
+      "policy": "Emergency, upgrade and handover controls verify through the pinned local root-verify helper",
+      "role": "root_authorization"
+    },
+    {
+      "algorithm": "None (inherited owner channel, SHA-512 artifact check)",
+      "files": [
+        {
+          "path": "consensus/owner-guard/protocol.go",
+          "sha256": "d6c334d69c0abb1728f05852204e975268563c0b08819a21a6d0635613cf67b0"
+        },
+        {
+          "path": "consensus/owner-guard/guard_linux.go",
+          "sha256": "09e75cde80c41a003ba469aa5d793c698a9d66252fb0cc9a976256fb4e384b72"
+        }
+      ],
+      "policy": "No asymmetric helper signature",
+      "role": "helper_startup_admission"
+    },
+    {
+      "algorithm": "None (source-pinned executable hashes)",
+      "files": [
+        {
+          "path": "crates/native-supervisor/src/processes.rs",
+          "sha256": "64893c78d591ef9d5b0566f1a632ab37d3c1c0f08c02b591b8c203b65955d954"
+        },
+        {
+          "path": "crates/native-supervisor/src/config.rs",
+          "sha256": "40dd35ab6e6405ead6eb2f237c5aff2c4e48d880828faba3d3f82fc5993f5491"
+        },
+        {
+          "path": "crates/release-runtime/src/ownership_security.rs",
+          "sha256": "875eeabcb4fd162c01e8f763c25b4d59c4495eddfefbc98516166b035aa34e63"
+        }
+      ],
+      "policy": "Owner process checks; the supervisor requires ML-DSA-65 validator key records",
+      "role": "service_artifact_authorization"
+    },
+    {
+      "algorithm": "None (local transport)",
+      "files": [
+        {
+          "path": "consensus/cometbft/cmd/dytallix-comet-bridge/application.go",
+          "sha256": "0bc6fb54cac8005b21669c56872edd7a16ba5eebcc1e4db99e12f384c360755f"
+        },
+        {
+          "path": "consensus/pqc-http-adapter/src/main.rs",
+          "sha256": "551f4bf98ce767b911e1d82dcade5c5372e8fbf911a7cffd8842de174fd60297"
+        },
+        {
+          "path": "deploy/pqc-engine/supervise.py",
+          "sha256": "e386e21c7716c8c14f3b108360e3d0ea30f376a91f7bc89dbed3da08946ba1a1"
+        }
+      ],
+      "policy": "Unix ABCI and IPC RPC under dytallix_pqc_ipc; HTTP/1 loopback adapter; no TLS",
+      "role": "rpc_and_application_boundary"
+    }
+  ],
+  "schema": "dytallix-e01-crypto-source-inventory-v2",
+  "source_exceptions_and_limits": [
+    "The selected Go graphs contain the standard library's crypto/internal/boring and crypto/internal/boring/sig. With CGO disabled these are disabled stubs and no-op markers; classifying them in the compiled executable belongs to T01.",
+    "Package and symbol rules cannot detect every renamed or unknown algorithm. A clean inventory alone does not establish PQC compliance.",
+    "The upstream Comet fork retains its classical packages for the default development build. Under dytallix_pqc_only they have no buildable files; they are not deleted.",
+    "The production startup flag remains fail-closed. The candidate transport runs only with an explicit staging flag and a reserved staging chain identity.",
+    "The ML-KEM-768 + ML-DSA-65 peer protocol still requires independent protocol review (P02).",
+    "Production chain identity, addresses, keys, custody, the release commit, the full distribution inventory and independent review are not frozen (E05, E06, P01, P02)."
+  ],
+  "source_root": "mainnet/node",
+  "status": "SOURCE_ROUTES_MAPPED_WITH_OPEN_PRODUCTION_BOUNDARY",
+  "tooling": [
+    {
+      "path": "dytallix-fast-launch/node/src/bin/pqc_signer.rs",
+      "sha256": "7b58702a4d9ea7580a83353ac574334dd069f9332922aa06a8772d0419831c35"
+    },
+    {
+      "path": "dytallix-fast-launch/node/src/bin/lifecycle_fixture.rs",
+      "sha256": "16a8ea9e1f23ecf8d438b5c573b28a114d6b6e0965fb0d6a25f9d5fbaeca56d3"
+    },
+    {
+      "path": "consensus/cometbft/cmd/dytallix-comet-fixture/main.go",
+      "sha256": "6155618a9145414ebaa078507e987830dad9dade41534644186600a64d95dd3b"
+    },
+    {
+      "path": "consensus/cometbft/cmd/dytallix-comet-fixture/pqc_engine_fixture.go",
+      "sha256": "a3510947d1d3a71557876d8418c42c9cbc34b902eb04f2f9bab626da73369e29"
+    },
+    {
+      "path": "consensus/cometbft/cmd/dytallix-comet-proof/main.go",
+      "sha256": "278b036fa22578a3f415a9b1f0e2687f3c44325568528af70f0c3c6b97725ac3"
+    },
+    {
+      "path": "consensus/cometbft/cmd/dytallix-comet-verify/main.go",
+      "sha256": "b14b8e7f82c367d200b0187c17064f9105cc616f2c5bcdd5ba07a6db4a747f69"
+    },
+    {
+      "path": "consensus/cometbft/cmd/dytallix-comet-verify/dynamic.go",
+      "sha256": "617eb20e727d18e327b685bba16c433fdd9a34dba344484e96a8a0be735a07ff"
+    },
+    {
+      "path": "consensus/cometbft/cmd/dytallix-pqc-peer-probe/main.go",
+      "sha256": "453276676eae5cd7a0be650a6365b4f29d2c3a1eade460fb7f44de0c70a7aef9"
+    }
+  ]
+}

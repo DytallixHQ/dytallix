@@ -1,4 +1,4 @@
-//go:build !bls12381
+//go:build !bls12381 && !dytallix_pqc_only
 
 package bls12381
 

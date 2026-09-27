@@ -246,12 +246,11 @@ impl Transaction {
         }
     }
 
-    /// Extract the signature algorithm from the transaction
-    /// For now, we assume all transactions use Dilithium5 as the default
-    /// In a full implementation, this would be stored in the transaction metadata
+    /// Signature algorithm of a signed transaction. Signatures are verified as
+    /// ML-DSA-65, the only approved algorithm; the format has no algorithm field.
     pub fn signature_algorithm(&self) -> Option<SignatureAlgorithm> {
         if self.signature.is_some() {
-            Some(SignatureAlgorithm::Dilithium5)
+            Some(SignatureAlgorithm::MlDsa65)
         } else {
             None
         }

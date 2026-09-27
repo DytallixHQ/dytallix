@@ -347,9 +347,6 @@ fn validate_origin_authorization(
     }
     let algorithm = match PQCAlgorithm::from_str(&signed.algorithm)? {
         PQCAlgorithm::MlDsa65 => OriginKeyAlgorithm::MlDsa65,
-        PQCAlgorithm::MlDsa87 => OriginKeyAlgorithm::MlDsa87,
-        PQCAlgorithm::Dilithium5 => OriginKeyAlgorithm::LegacyDilithium5,
-        _ => anyhow::bail!("Reward signer algorithm has no origin address mapping"),
     };
     if signed.tx.msgs.iter().any(|message| {
         matches!(
