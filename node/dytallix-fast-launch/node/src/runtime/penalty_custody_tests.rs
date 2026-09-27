@@ -116,8 +116,8 @@ fn fact(lifecycle: &LifecycleState, height: u64) -> EvidenceFact {
         height,
         time_seconds: height * 10,
         time_nanos: 0,
-        power: sum(view.positions.values().filter_map(|p| p.get("a")).copied()).unwrap() as i64,
-        total_power: sum(view.positions.values().flat_map(|p| p.values()).copied()).unwrap() as i64,
+        power: view.powers["a"] as i64,
+        total_power: sum(view.powers.values().copied()).unwrap() as i64,
     }
 }
 fn assess(
@@ -363,4 +363,204 @@ fn admission_reserves_bytes_for_future_penalty_receipt_growth() {
     let current = bincode::serialized_size(&state).unwrap();
     assert!(state.validate_capacity(current + 7).is_err());
     assert!(state.validate_capacity(current + 8).is_ok());
+}
+
+#[test]
+fn pruning_a_penalized_release_keeps_the_reserve_and_custody_balance() {
+    let (mut state, mut lifecycle, mut rewards) = fixture();
+    step(&mut state, &mut lifecycle, &mut rewards, 1);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    step(&mut state, &mut lifecycle, &mut rewards, 2);
+    let evidence = fact(&lifecycle, 1);
+    assess(&mut state, &mut lifecycle, &evidence);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    let mut height = 3;
+    let mut withdrawn = None;
+    while withdrawn.is_none() && height < 40 {
+        step(&mut state, &mut lifecycle, &mut rewards, height);
+        state.finalize_evidence_batch(&lifecycle).unwrap();
+        if let Some(entry) = lifecycle.unbonding.values().find(|e| e.owner == "alice") {
+            let id = entry.id.clone();
+            let (parent, seconds) = (state.last_height - 1, state.parent_time.0);
+            if state.withdraw("alice", &id, parent, seconds, &lifecycle).is_ok() {
+                withdrawn = Some(id);
+            }
+        }
+        height += 1;
+    }
+    let id = withdrawn.expect("alice's exit matures");
+    let reserve = state.penalty_reserve().unwrap();
+    let released = state.released_total().unwrap();
+    assert!(reserve > 0 && released > 0);
+
+    let ids = state.prune_released().unwrap();
+    assert_eq!(ids, vec![id]);
+    lifecycle.remove_released(&ids, &mut rewards).unwrap();
+    state.validate(&lifecycle).unwrap();
+    assert!(state.tranches.values().all(|t| t.unbond_id.is_none()));
+    assert_eq!((state.pruned_deducted, state.pruned_released), (reserve, released));
+    assert_eq!(
+        (state.penalty_reserve().unwrap(), state.released_total().unwrap()),
+        (reserve, released)
+    );
+    // Gross custody equals net plus the deductions and releases it still holds.
+    assert_eq!(
+        state.net_unbonding_total(&lifecycle).unwrap()
+            + state.live_deducted().unwrap()
+            + state.live_released().unwrap(),
+        rewards.total_unbonding().unwrap()
+    );
+    // The settled incident still names the removed tranche and stays valid.
+    assert!(state.incidents.values().any(|i| !i.allocations.is_empty()));
+    assert_eq!(
+        PenaltyState::decode(&state.encode().unwrap()).unwrap(),
+        state
+    );
+}
+
+/// A block start as `block_lifecycle` runs it: lifecycle advance, penalty
+/// sync and block start, then removal of released unbonds and of records
+/// past the evidence horizon.
+fn block_start(
+    state: &mut PenaltyState,
+    lifecycle: &mut LifecycleState,
+    rewards: &mut RewardState,
+    height: u64,
+) {
+    step(state, lifecycle, rewards, height);
+    let released = state.prune_released().unwrap();
+    lifecycle.remove_released(&released, rewards).unwrap();
+    let parent_time = (height - 1) * 10;
+    state.prune_incidents(lifecycle, height - 1, parent_time).unwrap();
+    lifecycle.prune_history(height - 1, parent_time).unwrap();
+    state.consolidate(lifecycle.history.base_height).unwrap();
+    state.validate(lifecycle).unwrap();
+}
+
+/// `rounds` blocks, each bonding two, unbonding one and withdrawing every
+/// matured unbond, so every activation changes power. Retained records must
+/// stay bounded by the evidence horizon, and custody must be conserved.
+fn churn_stays_bounded(rounds: u64) {
+    let (mut state, mut lifecycle, mut rewards) = fixture();
+    block_start(&mut state, &mut lifecycle, &mut rewards, 1);
+    let (mut withdrawn, mut released, mut peak) = (0u64, 0u128, 0usize);
+    for height in 2..=rounds + 12 {
+        block_start(&mut state, &mut lifecycle, &mut rewards, height);
+        state.finalize_evidence_batch(&lifecycle).unwrap();
+        let ids: Vec<String> = lifecycle.unbonding.keys().cloned().collect();
+        for id in ids {
+            let parent_time = state.parent_time.0;
+            if let Ok(amount) = state.withdraw("alice", &id, height - 1, parent_time, &lifecycle) {
+                withdrawn += 1;
+                released += amount;
+            }
+        }
+        if height <= rounds + 1 {
+            // Bond two and unbond one: every activation changes power.
+            operation(
+                &mut state,
+                &mut lifecycle,
+                Operation::Bond {
+                    validator: "a".into(),
+                    amount: 2,
+                },
+            );
+            operation(
+                &mut state,
+                &mut lifecycle,
+                Operation::Unbond {
+                    validator: "a".into(),
+                    amount: 1,
+                },
+            );
+        }
+        peak = peak.max(
+            lifecycle.history.changes.len()
+                + lifecycle.unbonding.len()
+                + state.tranches.len()
+                + state.releases.len(),
+        );
+    }
+    assert!(lifecycle.next_unbond_id >= rounds && state.next_tranche_id >= rounds);
+    assert_eq!(withdrawn, rounds);
+    assert!(peak < 64, "retained records grew to {peak}");
+    // Principal is conserved: alice keeps her original stake plus one per
+    // round, and every unbonded unit was released.
+    assert_eq!(lifecycle.effective.positions["alice"]["a"], 100 + u128::from(rounds));
+    assert_eq!(state.released_total().unwrap(), released);
+    assert_eq!(released, u128::from(rounds));
+    assert_eq!(
+        state.net_unbonding_total(&lifecycle).unwrap()
+            + state.live_deducted().unwrap()
+            + state.live_released().unwrap(),
+        rewards.total_unbonding().unwrap()
+    );
+    assert_eq!(
+        PenaltyState::decode(&state.encode().unwrap()).unwrap(),
+        state
+    );
+    assert_eq!(
+        LifecycleState::decode(&lifecycle.encode().unwrap()).unwrap(),
+        lifecycle
+    );
+}
+
+#[test]
+fn churn_of_hundreds_of_bonds_unbonds_and_withdrawals_stays_bounded() {
+    churn_stays_bounded(300);
+}
+/// Past every former lifetime cap of 10,000. About 20 minutes in a debug
+/// build: `cargo test --release -- --ignored ten_thousand`.
+#[test]
+#[ignore = "long: run in release with --ignored"]
+fn ten_thousand_bonds_unbonds_withdrawals_and_set_changes_stay_bounded() {
+    churn_stays_bounded(10_001);
+}
+
+#[test]
+fn expired_later_faults_are_pruned_and_first_fault_stays_while_its_deduction_is_held() {
+    let (mut state, mut lifecycle, mut rewards) = fixture();
+    block_start(&mut state, &mut lifecycle, &mut rewards, 1);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    block_start(&mut state, &mut lifecycle, &mut rewards, 2);
+    let first = fact(&lifecycle, 1);
+    assert!(assess(&mut state, &mut lifecycle, &first).first_fault);
+    let later = EvidenceFact {
+        height: 2,
+        time_seconds: 20,
+        ..fact(&lifecycle, 2)
+    };
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    block_start(&mut state, &mut lifecycle, &mut rewards, 3);
+    assert!(!assess(&mut state, &mut lifecycle, &later).first_fault);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    assert_eq!(state.incidents.len(), 2);
+    let mut height = 4;
+    while state.incidents.len() > 1 && height < 40 {
+        block_start(&mut state, &mut lifecycle, &mut rewards, height);
+        state.finalize_evidence_batch(&lifecycle).unwrap();
+        height += 1;
+    }
+    // The later fault expired and went; the first fault's deduction still
+    // sits in alice's held tranche, so its incident stays.
+    assert_eq!(state.incidents.len(), 1);
+    assert!(state.incidents.values().all(|i| i.first_fault));
+    // After alice withdraws, the tranche and then the incident go; the
+    // first-fault marker stays, so the validator remains barred.
+    let id = lifecycle.unbonding.keys().next().unwrap().clone();
+    while state
+        .withdraw("alice", &id, state.last_height - 1, state.parent_time.0, &lifecycle)
+        .is_err()
+    {
+        block_start(&mut state, &mut lifecycle, &mut rewards, height);
+        state.finalize_evidence_batch(&lifecycle).unwrap();
+        height += 1;
+        assert!(height < 80);
+    }
+    block_start(&mut state, &mut lifecycle, &mut rewards, height);
+    assert!(state.incidents.is_empty());
+    // The offence heights' history is gone too; only the marker survives.
+    assert!(lifecycle.history.base_height > 1);
+    assert!(state.ensure_validator_allowed("a").is_err());
+    assert!(state.penalty_reserve().unwrap() > 0);
 }

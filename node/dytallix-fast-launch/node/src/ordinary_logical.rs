@@ -13,7 +13,7 @@ use crate::{
         reward_runtime::{RewardState, REWARD_STATE_KEY},
         validator_lifecycle::{
             self, LifecycleConfig, LifecycleState, PendingBond, ScheduledChange, UnbondEntry,
-            ValidatorUpdate, ValidatorView,
+            ValidatorHistory, ValidatorUpdate, ValidatorView,
         },
     },
     state::AccountState,
@@ -135,6 +135,7 @@ pub(crate) fn lifecycle(state: &LifecycleState, max: u32) -> Result<LogicalRecor
             .collect(),
         history: &state.history,
         update_history: &state.update_history,
+        used_addresses: &state.used_addresses,
         last_height: state.last_height,
         max_positions: state.max_positions,
         next_unbond_id: state.next_unbond_id,
@@ -244,12 +245,13 @@ struct LifecycleLogical<'a> {
     effective: &'a ValidatorView,
     schedules: BTreeMap<&'a u64, ScheduleLogical<'a>>,
     unbonding: BTreeMap<&'a str, UnbondLogical<'a>>,
-    history: &'a BTreeMap<u64, ValidatorView>,
+    history: &'a ValidatorHistory,
     update_history: &'a BTreeMap<u64, Vec<ValidatorUpdate>>,
     last_height: u64,
     max_positions: usize,
     next_unbond_id: u64,
     reserved_owners: &'a BTreeSet<String>,
+    used_addresses: &'a BTreeSet<String>,
 }
 
 #[cfg(test)]

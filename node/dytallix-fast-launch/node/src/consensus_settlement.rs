@@ -1382,11 +1382,15 @@ fn check_reward_validators(storage: &Storage, config: &ConsensusConfig) -> Resul
             (None, None) => {}
             _ => anyhow::bail!("Penalty state and consensus profile differ"),
         }
-        ensure!(
-            validator_tuple_map(&lifecycle.historical_validator_set(1)?)
-                == configured_validator_map(config),
-            "Lifecycle genesis validator set differs"
-        );
+        // While genesis history is retained, it must equal the configured
+        // set; afterwards the complete check folds from the configured set.
+        if lifecycle.history.base_height == 1 {
+            ensure!(
+                validator_tuple_map(&lifecycle.historical_validator_set(1)?)
+                    == configured_validator_map(config),
+                "Lifecycle genesis validator set differs"
+            );
+        }
         ensure!(
             reward.config.chain_id == config.chain_id
                 && timing(storage)?.chain_id == config.chain_id,
@@ -2003,8 +2007,10 @@ fn validate_ordinary_principals(
             Ok(())
         };
         view(&lifecycle.effective)?;
-        for history in lifecycle.history.values() {
-            view(history)?;
+        // History keeps identities only; its owners' positions were checked
+        // while they were effective or scheduled.
+        for identity in lifecycle.history.identities() {
+            owner(&identity.owner)?;
         }
         for schedule in lifecycle.schedules.values() {
             view(&schedule.view)?;
@@ -2311,6 +2317,18 @@ fn evidence_times(
     height: u64,
     facts: &[EvidenceFact],
 ) -> Result<Vec<(u64, i32)>> {
+    evidence_times_with(storage, config, height, facts, None)
+}
+/// `evidence_times` with the validator set at each offence height from
+/// `set_at` instead of the committed lifecycle history. The complete check
+/// replays old blocks whose offence heights the lifecycle no longer keeps.
+fn evidence_times_with(
+    storage: &Storage,
+    config: &ConsensusConfig,
+    height: u64,
+    facts: &[EvidenceFact],
+    set_at: Option<&dyn Fn(u64) -> Result<Vec<ValidatorUpdate>>>,
+) -> Result<Vec<(u64, i32)>> {
     ensure!(
         facts.len() <= 64 && (config.penalty.is_some() || facts.is_empty()),
         "Unsupported evidence batch"
@@ -2371,7 +2389,10 @@ fn evidence_times(
             !(block_expired && parent_time > time_limit),
             "Evidence expired before the committed parent"
         );
-        let set = lifecycle.historical_validator_set(fact.height)?;
+        let set = match set_at {
+            Some(set_at) => set_at(fact.height)?,
+            None => lifecycle.historical_validator_set(fact.height)?,
+        };
         let mut total = 0i64;
         let mut found = None;
         for validator in set {
@@ -5412,12 +5433,44 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         } else {
             None
         };
+        // Validator sets folded from committed updates (state model step 4):
+        // the set in effect at h + 1, and in the complete check each change
+        // point still inside the evidence horizon, for old blocks' evidence.
+        let mut next_set = match &lifecycle {
+            Some(_) if start == 1 => Some(configured_validator_map(&config)),
+            Some(lifecycle) => Some(validator_tuple_map(
+                &lifecycle.validator_set(start.checked_add(1).context("Height exhausted")?)?,
+            )),
+            None => None,
+        };
+        let mut folded: BTreeMap<u64, BTreeMap<(String, String), i64>> = BTreeMap::new();
+        if let (Some(set), true) = (&next_set, start == 1) {
+            folded.insert(1, set.clone());
+        }
         for h in start..=height {
             let key = record_key(h);
             known.insert(key.as_bytes().to_vec());
             let record = history.block(h)?;
             input_limits(&config, &record.input)?;
-            evidence_times(storage, &config, h, &record.input.misbehavior)?;
+            if from.is_none() && lifecycle.is_some() {
+                let set_at = |offence: u64| -> Result<Vec<ValidatorUpdate>> {
+                    let (_, set) = folded
+                        .range(..=offence)
+                        .next_back()
+                        .context("Evidence height outside folded validator history")?;
+                    Ok(set
+                        .iter()
+                        .map(|((pubkey_type, pubkey_base64), power)| ValidatorUpdate {
+                            pubkey_type: pubkey_type.clone(),
+                            pubkey_base64: pubkey_base64.clone(),
+                            power: *power,
+                        })
+                        .collect())
+                };
+                evidence_times_with(storage, &config, h, &record.input.misbehavior, Some(&set_at))?;
+            } else {
+                evidence_times(storage, &config, h, &record.input.misbehavior)?;
+            }
             for fact in &record.input.misbehavior {
                 // ABCI omits vote rounds and full evidence hashes. Different
                 // engine evidence can therefore produce the same fact.
@@ -5447,13 +5500,16 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                 "Consensus input or result commitment differs"
             );
             if let Some(lifecycle) = &lifecycle {
-                ensure!(
-                    record.result.validator_updates == lifecycle.historical_validator_updates(h)?,
-                    "Committed validator updates differ from lifecycle history"
-                );
-                let mut projected = validator_tuple_map(
-                    &lifecycle.validator_set(h.checked_add(1).context("Height exhausted")?)?,
-                );
+                // The lifecycle keeps the last two heights' updates; older
+                // ones are checked by the fold below.
+                if h.saturating_add(1) >= lifecycle.last_height {
+                    ensure!(
+                        record.result.validator_updates
+                            == lifecycle.historical_validator_updates(h)?,
+                        "Committed validator updates differ from lifecycle history"
+                    );
+                }
+                let mut projected = next_set.clone().context("Folded validator set missing")?;
                 for update in &record.result.validator_updates {
                     let key = (update.pubkey_type.clone(), update.pubkey_base64.clone());
                     if update.power == 0 {
@@ -5466,14 +5522,39 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                         projected.insert(key, update.power);
                     }
                 }
-                ensure!(
-                    projected
-                        == validator_tuple_map(
-                            &lifecycle
-                                .validator_set(h.checked_add(2).context("Height exhausted")?)?
-                        ),
-                    "Validator update activation height differs"
-                );
+                let target = h.checked_add(2).context("Height exhausted")?;
+                if target >= lifecycle.history.base_height {
+                    ensure!(
+                        projected == validator_tuple_map(&lifecycle.validator_set(target)?),
+                        "Validator update activation height differs"
+                    );
+                }
+                if from.is_none() {
+                    if next_set.as_ref() != Some(&projected) {
+                        folded.insert(target, projected.clone());
+                    }
+                    // Drop a folded set once evidence can no longer name a
+                    // height it covered (the set ends where the next begins).
+                    let time = |x: u64| -> Result<u64> {
+                        Ok(u64::try_from(history.block(x)?.input.time_seconds)?)
+                    };
+                    let (parent_height, parent_time) = (h, time(h)?);
+                    while let Some(next_start) = folded.keys().nth(1).copied() {
+                        let end = next_start - 1;
+                        if end > parent_height
+                            || !lifecycle.config.past_horizon(
+                                end,
+                                time(end)?,
+                                parent_height,
+                                parent_time,
+                            )
+                        {
+                            break;
+                        }
+                        folded.pop_first();
+                    }
+                }
+                next_set = Some(projected);
             }
             valid_hash(&record.head.state_digest)?;
             valid_hash(&anchor.prior_app_hash)?;

@@ -222,7 +222,7 @@ fn governance_electorate_uses_registered_stable_account_ids() {
     state.effective.positions.insert(owner.clone(), positions);
     state.reserved_owners.remove("alice");
     state.reserved_owners.insert(owner.clone());
-    state.history.insert(1, state.effective.clone());
+    state.history = ValidatorHistory::new(HistoricalSet::of(&state.effective).unwrap());
     state.validate().unwrap();
 
     let profile = FeeProfile {
@@ -473,7 +473,7 @@ fn rotation_updates_are_atomic_and_retain_history() {
     assert_eq!(updates[0].power, 125);
     step(&mut state, &mut rewards, 3);
     step(&mut state, &mut rewards, 4);
-    assert_eq!(state.history[&1].validators["a"].pubkey_base64, old);
+    assert_eq!(state.history.at(1).unwrap().validators["a"].pubkey_base64, old);
     assert_eq!(state.effective.validators["a"].pubkey_base64, new);
 }
 #[test]
@@ -651,14 +651,54 @@ fn power_overflow_and_missing_unbond_records_fail_closed() {
         .unwrap();
     step(&mut state, &mut rewards, 2);
     step(&mut state, &mut rewards, 3);
+    // A removed entry is allowed (released unbonds are pruned), but not
+    // without the matching custody change.
     let mut bad = state.clone();
     bad.unbonding.clear();
-    assert!(bad.validate().is_err());
+    bad.validate().unwrap();
+    assert!(bad.validate_rewards(&rewards).is_err());
     let mut bad = state.clone();
     bad.next_unbond_id = 0;
     assert!(bad.validate().is_err());
 }
 
+/// Admit `operation` at `height` only when the largest of the pending state
+/// and every projected activation fits the capacity. Returns that peak.
+fn assert_capacity_is_the_projected_peak(
+    before: &LifecycleState,
+    rewards: &RewardState,
+    height: u64,
+    nonce: u64,
+    operation: Operation,
+) -> u64 {
+    let mut pending = before.clone();
+    pending
+        .schedule(height, "alice", nonce, operation.clone())
+        .unwrap();
+    let mut projected = pending.clone();
+    let mut future_rewards = rewards.clone();
+    let mut peak = bincode::serialized_size(&pending).unwrap();
+    for next in height + 1..=height + 2 {
+        step(&mut projected, &mut future_rewards, next);
+        peak = peak.max(bincode::serialized_size(&projected).unwrap());
+    }
+    let mut rejected = before.clone();
+    let original = rejected.encode().unwrap();
+    assert!(rejected
+        .schedule_with_capacity(height, "alice", nonce, operation.clone(), peak - 1)
+        .is_err());
+    assert_eq!(
+        rejected.encode().unwrap(),
+        original,
+        "Rejected schedule changed principal or registry state"
+    );
+    let mut accepted = before.clone();
+    accepted
+        .schedule_with_capacity(height, "alice", nonce, operation, peak)
+        .unwrap();
+    assert_eq!(accepted, pending);
+    peak
+}
 #[test]
 fn activation_footprint_is_reserved_before_unbond_acceptance() {
     let (mut before, mut rewards) = fixture();
@@ -667,35 +707,7 @@ fn activation_footprint_is_reserved_before_unbond_acceptance() {
         validator: "a".into(),
         amount: 1,
     };
-    let mut pending = before.clone();
-    pending.schedule(1, "alice", 0, operation.clone()).unwrap();
-    let pending_bytes = bincode::serialized_size(&pending).unwrap();
-    let mut activated = pending.clone();
-    let mut future_rewards = rewards.clone();
-    step(&mut activated, &mut future_rewards, 2);
-    step(&mut activated, &mut future_rewards, 3);
-    let activated_bytes = bincode::serialized_size(&activated).unwrap();
-    assert!(
-        activated_bytes > pending_bytes,
-        "Final exposure fields and unbond map key must increase this fixture's size"
-    );
-
-    let original = before.encode().unwrap();
-    let error = before
-        .schedule_with_capacity(1, "alice", 0, operation.clone(), pending_bytes)
-        .unwrap_err();
-    assert!(error
-        .to_string()
-        .contains("Scheduled activation exceeds lifecycle state bound"));
-    assert_eq!(
-        before.encode().unwrap(),
-        original,
-        "Rejected schedule changed principal or registry state"
-    );
-    before
-        .schedule_with_capacity(1, "alice", 0, operation, activated_bytes)
-        .unwrap();
-    assert_eq!(before, pending);
+    assert_capacity_is_the_projected_peak(&before, &rewards, 1, 0, operation);
 }
 
 #[test]
@@ -718,25 +730,73 @@ fn both_consecutive_activation_footprints_are_reserved() {
         validator: "a".into(),
         amount: 1,
     };
-    let mut pending = before.clone();
-    pending.schedule(2, "alice", 1, operation.clone()).unwrap();
-    let mut projected = pending.clone();
-    let mut future_rewards = rewards.clone();
-    let pending_bytes = bincode::serialized_size(&projected).unwrap();
-    step(&mut projected, &mut future_rewards, 3);
-    let first_bytes = bincode::serialized_size(&projected).unwrap();
-    step(&mut projected, &mut future_rewards, 4);
-    let second_bytes = bincode::serialized_size(&projected).unwrap();
-    let first_only_capacity = pending_bytes.max(first_bytes);
-    assert!(second_bytes > first_only_capacity);
+    assert_capacity_is_the_projected_peak(&before, &rewards, 2, 1, operation);
+}
 
-    let original = before.encode().unwrap();
-    assert!(before
-        .schedule_with_capacity(2, "alice", 1, operation.clone(), first_only_capacity)
-        .is_err());
-    assert_eq!(before.encode().unwrap(), original);
-    before
-        .schedule_with_capacity(2, "alice", 1, operation, second_bytes)
+#[test]
+fn released_unbond_is_removed_and_frees_an_empty_staker_slot() {
+    let (mut state, mut rewards) = fixture();
+    step(&mut state, &mut rewards, 1);
+    state
+        .schedule(
+            1,
+            "dave",
+            0,
+            Operation::Unbond {
+                validator: "a".into(),
+                amount: 30,
+            },
+        )
         .unwrap();
-    assert_eq!(before, pending);
+    step(&mut state, &mut rewards, 2);
+    step(&mut state, &mut rewards, 3);
+    let id = state.unbonding.keys().next().unwrap().clone();
+    assert!(state.reserved_owners.contains("dave"));
+    assert_eq!(rewards.unbonding.get("dave"), Some(&30));
+    // Removing the released entry drops dave's gross custody and frees the
+    // slot dave no longer needs; alice keeps hers.
+    state.remove_released(&[id.clone()], &mut rewards).unwrap();
+    assert!(state.unbonding.is_empty() && !rewards.unbonding.contains_key("dave"));
+    assert!(!state.reserved_owners.contains("dave") && state.reserved_owners.contains("alice"));
+    // The ID sequence keeps counting, and a removed entry cannot go twice.
+    assert_eq!(state.next_unbond_id, 1);
+    assert!(state
+        .clone()
+        .remove_released(&[id], &mut rewards.clone())
+        .is_err());
+}
+#[test]
+fn history_past_the_evidence_horizon_is_pruned_and_the_current_set_stays() {
+    let (mut state, mut rewards) = fixture();
+    step(&mut state, &mut rewards, 1);
+    state
+        .schedule(
+            1,
+            "dave",
+            0,
+            Operation::Bond {
+                validator: "a".into(),
+                amount: 5,
+            },
+        )
+        .unwrap();
+    for height in 2..=20 {
+        step(&mut state, &mut rewards, height);
+    }
+    assert_eq!(state.history.base_height, 1);
+    let old = state.historical_set(2).unwrap();
+    // Evidence limits 10 blocks and 60 s plus margins 2 and 10: the genesis
+    // set, last in effect at height 2 (time 200), is still needed at parent
+    // height 14 and not at 15.
+    let mut kept = state.clone();
+    kept.prune_history(14, 1_400).unwrap();
+    assert_eq!(kept.historical_set(2).unwrap(), old);
+    state.prune_history(15, 1_500).unwrap();
+    assert_eq!(state.history.base_height, 3);
+    assert!(state.historical_set(2).is_err());
+    assert_eq!(
+        state.historical_set(3).unwrap(),
+        HistoricalSet::of(&state.effective).unwrap()
+    );
+    state.validate().unwrap();
 }

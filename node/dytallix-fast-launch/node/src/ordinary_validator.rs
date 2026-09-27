@@ -613,7 +613,13 @@ pub(crate) fn apply(
         }
     })?;
     if let Some(p) = &mut penalty {
-        p.sync_lifecycle(state, &next)?;
+        p.sync_lifecycle(state, &next).map_err(|e| {
+            if e.downcast_ref::<lifecycle::TransitionCapacity>().is_some() {
+                application(LifecycleCapacity)
+            } else {
+                ValidatorError::Internal(e)
+            }
+        })?;
     }
     Ok(ValidatorPlan {
         lifecycle: next,
@@ -635,22 +641,14 @@ fn check_exposure(penalty: Option<&PenaltyState>, id: &str) -> Result<()> {
     }
     Ok(())
 }
+/// A consensus key is never registered twice (`used_addresses` keeps every
+/// address, including those of pruned history).
 fn check_key(state: &LifecycleState, key: &str) -> Result<()> {
-    let address = lifecycle::consensus_address(key)?;
-    for identity in state
-        .history
-        .values()
-        .flat_map(|v| v.validators.values())
-        .chain(
-            state
-                .schedules
-                .values()
-                .flat_map(|s| s.view.validators.values()),
-        )
+    if state
+        .used_addresses
+        .contains(&lifecycle::consensus_address(key)?)
     {
-        if lifecycle::consensus_address(&identity.pubkey_base64)? == address {
-            return Err(application(ConsensusKeyAlreadyUsed));
-        }
+        return Err(application(ConsensusKeyAlreadyUsed));
     }
     Ok(())
 }
@@ -735,12 +733,17 @@ fn check_exit(
     owners.extend(affected);
     Ok(())
 }
+/// Live unbond entries (retained plus scheduled) are bounded; released
+/// entries are removed (state model step 4), so this is not a lifetime cap.
 fn check_removal_capacity(state: &LifecycleState, count: usize) -> Result<()> {
-    let total = state
-        .next_unbond_id
-        .checked_add(u64::try_from(count).context("Removal count conversion")?)
-        .context("Unbond counter overflow")?;
-    if total > 10_000 {
+    let live = state
+        .schedules
+        .values()
+        .map(|s| s.removals.len())
+        .try_fold(state.unbonding.len(), |sum, n| sum.checked_add(n))
+        .and_then(|sum| sum.checked_add(count))
+        .context("Unbond count overflow")?;
+    if live > 10_000 {
         return Err(application(LifecycleCapacity));
     }
     Ok(())
@@ -754,10 +757,11 @@ fn check_future_history_capacity(state: &LifecycleState, activation: u64) -> Res
         .collect();
     if state
         .history
+        .changes
         .len()
         .checked_add(future.len())
         .context("History count overflow")?
-        > 10_000
+        > lifecycle::MAX_HISTORY_CHANGES
         || (!state.update_history.contains_key(&state.last_height)
             && state.update_history.len() >= 10_000)
     {
@@ -1116,7 +1120,7 @@ mod tests {
             apply(&state, None, &rewards, &token, 0, 0),
             Err(ValidatorError::Internal(_))
         ));
-        state.next_unbond_id = 1;
+        state.max_positions = 0;
         assert!(matches!(
             precheck(
                 &state,

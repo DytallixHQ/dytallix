@@ -1,5 +1,9 @@
 use super::*;
-use crate::runtime::{penalty_custody::PenaltyConfig, reward_runtime::RewardConfig};
+use crate::runtime::{
+    penalty_custody::PenaltyConfig,
+    reward_runtime::RewardConfig,
+    validator_lifecycle::HistoricalSet,
+};
 use dytallix_protocol_types::recovery::{
     KeyIdentity, RecoveryConfig, RecoveryDomain, RecoveryState,
 };
@@ -290,12 +294,16 @@ fn lifecycle_fixture() -> LifecycleState {
         },
         schedules: BTreeMap::new(),
         unbonding: BTreeMap::new(),
-        history: BTreeMap::new(),
+        history: ValidatorHistory::new(HistoricalSet {
+            validators: BTreeMap::new(),
+            powers: BTreeMap::new(),
+        }),
         update_history: BTreeMap::new(),
         last_height: 8,
         max_positions: 9,
         next_unbond_id: 10,
         reserved_owners: BTreeSet::new(),
+        used_addresses: BTreeSet::new(),
     }
 }
 #[test]
@@ -310,11 +318,16 @@ fn lifecycle_vector_uses_fixed_self_bond_and_usize_width() {
     for n in 3..=7u64 {
         b.extend(n.to_le_bytes());
     }
-    empty_maps(&mut b, 6);
+    // Effective validators and positions, schedules, unbonding; then the
+    // compact history (base height, base set, changes) and update history.
+    empty_maps(&mut b, 4);
+    b.extend(1u64.to_le_bytes());
+    empty_maps(&mut b, 4);
     for n in 8..=10u64 {
         b.extend(n.to_le_bytes());
     }
-    empty_maps(&mut b, 1);
+    // Reserved owners and used consensus addresses.
+    empty_maps(&mut b, 2);
     assert_eq!(
         got.canonical_bytes(),
         payload_record("lifecycle:v1:state", b)
@@ -389,6 +402,8 @@ fn penalty_fixture() -> PenaltyState {
         last_height: 7,
         parent_time: (11, -3),
         evidence_processed_height: 7,
+        pruned_deducted: 0,
+        pruned_released: 0,
     }
 }
 #[test]
@@ -407,6 +422,9 @@ fn penalty_vector_freezes_signed_time_and_counter_widths() {
     }
     b.extend((-3i32).to_le_bytes());
     b.extend(7u64.to_le_bytes());
+    // Pruned deduction and release totals (state model step 4).
+    b.extend(0u128.to_le_bytes());
+    b.extend(0u128.to_le_bytes());
     assert_eq!(got.canonical_bytes(), payload_record("penalty:v1:state", b));
     assert!(penalty(&state, got.byte_len() as u32 - 1).is_err());
 }
