@@ -420,6 +420,7 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
         if outcome == Outcome::Success {
             transfer(&mut actions, &actor, &owner, "udrt", 10).unwrap();
         }
+        let touched = BTreeSet::from([ACTOR, OWNER]);
         reconcile_receipt(
             &before,
             &reserved.accounts,
@@ -428,6 +429,7 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             actions.ordinary_fee_total().unwrap(),
             &f.settlement,
             &f.book,
+            &touched,
             &receipt,
         )
         .unwrap();
@@ -453,6 +455,7 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             actions.ordinary_fee_total().unwrap(),
             &misallocated,
             &f.book,
+            &touched,
             &receipt
         )
         .is_err());
@@ -467,6 +470,7 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             actions.ordinary_fee_total().unwrap(),
             &wrong_nonce,
             &f.book,
+            &touched,
             &receipt
         )
         .is_err());
@@ -481,9 +485,26 @@ fn each_accepted_receipt_matches_its_own_account_and_fee_transitions() {
             actions.ordinary_fee_total().unwrap(),
             &wrong_fee_total,
             &f.book,
+            &touched,
             &receipt
         )
         .is_err());
+
+        // A credited account outside the declared touched set is rejected.
+        if outcome == Outcome::Success {
+            assert!(reconcile_receipt(
+                &before,
+                &reserved.accounts,
+                reserved.ordinary_fee_total().unwrap(),
+                &actions.accounts,
+                actions.ordinary_fee_total().unwrap(),
+                &f.settlement,
+                &f.book,
+                &BTreeSet::from([ACTOR]),
+                &receipt
+            )
+            .is_err());
+        }
     }
 }
 #[test]

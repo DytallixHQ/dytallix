@@ -615,3 +615,75 @@ fn fee_preacceptance_defers_only_maturity_and_preserves_authority_rejections() {
     assert!(prepare_body_phase(&book, &native, &young, 10, &stale, &limits(), true).is_err());
     assert_eq!(young[&hex::encode([2; 32])].last_active_height, 10);
 }
+#[test]
+fn touched_checks_cover_exactly_the_accounts_a_transaction_names() {
+    let book = book();
+    let native = native_nonces(&book);
+    let send_and_claim = body(
+        &book,
+        1,
+        vec![
+            Action::Send {
+                recipient: [2; 32],
+                denomination: Denomination::Udrt,
+                amount: 1,
+            },
+            Action::DmsClaim {
+                owner: [3; 32],
+                expected_grant_generation: 0,
+            },
+        ],
+    );
+    assert_eq!(
+        touched_accounts(&send_and_claim),
+        BTreeSet::from([[1; 32], [2; 32], [3; 32]])
+    );
+    let data = body(&book, 1, vec![Action::Data { data: "x".into() }]);
+    assert_eq!(touched_accounts(&data), BTreeSet::from([[1; 32]]));
+
+    // An unequal mirror is found only when its account is touched. The
+    // complete check still finds it.
+    let mut stale = native.clone();
+    *stale
+        .get_mut(&book.accounts[&hex::encode([2; 32])].address)
+        .unwrap() = 5;
+    validate_nonce_mirrors_for(&book, &stale, &BTreeSet::from([[1; 32]])).unwrap();
+    assert!(validate_nonce_mirrors_for(&book, &stale, &BTreeSet::from([[2; 32]])).is_err());
+    assert!(validate_nonce_mirrors(&book, &stale).is_err());
+    assert!(prepare_body(&book, &stale, &grants(), 10, &data, &limits()).is_ok());
+    let send = body(
+        &book,
+        1,
+        vec![Action::Send {
+            recipient: [2; 32],
+            denomination: Denomination::Udrt,
+            amount: 1,
+        }],
+    );
+    assert!(prepare_body(&book, &stale, &grants(), 10, &send, &limits()).is_err());
+    // Unregistered IDs are left for the authority check to reject.
+    validate_nonce_mirrors_for(&book, &native, &BTreeSet::from([[1; 32], [9; 32]])).unwrap();
+
+    // Grants follow the same rule.
+    let mut future = grants();
+    future
+        .get_mut(&hex::encode([2; 32]))
+        .unwrap()
+        .owner_generation = 1;
+    validate_grants_for(&book, &future, &BTreeSet::from([[1; 32]])).unwrap();
+    assert!(validate_grants_for(&book, &future, &BTreeSet::from([[2; 32]])).is_err());
+    assert!(validate_grants(&book, &future).is_err());
+}
+#[test]
+fn account_lookup_by_address_requires_the_exact_registered_address() {
+    let book = book();
+    for a in book.accounts.values() {
+        assert_eq!(book.account_by_address(&a.address), Some(a));
+    }
+    let first = &book.accounts[&hex::encode([1; 32])].address;
+    assert!(book.account_by_address(&first.to_uppercase()).is_none());
+    assert!(book.account_by_address("not-an-address").is_none());
+    let unregistered =
+        AccountAddress::from_account_id(AddressNetwork::Development, [9; 32]).encode();
+    assert!(book.account_by_address(&unregistered).is_none());
+}

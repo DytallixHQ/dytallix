@@ -4,6 +4,7 @@
 use crate::settlement::Settlement;
 use anyhow::{bail, ensure, Context, Result};
 use dytallix_protocol_types::{
+    address::{AccountAddress, AddressNetwork},
     recovery::{ActionKind, KeyIdentity, RecoveryPolicy, RecoveryState},
     recovery_sponsor::{self as wire, FeeProfile, SponsoredRecovery},
     sha3_256,
@@ -132,6 +133,22 @@ impl RecoveryBook {
         }
         book.validate()?;
         Ok(book)
+    }
+    /// Look up an account by native address without scanning the book. An
+    /// address encodes its account ID, so decode it, look up the ID and require
+    /// the stored address to match exactly (as a linear search would).
+    pub(crate) fn account_by_address(&self, address: &str) -> Option<&RecoveryAccount> {
+        let id = *[
+            AddressNetwork::Mainnet,
+            AddressNetwork::Testnet,
+            AddressNetwork::Development,
+        ]
+        .into_iter()
+        .find_map(|network| AccountAddress::decode(network, address).ok())?
+        .account_id();
+        self.accounts
+            .get(&hex::encode(id))
+            .filter(|account| account.address == address)
     }
     pub(crate) fn validate(&self) -> Result<()> {
         ensure!(self.version == 1, "Unsupported recovery book version");
@@ -271,10 +288,13 @@ impl RecoveryBook {
             );
         }
         // All sponsorship history is retained. Gaps cannot be silently accepted.
+        let mut counts: BTreeMap<&str, u64> = BTreeMap::new();
+        for (sponsor, _) in &counters {
+            *counts.entry(sponsor.as_str()).or_default() += 1;
+        }
         for (id, account) in &self.accounts {
-            let count = counters.iter().filter(|(sponsor, _)| sponsor == id).count() as u64;
             ensure!(
-                count == account.sponsor_nonce,
+                counts.get(id.as_str()).copied().unwrap_or(0) == account.sponsor_nonce,
                 "Sponsor history does not cover its counter"
             );
         }
