@@ -7,12 +7,14 @@
 use crate::recovery_fees::{RecoveryAccount, RecoveryBook};
 use anyhow::{ensure, Context, Result};
 use dytallix_protocol_types::{
-    address::{AccountAddress, AddressNetwork},
+    address::{AccountAddress, AddressNetwork, OriginKeyAlgorithm},
     ordinary::{self as wire, Action, Limits, OrdinaryTransaction, SignedOrdinary},
+    recovery::{RecoveryConfig, RecoveryState},
 };
 use dytallix_runtime_crypto::ordinary::{verify_signed, VerifiedOrdinary};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 /// Future committed discretionary permission. This does not represent a mandatory
 /// liability, validator schedule, penalty, reward accrual, or vesting obligation.
@@ -92,18 +94,112 @@ impl AuthorityAssessment {
         )
     }
 }
-fn account<'a>(book: &'a RecoveryBook, id: &[u8; 32]) -> Result<&'a RecoveryAccount> {
-    book.accounts
-        .get(&hex::encode(id))
+/// The recovery records one ordinary transaction may use: the book, plus the
+/// actor's prospective record on its first spend (B1c). Authority checks read
+/// the prospective record; they never store it.
+#[derive(Clone, Copy)]
+pub(crate) struct Accounts<'a> {
+    book: &'a RecoveryBook,
+    initial: Option<&'a Arc<RecoveryAccount>>,
+}
+impl<'a> Accounts<'a> {
+    pub(crate) fn with_initial(
+        book: &'a RecoveryBook,
+        initial: Option<&'a Arc<RecoveryAccount>>,
+    ) -> Self {
+        Self { book, initial }
+    }
+    fn get(self, id: &[u8; 32]) -> Result<Option<Arc<RecoveryAccount>>> {
+        if let Some(initial) = self
+            .initial
+            .filter(|a| a.recovery.domain.account_id == *id)
+        {
+            return Ok(Some(initial.clone()));
+        }
+        self.book.accounts.find(&hex::encode(id))
+    }
+}
+impl<'a> From<&'a RecoveryBook> for Accounts<'a> {
+    fn from(book: &'a RecoveryBook) -> Self {
+        Self {
+            book,
+            initial: None,
+        }
+    }
+}
+fn account(accounts: Accounts<'_>, id: &[u8; 32]) -> Result<Arc<RecoveryAccount>> {
+    accounts
+        .get(id)?
         .context("Unregistered ordinary account reference")
 }
-fn network(code: u8) -> Result<AddressNetwork> {
+pub(crate) fn network(code: u8) -> Result<AddressNetwork> {
     Ok(match code {
         1 => AddressNetwork::Mainnet,
         2 => AddressNetwork::Testnet,
         3 => AddressNetwork::Development,
         _ => anyhow::bail!("Unknown ordinary account network"),
     })
+}
+pub(crate) fn origin_algorithm(value: &str) -> Result<OriginKeyAlgorithm> {
+    match value {
+        "mldsa65" => Ok(OriginKeyAlgorithm::MlDsa65),
+        "mldsa87" => Ok(OriginKeyAlgorithm::MlDsa87),
+        _ => anyhow::bail!("Unsupported exact ordinary origin algorithm"),
+    }
+}
+/// The network every account in the book shares (`RecoveryBook::validate`
+/// rejects mixed chain domains).
+pub(crate) fn chain_network(book: &RecoveryBook) -> Result<AddressNetwork> {
+    network(book.chain()?.network)
+}
+/// The actor's recovery record for its first spend (B1c), or None when it
+/// already has one. An account created by a transfer has no key on chain: its
+/// first transaction must be signed by the origin key its ID derives from,
+/// under the chain's domain, at generation and nonce zero. The record takes
+/// the chain account template. Nothing is stored here.
+pub(crate) fn prospective_actor(
+    book: &RecoveryBook,
+    template: &RecoveryConfig,
+    body: &OrdinaryTransaction,
+) -> Result<Option<RecoveryAccount>> {
+    let id = body.domain.account_id;
+    if book.accounts.contains(&hex::encode(id))? {
+        return Ok(None);
+    }
+    let chain = book.chain()?;
+    ensure!(
+        body.domain.network == chain.network
+            && body.domain.chain_id == chain.chain_id
+            && body.domain.genesis_digest == chain.genesis_digest,
+        "Ordinary signed domain differs from the chain domain"
+    );
+    ensure!(
+        body.authorization_generation == 0 && body.spending_nonce == 0,
+        "Uninitialized account requires generation and nonce zero"
+    );
+    let address = AccountAddress::from_origin_key(
+        network(body.domain.network)?,
+        &body.domain.chain_id,
+        origin_algorithm(&body.key.algorithm)?,
+        &body.key.public_key,
+    )?;
+    ensure!(
+        address.account_id() == &id,
+        "Ordinary key is not the account's origin key"
+    );
+    // Also requires the key's algorithm and length to be in the template.
+    let recovery = RecoveryState::new(
+        body.domain.clone(),
+        template.clone(),
+        body.key.clone(),
+        book.last_height,
+    )
+    .map_err(|e| anyhow::anyhow!("Account template rejects the origin key: {e}"))?;
+    Ok(Some(RecoveryAccount {
+        address: address.encode(),
+        recovery,
+        sponsor_nonce: 0,
+    }))
 }
 /// Check explicit combined-profile state. Never synthesize or repair a mirror.
 /// Native nonce map keys are native account addresses, not origin or active keys.
@@ -112,7 +208,7 @@ pub(crate) fn validate_nonce_mirrors(
     native_nonces: &BTreeMap<String, u64>,
 ) -> Result<()> {
     book.validate()?;
-    for state in book.accounts.values() {
+    for state in book.accounts.all()?.values() {
         let domain = &state.recovery.domain;
         let address = AccountAddress::decode(network(domain.network)?, &state.address)?;
         ensure!(
@@ -150,20 +246,20 @@ pub(crate) fn touched_accounts(body: &OrdinaryTransaction) -> BTreeSet<[u8; 32]>
 /// `validate_nonce_mirrors` restricted to the given accounts. Unregistered IDs
 /// are skipped so that the authority check, not this invariant, rejects them.
 /// The whole book is validated at block start and by the complete check.
-pub(crate) fn validate_nonce_mirrors_for(
-    book: &RecoveryBook,
+pub(crate) fn validate_nonce_mirrors_for<'a>(
+    accounts: impl Into<Accounts<'a>>,
     native_nonces: &BTreeMap<String, u64>,
     ids: &BTreeSet<[u8; 32]>,
 ) -> Result<()> {
+    let accounts = accounts.into();
     for id in ids {
-        let key = hex::encode(id);
-        let Some(state) = book.accounts.get(&key) else {
+        let Some(state) = accounts.get(id)? else {
             continue;
         };
         state.recovery.validate()?;
         let domain = &state.recovery.domain;
         ensure!(
-            domain.account_id == *id && state.recovery.last_height == book.last_height,
+            domain.account_id == *id && state.recovery.last_height == accounts.book.last_height,
             "Recovery account key or height differs from book"
         );
         let address = AccountAddress::decode(network(domain.network)?, &state.address)?;
@@ -182,36 +278,37 @@ pub(crate) fn validate_nonce_mirrors_for(
 /// new grants. Do not delete them, copy a current generation, or resume them.
 pub(crate) fn validate_grants(book: &RecoveryBook, grants: &Grants) -> Result<()> {
     ensure!(
-        grants.len() <= book.accounts.len(),
+        grants.len() <= book.accounts.all()?.len(),
         "Discretionary grant count exceeds owner capacity"
     );
     for (key, grant) in grants {
-        validate_grant(book, key, grant)?;
+        validate_grant(book.into(), key, grant)?;
     }
     Ok(())
 }
 /// `validate_grants` restricted to the grants owned by the given accounts. The
 /// count bound follows from each key being a distinct registered owner.
-pub(crate) fn validate_grants_for(
-    book: &RecoveryBook,
+pub(crate) fn validate_grants_for<'a>(
+    accounts: impl Into<Accounts<'a>>,
     grants: &Grants,
     owners: &BTreeSet<[u8; 32]>,
 ) -> Result<()> {
+    let accounts = accounts.into();
     for owner in owners {
         let key = hex::encode(owner);
         if let Some(grant) = grants.get(&key) {
-            validate_grant(book, &key, grant)?;
+            validate_grant(accounts, &key, grant)?;
         }
     }
     Ok(())
 }
-fn validate_grant(book: &RecoveryBook, key: &str, grant: &DiscretionaryGrant) -> Result<()> {
+fn validate_grant(accounts: Accounts<'_>, key: &str, grant: &DiscretionaryGrant) -> Result<()> {
     ensure!(
         grant.version == 1 && key == hex::encode(grant.owner),
         "Invalid discretionary grant record key/version"
     );
-    let owner = account(book, &grant.owner)?;
-    account(book, &grant.beneficiary)?;
+    let owner = account(accounts, &grant.owner)?;
+    account(accounts, &grant.beneficiary)?;
     ensure!(
         grant.owner != grant.beneficiary && grant.period_blocks > 0,
         "Invalid discretionary beneficiary or period"
@@ -221,7 +318,7 @@ fn validate_grant(book: &RecoveryBook, key: &str, grant: &DiscretionaryGrant) ->
         "Discretionary grant contains a future generation"
     );
     ensure!(
-        grant.last_active_height <= book.last_height,
+        grant.last_active_height <= accounts.book.last_height,
         "Discretionary grant activity is in the future"
     );
     grant
@@ -230,9 +327,9 @@ fn validate_grant(book: &RecoveryBook, key: &str, grant: &DiscretionaryGrant) ->
         .context("Discretionary grant deadline overflow")?;
     Ok(())
 }
-fn allowed_owner(book: &RecoveryBook, owner: &[u8; 32]) -> Result<()> {
+fn allowed_owner(accounts: Accounts<'_>, owner: &[u8; 32]) -> Result<()> {
     ensure!(
-        account(book, owner)?.recovery.outgoing_allowed(),
+        account(accounts, owner)?.recovery.outgoing_allowed(),
         "Protected account cannot authorize a discretionary action or debit"
     );
     Ok(())
@@ -264,8 +361,9 @@ pub(crate) fn check_verified(
 }
 /// OF02 preacceptance check. Ownership, generation and protection remain strict.
 /// Only inactivity maturity moves to a typed post-acceptance application check.
-pub(crate) fn check_verified_preacceptance(
-    book: &RecoveryBook,
+/// `accounts` may carry the actor's prospective first-spend record.
+pub(crate) fn check_verified_preacceptance<'a>(
+    accounts: impl Into<Accounts<'a>>,
     native_nonces: &BTreeMap<String, u64>,
     grants: &Grants,
     height: u64,
@@ -273,7 +371,7 @@ pub(crate) fn check_verified_preacceptance(
     limits: &Limits,
 ) -> Result<AuthorityAssessment> {
     let mut assessment = prepare_body_phase(
-        book,
+        accounts.into(),
         native_nonces,
         grants,
         height,
@@ -287,18 +385,26 @@ pub(crate) fn check_verified_preacceptance(
 }
 // Private model preparation has no authentication claim. Only check_verified and
 // check_signed expose an assessment outside this module.
-fn prepare_body(
-    book: &RecoveryBook,
+fn prepare_body<'a>(
+    accounts: impl Into<Accounts<'a>>,
     native_nonces: &BTreeMap<String, u64>,
     grants: &Grants,
     height: u64,
     body: &OrdinaryTransaction,
     limits: &Limits,
 ) -> Result<AuthorityAssessment> {
-    prepare_body_phase(book, native_nonces, grants, height, body, limits, false)
+    prepare_body_phase(
+        accounts.into(),
+        native_nonces,
+        grants,
+        height,
+        body,
+        limits,
+        false,
+    )
 }
 fn prepare_body_phase(
-    book: &RecoveryBook,
+    accounts: Accounts<'_>,
     native_nonces: &BTreeMap<String, u64>,
     grants: &Grants,
     height: u64,
@@ -309,14 +415,14 @@ fn prepare_body_phase(
     limits.validate()?;
     wire::signing_bytes(body, limits)?;
     let touched = touched_accounts(body);
-    validate_nonce_mirrors_for(book, native_nonces, &touched)?;
-    validate_grants_for(book, grants, &touched)?;
+    validate_nonce_mirrors_for(accounts, native_nonces, &touched)?;
+    validate_grants_for(accounts, grants, &touched)?;
     ensure!(
-        book.last_height == height,
+        accounts.book.last_height == height,
         "Ordinary authority requires current block-start recovery state"
     );
     let actor_id = body.domain.account_id;
-    let actor = account(book, &actor_id)?;
+    let actor = account(accounts, &actor_id)?;
     ensure!(
         actor.recovery.domain == body.domain,
         "Ordinary signed domain differs from account state"
@@ -338,7 +444,7 @@ fn prepare_body_phase(
         height < body.expiry_height && body.expiry_height - height <= limits.max_expiry_lifetime,
         "Ordinary submission expired or exceeds configured lifetime"
     );
-    allowed_owner(book, &actor_id)?; // Actor is also the only ordinary fee payer.
+    allowed_owner(accounts, &actor_id)?; // Actor is also the only ordinary fee payer.
     let mut staged_grants = grants.clone();
     let mut owners = Vec::with_capacity(body.actions.len());
     let mut requirements = Vec::new();
@@ -346,18 +452,18 @@ fn prepare_body_phase(
     for (index, action) in body.actions.iter().enumerate() {
         let mut debit_owners = BTreeSet::from([actor_id]);
         match action {
-            Action::Send {
-                recipient, amount, ..
-            } => {
+            Action::Send { amount, .. } => {
+                // Any account ID may receive (B1c): a transfer to one with no
+                // account creates it and burns the account creation fee.
+                // Protected accounts may receive funds.
                 ensure!(*amount > 0, "Ordinary transfer amount must be positive");
-                account(book, recipient)?; // Protected recipients may receive funds.
             }
             Action::Data { .. } => {}
             Action::DmsRegister {
                 beneficiary,
                 period_blocks,
             } => {
-                account(book, beneficiary)?;
+                account(accounts, beneficiary)?;
                 ensure!(
                     *beneficiary != actor_id && *period_blocks > 0,
                     "Invalid discretionary grant registration"
@@ -394,9 +500,9 @@ fn prepare_body_phase(
                 owner,
                 expected_grant_generation,
             } => {
-                allowed_owner(book, owner)?;
+                allowed_owner(accounts, owner)?;
                 debit_owners.insert(*owner);
-                let owner_state = account(book, owner)?;
+                let owner_state = account(accounts, owner)?;
                 let grant = staged_grants
                     .get(&hex::encode(owner))
                     .context("Discretionary grant not registered")?;
@@ -483,14 +589,14 @@ fn prepare_body_phase(
         // Applies to every action, including Data, self-payments, same-owner
         // claims, voluntary withdrawals and future fee settlement. No system flag.
         for owner in &debit_owners {
-            allowed_owner(book, owner)?;
+            allowed_owner(accounts, owner)?;
         }
         owners.push(ActionOwners {
             index: u16::try_from(index).context("Ordinary action index exceeds u16")?,
             debit_owners,
         });
     }
-    validate_grants_for(book, &staged_grants, &touched)?;
+    validate_grants_for(accounts, &staged_grants, &touched)?;
     Ok(AuthorityAssessment {
         transaction_id: wire::transaction_id(body, limits)?,
         envelope_hash: [0; 32],

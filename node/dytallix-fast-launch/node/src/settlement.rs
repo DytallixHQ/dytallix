@@ -134,7 +134,7 @@ impl Settlement {
                     plan.next_state.proposals().clone(),
                 )? == plan.next_state
                 && book.last_height == plan.next_state.finalized_height()
-                && book.accounts.values().all(|account| {
+                && book.accounts.all()?.values().all(|account| {
                     account.recovery.domain.chain_id == parent.chain_id()
                         && account.recovery.domain.genesis_digest == parent.genesis_digest()
                 }),
@@ -162,6 +162,7 @@ impl Settlement {
             );
             let account = book
                 .accounts
+                .all()?
                 .get(&hex::encode(write.owner))
                 .context("Governance account owner is not registered")?;
             let address = &account.address;
@@ -193,12 +194,13 @@ impl Settlement {
         book.validate()?;
         let mut staged = self.clone();
         let mut snapshot = FinancialState {
+            absent_recipients: Default::default(),
             balances: BTreeMap::new(),
             eligible: BTreeMap::new(),
             native_nonces: BTreeMap::new(),
             withheld_udrt: staged.ordinary_fee_total()?,
         };
-        for registered in book.accounts.values() {
+        for registered in book.accounts.all()?.values() {
             let address = &registered.address;
             let owner = registered.recovery.domain.account_id;
             let account = staged.account(address)?.clone();
@@ -253,6 +255,7 @@ impl Settlement {
         );
         let registered = book
             .accounts
+            .all()?
             .get(&hex::encode(receipt.actor))
             .context("Governance fee actor is not registered")?;
         let address = &registered.address;
@@ -293,7 +296,7 @@ impl Settlement {
         let mut expected_book = book.clone();
         expected_book
             .accounts
-            .get_mut(&hex::encode(receipt.actor))
+            .find_mut(&hex::encode(receipt.actor))?
             .context("Governance fee actor disappeared")?
             .recovery
             .spending_nonce = expected_nonce;
@@ -663,6 +666,22 @@ impl Settlement {
         );
         self.rewards = Some(next);
         Ok(amount)
+    }
+    /// The native record of an existing account, without loading it into the
+    /// overlay: a loaded address is written at commit, which would create it.
+    /// An account exists when it has a balance record.
+    pub(crate) fn peek(&self, address: &str) -> Result<Option<AccountState>> {
+        if let Some(account) = self.accounts.get(address) {
+            return Ok(Some(account.clone()));
+        }
+        let Some(balances) = read(&self.storage, &format!("acct:balances:{address}"))? else {
+            return Ok(None);
+        };
+        let nonce = read(&self.storage, &format!("acct:nonce:{address}"))?.unwrap_or(0);
+        Ok(Some(AccountState { balances, nonce }))
+    }
+    pub(crate) fn exists(&self, address: &str) -> Result<bool> {
+        Ok(self.peek(address)?.is_some())
     }
     pub(crate) fn account(&mut self, address: &str) -> Result<&mut AccountState> {
         if !self.accounts.contains_key(address) {

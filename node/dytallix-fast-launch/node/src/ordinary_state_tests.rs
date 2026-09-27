@@ -2,7 +2,8 @@
 use super::*;
 use crate::{ordinary_authority::DiscretionaryGrant, recovery_fees::RecoveryAccount};
 use dytallix_protocol_types::{
-    recovery::{RecoveryConfig, RecoveryDomain, RecoveryState},
+    address::OriginKeyAlgorithm,
+    recovery::{KeyIdentity, RecoveryConfig, RecoveryDomain, RecoveryState},
     recovery_sponsor,
 };
 struct Fixture {
@@ -91,7 +92,7 @@ fn fixture() -> Fixture {
         accounts,
     )
     .unwrap();
-    book.origins = origins;
+    book.origins = origins.into_iter().collect();
     let vectors: serde_json::Value = serde_json::from_str(include_str!(
         "../../../crates/protocol-types/tests/fixtures/ordinary_fee_v1_vectors.json"
     ))

@@ -12,7 +12,7 @@ pub const DGT_MAX_SUPPLY: u128 = dytallix_protocol_types::units::DGT_TOTAL_BASE_
 /// Storage key for the cumulative amount of DGT minted (genesis + any later mint).
 pub(crate) const DGT_MINTED_KEY: &str = "supply:dgt_minted";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct AccountState {
     pub balances: BTreeMap<String, u128>, // Multi-denomination balances
     pub nonce: u64,

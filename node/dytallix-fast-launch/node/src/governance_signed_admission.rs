@@ -205,12 +205,14 @@ pub fn assess_signed_staged(
             && stage
                 .recovery
                 .accounts
+                .all()?
                 .keys()
-                .eq(parent.recovery.accounts.keys()),
+                .eq(parent.recovery.accounts.all()?.keys()),
         "Governance staged account inventory or height differs"
     );
-    for (id, account) in &stage.recovery.accounts {
-        let origin = &parent.recovery.accounts[id];
+    let parent_accounts = parent.recovery.accounts.all()?;
+    for (id, account) in stage.recovery.accounts.all()? {
+        let origin = &parent_accounts[id];
         ensure!(
             account.address == origin.address
                 && account.recovery.domain == origin.recovery.domain
@@ -278,7 +280,7 @@ fn assess_signed_view(
     let actor = body.domain.account_id;
     let account = current_recovery
         .accounts
-        .get(&hex::encode(actor))
+        .find(&hex::encode(actor))?
         .context("Unregistered governance actor")?;
     let recovery = &account.recovery;
     ensure!(

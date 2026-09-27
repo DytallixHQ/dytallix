@@ -64,6 +64,9 @@ pub(crate) struct FinancialState {
     pub eligible: BTreeMap<Asset, u128>,
     pub native_nonces: BTreeMap<String, u64>,
     pub withheld_udrt: u128,
+    /// `Send` recipients whose accounts do not exist yet; a transfer to one
+    /// creates it and burns the account creation fee.
+    pub absent_recipients: std::collections::BTreeSet<[u8; 32]>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum ApplicationRule {
@@ -451,17 +454,29 @@ fn expected_debits(
     verified: &VerifiedOrdinary,
     state: &FinancialState,
     include_staking: bool,
+    creation_fee: u128,
 ) -> Vec<ActionDebit> {
     let actor = verified.body().domain.account_id;
     let mut values = Vec::new();
     let mut claimed = std::collections::BTreeSet::new();
+    let mut created = std::collections::BTreeSet::new();
     for action in &verified.body().actions {
         match action {
             Action::Send {
                 recipient,
                 denomination,
                 amount,
-            } => values.push(ActionDebit {
+            } => {
+                // The first transfer to an absent recipient burns the creation
+                // fee before the transfer.
+                if state.absent_recipients.contains(recipient) && created.insert(*recipient) {
+                    values.push(ActionDebit {
+                        asset: asset(actor, Denomination::Udrt),
+                        amount: creation_fee,
+                        kind: DebitKind::Outflow,
+                    });
+                }
+                values.push(ActionDebit {
                 asset: asset(
                     actor,
                     match denomination {
@@ -475,7 +490,8 @@ fn expected_debits(
                 } else {
                     DebitKind::Outflow
                 },
-            }),
+                })
+            }
             Action::RewardBond { amount_udgt, .. }
             | Action::ValidatorRegister { amount_udgt, .. }
                 if include_staking =>
@@ -539,8 +555,8 @@ pub(crate) fn reservation_request(
         payer: body.domain.account_id,
         nonce: body.spending_nonce,
         fee_cap_udrt: body.maximum_fee,
-        action_debits: expected_debits(verified, state, true),
-        unrestricted_debits: expected_debits(verified, state, false),
+        action_debits: expected_debits(verified, state, true, profile.account_creation_fee_udrt),
+        unrestricted_debits: expected_debits(verified, state, false, profile.account_creation_fee_udrt),
         wire_bytes: wire_bytes as u64,
         signature_work: 1 + proofs,
     })
@@ -564,9 +580,9 @@ pub(crate) fn plan_fee_accounting(
 ) -> Result<PlanningResult> {
     profile.validate().map_err(internal)?;
     history.validate()?;
+    let registered = book.accounts.all().map_err(internal)?;
     for receipt in history.receipts.values() {
-        let actor = book
-            .accounts
+        let actor = registered
             .get(&hex::encode(receipt.actor))
             .ok_or_else(|| internal("Retained receipt actor is absent from current state"))?;
         if receipt.block_height > book.last_height
@@ -621,16 +637,16 @@ pub(crate) fn plan_fee_accounting(
                 .into(),
         ));
     }
-    if state.balances.len() > book.accounts.len() * 2
-        || state.eligible.len() > book.accounts.len() * 2
-        || state.native_nonces.len() > book.accounts.len()
+    if state.balances.len() > registered.len() * 2
+        || state.eligible.len() > registered.len() * 2
+        || state.native_nonces.len() > registered.len()
     {
         return Err(internal(
             "Financial snapshot exceeds registered account capacity",
         ));
     }
     for (a, eligible) in &state.eligible {
-        if !book.accounts.contains_key(&hex::encode(a.owner))
+        if !registered.contains_key(&hex::encode(a.owner))
             || *eligible > state.balances.get(a).copied().unwrap_or(0)
         {
             return Err(internal(
@@ -782,7 +798,8 @@ pub(crate) fn plan_fee_accounting(
     let mut authority = book.clone();
     let actor = authority
         .accounts
-        .get_mut(&hex::encode(body.domain.account_id))
+        .find_mut(&hex::encode(body.domain.account_id))
+        .map_err(internal)?
         .ok_or_else(|| internal("Accepted actor disappeared"))?;
     actor.recovery.spending_nonce = assessment.prospective_nonce.after;
     financial
@@ -917,6 +934,7 @@ pub(crate) fn runtime_receipt(
 pub(crate) fn expected_spending_debits(
     verified: &VerifiedOrdinary,
     state: &FinancialState,
+    creation_fee: u128,
 ) -> Vec<ActionDebit> {
-    expected_debits(verified, state, false)
+    expected_debits(verified, state, false, creation_fee)
 }

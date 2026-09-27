@@ -172,6 +172,7 @@ impl Fixture {
             denomination: Denomination::Udrt,
         };
         let financial = FinancialState {
+            absent_recipients: Default::default(),
             balances: BTreeMap::from([(fee_asset, 10_000)]),
             eligible: BTreeMap::from([(fee_asset, 10_000)]),
             native_nonces: BTreeMap::from([(address, 0)]),

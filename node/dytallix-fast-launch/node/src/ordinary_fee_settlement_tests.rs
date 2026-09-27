@@ -129,6 +129,7 @@ fn fixture() -> (RecoveryBook, FinancialState) {
         (asset([2; 32], Denomination::Udrt), 50),
     ]);
     let state = FinancialState {
+        absent_recipients: Default::default(),
         eligible: balances.clone(),
         balances,
         native_nonces: book

@@ -40,6 +40,7 @@ pub mod transaction_cost;
 pub mod consensus_settlement;
 
 pub mod recovery_fees;
+pub mod recovery_store;
 
 pub mod ordinary_authority;
 pub mod ordinary_transport;

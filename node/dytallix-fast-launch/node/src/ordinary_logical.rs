@@ -19,6 +19,7 @@ use crate::{
     state::AccountState,
 };
 use bincode::Options;
+use dytallix_protocol_types::recovery::KeyIdentity;
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -84,6 +85,10 @@ pub(crate) fn recovery_account(
         account,
         max,
     )
+}
+/// An account's origin public key, stored when the account is initialized.
+pub(crate) fn origin(id: &[u8; 32], key: &KeyIdentity, max: u32) -> Result<LogicalRecord> {
+    payload(&format!("recovery:origin:{}", hex::encode(id)), key, max)
 }
 pub(crate) fn grant(
     id: &[u8; 32],

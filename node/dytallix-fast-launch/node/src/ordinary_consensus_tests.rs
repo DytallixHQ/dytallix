@@ -1382,11 +1382,13 @@ fn independent_databases_commit_identical_mixed_inputs_and_roots() {
     let mut a = fixture.initialized(&first.path().join("db"));
     let mut b = fixture.initialized(&second.path().join("db"));
     assert_eq!(data(&a), data(&b));
+    let fresh = Key::new();
     let signed = fixture.ordinary(
         &current(&a, &fixture.secondary),
         &fixture.secondary,
         vec![
             send(fixture.payer.id(), 100),
+            send(fresh.id(), 5),
             OrdinaryAction::Data {
                 data: "deterministic".into(),
             },
@@ -3034,5 +3036,536 @@ fn origins_are_stored_per_account_and_not_in_the_ordinary_state() {
         .put(&key, serde_json::to_vec(&changed).unwrap())
         .unwrap();
     let error = app.finalize_block(block(1, vec![])).unwrap_err();
-    assert!(format!("{error:#}").contains("origins differ"), "{error:#}");
+    assert!(format!("{error:#}").contains("origin or configuration differs"), "{error:#}");
+}
+
+const CREATION_FEE: u128 = 1_000;
+
+fn burned(app: &ConsensusApplication) -> u128 {
+    crate::supply::inspect_native(&app.storage).unwrap().drt.burned
+}
+
+#[test]
+fn send_to_a_new_address_creates_the_account_and_burns_the_fee_once() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let other = Key::new();
+    assert!(app
+        .storage
+        .db
+        .get(format!("acct:balances:{}", fresh.address()))
+        .unwrap()
+        .is_none());
+
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), 100)],
+        1000,
+    );
+    let raw = fixture.ordinary_wire(&tx);
+    assert_admitted(app.check_tx(&raw));
+    let result = commit(&mut app, 1, vec![raw]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let gas_fee = result.tx_results[0].gas_used.max(10) as u128 * 2;
+    assert_eq!(balance(&app, &fresh.address()), 100);
+    assert_eq!(ordinary_nonce(&app, &fresh.address()), 0);
+    assert!(!book(&app).accounts.contains_key(&hex::encode(fresh.id())));
+    assert_eq!(
+        balance(&app, &fixture.active.address()),
+        INITIAL_DRT - 100 - gas_fee - CREATION_FEE
+    );
+    assert_eq!(burned(&app), CREATION_FEE);
+
+    // An existing recipient costs nothing extra; two transfers to one new
+    // recipient in the same transaction burn one fee.
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), 50), send(other.id(), 7), send(other.id(), 3)],
+        1000,
+    );
+    let result = commit(&mut app, 2, vec![fixture.ordinary_wire(&tx)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    assert_eq!(balance(&app, &fresh.address()), 150);
+    assert_eq!(balance(&app, &other.address()), 10);
+    assert_eq!(burned(&app), 2 * CREATION_FEE);
+
+    // A fresh process passes the complete check.
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+}
+
+#[test]
+fn failed_transfer_to_a_new_address_creates_and_burns_nothing() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    // Accepted, then out of gas at the second action: the transfer rolls back.
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![
+            send(fresh.id(), 100),
+            OrdinaryAction::Data {
+                data: "not committed".into(),
+            },
+        ],
+        25,
+    );
+    let result = commit(&mut app, 1, vec![fixture.ordinary_wire(&tx)]);
+    assert_ne!(result.tx_results[0].code, 0);
+    assert_eq!(result.tx_results[0].gas_used, 25);
+    assert_eq!(balance(&app, &fixture.active.address()), INITIAL_DRT - 50);
+    assert!(app
+        .storage
+        .db
+        .get(format!("acct:balances:{}", fresh.address()))
+        .unwrap()
+        .is_none());
+    assert_eq!(burned(&app), 0);
+}
+
+#[test]
+fn creation_fee_is_reserved_before_acceptance() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    // The amount and fee cap fit the balance; adding the creation fee does not.
+    let amount = INITIAL_DRT - 2_000 - 500;
+    let to_new = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), amount)],
+        1000,
+    );
+    let raw = fixture.ordinary_wire(&to_new);
+    assert_ne!(app.check_tx(&raw).code, 0);
+    let result = commit(&mut app, 1, vec![raw]);
+    assert_ne!(result.tx_results[0].code, 0);
+    assert!(result.tx_results[0].log.contains("Insufficient"), "{:?}", result.tx_results);
+    assert_eq!(balance(&app, &fixture.active.address()), INITIAL_DRT);
+    assert!(app
+        .storage
+        .db
+        .get(format!("acct:balances:{}", fresh.address()))
+        .unwrap()
+        .is_none());
+    assert_mirror(&app, &fixture.active, 0);
+    // The same amount to an existing account is accepted.
+    let to_existing = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fixture.payer.id(), amount)],
+        1000,
+    );
+    let result = commit(&mut app, 2, vec![fixture.ordinary_wire(&to_existing)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+}
+
+#[test]
+fn complete_check_rejects_a_created_account_with_a_nonzero_nonce() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let tx = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![send(fresh.id(), 100)],
+        1000,
+    );
+    let result = commit(&mut app, 1, vec![fixture.ordinary_wire(&tx)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    app.storage
+        .db
+        .put(
+            format!("acct:nonce:{}", fresh.address()),
+            bincode::serialize(&1u64).unwrap(),
+        )
+        .unwrap();
+    let error = app.finalize_block(block(2, vec![])).unwrap_err();
+    assert!(format!("{error:#}").contains("nonzero nonce"), "{error:#}");
+}
+
+/// Signing state of an account with no recovery record: the chain domain with
+/// its ID, generation and nonce zero.
+fn uninitialized(app: &ConsensusApplication, fixture: &Fixture, key: &Key) -> RecoveryState {
+    let mut state = current(app, &fixture.active);
+    state.domain.account_id = key.id();
+    state.active_generation = 0;
+    state.spending_nonce = 0;
+    state
+}
+/// A transfer from the active account that creates `key`'s account.
+fn funding(app: &ConsensusApplication, fixture: &Fixture, key: &Key, amount: u128) -> Vec<u8> {
+    let tx = fixture.ordinary(
+        &current(app, &fixture.active),
+        &fixture.active,
+        vec![send(key.id(), amount)],
+        1000,
+    );
+    fixture.ordinary_wire(&tx)
+}
+fn first_spend(
+    app: &ConsensusApplication,
+    fixture: &Fixture,
+    key: &Key,
+    actions: Vec<OrdinaryAction>,
+    gas_limit: u64,
+) -> Vec<u8> {
+    let tx = fixture.ordinary(&uninitialized(app, fixture, key), key, actions, gas_limit);
+    fixture.ordinary_wire(&tx)
+}
+fn registered(app: &ConsensusApplication, key: &Key) -> bool {
+    book(app).accounts.contains_key(&hex::encode(key.id()))
+}
+
+#[test]
+fn first_spend_initializes_a_created_account_from_the_chain_template() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 1, vec![raw]).tx_results[0].code, 0);
+    let id = hex::encode(fresh.id());
+    assert!(app.query_ordinary_account(&id).unwrap().is_null());
+
+    let payer_before = balance(&app, &fixture.payer.address());
+    let raw = first_spend(&app, &fixture, &fresh, vec![send(fixture.payer.id(), 100)], 1000);
+    assert_admitted(app.check_tx(&raw));
+    let result = commit(&mut app, 2, vec![raw]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let gas_fee = result.tx_results[0].gas_used.max(10) as u128 * 2;
+    let stored = book(&app).accounts[&id].clone();
+    assert_eq!(stored.address, fresh.address());
+    assert_eq!(stored.recovery.domain, uninitialized(&app, &fixture, &fresh).domain);
+    assert_eq!(
+        stored.recovery.config,
+        fixture.config.ordinary.as_ref().unwrap().account_template.recovery
+    );
+    assert_eq!(stored.recovery.active_key, fresh.identity);
+    assert_eq!(book(&app).origins[&id], fresh.identity);
+    assert_mirror(&app, &fresh, 1);
+    assert_eq!(balance(&app, &fresh.address()), 50_000 - 100 - gas_fee);
+    assert_eq!(balance(&app, &fixture.payer.address()), payer_before + 100);
+    assert!(!app.query_ordinary_account(&id).unwrap().is_null());
+
+    // From now on it spends like any registered account.
+    let tx = fixture.ordinary(&current(&app, &fresh), &fresh, vec![send(fixture.payer.id(), 1)], 1000);
+    let result = commit(&mut app, 3, vec![fixture.ordinary_wire(&tx)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    assert_mirror(&app, &fresh, 2);
+
+    // A fresh process passes the complete check and continues.
+    drop(app);
+    let mut reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+    let tx = fixture.ordinary(&current(&reopened, &fresh), &fresh, vec![send(fixture.payer.id(), 1)], 1000);
+    let result = commit(&mut reopened, 4, vec![fixture.ordinary_wire(&tx)]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    assert_mirror(&reopened, &fresh, 3);
+}
+
+#[test]
+fn first_spend_by_a_foreign_key_domain_or_counter_is_rejected_without_a_fee() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let payer = fixture.payer.id();
+    // Never funded: no native account, so nothing to pay with.
+    let raw = first_spend(&app, &fixture, &fresh, vec![send(payer, 1)], 1000);
+    assert_ne!(app.check_tx(&raw).code, 0);
+    let result = commit(&mut app, 1, vec![raw]);
+    assert!(result.tx_results[0].log.contains("no funds"), "{:?}", result.tx_results);
+    assert!(app
+        .storage
+        .db
+        .get(format!("acct:balances:{}", fresh.address()))
+        .unwrap()
+        .is_none());
+
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 2, vec![raw]).tx_results[0].code, 0);
+    let base = uninitialized(&app, &fixture, &fresh);
+    let other = Key::new();
+    let mut cases = vec![("foreign key", fixture.ordinary(&base, &other, vec![send(payer, 1)], 1000))];
+    let mut state = base.clone();
+    state.domain.genesis_digest[0] ^= 1;
+    cases.push(("domain", fixture.ordinary(&state, &fresh, vec![send(payer, 1)], 1000)));
+    let mut state = base.clone();
+    state.spending_nonce = 1;
+    cases.push(("nonce", fixture.ordinary(&state, &fresh, vec![send(payer, 1)], 1000)));
+    let mut state = base.clone();
+    state.active_generation = 1;
+    cases.push(("generation", fixture.ordinary(&state, &fresh, vec![send(payer, 1)], 1000)));
+    let active_before = balance(&app, &fixture.active.address());
+    for (height, (case, tx)) in (3..).zip(cases) {
+        let raw = fixture.ordinary_wire(&tx);
+        assert_ne!(app.check_tx(&raw).code, 0, "{case}");
+        let result = commit(&mut app, height, vec![raw]);
+        assert_ne!(result.tx_results[0].code, 0, "{case}");
+        assert!(!registered(&app, &fresh), "{case}");
+        assert_eq!(balance(&app, &fresh.address()), 50_000, "{case}");
+        assert_eq!(ordinary_nonce(&app, &fresh.address()), 0, "{case}");
+    }
+    assert_eq!(balance(&app, &fixture.active.address()), active_before);
+}
+
+#[test]
+fn failed_first_spend_still_initializes_the_account_and_consumes_its_nonce() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 1, vec![raw]).tx_results[0].code, 0);
+    let payer_before = balance(&app, &fixture.payer.address());
+    // Accepted, then out of gas at the second action: the transfer rolls back
+    // but the fee is paid and the nonce is consumed.
+    let raw = first_spend(
+        &app,
+        &fixture,
+        &fresh,
+        vec![
+            send(fixture.payer.id(), 100),
+            OrdinaryAction::Data {
+                data: "not committed".into(),
+            },
+        ],
+        25,
+    );
+    let result = commit(&mut app, 2, vec![raw]);
+    assert_ne!(result.tx_results[0].code, 0);
+    assert_eq!(result.tx_results[0].gas_used, 25);
+    assert!(registered(&app, &fresh));
+    assert_mirror(&app, &fresh, 1);
+    assert_eq!(balance(&app, &fresh.address()), 50_000 - 50);
+    assert_eq!(balance(&app, &fixture.payer.address()), payer_before);
+}
+
+#[test]
+fn an_account_can_be_created_and_first_spent_in_one_block() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let fund = funding(&app, &fixture, &fresh, 50_000);
+    let spend = first_spend(&app, &fixture, &fresh, vec![send(fixture.payer.id(), 100)], 1000);
+    // The spend cannot come before the transfer that funds it.
+    let result = commit(&mut app, 1, vec![spend.clone(), fund.clone()]);
+    assert_ne!(result.tx_results[0].code, 0);
+    assert_eq!(result.tx_results[1].code, 0, "{:?}", result.tx_results);
+    assert!(!registered(&app, &fresh));
+
+    let other = Key::new();
+    let fund = funding(&app, &fixture, &other, 50_000);
+    let spend = first_spend(&app, &fixture, &other, vec![send(fixture.payer.id(), 100)], 1000);
+    let result = commit(&mut app, 2, vec![fund, spend]);
+    assert!(result.tx_results.iter().all(|r| r.code == 0), "{:?}", result.tx_results);
+    assert_mirror(&app, &other, 1);
+    assert_eq!(burned(&app), 2 * CREATION_FEE);
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+}
+
+#[test]
+fn proposal_rolls_back_a_first_spend_it_does_not_select() {
+    let mut fixture = Fixture::new();
+    // One reservation per block, so a second candidate executes and is dropped.
+    fixture.config.ordinary.as_mut().unwrap().queue_max_entries = 1;
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 1, vec![raw]).tx_results[0].code, 0);
+    let data_tx = fixture.ordinary(
+        &current(&app, &fixture.payer),
+        &fixture.payer,
+        vec![OrdinaryAction::Data {
+            data: "first".into(),
+        }],
+        1000,
+    );
+    let data_tx = fixture.ordinary_wire(&data_tx);
+    let spend = first_spend(&app, &fixture, &fresh, vec![send(fixture.payer.id(), 1)], 1000);
+    let before = data(&app);
+    // The dropped candidate's record and origin are rolled back; the test
+    // build also compares the rollback with a full clone.
+    for ordered in [
+        vec![data_tx.clone(), spend.clone()],
+        vec![spend.clone(), data_tx.clone()],
+    ] {
+        let selected = app
+            .prepare_proposal(2, 20, 0, ordered.clone(), 1_048_576)
+            .unwrap();
+        assert_eq!(selected, vec![ordered[0].clone()]);
+        assert_eq!(data(&app), before);
+    }
+}
+
+#[test]
+fn initialized_account_must_keep_the_chain_template() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 1, vec![raw]).tx_results[0].code, 0);
+    let raw = first_spend(&app, &fixture, &fresh, vec![send(fixture.payer.id(), 1)], 1000);
+    assert_eq!(commit(&mut app, 2, vec![raw]).tx_results[0].code, 0);
+    let key = format!("recovery:v2:account:{}", hex::encode(fresh.id()));
+    let mut account: RecoveryAccount =
+        serde_json::from_slice(&app.storage.db.get(&key).unwrap().unwrap()).unwrap();
+    account.recovery.config.recovery_delay += 1;
+    app.storage
+        .db
+        .put(&key, serde_json::to_vec(&account).unwrap())
+        .unwrap();
+    let error = app.finalize_block(block(3, vec![])).unwrap_err();
+    assert!(format!("{error:#}").contains("chain template"), "{error:#}");
+}
+
+#[test]
+fn recovery_enrolls_an_initialized_implicit_account_and_refuses_an_uninitialized_one() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 1, vec![raw]).tx_results[0].code, 0);
+    let guardians: Vec<_> = fixture.guardians.iter().collect();
+    let enroll = |state: &RecoveryState| {
+        let operation = RecoveryOperation {
+            domain: state.domain.clone(),
+            action: Action {
+                submission_expiry: 40,
+                kind: ActionKind::Enroll {
+                    active: ActiveAuthorization {
+                        generation: state.active_generation,
+                        nonce: state.spending_nonce,
+                    },
+                    policy: fixture.policy(),
+                },
+            },
+        };
+        fixture.signed(operation, &[&fresh], &guardians)
+    };
+
+    // Before its first spend the account has no recovery record: it can be
+    // neither a recovery target nor a sponsor, and nothing is charged.
+    let payer_before = balance(&app, &fixture.payer.address());
+    let early = wire(&fixture.sponsored(enroll(&uninitialized(&app, &fixture, &fresh)), 0, GAS_LIMIT));
+    let as_sponsor = wire(&fixture.sponsored_by(fixture.enroll(), fresh.id(), &fresh, 0, 0, GAS_LIMIT));
+    for (raw, role) in [(early, "target"), (as_sponsor, "sponsor")] {
+        assert_ne!(app.check_tx(&raw).code, 0, "{role}");
+        let height = current_info(&app.storage).unwrap().height + 1;
+        let result = commit(&mut app, height, vec![raw]);
+        let log = &result.tx_results[0].log;
+        assert!(
+            log.contains(&format!("Recovery {role} has no recovery record"))
+                && log.contains("first ordinary transaction"),
+            "{role}: {log}"
+        );
+    }
+    assert_eq!(balance(&app, &fixture.payer.address()), payer_before);
+    assert_eq!(balance(&app, &fresh.address()), 50_000);
+    assert!(!registered(&app, &fresh));
+
+    // Once initialized, it enrolls guardians like a genesis account.
+    let raw = first_spend(&app, &fixture, &fresh, vec![send(fixture.payer.id(), 1)], 1000);
+    assert_eq!(commit(&mut app, 4, vec![raw]).tx_results[0].code, 0);
+    let raw = wire(&fixture.sponsored(enroll(&current(&app, &fresh)), 0, GAS_LIMIT));
+    assert_admitted(app.check_tx(&raw));
+    let result = commit(&mut app, 5, vec![raw]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let state = current(&app, &fresh);
+    assert_eq!(state.policy, Some(fixture.policy()));
+    assert_mirror(&app, &fresh, state.spending_nonce);
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+}
+
+#[test]
+fn block_account_reads_do_not_grow_with_initialized_accounts() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let reads = || crate::recovery_store::STORED_READS.with(|n| n.get());
+    let loads = || crate::recovery_store::COMPLETE_LOADS.with(|n| n.get());
+    let send_block = |app: &mut ConsensusApplication, height: u64| {
+        let tx = fixture.ordinary(
+            &current(app, &fixture.active),
+            &fixture.active,
+            vec![send(fixture.payer.id(), 1)],
+            1000,
+        );
+        let raw = fixture.ordinary_wire(&tx);
+        let (before, loaded) = (reads(), loads());
+        assert_admitted(app.check_tx(&raw));
+        let proposed = app
+            .prepare_proposal(height, height as i64 * 10, 0, vec![raw.clone()], 1_048_576)
+            .unwrap();
+        assert_eq!(proposed, vec![raw.clone()]);
+        let result = commit(app, height, vec![raw]);
+        assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+        assert_eq!(loads(), loaded, "admission, proposal and commit load no complete book");
+        reads() - before
+    };
+    // Opening the committed book re-checks the previous block's receipts, so
+    // each measured block follows a block with one receipt.
+    send_block(&mut app, 1);
+    let first = send_block(&mut app, 2);
+    let mut height = 3;
+    for _ in 0..12 {
+        let key = Key::new();
+        let raw = funding(&app, &fixture, &key, 50_000);
+        assert_eq!(commit(&mut app, height, vec![raw]).tx_results[0].code, 0);
+        let raw = first_spend(&app, &fixture, &key, vec![send(fixture.payer.id(), 1)], 1000);
+        assert_eq!(commit(&mut app, height + 1, vec![raw]).tx_results[0].code, 0);
+        assert!(registered(&app, &key));
+        height += 2;
+    }
+    assert_eq!(book(&app).accounts.len(), 15);
+    assert_eq!(send_block(&mut app, height), first);
+}
+
+#[test]
+fn sponsor_receipts_are_pruned_after_their_operation_expires_and_history_still_verifies() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let raw = wire(&fixture.sponsored(fixture.enroll(), 0, GAS_LIMIT));
+    let result = commit(&mut app, 1, vec![raw.clone()]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let committed = book(&app);
+    let (id, receipt) = committed.sponsor_receipts.iter().next().unwrap();
+    let (id, expiry) = (id.clone(), receipt.retained_until);
+    assert_eq!(expiry, fixture.enroll().operation.action.submission_expiry);
+    assert!(committed.operation_success.values().any(|entry| *entry == id));
+    for height in 2..expiry {
+        commit(&mut app, height, vec![]);
+    }
+    assert!(book(&app).sponsor_receipts.contains_key(&id));
+    // At the operation's expiry the receipt and its success entry are
+    // pruned; a replay is rejected by expiry and by the sponsor nonce.
+    let result = commit(&mut app, expiry, vec![raw]);
+    assert_ne!(result.tx_results[0].code, 0);
+    let pruned = book(&app);
+    assert!(pruned.sponsor_receipts.is_empty() && pruned.operation_success.is_empty());
+    assert_eq!(pruned.accounts[&hex::encode(fixture.payer.id())].sponsor_nonce, 1);
+    assert!(current(&app, &fixture.active).policy.is_some());
+    // The complete history check accepts the pruned receipt after a restart.
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
 }
