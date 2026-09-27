@@ -2016,6 +2016,51 @@ fn combined_transaction(
         }
     }
 }
+/// Entries a proposal candidate can change, from its envelope. An ordinary
+/// transaction changes its actor's recovery record and grant and adds one
+/// receipt; a sponsored recovery changes its target and sponsor and adds one
+/// receipt and success entry. An envelope that does not decode changes
+/// nothing. Rollback compares entry counts, so any other change fails.
+#[derive(Default)]
+struct CandidateKeys {
+    accounts: Vec<String>,
+    receipts: Vec<String>,
+    operations: Vec<String>,
+    actor: String,
+    ordinary_receipt: String,
+}
+fn candidate_keys(config: &ConsensusConfig, raw: &[u8], state: &OrdinaryState) -> CandidateKeys {
+    let mut keys = CandidateKeys::default();
+    match wire(config, raw) {
+        Ok(WireTransaction::OrdinaryV2 { envelope_base64 }) => {
+            if let Ok(signed) = ordinary_signed(&state.config, &envelope_base64) {
+                if let Ok(id) =
+                    ordinary_wire::transaction_id(&signed.body, &state.config.fee_profile.limits)
+                {
+                    keys.actor = hex::encode(signed.body.domain.account_id);
+                    keys.accounts.push(keys.actor.clone());
+                    keys.ordinary_receipt = hex::encode(id);
+                }
+            }
+        }
+        Ok(WireTransaction::Recovery { envelope_base64 }) => {
+            let bytes = recovery_bytes(&envelope_base64).unwrap_or_else(|_| raw.to_vec());
+            if let Ok(signed) = sponsor_wire::decode(&bytes) {
+                let sponsor = &signed.sponsor;
+                keys.accounts = vec![
+                    hex::encode(sponsor.domain.account_id),
+                    hex::encode(sponsor.sponsor_account_id),
+                ];
+                if let Ok(id) = sponsor_wire::authorization_id(sponsor) {
+                    keys.receipts.push(hex::encode(id));
+                }
+                keys.operations.push(hex::encode(sponsor.operation_id));
+            }
+        }
+        _ => {}
+    }
+    keys
+}
 /// Epoch observation contract v1. Utilization is the block space used by the
 /// completed epoch's transactions, excluding its own observation, in parts per
 /// million of epoch capacity (epoch_blocks * max_block_bytes), capped at one
@@ -4194,6 +4239,7 @@ impl ConsensusApplication {
             ordinary_fee_wire::profile_digest(&state.config.fee_profile)?,
             state.config.queue_limits()?,
         )?;
+        let profile_key = hex::encode(ordinary_fee_wire::profile_digest(&state.config.fee_profile)?);
         for raw in candidates {
             if out.len() >= self.config.max_txs {
                 break;
@@ -4201,9 +4247,15 @@ impl ConsensusApplication {
             if size.checked_add(raw.len()).is_none_or(|v| v > limit) {
                 continue;
             }
+            // Checkpoint only what this candidate can change, instead of
+            // cloning the whole recovery book and ordinary state.
+            let keys = candidate_keys(&self.config, &raw, &state);
             let prior_staged = staged.clone();
-            let prior_book = recovery.book.clone();
-            let prior_state = state.clone();
+            let book_checkpoint =
+                recovery.book.checkpoint(&keys.accounts, &keys.receipts, &keys.operations);
+            let state_checkpoint = state.checkpoint(&keys.actor, &keys.ordinary_receipt, &profile_key);
+            #[cfg(test)]
+            let oracle = (recovery.book.clone(), state.clone());
             let (result, request) = combined_transaction(
                 &self.config,
                 &raw,
@@ -4234,8 +4286,13 @@ impl ConsensusApplication {
                 out.push(raw);
             } else {
                 staged = prior_staged;
-                recovery.book = prior_book;
-                state = prior_state;
+                recovery.book.rollback(book_checkpoint)?;
+                state.rollback(state_checkpoint)?;
+                #[cfg(test)]
+                assert!(
+                    recovery.book == oracle.0 && state == oracle.1,
+                    "Candidate rollback differs from a full clone"
+                );
             }
         }
         state.last_height = height;

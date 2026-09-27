@@ -50,9 +50,9 @@ fn canonical<T: Serialize + DeserializeOwned>(bytes: &[u8], what: &str) -> Resul
     Ok(value)
 }
 // Implementation bounds for the isolated local profile. No pruning is authorized.
+// The book is stored per entry, so no whole-book byte bound applies.
 pub(crate) const MAX_ACCOUNTS: usize = 4096;
 const MAX_RECEIPTS: usize = 65536;
-const MAX_BOOK_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -207,74 +207,25 @@ impl RecoveryBook {
         let mut positions = BTreeSet::new();
         let mut counters = BTreeSet::new();
         for (id, receipt) in &self.sponsor_receipts {
-            ensure!(
-                *id == hex::encode(receipt.sponsor_authorization_id)
-                    && receipt.record_hash == receipt.hash()?,
-                "Recovery receipt digest mismatch"
-            );
-            ensure!(
-                receipt.block_height > 0
-                    && receipt.block_height <= self.last_height
-                    && positions.insert((receipt.block_height, receipt.block_index)),
-                "Invalid receipt block position"
-            );
-            ensure!(
-                receipt.profile_version == self.profile.version
-                    && receipt.profile_digest == profile_digest,
-                "Receipt requires an unavailable fee profile"
-            );
-            ensure!(
-                receipt.gas_limit > 0
-                    && receipt.gas_limit <= self.profile.max_transaction_gas
-                    && receipt.gas_used <= receipt.gas_limit
-                    && receipt.gas_used >= self.profile.minimum_gas,
-                "Invalid receipt gas counters"
-            );
-            ensure!(
-                receipt.success || receipt.gas_used == receipt.gas_limit,
-                "Invalid charged failure"
-            );
-            ensure!(
-                receipt.settled_fee
-                    == u128::from(receipt.gas_used) * u128::from(self.profile.gas_price)
-                    && receipt.reserved_cap.checked_sub(receipt.settled_fee)
-                        == Some(receipt.released_reserve)
-                    && receipt.reserved_cap <= self.profile.max_fee_cap
-                    && receipt.reserved_cap
-                        >= u128::from(receipt.gas_limit) * u128::from(self.profile.gas_price),
-                "Invalid receipt fee conservation"
-            );
-            ensure!(
-                receipt.sponsor_counter_before.checked_add(1)
-                    == Some(receipt.sponsor_counter_after),
-                "Invalid receipt sponsor counter"
-            );
             let sponsor_id = hex::encode(receipt.sponsor_account_id);
             let sponsor = self
                 .accounts
                 .get(&sponsor_id)
                 .context("Missing receipt sponsor")?;
+            self.check_receipt(
+                id,
+                receipt,
+                &profile_digest,
+                sponsor.sponsor_nonce,
+                self.operation_success.get(&hex::encode(receipt.operation_id)),
+            )?;
             ensure!(
-                receipt.sponsor_counter_after <= sponsor.sponsor_nonce
-                    && counters.insert((sponsor_id, receipt.sponsor_counter_before)),
+                positions.insert((receipt.block_height, receipt.block_index)),
+                "Invalid receipt block position"
+            );
+            ensure!(
+                counters.insert((sponsor_id, receipt.sponsor_counter_before)),
                 "Repeated or future sponsor counter"
-            );
-            ensure!(
-                self.accounts
-                    .contains_key(&hex::encode(receipt.target_account_id))
-                    && receipt.target_account_id != receipt.sponsor_account_id,
-                "Invalid receipt target"
-            );
-            let success = self
-                .operation_success
-                .get(&hex::encode(receipt.operation_id));
-            ensure!(
-                !receipt.success || success == Some(id),
-                "Successful receipt absent from operation index"
-            );
-            ensure!(
-                receipt.success || success != Some(id),
-                "Failure entered successful operation index"
             );
         }
         for (operation, id) in &self.operation_success {
@@ -300,34 +251,123 @@ impl RecoveryBook {
         }
         Ok(())
     }
+    /// Checks on one receipt that do not compare it with other receipts.
+    /// `sponsor_nonce` and `success_entry` are the sponsor's counter and the
+    /// operation's success-index entry in the book that holds the receipt.
+    fn check_receipt(
+        &self,
+        id: &str,
+        receipt: &SponsorReceipt,
+        profile_digest: &[u8; 32],
+        sponsor_nonce: u64,
+        success_entry: Option<&String>,
+    ) -> Result<()> {
+        ensure!(
+            id == hex::encode(receipt.sponsor_authorization_id)
+                && receipt.record_hash == receipt.hash()?,
+            "Recovery receipt digest mismatch"
+        );
+        ensure!(
+            receipt.block_height > 0 && receipt.block_height <= self.last_height,
+            "Invalid receipt block position"
+        );
+        ensure!(
+            receipt.profile_version == self.profile.version
+                && receipt.profile_digest == *profile_digest,
+            "Receipt requires an unavailable fee profile"
+        );
+        ensure!(
+            receipt.gas_limit > 0
+                && receipt.gas_limit <= self.profile.max_transaction_gas
+                && receipt.gas_used <= receipt.gas_limit
+                && receipt.gas_used >= self.profile.minimum_gas,
+            "Invalid receipt gas counters"
+        );
+        ensure!(
+            receipt.success || receipt.gas_used == receipt.gas_limit,
+            "Invalid charged failure"
+        );
+        ensure!(
+            receipt.settled_fee
+                == u128::from(receipt.gas_used) * u128::from(self.profile.gas_price)
+                && receipt.reserved_cap.checked_sub(receipt.settled_fee)
+                    == Some(receipt.released_reserve)
+                && receipt.reserved_cap <= self.profile.max_fee_cap
+                && receipt.reserved_cap
+                    >= u128::from(receipt.gas_limit) * u128::from(self.profile.gas_price),
+            "Invalid receipt fee conservation"
+        );
+        ensure!(
+            receipt.sponsor_counter_before.checked_add(1) == Some(receipt.sponsor_counter_after),
+            "Invalid receipt sponsor counter"
+        );
+        ensure!(
+            receipt.sponsor_counter_after <= sponsor_nonce,
+            "Repeated or future sponsor counter"
+        );
+        ensure!(
+            self.accounts
+                .contains_key(&hex::encode(receipt.target_account_id))
+                && receipt.target_account_id != receipt.sponsor_account_id,
+            "Invalid receipt target"
+        );
+        ensure!(
+            !receipt.success || success_entry.map(String::as_str) == Some(id),
+            "Successful receipt absent from operation index"
+        );
+        ensure!(
+            receipt.success || success_entry.map(String::as_str) != Some(id),
+            "Failure entered successful operation index"
+        );
+        Ok(())
+    }
+    /// Expiry heights one account currently owes.
+    fn account_expiries(account: &RecoveryAccount) -> impl Iterator<Item = u64> {
+        [
+            account.recovery.pending_recovery.as_ref().map(|p| p.expiry_height),
+            account.recovery.pending_policy.as_ref().map(|p| p.expiry_height),
+        ]
+        .into_iter()
+        .flatten()
+    }
+    fn add_expiries(
+        &self,
+        index: &mut BTreeMap<u64, BTreeSet<String>>,
+        id: &str,
+        account: &RecoveryAccount,
+    ) -> Result<()> {
+        for height in Self::account_expiries(account) {
+            ensure!(
+                height > self.last_height,
+                "Unprocessed mandatory recovery expiry"
+            );
+            ensure!(
+                index.entry(height).or_default().insert(id.to_owned()),
+                "Duplicate account expiry obligation"
+            );
+        }
+        Ok(())
+    }
     fn expected_expiries(&self) -> Result<BTreeMap<u64, BTreeSet<String>>> {
         let mut index: BTreeMap<u64, BTreeSet<String>> = BTreeMap::new();
         for (id, account) in &self.accounts {
-            for height in [
-                account
-                    .recovery
-                    .pending_recovery
-                    .as_ref()
-                    .map(|p| p.expiry_height),
-                account
-                    .recovery
-                    .pending_policy
-                    .as_ref()
-                    .map(|p| p.expiry_height),
-            ]
-            .into_iter()
-            .flatten()
-            {
-                ensure!(
-                    height > self.last_height,
-                    "Unprocessed mandatory recovery expiry"
-                );
-                ensure!(
-                    index.entry(height).or_default().insert(id.clone()),
-                    "Duplicate account expiry obligation"
-                );
-            }
+            self.add_expiries(&mut index, id, account)?;
         }
+        Ok(index)
+    }
+    /// The expiry index after one account changes. Given a consistent index,
+    /// this equals `expected_expiries` of the changed book.
+    fn expiry_index_with(
+        &self,
+        id: &str,
+        account: &RecoveryAccount,
+    ) -> Result<BTreeMap<u64, BTreeSet<String>>> {
+        let mut index = self.expiry_index.clone();
+        index.retain(|_, ids| {
+            ids.remove(id);
+            !ids.is_empty()
+        });
+        self.add_expiries(&mut index, id, account)?;
         Ok(index)
     }
     fn capacity_available(&self, index: &BTreeMap<u64, BTreeSet<String>>) -> Result<bool> {
@@ -355,11 +395,9 @@ impl RecoveryBook {
         );
         Ok(())
     }
+    /// The retired single-value encoding, kept for tests of whole-book validation.
+    #[cfg(test)]
     pub(crate) fn decode(bytes: &[u8]) -> Result<Self> {
-        ensure!(
-            bytes.len() <= MAX_BOOK_BYTES,
-            "Recovery book size exceeds bound"
-        );
         let book: Self = serde_json::from_slice(bytes).context("Invalid recovery book")?;
         book.validate()?;
         ensure!(
@@ -368,14 +406,10 @@ impl RecoveryBook {
         );
         Ok(book)
     }
+    #[cfg(test)]
     pub(crate) fn encode(&self) -> Result<Vec<u8>> {
         self.validate()?;
-        let bytes = serde_json::to_vec(self)?;
-        ensure!(
-            bytes.len() <= MAX_BOOK_BYTES,
-            "Recovery book size exceeds bound"
-        );
-        Ok(bytes)
+        Ok(serde_json::to_vec(self)?)
     }
     /// The stored form: one entry per account, sponsor receipt, success-index
     /// entry and expiry-index entry, plus a header. Blocks write changed entries.
@@ -419,20 +453,55 @@ impl RecoveryBook {
     /// Writes and deletions that turn `committed`'s stored entries into this
     /// book's. An account is written only when it changed in more than its
     /// recovery height; `load` advances stored accounts to the header height.
+    /// `committed` was validated when loaded; only this book is validated here,
+    /// and only changed entries are serialized.
     pub(crate) fn changes_from(&self, committed: &Self) -> Result<(Writes, Deletes)> {
-        let is_account = |key: &Vec<u8>| key.starts_with(ACCOUNT_PREFIX.as_bytes());
-        let next = self.entries()?;
-        let previous = committed.entries()?;
-        let mut writes: Writes = next
-            .iter()
-            .filter(|(key, value)| !is_account(key) && previous.get(*key) != Some(*value))
-            .map(|(key, value)| (key.clone(), value.clone()))
-            .collect();
-        let mut deletes: Deletes = previous
-            .keys()
-            .filter(|key| !is_account(key) && !next.contains_key(*key))
-            .cloned()
-            .collect();
+        self.validate()?;
+        let mut writes = Writes::new();
+        let mut deletes = Deletes::new();
+        let header = |book: &Self| {
+            serde_json::to_vec(&StoredHeader {
+                version: book.version,
+                last_height: book.last_height,
+                profile: book.profile.clone(),
+            })
+        };
+        let next_header = header(self)?;
+        if header(committed)? != next_header {
+            writes.insert(HEADER_KEY.as_bytes().to_vec(), next_header);
+        }
+        fn diff<V: Serialize + PartialEq>(
+            prefix: &str,
+            next: &BTreeMap<String, V>,
+            previous: &BTreeMap<String, V>,
+            writes: &mut Writes,
+            deletes: &mut Deletes,
+        ) -> Result<()> {
+            for (key, value) in next {
+                if previous.get(key) != Some(value) {
+                    writes.insert(format!("{prefix}{key}").into_bytes(), serde_json::to_vec(value)?);
+                }
+            }
+            for key in previous.keys().filter(|key| !next.contains_key(*key)) {
+                deletes.insert(format!("{prefix}{key}").into_bytes());
+            }
+            Ok(())
+        }
+        diff(RECEIPT_PREFIX, &self.sponsor_receipts, &committed.sponsor_receipts, &mut writes, &mut deletes)?;
+        diff(OPERATION_PREFIX, &self.operation_success, &committed.operation_success, &mut writes, &mut deletes)?;
+        let expiry_keys = |book: &Self| -> BTreeSet<Vec<u8>> {
+            book.expiry_index
+                .iter()
+                .flat_map(|(height, ids)| {
+                    ids.iter().map(move |id| format!("{EXPIRY_PREFIX}{height:020}:{id}").into_bytes())
+                })
+                .collect()
+        };
+        let (next_expiry, previous_expiry) = (expiry_keys(self), expiry_keys(committed));
+        for key in next_expiry.difference(&previous_expiry) {
+            writes.insert(key.clone(), Vec::new());
+        }
+        deletes.extend(previous_expiry.difference(&next_expiry).cloned());
         for (id, account) in &self.accounts {
             let unchanged = committed
                 .accounts
@@ -449,6 +518,38 @@ impl RecoveryBook {
             if !self.accounts.contains_key(id) {
                 deletes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes());
             }
+        }
+        #[cfg(test)]
+        assert_eq!(
+            (&writes, &deletes),
+            (&self.changes_from_reference(committed)?.0, &self.changes_from_reference(committed)?.1),
+            "Incremental recovery diff differs from the full-entry reference"
+        );
+        Ok((writes, deletes))
+    }
+    /// The previous whole-entry diff, kept as the test oracle for `changes_from`.
+    #[cfg(test)]
+    fn changes_from_reference(&self, committed: &Self) -> Result<(Writes, Deletes)> {
+        let is_account = |key: &Vec<u8>| key.starts_with(ACCOUNT_PREFIX.as_bytes());
+        let next = self.entries()?;
+        let previous = committed.entries()?;
+        let mut writes: Writes = next
+            .iter()
+            .filter(|(key, value)| !is_account(key) && previous.get(*key) != Some(*value))
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+        let mut deletes: Deletes = previous
+            .keys()
+            .filter(|key| !is_account(key) && !next.contains_key(*key))
+            .cloned()
+            .collect();
+        for (id, account) in &self.accounts {
+            if !committed.accounts.get(id).is_some_and(|prior| same_apart_from_height(prior, account)) {
+                writes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes(), serde_json::to_vec(account)?);
+            }
+        }
+        for id in committed.accounts.keys().filter(|id| !self.accounts.contains_key(*id)) {
+            deletes.insert(format!("{ACCOUNT_PREFIX}{id}").into_bytes());
         }
         Ok((writes, deletes))
     }
@@ -570,6 +671,62 @@ impl RecoveryBook {
                 expiry_gas_used,
             })
         }
+    }
+}
+/// Prior values of the book entries one proposal candidate may change.
+pub(crate) struct BookCheckpoint {
+    accounts: Vec<(String, Option<RecoveryAccount>)>,
+    receipts: Vec<(String, Option<SponsorReceipt>)>,
+    operations: Vec<(String, Option<String>)>,
+    expiry_index: BTreeMap<u64, BTreeSet<String>>,
+    sizes: (usize, usize, usize),
+    last_height: u64,
+}
+impl RecoveryBook {
+    /// Capture the named entries and the (small, capacity-bounded) expiry
+    /// index. `rollback` restores them and fails if any entry outside them was
+    /// added or removed.
+    pub(crate) fn checkpoint(
+        &self,
+        accounts: &[String],
+        receipts: &[String],
+        operations: &[String],
+    ) -> BookCheckpoint {
+        BookCheckpoint {
+            accounts: accounts.iter().map(|k| (k.clone(), self.accounts.get(k).cloned())).collect(),
+            receipts: receipts
+                .iter()
+                .map(|k| (k.clone(), self.sponsor_receipts.get(k).cloned()))
+                .collect(),
+            operations: operations
+                .iter()
+                .map(|k| (k.clone(), self.operation_success.get(k).cloned()))
+                .collect(),
+            expiry_index: self.expiry_index.clone(),
+            sizes: (self.accounts.len(), self.sponsor_receipts.len(), self.operation_success.len()),
+            last_height: self.last_height,
+        }
+    }
+    pub(crate) fn rollback(&mut self, checkpoint: BookCheckpoint) -> Result<()> {
+        fn restore<V>(map: &mut BTreeMap<String, V>, entries: Vec<(String, Option<V>)>) {
+            for (key, value) in entries {
+                match value {
+                    Some(value) => map.insert(key, value),
+                    None => map.remove(&key),
+                };
+            }
+        }
+        restore(&mut self.accounts, checkpoint.accounts);
+        restore(&mut self.sponsor_receipts, checkpoint.receipts);
+        restore(&mut self.operation_success, checkpoint.operations);
+        self.expiry_index = checkpoint.expiry_index;
+        ensure!(
+            (self.accounts.len(), self.sponsor_receipts.len(), self.operation_success.len())
+                == checkpoint.sizes
+                && self.last_height == checkpoint.last_height,
+            "Recovery rollback does not restore the book"
+        );
+        Ok(())
     }
 }
 #[derive(Clone, Debug)]
@@ -926,15 +1083,11 @@ impl RecoveryBlock {
             Ok(v) => v,
             Err(e) => return Ok(RecoveryResult::rejected(gas, e.to_string())),
         };
-        let mut proposed = self.book.clone();
-        proposed
-            .accounts
-            .get_mut(&target_id)
-            .expect("validated target")
-            .recovery = next.clone();
-        proposed.expiry_index = proposed.expected_expiries()?;
+        let mut next_target = target.clone();
+        next_target.recovery = next.clone();
+        let expiry_index = self.book.expiry_index_with(&target_id, &next_target)?;
         reject!(
-            proposed.capacity_available(&proposed.expiry_index)?,
+            self.book.capacity_available(&expiry_index)?,
             "Future expiry capacity unavailable"
         );
         let mut native = settlement.clone();
@@ -948,7 +1101,7 @@ impl RecoveryBlock {
         next_sponsor.sponsor_nonce += 1;
         let write_bytes = add(
             add(
-                logical_account_bytes(proposed.accounts.get(&target_id).expect("target"))?,
+                logical_account_bytes(&next_target)?,
                 logical_account_bytes(&next_sponsor)?,
             )?,
             32,
@@ -999,21 +1152,40 @@ impl RecoveryBlock {
             record_hash: [0; 32],
         };
         receipt.record_hash = receipt.hash()?;
-        let mut committed = if success { proposed } else { self.book.clone() };
-        committed.accounts.insert(sponsor_id, next_sponsor);
-        committed
-            .sponsor_receipts
-            .insert(auth_key.clone(), receipt.clone());
+        // Check the entries this operation changes before mutating anything.
+        // The whole book is validated at block start and again when the
+        // block's recovery changes are staged.
         if success {
-            committed.operation_success.insert(op_key, auth_key);
+            next.validate()?;
+            ensure!(
+                next.last_height == self.book.last_height,
+                "Recovery account height differs from book"
+            );
         }
-        // Validate before mutating native custody. Encoding bounds are also checked.
-        committed.encode()?;
+        self.book.check_receipt(
+            &auth_key,
+            &receipt,
+            &wire::profile_digest(&p)?,
+            next_sponsor.sponsor_nonce,
+            success.then_some(&auth_key),
+        )?;
         let mut baseline = settlement.clone();
         native.charge_sponsored(&sponsor.address, fee)?;
         reconcile_sponsor_charge(&mut baseline, &mut native, &sponsor, &receipt, p.gas_price)?;
+        // Publish in place; nothing below can fail.
+        if success {
+            self.book.accounts.insert(target_id, next_target);
+            self.book.expiry_index = expiry_index;
+            self.book.operation_success.insert(op_key, auth_key.clone());
+        }
+        self.book.accounts.insert(sponsor_id, next_sponsor);
+        self.book.sponsor_receipts.insert(auth_key, receipt.clone());
         *settlement = native;
-        self.book = committed;
+        #[cfg(test)]
+        {
+            assert_eq!(self.book.expiry_index, self.book.expected_expiries()?);
+            self.book.validate()?;
+        }
         Ok(RecoveryResult {
             success,
             charged: true,

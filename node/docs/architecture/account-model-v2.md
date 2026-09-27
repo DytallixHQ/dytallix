@@ -78,7 +78,7 @@ cap.
 4. **Replay protection without full history.** Sponsor receipts currently must
    cover every sponsor nonce. Replace that with the nonce itself plus an
    authorization expiry window, like ordinary receipts in phase A3.
-5. Remove `MAX_ACCOUNTS` and the 64 MiB book bound.
+5. Remove `MAX_ACCOUNTS` and the 64 MiB book bound. (The byte bound was removed in T5; the account cap goes with B1c.)
 
 Per-block cost becomes O(accounts touched), not O(all accounts).
 
@@ -160,7 +160,7 @@ accounts.
 | T2 (done) | Touched snapshot, touched mirror and grant checks (`validate_nonce_mirrors_for`, `validate_grants_for`), actor nonce advanced in place instead of cloning the book. Receipt reconciliation checks every account loaded into the settlement overlay (the overlay's key set is the access journal): touched accounts follow the receipt, all others must be unchanged. Metering left unchanged | None |
 | T3 (done) | Meter touched accounts only, plus the recovery record of each delegator checked for protection. The overlay, and so the per-action write diff and the block's `acct:` writes, now holds touched accounts only | Gas and fees (fresh genesis) |
 | T4 (done) | Recovery mirrors synced for target and sponsor only, without cloning the book. Admission and proposal eligibility computed on first use per owner (`LazyEligibility`). End-of-block ordinary checks cover only accounts loaded into the block's settlement (`OrdinaryState::validate_block`), so a block writes `acct:` keys only for accounts it touched. Ordinary state loads without whole-account checks except in the complete check. Sponsor reconciliation already covers only the loaded accounts, which are now the touched ones | None |
-| T5 | Recovery execution without whole-book clones and per-transaction `encode`; incremental expiry index; dirty-only recovery diff; checkpoint and rollback instead of per-candidate clones | None |
+| T5 (done) | Recovery transactions update the book in place with an incremental expiry index and checks on the entries they change, instead of cloning the whole book and validating and serializing it per transaction; the full check still runs at block start and when the block's changes are staged. Ordinary transactions retain their receipt in place instead of cloning and re-validating the fee history. The block diff validates only the new book and serializes only changed entries. Proposal candidates roll back through targeted checkpoints (entry counts verified) instead of cloning the book and ordinary state; the settlement overlay is still cloned per candidate. The obsolete 64 MiB whole-book bound (storage design item 5) is removed; `MAX_ACCOUNTS` stays until B1c | Only the removed 64 MiB bound |
 | T6 | Governance v3 and signed admission on touched accounts, before v3 is wired into consensus, including the committed-parent nonce scan (`committed_governance_parent`) that feeds signed admission | None today |
 
 Each step keeps the existing suite green. T2 keeps the whole-set functions as

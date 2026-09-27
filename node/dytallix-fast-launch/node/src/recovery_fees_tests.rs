@@ -695,3 +695,28 @@ fn combined_recovery_signature_ceiling_stops_before_verification_and_preserves_l
     assert_eq!(combined.book, before);
     assert!(settlement.writes().unwrap().is_empty());
 }
+#[test]
+fn checkpoint_rollback_restores_listed_entries_and_detects_others() {
+    let original = RecoveryBook::new(profile(), vec![account(1), account(2)]).unwrap();
+    let first = hex::encode([1; 32]);
+    let second = hex::encode([2; 32]);
+
+    let mut book = original.clone();
+    let checkpoint = book.checkpoint(&[first.clone()], &[], &[]);
+    book.accounts.get_mut(&first).unwrap().sponsor_nonce = 9;
+    book.expiry_index.insert(99, BTreeSet::from([first.clone()]));
+    book.rollback(checkpoint).unwrap();
+    assert_eq!(book, original);
+
+    // Removing an entry outside the checkpoint is detected.
+    let mut book = original.clone();
+    let checkpoint = book.checkpoint(&[first.clone()], &[], &[]);
+    book.accounts.remove(&second);
+    assert!(book.rollback(checkpoint).is_err());
+
+    // So is adding one.
+    let mut book = original.clone();
+    let checkpoint = book.checkpoint(&[], &[], &[]);
+    book.operation_success.insert("extra".into(), "receipt".into());
+    assert!(book.rollback(checkpoint).is_err());
+}
