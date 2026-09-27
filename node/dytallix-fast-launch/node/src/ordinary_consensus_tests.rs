@@ -3012,6 +3012,65 @@ fn validators_are_paid_by_power_and_every_fee_is_burned() {
     assert!(error.contains("unburned"), "{error}");
 }
 
+/// Without a penalty profile, evidence of either kind is accepted and
+/// recorded with no stake or set effect (P01, 27 September 2026); the chain
+/// keeps running.
+#[test]
+fn evidence_without_penalty_rules_is_recorded_and_never_stops_the_chain() {
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    commit(&mut app, 1, vec![]);
+    commit(&mut app, 2, vec![]);
+    let fact = |kind: &str, power: i64| EvidenceFact {
+        kind: kind.into(),
+        validator_address: "ab".repeat(20),
+        height: 1,
+        time_seconds: 10,
+        time_nanos: 0,
+        power,
+        total_power: 100,
+    };
+    // A power the chain never had is still recorded: no historical check
+    // can stop a block CometBFT has already verified.
+    let facts = vec![fact("duplicate_vote", 100), fact("light_client_attack", 7)];
+    let lifecycle_before = lifecycle_state(&app);
+    let mut input = block(3, vec![]);
+    input.misbehavior = facts.clone();
+    assert!(app.process_proposal(input.clone()).unwrap());
+    app.finalize_block(input).unwrap();
+    app.commit().unwrap();
+    for (index, fact) in facts.iter().enumerate() {
+        let key = crate::settlement::evidence_key(3, index).unwrap();
+        assert_eq!(
+            app.storage.db.get(&key).unwrap(),
+            Some(crate::settlement::encode_evidence(fact).unwrap())
+        );
+    }
+    let lifecycle_after = lifecycle_state(&app);
+    assert_eq!(lifecycle_after.effective, lifecycle_before.effective);
+    commit(&mut app, 4, vec![]);
+    drop(app);
+    let reopened = fixture.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+    // A changed or extra record is refused by the complete check.
+    let key = crate::settlement::evidence_key(3, 1).unwrap();
+    let changed = crate::settlement::encode_evidence(&fact("light_client_attack", 8)).unwrap();
+    reopened.storage.db.put(&key, &changed).unwrap();
+    assert!(verify_recovery(&reopened.storage).is_err());
+    let original = crate::settlement::encode_evidence(&facts[1]).unwrap();
+    reopened.storage.db.put(&key, &original).unwrap();
+    let extra = crate::settlement::evidence_key(4, 0).unwrap();
+    reopened.storage.db.put(&extra, &original).unwrap();
+    assert!(verify_recovery(&reopened.storage).is_err());
+    // An unknown kind is still refused.
+    let mut input = block(5, vec![]);
+    input.misbehavior = vec![fact("surround_vote", 1)];
+    reopened.storage.db.delete(&extra).unwrap();
+    let mut app = reopened;
+    assert!(!app.process_proposal(input).unwrap());
+}
+
 #[test]
 fn failed_transfer_to_a_new_address_creates_and_burns_nothing() {
     let fixture = Fixture::new();

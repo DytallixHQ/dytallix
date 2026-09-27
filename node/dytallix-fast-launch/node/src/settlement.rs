@@ -26,6 +26,18 @@ fn violation(message: &str) -> RuleViolation {
 }
 
 pub(crate) const FEE_KEY: &str = "execution:v1:withheld_udrt";
+pub(crate) const EVIDENCE_PREFIX: &str = "evidence:v1:";
+/// The record of the `index`th evidence fact in block `height`.
+pub(crate) fn evidence_key(height: u64, index: usize) -> Result<Vec<u8>> {
+    anyhow::ensure!(index < 64, "Evidence record index outside the batch bound");
+    Ok(format!("{EVIDENCE_PREFIX}{height:020}:{index:02}").into_bytes())
+}
+pub(crate) fn encode_evidence(fact: &EvidenceFact) -> Result<Vec<u8>> {
+    use bincode::Options;
+    Ok(bincode::DefaultOptions::new()
+        .with_fixint_encoding()
+        .serialize(fact)?)
+}
 fn record_key(hash: &str) -> String {
     format!("execution:v1:receipt:{hash}")
 }
@@ -85,6 +97,8 @@ pub(crate) struct Settlement {
     pub(crate) validators: Option<LifecycleState>,
     pub(crate) penalties: Option<PenaltyState>,
     pub(crate) governance: Option<GovernanceStore>,
+    /// Evidence recorded with no stake or set effect (P01, 27 September 2026).
+    pub(crate) evidence_records: BTreeMap<Vec<u8>, Vec<u8>>,
 }
 impl Settlement {
     pub(crate) fn new(storage: Arc<Storage>) -> Self {
@@ -100,6 +114,7 @@ impl Settlement {
             validators: None,
             penalties: None,
             governance: None,
+            evidence_records: BTreeMap::new(),
         }
     }
     /// Attach one parent-snapshot interval before executing its transactions.
@@ -408,6 +423,11 @@ impl Settlement {
         parent_height: u64,
         parent_time: (u64, i32),
     ) -> Result<()> {
+        // Until penalty rules are approved, and for kinds that are never
+        // penalized, evidence is only recorded.
+        if self.penalties.is_none() || fact.kind != "duplicate_vote" {
+            return self.record_evidence(fact);
+        }
         let before = self
             .validators
             .as_ref()
@@ -448,6 +468,13 @@ impl Settlement {
         penalties.sync_lifecycle(before, &next)?;
         self.validators = Some(next);
         self.penalties = Some(penalties);
+        Ok(())
+    }
+    fn record_evidence(&mut self, fact: &EvidenceFact) -> Result<()> {
+        fact.validate_shape()?;
+        let height = self.reward_plan()?.last_height;
+        let key = evidence_key(height, self.evidence_records.len())?;
+        self.evidence_records.insert(key, encode_evidence(fact)?);
         Ok(())
     }
     pub(crate) fn finalize_validator_evidence(&mut self) -> Result<()> {
@@ -734,6 +761,12 @@ impl Settlement {
     }
     pub(crate) fn writes(&self) -> Result<BTreeMap<Vec<u8>, Vec<u8>>> {
         let mut writes = self.lifecycle.clone();
+        for (key, value) in &self.evidence_records {
+            anyhow::ensure!(
+                writes.insert(key.clone(), value.clone()).is_none(),
+                "Evidence record already staged"
+            );
+        }
         if let Some(validators) = &self.validators {
             validators
                 .validate_rewards(self.rewards.as_ref().context("Missing lifecycle rewards")?)?;

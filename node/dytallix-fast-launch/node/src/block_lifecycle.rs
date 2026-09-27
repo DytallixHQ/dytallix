@@ -302,6 +302,7 @@ pub(crate) fn prepare_adaptive_interval(
     Writes,
     u128,
     Option<dytallix_storage::adaptive::PreparedJournalUpdate>,
+    Deletes,
 )> {
     use crate::runtime::{
         issuance_timing::{plan_block, TimingState, TIMING_STATE_KEY},
@@ -449,5 +450,10 @@ pub(crate) fn prepare_adaptive_interval(
             );
         }
     }
-    Ok((writes, circulating, planned.journal))
+    let deletes: Deletes = planned.deletes.into_iter().collect();
+    ensure!(
+        deletes.iter().all(|key| !writes.contains_key(key)),
+        "Issuance window writes and removes one record"
+    );
+    Ok((writes, circulating, planned.journal, deletes))
 }

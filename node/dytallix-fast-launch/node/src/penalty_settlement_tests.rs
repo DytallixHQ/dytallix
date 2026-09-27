@@ -534,6 +534,31 @@ fn historical_old_key_maps_to_stable_validator_after_rotation_and_excludes_later
     );
 }
 
+/// Under the penalty profile a light-client attack is recorded and not
+/// penalized; only a duplicate vote is (P01, 27 September 2026).
+#[test]
+fn light_client_attack_is_recorded_without_a_penalty() {
+    let f = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = f.initialized(&dir.path().join("db"));
+    commit(&mut app, 1, vec![]);
+    let mut fact = evidence(&f.keys[0], 1, 100, 200);
+    fact.kind = "light_client_attack".into();
+    let before = penalties(&app);
+    commit_evidence(&mut app, 2, vec![fact.clone()], vec![]);
+    assert_eq!(penalties(&app).incidents, before.incidents);
+    assert_eq!(
+        app.storage
+            .db
+            .get(crate::settlement::evidence_key(2, 0).unwrap())
+            .unwrap(),
+        Some(crate::settlement::encode_evidence(&fact).unwrap())
+    );
+    commit(&mut app, 3, vec![]);
+    drop(app);
+    verify_recovery(&f.open(&dir.path().join("db")).storage).unwrap();
+}
+
 #[test]
 fn invalid_evidence_metadata_rejects_block_without_writes() {
     for case in 0..6 {
@@ -547,7 +572,9 @@ fn invalid_evidence_metadata_rejects_block_without_writes() {
             1 => fact.power += 1,
             2 => fact.total_power += 1,
             3 => fact.time_seconds += 1,
-            4 => fact.kind = "light_client_attack".into(),
+            // Light-client attacks are recorded (P01, 27 Sep 2026); a kind
+            // the engine never reports is refused.
+            4 => fact.kind = "surround_vote".into(),
             5 => fact.time_nanos = 1,
             _ => {}
         }

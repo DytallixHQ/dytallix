@@ -11,6 +11,9 @@ use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 const HEAD_KEY: &[u8] = b"adaptive:v1:head";
+/// The controller state before the oldest retained event, once the journal
+/// window has pruned records. Absent means the genesis controller.
+const BASE_KEY: &[u8] = b"adaptive:v1:base";
 const EVENT_PREFIX: &[u8] = b"adaptive:v1:event:";
 const HEAD_MAGIC: &[u8; 8] = b"DYTAEH01";
 const EVENT_MAGIC: &[u8; 8] = b"DYTAEJ01";
@@ -277,8 +280,13 @@ impl<'a> AdaptiveJournal<'a> {
             .storage
             .lock_execution()
             .map_err(|_| JournalError::ExecutionLock)?;
-        let prepared =
-            prepare_transition(self.storage, self.binding, self.config.clone(), observation)?;
+        let prepared = prepare_transition(
+            self.storage,
+            self.binding,
+            self.config.clone(),
+            observation,
+            u64::MAX,
+        )?;
         let command = prepared
             .command()
             .cloned()
@@ -301,6 +309,10 @@ pub struct PreparedJournalUpdate {
     event_key: Option<Vec<u8>>,
     writes: Vec<(Vec<u8>, Vec<u8>)>,
     command: Option<Command>,
+    /// Records the window prunes, with the base they replace.
+    deletes: Vec<Vec<u8>>,
+    expected_base: Option<Option<Vec<u8>>>,
+    pruned: Option<RecordedCommand>,
 }
 impl PreparedJournalUpdate {
     /// Exact immutable canonical writes for inspection or integration planning.
@@ -316,6 +328,14 @@ impl PreparedJournalUpdate {
     /// Initialization has no command. A transition proposes the following epoch.
     pub fn command(&self) -> Option<&Command> {
         self.command.as_ref()
+    }
+    /// Journal keys this transition removes (the oldest event past the window).
+    pub fn deletes(&self) -> &[Vec<u8>] {
+        &self.deletes
+    }
+    /// The event record pruned from the window, if any.
+    pub fn pruned(&self) -> Option<&RecordedCommand> {
+        self.pruned.as_ref()
     }
 
     /// Recheck the predecessor before appending any writes to a caller-owned batch.
@@ -351,7 +371,15 @@ impl PreparedJournalUpdate {
                 return Err(JournalError::RecordConflict);
             }
         }
+        if let Some(expected) = &self.expected_base {
+            if storage.db.get(BASE_KEY)?.as_deref() != expected.as_deref() {
+                return Err(JournalError::StalePreparation);
+            }
+        }
         // Every fallible read and validation precedes the first batch mutation.
+        for key in &self.deletes {
+            batch.delete(key);
+        }
         for (key, value) in &self.writes {
             batch.put(key, value);
         }
@@ -360,7 +388,7 @@ impl PreparedJournalUpdate {
 }
 
 fn ensure_uninitialized(storage: &Storage) -> Result<(), JournalError> {
-    if storage.db.get(HEAD_KEY)?.is_some() {
+    if storage.db.get(HEAD_KEY)?.is_some() || storage.db.get(BASE_KEY)?.is_some() {
         return Err(JournalError::AlreadyInitialized);
     }
     if let Some(entry) = storage
@@ -392,19 +420,29 @@ pub fn prepare_initialize(
         event_key: None,
         writes: vec![(HEAD_KEY.to_vec(), bytes)],
         command: None,
+        deletes: Vec::new(),
+        expected_base: None,
+        pruned: None,
     })
 }
 
 /// Prepare the next validated observation transition without writing storage.
 /// The command does not mint or allocate tokens. No epoch timing is selected.
 /// Concurrent supported writes are detected by append_checked's exact predecessor.
+/// `window` is the number of event records kept (at least one): once the
+/// journal would hold more, the oldest is replayed into the base checkpoint
+/// and removed, so reads and storage stay bounded.
 pub fn prepare_transition(
     storage: &Storage,
     binding: [u8; 32],
     config: Config,
     observation: Observation,
+    window: u64,
 ) -> Result<PreparedJournalUpdate, JournalError> {
     config.validate()?;
+    if window == 0 {
+        return Err(JournalError::AuditLimit);
+    }
     let (mut next, before_digest, expected_head) = read_checkpoint(storage, &binding, &config)?;
     let expected_previous_event = match next.snapshot().last_epoch {
         Some(epoch) => {
@@ -431,12 +469,46 @@ pub fn prepare_transition(
         before_digest,
         after_digest,
     };
+    let mut writes = vec![(key.clone(), record.encode(&binding)), (HEAD_KEY.to_vec(), bytes)];
+    let mut deletes = Vec::new();
+    let mut expected_base = None;
+    let mut pruned = None;
+    if observation.epoch >= window {
+        let old_epoch = observation.epoch - window;
+        let old_key = event_key(old_epoch);
+        let old = read_record(storage, &binding, &config, old_epoch)?
+            .ok_or(JournalError::InvalidRecord)?;
+        let base_bytes = storage.db.get(BASE_KEY)?;
+        let mut base = match &base_bytes {
+            Some(bytes) => decode_checkpoint(bytes, &binding, &config)?.0,
+            None if old_epoch == 0 => Controller::new(config.clone())?,
+            None => return Err(JournalError::MissingCheckpoint),
+        };
+        if encode_head(&binding, &base).1 != old.before_digest {
+            return Err(JournalError::InvalidRecord);
+        }
+        let replayed = base.step(old.observation)?;
+        let (base_next, base_digest) = encode_head(&binding, &base);
+        if base_digest != old.after_digest
+            || replayed.for_epoch != old.for_epoch
+            || replayed.emission_udrt != old.emission_udrt
+        {
+            return Err(JournalError::InvalidRecord);
+        }
+        writes.push((BASE_KEY.to_vec(), base_next));
+        deletes.push(old_key);
+        expected_base = Some(base_bytes);
+        pruned = Some(old);
+    }
     Ok(PreparedJournalUpdate {
         expected_head: Some(expected_head),
         expected_previous_event,
-        event_key: Some(key.clone()),
-        writes: vec![(key, record.encode(&binding)), (HEAD_KEY.to_vec(), bytes)],
+        event_key: Some(key),
+        writes,
         command: Some(command),
+        deletes,
+        expected_base,
+        pruned,
     })
 }
 
@@ -521,22 +593,24 @@ pub fn verify_view(
     values: &BTreeMap<Vec<u8>, Vec<u8>>,
     binding: [u8; 32],
     config: &Config,
-    max_records: u64,
+    window: u64,
 ) -> Result<VerifiedJournal, JournalError> {
     config.validate()?;
-    let mut count = 0u64;
+    let mut epochs = Vec::new();
     for (key, _) in values.range(b"adaptive:".to_vec()..) {
         if !key.starts_with(b"adaptive:") {
             break;
         }
-        if key.as_slice() == HEAD_KEY {
+        if key.as_slice() == HEAD_KEY || key.as_slice() == BASE_KEY {
             continue;
         }
         if !key.starts_with(EVENT_PREFIX) || key.len() != EVENT_PREFIX.len() + 8 {
             return Err(JournalError::InvalidRecord);
         }
-        count = count.checked_add(1).ok_or(JournalError::AuditLimit)?;
-        if count > max_records {
+        let mut epoch = [0; 8];
+        epoch.copy_from_slice(&key[EVENT_PREFIX.len()..]);
+        epochs.push(u64::from_be_bytes(epoch));
+        if epochs.len() as u64 > window {
             return Err(JournalError::AuditLimit);
         }
     }
@@ -545,20 +619,33 @@ pub fn verify_view(
         .ok_or(JournalError::MissingCheckpoint)?;
     let (current, current_digest) = decode_checkpoint(bytes, &binding, config)?;
     let snapshot = current.snapshot();
-    let expected_count = match snapshot.last_epoch {
-        None => 0,
-        Some(epoch) => epoch.checked_add(1).ok_or(JournalError::InvalidRecord)?,
+    // Retained events are one contiguous run ending at the head's epoch; the
+    // window holds all of them until it fills, then exactly `window`.
+    let (first, count) = match snapshot.last_epoch {
+        None => (0, 0),
+        Some(last) => {
+            let total = last.checked_add(1).ok_or(JournalError::InvalidRecord)?;
+            let count = total.min(window);
+            (total - count, count)
+        }
     };
-    if expected_count > max_records {
-        return Err(JournalError::AuditLimit);
-    }
-    if count != expected_count {
+    if epochs.len() as u64 != count
+        || epochs
+            .iter()
+            .enumerate()
+            .any(|(i, epoch)| *epoch != first + i as u64)
+    {
         return Err(JournalError::InvalidRecord);
     }
-    let mut replay = Controller::new(config.clone())?;
+    let mut replay = match (first, values.get(BASE_KEY)) {
+        (0, None) => Controller::new(config.clone())?,
+        (0, Some(_)) => return Err(JournalError::InvalidRecord),
+        (_, Some(bytes)) => decode_checkpoint(bytes, &binding, config)?.0,
+        (_, None) => return Err(JournalError::MissingCheckpoint),
+    };
     let mut previous = encode_head(&binding, &replay).1;
     let mut commands = Vec::new();
-    for epoch in 0..expected_count {
+    for epoch in first..first + count {
         let encoded = values
             .get(&event_key(epoch))
             .ok_or(JournalError::InvalidRecord)?;

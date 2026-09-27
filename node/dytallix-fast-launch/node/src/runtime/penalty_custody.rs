@@ -57,9 +57,18 @@ pub struct EvidenceFact {
     pub power: i64,
     pub total_power: i64,
 }
+/// Evidence kinds CometBFT reports. Only a duplicate vote can be penalized;
+/// before D09 every kind is also recorded (P01, 27 September 2026).
+pub const EVIDENCE_KINDS: [&str; 2] = ["duplicate_vote", "light_client_attack"];
 impl EvidenceFact {
+    /// A penalizable fact: a duplicate vote with a canonical shape.
     pub fn validate(&self) -> Result<()> {
         ensure!(self.kind == "duplicate_vote", "Unsupported evidence kind");
+        self.validate_shape()
+    }
+    /// Any reported kind with a canonical shape; no historical checks.
+    pub fn validate_shape(&self) -> Result<()> {
+        ensure!(EVIDENCE_KINDS.contains(&self.kind.as_str()), "Unsupported evidence kind");
         ensure!(
             self.validator_address.len() == 40
                 && self
