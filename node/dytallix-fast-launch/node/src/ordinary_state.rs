@@ -6,7 +6,7 @@ use crate::{
     ordinary_authority::{self, Grants},
     ordinary_fee_settlement::FeeHistory,
     ordinary_reservations::QueueLimits,
-    recovery_fees::RecoveryBook,
+    recovery_fees::{RecoveryAccount, RecoveryBook},
     runtime::validator_lifecycle::LifecycleConfig,
     storage::state::Storage,
 };
@@ -139,63 +139,7 @@ impl OrdinaryConfig {
         );
         let mut addresses = BTreeSet::new();
         for (id, account) in &book.accounts {
-            let d = &account.recovery.domain;
-            ensure!(
-                d.chain_id == lifecycle.chain_id
-                    && !d.chain_id.is_empty()
-                    && d.chain_id.len() <= 128,
-                "Ordinary lifecycle/chain domain mismatch"
-            );
-            if d.network == 1 {
-                ensure!(
-                    self.fee_profile
-                        .limits
-                        .allowed_algorithms
-                        .iter()
-                        .all(|a| a == "mldsa65")
-                        && account
-                            .recovery
-                            .config
-                            .algorithms
-                            .keys()
-                            .all(|a| a == "mldsa65"),
-                    "Mainnet operational profile requires ML-DSA-65 exclusively"
-                );
-            }
-            let key = self
-                .origins
-                .get(id)
-                .context("Ordinary origin record missing")?;
-            let address = AccountAddress::from_origin_key(
-                network(d.network)?,
-                &d.chain_id,
-                origin_algorithm(&key.algorithm)?,
-                &key.public_key,
-            )?;
-            ensure!(
-                address.account_id() == &d.account_id && address.encode() == account.address,
-                "Ordinary origin differs from stable ID or native address"
-            );
-            ensure!(
-                self.fee_profile
-                    .limits
-                    .allowed_algorithms
-                    .contains(&account.recovery.active_key.algorithm),
-                "Current ordinary key is outside selected account role"
-            );
-            // RecoveryConfig uses one algorithm map for all recovery keys. Every
-            // entry can become a replacement active key. Reject an incompatible
-            // combined profile before activation, rather than accepting a key
-            // change that would make its final ordinary state invalid. This does
-            // not select additional ordinary algorithms or change guardian roles.
-            ensure!(
-                account.recovery.config.algorithms.keys().all(|algorithm| self
-                    .fee_profile
-                    .limits
-                    .allowed_algorithms
-                    .contains(algorithm)),
-                "Configured recovery replacement algorithms exceed the selected ordinary account role"
-            );
+            self.validate_account(lifecycle, id, account)?;
             addresses.insert(account.address.as_str());
         }
         for owner in lifecycle.approved_operators.values() {
@@ -215,6 +159,70 @@ impl OrdinaryConfig {
                 .values()
                 .all(|g| g.last_active_height == 0),
             "Initial ordinary grant is not a genesis record"
+        );
+        Ok(())
+    }
+    /// Account-level configuration rules for one registered account.
+    fn validate_account(
+        &self,
+        lifecycle: &LifecycleConfig,
+        id: &str,
+        account: &RecoveryAccount,
+    ) -> Result<()> {
+        let d = &account.recovery.domain;
+        ensure!(
+            d.chain_id == lifecycle.chain_id && !d.chain_id.is_empty() && d.chain_id.len() <= 128,
+            "Ordinary lifecycle/chain domain mismatch"
+        );
+        if d.network == 1 {
+            ensure!(
+                self.fee_profile
+                    .limits
+                    .allowed_algorithms
+                    .iter()
+                    .all(|a| a == "mldsa65")
+                    && account
+                        .recovery
+                        .config
+                        .algorithms
+                        .keys()
+                        .all(|a| a == "mldsa65"),
+                "Mainnet operational profile requires ML-DSA-65 exclusively"
+            );
+        }
+        let key = self
+            .origins
+            .get(id)
+            .context("Ordinary origin record missing")?;
+        let address = AccountAddress::from_origin_key(
+            network(d.network)?,
+            &d.chain_id,
+            origin_algorithm(&key.algorithm)?,
+            &key.public_key,
+        )?;
+        ensure!(
+            address.account_id() == &d.account_id && address.encode() == account.address,
+            "Ordinary origin differs from stable ID or native address"
+        );
+        ensure!(
+            self.fee_profile
+                .limits
+                .allowed_algorithms
+                .contains(&account.recovery.active_key.algorithm),
+            "Current ordinary key is outside selected account role"
+        );
+        // RecoveryConfig uses one algorithm map for all recovery keys. Every
+        // entry can become a replacement active key. Reject an incompatible
+        // combined profile before activation, rather than accepting a key
+        // change that would make its final ordinary state invalid. This does
+        // not select additional ordinary algorithms or change guardian roles.
+        ensure!(
+            account.recovery.config.algorithms.keys().all(|algorithm| self
+                .fee_profile
+                .limits
+                .allowed_algorithms
+                .contains(algorithm)),
+            "Configured recovery replacement algorithms exceed the selected ordinary account role"
         );
         Ok(())
     }
@@ -308,6 +316,35 @@ impl OrdinaryState {
         self.encode()?;
         Ok(())
     }
+    /// End-of-block check. The committed state passed `validate` at genesis and
+    /// passes it again in every complete check. Within a block only the accounts
+    /// in `changed` can differ (every account whose recovery record, nonce or
+    /// grant changed is loaded into the block's settlement), so account-level
+    /// rules run for those accounts only. `native_nonces` must cover them.
+    pub(crate) fn validate_block(
+        &self,
+        lifecycle: &LifecycleConfig,
+        book: &RecoveryBook,
+        native_nonces: &BTreeMap<String, u64>,
+        changed: &BTreeSet<[u8; 32]>,
+    ) -> Result<()> {
+        ensure!(self.version == 1, "Unsupported ordinary state version");
+        ensure!(
+            self.last_height == book.last_height,
+            "Ordinary/recovery state heights differ"
+        );
+        for id in changed {
+            let key = hex::encode(id);
+            if let Some(account) = book.accounts.get(&key) {
+                self.config.validate_account(lifecycle, &key, account)?;
+            }
+        }
+        ordinary_authority::validate_nonce_mirrors_for(book, native_nonces, changed)?;
+        ordinary_authority::validate_grants_for(book, &self.grants, changed)?;
+        self.validate_history(book)?;
+        self.encode()?;
+        Ok(())
+    }
     fn validate_history(&self, book: &RecoveryBook) -> Result<()> {
         self.history
             .validate()
@@ -394,6 +431,30 @@ impl OrdinaryState {
         book: &RecoveryBook,
         native_nonces: &BTreeMap<String, u64>,
     ) -> Result<Self> {
+        let value = Self::parse(bytes, expected)?;
+        value.validate(lifecycle, book, native_nonces)?;
+        value.canonical(bytes)?;
+        Ok(value)
+    }
+    /// Decode state this node committed. Every block validated its changed
+    /// accounts before commit, and the complete check validates everything, so
+    /// only structure, configuration, height and retained history are checked.
+    pub(crate) fn decode_committed(
+        bytes: &[u8],
+        expected: &OrdinaryConfig,
+        book: &RecoveryBook,
+    ) -> Result<Self> {
+        let value = Self::parse(bytes, expected)?;
+        ensure!(value.version == 1, "Unsupported ordinary state version");
+        ensure!(
+            value.last_height == book.last_height,
+            "Ordinary/recovery state heights differ"
+        );
+        value.validate_history(book)?;
+        value.canonical(bytes)?;
+        Ok(value)
+    }
+    fn parse(bytes: &[u8], expected: &OrdinaryConfig) -> Result<Self> {
         ensure!(
             u64::try_from(bytes.len()).context("Ordinary state length overflow")?
                 <= expected.max_state_bytes,
@@ -405,12 +466,14 @@ impl OrdinaryState {
             &value.config == expected,
             "Stored ordinary configuration differs from committed consensus configuration"
         );
-        value.validate(lifecycle, book, native_nonces)?;
+        Ok(value)
+    }
+    fn canonical(&self, bytes: &[u8]) -> Result<()> {
         ensure!(
-            value.encode()? == bytes,
+            self.encode()? == bytes,
             "Noncanonical ordinary state encoding"
         );
-        Ok(value)
+        Ok(())
     }
 }
 fn no_legacy_grants(storage: &Storage) -> Result<()> {
@@ -470,6 +533,17 @@ pub(crate) fn load(
     book: &RecoveryBook,
     native_nonces: &BTreeMap<String, u64>,
 ) -> Result<OrdinaryState> {
+    OrdinaryState::decode(&stored(storage)?, expected, lifecycle, book, native_nonces)
+}
+/// `load` without the whole-account checks; see `decode_committed`.
+pub(crate) fn load_committed(
+    storage: &Storage,
+    expected: &OrdinaryConfig,
+    book: &RecoveryBook,
+) -> Result<OrdinaryState> {
+    OrdinaryState::decode_committed(&stored(storage)?, expected, book)
+}
+fn stored(storage: &Storage) -> Result<Vec<u8>> {
     no_legacy_grants(storage)?;
     for entry in storage
         .db
@@ -484,11 +558,10 @@ pub(crate) fn load(
             "Unexpected ordinary state namespace"
         );
     }
-    let bytes = storage
+    storage
         .db
         .get(STATE_KEY)?
-        .context("Configured ordinary state is missing; no automatic initialization")?;
-    OrdinaryState::decode(&bytes, expected, lifecycle, book, native_nonces)
+        .context("Configured ordinary state is missing; no automatic initialization")
 }
 /// Add the complete ordinary record to the caller's atomic block writes. This
 /// function cannot commit and rejects a conflicting preexisting staged write.

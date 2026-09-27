@@ -7,7 +7,7 @@
 //! component. No result here permits execution or proves those checks occurred.
 //! Execution must repeat authority and funding checks against staged state.
 //! This module does not change the existing admission routes or chain state.
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) type Owner = [u8; 32];
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -86,6 +86,19 @@ pub(crate) struct ReservationRequest {
     pub unrestricted_debits: Vec<ActionDebit>,
     pub wire_bytes: u64,
     pub signature_work: u64,
+}
+impl ReservationRequest {
+    /// Owners whose eligibility this request's requirements are checked against.
+    pub(crate) fn owners(&self) -> BTreeSet<Owner> {
+        std::iter::once(self.payer)
+            .chain(
+                self.action_debits
+                    .iter()
+                    .chain(&self.unrestricted_debits)
+                    .map(|debit| debit.asset.owner),
+            )
+            .collect()
+    }
 }
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ReservedAmounts {
@@ -170,6 +183,20 @@ impl ReservationLedger {
     }
     pub(crate) fn resources(&self) -> (u64, u64) {
         (self.wire_bytes, self.signature_work)
+    }
+    /// Owners of every asset a retained reservation is checked against. A new
+    /// reservation rechecks all of them, so eligibility must cover them.
+    pub(crate) fn owners(&self) -> BTreeSet<Owner> {
+        self.entries
+            .values()
+            .flat_map(|entry| {
+                entry
+                    .requirements
+                    .keys()
+                    .chain(entry.unrestricted_requirements.keys())
+            })
+            .map(|asset| asset.owner)
+            .collect()
     }
     pub(crate) fn reserved(&self, asset: Asset) -> Result<ReservedAmounts, ReservationError> {
         self.reserved_constraint(asset, false)

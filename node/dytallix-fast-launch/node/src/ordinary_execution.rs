@@ -226,6 +226,60 @@ fn reconcile_receipt(
     }
     Ok(())
 }
+/// Block-start eligibility, computed for each owner on first use. Values come
+/// from an unmodified copy of the block-start settlement, so they equal a
+/// complete snapshot taken before any candidate executes. Unregistered owners
+/// stay absent, which reservations treat as zero, as the complete snapshot did.
+pub(crate) struct LazyEligibility {
+    base: Settlement,
+    loaded: BTreeSet<[u8; 32]>,
+    liquidity: Eligibility,
+}
+impl LazyEligibility {
+    pub(crate) fn new(block_start: &Settlement) -> Self {
+        Self {
+            base: block_start.clone(),
+            loaded: BTreeSet::new(),
+            liquidity: Eligibility {
+                total: BTreeMap::new(),
+                unrestricted: BTreeMap::new(),
+            },
+        }
+    }
+    pub(crate) fn covering(
+        &mut self,
+        book: &RecoveryBook,
+        owners: impl IntoIterator<Item = [u8; 32]>,
+    ) -> Result<&Eligibility> {
+        for owner in owners {
+            if !self.loaded.insert(owner) {
+                continue;
+            }
+            let Some(account) = book.accounts.get(&hex::encode(owner)) else {
+                continue;
+            };
+            for (denomination, name) in [(Denomination::Udgt, "udgt"), (Denomination::Udrt, "udrt")] {
+                let total = self
+                    .base
+                    .ordinary_eligible(&account.address, name, true)
+                    .map_err(internal)?;
+                let unrestricted = self
+                    .base
+                    .ordinary_eligible(&account.address, name, false)
+                    .map_err(internal)?;
+                self.liquidity
+                    .total
+                    .insert(asset(owner, denomination), total);
+                self.liquidity
+                    .unrestricted
+                    .insert(asset(owner, denomination), unrestricted);
+            }
+        }
+        Ok(&self.liquidity)
+    }
+}
+/// Complete block-start eligibility; the oracle for `LazyEligibility`.
+#[cfg(test)]
 pub(crate) fn eligible_liquidity(
     settlement: &mut Settlement,
     book: &RecoveryBook,
@@ -248,17 +302,24 @@ pub(crate) fn eligible_liquidity(
     })
 }
 /// Apply recovery counter changes only when the previous combined mirror agrees.
+/// `before` holds the pre-transaction records of the accounts a recovery
+/// transaction touches (its target and sponsor); execution changes no other
+/// account and adds none, so the registry size must be unchanged.
 pub(crate) fn sync_recovery_mirrors(
-    before: &RecoveryBook,
+    before: &BTreeMap<String, RecoveryAccount>,
+    registered_before: usize,
     after: &RecoveryBook,
     settlement: &mut Settlement,
 ) -> Result<()> {
-    if before.accounts.keys().ne(after.accounts.keys()) {
+    if after.accounts.len() != registered_before {
         return Err(internal("Recovery account registry changed"));
     }
     let mut next = settlement.clone();
-    for (id, a) in &before.accounts {
-        let b = &after.accounts[id];
+    for (id, a) in before {
+        let b = after
+            .accounts
+            .get(id)
+            .ok_or_else(|| internal("Recovery account registry changed"))?;
         if a.address != b.address
             || next.account(&a.address).map_err(internal)?.nonce != a.recovery.spending_nonce
         {

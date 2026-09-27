@@ -976,3 +976,28 @@ fn send_gas_and_loaded_accounts_do_not_grow_with_registered_accounts() {
     }
     assert_eq!(gas.len(), 1, "gas differs by account count: {gas:?}");
 }
+#[test]
+fn lazy_eligibility_matches_the_complete_block_start_snapshot() {
+    let mut f = fixture();
+    let full = eligible_liquidity(&mut f.settlement.clone(), &f.book).unwrap();
+    let mut lazy = LazyEligibility::new(&f.settlement);
+    let unregistered = [0x55; 32];
+    let covered = lazy
+        .covering(&f.book, [ACTOR, OWNER, unregistered])
+        .unwrap()
+        .clone();
+    for (complete, partial) in [
+        (&full.total, &covered.total),
+        (&full.unrestricted, &covered.unrestricted),
+    ] {
+        let expected: BTreeMap<_, _> = complete
+            .iter()
+            .filter(|(asset, _)| asset.owner == ACTOR || asset.owner == OWNER)
+            .map(|(asset, value)| (*asset, *value))
+            .collect();
+        assert_eq!(*partial, expected);
+    }
+    // Values stay those of block start after the live settlement changes.
+    set(&mut f, ACTOR, "udrt", 1);
+    assert_eq!(lazy.covering(&f.book, [ACTOR]).unwrap(), &covered);
+}
