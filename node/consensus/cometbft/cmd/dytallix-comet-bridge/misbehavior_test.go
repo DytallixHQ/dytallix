@@ -50,7 +50,6 @@ func TestMisbehaviorEmptyPreservesPayload(t *testing.T) {
 func TestMisbehaviorRejectsInvalidRecordsWithoutPartialPayload(t *testing.T) {
 	cases := map[string]func(*abci.Misbehavior){
 		"unknown":                 func(m *abci.Misbehavior) { m.Type = abci.MisbehaviorType_UNKNOWN },
-		"light_client":            func(m *abci.Misbehavior) { m.Type = abci.MisbehaviorType_LIGHT_CLIENT_ATTACK },
 		"address":                 func(m *abci.Misbehavior) { m.Validator.Address = []byte{1} },
 		"negative_height":         func(m *abci.Misbehavior) { m.Height = -1 },
 		"zero_height":             func(m *abci.Misbehavior) { m.Height = 0 },
@@ -86,10 +85,23 @@ func TestMisbehaviorRejectsInvalidRecordsWithoutPartialPayload(t *testing.T) {
 	}
 }
 
+func TestLightClientAttackIsForwardedAsItsOwnKind(t *testing.T) {
+	m := neutralMisbehavior()
+	m.Type = abci.MisbehaviorType_LIGHT_CLIENT_ATTACK
+	p := map[string]any{}
+	if err := addMisbehavior(p, []abci.Misbehavior{neutralMisbehavior(), m}); err != nil {
+		t.Fatal(err)
+	}
+	facts := p["misbehavior"].([]misbehaviorFact)
+	if len(facts) != 2 || facts[0].Kind != "duplicate_vote" || facts[1].Kind != "light_client_attack" {
+		t.Fatalf("facts: %+v", facts)
+	}
+}
+
 func TestUnsupportedMisbehaviorRejectedBeforeChild(t *testing.T) {
 	a := application{}
 	m := neutralMisbehavior()
-	m.Type = abci.MisbehaviorType_LIGHT_CLIENT_ATTACK
+	m.Type = abci.MisbehaviorType_UNKNOWN
 	ctx := context.Background()
 	now := time.Unix(30, 0)
 	if _, err := a.PrepareProposal(ctx, &abci.RequestPrepareProposal{Height: 8, Time: now, Misbehavior: []abci.Misbehavior{m}}); err == nil {

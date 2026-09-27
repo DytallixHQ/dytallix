@@ -256,6 +256,9 @@ pub struct TimingState {
     pub epoch_budget_udrt: u64,
     pub issued_in_epoch: PoolAmounts,
     pub total_issued: PoolAmounts,
+    /// Issuance of epochs whose controller records the journal window has
+    /// pruned; keeps the cumulative total checkable (P01, 27 September 2026).
+    pub pruned_issued: PoolAmounts,
 }
 impl TimingState {
     pub fn new(config: TimingGenesis, chain_id: String, genesis_digest: String) -> Result<Self> {
@@ -269,6 +272,7 @@ impl TimingState {
             active_epoch: 0,
             issued_in_epoch: PoolAmounts::default(),
             total_issued: PoolAmounts::default(),
+            pruned_issued: PoolAmounts::default(),
         };
         state.binding = state.compute_binding()?;
         state.validate_internal()?;
@@ -305,8 +309,8 @@ impl TimingState {
             (self.last_height - 1) / self.config.epoch_blocks
         };
         ensure!(
-            self.active_epoch == epoch && epoch <= self.config.max_recorded_epochs,
-            "Issuance epoch differs from height or audit limit"
+            self.active_epoch == epoch,
+            "Issuance epoch differs from height"
         );
         let count = if self.last_height == 0 {
             0
@@ -363,6 +367,8 @@ pub struct PlannedIssuance {
     pub block_pools: PoolAmounts,
     pub journal: Option<PreparedJournalUpdate>,
     pub writes: BTreeMap<Vec<u8>, Vec<u8>>,
+    /// Journal and observation records the window removes.
+    pub deletes: Vec<Vec<u8>>,
 }
 fn observation_range(obs: &EpochObservation, epoch_blocks: u64) -> Result<()> {
     valid_id(&obs.parent_hash)?;
@@ -396,47 +402,15 @@ pub fn plan_block(
         state.last_height.checked_add(1) == Some(height),
         "Issuance height is not next block"
     );
-    let mut values = BTreeMap::new();
-    let view_limit = state
-        .config
-        .max_recorded_epochs
-        .checked_mul(2)
-        .and_then(|v| v.checked_add(5))
-        .context("Issuance view limit exceeds u64")?;
-    let snapshot = storage.db.snapshot();
-    for (key, value) in
-        crate::block_lifecycle::snapshot_selected(&snapshot, &VIEW_PREFIXES, &VIEW_KEYS)?
-    {
-        if selected(&key) {
-            ensure!(
-                u64::try_from(values.len())? < view_limit,
-                "Issuance view exceeds record limit"
-            );
-            let byte_limit = if key.as_ref() == b"adaptive:v1:head" {
-                dytallix_adaptive_emission::MAX_ENCODED_LEN + 72
-            } else {
-                MAX_STATE_BYTES
-            };
-            ensure!(
-                value.len() <= byte_limit,
-                "Issuance view record exceeds encoded limit"
-            );
-            values.insert(key.to_vec(), value.to_vec());
-        }
-    }
-    ensure!(
-        verify_overlay(&values)? == *state,
-        "Issuance planner state differs from durable state"
-    );
+    // Per block, only the bindings; the complete check replays the journal
+    // window (`verify_stored`).
+    verify_bindings(storage, state)?;
     let n = state.config.epoch_blocks;
     let epoch = (height - 1) / n;
     let offset = (height - 1) % n;
-    ensure!(
-        epoch <= state.config.max_recorded_epochs,
-        "Issuance journal audit limit reached"
-    );
     let mut next = state.clone();
     let mut writes = BTreeMap::new();
+    let mut deletes = Vec::new();
     let mut journal = None;
     if epoch > state.active_epoch {
         ensure!(
@@ -460,7 +434,17 @@ pub fn plan_block(
                 utilization_ppm: obs.utilization_ppm,
                 volatility_ppm: obs.volatility_ppm,
             },
+            state.config.max_recorded_epochs,
         )?;
+        // The window drops its oldest record: its observation goes too, and
+        // the budget it set moves to the pruned total.
+        if let Some(old) = prepared.pruned() {
+            deletes.push(observation_key(old.observation.epoch));
+            deletes.extend(prepared.deletes().iter().cloned());
+            next.pruned_issued = next
+                .pruned_issued
+                .checked_add(&PoolAmounts::epoch_split(old.emission_udrt))?;
+        }
         let command = prepared
             .command()
             .context("Prepared controller command is missing")?;
@@ -492,7 +476,64 @@ pub fn plan_block(
         block_pools,
         journal,
         writes,
+        deletes,
     })
+}
+/// Per-block bindings of the durable issuance state: genesis, chain and
+/// emission height. Point reads only.
+fn verify_bindings(storage: &Storage, state: &TimingState) -> Result<()> {
+    let marker = storage
+        .db
+        .get(b"genesis:monetary:v1")?
+        .context("Missing monetary genesis binding")?;
+    ensure!(
+        marker.len() == 33 && marker[0] == 1 && state.genesis_digest == hex::encode(&marker[1..]),
+        "Issuance genesis binding differs"
+    );
+    ensure!(
+        storage.db.get(b"meta:chain_id")?.as_deref() == Some(state.chain_id.as_bytes()),
+        "Issuance chain binding differs"
+    );
+    let height = match storage.db.get(b"emission:last_height")? {
+        Some(raw) => u64::from_be_bytes(
+            raw.as_slice()
+                .try_into()
+                .context("Invalid emission height")?,
+        ),
+        None => 0,
+    };
+    ensure!(
+        state.last_height == height,
+        "Issuance and emission heights differ"
+    );
+    ensure!(
+        TimingState::decode(
+            &storage
+                .db
+                .get(TIMING_STATE_KEY)?
+                .context("Missing issuance timing state")?
+        )? == *state,
+        "Issuance planner state differs from durable state"
+    );
+    Ok(())
+}
+/// The complete check of the committed issuance records: the journal window
+/// replays from its checkpoint and every total reconciles. O(window).
+pub fn verify_stored(storage: &Storage) -> Result<TimingState> {
+    let snapshot = storage.db.snapshot();
+    let mut values = BTreeMap::new();
+    for (key, value) in
+        crate::block_lifecycle::snapshot_selected(&snapshot, &VIEW_PREFIXES, &VIEW_KEYS)?
+    {
+        if selected(&key) {
+            values.insert(key.to_vec(), value.to_vec());
+        }
+    }
+    verify_overlay(&values)
+}
+/// True when the window has pruned the observation record of `epoch`.
+pub fn observation_pruned(state: &TimingState, epoch: u64) -> bool {
+    epoch.saturating_add(state.config.max_recorded_epochs) < state.active_epoch
 }
 const VIEW_PREFIXES: [&[u8]; 2] = [b"issuance:", b"adaptive:"];
 const VIEW_KEYS: [&[u8]; 3] = [b"genesis:monetary:v1", b"meta:chain_id", b"emission:last_height"];
@@ -500,6 +541,40 @@ fn selected(key: &[u8]) -> bool {
     VIEW_PREFIXES.iter().any(|prefix| key.starts_with(prefix)) || VIEW_KEYS.contains(&key)
 }
 /// Validate an immutable combined view. This checks internal history, not observation authenticity.
+/// The durable timing state and its genesis, chain and height bindings from
+/// a view, without the journal: for per-block supply checks.
+pub fn verify_state_bindings(values: &BTreeMap<Vec<u8>, Vec<u8>>) -> Result<TimingState> {
+    let state = TimingState::decode(
+        values
+            .get(TIMING_STATE_KEY.as_bytes())
+            .context("Missing issuance timing state")?,
+    )?;
+    let marker = values
+        .get(b"genesis:monetary:v1".as_slice())
+        .context("Missing monetary genesis binding")?;
+    ensure!(
+        marker.len() == 33 && marker[0] == 1 && state.genesis_digest == hex::encode(&marker[1..]),
+        "Issuance genesis binding differs"
+    );
+    ensure!(
+        values.get(b"meta:chain_id".as_slice()).map(Vec::as_slice)
+            == Some(state.chain_id.as_bytes()),
+        "Issuance chain binding differs"
+    );
+    let height = match values.get(b"emission:last_height".as_slice()) {
+        Some(raw) => u64::from_be_bytes(
+            raw.as_slice()
+                .try_into()
+                .context("Invalid emission height")?,
+        ),
+        None => 0,
+    };
+    ensure!(
+        state.last_height == height,
+        "Issuance and emission heights differ"
+    );
+    Ok(state)
+}
 pub fn verify_overlay(values: &BTreeMap<Vec<u8>, Vec<u8>>) -> Result<TimingState> {
     let state = TimingState::decode(
         values
@@ -530,14 +605,15 @@ pub fn verify_overlay(values: &BTreeMap<Vec<u8>, Vec<u8>>) -> Result<TimingState
         state.last_height == height,
         "Issuance and emission heights differ"
     );
+    let window = state.config.max_recorded_epochs;
     let journal = verify_view(
         values,
         state.binding,
         &state.config.controller_config()?,
-        state.config.max_recorded_epochs,
+        window,
     )?;
     ensure!(
-        u64::try_from(journal.commands.len())? == state.active_epoch
+        u64::try_from(journal.commands.len())? == state.active_epoch.min(window)
             && journal.snapshot.last_epoch == state.active_epoch.checked_sub(1),
         "Controller journal differs from active issuance epoch"
     );
@@ -555,12 +631,14 @@ pub fn verify_overlay(values: &BTreeMap<Vec<u8>, Vec<u8>>) -> Result<TimingState
             .context("Observation count overflow")?;
     }
     ensure!(
-        observation_count == state.active_epoch,
+        observation_count == state.active_epoch.min(window),
         "Observation record count differs from journal"
     );
-    let mut total = PoolAmounts::default();
+    let mut total = state.pruned_issued;
     if state.active_epoch > 0 {
-        total = PoolAmounts::epoch_split(state.config.initial_epoch_budget_udrt);
+        total = total.checked_add(&PoolAmounts::epoch_split(
+            state.config.initial_epoch_budget_udrt,
+        ))?;
     }
     let mut expected_budget = state.config.initial_epoch_budget_udrt;
     for record in &journal.commands {

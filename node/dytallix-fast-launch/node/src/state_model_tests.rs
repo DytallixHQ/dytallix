@@ -216,3 +216,31 @@ fn commit_applies_staged_deletions_atomically() {
     assert!(app.storage.db.get(b"scratch:b1a").unwrap().is_none());
     assert_eq!(app.info().unwrap().height, 2);
 }
+
+/// The issuance journal keeps a window of `max_recorded_epochs` (8 here)
+/// instead of stopping the chain (P01, 27 September 2026).
+#[test]
+fn issuance_runs_past_the_journal_window_and_keeps_only_the_window() {
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let app = committed_chain(&inputs, &dir.path().join("db"), 40);
+    let count = |prefix: &[u8]| {
+        app.storage
+            .db
+            .iterator(IteratorMode::From(prefix, Direction::Forward))
+            .take_while(|e| e.as_ref().unwrap().0.starts_with(prefix))
+            .count()
+    };
+    let state = timing(&app);
+    assert_eq!(state.active_epoch, 19);
+    assert_eq!(count(b"adaptive:v1:event:"), 8);
+    assert_eq!(count(b"issuance:v1:observation:"), 8);
+    assert!(app.storage.db.get(b"adaptive:v1:base").unwrap().is_some());
+    assert!(state.pruned_issued.total().unwrap() > 0);
+    crate::runtime::issuance_timing::verify_stored(&app.storage).unwrap();
+    drop(app);
+    // A restart replays the window from its checkpoint in the complete check.
+    let reopened = inputs.open(&dir.path().join("db"));
+    verify_recovery(&reopened.storage).unwrap();
+    assert_eq!(timing(&reopened), state);
+}

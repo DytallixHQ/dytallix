@@ -265,22 +265,23 @@ pub(crate) fn genesis_amount(storage: &Storage) -> Result<u128> {
 }
 /// Emission events are not a prefix here: only the current block's event is
 /// read, by point lookup, instead of every event since genesis.
-/// Governance contributes only its header's held deposit total (T6).
-const RELEVANT_PREFIXES: [&[u8]; 10] = [
+/// Governance contributes only its header's held deposit total (T6), and
+/// issuance only its timing state; the controller journal is checked at
+/// startup (P01, 27 September 2026).
+const RELEVANT_PREFIXES: [&[u8]; 8] = [
     b"supply:",
     b"staking:",
     b"rewards:",
     b"lifecycle:",
     b"penalty:",
-    b"issuance:",
-    b"adaptive:",
     b"gov:",
     b"acct:balances:",
     b"emission:pool:",
 ];
-fn relevant_keys() -> [&'static [u8]; 8] {
+fn relevant_keys() -> [&'static [u8]; 9] {
     [
         governance_store::HEADER_KEY.as_bytes(),
+        TIMING_STATE_KEY.as_bytes(),
         DRT_GENESIS_KEY.as_bytes(),
         DRT_BURNED_KEY.as_bytes(),
         EMITTED.as_bytes(),
@@ -454,14 +455,17 @@ pub(crate) fn validate_native(storage: &Storage, overlay: &Writes) -> Result<Nat
             reward_state.is_some(),
             "Timed issuance requires reward-v2 state"
         );
-        Some(issuance_timing::verify_overlay(&values)?)
+        Some(issuance_timing::verify_state_bindings(&values)?)
     } else {
-        ensure!(
-            !values
-                .keys()
-                .any(|key| key.starts_with(b"issuance:") || key.starts_with(b"adaptive:")),
-            "Orphan issuance or adaptive-controller record"
-        );
+        let mut orphan = overlay
+            .keys()
+            .any(|key| key.starts_with(b"issuance:") || key.starts_with(b"adaptive:"));
+        for prefix in [b"issuance:".as_slice(), b"adaptive:".as_slice()] {
+            if let Some(item) = storage.db.prefix_iterator(prefix).next() {
+                orphan |= item?.0.starts_with(prefix);
+            }
+        }
+        ensure!(!orphan, "Orphan issuance or adaptive-controller record");
         None
     };
     let allowed_pools = if timing.is_some() {

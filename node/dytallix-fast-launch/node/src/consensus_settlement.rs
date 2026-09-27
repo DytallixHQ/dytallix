@@ -867,8 +867,9 @@ fn record_key(height: u64) -> String {
     format!("{BLOCK_PREFIX}{height:016x}")
 }
 /// Key prefixes whose entries form the consensus state commitment.
-const STATE_PREFIXES: [&[u8]; 17] = [
+const STATE_PREFIXES: [&[u8]; 18] = [
     b"acct:",
+    b"evidence:",
     b"dms:config:",
     b"emission:",
     b"staking:",
@@ -2305,11 +2306,10 @@ fn input_limits(config: &ConsensusConfig, input: &FinalizedBlockInput) -> Result
         "Invalid engine timestamp"
     );
     valid_hash(&input.hash)?;
+    // Evidence is accepted in every profile: CometBFT has verified it and a
+    // refusal would stop the chain. It is recorded, or penalized under the
+    // penalty profile (P01, 27 September 2026).
     ensure!(input.misbehavior.len() <= 64, "Too many evidence facts");
-    ensure!(
-        config.penalty.is_some() || input.misbehavior.is_empty(),
-        "Evidence requires the penalty qualification profile"
-    );
     ensure!(
         input.txs.len() <= config.max_txs,
         "Too many block transactions"
@@ -2359,6 +2359,11 @@ fn evidence_times(
 ) -> Result<Vec<(u64, i32)>> {
     evidence_times_with(storage, config, height, facts, None)
 }
+/// A duplicate vote under the penalty profile is penalized; everything else
+/// is recorded only.
+fn penalized(config: &ConsensusConfig, fact: &EvidenceFact) -> bool {
+    config.penalty.is_some() && fact.kind == "duplicate_vote"
+}
 /// `evidence_times` with the validator set at each offence height from
 /// `set_at` instead of the committed lifecycle history. The complete check
 /// replays old blocks whose offence heights the lifecycle no longer keeps.
@@ -2369,16 +2374,21 @@ fn evidence_times_with(
     facts: &[EvidenceFact],
     set_at: Option<&dyn Fn(u64) -> Result<Vec<ValidatorUpdate>>>,
 ) -> Result<Vec<(u64, i32)>> {
-    ensure!(
-        facts.len() <= 64 && (config.penalty.is_some() || facts.is_empty()),
-        "Unsupported evidence batch"
-    );
+    ensure!(facts.len() <= 64, "Unsupported evidence batch");
     if facts.is_empty() {
         return Ok(Vec::new());
     }
     let mut times = Vec::with_capacity(facts.len());
     let lifecycle = lifecycle_state(storage)?;
     for fact in facts {
+        fact.validate_shape()?;
+        ensure!(fact.height < height, "Evidence is not for an earlier block");
+        // A recorded fact needs no historical check: CometBFT verified it,
+        // and a mismatch here would stop the chain.
+        if !penalized(config, fact) {
+            times.push((fact.time_seconds, fact.time_nanos));
+            continue;
+        }
         ensure!(
             fact.kind == "duplicate_vote"
                 && fact.height > 0
@@ -4446,7 +4456,7 @@ impl ConsensusApplication {
             self.storage.clone(),
             Arc::new(Mutex::new(State::new(self.storage.clone()))),
         );
-        let (lifecycle, _, _) = block_lifecycle::prepare_adaptive_interval(
+        let (lifecycle, _, _, _) = block_lifecycle::prepare_adaptive_interval(
             &engine,
             height,
             u64::try_from(time_seconds)?,
@@ -4684,7 +4694,7 @@ impl ConsensusApplication {
             self.storage.clone(),
             Arc::new(Mutex::new(State::new(self.storage.clone()))),
         );
-        let (lifecycle, _, journal) = block_lifecycle::prepare_adaptive_interval(
+        let (lifecycle, _, journal, issuance_deletes) = block_lifecycle::prepare_adaptive_interval(
             &engine,
             input.height,
             u64::try_from(input.time_seconds)?,
@@ -4975,7 +4985,8 @@ impl ConsensusApplication {
         if let Some(state) = ordinary.as_ref() {
             ordinary_state::append_writes(state, &mut writes)?;
         }
-        let mut deletes = Deletes::new();
+        // The issuance window's pruned journal and observation records.
+        let mut deletes = issuance_deletes;
         if let Some(block) = recovery {
             let committed = committed_recovery
                 .as_ref()
@@ -5489,6 +5500,11 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         "Stored consensus chain differs"
     );
     crate::supply::validate_native(storage, &Writes::new())?;
+    // The complete check replays the issuance journal window from its
+    // checkpoint; blocks check only the timing state's bindings.
+    if from.is_none() && storage.db.get(TIMING_STATE_KEY)?.is_some() {
+        crate::runtime::issuance_timing::verify_stored(storage)?;
+    }
     // Each block burns its fees, so none are withheld at a commit (fees v1).
     ensure!(
         storage
@@ -5577,6 +5593,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     ]);
     let mut transactions = BTreeSet::new();
     let mut recorded_evidence = BTreeMap::new();
+    let mut evidence_records = 0usize;
     if let Some(head) = &current {
         ensure!(
             height >= 1
@@ -5639,7 +5656,20 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             } else {
                 evidence_times(storage, &config, h, &record.input.misbehavior)?;
             }
+            let mut recorded_index = 0usize;
             for fact in &record.input.misbehavior {
+                // Recorded-only evidence has its own record, by position.
+                if !penalized(&config, fact) {
+                    let key = settlement::evidence_key(h, recorded_index)?;
+                    recorded_index += 1;
+                    evidence_records += 1;
+                    ensure!(
+                        storage.db.get(&key)?.as_deref()
+                            == Some(settlement::encode_evidence(fact)?.as_slice()),
+                        "Committed evidence record differs"
+                    );
+                    continue;
+                }
                 // ABCI omits vote rounds and full evidence hashes. Different
                 // engine evidence can therefore produce the same fact.
                 recorded_evidence
@@ -5756,16 +5786,21 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                             && observation.parent_hash == anchor.parent_engine_hash,
                         "Committed epoch observation parent differs"
                     );
-                    let encoded = storage
-                        .db
-                        .get(crate::runtime::issuance_timing::observation_key(
-                            observation.epoch,
-                        ))?
-                        .context("Committed observation missing")?;
-                    let stored = crate::runtime::issuance_timing::decode_observation(&encoded)?;
+                    // Observations the issuance window pruned are checked
+                    // against the block and derivation only.
+                    if !crate::runtime::issuance_timing::observation_pruned(&state, observation.epoch) {
+                        let encoded = storage
+                            .db
+                            .get(crate::runtime::issuance_timing::observation_key(
+                                observation.epoch,
+                            ))?
+                            .context("Committed observation missing")?;
+                        let stored =
+                            crate::runtime::issuance_timing::decode_observation(&encoded)?;
+                        ensure!(stored == observation, "Committed observation differs");
+                    }
                     ensure!(
-                        stored == observation
-                            && record.result.tx_results[index] == TxResult::observation(),
+                        record.result.tx_results[index] == TxResult::observation(),
                         "Committed observation differs"
                     );
                     ensure!(
@@ -6054,6 +6089,18 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     }
     ensure!(recovery_positions.is_empty(), "Orphan recovery receipt");
     ensure!(ordinary_positions.is_empty(), "Orphan ordinary receipt");
+    if from.is_none() {
+        let prefix = settlement::EVIDENCE_PREFIX.as_bytes();
+        let stored = storage
+            .db
+            .iterator(IteratorMode::From(prefix, Direction::Forward))
+            .take_while(|item| item.as_ref().map_or(true, |(k, _)| k.starts_with(prefix)))
+            .count();
+        ensure!(
+            stored == evidence_records,
+            "Evidence records differ from committed evidence"
+        );
+    }
     if from.is_some() {
         return Ok(EmergencyTrace {
             records: Vec::new(),

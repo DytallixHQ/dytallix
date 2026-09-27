@@ -133,6 +133,13 @@ pub fn verify_recovery(storage: &Storage) -> Result<()> {
     }
     crate::genesis::reject_consensus_state(storage)?;
     crate::supply::validate(storage, &Writes::new())?;
+    if storage
+        .db
+        .get(crate::runtime::issuance_timing::TIMING_STATE_KEY)?
+        .is_some()
+    {
+        crate::runtime::issuance_timing::verify_stored(storage)?;
+    }
     let reward_v2 = storage
         .db
         .get(crate::runtime::reward_runtime::REWARD_STATE_KEY)?
@@ -181,8 +188,12 @@ pub fn verify_recovery(storage: &Storage) -> Result<()> {
         let block = load_block(storage, h)?;
         ensure!(block.header.parent == parent, "Block parent differs");
         if let Some(timing) = &timing {
-            if h > 1 && (h - 1) % timing.config.epoch_blocks == 0 {
-                let epoch = (h - 1) / timing.config.epoch_blocks - 1;
+            let epoch = (h - 1) / timing.config.epoch_blocks;
+            if h > 1
+                && (h - 1) % timing.config.epoch_blocks == 0
+                && !crate::runtime::issuance_timing::observation_pruned(timing, epoch - 1)
+            {
+                let epoch = epoch - 1;
                 let raw = storage
                     .db
                     .get(crate::runtime::issuance_timing::observation_key(epoch))?
@@ -609,8 +620,9 @@ fn commit_issuance_with(
     }
     let mut staged = Settlement::new(storage.clone());
     let mut journal = None;
+    let mut issuance_deletes = block_lifecycle::Deletes::new();
     let prepared = if timed {
-        let (writes, circulating, prepared_journal) = block_lifecycle::prepare_adaptive_interval(
+        let (writes, circulating, prepared_journal, deletes) = block_lifecycle::prepare_adaptive_interval(
             emission,
             height,
             timestamp,
@@ -618,6 +630,7 @@ fn commit_issuance_with(
             observation,
         )?;
         journal = prepared_journal;
+        issuance_deletes = deletes;
         staged.attach_reward_lifecycle(writes, timestamp)?;
         Some(circulating)
     } else if reward_v2 {
@@ -762,6 +775,11 @@ fn commit_issuance_with(
             "Controller journal overlay differs from prepared update"
         );
         plan.append_checked(&storage, &guard, &mut batch)?;
+        // The issuance window's pruned observation (the journal already
+        // removed its own record).
+        for key in &issuance_deletes {
+            batch.delete(key);
+        }
     } else {
         ensure!(
             adaptive_writes.is_empty(),

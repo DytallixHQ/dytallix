@@ -338,7 +338,7 @@ fn prepared_updates_do_not_write_and_match_legacy_canonical_bytes() {
     for epoch in 0..4 {
         let before = stored_bytes(&prepared_store);
         let plan =
-            prepare_transition(&prepared_store, [7; 32], config(), observation(epoch)).unwrap();
+            prepare_transition(&prepared_store, [7; 32], config(), observation(epoch), u64::MAX).unwrap();
         assert_eq!(
             plan.expected_head(),
             prepared_store.db.get(HEAD_KEY).unwrap().as_deref()
@@ -368,7 +368,7 @@ fn stale_plan_does_not_append_to_an_existing_unrelated_batch() {
     let dir = tempfile::tempdir().unwrap();
     let mut storage = Storage::open(dir.path().join("db")).unwrap();
     AdaptiveJournal::initialize(&mut storage, [7; 32], config()).unwrap();
-    let plan = prepare_transition(&storage, [7; 32], config(), observation(0)).unwrap();
+    let plan = prepare_transition(&storage, [7; 32], config(), observation(0), u64::MAX).unwrap();
     AdaptiveJournal::open(&mut storage, [7; 32], config())
         .unwrap()
         .advance(observation(0))
@@ -414,7 +414,7 @@ fn prepared_transition_rechecks_previous_and_conflicting_event_bytes() {
         .unwrap()
         .advance(observation(0))
         .unwrap();
-    let plan = prepare_transition(&storage, [7; 32], config(), observation(1)).unwrap();
+    let plan = prepare_transition(&storage, [7; 32], config(), observation(1), u64::MAX).unwrap();
     let previous = storage.db.get(event_key(0)).unwrap().unwrap();
     let guard = storage.lock_execution().unwrap();
     let mut batch = WriteBatch::default();
@@ -602,12 +602,12 @@ fn verified_view_enforces_count_bounds_before_decoding_commands() {
         verify_view(&values, [7; 32], &config(), 2),
         Err(JournalError::AuditLimit)
     ));
-    // A checkpoint that claims excess history also rejects before replay, even
-    // when the supplied event view is incomplete.
+    // History beyond the window is pruned, not an error; a checkpoint whose
+    // retained events and base are missing still rejects.
     values.retain(|key, _| key.as_slice() == HEAD_KEY);
     assert!(matches!(
         verify_view(&values, [7; 32], &config(), 2),
-        Err(JournalError::AuditLimit)
+        Err(JournalError::InvalidRecord)
     ));
     assert!(verify_view(&synthetic_view(0), [7; 32], &config(), 0).is_ok());
 }
@@ -633,4 +633,72 @@ fn verified_view_does_not_change_database_or_caller_values() {
         .unwrap()
         .verify_history(3)
         .unwrap();
+}
+
+fn view(storage: &Storage) -> BTreeMap<Vec<u8>, Vec<u8>> {
+    storage
+        .db
+        .iterator(IteratorMode::From(b"adaptive:", Direction::Forward))
+        .map(|e| e.unwrap())
+        .take_while(|(k, _)| k.starts_with(b"adaptive:"))
+        .map(|(k, v)| (k.to_vec(), v.to_vec()))
+        .collect()
+}
+fn advance_windowed(storage: &Storage, epoch: u64, window: u64) -> PreparedJournalUpdate {
+    let plan = prepare_transition(storage, [7; 32], config(), observation(epoch), window).unwrap();
+    let guard = storage.lock_execution().unwrap();
+    let mut batch = WriteBatch::default();
+    plan.append_checked(storage, &guard, &mut batch).unwrap();
+    storage.db.write(batch).unwrap();
+    plan
+}
+
+/// The window keeps the last `window` events plus a base checkpoint, and the
+/// controller evolves exactly as with the full journal (P01, 27 Sep 2026).
+#[test]
+fn windowed_journal_keeps_the_last_events_and_matches_the_full_history() {
+    let windowed_dir = tempfile::tempdir().unwrap();
+    let full_dir = tempfile::tempdir().unwrap();
+    let windowed = Storage::open(windowed_dir.path().join("db")).unwrap();
+    let full = Storage::open(full_dir.path().join("db")).unwrap();
+    for storage in [&windowed, &full] {
+        let guard = storage.lock_execution().unwrap();
+        let mut batch = WriteBatch::default();
+        prepare_initialize(storage, [7; 32], config())
+            .unwrap()
+            .append_checked(storage, &guard, &mut batch)
+            .unwrap();
+        storage.db.write(batch).unwrap();
+    }
+    for epoch in 0..12 {
+        let pruned = advance_windowed(&windowed, epoch, 3);
+        let kept = advance_windowed(&full, epoch, u64::MAX);
+        assert_eq!(pruned.command(), kept.command(), "epoch {epoch}");
+        assert_eq!(pruned.pruned().is_some(), epoch >= 3);
+        let retained = verify_view(&view(&windowed), [7; 32], &config(), 3).unwrap();
+        assert_eq!(retained.commands.len() as u64, (epoch + 1).min(3));
+        assert_eq!(
+            retained.snapshot,
+            verify_view(&view(&full), [7; 32], &config(), u64::MAX).unwrap().snapshot
+        );
+    }
+    assert_eq!(
+        windowed.db.get(HEAD_KEY).unwrap(),
+        full.db.get(HEAD_KEY).unwrap()
+    );
+    let values = view(&windowed);
+    assert!(values.contains_key(BASE_KEY));
+    // A larger window than retained, a missing or changed base, and a gap
+    // all fail.
+    assert!(verify_view(&values, [7; 32], &config(), 4).is_err());
+    let mut missing = values.clone();
+    missing.remove(BASE_KEY);
+    assert!(verify_view(&missing, [7; 32], &config(), 3).is_err());
+    let mut changed = values.clone();
+    changed.insert(BASE_KEY.to_vec(), full.db.get(HEAD_KEY).unwrap().unwrap());
+    assert!(verify_view(&changed, [7; 32], &config(), 3).is_err());
+    let mut gap = values;
+    gap.remove(&event_key(10));
+    assert!(verify_view(&gap, [7; 32], &config(), 3).is_err());
+    assert!(prepare_transition(&windowed, [7; 32], config(), observation(12), 0).is_err());
 }

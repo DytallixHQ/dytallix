@@ -31,13 +31,22 @@ func addMisbehavior(payload map[string]any, input []abci.Misbehavior) error {
 	} // Preserve previous empty-block serialization.
 	facts := make([]misbehaviorFact, len(input))
 	for i, item := range input {
-		if item.Type != abci.MisbehaviorType_DUPLICATE_VOTE {
-			return errors.New("only duplicate-vote facts are supported in local qualification")
+		// Both kinds CometBFT verifies are forwarded; the application records
+		// them, or penalizes a duplicate vote under its penalty profile. A
+		// refusal here would stop the chain (P01, 27 September 2026).
+		var kind string
+		switch item.Type {
+		case abci.MisbehaviorType_DUPLICATE_VOTE:
+			kind = "duplicate_vote"
+		case abci.MisbehaviorType_LIGHT_CLIENT_ATTACK:
+			kind = "light_client_attack"
+		default:
+			return errors.New("unknown misbehavior type")
 		}
 		if len(item.Validator.Address) != 20 || item.Height <= 0 || item.Time.Unix() < 0 || item.Validator.Power <= 0 || item.TotalVotingPower <= 0 || item.Validator.Power > item.TotalVotingPower || item.TotalVotingPower > types.MaxTotalVotingPower {
-			return errors.New("invalid duplicate-vote fact")
+			return errors.New("invalid misbehavior fact")
 		}
-		facts[i] = misbehaviorFact{Kind: "duplicate_vote", ValidatorAddress: hex.EncodeToString(item.Validator.Address), Height: uint64(item.Height), TimeSeconds: uint64(item.Time.Unix()), TimeNanos: int32(item.Time.Nanosecond()), Power: item.Validator.Power, TotalPower: item.TotalVotingPower}
+		facts[i] = misbehaviorFact{Kind: kind, ValidatorAddress: hex.EncodeToString(item.Validator.Address), Height: uint64(item.Height), TimeSeconds: uint64(item.Time.Unix()), TimeNanos: int32(item.Time.Nanosecond()), Power: item.Validator.Power, TotalPower: item.TotalVotingPower}
 	}
 	payload["misbehavior"] = facts
 	return nil
