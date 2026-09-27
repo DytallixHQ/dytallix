@@ -63,10 +63,14 @@ func TestProductionCandidateBindsLivePeerSourceAndKey(t *testing.T) {
 		response <- err
 	}()
 	conn, err := a.Upgrade(log.NewNopLogger())(aConn, &p2p.NetAddress{ID: keyB.ID(), IP: net.ParseIP("8.8.8.8"), Port: 31000}, 5*time.Second)
+	// Close only after the responder returns: closing one end of a net.Pipe
+	// closes both, and the responder still clears its deadline after the
+	// initiator's last write (harmless on a TCP socket).
+	responderErr := <-response
 	if conn != nil {
 		_ = conn.Close()
 	}
-	if responderErr := <-response; err != nil || responderErr != nil {
+	if err != nil || responderErr != nil {
 		t.Fatalf("pinned candidate handshake failed: %v / %v", err, responderErr)
 	}
 	wrongLeft, wrongRight := net.Pipe()
