@@ -130,12 +130,20 @@ impl HandoverProcess {
             std::thread::sleep(Duration::from_millis(10));
         }
     }
-    fn close(mut self) {
+    fn close(self) {
+        self.close_with(0);
+    }
+    /// After a refused block the application exits with that failure's
+    /// class (E04 gap 15).
+    fn close_after(self, class: crate::failure_class::FailureClass) {
+        self.close_with(class.exit_status().into());
+    }
+    fn close_with(mut self, code: i32) {
         self.requests.take();
         let deadline = Instant::now() + Duration::from_secs(10);
         loop {
             if let Some(status) = self.child.try_wait().unwrap() {
-                assert!(status.success(), "Process exit: {status}; {}",
+                assert_eq!(status.code(), Some(code), "Process exit: {status}; {}",
                     std::fs::read_to_string(&self.stderr).unwrap_or_default());
                 break;
             }
@@ -413,7 +421,7 @@ fn actual_signed_handover_pairs_migration_and_changes_executing_candidate() {
     let proposal=a.raw("process_proposal",process_block(6,&[]));
     assert!(proposal["ok"]==false || proposal["result"]["accept"]==false,"Old source accepted later proposal: {proposal}");
     assert_eq!(a.snapshot(),activated,"Source crossed committed execution barrier");
-    a.close();
+    a.close_after(crate::failure_class::FailureClass::Release);
     HandoverProcess::open_with_candidate(&source,&root,&db,"handover-source-obsolete",Some(&source_settings))
         .assert_startup_rejected("Candidate manifest digest mismatch");
 
@@ -477,7 +485,7 @@ fn actual_signed_handover_pairs_migration_and_changes_executing_candidate() {
     b.rejected("check_tx",json!({"type":"new","tx":B64.encode(&obsolete_target_control)}),"different runtime executable");
     b.rejected("finalize_block",process_block(10,&[]),"different runtime executable");
     assert_eq!(b.snapshot(),returned);
-    b.close();
+    b.close_after(crate::failure_class::FailureClass::Release);
     HandoverProcess::open_with_candidate(&target,&root,&db,"handover-target-obsolete-return",Some(&target_settings))
         .assert_startup_rejected("Candidate manifest digest mismatch");
     let mut a=HandoverProcess::open_with_candidate(&source,&root,&db,"handover-source-returned",Some(&source_settings));

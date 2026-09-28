@@ -53,6 +53,10 @@ helper-qualification = []
 test-snapshot-verifier = []
 
 [[bin]]
+name = "dytallix-state-check"
+path = "src/bin/state_check.rs"
+
+[[bin]]
 name = "helper-execution-qualification"
 path = "src/bin/helper_execution_qualification.rs"
 required-features = ["helper-qualification"]

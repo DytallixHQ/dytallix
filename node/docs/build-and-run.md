@@ -19,6 +19,43 @@ Build the consensus application binary used by the bridge:
 cargo build -p dytallix-fast-node --bin consensus_stdio --release --locked
 ```
 
+### Stopped node check
+
+`dytallix-state-check` runs the application's startup checks on a stopped
+node's database, read only, and prints one JSON object with the first
+failure in full (E04 gap 15):
+
+```bash
+cargo build -p dytallix-fast-node --bin dytallix-state-check --release --locked
+dytallix-state-check --config APPLICATION_CONFIG --genesis NATIVE_GENESIS --db HOME/appdb
+```
+
+It checks the configuration and genesis bindings, every block record, the
+complete supply check and the issuance journal. The root receipt's
+authorization and the emergency, upgrade and handover replays need the
+owned root helper; the report lists them under `not_checked`.
+
+A stopped application writes no text. Its exit status names the failure
+class, which the native supervisor's report repeats
+(`application_failure_class`, or `failure_class` for a failed preflight).
+The check tool exits with the same status:
+
+| Status | Class | Meaning |
+| --- | --- | --- |
+| 0 | — | Passed, or no consensus state |
+| 1 | — | Unclassified failure |
+| 10 | `configuration` | The configuration or genesis is invalid or differs from storage |
+| 11 | `history` | A stored block record, its commitments or the application hash differ |
+| 12 | `supply` | The supply accounting differs |
+| 13 | `replay` | The emergency, upgrade or handover history does not replay |
+| 14 | `release` | The running executable is not the committed release |
+| 15 | `execution` | Executing a block failed after its inputs passed |
+| 16 | `storage` | The database could not be opened, read or written |
+| 17 | `resource` | The system refused space, memory, descriptors or tasks |
+
+A failed block method stops the engine, so the application exits with
+that method's class. A panic exits with 101.
+
 ## Consensus Engine
 
 ```bash

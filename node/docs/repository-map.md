@@ -33,6 +33,8 @@ In [`dytallix-fast-launch/node/src/bin`](../dytallix-fast-launch/node/src/bin):
   `test-snapshot-verifier` builds the test application for the signed
   process tests, which the bridge refuses
 - `pqc_signer`: signing utility
+- `dytallix-state-check`: read-only startup checks of a stopped node's
+  database, for operators (E04 gap 15)
 - `helper-execution-qualification`: requires feature `helper-qualification`
 
 Notable source areas in the application:

@@ -738,3 +738,38 @@ fn committed_chain_records_the_core_application_metrics() {
     );
     assert!(text.contains("dytallix_app_startup_check_seconds "));
 }
+
+/// E04 gap 15: the operator's read-only check of a stopped node passes a
+/// committed chain and names the class of each failure.
+#[test]
+fn a_stopped_node_check_names_the_failure_class() {
+    use crate::failure_class::{class_of, FailureClass};
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let app = committed_chain(&inputs, &path, 4);
+    let head = current_info(&app.storage).unwrap();
+    let mut wrong = stored_totals(&app);
+    wrong.udrt += 1;
+    drop(app);
+    let check = |config: &ConsensusConfig| check_stopped(&path, config, &inputs.genesis);
+    match check(&inputs.config).unwrap() {
+        StoppedCheck::Passed(info) => assert_eq!(info, head),
+        other => panic!("{other:?}"),
+    }
+    let class = |config: &ConsensusConfig| class_of(&check(config).unwrap_err());
+    let mut other = inputs.config.clone();
+    other.max_txs += 1;
+    assert_eq!(class(&other), Some(FailureClass::Configuration));
+    let edit = |change: &dyn Fn(&rocksdb::DB)| change(&Storage::open(path.clone()).unwrap().db);
+    let key = crate::supply::ACCOUNT_TOTALS_KEY;
+    let good = Storage::open(path.clone()).unwrap().db.get(key).unwrap().unwrap();
+    edit(&|db| db.put(key, wrong.encode().unwrap()).unwrap());
+    assert_eq!(class(&inputs.config), Some(FailureClass::Supply));
+    edit(&|db| db.put(key, &good).unwrap());
+    edit(&|db| db.delete(record_key(4)).unwrap());
+    assert_eq!(class(&inputs.config), Some(FailureClass::History));
+    // Never written to: no consensus state to check.
+    let absent = check_stopped(&dir.path().join("absent"), &inputs.config, &inputs.genesis);
+    assert_eq!(class_of(&absent.unwrap_err()), Some(FailureClass::Storage));
+}
