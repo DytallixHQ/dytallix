@@ -12,8 +12,8 @@ pub use dytallix_protocol_types::{
     address::{AccountAddress, AddressNetwork, OriginKeyAlgorithm},
     ordinary::{Action, Denomination, Limits, OrdinaryTransaction, SignedOrdinary},
     ordinary_client::{
-        AccountView, CommittedContext, ProfileView, PublicOrdinaryConfig, ReceiptOutcome,
-        ReceiptView,
+        AccountDomain, AccountView, CommittedContext, ProfileView, PublicOrdinaryConfig,
+        ReceiptOutcome, ReceiptView,
     },
     ordinary_fees::FeeProfile,
     recovery::{KeyIdentity, RecoveryDomain},
@@ -72,19 +72,8 @@ pub fn validate_identity_views(
     profile: &ProfileView,
     account: &AccountView,
 ) -> Result<FeeProfile> {
-    need(
-        profile.version == 1 && account.version == 1,
-        "unsupported query view version",
-    )?;
-    need(profile.enabled, "ordinary execution is disabled")?;
-    let config = profile
-        .config
-        .as_ref()
-        .ok_or_else(|| Error("ordinary profile is missing".into()))?;
-    need(
-        config.version == 1 && config.max_transport_bytes > 0,
-        "invalid public ordinary configuration",
-    )?;
+    need(account.version == 1, "unsupported query view version")?;
+    let config = checked_config(profile)?;
     need(
         profile.context == expected.committed && account.context == expected.committed,
         "query contexts differ from expected committed state",
@@ -118,6 +107,176 @@ pub fn validate_identity_views(
     Ok(config.fee_profile.clone())
 }
 
+fn checked_config(profile: &ProfileView) -> Result<&PublicOrdinaryConfig> {
+    need(profile.version == 1, "unsupported query view version")?;
+    need(profile.enabled, "ordinary execution is disabled")?;
+    let config = profile
+        .config
+        .as_ref()
+        .ok_or_else(|| Error("ordinary profile is missing".into()))?;
+    need(
+        config.version == 1 && config.max_transport_bytes > 0,
+        "invalid public ordinary configuration",
+    )?;
+    Ok(config)
+}
+
+/// `validate_views` for an account with no record, which a transfer created:
+/// its first spend (B1c). The key must be the origin key the account ID
+/// derives from, at generation and nonce zero. Until state proofs show it
+/// (K-d), the absent record is the node's report.
+pub fn validate_first_spend_views(
+    expected: &SigningContext,
+    profile: &ProfileView,
+) -> Result<FeeProfile> {
+    let config = checked_config(profile)?;
+    need(
+        profile.context == expected.committed,
+        "query context differs from expected committed state",
+    )?;
+    need(
+        expected.authorization_generation == 0
+            && expected.spending_nonce == 0
+            && !expected.protected,
+        "a first spend is unprotected at generation and nonce zero",
+    )?;
+    let origin = AccountAddress::from_origin_key(
+        network(expected.domain.network)?,
+        &expected.domain.chain_id,
+        origin_algorithm(&expected.current_key.algorithm)?,
+        &expected.current_key.public_key,
+    )
+    .map_err(error)?;
+    need(
+        origin.account_id() == &expected.domain.account_id,
+        "a first spend must be signed by the account's origin key",
+    )?;
+    validate_context(&config.fee_profile, expected)?;
+    Ok(config.fee_profile.clone())
+}
+
+/// The chain a client expects, from a source it trusts and never from the
+/// node it checks: network, chain ID and genesis digest (clients v1, K-c).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChainPin {
+    pub network: AddressNetwork,
+    pub chain_id: String,
+    pub genesis_digest: [u8; 32],
+}
+impl ChainPin {
+    pub fn check(&self, committed: &CommittedContext) -> Result<()> {
+        need(
+            committed.chain_id == self.chain_id && committed.genesis_digest == self.genesis_digest,
+            "node reports a chain other than the pinned one",
+        )
+    }
+    /// The address `key` derives on this chain as an account's origin key.
+    pub fn origin_address(&self, key: &KeyIdentity) -> Result<AccountAddress> {
+        AccountAddress::from_origin_key(
+            self.network,
+            &self.chain_id,
+            origin_algorithm(&key.algorithm)?,
+            &key.public_key,
+        )
+        .map_err(error)
+    }
+}
+
+/// The signing context for `key` on `account_id` from one node's profile
+/// and account views at the same height, checked against the pin. Without an
+/// account record this is the account's first spend. Matching views are the
+/// node's report, not a proof; the pin and the caller's fee cap bound what a
+/// dishonest node can make the caller sign.
+pub fn context_from_views(
+    pin: &ChainPin,
+    profile: &ProfileView,
+    account_id: &[u8; 32],
+    account: Option<&AccountView>,
+    key: &KeyIdentity,
+) -> Result<(SigningContext, FeeProfile)> {
+    pin.check(&profile.context)?;
+    let config = checked_config(profile)?;
+    let Some(account) = account else {
+        let context = SigningContext {
+            domain: RecoveryDomain {
+                network: pin.network.code(),
+                chain_id: pin.chain_id.clone(),
+                genesis_digest: pin.genesis_digest,
+                account_id: *account_id,
+            },
+            current_key: key.clone(),
+            authorization_generation: 0,
+            spending_nonce: 0,
+            committed: profile.context.clone(),
+            profile_digest: ordinary_fees::profile_digest(&config.fee_profile).map_err(error)?,
+            protected: false,
+        };
+        let fee_profile = validate_first_spend_views(&context, profile)?;
+        return Ok((context, fee_profile));
+    };
+    need(
+        account.context == profile.context,
+        "profile and account views report different committed state",
+    )?;
+    need(
+        account.account_id == *account_id && account.domain.network == pin.network.code(),
+        "account view is for another account or network",
+    )?;
+    need(
+        account.current_key == *key,
+        "signing key is not the account's current key",
+    )?;
+    let context = SigningContext {
+        domain: RecoveryDomain {
+            network: account.domain.network,
+            chain_id: account.domain.chain_id.clone(),
+            genesis_digest: account.domain.genesis_digest,
+            account_id: account.domain.account_id,
+        },
+        current_key: account.current_key.clone(),
+        authorization_generation: account.authorization_generation,
+        spending_nonce: account.spending_nonce,
+        committed: profile.context.clone(),
+        profile_digest: account.profile_digest,
+        protected: account.protected,
+    };
+    let fee_profile = validate_views(&context, profile, account)?;
+    Ok((context, fee_profile))
+}
+
+/// Views read again before submission may be at a later height, since the
+/// chain commits empty blocks. They must show the captured chain, authority
+/// and profile. Returns the context at their head; the body must still be
+/// valid against it.
+pub fn refresh_views(
+    captured: &SigningContext,
+    profile: &ProfileView,
+    account: &AccountView,
+) -> Result<(SigningContext, FeeProfile)> {
+    let fresh = &profile.context;
+    need(
+        fresh.chain_id == captured.committed.chain_id
+            && fresh.genesis_digest == captured.committed.genesis_digest
+            && fresh.height >= captured.committed.height,
+        "refreshed state is on another chain or older than the captured state",
+    )?;
+    need(
+        account.context == *fresh,
+        "the chain advanced between the refresh queries; submit again",
+    )?;
+    let mut context = captured.clone();
+    context.committed = fresh.clone();
+    let fee_profile = validate_views(&context, profile, account)?;
+    Ok((context, fee_profile))
+}
+
+fn origin_algorithm(name: &str) -> Result<OriginKeyAlgorithm> {
+    match name {
+        "mldsa65" => Ok(OriginKeyAlgorithm::MlDsa65),
+        "mldsa87" => Ok(OriginKeyAlgorithm::MlDsa87),
+        _ => Err(Error("unsupported ordinary algorithm".into())),
+    }
+}
 fn network(code: u8) -> Result<AddressNetwork> {
     match code {
         1 => Ok(AddressNetwork::Mainnet),

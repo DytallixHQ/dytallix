@@ -56,6 +56,13 @@ and application hash.
 2. v3 fee profile: a node query, `/ordinary/profile_v3`.
 3. State proofs: verified to an application hash the caller trusts; SDK
    header verification later.
+4. Signing context for the default commands (K-c): read in one step from
+   the configured node and refused unless it reports the chain ID and
+   genesis digest pinned in the CLI configuration. Governance gets the same
+   one-step mode; the file-based `ordinary` and `governance prepare` flows
+   remain for offline signing.
+5. Gas limit and fee cap (K-c): explicit on every write; no configured
+   defaults.
 
 ## K-a implementation notes
 
@@ -114,11 +121,53 @@ and application hash.
   `legacy-network` feature.
 - **Errors.** SDK errors read `ordinary: ...` for both versions.
 
+## K-c1 implementation notes
+
+- **Pinned chain.** `dytallix config pin-chain` stores the endpoint,
+  network, chain ID and genesis digest (`~/.dytallix/chain.json`), after
+  asking the node which chain it reports (`--no-check` skips that). The SDK's
+  `ChainPin` refuses any view whose committed context reports another chain
+  before anything is signed.
+- **Context from a node.** `ordinary_v2::context_from_views` builds the
+  signing context from the profile and account views at one height. The key
+  must be the account's current key. `CometClient::signing_context` and
+  `governance_context` query the node, checking the pin first, and retry
+  when a block commits between queries.
+- **First spend (rule 4).** Without an account record the context is the
+  pinned domain with the account ID, the signing key as origin key, and
+  generation and nonce zero. `validate_first_spend_views` requires the key
+  to derive the account ID. A node test checks that this domain is the one
+  the chain accepts. Governance needs a record: a first spend is v2.
+- **Refresh.** `ordinary_v2::refresh_views` and `ordinary_v3::refresh_views`
+  accept views at a later height if they show the captured chain, authority
+  and profiles. `ordinary submit` and `governance submit` use them, and
+  recheck the body against the new head.
+- **Balances.** `protocol-types::native_account` names the balance and nonce
+  keys and decodes their records without bincode. A node test reads them
+  through `/state/proof` and compares with the chain's bincode.
+  `CometClient::query_balances` reports them unverified until K-d.
+- **CLI.** `send`, `stake bond|unbond|claim`, `balance` and
+  `governance propose|deposit|vote` run in one step: read the context,
+  prepare, sign, submit, and wait `--wait-seconds` for the committed
+  receipt (v2, checked against the signed envelope) or the spent nonce (v3).
+  `--gas-limit` and `--maximum-fee-udrt` are required. K-b's offline
+  governance commands move under `governance prepare`. The testnet REST
+  send, stake, balance and governance commands move to `dytallix legacy`.
+  `wallet info` shows the account address on the pinned chain.
+- **Tests.** A fake Comet node in the CLI tests runs the whole pipeline: a
+  first-spend send with a validated receipt, a stake at the account's
+  nonce, a governance vote waiting for its nonce, a node on another chain
+  refused before signing, and a CheckTx refusal.
+- **Not yet.** Delegation status needs a node query (the reward state is
+  one internal record). A first spend in the file-based `ordinary` flow
+  still needs an account view.
+
 ## Steps
 
 | Step | Content |
 | --- | --- |
 | K-a | Builder safety fix; exact vendoring with a sync script and CI drift check; independent v2 and v3 vector generator |
 | K-b | SDK ordinary v3 and the v3 fee profile source; CLI governance on v3 |
-| K-c | CLI send, stake and balance on ordinary v2 with v1 addresses; first spend; `ordinary submit` refresh at later heights; `legacy-network` non-default |
+| K-c1 | Pinned chain; one-step send, stake, balance and governance with v1 addresses; first spend; later-height refresh; legacy REST commands under `dytallix legacy` |
+| K-c2 | `legacy-network` non-default: a TLS-capable RPC feature without the legacy REST client; remaining REST commands gated |
 | K-d | SDK state-proof verification; CLI balance and account reads verified |

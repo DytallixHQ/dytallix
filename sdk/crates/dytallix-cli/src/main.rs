@@ -12,6 +12,8 @@ use commands::crypto::CryptoArgs;
 use commands::dev::DevArgs;
 use commands::faucet::FaucetArgs;
 use commands::governance::GovernanceArgs;
+#[cfg(feature = "legacy-network")]
+use commands::legacy::LegacyArgs;
 use commands::node::NodeArgs;
 use commands::ordinary::OrdinaryArgs;
 use commands::send::SendArgs;
@@ -36,15 +38,15 @@ enum Commands {
     Init,
     /// Manage wallets and keypairs.
     Wallet(WalletArgs),
-    /// Show DGT and DRT balances.
+    /// Show an account's DGT and DRT balances on the pinned chain.
     Balance(BalanceArgs),
-    /// Send DGT or DRT to an address.
+    /// Send DGT or DRT on the pinned chain in one step.
     Send(SendArgs),
     /// Prepare, sign, and submit ordinary-v2 transactions with explicit context.
     Ordinary(OrdinaryArgs),
     /// Request testnet tokens from the faucet.
     Faucet(FaucetArgs),
-    /// Staking status and direct-node staking writes.
+    /// Bond, unbond and claim rewards on the pinned chain in one step.
     Stake(StakeArgs),
     /// Prepare, sign, and submit ordinary-v3 governance transactions.
     Governance(GovernanceArgs),
@@ -60,17 +62,23 @@ enum Commands {
     Dev(DevArgs),
     /// Configuration management.
     Config(ConfigArgs),
+    /// Legacy testnet REST commands. The consensus chain refuses them.
+    #[cfg(feature = "legacy-network")]
+    Legacy(LegacyArgs),
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     // Consensus-chain commands report errors as JSON, like their output.
-    let ordinary_command = match &cli.command {
-        Commands::Ordinary(_) => true,
-        Commands::Governance(args) => !args.is_legacy(),
-        _ => false,
-    };
+    let ordinary_command = matches!(
+        &cli.command,
+        Commands::Ordinary(_)
+            | Commands::Governance(_)
+            | Commands::Send(_)
+            | Commands::Stake(_)
+            | Commands::Balance(_)
+    );
     let result = match cli.command {
         Commands::Init => commands::init::run().await,
         Commands::Wallet(args) => commands::wallet::run(args).await,
@@ -86,6 +94,8 @@ async fn main() -> anyhow::Result<()> {
         Commands::Crypto(args) => commands::crypto::run(args).await,
         Commands::Dev(args) => commands::dev::run(args).await,
         Commands::Config(args) => commands::config::run(args).await,
+        #[cfg(feature = "legacy-network")]
+        Commands::Legacy(args) => commands::legacy::run(args).await,
     };
 
     if let Err(err) = result {

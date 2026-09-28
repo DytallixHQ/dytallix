@@ -4121,3 +4121,46 @@ fn governance_profile_view_is_disabled_without_governance() {
     assert!(!view.enabled && view.fee_profile.is_none() && view.next_proposal_id == 0);
     assert_eq!(view.context.height, 0);
 }
+
+/// Clients read native records through `/state/proof` and decode them with
+/// `protocol-types::native_account` (clients v1, K-c). A first spend's domain
+/// is the committed chain, genesis digest and the pinned network.
+#[test]
+fn clients_read_native_records_and_derive_the_first_spend_domain() {
+    use dytallix_protocol_types::native_account;
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let fresh = Key::new();
+    let raw = funding(&app, &fixture, &fresh, 50_000);
+    assert_eq!(commit(&mut app, 1, vec![raw]).tx_results[0].code, 0);
+    let read = |app: &ConsensusApplication, key: Vec<u8>| -> Option<Vec<u8>> {
+        let proof = app.query_state_proof(&hex::encode(&key)).unwrap();
+        assert_eq!(proof["height"], 1);
+        proof["value"].as_str().map(|v| B64.decode(v).unwrap())
+    };
+    for key in [&fresh, &fixture.payer, &fixture.active] {
+        let address = AccountAddress::decode(AddressNetwork::Development, &key.address()).unwrap();
+        let value = read(&app, native_account::balances_key(&address)).unwrap();
+        let chain: BTreeMap<String, u128> = bincode::deserialize(&value).unwrap();
+        assert_eq!(native_account::decode_balances(&value).unwrap(), chain);
+        assert_eq!(chain.get("udrt").copied().unwrap_or(0), balance(&app, &key.address()));
+        let nonce = read(&app, native_account::nonce_key(&address)).unwrap();
+        assert_eq!(
+            native_account::decode_nonce(&nonce).unwrap(),
+            bincode::deserialize::<u64>(&nonce).unwrap()
+        );
+    }
+    let absent = AccountAddress::decode(AddressNetwork::Development, &Key::new().address()).unwrap();
+    assert_eq!(read(&app, native_account::balances_key(&absent)), None);
+
+    let context: dytallix_protocol_types::ordinary_client::ProfileView =
+        serde_json::from_value(app.query_ordinary_profile().unwrap()).unwrap();
+    let expected = RecoveryDomain {
+        network: AddressNetwork::Development.code(),
+        chain_id: context.context.chain_id.clone(),
+        genesis_digest: context.context.genesis_digest,
+        account_id: fresh.id(),
+    };
+    assert_eq!(uninitialized(&app, &fixture, &fresh).domain, expected);
+}

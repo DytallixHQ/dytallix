@@ -5,6 +5,8 @@ use std::fs;
 use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
 
+use crate::commands::consensus::{ChainConfig, Network};
+use crate::commands::ordinary::client;
 use crate::commands::{
     config_path, display_path, ensure_cli_dir, load_config, save_config, CliConfig, NetworkProfile,
 };
@@ -37,6 +39,24 @@ pub enum ConfigCommand {
     },
     /// Remove the CLI configuration file.
     Reset,
+    /// Pin the consensus chain and its node for send, stake, balance and
+    /// governance. Take the chain ID and genesis digest from a source you
+    /// trust, never from the node itself.
+    PinChain {
+        /// Comet RPC endpoint of a node you trust.
+        #[arg(long)]
+        endpoint: String,
+        #[arg(long, value_enum)]
+        network: Network,
+        #[arg(long)]
+        chain_id: String,
+        /// Lowercase hexadecimal SHA-256 of the exact genesis file.
+        #[arg(long)]
+        genesis_digest: String,
+        /// Store the pin without asking the node which chain it reports.
+        #[arg(long)]
+        no_check: bool,
+    },
 }
 
 /// CLI network selector.
@@ -67,7 +87,48 @@ pub async fn run(args: ConfigArgs) -> Result<()> {
         ConfigCommand::Set { key, value } => set_config(key, value),
         ConfigCommand::Network { network } => set_network(network.into()),
         ConfigCommand::Reset => reset_config(),
+        ConfigCommand::PinChain {
+            endpoint,
+            network,
+            chain_id,
+            genesis_digest,
+            no_check,
+        } => {
+            pin_chain(
+                ChainConfig {
+                    endpoint,
+                    network,
+                    chain_id,
+                    genesis_digest,
+                },
+                no_check,
+            )
+            .await
+        }
     }
+}
+
+async fn pin_chain(config: ChainConfig, no_check: bool) -> Result<()> {
+    let pin = config.pin()?;
+    if !no_check {
+        let reported = client(&config.endpoint)?.query_profile().await?.context;
+        pin.check(&reported).map_err(|_| {
+            anyhow::anyhow!(
+                "the node reports chain {} with genesis digest {}; nothing was pinned",
+                reported.chain_id,
+                crate::bytes::bytes_to_hex(&reported.genesis_digest)
+            )
+        })?;
+    }
+    config.save()?;
+    output::success(
+        &format!(
+            "Pinned chain {} ({:?}) at {}",
+            config.chain_id, config.network, config.endpoint
+        ),
+        None,
+    );
+    Ok(())
 }
 
 fn show_config() -> Result<()> {
@@ -76,6 +137,14 @@ fn show_config() -> Result<()> {
     println!("Network: {}", config.network);
     for (key, value) in config.values {
         println!("{key}: {value}");
+    }
+    match ChainConfig::load() {
+        Ok(chain) => {
+            println!("Pinned chain: {} ({:?})", chain.chain_id, chain.network);
+            println!("Genesis digest: {}", chain.genesis_digest);
+            println!("Chain endpoint: {}", chain.endpoint);
+        }
+        Err(_) => println!("Pinned chain: none"),
     }
     Ok(())
 }

@@ -1,6 +1,6 @@
 # Ordinary-v2 CLI
 
-Use `dytallix ordinary` for the qualified ordinary-v2 protocol. Existing CLI commands keep their legacy behavior. This command does not select an endpoint, chain, account, fee profile, key, or fee limit for you.
+Use `dytallix ordinary` for explicit, offline ordinary-v2 signing. This command does not select an endpoint, chain, account, fee profile, key, or fee limit for you. For one-step transfers and staking against a pinned chain, use `dytallix send` and `dytallix stake` (see the CLI reference).
 
 The command supports explicit ML-DSA-65 and ML-DSA-87 keys. It uses the shared protocol codec. It does not create a new account when a current signing key changes.
 
@@ -89,7 +89,7 @@ Preparation and inspection print the exact public body and transaction ID. They 
 dytallix ordinary submit --endpoint http://127.0.0.1:26657 --profile profile.json --account account.json --context context.json --signed signed.json
 ```
 
-Only `submit` broadcasts. It first refreshes the profile and account queries. The fresh views must match the captured expected context. If the chain has advanced, capture and review the new context before another attempt.
+Only `submit` broadcasts. It first refreshes the profile and account queries. The chain commits blocks without transactions, so the fresh views may be at a later height than the captured context. They must report the same chain and genesis, the same account key, generation, nonce and protection, and the same fee profile, and the signed body must still be valid for the next block (its expiry and lifetime). Otherwise capture and review the new context before another attempt.
 
 The command calls `broadcast_tx_sync`. A successful response reports `check_tx_accepted` and `committed:false`. CheckTx acceptance does not establish inclusion or successful execution. A rejection returns a nonzero process status. The ordinary transaction ID identifies the signed intent. The Comet engine hash identifies the transported envelope.
 

@@ -172,19 +172,23 @@ fn change() -> ChangeArgs {
         registry_remove: None,
     }
 }
+fn prepare(command: PrepareCommand) -> GovernanceArgs {
+    GovernanceArgs {
+        command: GovernanceCommand::Prepare(PrepareArgs { command }),
+    }
+}
 /// Prepare, sign and inspect one action offline; return the signed body.
 async fn signed(
     dir: &Scratch,
     inputs: &GovernanceInputs,
-    command: GovernanceCommand,
+    command: PrepareCommand,
 ) -> SignedOrdinary {
     let body_path = match &command {
-        GovernanceCommand::Propose { body, .. }
-        | GovernanceCommand::Deposit { body, .. }
-        | GovernanceCommand::Vote { body, .. } => body.output.clone(),
-        _ => unreachable!(),
+        PrepareCommand::Propose { body, .. }
+        | PrepareCommand::Deposit { body, .. }
+        | PrepareCommand::Vote { body, .. } => body.output.clone(),
     };
-    run(GovernanceArgs { command }).await.unwrap();
+    run(prepare(command)).await.unwrap();
     let signed_path = body_path.with_extension("signed.json");
     run(GovernanceArgs {
         command: GovernanceCommand::Sign {
@@ -214,6 +218,7 @@ fn propose_requires_exactly_one_change_and_an_owner_only_for_registry_add() {
     let common = [
         "dytallix",
         "governance",
+        "prepare",
         "propose",
         "--profile",
         "p",
@@ -247,6 +252,7 @@ fn propose_requires_exactly_one_change_and_an_owner_only_for_registry_add() {
         crate::Cli::try_parse_from([
             "dytallix",
             "governance",
+            "prepare",
             "vote",
             "--profile",
             "p",
@@ -275,7 +281,7 @@ fn propose_requires_exactly_one_change_and_an_owner_only_for_registry_add() {
     }
     assert!(vote("veto").is_err());
     #[cfg(feature = "legacy-network")]
-    assert!(crate::Cli::try_parse_from(["dytallix", "governance", "legacy", "proposals"]).is_ok());
+    assert!(crate::Cli::try_parse_from(["dytallix", "legacy", "governance", "proposals"]).is_ok());
 }
 
 #[tokio::test]
@@ -334,7 +340,7 @@ async fn every_governance_action_prepares_signs_and_inspects_offline() {
         ),
     ];
     for (index, (change, owner, data, class)) in cases.into_iter().enumerate() {
-        let command = GovernanceCommand::Propose {
+        let command = PrepareCommand::Propose {
             inputs: inputs.clone(),
             change,
             owner,
@@ -354,7 +360,7 @@ async fn every_governance_action_prepares_signs_and_inspects_offline() {
         assert_eq!((*proposal_id, *action_class), (3, class));
         assert_eq!(action_data, &data);
     }
-    let bad_owner = GovernanceCommand::Propose {
+    let bad_owner = PrepareCommand::Propose {
         inputs: inputs.clone(),
         change: ChangeArgs {
             registry_add: Some("v1".into()),
@@ -363,8 +369,8 @@ async fn every_governance_action_prepares_signs_and_inspects_offline() {
         owner: Some("dyt1notanaddress".into()),
         body: body(&dir, "bad-owner.json"),
     };
-    assert!(run(GovernanceArgs { command: bad_owner }).await.is_err());
-    let stray_owner = GovernanceCommand::Propose {
+    assert!(run(prepare(bad_owner)).await.is_err());
+    let stray_owner = PrepareCommand::Propose {
         inputs: inputs.clone(),
         change: ChangeArgs {
             max_active: Some(16),
@@ -373,16 +379,12 @@ async fn every_governance_action_prepares_signs_and_inspects_offline() {
         owner: Some(f.address.clone()),
         body: body(&dir, "stray-owner.json"),
     };
-    let error = run(GovernanceArgs {
-        command: stray_owner,
-    })
-    .await
-    .unwrap_err();
+    let error = run(prepare(stray_owner)).await.unwrap_err();
     assert!(
         error.to_string().contains("--owner applies only"),
         "{error}"
     );
-    let deposit = GovernanceCommand::Deposit {
+    let deposit = PrepareCommand::Deposit {
         inputs: inputs.clone(),
         proposal_id: 2,
         amount_udgt: 250,
@@ -393,7 +395,7 @@ async fn every_governance_action_prepares_signs_and_inspects_offline() {
         signed_deposit.body.actions,
         vec![governance::deposit(2, 250)]
     );
-    let vote = GovernanceCommand::Vote {
+    let vote = PrepareCommand::Vote {
         inputs: inputs.clone(),
         proposal_id: 2,
         choice: Choice::NoWithVeto,
@@ -415,7 +417,7 @@ async fn refresh_accepts_a_later_head_with_unchanged_authority_and_profile() {
     let dir = Scratch::new();
     let inputs = save(&dir, &f);
     save_key(&dir);
-    let command = GovernanceCommand::Propose {
+    let command = PrepareCommand::Propose {
         inputs: inputs.clone(),
         change: ChangeArgs {
             max_active: Some(16),

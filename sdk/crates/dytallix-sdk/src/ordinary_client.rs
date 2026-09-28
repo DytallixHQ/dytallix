@@ -2,14 +2,69 @@
 //! No URL default, legacy fallback, redirect, automatic submission, or consensus
 //! proof is supplied. A successful CheckTx result is not a committed receipt.
 use crate::ordinary_v2::{
-    self, error, AccountView, Error, FeeProfile, ProfileView, ReceiptView, Result, SignedOrdinary,
+    self, error, AccountView, ChainPin, Error, FeeProfile, KeyIdentity, ProfileView, ReceiptView,
+    Result, SignedOrdinary, SigningContext,
 };
 use crate::ordinary_v3::{self, FeeProfileV3, GovernanceProfileView};
 use base64::{engine::general_purpose::STANDARD, Engine};
+use dytallix_protocol_types::{address::AccountAddress, native_account};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 use std::time::Duration;
+
+/// Reading a context retries this often when a block commits between queries.
+const CONTEXT_ATTEMPTS: usize = 3;
+
+/// An ordinary-v2 signing context read from one endpoint for one key.
+#[derive(Clone, Debug)]
+pub struct OrdinaryContext {
+    pub context: SigningContext,
+    pub fee_profile: FeeProfile,
+    pub profile: ProfileView,
+    /// The node reported no account record: this is the account's first spend.
+    pub first_spend: bool,
+}
+/// An ordinary-v3 (governance) signing context read from one endpoint.
+#[derive(Clone, Debug)]
+pub struct GovernanceContext {
+    pub context: SigningContext,
+    pub fee_profile: FeeProfileV3,
+    pub profile: ProfileView,
+    pub governance: GovernanceProfileView,
+}
+fn transport_bound(profile: &ProfileView) -> Result<usize> {
+    let config = profile
+        .config
+        .as_ref()
+        .ok_or_else(|| Error("ordinary configuration is missing".into()))?;
+    usize::try_from(config.max_transport_bytes).map_err(error)
+}
+impl OrdinaryContext {
+    pub fn max_transport_bytes(&self) -> Result<usize> {
+        transport_bound(&self.profile)
+    }
+}
+impl GovernanceContext {
+    pub fn max_transport_bytes(&self) -> Result<usize> {
+        transport_bound(&self.profile)
+    }
+}
+/// A committed state value as the node reports it at its head. It is not
+/// verified: state-proof checks against a trusted application hash are K-d.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StateValue {
+    pub height: u64,
+    pub value: Option<Vec<u8>>,
+}
+/// An account's liquid balances by denomination; `None` when the account
+/// has no record (never funded).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Balances {
+    pub height: u64,
+    pub balances: Option<BTreeMap<String, u128>>,
+}
 
 pub struct CometClient {
     endpoint: reqwest::Url,
@@ -167,6 +222,148 @@ impl CometClient {
             profile.validate().map_err(error)?;
         }
         Ok(view)
+    }
+    /// The ordinary-v2 context for `key` on `account_id`, checked against the
+    /// pin (`ordinary_v2::context_from_views`); a first spend without a record.
+    pub async fn signing_context(
+        &self,
+        pin: &ChainPin,
+        account_id: &[u8; 32],
+        key: &KeyIdentity,
+    ) -> Result<OrdinaryContext> {
+        for _ in 0..CONTEXT_ATTEMPTS {
+            let profile = self.query_profile().await?;
+            pin.check(&profile.context)?;
+            let account = self.query_account(account_id).await?;
+            if account
+                .as_ref()
+                .is_some_and(|a| a.context.height != profile.context.height)
+            {
+                continue;
+            }
+            let (context, fee_profile) =
+                ordinary_v2::context_from_views(pin, &profile, account_id, account.as_ref(), key)?;
+            return Ok(OrdinaryContext {
+                context,
+                fee_profile,
+                profile,
+                first_spend: account.is_none(),
+            });
+        }
+        Err(Error(
+            "the chain kept advancing between context queries; retry".into(),
+        ))
+    }
+    /// The ordinary-v3 context for `key` on `account_id`, checked against the pin.
+    pub async fn governance_context(
+        &self,
+        pin: &ChainPin,
+        account_id: &[u8; 32],
+        key: &KeyIdentity,
+    ) -> Result<GovernanceContext> {
+        for _ in 0..CONTEXT_ATTEMPTS {
+            let profile = self.query_profile().await?;
+            pin.check(&profile.context)?;
+            let governance = self.query_governance_profile().await?;
+            let account = self.query_account(account_id).await?;
+            let height = profile.context.height;
+            if governance.context.height != height
+                || account.as_ref().is_some_and(|a| a.context.height != height)
+            {
+                continue;
+            }
+            let (context, fee_profile) = ordinary_v3::context_from_views(
+                pin,
+                &profile,
+                &governance,
+                account_id,
+                account.as_ref(),
+                key,
+            )?;
+            return Ok(GovernanceContext {
+                context,
+                fee_profile,
+                profile,
+                governance,
+            });
+        }
+        Err(Error(
+            "the chain kept advancing between context queries; retry".into(),
+        ))
+    }
+    /// One committed state value (`/state/proof/{key}`), unverified (K-d).
+    pub async fn query_state_value(&self, key: &[u8]) -> Result<StateValue> {
+        let key_hex = hex(key);
+        let (height, view): (u64, Value) = self.query(&format!("/state/proof/{key_hex}")).await?;
+        if view["version"] != 1 || view["key"] != key_hex.as_str() || view["height"] != height {
+            return Err(Error("inconsistent state value query view".into()));
+        }
+        let value = match &view["value"] {
+            Value::Null => None,
+            Value::String(encoded) => {
+                let bytes = STANDARD.decode(encoded).map_err(error)?;
+                if STANDARD.encode(&bytes) != *encoded {
+                    return Err(Error("state value is not canonical base64".into()));
+                }
+                Some(bytes)
+            }
+            _ => return Err(Error("state value must be base64 or null".into())),
+        };
+        Ok(StateValue { height, value })
+    }
+    /// An account's liquid balances from its native record, unverified (K-d).
+    pub async fn query_balances(&self, address: &AccountAddress) -> Result<Balances> {
+        let state = self
+            .query_state_value(&native_account::balances_key(address))
+            .await?;
+        let balances = state
+            .value
+            .as_deref()
+            .map(native_account::decode_balances)
+            .transpose()
+            .map_err(error)?;
+        Ok(Balances {
+            height: state.height,
+            balances,
+        })
+    }
+    /// Poll for a committed receipt; `None` when it is still absent.
+    pub async fn wait_for_receipt(
+        &self,
+        id: &[u8; 32],
+        attempts: u32,
+        interval: Duration,
+    ) -> Result<Option<ReceiptView>> {
+        for attempt in 0..attempts {
+            if let Some(receipt) = self.query_receipt(id).await? {
+                return Ok(Some(receipt));
+            }
+            if attempt + 1 < attempts {
+                tokio::time::sleep(interval).await;
+            }
+        }
+        Ok(None)
+    }
+    /// Poll until the account's spending nonce passes `nonce`, the committed
+    /// evidence for a v3 transaction (no v3 receipt yet, gap 12).
+    pub async fn wait_for_spent_nonce(
+        &self,
+        id: &[u8; 32],
+        nonce: u64,
+        attempts: u32,
+        interval: Duration,
+    ) -> Result<Option<AccountView>> {
+        for attempt in 0..attempts {
+            if let Some(account) = self.query_account(id).await? {
+                if account.spending_nonce > nonce {
+                    return Ok(Some(account));
+                }
+            }
+            if attempt + 1 < attempts {
+                tokio::time::sleep(interval).await;
+            }
+        }
+        Ok(None)
     }
     pub async fn query_account(&self, id: &[u8; 32]) -> Result<Option<AccountView>> {
         let (height, view): (u64, Option<AccountView>) = self

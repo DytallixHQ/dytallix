@@ -27,17 +27,18 @@ dytallix --help
 | --- | --- | --- |
 | `init` | Create a wallet, save it, and request faucet funds | `dytallix init` |
 | `wallet` | Create, import, export, switch, list, rotate, and inspect wallets | `dytallix wallet info` |
-| `balance` | Show DGT and DRT balances | `dytallix balance` |
-| `send` | Send DGT or DRT | `dytallix send <daddr> 100` |
+| `balance` | Show an account's DGT and DRT on the pinned chain | `dytallix balance` |
+| `send` | Send DGT or DRT on the pinned chain | `dytallix send --to <address> --amount 1.5 --gas-limit <n> --maximum-fee-udrt <n>` |
 | `faucet` | Request faucet funds or inspect eligibility | `dytallix faucet status` |
-| `stake` | View staking state publicly, or use direct-node staking writes | `dytallix stake status` |
-| `governance` | Consensus-chain governance transactions (ordinary v3); legacy testnet reads under `legacy` | `dytallix governance query-profile --endpoint <rpc> --output governance.json` |
+| `stake` | Bond, begin unbonding and claim rewards on the pinned chain | `dytallix stake bond --validator <id> --amount 10 --gas-limit <n> --maximum-fee-udrt <n>` |
+| `governance` | Propose, deposit and vote on the pinned chain (ordinary v3) | `dytallix governance vote --proposal-id 7 --choice yes --gas-limit <n> --maximum-fee-udrt <n>` |
 | `contract` | Deploy, call, query, and inspect contracts | `dytallix contract info <address>` |
 | `node` | Operate or inspect a local node workflow | `dytallix node status` |
 | `chain` | Query block, epoch, status, and chain params | `dytallix chain status` |
 | `crypto` | Key generation, signing, verification, and keystore inspection | `dytallix crypto keygen` |
 | `dev` | Small developer utilities and quick links | `dytallix dev benchmark` |
-| `config` | Show, set, reset, and switch CLI config | `dytallix config network testnet` |
+| `config` | Show, set, reset, and switch CLI config; pin the consensus chain | `dytallix config pin-chain ...` |
+| `legacy` | Testnet REST balance, send, stake and governance (`legacy-network` feature) | `dytallix legacy stake status` |
 
 ## Command Groups
 
@@ -80,14 +81,88 @@ dytallix wallet list
 dytallix wallet info
 ```
 
-### `balance`, `send`, and `faucet`
+### Consensus chain: `balance`, `send`, `stake` and `governance`
 
-Examples:
+These commands use the consensus chain through a CometBFT JSON-RPC endpoint.
+Pin the chain first, with the chain ID and genesis digest from a source you
+trust (never from the node itself):
+
+```bash
+dytallix config pin-chain --endpoint http://127.0.0.1:26657 --network testnet \
+  --chain-id <chain-id> --genesis-digest <sha256-of-genesis-hex>
+```
+
+`pin-chain` asks the node which chain it reports and refuses a mismatch;
+`--no-check` stores the pin without asking.
+
+Each write is one step. The CLI reads the account and fee profile from the
+node, refuses them unless the node reports the pinned chain, then prepares,
+signs, submits, and waits up to `--wait-seconds` (default 30; 0 returns after
+CheckTx) for the committed result. `--gas-limit` and `--maximum-fee-udrt` are
+required on every write; the CLI never chooses them. The output shows the
+required cap from the fee profile. A dishonest node can make a transaction
+fail or cost up to your cap, but cannot change its recipient or amount.
+
+- Signer: `--wallet <name>` or `--key-file <file>`, else the active wallet.
+- Account: the address the signing key derives on the pinned chain, or
+  `--account <address>` after a key rotation.
+- `--expiry-blocks` (default 100) and `--memo` are optional.
+- Amounts are tokens with up to six decimal places (1 DRT = 1000000 uDRT).
 
 ```bash
 dytallix balance
-dytallix balance <daddr>
-dytallix send --token dgt <daddr> 25
+dytallix send --to <address> --amount 1.5 --token drt --gas-limit 10000 --maximum-fee-udrt 20000
+dytallix stake bond --validator <validator-id> --amount 10 --gas-limit 10000 --maximum-fee-udrt 20000
+dytallix stake unbond --validator <validator-id> --amount 5 --gas-limit 10000 --maximum-fee-udrt 20000
+dytallix stake claim --gas-limit 10000 --maximum-fee-udrt 20000
+```
+
+- `balance [address]` reads the account's native record. The node's report
+  is not yet checked against a trusted application hash (`proof_verified`
+  is false).
+- `send` to an address with no account creates it and burns the chain's
+  account creation fee.
+- An account a transfer created has no record yet. Its first transaction is
+  signed by the key its address derives from, at nonce zero, and must be an
+  ordinary transaction (send or stake), not governance.
+- `send` and `stake` report the committed receipt, checked against the
+  signed transaction.
+
+### `governance`
+
+Governance uses ordinary-v3 transactions:
+
+- `propose`: one change, `--max-active <n>`, `--min-self-bond-udgt <n>`,
+  `--fees <FeeValues JSON>`, `--registry-add <validator-id> --owner <address>`
+  or `--registry-remove <validator-id>`. It takes the node's next proposal ID.
+- `deposit --proposal-id <id> --amount <DGT>`
+- `vote --proposal-id <id> --choice <yes|no|no-with-veto|abstain>`
+
+They run in one step, like `send`:
+
+```bash
+dytallix governance vote --proposal-id 7 --choice no-with-veto --gas-limit 10000 --maximum-fee-udrt 20000
+```
+
+For offline signing, `prepare propose|deposit|vote` builds a body from
+captured views (`--profile`, `--account`, `--context`,
+`--governance-profile`, `--expiry-height`, `--gas-limit`,
+`--maximum-fee-udrt`, `--output`), `sign` signs it, `inspect` checks it, and
+`submit` sends it. `query-profile` captures the governance profile.
+
+Behavior:
+
+- `submit` refreshes the views first; they may be at a later height, but must
+  show the same account authority and fee profiles, and a proposal must still
+  hold the next proposal ID
+- once the chain admits a governance transaction, a failed governance rule
+  (for example a proposal ID another proposal took first) is still charged
+- CheckTx acceptance is not commitment; the spent account nonce is, since the
+  chain writes no governance receipt yet
+
+### `faucet`
+
+```bash
 dytallix faucet
 dytallix faucet status
 ```
@@ -97,84 +172,31 @@ Current public faucet policy:
 - successful requests fund `10 DGT` and `100 DRT`
 - the public cooldown is `60` seconds
 - the public cap is `20` requests per hour
-- `send` submits the signed transaction, prints the hash, and waits for
-  `/tx/<hash>` to leave `Pending` when the public receipt route is already
-  indexing
 
-### `stake`
+### `legacy`
 
-Subcommands:
-
-- `delegate <validator> <amount>`
-- `undelegate <validator> <amount>`
-- `claim`
-- `status`
-
-Examples:
+The testnet REST commands, built with the `legacy-network` feature. The
+consensus chain refuses all of them.
 
 ```bash
-DYTALLIX_ENDPOINT=http://localhost:3030 dytallix stake delegate <validator> 1000
-dytallix stake status
+dytallix legacy balance <daddr>
+dytallix legacy send --token dgt <daddr> 25
+DYTALLIX_ENDPOINT=http://localhost:3030 dytallix legacy stake delegate <validator> 1000
+dytallix legacy stake status
+dytallix legacy governance proposals
 ```
 
-Current public behavior:
-
-- `status` reads `https://dytallix.com/api/staking/balance/<D-ADDR>`
+- `legacy send` submits the signed transaction, prints the hash, and waits
+  for `/tx/<hash>` to leave `Pending` when the public receipt route is
+  already indexing
+- `legacy stake status` reads `https://dytallix.com/api/staking/balance/<D-ADDR>`
+- `legacy governance proposals` reads `https://dytallix.com/api/governance/proposals`;
+  `legacy governance status <id>` filters it
 - the CLI consults `GET /api/capabilities` on compatible nodes when deciding
-  whether public staking writes should stay blocked
-- `delegate`, `undelegate`, and `claim` are disabled on the default public website gateway
-- write testing for staking still requires a local node or direct node endpoint
-
-### `governance`
-
-Governance on the consensus chain uses ordinary-v3 transactions sent through
-an explicit CometBFT JSON-RPC endpoint. Like `dytallix ordinary`, it works
-from captured views and an explicit signing context, and prepares and signs
-offline.
-
-Subcommands:
-
-- `query-profile --endpoint <rpc> --output <file>`: the committed governance
-  fee profile and the next proposal ID
-- `propose`: one change, `--max-active <n>`, `--min-self-bond-udgt <n>`,
-  `--fees <FeeValues JSON>`, `--registry-add <validator-id> --owner <address>`
-  or `--registry-remove <validator-id>`; it takes the captured next proposal ID
-- `deposit --proposal-id <id> --amount-udgt <n>`
-- `vote --proposal-id <id> --choice <yes|no|no-with-veto|abstain>`
-- `sign`, `inspect` and `submit`, as for `dytallix ordinary`
-
-`propose`, `deposit` and `vote` take `--profile`, `--account`, `--context` and
-`--governance-profile` (captured views), plus `--expiry-height`,
-`--gas-limit`, `--maximum-fee-udrt`, `--output` and an optional `--memo`.
-
-Example:
-
-```bash
-dytallix governance vote --profile profile.json --account account.json \
-  --context context.json --governance-profile governance.json \
-  --proposal-id 7 --choice no-with-veto --expiry-height 1200 \
-  --gas-limit 600 --maximum-fee-udrt 1200 --output vote.json
-```
-
-Behavior:
-
-- `submit` refreshes the views first; they may be at a later height, but must
-  show the same account authority and fee profiles, and a proposal must still
-  hold the next proposal ID
-- once the chain admits a governance transaction, a failed governance rule
-  (for example a proposal ID another proposal took first) is still charged
-- CheckTx acceptance is not commitment; the spent account nonce is
-
-`legacy` holds the testnet REST commands, built with the `legacy-network`
-feature: `legacy proposals`, `legacy status <id>`,
-`legacy vote <id> <yes|no|abstain>` and `legacy propose`. The consensus chain
-refuses these requests.
-
-- `legacy proposals` reads `https://dytallix.com/api/governance/proposals`
-- `legacy status <id>` filters the public proposals list and prints the matching item
-- the CLI consults `GET /api/capabilities` on compatible nodes when deciding
-  whether public governance writes should stay blocked
-- `legacy vote` and `legacy propose` are disabled on the default public website gateway
+  whether public staking and governance writes should stay blocked
+- `legacy stake delegate`, `undelegate` and `claim`, and `legacy governance
+  vote` and `propose`, are disabled on the default public website gateway
+- write testing for these still requires a local node or direct node endpoint
 
 ### `contract`
 
@@ -299,6 +321,7 @@ Subcommands:
 - `set <key> <value>`
 - `network <testnet|local>`
 - `reset`
+- `pin-chain --endpoint <rpc> --network <mainnet|testnet|development> --chain-id <id> --genesis-digest <hex>`
 
 Examples:
 

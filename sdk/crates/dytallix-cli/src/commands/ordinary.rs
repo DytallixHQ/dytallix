@@ -339,13 +339,16 @@ pub async fn run(args: OrdinaryArgs) -> Result<()> {
             let inputs = inputs.load()?;
             let signed = inputs.signed(&signed)?;
             let client = client(&endpoint)?;
-            // Refresh both views. Matching data is not a consensus proof.
+            // Refresh both views, possibly at a later height (clients v1, K-c).
+            // Matching data is not a consensus proof.
             let profile = client.query_profile().await?;
             let account = client
                 .query_account(&inputs.context.domain.account_id)
                 .await?
                 .context("account is absent from committed state")?;
-            ordinary::validate_views(&inputs.context, &profile, &account)?;
+            let (context, current) = ordinary::refresh_views(&inputs.context, &profile, &account)?;
+            PreparedTransaction::from_body(signed.body.clone(), &current, &context)
+                .context("the signed body is not valid for the next height")?;
             let result = client
                 .submit_sync(&signed, &inputs.profile, inputs.transport_bound()?)
                 .await?;
