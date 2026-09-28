@@ -161,7 +161,7 @@
       "files": [
         {
           "path": "dytallix-fast-launch/node/src/ordinary_validator.rs",
-          "sha256": "538d12e95f9afea7978ece876a786608200e82bc43b16f70c609220a353a9743"
+          "sha256": "f9cd48c0725dd4dac7251adcb586617b43d5946dd10bd1ccc4b00bf9f2eb0bbd"
         },
         {
           "path": "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",

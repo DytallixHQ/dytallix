@@ -31,6 +31,7 @@ pub(crate) enum ValidatorApplicationRule {
     ValidatorSelfBondMinimum,
     ExitPendingAdditions,
     ValidatorSetEmpty,
+    WithdrawalDisabled,
 }
 impl ValidatorApplicationRule {
     pub(crate) fn code(self) -> &'static str {
@@ -49,6 +50,7 @@ impl ValidatorApplicationRule {
             Self::ValidatorSelfBondMinimum => "VALIDATOR_SELF_BOND_MINIMUM",
             Self::ExitPendingAdditions => "EXIT_PENDING_ADDITIONS",
             Self::ValidatorSetEmpty => "VALIDATOR_SET_EMPTY",
+            Self::WithdrawalDisabled => "VALIDATOR_WITHDRAWAL_DISABLED",
         }
     }
     pub(crate) fn is_capacity(self) -> bool {
@@ -439,9 +441,12 @@ pub(crate) fn apply(
     }
     let mut owners = BTreeSet::from([token.owner.clone()]);
     if let Action::ValidatorWithdraw { unbond_id } = &token.action {
-        let p = penalty
-            .as_mut()
-            .context("Validator withdrawal requires penalty accounting")?;
+        // Without the penalty profile principal withdrawal is disabled. It is
+        // a rule failure, never an internal fault: admission accepts the
+        // transaction, so a fault would fail every block that carries it.
+        let Some(p) = penalty.as_mut() else {
+            return Err(application(WithdrawalDisabled));
+        };
         let entry = state
             .unbonding
             .get(unbond_id)

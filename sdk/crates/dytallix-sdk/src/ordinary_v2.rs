@@ -743,6 +743,7 @@ pub fn validate_receipt(
                                 | "VALIDATOR_SELF_BOND_MINIMUM"
                                 | "EXIT_PENDING_ADDITIONS"
                                 | "VALIDATOR_SET_EMPTY"
+                                | "VALIDATOR_WITHDRAWAL_DISABLED"
                         )
                     )
                 ),

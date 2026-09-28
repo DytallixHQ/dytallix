@@ -1344,6 +1344,62 @@ fn successful_ordinary(
     result
 }
 
+/// Without the penalty profile principal withdrawal is disabled. A signed
+/// withdrawal is admitted, then fails as a paid rule failure; it never fails
+/// the proposal or the block that carries it.
+#[test]
+fn withdrawal_without_the_penalty_profile_is_a_paid_rule_failure() {
+    let fixture = Fixture::new();
+    assert!(fixture.config.penalty.is_none());
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    successful_ordinary(
+        &mut app,
+        &fixture,
+        &fixture.active,
+        1,
+        vec![OrdinaryAction::RewardBeginUnbond {
+            validator_id: "validator-one".into(),
+            amount_udgt: 40,
+        }],
+    );
+    for height in 2..=9 {
+        commit(&mut app, height, vec![]);
+    }
+    let owner = fixture.active.address();
+    let entry = lifecycle_state(&app)
+        .unbonding
+        .values()
+        .find(|entry| entry.owner == owner)
+        .unwrap()
+        .clone();
+    let liquid = asset_balance(&app, &owner, "udgt");
+    let signed = fixture.ordinary(
+        &current(&app, &fixture.active),
+        &fixture.active,
+        vec![OrdinaryAction::ValidatorWithdraw {
+            unbond_id: entry.id.clone(),
+        }],
+        1000,
+    );
+    let wire = fixture.ordinary_wire(&signed);
+    assert_eq!(app.check_tx(&wire).code, 0);
+    assert_eq!(
+        app.prepare_proposal(10, 100, 0, vec![wire.clone()], 1_048_576)
+            .unwrap(),
+        vec![wire.clone()]
+    );
+    assert!(app.process_proposal(block(10, vec![wire.clone()])).unwrap());
+    let result = commit(&mut app, 10, vec![wire]);
+    assert_eq!(result.tx_results[0].code, 3, "{:?}", result.tx_results);
+    assert!(result.tx_results[0]
+        .log
+        .contains("VALIDATOR_WITHDRAWAL_DISABLED"));
+    assert_eq!(asset_balance(&app, &owner, "udgt"), liquid);
+    assert!(lifecycle_state(&app).unbonding.contains_key(&entry.id));
+    assert_eq!(current(&app, &fixture.active).spending_nonce, 2);
+}
+
 #[test]
 fn signed_dms_register_ping_and_mature_claim_commit_liquid_assets_and_nonce_mirrors() {
     let fixture = Fixture::new();
