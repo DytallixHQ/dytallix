@@ -3834,9 +3834,9 @@ impl ConsensusApplication {
                 root_genesis.as_ref().context("Candidate requires verified root genesis")?,
                 emergency_verifier.as_ref().context("Candidate requires emergency verifier")?,
             )?;
-            crate::runtime_candidate_v2::verify_runtime_candidate(
+            classify(crate::runtime_candidate_v2::verify_runtime_candidate(
                 &input.input, &authority, &input.root, &input.verifier,
-            )?;
+            ), FailureClass::Release)?;
             if matches!(&input.input, crate::runtime_candidate_v2::RuntimeCandidateInput::V2(_)) {
                 // Catalog, configured helper binding and current application
                 // identity have passed. Only now may the live verifier exist.
@@ -3880,9 +3880,9 @@ impl ConsensusApplication {
                         upgrade_state(&storage, &config)?.map(|state| state.active_schema())
                     } else { None },
                 };
-                crate::runtime_candidate_v2::verify_runtime_candidate(
+                classify(crate::runtime_candidate_v2::verify_runtime_candidate(
                     &input.input, &authority, &input.root, &input.verifier,
-                )
+                ), FailureClass::Release)
             })
             .transpose()?;
         Ok(Self {

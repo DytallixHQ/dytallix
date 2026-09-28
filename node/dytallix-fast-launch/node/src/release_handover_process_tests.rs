@@ -124,6 +124,9 @@ impl HandoverProcess {
                 let stderr = std::fs::read_to_string(&self.stderr).unwrap();
                 assert!(!status.success(), "Invalid candidate started successfully: {stderr}");
                 assert!(stderr.contains(expected_error), "Unexpected startup error: {stderr}");
+                // An obsolete candidate is a release failure (E04 gap 15).
+                assert_eq!(status.code(), Some(crate::failure_class::FailureClass::Release.exit_status().into()),
+                    "Unexpected startup exit: {status}");
                 break;
             }
             assert!(Instant::now() < deadline, "Candidate startup rejection timed out");

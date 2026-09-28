@@ -1,6 +1,6 @@
 # Emergency transaction freeze
 
-This implementation supports the approved default emergency action: freeze user transactions while consensus continues. Production activation remains disabled. A separate full-consensus-halt procedure is required when consensus, deterministic execution or cryptographic integrity is unsafe.
+This implementation supports the approved default emergency action: freeze user transactions while consensus continues. Production activation remains disabled. The separate [full-halt procedure](../operations/halt.md) applies when consensus, deterministic execution or cryptographic integrity is unsafe.
 
 ## Authorization and state
 
