@@ -11,7 +11,7 @@ testnet and product code in the rest of this repository.
 
 | Folder | Contents |
 |---|---|
-| [node/](node/) | Consensus application (`dytallix-fast-node`), CometBFT v0.40.0 fork with PQC transport (`node/consensus/cometbft`), PQC HTTP adapter, native supervisor, adaptive emission, storage, gas and signature-policy crates |
+| [node/](node/) | Consensus application (`dytallix-fast-node`), CometBFT v0.40.0 fork with PQC transport (`node/consensus/cometbft`), PQC HTTP adapter, native supervisor, adaptive emission, storage and gas crates |
 | [sdk/](sdk/) | Rust SDK and `dytallix` CLI, including the ordinary-v2 client and browser crate |
 | [pqc/](pqc/) | PQC primitives (ML-DSA, SLH-DSA, ML-KEM, FN-DSA). The node is the qualification authority. |
 | [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry |

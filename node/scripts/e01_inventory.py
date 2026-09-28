@@ -50,17 +50,15 @@ ROUTES = [
     {
         "role": "legacy_signed_transaction",
         "algorithm": "ML-DSA-65 (FIPS 204)",
-        "policy": "Only mldsa65 is representable in the verifier and signature policy; the path is disabled whenever the recovery profile is configured, which mainnet requires",
+        "policy": "Only mldsa65 is representable in the verifier; the path is disabled whenever the recovery profile is configured, which mainnet requires (removed in E04 gap 14, step L-b)",
         "files": [
             "crates/runtime-crypto/src/lib.rs",
             "crates/runtime-crypto/src/pqc_verify.rs",
             "crates/runtime-crypto/src/dilithium_fips204.rs",
             "crates/protocol-types/src/signature_algorithm.rs",
-            "crates/signature-policy/src/lib.rs",
             "crates/storage/src/tx.rs",
             "dytallix-fast-launch/node/src/signed_transaction.rs",
             "dytallix-fast-launch/node/src/types/tx.rs",
-            "dytallix-fast-launch/node/src/mempool/mod.rs",
         ],
     },
     {

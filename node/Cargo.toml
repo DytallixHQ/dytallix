@@ -6,7 +6,6 @@ members = [
     "crates/release-runtime",
     "crates/native-supervisor",
     "crates/storage",
-    "crates/signature-policy",
     "crates/gas",
     "dytallix-fast-launch/node",
 ]

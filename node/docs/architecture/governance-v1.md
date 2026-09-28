@@ -45,8 +45,8 @@ that code, which this step replaced.
 | G7 | No state advance per block, no v3 receipts or receipt windows, no `max_depositors` config field. | — |
 | G8 | Every chain parameter is fixed in genesis config. Nothing can change one after launch except an upgrade. | `ConsensusConfig` |
 
-The legacy `runtime/governance.rs` (HTTP routes, `gov:` keys) is not used
-by the consensus build; consensus rejects `gov:` keys. It is out of scope.
+The legacy `runtime/governance.rs` (HTTP routes, `gov:` keys) was never used
+by the consensus build, which rejects `gov:` keys; E04 gap 14 removed it.
 
 ## Proposed rules
 

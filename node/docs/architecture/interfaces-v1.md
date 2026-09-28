@@ -96,8 +96,8 @@ paths are exactly the ones the application accepts.
   committed head):
   - `/account/{address}`, `AccountSummaryView`: liquid DGT and DRT, nonce,
     bonds by validator, pending bond, unbonding principal (net of pending
-    penalties under the penalty profile, as `supply::inspect_reward_owner`
-    computes it) with each unbond entry, and claimable rewards (unpaid
+    penalties under the penalty profile, as the supply check counts it)
+    with each unbond entry, and claimable rewards (unpaid
     staking rewards plus validator payouts, which one claim pays).
   - `/staking/validators`, `ValidatorSetView`: the next block's set, with
     each validator's owner, consensus key and power, plus `max_active` and

@@ -1,6 +1,7 @@
 # DRT supply accounting contract, version 1
 
-This contract covers DRT in the selected development block lifecycle. The approved
+This contract covers DRT in the selected development block lifecycle. E04 gap 14 removed
+that development block adapter; the consensus application keeps the same stored totals. The approved
 mainnet emission model remains the corrected whitepaper adaptive model. This contract
 does not select its allocation, parameters, timebase, fees, or burn rules.
 
@@ -88,10 +89,9 @@ Invalid state returns HTTP 503 without a partial supply estimate. This query per
 history and state validation. Its cost grows with stored history and accounts. It needs
 bounded serving and performance qualification before mainnet exposure.
 
-`EmissionEngine::get_supply_info` now returns a Result. It reads verified storage totals,
-not configuration or cached emission values. Its legacy `circulating_supply` field still
-means cumulative emitted DRT. It does not mean spendable or market circulation. No current
-production caller uses the former infallible helper; external library users must adapt.
+The legacy `EmissionEngine` and its `get_supply_info` were removed in E04 gap 14, with the
+development block adapter. The stored `emission:circulating_supply` value still means
+cumulative emitted DRT, not spendable or market circulation.
 
 ## Genesis and configuration compatibility
 

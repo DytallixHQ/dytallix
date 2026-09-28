@@ -18,7 +18,7 @@ PROHIBITED = re.compile(
 )
 REQUIRED = {"dytallix-fast-node", "dytallix-storage", "dytallix-runtime-crypto",
             "dytallix-protocol-types", "dytallix-adaptive-emission",
-            "dytallix-signature-policy", "fips204", "rocksdb"}
+            "fips204", "rocksdb"}
 
 def inspect_tree(tree):
     packages = sorted({line.split()[0] for line in tree.splitlines() if line.strip()})
