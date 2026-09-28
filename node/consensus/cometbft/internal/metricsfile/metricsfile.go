@@ -25,6 +25,13 @@ import (
 // as stale.
 const WrittenMetric = "dytallix_metrics_written_timestamp_seconds"
 
+// FormatMetric carries the metrics file format version (interfaces v1); the
+// application file writes the same family.
+const (
+	FormatMetric  = "dytallix_metrics_format_version"
+	FormatVersion = 1
+)
+
 type kind int
 
 const (
@@ -192,6 +199,8 @@ func (r *Registry) Write(w io.Writer, process string, now time.Time) error {
 		}
 	}
 	r.mu.Unlock()
+	fmt.Fprintf(&b, "# TYPE %s gauge\n%s%s %d\n", FormatMetric, FormatMetric,
+		labels([]string{"process", process}), FormatVersion)
 	fmt.Fprintf(&b, "# TYPE %s gauge\n%s%s %s\n", WrittenMetric, WrittenMetric,
 		labels([]string{"process", process}), number(float64(now.UnixMilli())/1000))
 	_, err := io.WriteString(w, b.String())

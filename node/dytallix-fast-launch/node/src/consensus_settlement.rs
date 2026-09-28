@@ -59,6 +59,9 @@ const HEAD_KEY: &str = "consensus:v1:head";
 const BLOCK_PREFIX: &str = "consensus:v1:block:";
 const GENESIS_SOURCE_KEY: &str = "consensus:v1:genesis_source";
 const GENESIS_APP_HASH_KEY: &str = "consensus:v1:genesis_app_hash";
+/// Versions of the query views without a client DTO (interfaces v1).
+pub const STATUS_VIEW_VERSION: u16 = 1;
+pub const EMERGENCY_RECEIPT_VIEW_VERSION: u16 = 1;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -5700,12 +5703,12 @@ impl ConsensusApplication {
             .is_some_and(|state| state.active_schema() == 1)
         {
             return Ok(
-                serde_json::json!({"status": "index_unavailable", "receipt_sha256": digest, "height": info.height, "context": context}),
+                serde_json::json!({"version": EMERGENCY_RECEIPT_VIEW_VERSION, "status": "index_unavailable", "receipt_sha256": digest, "height": info.height, "context": context}),
             );
         }
         let Some(index) = self.storage.db.get(upgrade::index_key(digest)?)? else {
             return Ok(
-                serde_json::json!({"status": "receipt_absent", "receipt_sha256": digest, "height": info.height, "context": context}),
+                serde_json::json!({"version": EMERGENCY_RECEIPT_VIEW_VERSION, "status": "receipt_absent", "receipt_sha256": digest, "height": info.height, "context": context}),
             );
         };
         let sequence = u64::from_be_bytes(
@@ -5730,7 +5733,7 @@ impl ConsensusApplication {
             "Indexed emergency receipt binding differs"
         );
         Ok(
-            serde_json::json!({"status": "committed_receipt_reported", "receipt_sha256": digest, "sequence": sequence,
+            serde_json::json!({"version": EMERGENCY_RECEIPT_VIEW_VERSION, "status": "committed_receipt_reported", "receipt_sha256": digest, "sequence": sequence,
             "height": info.height, "context": context, "receipt": receipt}),
         )
     }
@@ -5891,7 +5894,7 @@ impl ConsensusApplication {
             crate::supply::validate_native_block(&self.storage, &Writes::new(), &Deletes::new())?;
         let engine_hash =
             read_head(&self.storage)?.map_or_else(|| "genesis".into(), |h| h.anchor.engine_hash);
-        let mut response = serde_json::json!({"height": info.height, "app_hash": info.app_hash, "engine_hash": engine_hash,
+        let mut response = serde_json::json!({"version": STATUS_VIEW_VERSION, "height": info.height, "app_hash": info.app_hash, "engine_hash": engine_hash,
             "issuance_timing": supply.drt.issuance_timing.clone(), "supply": supply.drt.response(), "dgt_supply": supply.dgt.response()});
         if let Some(lifecycle) = lifecycle_state(&self.storage)? {
             response["last_commit_validators"] = serde_json::to_value(if info.height > 1 {

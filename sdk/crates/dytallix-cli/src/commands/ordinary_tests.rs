@@ -438,3 +438,12 @@ fn strict_profile_rejects_unsupported_algorithm_selection() {
         assert!(exact_scheme(algorithm).is_err());
     }
 }
+
+#[test]
+fn every_printed_object_carries_the_output_version() {
+    let out = versioned_output(&json!({"status":"signed_offline"})).unwrap();
+    assert_eq!(out["output_version"], OUTPUT_VERSION);
+    assert_eq!(out["status"], "signed_offline");
+    // Non-objects print unchanged.
+    assert_eq!(versioned_output(&json!([1])).unwrap(), json!([1]));
+}

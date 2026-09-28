@@ -1,0 +1,366 @@
+{
+  "version": 1,
+  "document": "node/docs/architecture/interfaces-v1.md",
+  "paths_relative_to": "mainnet/",
+  "exposure": {
+    "external": "Reachable by clients through the engine's RPC or the SDK and CLI.",
+    "operator": "Files and outputs an operator's tooling reads on the host.",
+    "internal": "Channels between the node's own processes; pinned by the release manifest."
+  },
+  "interfaces": [
+    {
+      "id": "abci-query-status",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/status",
+      "aliases": ["", "/supply"],
+      "variant": "Status",
+      "format": "JSON: height, app_hash, engine_hash, issuance timing, DRT and DGT supply, and the configured lifecycle, emergency, handover, upgrade and penalty sections.",
+      "version": {"field": "version", "constant": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "name": "STATUS_VIEW_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "fn query_validated("},
+      "tests": [
+        {"file": "node/dytallix-fast-launch/node/src/history_validation_tests.rs", "name": "anchored_query_validates_once_and_preserves_values_and_corruption_refusal"},
+        {"file": "node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs", "name": "ordinary_query_paths_require_exact_receipt_identity"}
+      ]
+    },
+    {
+      "id": "abci-query-ordinary-profile",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/ordinary/profile",
+      "variant": "OrdinaryProfile",
+      "format": "JSON ProfileView: the committed ordinary-v2 fee profile and public limits.",
+      "version": {"field": "version", "constant": {"file": "node/crates/protocol-types/src/ordinary_client.rs", "name": "CLIENT_VIEW_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "fn query_ordinary_profile_validated("},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs", "name": "ordinary_queries_expose_only_committed_profiles_and_receipts_across_restart"}]
+    },
+    {
+      "id": "abci-query-governance-profile",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/ordinary/profile_v3",
+      "variant": "GovernanceProfile",
+      "format": "JSON GovernanceProfileView: the committed v3 fee profile and next proposal ID.",
+      "version": {"field": "version", "constant": {"file": "node/crates/protocol-types/src/ordinary_client.rs", "name": "CLIENT_VIEW_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "fn query_governance_profile_validated("},
+      "tests": [
+        {"file": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs", "name": "governance_profile_view_is_disabled_without_governance"},
+        {"file": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs", "name": "fee_change_replaces_both_profiles_at_its_execution_height"}
+      ]
+    },
+    {
+      "id": "abci-query-ordinary-account",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/ordinary/account/{account_id}",
+      "variant": "OrdinaryAccount",
+      "format": "JSON AccountView or null: account authority, counters and profile digest.",
+      "version": {"field": "version", "constant": {"file": "node/crates/protocol-types/src/ordinary_client.rs", "name": "CLIENT_VIEW_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "fn query_ordinary_account_validated("},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs", "name": "ordinary_public_queries_reject_malformed_ids_and_return_null_for_absent_accounts"}]
+    },
+    {
+      "id": "abci-query-ordinary-receipt",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/ordinary/receipt/{transaction_id}",
+      "variant": "OrdinaryReceipt",
+      "format": "JSON ReceiptView or null: a committed ordinary-v2 receipt. v3 transactions have none yet (E04 gap 12).",
+      "version": {"field": "version", "constant": {"file": "node/crates/protocol-types/src/ordinary_client.rs", "name": "CLIENT_VIEW_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "fn query_ordinary_receipt_validated("},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs", "name": "committed_public_receipt_preserves_fee_and_cap_above_u64_as_decimal_strings"}]
+    },
+    {
+      "id": "abci-query-emergency-receipt",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/emergency/receipt/{receipt_sha256}",
+      "variant": "EmergencyReceipt",
+      "format": "JSON: status (index_unavailable, receipt_absent, committed_receipt_reported), context and the receipt (schema 1).",
+      "version": {"field": "version", "constant": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "name": "EMERGENCY_RECEIPT_VIEW_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "fn query_emergency_receipt_validated("},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs", "name": "emergency_receipt_query_requires_exact_digest"}]
+    },
+    {
+      "id": "abci-query-state-proof",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/state/proof/{key}",
+      "variant": "StateProof",
+      "format": "JSON StateProofView: value, JMT proof, state root, anchor and application hash.",
+      "version": {"field": "version", "constant": {"file": "node/crates/protocol-types/src/state_proof.rs", "name": "VIEW_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "fn query_state_proof_validated("},
+      "tests": [
+        {"file": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs", "name": "state_proofs_verify_to_the_application_hash_the_engine_commits"},
+        {"file": "node/dytallix-fast-launch/node/src/state_tree_tests.rs", "name": "client_verifier_agrees_with_jmt_on_random_trees"}
+      ]
+    },
+    {
+      "id": "tx-ordinary-v2",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "JSON {\"type\":\"ordinary_v2\",\"envelope_base64\"}; binary envelope with the ordinary signing and wire prefixes.",
+      "version": {"field": "envelope version", "constant": {"file": "node/crates/protocol-types/src/ordinary.rs", "name": "VERSION", "value": 2}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "\"ordinary_v2\" =>"},
+      "tests": [
+        {"file": "node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs", "name": "transaction_transport_preserves_exact_bytes_and_rejects_noncanonical_base64"},
+        {"file": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs", "name": "first_spend_initializes_a_created_account_from_the_chain_template"}
+      ]
+    },
+    {
+      "id": "tx-ordinary-v3",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "JSON {\"type\":\"ordinary_v3\",\"envelope_base64\"}; one governance action per envelope.",
+      "version": {"field": "envelope version", "constant": {"file": "node/crates/protocol-types/src/ordinary_v3.rs", "name": "VERSION", "value": 3}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "\"ordinary_v3\" =>"},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/consensus_settlement_tests.rs", "name": "governance_v3_transport_requires_config_and_type_discriminator"}]
+    },
+    {
+      "id": "tx-recovery",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "JSON {\"kind\":\"recovery\",\"envelope_base64\"}; sponsored recovery wire wrapping the recovery wire.",
+      "version": {"field": "wire version", "constant": {"file": "node/crates/protocol-types/src/recovery_sponsor.rs", "name": "VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "WireTransaction::Recovery { envelope_base64 }"},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/recovery_consensus_tests.rs", "name": "signed_recovery_commits_authority_fee_and_receipts_only_at_commit"}]
+    },
+    {
+      "id": "tx-signed-legacy",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "JSON {\"kind\":\"signed\",\"envelope\":SignedTx}. Refused whenever the recovery profile is configured, as on mainnet.",
+      "version": {"field": "SignedTx.version", "constant": {"file": "node/crates/protocol-types/src/lib.rs", "name": "TRANSACTION_FORMAT_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "!matches!(value, WireTransaction::Signed { .. })"},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/consensus_settlement_tests.rs", "name": "omitted_governance_config_preserves_legacy_bytes_and_null_rejects"}]
+    },
+    {
+      "id": "tx-emergency-control",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "Canonical JSON control {kind, payload, signatures}; root-signed.",
+      "version": {"field": "kind", "literal": {"file": "node/dytallix-fast-launch/node/src/emergency_freeze.rs", "text": "dytallix-emergency-control-v2"}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "emergency::decode_control(policy, raw)"},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/emergency_consensus_tests.rs", "name": "absent_emergency_config_preserves_legacy_bytes_and_null_is_rejected"}]
+    },
+    {
+      "id": "tx-handover-control",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "Canonical JSON control; root-signed release handover.",
+      "version": {"field": "kind", "literal": {"file": "node/dytallix-fast-launch/node/src/release_handover.rs", "text": "dytallix-release-handover-v1"}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "handover::decode_control(policy, raw)"},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/release_handover_consensus_tests.rs", "name": "handover_configuration_omission_and_explicit_null_are_distinct"}]
+    },
+    {
+      "id": "tx-upgrade-control",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "Canonical JSON control; root-signed chain upgrade.",
+      "version": {"field": "kind", "literal": {"file": "node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs", "text": "dytallix-upgrade-control-v1"}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "upgrade::decode_control(policy, raw)"},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/upgrade_consensus_tests.rs", "name": "omitted_upgrade_configuration_preserves_bytes_and_null_rejects"}]
+    },
+    {
+      "id": "tx-epoch-observation",
+      "group": "transaction",
+      "exposure": "internal",
+      "format": "JSON {\"kind\":\"epoch_observation\",\"observation\"}; derived by the proposer. CheckTx refuses a submitted one.",
+      "version": {"none": "Proposer-derived and checked against the block by every validator; never accepted from clients."},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "WireTransaction::EpochObservation { observation }"},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/observation_contract_tests.rs", "name": "submitted_observations_are_refused_even_when_correct"}]
+    },
+    {
+      "id": "result-tx",
+      "group": "result",
+      "exposure": "external",
+      "format": "CometBFT ExecTxResult and ResponseCheckTx: code (0 success, 1 refused and not charged, 2 infrastructure failure, 3 charged failure), log, gas_wanted, gas_used. Data is empty.",
+      "version": {"none": "CometBFT's fixed fields; their meaning belongs to the application protocol version (ResponseInfo.app_version)."},
+      "source": {"file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs", "symbol": "pub struct TxResult"},
+      "tests": [{"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/main_test.go", "name": "TestFinalizeRequiresOneResultPerTransaction"}]
+    },
+    {
+      "id": "result-events",
+      "group": "result",
+      "exposure": "external",
+      "format": "None. No ABCI events are emitted (interfaces v1, decision 3); receipts and blocks are the committed record.",
+      "version": {"none": "No events by design."},
+      "source": {"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/application.go", "symbol": "&abci.ExecTxResult{Code: r.Code"},
+      "tests": []
+    },
+    {
+      "id": "abci-info",
+      "group": "result",
+      "exposure": "external",
+      "format": "ResponseInfo: data, version (interface generation), app_version (application protocol), last block height and application hash.",
+      "version": {"field": "version", "literal": {"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/application.go", "text": "dytallix-app-v1"}},
+      "source": {"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/application.go", "symbol": "Version: infoVersion"},
+      "tests": [{"file": "node/crates/native-supervisor/src/readiness.rs", "name": "readiness_http_actual_loopback_response_is_bounded_and_chain_checked"}]
+    },
+    {
+      "id": "engine-rpc-ipc",
+      "group": "engine_rpc",
+      "exposure": "external",
+      "format": "CometBFT JSON-RPC over a Unix socket (mode 0600) with length-prefixed frames; the PQC-only production build. All safe CometBFT routes; route controls are E04 gap 10.",
+      "version": {"field": "frame version", "literal": {"file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/protocol.go", "text": "response.Version != 1"}},
+      "source": {"file": "node/consensus/cometbft/internal/enginepqc/rpc_profile_ipc.go", "symbol": "package enginepqc"},
+      "tests": [{"file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/ipc_test.go", "name": "TestNeutralDispatchPreservesGETAndPOST"}]
+    },
+    {
+      "id": "engine-rpc-http",
+      "group": "engine_rpc",
+      "exposure": "external",
+      "format": "CometBFT JSON-RPC over HTTP and WebSocket on TCP loopback; development builds only.",
+      "version": {"field": "CometBFT version", "literal": {"file": "node/consensus/cometbft/upstream/version/version.go", "text": "TMCoreSemVer = \"0.39.0\""}},
+      "source": {"file": "node/consensus/cometbft/internal/enginepqc/rpc_profile_http.go", "symbol": "package enginepqc"},
+      "tests": [{"file": "node/consensus/cometbft/internal/enginepqc/engine_test.go", "name": "TestIsolationRejectsAlternativeNetworkAndSignerPaths"}]
+    },
+    {
+      "id": "engine-rpc-http-adapter",
+      "group": "engine_rpc",
+      "exposure": "external",
+      "format": "Loopback HTTP adapter onto the IPC socket: POST / and GET /{method}; strict origin; no WebSocket.",
+      "version": {"field": "profile", "literal": {"file": "node/consensus/pqc-http-adapter/src/lib.rs", "text": "dytallix-pqc-http-local-v1"}},
+      "source": {"file": "node/consensus/pqc-http-adapter/src/lib.rs", "symbol": "pub const PROFILE"},
+      "tests": [
+        {"file": "node/consensus/pqc-http-adapter/src/lib.rs", "name": "canonical_rpc_paths"},
+        {"file": "node/consensus/pqc-http-adapter/src/lib.rs", "name": "exact_response_contract"}
+      ]
+    },
+    {
+      "id": "p2p-pqc",
+      "group": "p2p",
+      "exposure": "external",
+      "format": "PQC peer transport (ML-KEM-768, ML-DSA-65, HKDF-SHA-256) under CometBFT P2P protocol 8.",
+      "version": {"field": "wire version", "constant": {"file": "node/consensus/cometbft/internal/pqcp2p/connection.go", "name": "WireVersion", "value": 1}},
+      "source": {"file": "node/consensus/cometbft/internal/pqcp2p/establishment.go", "symbol": "dytallix-pqcp2p-component-v1"},
+      "tests": []
+    },
+    {
+      "id": "operator-pqc-transport-config",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "pqc_transport.json: profile, network, peers and handshake timeout.",
+      "version": {"field": "version", "literal": {"file": "node/consensus/cometbft/internal/enginepqc/engine.go", "text": "tc.Version != 1"}},
+      "source": {"file": "node/consensus/cometbft/internal/enginepqc/engine.go", "symbol": "`json:\"version\"`"},
+      "tests": [{"file": "node/consensus/cometbft/internal/enginepqc/engine_test.go", "name": "TestIsolationRejectsAlternativeNetworkAndSignerPaths"}]
+    },
+    {
+      "id": "operator-metrics-app",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "Prometheus text file dytallix-app.prom, prefix dytallix_app_, with the write time.",
+      "version": {"field": "dytallix_metrics_format_version{process=\"app\"}", "constant": {"file": "node/dytallix-fast-launch/node/src/app_metrics.rs", "name": "FORMAT_VERSION", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/app_metrics.rs", "symbol": "pub fn render("},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/app_metrics.rs", "name": "render_writes_each_family_once_and_the_write_time"}]
+    },
+    {
+      "id": "operator-metrics-engine",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "Prometheus text file dytallix-engine.prom, prefix dytallix_engine_, with the write time.",
+      "version": {"field": "dytallix_metrics_format_version{process=\"engine\"}", "constant": {"file": "node/consensus/cometbft/internal/metricsfile/metricsfile.go", "name": "FormatVersion", "value": 1}},
+      "source": {"file": "node/consensus/cometbft/internal/metricsfile/metricsfile.go", "symbol": "func (r *Registry) Write("},
+      "tests": [{"file": "node/consensus/cometbft/internal/metricsfile/metricsfile_test.go", "name": "TestRegistryWritesTheTextFormat"}]
+    },
+    {
+      "id": "operator-snapshots",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "State-sync snapshots: {height}/metadata.json and chunk files; served to peers by the bridge.",
+      "version": {"field": "format", "constant": {"file": "node/dytallix-fast-launch/node/src/snapshot.rs", "name": "FORMAT", "value": 1}},
+      "source": {"file": "node/dytallix-fast-launch/node/src/snapshot.rs", "symbol": "pub fn snapshot_dir("},
+      "tests": [{"file": "node/dytallix-fast-launch/node/src/snapshot.rs", "name": "writer_keeps_the_latest_snapshots_and_removes_partial_ones"}]
+    },
+    {
+      "id": "operator-light-export",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "Light-block files {height}.block and {height}.params, and a stdout summary with the trust height and hash.",
+      "version": {"field": "version", "constant": {"file": "node/consensus/cometbft/cmd/dytallix-light-export/main.go", "name": "exportVersion", "value": 1}},
+      "source": {"file": "node/consensus/cometbft/cmd/dytallix-light-export/main.go", "symbol": "lightblocks.Export("},
+      "tests": [{"file": "node/consensus/cometbft/internal/lightblocks/lightblocks_test.go", "name": "TestExportedLightBlocksServeTheStateProvider"}]
+    },
+    {
+      "id": "operator-engine-ready-line",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "One JSON line on stdout: event experimental_pqc_engine_ready with the transport profile, suite, node and peer IDs.",
+      "version": {"field": "version", "constant": {"file": "node/consensus/cometbft/cmd/dytallix-pqc-engine/main.go", "name": "readyVersion", "value": 1}},
+      "source": {"file": "node/consensus/cometbft/cmd/dytallix-pqc-engine/main.go", "symbol": "summary[\"version\"] = readyVersion"},
+      "tests": []
+    },
+    {
+      "id": "internal-stdio-bridge",
+      "group": "internal",
+      "exposure": "internal",
+      "format": "Newline-delimited JSON {method, payload} and {ok, result|error} between the Go bridge and the Rust application, at most 8 MiB per frame.",
+      "version": {"none": "Both sides ship in one release and are pinned by its manifest; the channel mode is inherited-pipes-v1."},
+      "source": {"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/channel.go", "symbol": "inherited-pipes-v1"},
+      "tests": [{"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/main_test.go", "name": "TestChildRoundTripAndApplicationError"}]
+    },
+    {
+      "id": "internal-abci-socket",
+      "group": "internal",
+      "exposure": "internal",
+      "format": "ABCI 2.0 between the engine and the bridge over a Unix socket (mode 0600).",
+      "version": {"none": "Upstream ABCI of the pinned CometBFT fork; both sides pinned by the release manifest."},
+      "source": {"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/application.go", "symbol": "func (a *application) Info("},
+      "tests": [{"file": "node/consensus/cometbft/cmd/dytallix-comet-bridge/main_test.go", "name": "TestUnsupportedFeaturesFailClosed"}]
+    },
+    {
+      "id": "sdk-crate",
+      "group": "sdk",
+      "exposure": "external",
+      "format": "Rust crate dytallix-sdk: ordinary_v2, ordinary_v3, ordinary_client (comet-rpc), keystore, transaction; legacy client and faucet behind network.",
+      "version": {"field": "crate version", "literal": {"file": "sdk/Cargo.toml", "text": "version = \"0.1.0\""}},
+      "source": {"file": "sdk/crates/dytallix-sdk/src/lib.rs", "symbol": "pub mod ordinary_client;"},
+      "tests": [{"file": "sdk/crates/dytallix-sdk/tests/node_context.rs", "name": "a_first_spend_signs_with_the_origin_key_at_generation_and_nonce_zero"}]
+    },
+    {
+      "id": "cli-commands",
+      "group": "cli",
+      "exposure": "external",
+      "format": "dytallix: wallet, balance, send, ordinary, stake, governance, crypto, config; with legacy-network also init, faucet, contract, node, chain, dev and legacy.",
+      "version": {"field": "crate version", "literal": {"file": "sdk/Cargo.toml", "text": "version = \"0.1.0\""}},
+      "source": {"file": "sdk/crates/dytallix-cli/src/main.rs", "symbol": "enum Commands"},
+      "tests": [{"file": "sdk/crates/dytallix-cli/src/main.rs", "name": "cli_structure_help"}]
+    },
+    {
+      "id": "cli-json-output",
+      "group": "cli",
+      "exposure": "external",
+      "format": "One JSON object per consensus-chain command, errors included.",
+      "version": {"field": "output_version", "constant": {"file": "sdk/crates/dytallix-cli/src/commands/ordinary.rs", "name": "OUTPUT_VERSION", "value": 1}},
+      "source": {"file": "sdk/crates/dytallix-cli/src/commands/ordinary.rs", "symbol": "fn versioned_output("},
+      "tests": [{"file": "sdk/crates/dytallix-cli/src/commands/ordinary_tests.rs", "name": "every_printed_object_carries_the_output_version"}]
+    },
+    {
+      "id": "file-keystore",
+      "group": "file",
+      "exposure": "external",
+      "format": "~/.dytallix/keystore.json, mode 0600: {version, active, entries[name, address, public_key, private_key, scheme, created_at]}. Private keys are plaintext (E04 gap 16).",
+      "version": {"field": "version", "constant": {"file": "sdk/crates/dytallix-sdk/src/keystore.rs", "name": "KEYSTORE_VERSION", "value": 1}},
+      "source": {"file": "sdk/crates/dytallix-sdk/src/keystore.rs", "symbol": "struct KeystoreFile"},
+      "tests": [{"file": "sdk/crates/dytallix-sdk/src/keystore.rs", "name": "keystore_files_are_versioned_and_owner_only"}]
+    },
+    {
+      "id": "file-cli-config",
+      "group": "file",
+      "exposure": "external",
+      "format": "~/.dytallix/config.json: {version, network, values}.",
+      "version": {"field": "version", "constant": {"file": "sdk/crates/dytallix-cli/src/commands/mod.rs", "name": "CONFIG_VERSION", "value": 1}},
+      "source": {"file": "sdk/crates/dytallix-cli/src/commands/mod.rs", "symbol": "pub(crate) struct CliConfig"},
+      "tests": [{"file": "sdk/crates/dytallix-cli/src/commands/consensus_tests.rs", "name": "chain_pins_expiry_and_amounts_are_checked"}]
+    },
+    {
+      "id": "file-chain-pin",
+      "group": "file",
+      "exposure": "external",
+      "format": "~/.dytallix/chain.json: {version, endpoint, network, chain_id, genesis_digest}.",
+      "version": {"field": "version", "constant": {"file": "sdk/crates/dytallix-cli/src/commands/consensus.rs", "name": "CHAIN_CONFIG_VERSION", "value": 1}},
+      "source": {"file": "sdk/crates/dytallix-cli/src/commands/consensus.rs", "symbol": "pub(crate) struct ChainConfig"},
+      "tests": [{"file": "sdk/crates/dytallix-cli/src/commands/consensus_tests.rs", "name": "chain_pins_expiry_and_amounts_are_checked"}]
+    }
+  ]
+}

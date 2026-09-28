@@ -31,7 +31,8 @@ async fn main() -> anyhow::Result<()> {
     if let Err(err) = ordinary::run(args).await {
         eprintln!(
             "{}",
-            serde_json::json!({"status":"error", "message":err.to_string()})
+            serde_json::json!({"status":"error", "message":err.to_string(),
+                "output_version": ordinary::OUTPUT_VERSION})
         );
         std::process::exit(1);
     }

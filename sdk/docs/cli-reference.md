@@ -27,8 +27,15 @@ dytallix --help
 
 ## Local State
 
-- Keystore: `~/.dytallix/keystore.json`
+- Keystore: `~/.dytallix/keystore.json`, written owner-only (mode 0600). It
+  holds private keys unencrypted (format version 1); keep the disk
+  encrypted. Encryption at rest is planned.
 - Config: `~/.dytallix/config.json`
+- Pinned chain: `~/.dytallix/chain.json` (`dytallix config pin-chain`)
+
+Each file carries a `version`; a file written before versions were added
+reads as version 1. Every JSON object the consensus commands print,
+including errors, carries `output_version`.
 
 ## Top-Level Commands
 

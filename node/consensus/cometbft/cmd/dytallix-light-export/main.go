@@ -61,10 +61,13 @@ func run(args []string) error {
 	trusted := blocks.LoadBlockMeta(*from)
 	// The operator configures the joining node to trust this header.
 	return json.NewEncoder(os.Stdout).Encode(map[string]any{
-		"chain_id": genesis.ChainID, "from": *from, "to": *to,
+		"version": exportVersion, "chain_id": genesis.ChainID, "from": *from, "to": *to,
 		"trust_height": *from, "trust_hash": hex.EncodeToString(trusted.BlockID.Hash),
 	})
 }
+
+// exportVersion versions the summary this command prints (interfaces v1).
+const exportVersion = 1
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {

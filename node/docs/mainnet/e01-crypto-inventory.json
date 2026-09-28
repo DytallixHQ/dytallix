@@ -246,7 +246,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "88ef6dc15d687a0cb1da5f955ea1d7ec8d780359c7e7234b0932a2c4753ac522"
+          "sha256": "ae078b9dc560c8b0e283e3bd771c185bbd7dec1ccf65f63d54c5969abe6d1230"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
@@ -345,7 +345,7 @@
       "files": [
         {
           "path": "consensus/cometbft/cmd/dytallix-comet-bridge/application.go",
-          "sha256": "dada8095fa0ad8e43858be27144ee65b7eef1e791eeeaa12f38a3f06d47adba5"
+          "sha256": "de17170b629ab28ea3ed36ca241212047a5aa91517ed4cabe2582e04b0a206e5"
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-comet-bridge/snapshots.go",

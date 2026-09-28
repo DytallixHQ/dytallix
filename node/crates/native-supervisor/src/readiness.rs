@@ -515,8 +515,8 @@ fn application_info(raw: &[u8]) -> Result<Info> {
         .and_then(Value::as_object)
         .context("ABCI info response missing")?;
     ensure!(
-        response.get("data").and_then(Value::as_str) == Some("Dytallix local qualification")
-            && response.get("version").and_then(Value::as_str) == Some("batch9"),
+        response.get("data").and_then(Value::as_str) == Some("Dytallix consensus application")
+            && response.get("version").and_then(Value::as_str) == Some("dytallix-app-v1"),
         "ABCI application identity fields are missing or unsupported"
     );
     // Protobuf JSON omits a zero height and empty hash.
@@ -957,7 +957,7 @@ mod tests {
     }
     fn app_body(height: u64, hash: &[u8]) -> Vec<u8> {
         serde_json::to_vec(&serde_json::json!({"jsonrpc":"2.0","id":-1,"result":{"response":{
-            "data":"Dytallix local qualification","version":"batch9","last_block_height":height.to_string(),"last_block_app_hash":STANDARD.encode(hash)}}})).unwrap()
+            "data":"Dytallix consensus application","version":"dytallix-app-v1","last_block_height":height.to_string(),"last_block_app_hash":STANDARD.encode(hash)}}})).unwrap()
     }
     fn http_response(body: &[u8]) -> Vec<u8> {
         let mut raw=format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",body.len()).into_bytes();

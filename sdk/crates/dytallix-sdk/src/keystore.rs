@@ -10,6 +10,11 @@ use dytallix_core::keypair::DytallixKeypair;
 use crate::error::SdkError;
 use crate::KeystoreEntry;
 
+/// Keystore file format (interfaces v1). Version 1 holds private keys in
+/// plaintext; a file without a version is version 1. Encryption at rest is
+/// E04 gap 16.
+pub const KEYSTORE_VERSION: u32 = 1;
+
 /// File-backed keystore for named Dytallix keypairs.
 #[derive(Debug, Clone)]
 pub struct Keystore {
@@ -38,6 +43,12 @@ impl Keystore {
         let contents = fs::read_to_string(&path)?;
         let file: KeystoreFile = serde_json::from_str(&contents)
             .map_err(|err| SdkError::KeystoreCorrupt(err.to_string()))?;
+        if file.version != KEYSTORE_VERSION {
+            return Err(SdkError::KeystoreCorrupt(format!(
+                "unsupported keystore version {}",
+                file.version
+            )));
+        }
 
         Ok(Self {
             path,
@@ -146,12 +157,13 @@ impl Keystore {
     pub fn save(&self) -> Result<(), SdkError> {
         ensure_parent_dir(&self.path)?;
         let file = KeystoreFile {
+            version: KEYSTORE_VERSION,
             active: self.active_name.clone(),
             entries: self.entries.clone(),
         };
         let json = serde_json::to_string_pretty(&file)
             .map_err(|err| SdkError::Serialization(err.to_string()))?;
-        fs::write(&self.path, json)?;
+        write_private(&self.path, json.as_bytes())?;
         Ok(())
     }
 
@@ -166,8 +178,34 @@ impl Keystore {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct KeystoreFile {
+    #[serde(default = "first_version")]
+    version: u32,
     active: Option<String>,
     entries: Vec<KeystoreEntry>,
+}
+fn first_version() -> u32 {
+    1
+}
+
+/// Write the keystore owner-readable only (0600 on Unix), through a
+/// temporary file and a rename, so it is never readable by other users.
+fn write_private(path: &Path, bytes: &[u8]) -> Result<(), SdkError> {
+    use std::io::Write as _;
+    let temporary = path.with_extension("json.tmp");
+    let _ = fs::remove_file(&temporary);
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    let mut file = options.open(&temporary)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    drop(file);
+    fs::rename(&temporary, path)?;
+    Ok(())
 }
 
 fn ensure_parent_dir(path: &Path) -> Result<(), SdkError> {
@@ -182,4 +220,43 @@ fn unix_timestamp() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keystore_files_are_versioned_and_owner_only() {
+        let dir = std::env::temp_dir().join(format!("dytallix-keystore-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let path = dir.join("keystore.json");
+        let mut keystore = Keystore::new(path.clone()).unwrap();
+        keystore
+            .add_keypair(&DytallixKeypair::generate(), "one")
+            .unwrap();
+        keystore.save().unwrap();
+        let raw: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(raw["version"], KEYSTORE_VERSION);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(&path).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
+        // A file written before interfaces v1 has no version: it is version 1.
+        let mut legacy = raw.clone();
+        legacy.as_object_mut().unwrap().remove("version");
+        fs::write(&path, legacy.to_string()).unwrap();
+        assert_eq!(Keystore::open(path.clone()).unwrap().list().len(), 1);
+        let mut future = raw;
+        future["version"] = 2.into();
+        fs::write(&path, future.to_string()).unwrap();
+        assert!(matches!(
+            Keystore::open(path.clone()),
+            Err(SdkError::KeystoreCorrupt(_))
+        ));
+        fs::remove_dir_all(&dir).unwrap();
+    }
 }

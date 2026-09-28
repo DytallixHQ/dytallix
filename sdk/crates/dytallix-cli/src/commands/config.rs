@@ -96,6 +96,7 @@ pub async fn run(args: ConfigArgs) -> Result<()> {
         } => {
             pin_chain(
                 ChainConfig {
+                    version: crate::commands::consensus::CHAIN_CONFIG_VERSION,
                     endpoint,
                     network,
                     chain_id,
