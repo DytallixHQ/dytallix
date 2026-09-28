@@ -401,7 +401,12 @@ fn main() -> std::process::ExitCode {
     // error-to-stderr fallback to the bounded helper diagnostic channel.
     match run() {
         Ok(()) => std::process::ExitCode::SUCCESS,
-        Err(_) => std::process::ExitCode::FAILURE,
+        Err(_error) => {
+            // Only the test build reports why it stopped.
+            #[cfg(feature = "test-snapshot-verifier")]
+            eprintln!("{_error:#}");
+            std::process::ExitCode::FAILURE
+        }
     }
 }
 
@@ -623,6 +628,14 @@ fn run() -> Result<()> {
         {
             Ok(result) => json!({"ok":true,"result":result}),
             Err(error) => json!({"ok":false,"error":error.to_string()}),
+        };
+        // The bridge refuses unknown response fields, so a test build cannot
+        // serve a real engine.
+        #[cfg(feature = "test-snapshot-verifier")]
+        let response = {
+            let mut response = response;
+            response["test_build"] = json!("test-snapshot-verifier");
+            response
         };
         serde_json::to_writer(&mut output, &response)?;
         output.write_all(b"\n")?;

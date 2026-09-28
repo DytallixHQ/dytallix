@@ -48,31 +48,52 @@ root, derived epoch observations).
     database is unchanged.
 - **Result.** 21 of 21 pass on macOS and Linux.
 
-## M-b: the process tests (not yet run)
+## M-b: the process tests
 
 Three ignored tests start real application processes:
 `cross_binary_compat_tests` (two tests: process replacement preserves
 history and the index; the candidate manifest binds the running executable)
 and `release_handover_process_tests` (a signed handover changes the
-executing candidate). They cannot run as written:
+executing candidate). As written they could not run:
 
-1. The application now requires an owner parent (`ownership::admit`); the
-   tests start it directly, so it exits before answering.
-2. They do not pass `--release-manifest-sha512`, which the admission context
-   must match.
-3. A non-test application build refuses the historical snapshot launch, so
-   the root verifier must run under the observed owner protocol, which needs
-   AppArmor role labels.
+1. The application requires an owner parent (`ownership::admit`); the
+   tests started it directly, so it exited before answering.
+2. They did not pass `--release-manifest-sha512`, which the admission
+   context must match.
+3. A non-test application build refuses the historical snapshot launch.
+   The observed verifier it requires needs the four AppArmor roles.
 
-M-b moves them into a Linux qualification harness that owns each process
-from its main thread (as `state-sync-join` does) and runs in the E02 native
-job, which has AppArmor and root. The two application builds must have
-distinct bytes; a debug and a release build of the same source are enough
-for the mechanics.
+Decision (P01, 28 September 2026): a test build of the application; the
+hardened launch stays with E02 and T03.
+
+- **Test build.** The non-default node feature `test-snapshot-verifier`
+  accepts the snapshot launch (the same gates as `cfg(test)` in
+  `root_genesis.rs`), prints a startup error on stderr, and adds
+  `"test_build":"test-snapshot-verifier"` to every response. The bridge
+  refuses unknown response fields (`TestChildRejectsTestBuildResponses`), so
+  a test build cannot serve a real engine; the process tests assert the
+  marker on every response.
+- **Owner launcher.** `release-runtime-owned-launch` (release-runtime,
+  feature `qualification-fixtures`) runs one program as an owned
+  application child from its main thread, passes its standard streams
+  through and exits with the child's status. The tests start each
+  application through it (`DYT_OWNER_LAUNCHER`) with the root
+  authorization's release as the admission context.
+- **Two builds.** The runner builds the application twice: once as is and
+  once with the node crate at opt-level 1, so the bytes differ and the
+  dependencies are shared. This qualifies the replacement and handover
+  mechanics; compatibility with an earlier release needs that release as the
+  baseline.
+- **Runner and CI.** `scripts/run_signed_fixture_tests.py --process systemd`
+  runs the three tests through `sudo systemd-run` with no_new_privs and the
+  production system call deny list, and fails unless exactly 3 pass. The
+  node CI job runs it after the in-process tests. `--process none` runs
+  them where both already apply, such as a container started with
+  `--security-opt no-new-privileges`.
 
 ## Steps
 
 | Step | Content |
 | --- | --- |
 | M-a | Test-only tools, runner, CI step, phase B drift in four tests |
-| M-b | Process tests in an owned Linux harness in the E02 native job |
+| M-b | Test application build, owner launcher, process tests in CI |

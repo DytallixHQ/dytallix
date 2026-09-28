@@ -23,6 +23,11 @@ path = "src/bin/owned_child.rs"
 required-features = ["qualification-fixtures"]
 
 [[bin]]
+name = "release-runtime-owned-launch"
+path = "src/bin/owned_launch.rs"
+required-features = ["qualification-fixtures"]
+
+[[bin]]
 name = "release-runtime-pause-qualification"
 path = "src/bin/pause_qualification.rs"
 required-features = ["qualification-fixtures"]

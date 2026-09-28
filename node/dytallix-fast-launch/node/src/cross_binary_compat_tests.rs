@@ -31,8 +31,13 @@ impl PipeApp {
     ) -> Self {
         let dir = root._directory.path();
         let stderr = dir.join(format!("process-{label}.stderr"));
-        let mut command = Command::new(binary);
+        // The application admits only an owned launch bound to its release
+        // (E04 gap 11, M-b); the launcher is the owner parent.
+        let release = &root.root.release_manifest_sha512;
+        let mut command = Command::new(std::env::var("DYT_OWNER_LAUNCHER").expect("Explicit owner launcher"));
         command
+            .arg("--context-sha512").arg(release).arg("--").arg(binary)
+            .arg("--release-manifest-sha512").arg(release)
             .arg("--config").arg(dir.join("consensus.json"))
             .arg("--genesis").arg(dir.join("genesis.json"))
             .arg("--db").arg(database)
@@ -78,6 +83,8 @@ impl PipeApp {
                 std::fs::read_to_string(&self.stderr).unwrap_or_default()),
         };
         assert_eq!(response["ok"], true, "{method}: {response}");
+        // Only a test build answers here; the production bridge refuses it.
+        assert_eq!(response["test_build"], "test-snapshot-verifier", "{method}: {response}");
         response["result"].clone()
     }
     fn query(&mut self, path: &str) -> Value {
@@ -171,7 +178,7 @@ fn last_emergency(model: &ConsensusApplication) -> String {
 }
 
 #[test]
-#[ignore = "Requires distinct pinned baseline/candidate apps, real SLH helper and disposable fixture signers"]
+#[ignore = "Requires an owner launcher, distinct test-build baseline/candidate apps, real SLH helper and disposable fixture signers"]
 fn actual_distinct_processes_preserve_v1_history_and_index_across_replacement() {
     let baseline = PathBuf::from(std::env::var("DYT_BASELINE_APP").expect("Explicit baseline app"));
     let candidate = PathBuf::from(std::env::var("DYT_CANDIDATE_APP").expect("Explicit candidate app"));
@@ -300,7 +307,7 @@ fn write_candidate_settings(root: &RootFixture, executable: &Path) -> PathBuf {
 }
 
 #[test]
-#[ignore = "Requires pinned candidate and baseline apps plus real SLH root helper and disposable fixture signers"]
+#[ignore = "Requires an owner launcher, distinct test-build candidate and baseline apps, real SLH root helper and disposable fixture signers"]
 fn actual_candidate_startup_binds_signed_manifest_to_running_executable() {
     let candidate = std::fs::canonicalize(std::env::var("DYT_CANDIDATE_APP").expect("Explicit candidate app")).unwrap();
     let baseline = std::fs::canonicalize(std::env::var("DYT_BASELINE_APP").expect("Explicit baseline app")).unwrap();

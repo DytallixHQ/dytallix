@@ -59,6 +59,10 @@ pqc-consensus = ["pqc-fips204", "dytallix-storage/pqc-consensus", "dytallix-runt
 pqc-fips204 = ["fips204", "dytallix-runtime-crypto/pqc-fips204"]
 # Explicit local runner API for returned helper observations. No authority bypass.
 helper-qualification = []
+# Test application for the process tests (E04 gap 11, M-b); never a release.
+# It accepts the historical snapshot root verifier, marks every response so
+# the production bridge refuses it, and reports startup errors on stderr.
+test-snapshot-verifier = []
 
 [[bin]]
 name = "helper-execution-qualification"
