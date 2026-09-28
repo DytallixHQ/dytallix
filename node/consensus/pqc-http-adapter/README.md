@@ -7,7 +7,7 @@ The adapter contains no TLS implementation dependency. Its selected executable a
 ## Start order
 
 1. Start the Go engine with its `dytallix-pqc-unix-v1` RPC profile.
-2. Verify that `HOME` and `HOME/data` have mode 0700 and belong to the service user. The engine must create `HOME/data/rpc.sock` with mode 0600.
+2. Verify that `HOME` and `HOME/data` have mode 0700 and belong to the service user. The engine must create `HOME/data/rpc.sock` with mode 0600. The adapter uses only this client socket, which serves the client method allowlist; the engine's `rpc-operator.sock` is for the node's owner and is never forwarded (`docs/architecture/rpc-controls-v1.md`).
 3. Start this adapter with the same user and canonical home path:
 
 ```text

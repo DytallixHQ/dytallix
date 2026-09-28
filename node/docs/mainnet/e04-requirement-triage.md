@@ -53,6 +53,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | 7 | #271. Metrics (`docs/architecture/metrics-v1.md`): the core set as Prometheus text files, `dytallix-engine.prom` and `dytallix-app.prom`, at an operator interval, each with its write time; no listener. |
 | 8 | Clients (`docs/architecture/clients-v1.md`): K-a (#272) builder safety, exact vendoring with a CI drift check, independent v2 and v3 vectors. K-b: node query `/ordinary/profile_v3` (committed v3 fee profile and next proposal ID); SDK ordinary v3 and governance action data; `dytallix governance` propose, deposit and vote on v3 (#273). K-c1: pinned chain (P01 decisions 4 and 5); one-step send, stake, balance and governance with v1 addresses and first spend; later-height refresh; legacy REST commands under `dytallix legacy` (#274). K-c2: `legacy-network` non-default; SDK `comet-rpc` feature (Comet client with TLS, no legacy REST client); legacy build tested in CI (#275). K-d: state proofs verified to the state root and the application hash (`protocol-types::state_proof`, cross-checked against `jmt` and the engine's committed hash); verified balances; first spends prove funding and no record. |
 | 9 | Interfaces (`docs/architecture/interfaces-v1.md`, P01 decisions 28 September 2026): I-a (#277) checked inventory (`interfaces-v1.json`, `scripts/check_interface_inventory.py`, a node test binding query paths); versions on the status and emergency receipt views, metrics files, light-block export, engine ready line, ABCI info (`dytallix-app-v1`), keystore, CLI configuration and pin files and CLI output; keystore written 0600; no ABCI events (decision 3); gap 16 recorded. I-b: typed views for the account summary, validator set, proposals and votes, with SDK reads and `stake status`, `stake validators` and `governance show`. |
+| 10 | RPC controls (`docs/architecture/rpc-controls-v1.md`, P01 decisions 28 September 2026): the client socket `rpc.sock` serves an 18-method allowlist and a separate 0600 `rpc-operator.sock` adds diagnostics; search, mempool contents, commit-waiting broadcasts and subscriptions are served nowhere; limits and error semantics documented; the gateway contract (TLS, allowlist, limits no looser than the node's, no client authentication) with values left to D12-Q01; the supervisor refuses a leftover operator socket. |
 
 ## Policy questions (P01)
 
@@ -113,7 +114,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | UPG-003 | PARTIAL | Tests ignored, not rerun on phase B (GAP 11). |
 | UPG-004 | NOT E04 | T05, T06. |
 | API-001 | GAP 9 | Gap 9 closed (I-a, I-b): checked inventory `docs/architecture/interfaces-v1.json`; version fields everywhere; typed reads; no ABCI events by decision; acceptance is T07's. |
-| API-002 | PARTIAL | Loopback only; controls missing (GAP 10). |
+| API-002 | PARTIAL | Gap 10 closed (R-a): client and operator socket allowlists, pinned limits, error semantics and the gateway contract (`docs/architecture/rpc-controls-v1.md`); public topology and rate values remain D12-Q01; acceptance is T07's. |
 | API-003 | GAP 8 | Gap 8 closed (K-a to K-d): SDK and CLI on the consensus chain; SDK header verification later (decision 3); acceptance is T07's. |
 | API-004 | NOT E04 | T04, T05. |
 | BRG-001 | POLICY | Bridge excluded in code; D07-Q01, D08-Q02. |

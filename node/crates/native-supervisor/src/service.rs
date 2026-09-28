@@ -209,6 +209,7 @@ impl NativeService {
                 "dytallix-pqc-unix-v1".into(),
             ],
             &self.config.rpc_socket(),
+            &self.config.operator_rpc_socket(),
         )?;
         let engine_pid = self
             .owner

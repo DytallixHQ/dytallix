@@ -422,6 +422,26 @@ mod linux {
         assert_released(&competing);
     }
     #[test]
+    fn a_leftover_operator_socket_refuses_the_engine_start() {
+        let fixture = Fixture::new(true);
+        let mut owner = fixture.owner();
+        owner.start_application(&[]).unwrap();
+        probe(&mut owner);
+        owner.start_bridge(&fixture.socket("bridge.sock")).unwrap();
+        let socket = fixture.socket("engine.sock");
+        let operator = fixture.socket("engine-operator.sock");
+        let _leftover = std::os::unix::net::UnixListener::bind(&operator).unwrap();
+        let error = owner
+            .start_engine(
+                &["--fixture-engine".into(), socket.as_os_str().to_owned()],
+                &socket,
+                &operator,
+            )
+            .unwrap_err();
+        assert!(format!("{error:#}").contains("manual recovery"), "{error:#}");
+        assert!(!socket.exists());
+    }
+    #[test]
     fn engine_adapter_start_after_delayed_final_socket_mode_and_all_are_reaped() {
         let fixture = Fixture::new(true);
         let mut owner = fixture.owner();
@@ -437,6 +457,7 @@ mod linux {
                     "--fixture-delay-socket-mode".into(),
                 ],
                 &socket,
+                &fixture.socket("engine-operator.sock"),
             )
             .unwrap();
         owner.start_adapter(&["--fixture-adapter".into()]).unwrap();

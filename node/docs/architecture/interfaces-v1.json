@@ -558,7 +558,7 @@
       "id": "engine-rpc-ipc",
       "group": "engine_rpc",
       "exposure": "external",
-      "format": "CometBFT JSON-RPC over a Unix socket (mode 0600) with length-prefixed frames; the PQC-only production build. All safe CometBFT routes; route controls are E04 gap 10.",
+      "format": "CometBFT JSON-RPC over HOME/data/rpc.sock (mode 0600) with length-prefixed frames; the PQC-only production build. Serves the client allowlist only (RPC controls v1): the HTTP adapter and the supervisor use it.",
       "version": {
         "field": "frame version",
         "literal": {
@@ -567,13 +567,48 @@
         }
       },
       "source": {
-        "file": "node/consensus/cometbft/internal/enginepqc/rpc_profile_ipc.go",
-        "symbol": "package enginepqc"
+        "file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/allowlist.go",
+        "symbol": "var ClientMethods = []string{"
       },
       "tests": [
         {
+          "file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/allowlist_test.go",
+          "name": "TestAllowlistsSelectExactlyTheApprovedRoutes"
+        },
+        {
+          "file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/allowlist_test.go",
+          "name": "TestSocketsServeTheirAllowlistsPrivately"
+        },
+        {
           "file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/ipc_test.go",
           "name": "TestNeutralDispatchPreservesGETAndPOST"
+        }
+      ]
+    },
+    {
+      "id": "engine-rpc-operator",
+      "group": "engine_rpc",
+      "exposure": "operator",
+      "format": "CometBFT JSON-RPC over HOME/data/rpc-operator.sock (mode 0600): the client methods plus net_info, num_unconfirmed_txs, consensus_state and dump_consensus_state, for the node's owner. No gateway may reach it.",
+      "version": {
+        "field": "frame version",
+        "literal": {
+          "file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/protocol.go",
+          "text": "response.Version != 1"
+        }
+      },
+      "source": {
+        "file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/allowlist.go",
+        "symbol": "var OperatorMethods = []string{"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/upstream/rpc/jsonrpc/ipc/allowlist_test.go",
+          "name": "TestSocketsServeTheirAllowlistsPrivately"
+        },
+        {
+          "file": "node/crates/native-supervisor/src/processes_tests.rs",
+          "name": "a_leftover_operator_socket_refuses_the_engine_start"
         }
       ]
     },
@@ -604,7 +639,7 @@
       "id": "engine-rpc-http-adapter",
       "group": "engine_rpc",
       "exposure": "external",
-      "format": "Loopback HTTP adapter onto the IPC socket: POST / and GET /{method}; strict origin; no WebSocket.",
+      "format": "Loopback HTTP adapter onto the client socket: POST / and GET /{method}; strict origin; no WebSocket. A public gateway in front of it follows the contract in rpc-controls-v1.md.",
       "version": {
         "field": "profile",
         "literal": {

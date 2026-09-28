@@ -675,7 +675,14 @@ impl ProcessOwner {
         })();
         self.finish(phase(result, Role::Bridge, Stage::Start))
     }
-    pub fn start_engine(&mut self, args: &[OsString], ready_socket: &Path) -> Result<()> {
+    /// Start the engine once neither RPC socket exists; readiness waits for
+    /// the client socket.
+    pub fn start_engine(
+        &mut self,
+        args: &[OsString],
+        ready_socket: &Path,
+        operator_socket: &Path,
+    ) -> Result<()> {
         let result = (|| {
             self.active()?;
             ensure!(
@@ -685,6 +692,7 @@ impl ProcessOwner {
                 "Engine requires observed bridge endpoint"
             );
             phase(endpoint_absent(ready_socket), Role::Engine, Stage::EndpointAbsent)?;
+            phase(endpoint_absent(operator_socket), Role::Engine, Stage::EndpointAbsent)?;
             self.spawn(Role::Engine, args, Stdio::null(), Stdio::null(), None)?;
             phase(self.wait_endpoint(ready_socket), Role::Engine, Stage::EndpointReady)?;
             phase(self.observe(Role::Engine), Role::Engine, Stage::ControlledObservation)?;
