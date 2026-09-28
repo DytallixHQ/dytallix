@@ -126,14 +126,19 @@ dytallix stake unbond --validator <validator-id> --amount 5 --gas-limit 10000 --
 dytallix stake claim --gas-limit 10000 --maximum-fee-udrt 20000
 ```
 
-- `balance [address]` reads the account's native record. The node's report
-  is not yet checked against a trusted application hash (`proof_verified`
-  is false).
+- `balance [address]` reads the account's native record with its state
+  proof, and checks the proof against the application hash in the pinned
+  node's next block header (`app_hash_source: node_header`). The header's
+  signatures are not checked, so this trusts the pinned node, as the other
+  commands do. The SDK also accepts an application hash you obtained
+  elsewhere.
 - `send` to an address with no account creates it and burns the chain's
   account creation fee.
 - An account a transfer created has no record yet. Its first transaction is
   signed by the key its address derives from, at nonce zero, and must be an
-  ordinary transaction (send or stake), not governance.
+  ordinary transaction (send or stake), not governance. Before signing, the
+  CLI proves the account is funded and has no record (`first_spend_proof`);
+  this waits for the next block.
 - `send` and `stake` report the committed receipt, checked against the
   signed transaction.
 

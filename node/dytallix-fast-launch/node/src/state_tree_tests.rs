@@ -164,3 +164,75 @@ fn rebuilt_tree_at_a_later_version_matches_and_continues() {
     let next = super::update(&restored, 10, change.clone()).unwrap();
     assert_eq!(next.root, super::update(&source, 10, change).unwrap().root);
 }
+
+/// Clients verify proofs with `protocol-types::state_proof`, which shares no
+/// code with `jmt` (clients v1, K-d). Both must accept the same proofs and
+/// refuse the same tampering, for present and absent keys in random trees.
+#[test]
+fn client_verifier_agrees_with_jmt_on_random_trees() {
+    use dytallix_protocol_types::state_proof::SparseMerkleProof as ClientProof;
+    let mut rng = StdRng::seed_from_u64(11);
+    for size in [1usize, 2, 3, 17, 200] {
+        let (_dir, storage) = storage();
+        let entries: BTreeMap<Vec<u8>, Vec<u8>> = (0..size)
+            .map(|i| {
+                let value: Vec<u8> = (0..rng.gen_range(0..40)).map(|_| rng.gen()).collect();
+                (format!("acct:{i}:{}", rng.gen::<u32>()).into_bytes(), value)
+            })
+            .collect();
+        let update = super::update(
+            &storage,
+            0,
+            entries.iter().map(|(k, v)| (k.clone(), Some(v.clone()))),
+        )
+        .unwrap();
+        commit(&storage, &update);
+        let root = update.root;
+        let absent: Vec<Vec<u8>> = (0..20).map(|i| format!("absent:{i}").into_bytes()).collect();
+        let cases = entries
+            .iter()
+            .map(|(k, v)| (k.clone(), Some(v.clone())))
+            .chain(absent.into_iter().map(|k| (k, None)));
+        for (key, value) in cases {
+            let (_, proof) = prove(&storage, 0, &key).unwrap();
+            let json = serde_json::to_value(&proof).unwrap();
+            let client: ClientProof = serde_json::from_value(json.clone()).unwrap();
+            assert_eq!(serde_json::to_value(&client).unwrap(), json);
+            let jmt_ok = |p: &SparseMerkleProof<Sha3_256>, v: Option<&Vec<u8>>| {
+                p.verify(RootHash(root), key_hash(&key), v.map(|v| leaf_value(v)))
+                    .is_ok()
+            };
+            assert!(jmt_ok(&proof, value.as_ref()));
+            client.verify(&root, &key, value.as_deref()).unwrap();
+            // A wrong value, a wrong presence claim and a wrong root are refused by both.
+            let wrong = Some(b"not the value".to_vec());
+            let claims = [wrong.clone(), if value.is_some() { None } else { wrong }];
+            for claim in claims {
+                assert_eq!(
+                    jmt_ok(&proof, claim.as_ref()),
+                    client.verify(&root, &key, claim.as_deref()).is_ok()
+                );
+                assert!(client.verify(&root, &key, claim.as_deref()).is_err());
+            }
+            assert!(client.verify(&[0; 32], &key, value.as_deref()).is_err());
+            // Tampering with any sibling hash changes the root.
+            for index in 0..client.siblings.len() {
+                let mut tampered = json.clone();
+                let sibling = &mut tampered["siblings"][index];
+                let hash = match sibling {
+                    serde_json::Value::String(_) => continue,
+                    _ => {
+                        let (_, node) = sibling.as_object_mut().unwrap().iter_mut().next().unwrap();
+                        node.as_object_mut().unwrap().values_mut().next().unwrap()
+                    }
+                };
+                hash[0] = (hash[0].as_u64().unwrap() ^ 1).into();
+                let jmt_proof: SparseMerkleProof<Sha3_256> =
+                    serde_json::from_value(tampered.clone()).unwrap();
+                let client_proof: ClientProof = serde_json::from_value(tampered).unwrap();
+                assert!(!jmt_ok(&jmt_proof, value.as_ref()));
+                assert!(client_proof.verify(&root, &key, value.as_deref()).is_err());
+            }
+        }
+    }
+}

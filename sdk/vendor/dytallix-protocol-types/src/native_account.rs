@@ -17,6 +17,11 @@ pub fn balances_key(address: &AccountAddress) -> Vec<u8> {
 pub fn nonce_key(address: &AccountAddress) -> Vec<u8> {
     format!("acct:nonce:{}", address.encode()).into_bytes()
 }
+/// The account's recovery record, which its first spend creates (B1c). A
+/// state proof of its absence shows an account has not spent yet.
+pub fn recovery_account_key(address: &AccountAddress) -> Vec<u8> {
+    format!("recovery:v2:account:{}", hex::encode(address.account_id())).into_bytes()
+}
 
 struct Input<'a>(&'a [u8]);
 impl<'a> Input<'a> {

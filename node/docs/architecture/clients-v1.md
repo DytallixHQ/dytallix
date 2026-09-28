@@ -178,6 +178,40 @@ and application hash.
   `legacy-network`. The default source build has only the consensus-chain
   commands.
 
+## K-d implementation notes
+
+- **Verifier.** `protocol-types::state_proof` verifies a `/state/proof`
+  response without the `jmt` crate: the key's SHA3-256 path, the leaf's
+  SHA3-256 of SHA3-256 of the value, siblings from the bottom up (node types
+  included so a prover cannot forge them), up to 256 siblings, and absence
+  either through an empty position or through another key's leaf on the
+  path. The root and, after genesis, the head's anchor give the application
+  hash (SHA-256 with the `dytallix-cometbft-app-v1` or
+  `dytallix-cometbft-genesis-v1` domain). The node's reported hash must
+  agree, and so must the caller's trusted hash.
+- **One anchor.** The node's `Anchor` moves to `protocol-types`, since its
+  JSON is part of the application hash; the node uses that definition.
+- **Checks against the chain.** A node test runs random trees (1 to 200
+  keys), present and absent keys, and tampered proofs through both the
+  client verifier and `jmt`; both accept and refuse the same proofs, and the
+  proof JSON round-trips exactly. Another verifies `/state/proof` responses
+  to the genesis hash and to each block's committed hash (the one the engine
+  puts in the next header), and follows a recovery record from absent to
+  present across a first spend.
+- **SDK.** `CometClient::query_state_proof`, `header_app_hash` (the
+  application hash of state height h from the header of block h + 1; header
+  signatures are not checked), `query_verified` and `query_balances` (with a
+  caller's trusted hash, or the endpoint's header), and `prove_first_spend`
+  (funding and no recovery record at one height; rule 4). Results name
+  their hash source.
+- **CLI.** `balance` reports `proof_verified` against the pinned node's
+  header. A first spend proves its preconditions before signing and reports
+  `first_spend_proof`. The fake node in the CLI tests serves a real
+  single-leaf authenticated tree and headers, including a lying header and
+  a record the node hid.
+- **Later.** Verifying header signatures in the SDK (decision 3), so a
+  hash from an untrusted endpoint can be checked.
+
 ## Steps
 
 | Step | Content |

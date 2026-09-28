@@ -3,6 +3,10 @@
 use super::*;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
+use dytallix_sdk::ordinary_client::native_account;
+use dytallix_sdk::ordinary_client::state_proof::{
+    app_hash, key_hash, value_hash, Anchor, LeafNode, SparseMerkleProof, StateProofView, TREE,
+};
 use dytallix_sdk::ordinary_v2::{
     AccountDomain, AccountView, CommittedContext, Denomination, FeeProfile, ProfileView,
     PublicOrdinaryConfig, ReceiptOutcome, ReceiptView, SignedOrdinary,
@@ -53,8 +57,39 @@ struct State {
     broadcast: Vec<Vec<u8>>,
     check_code: u32,
     after_nonce: Option<u64>,
-    /// Raw state values served at `/state/proof/{hex key}`.
-    values: std::collections::BTreeMap<String, Value>,
+    /// The whole authenticated state: one key and value, so every proof
+    /// is a single leaf and its root is that leaf's hash.
+    tree: (Vec<u8>, Vec<u8>),
+    /// Serve headers whose application hash differs from the state's.
+    lying_header: bool,
+}
+fn anchor(height: u64) -> Anchor {
+    Anchor {
+        version: 1,
+        height,
+        engine_hash: "aa".repeat(32),
+        parent_engine_hash: "bb".repeat(32),
+        time_seconds: 1_790_000_000,
+        time_nanos: 0,
+        input_digest: "cc".repeat(32),
+        result_digest: "dd".repeat(32),
+        prior_app_hash: "ee".repeat(32),
+    }
+}
+fn leaf(state: &State) -> LeafNode {
+    LeafNode {
+        key_hash: key_hash(&state.tree.0),
+        value_hash: value_hash(&state.tree.1),
+    }
+}
+fn state_app_hash(state: &State, height: u64) -> [u8; 32] {
+    app_hash(height, &leaf(state).hash(), Some(&anchor(height))).unwrap()
+}
+fn unhex(raw: &str) -> Vec<u8> {
+    (0..raw.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&raw[i..i + 2], 16).unwrap())
+        .collect()
 }
 struct FakeNode {
     url: String,
@@ -148,13 +183,26 @@ fn respond(state: &Mutex<State>, request: &Value) -> Value {
                 };
                 query(height, &receipt)
             } else if let Some(key) = path.strip_prefix("/state/proof/") {
-                let value = state.values.get(key).cloned().unwrap_or(Value::Null);
-                query(
+                let present = unhex(key) == state.tree.0;
+                let value = present.then(|| state.tree.1.clone());
+                let view = StateProofView {
+                    version: 1,
+                    tree: TREE.into(),
                     height,
-                    &json!({"version":1,"tree":"jmt-0.12.0/sha3-256","height":height,
-                    "key":key,"value":value,"leaf":null,"state_root":"00","anchor":null,
-                    "app_hash":"00","proof":{}}),
-                )
+                    key: key.into(),
+                    value: value.as_ref().map(|v| STANDARD.encode(v)),
+                    // `key_hash` is SHA3-256 of its input.
+                    leaf: value.as_ref().map(|v| bytes_to_hex(&key_hash(v))),
+                    state_root: bytes_to_hex(&leaf(&state).hash()),
+                    anchor: Some(anchor(height)),
+                    app_hash: bytes_to_hex(&state_app_hash(&state, height)),
+                    proof: SparseMerkleProof {
+                        leaf: Some(leaf(&state)),
+                        siblings: Vec::new(),
+                        phantom_hasher: (),
+                    },
+                };
+                query(height, &view)
             } else {
                 panic!("unexpected query {path}")
             }
@@ -179,6 +227,19 @@ fn respond(state: &Mutex<State>, request: &Value) -> Value {
             }
             json!({"code":state.check_code,"log":if state.check_code == 0 {""} else {"refused"},
                 "codespace":"","hash":hash,"data":""})
+        }
+        "commit" => {
+            let block: u64 = request["params"]["height"]
+                .as_str()
+                .unwrap()
+                .parse()
+                .unwrap();
+            let mut hash = state_app_hash(&state, block - 1);
+            if state.lying_header {
+                hash[0] ^= 1;
+            }
+            json!({"signed_header":{"header":{"chain_id":CHAIN,"height":block.to_string(),
+                "app_hash":bytes_to_hex(&hash).to_uppercase()},"commit":{}},"canonical":true})
         }
         other => panic!("unexpected method {other}"),
     }
@@ -243,7 +304,8 @@ fn state(account: Option<AccountView>) -> State {
         broadcast: Vec::new(),
         check_code: 0,
         after_nonce: None,
-        values: Default::default(),
+        tree: (b"unrelated:key".to_vec(), b"x".to_vec()),
+        lying_header: false,
     }
 }
 fn write(wait_seconds: u64) -> WriteArgs {
@@ -298,6 +360,15 @@ fn success(signed: &SignedOrdinary) -> ReceiptView {
         nonce_after: signed.body.spending_nonce + 1,
     }
 }
+fn balance_record(udgt: u128, udrt: u128) -> Vec<u8> {
+    let mut record = 2u64.to_le_bytes().to_vec();
+    for (name, amount) in [("udgt", udgt), ("udrt", udrt)] {
+        record.extend((name.len() as u64).to_le_bytes());
+        record.extend(name.as_bytes());
+        record.extend(amount.to_le_bytes());
+    }
+    record
+}
 fn recipient_address() -> String {
     pin()
         .origin_address(&key_identity(&DytallixKeypair::generate()).unwrap())
@@ -308,8 +379,14 @@ fn recipient_address() -> String {
 #[tokio::test]
 async fn a_first_spend_send_uses_the_origin_key_and_checks_its_receipt() {
     let key = DytallixKeypair::generate();
+    let address = pin().origin_address(&key_identity(&key).unwrap()).unwrap();
     let mut initial = state(None);
     initial.receipt = Some(success);
+    // Funded, and no recovery record: the proofs the first spend needs.
+    initial.tree = (
+        native_account::balances_key(&address),
+        balance_record(0, 50_000),
+    );
     let node = FakeNode::start(initial);
     let session = node.session(&key);
     let to = recipient(&pin(), &recipient_address()).unwrap();
@@ -322,6 +399,11 @@ async fn a_first_spend_send_uses_the_origin_key_and_checks_its_receipt() {
         .await
         .unwrap();
     assert_eq!(report["first_spend"], true);
+    assert_eq!(report["first_spend_proof"]["height"], 40);
+    assert_eq!(
+        report["first_spend_proof"]["app_hash_source"],
+        "node_header"
+    );
     assert_eq!(report["status"], "success");
     assert_eq!(report["committed"], true);
     let sent = node.broadcast();
@@ -581,27 +663,85 @@ fn one_step_writes_require_an_explicit_gas_limit_and_fee_cap() {
 }
 
 #[tokio::test]
-async fn balances_come_from_the_native_record_and_absence_is_explicit() {
+async fn balances_are_verified_to_the_next_header_and_absence_is_explicit() {
+    use dytallix_sdk::ordinary_client::AppHashSource;
     use dytallix_sdk::ordinary_v2::AccountAddress;
     let key = DytallixKeypair::generate();
     let address = pin().origin_address(&key_identity(&key).unwrap()).unwrap();
-    let mut record = 2u64.to_le_bytes().to_vec();
-    for (name, amount) in [("udgt", 1_500_000u128), ("udrt", 7u128)] {
-        record.extend((name.len() as u64).to_le_bytes());
-        record.extend(name.as_bytes());
-        record.extend(amount.to_le_bytes());
-    }
     let mut initial = state(None);
-    let key_hex = bytes_to_hex(format!("acct:balances:{}", address.encode()).as_bytes());
-    initial
-        .values
-        .insert(key_hex, STANDARD.encode(&record).into());
+    initial.tree = (
+        native_account::balances_key(&address),
+        balance_record(1_500_000, 7),
+    );
+    let expected = state_app_hash(&initial, 40);
     let node = FakeNode::start(initial);
     let client = client(&node.url).unwrap();
-    let reported = client.query_balances(&address).await.unwrap();
-    assert_eq!(reported.height, 40);
+    let reported = client.query_balances(&pin(), &address, None).await.unwrap();
+    assert_eq!((reported.height, reported.app_hash), (40, expected));
+    assert_eq!(reported.source, AppHashSource::NodeHeader);
     let balances = reported.balances.unwrap();
     assert_eq!((balances["udgt"], balances["udrt"]), (1_500_000, 7));
     let absent = AccountAddress::from_account_id(AddressNetwork::Development, [9; 32]);
-    assert_eq!(client.query_balances(&absent).await.unwrap().balances, None);
+    assert_eq!(
+        client
+            .query_balances(&pin(), &absent, None)
+            .await
+            .unwrap()
+            .balances,
+        None
+    );
+    // A caller's trusted hash replaces the header; a different one is refused.
+    let trusted = client
+        .query_balances(&pin(), &address, Some(expected))
+        .await
+        .unwrap();
+    assert_eq!(trusted.source, AppHashSource::Caller);
+    let mut other = expected;
+    other[0] ^= 1;
+    assert!(client
+        .query_balances(&pin(), &address, Some(other))
+        .await
+        .is_err());
+    // A header on another chain is refused.
+    let mut elsewhere = pin();
+    elsewhere.chain_id = "elsewhere".into();
+    assert!(client
+        .query_balances(&elsewhere, &address, None)
+        .await
+        .is_err());
+    // So is a header whose application hash differs from the proof's.
+    node.state.lock().unwrap().lying_header = true;
+    let error = client
+        .query_balances(&pin(), &address, None)
+        .await
+        .unwrap_err();
+    assert!(
+        error.to_string().contains("trusted application hash"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn a_first_spend_is_refused_when_proofs_show_a_record_or_no_funds() {
+    let key = DytallixKeypair::generate();
+    let address = pin().origin_address(&key_identity(&key).unwrap()).unwrap();
+    // The node reports no account, but its state holds a recovery record.
+    let mut recorded = state(None);
+    recorded.tree = (
+        native_account::recovery_account_key(&address),
+        b"{}".to_vec(),
+    );
+    let node = FakeNode::start(recorded);
+    let error = submit_ordinary(&node.session(&key), vec![Action::RewardClaim], write(0))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("not a first spend"), "{error}");
+    assert!(node.broadcast().is_empty());
+    // No balance record: nothing to pay the fee.
+    let node = FakeNode::start(state(None));
+    let error = submit_ordinary(&node.session(&key), vec![Action::RewardClaim], write(0))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("fund it first"), "{error}");
+    assert!(node.broadcast().is_empty());
 }

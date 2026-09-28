@@ -36,6 +36,9 @@ pub mod governance_action;
 /// Native account balance and nonce records, as clients read them from state.
 pub mod native_account;
 
+/// State proofs to the state root and application hash, for clients.
+pub mod state_proof;
+
 /// Explicit ordinary fee profile format; no implicit activation or prices.
 pub mod ordinary_fees;
 

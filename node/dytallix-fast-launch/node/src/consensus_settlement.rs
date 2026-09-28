@@ -561,19 +561,9 @@ pub struct FinalizeResult {
     pub validator_updates: Vec<ValidatorUpdate>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Anchor {
-    version: u32,
-    height: u64,
-    engine_hash: String,
-    parent_engine_hash: String,
-    time_seconds: i64,
-    time_nanos: i32,
-    input_digest: String,
-    result_digest: String,
-    prior_app_hash: String,
-}
+// One definition for the chain and clients: it is part of the application
+// hash clients check state proofs against (clients v1, K-d).
+use dytallix_protocol_types::state_proof::Anchor;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Head {
