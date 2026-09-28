@@ -7,7 +7,9 @@ use crate::ordinary_v2::{
 };
 use crate::ordinary_v3::{self, FeeProfileV3, GovernanceProfileView};
 use base64::{engine::general_purpose::STANDARD, Engine};
-use dytallix_protocol_types::{address::AccountAddress, native_account};
+use dytallix_protocol_types::{address::AccountAddress, state_proof::StateProofView};
+/// State keys, record decoding and proof verification (clients v1, K-c, K-d).
+pub use dytallix_protocol_types::{native_account, state_proof};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -51,19 +53,61 @@ impl GovernanceContext {
         transport_bound(&self.profile)
     }
 }
-/// A committed state value as the node reports it at its head. It is not
-/// verified: state-proof checks against a trusted application hash are K-d.
+/// Reading the header after a state's height polls this often, once a second.
+const HEADER_ATTEMPTS: u32 = 30;
+const HEADER_INTERVAL: Duration = Duration::from_secs(1);
+
+/// Where the trusted application hash of a verified read came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppHashSource {
+    /// Supplied by the caller.
+    Caller,
+    /// The header of the next block, as this endpoint's engine reports it.
+    /// Its signatures are not checked: trust in the endpoint is the caller's
+    /// (their own node; clients v1, decision 3).
+    NodeHeader,
+}
+/// A committed state value with its proof, as `/state/proof/{key}` reports it.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StateValue {
-    pub height: u64,
+pub struct StateProof {
+    pub view: StateProofView,
     pub value: Option<Vec<u8>>,
 }
-/// An account's liquid balances by denomination; `None` when the account
-/// has no record (never funded).
+impl StateProof {
+    /// Verify against the application hash of `view.height` from a source
+    /// the caller trusts.
+    pub fn verify(&self, trusted_app_hash: &[u8; 32]) -> Result<()> {
+        self.view
+            .verify(self.value.as_deref(), trusted_app_hash)
+            .map_err(error)
+    }
+}
+/// A state value verified to `app_hash` at `height`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct VerifiedValue {
+    pub height: u64,
+    pub value: Option<Vec<u8>>,
+    pub app_hash: [u8; 32],
+    pub source: AppHashSource,
+}
+/// An account's liquid balances by denomination, verified; `None` when the
+/// account has no record (never funded).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Balances {
     pub height: u64,
     pub balances: Option<BTreeMap<String, u128>>,
+    pub app_hash: [u8; 32],
+    pub source: AppHashSource,
+}
+/// A first spend's preconditions, verified (rule 4): the account is funded
+/// and has no recovery record.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct FirstSpendProof {
+    pub height: u64,
+    pub balances: BTreeMap<String, u128>,
+    pub app_hash: [u8; 32],
+    pub source: AppHashSource,
 }
 
 pub struct CometClient {
@@ -291,41 +335,150 @@ impl CometClient {
             "the chain kept advancing between context queries; retry".into(),
         ))
     }
-    /// One committed state value (`/state/proof/{key}`), unverified (K-d).
-    pub async fn query_state_value(&self, key: &[u8]) -> Result<StateValue> {
+    /// One committed state value with its proof (`/state/proof/{key}`).
+    /// Call `StateProof::verify`, or use `query_verified`.
+    pub async fn query_state_proof(&self, key: &[u8]) -> Result<StateProof> {
         let key_hex = hex(key);
-        let (height, view): (u64, Value) = self.query(&format!("/state/proof/{key_hex}")).await?;
-        if view["version"] != 1 || view["key"] != key_hex.as_str() || view["height"] != height {
-            return Err(Error("inconsistent state value query view".into()));
+        let (height, view): (u64, StateProofView) =
+            self.query(&format!("/state/proof/{key_hex}")).await?;
+        if view.key != key_hex || view.height != height {
+            return Err(Error("inconsistent state proof query view".into()));
         }
-        let value = match &view["value"] {
-            Value::Null => None,
-            Value::String(encoded) => {
+        let value = match &view.value {
+            None => None,
+            Some(encoded) => {
                 let bytes = STANDARD.decode(encoded).map_err(error)?;
                 if STANDARD.encode(&bytes) != *encoded {
                     return Err(Error("state value is not canonical base64".into()));
                 }
                 Some(bytes)
             }
-            _ => return Err(Error("state value must be base64 or null".into())),
         };
-        Ok(StateValue { height, value })
+        Ok(StateProof { view, value })
     }
-    /// An account's liquid balances from its native record, unverified (K-d).
-    pub async fn query_balances(&self, address: &AccountAddress) -> Result<Balances> {
-        let state = self
-            .query_state_value(&native_account::balances_key(address))
+    /// The application hash of state `height`: the one in the header of
+    /// block `height + 1`, as this endpoint's engine reports it. Polls until
+    /// that block commits. Header signatures are not checked.
+    pub async fn header_app_hash(&self, pin: &ChainPin, height: u64) -> Result<[u8; 32]> {
+        let block = height
+            .checked_add(1)
+            .ok_or_else(|| Error("state height is exhausted".into()))?;
+        let mut attempt = 0;
+        let result: Value = loop {
+            attempt += 1;
+            match self
+                .call("commit", json!({"height": block.to_string()}))
+                .await
+            {
+                Ok(result) => break result,
+                // The next block may not have committed yet.
+                Err(_) if attempt < HEADER_ATTEMPTS => tokio::time::sleep(HEADER_INTERVAL).await,
+                Err(e) => return Err(e),
+            }
+        };
+        let header = &result["signed_header"]["header"];
+        // Comet encodes heights as decimal strings.
+        let expected_height = block.to_string();
+        if header["chain_id"] != pin.chain_id.as_str()
+            || header["height"].as_str() != Some(expected_height.as_str())
+        {
+            return Err(Error("header is for another chain or height".into()));
+        }
+        header["app_hash"]
+            .as_str()
+            .and_then(hash32)
+            .ok_or_else(|| Error("header application hash is not 32 hexadecimal bytes".into()))
+    }
+    /// A state value verified against `trusted` (the application hash of the
+    /// node's current height from a source the caller trusts) or, without
+    /// it, against this endpoint's next header.
+    pub async fn query_verified(
+        &self,
+        pin: &ChainPin,
+        key: &[u8],
+        trusted: Option<[u8; 32]>,
+    ) -> Result<VerifiedValue> {
+        let proof = self.query_state_proof(key).await?;
+        let (app_hash, source) = match trusted {
+            Some(hash) => (hash, AppHashSource::Caller),
+            None => (
+                self.header_app_hash(pin, proof.view.height).await?,
+                AppHashSource::NodeHeader,
+            ),
+        };
+        proof.verify(&app_hash)?;
+        Ok(VerifiedValue {
+            height: proof.view.height,
+            value: proof.value,
+            app_hash,
+            source,
+        })
+    }
+    /// An account's liquid balances from its native record, verified.
+    pub async fn query_balances(
+        &self,
+        pin: &ChainPin,
+        address: &AccountAddress,
+        trusted: Option<[u8; 32]>,
+    ) -> Result<Balances> {
+        let verified = self
+            .query_verified(pin, &native_account::balances_key(address), trusted)
             .await?;
-        let balances = state
+        let balances = verified
             .value
             .as_deref()
             .map(native_account::decode_balances)
             .transpose()
             .map_err(error)?;
         Ok(Balances {
-            height: state.height,
+            height: verified.height,
             balances,
+            app_hash: verified.app_hash,
+            source: verified.source,
         })
+    }
+    /// Prove a first spend's preconditions (rule 4) at one height against
+    /// this endpoint's next header: a balance record and no recovery record.
+    pub async fn prove_first_spend(
+        &self,
+        pin: &ChainPin,
+        address: &AccountAddress,
+    ) -> Result<FirstSpendProof> {
+        for _ in 0..CONTEXT_ATTEMPTS {
+            let record = self
+                .query_state_proof(&native_account::recovery_account_key(address))
+                .await?;
+            let funds = self
+                .query_state_proof(&native_account::balances_key(address))
+                .await?;
+            if record.view.height != funds.view.height {
+                continue;
+            }
+            let app_hash = self.header_app_hash(pin, record.view.height).await?;
+            record.verify(&app_hash)?;
+            funds.verify(&app_hash)?;
+            if record.value.is_some() {
+                return Err(Error(
+                    "the account has a recovery record; this is not a first spend".into(),
+                ));
+            }
+            let balances = funds
+                .value
+                .as_deref()
+                .map(native_account::decode_balances)
+                .transpose()
+                .map_err(error)?
+                .ok_or_else(|| Error("the account has no balance record; fund it first".into()))?;
+            return Ok(FirstSpendProof {
+                height: record.view.height,
+                balances,
+                app_hash,
+                source: AppHashSource::NodeHeader,
+            });
+        }
+        Err(Error(
+            "the chain kept advancing between proof queries; retry".into(),
+        ))
     }
     /// Poll for a committed receipt; `None` when it is still absent.
     pub async fn wait_for_receipt(
@@ -502,6 +655,17 @@ fn governance_submission(
         .map_err(|_| Error("submission profile differs from signed body".into()))?;
     ordinary_v3::verify_signature(signed, &profile.limits())?;
     ordinary_v3::encode_transport(signed, &profile.limits(), bound)
+}
+/// 64 hexadecimal characters in either case (Comet headers use uppercase).
+fn hash32(value: &str) -> Option<[u8; 32]> {
+    if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return None;
+    }
+    let mut out = [0; 32];
+    for (index, byte) in out.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(value.get(index * 2..index * 2 + 2)?, 16).ok()?;
+    }
+    Some(out)
 }
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()

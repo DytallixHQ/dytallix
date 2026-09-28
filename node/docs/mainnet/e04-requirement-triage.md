@@ -50,7 +50,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | 5 | #269. Running account totals: `supply:account_totals` (liquid uDGT and uDRT) is written at consensus genesis and updated by each block from the balance records it writes; the per-block supply check reads no other account; the complete check compares the totals with every record. |
 | 6 | #270. Duplicate bypass: a reservation request carries its signed envelope's digest, so a re-signed copy of a reserved intent is refused (identity mismatch) in CheckTx, rechecks and proposals; only the same bytes are already reserved. The engine requires the flood mempool with recheck, which the per-head admission queue depends on, and a mempool `max_tx_bytes` no larger than the genesis block; the fixture sets it to the application limit. Mempool and P2P capacity values (size, total bytes, cache, peer rates) stay operator settings until D06-Q02. |
 | 7 | #271. Metrics (`docs/architecture/metrics-v1.md`): the core set as Prometheus text files, `dytallix-engine.prom` and `dytallix-app.prom`, at an operator interval, each with its write time; no listener. |
-| 8 (in progress) | Clients (`docs/architecture/clients-v1.md`): K-a (#272) builder safety, exact vendoring with a CI drift check, independent v2 and v3 vectors. K-b: node query `/ordinary/profile_v3` (committed v3 fee profile and next proposal ID); SDK ordinary v3 and governance action data; `dytallix governance` propose, deposit and vote on v3 (#273). K-c1: pinned chain (P01 decisions 4 and 5); one-step send, stake, balance and governance with v1 addresses and first spend; later-height refresh; legacy REST commands under `dytallix legacy` (#274). K-c2: `legacy-network` non-default; SDK `comet-rpc` feature (Comet client with TLS, no legacy REST client); legacy build tested in CI. |
+| 8 | Clients (`docs/architecture/clients-v1.md`): K-a (#272) builder safety, exact vendoring with a CI drift check, independent v2 and v3 vectors. K-b: node query `/ordinary/profile_v3` (committed v3 fee profile and next proposal ID); SDK ordinary v3 and governance action data; `dytallix governance` propose, deposit and vote on v3 (#273). K-c1: pinned chain (P01 decisions 4 and 5); one-step send, stake, balance and governance with v1 addresses and first spend; later-height refresh; legacy REST commands under `dytallix legacy` (#274). K-c2: `legacy-network` non-default; SDK `comet-rpc` feature (Comet client with TLS, no legacy REST client); legacy build tested in CI (#275). K-d: state proofs verified to the state root and the application hash (`protocol-types::state_proof`, cross-checked against `jmt` and the engine's committed hash); verified balances; first spends prove funding and no record. |
 
 ## Policy questions (P01)
 
@@ -77,7 +77,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | CONS-002 | POLICY + GAP 1 | Duplicate votes only; light-client attack halts the chain. D09-Q04. |
 | CONS-003 | DONE | H+2 activation for bonds, faults, rotations, registry. |
 | CONS-004 | NOT E04 | T04–T06. |
-| TXN-001 | PARTIAL | Node checks done for v2 and v3; client gaps (GAP 8). |
+| TXN-001 | PARTIAL | Node checks done for v2 and v3; client gaps closed by gap 8 (K-a to K-d); acceptance is T07's. |
 | TXN-002 | DONE | Shared reservation and meter; fees burned. |
 | TXN-003 | DONE | Paid failures, nonce replay protection across restart. |
 | TXN-004 | PARTIAL | v3 per-transaction reconciliation missing (GAP 12). |
@@ -112,7 +112,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | UPG-004 | NOT E04 | T05, T06. |
 | API-001 | GAP 9 | No interface inventory or events. |
 | API-002 | PARTIAL | Loopback only; controls missing (GAP 10). |
-| API-003 | GAP 8 | SDK and CLI behind. |
+| API-003 | GAP 8 | Gap 8 closed (K-a to K-d): SDK and CLI on the consensus chain; SDK header verification later (decision 3); acceptance is T07's. |
 | API-004 | NOT E04 | T04, T05. |
 | BRG-001 | POLICY | Bridge excluded in code; D07-Q01, D08-Q02. |
 | BRG-002 | POLICY | N/A if D07-Q01 excludes bridges. |

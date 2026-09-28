@@ -4164,3 +4164,66 @@ fn clients_read_native_records_and_derive_the_first_spend_domain() {
     };
     assert_eq!(uninitialized(&app, &fixture, &fresh).domain, expected);
 }
+
+/// Clients verify `/state/proof` responses with `protocol-types::state_proof`
+/// to the application hash the engine commits: at genesis from the root
+/// alone, afterwards from the root and the block's anchor (clients v1, K-d).
+/// A first spend shows its funding and absent recovery record the same way.
+#[test]
+fn state_proofs_verify_to_the_application_hash_the_engine_commits() {
+    use dytallix_protocol_types::{native_account as native, state_proof::StateProofView};
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let proof = |app: &ConsensusApplication, key: &[u8]| {
+        let view: StateProofView =
+            serde_json::from_value(app.query_state_proof(&hex::encode(key)).unwrap()).unwrap();
+        let value = view.value.as_deref().map(|v| B64.decode(v).unwrap());
+        (view, value)
+    };
+    let hash32 = |value: &str| -> [u8; 32] { hex::decode(value).unwrap().try_into().unwrap() };
+    let address = |key: &Key| AccountAddress::decode(AddressNetwork::Development, &key.address()).unwrap();
+    let payer = address(&fixture.payer);
+    let fresh = Key::new();
+
+    let genesis = hash32(&app.info().unwrap().app_hash);
+    let (view, value) = proof(&app, &native::balances_key(&payer));
+    assert!(view.height == 0 && view.anchor.is_none());
+    view.verify(value.as_deref(), &genesis).unwrap();
+
+    let fund = funding(&app, &fixture, &fresh, 50_000);
+    let result = commit(&mut app, 1, vec![fund]);
+    assert_eq!(result.tx_results[0].code, 0);
+    let committed = hash32(&result.app_hash);
+    for key in [
+        native::balances_key(&address(&fresh)),
+        native::nonce_key(&address(&fresh)),
+        native::balances_key(&payer),
+    ] {
+        let (view, value) = proof(&app, &key);
+        assert!(value.is_some() && view.anchor.as_ref().unwrap().height == 1);
+        view.verify(value.as_deref(), &committed).unwrap();
+    }
+    let (absent, none) = proof(&app, &native::recovery_account_key(&address(&fresh)));
+    assert!(none.is_none());
+    absent.verify(None, &committed).unwrap();
+
+    let (view, value) = proof(&app, &native::balances_key(&payer));
+    assert!(view.verify(value.as_deref(), &genesis).is_err());
+    assert!(view.verify(Some(b"other"), &committed).is_err());
+    assert!(view.verify(None, &committed).is_err());
+    let mut moved = view.clone();
+    moved.anchor.as_mut().unwrap().time_nanos += 1;
+    assert!(moved.verify(value.as_deref(), &committed).is_err());
+    let mut rerooted = view;
+    rerooted.state_root = hex::encode([0u8; 32]);
+    assert!(rerooted.verify(value.as_deref(), &committed).is_err());
+
+    // The first spend creates the recovery record the proof showed absent.
+    let spend = first_spend(&app, &fixture, &fresh, vec![send(fixture.payer.id(), 100)], 1000);
+    let result = commit(&mut app, 2, vec![spend]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    let (view, value) = proof(&app, &native::recovery_account_key(&address(&fresh)));
+    assert!(value.is_some());
+    view.verify(value.as_deref(), &hash32(&result.app_hash)).unwrap();
+}

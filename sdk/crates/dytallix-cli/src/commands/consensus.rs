@@ -237,6 +237,19 @@ pub(crate) async fn submit_ordinary(
             &session.identity,
         )
         .await?;
+    // Rule 4: show the account funded and without a record before signing.
+    let first_spend_proof = if node.first_spend {
+        let proof = session
+            .client
+            .prove_first_spend(&session.pin, &session.address)
+            .await?;
+        Some(
+            json!({"height": proof.height, "app_hash": bytes_to_hex(&proof.app_hash),
+            "app_hash_source": proof.source}),
+        )
+    } else {
+        None
+    };
     let limits = &node.fee_profile.limits;
     let prepared = ordinary::prepare(
         &node.fee_profile,
@@ -259,7 +272,7 @@ pub(crate) async fn submit_ordinary(
         .submit_sync(&signed, &node.fee_profile, node.max_transport_bytes()?)
         .await?;
     let mut report = json!({"address": session.address.encode(), "transaction_id": bytes_to_hex(&id),
-        "first_spend": node.first_spend, "maximum_fee_udrt": write.maximum_fee_udrt.to_string(),
+        "first_spend": node.first_spend, "first_spend_proof": first_spend_proof, "maximum_fee_udrt": write.maximum_fee_udrt.to_string(),
         "required_cap_udrt": quote.required_cap.to_string(), "check_tx": check});
     ensure!(
         check.admitted(),
