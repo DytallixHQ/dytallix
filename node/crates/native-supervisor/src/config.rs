@@ -96,6 +96,50 @@ pub struct NativeServiceConfig {
     pub monitor_interval_millis: u64,
     pub max_state_entries: usize,
     pub adapter_listen: Option<String>,
+    /// Lowers the adapter's compiled limits; requires `adapter_listen`.
+    pub adapter_limits: Option<AdapterLimits>,
+}
+
+/// The adapter's tighten-only limits (E04 gap 13, P01 28 September 2026).
+/// Each value becomes one adapter flag; the adapter refuses a value above its
+/// compiled ceiling, so a looser setting stops startup.
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AdapterLimits {
+    pub max_connections: Option<u64>,
+    pub max_request_body_bytes: Option<u64>,
+    pub max_response_body_bytes: Option<u64>,
+    pub max_headers: Option<u64>,
+    pub max_header_bytes: Option<u64>,
+    pub deadline_ms: Option<u64>,
+}
+impl AdapterLimits {
+    fn flags(&self) -> [(&'static str, Option<u64>); 6] {
+        [
+            ("--max-connections", self.max_connections),
+            ("--max-request-body-bytes", self.max_request_body_bytes),
+            ("--max-response-body-bytes", self.max_response_body_bytes),
+            ("--max-headers", self.max_headers),
+            ("--max-header-bytes", self.max_header_bytes),
+            ("--deadline-ms", self.deadline_ms),
+        ]
+    }
+    pub fn validate(&self) -> Result<()> {
+        let set: Vec<u64> = self.flags().iter().filter_map(|(_, v)| *v).collect();
+        ensure!(
+            !set.is_empty() && set.iter().all(|v| *v > 0),
+            "Adapter limits must set at least one positive value"
+        );
+        Ok(())
+    }
+    /// The adapter arguments for the values that are set.
+    pub fn args(&self) -> Vec<std::ffi::OsString> {
+        self.flags()
+            .iter()
+            .filter_map(|(flag, value)| value.map(|v| [(*flag).into(), v.to_string().into()]))
+            .flatten()
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -488,6 +532,13 @@ impl NativeServiceConfig {
         if let Some(listen) = &self.adapter_listen {
             loopback(listen, "127.0.0.1:")?;
         }
+        if let Some(limits) = &self.adapter_limits {
+            ensure!(
+                self.adapter_listen.is_some(),
+                "Adapter limits require a configured adapter"
+            );
+            limits.validate()?;
+        }
         Ok(())
     }
     fn validate_root_inputs(&self) -> Result<()> {
@@ -712,6 +763,26 @@ mod tests {
         let mut v = original;
         v["unknown"] = serde_json::json!(true);
         assert!(serde_json::from_value::<ProcessAdmission>(v).is_err());
+    }
+    #[test]
+    fn adapter_limits_become_adapter_flags() {
+        let limits: AdapterLimits =
+            serde_json::from_value(serde_json::json!({"max_connections":8,"deadline_ms":2500}))
+                .unwrap();
+        limits.validate().unwrap();
+        assert_eq!(
+            limits.args(),
+            ["--max-connections", "8", "--deadline-ms", "2500"]
+                .map(std::ffi::OsString::from)
+                .to_vec()
+        );
+        assert!(AdapterLimits::default().validate().is_err());
+        let zero: AdapterLimits =
+            serde_json::from_value(serde_json::json!({"max_headers":0})).unwrap();
+        assert!(zero.validate().is_err());
+        assert!(
+            serde_json::from_value::<AdapterLimits>(serde_json::json!({"max_sockets":1})).is_err()
+        );
     }
     #[test]
     fn observation_pause_requires_explicit_work_and_cleanup_time() {

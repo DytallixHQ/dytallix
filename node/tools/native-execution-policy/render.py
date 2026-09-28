@@ -26,6 +26,7 @@ LIVE_REQUIREMENTS = [
     'Verify effective file-level read-only and execution mounts; check every declared writable root and its backing mounts are writable and noexec before readiness. A parent noexec mount is insufficient evidence.',
     'Verify AppArmor is enabled, the exact owned profile is loaded in enforce mode, and the workload enters it before exec.',
     'Verify required systemd and native seccomp controls are supported and effective; never ignore unavailable controls.',
+    'Verify the effective MemoryMax, MemorySwapMax, TasksMax, LimitNOFILE and LimitCORE of the unit and every child equal the rendered values before readiness.',
     'Verify one declared numeric non-root service UID per unit, external harness separation, and declared inherited descriptors only.',
     'For shared-private networking verify the named namespace belongs to the owned anchor and differs from the host namespace.',
     'Verify recvmsg/recvmmsg and io_uring denial is compatible with exact Go/Rust socket paths; never silently relax descriptor-import controls.',
@@ -43,6 +44,10 @@ SYSTEM_CALL_DENY = ('~@mount memfd_create ptrace process_vm_writev recvmsg recvm
                     'pidfd_getfd io_uring_setup io_uring_enter io_uring_register')
 # Added when the unit has no network sockets.
 NO_SOCKET_DENY = 'socket socketpair'
+# Unit resource limits (E04 gap 13, P01 28 September 2026): required, with no
+# defaults; the values are the operator's (D06-Q02, D12-Q01). The bounds are
+# kernel limits, not policy: 1 PiB, PID_MAX_LIMIT and the default fs.nr_open.
+RESOURCE_BOUNDS = {'memory_max_bytes': 2**50, 'tasks_max': 4194304, 'nofile': 1048576}
 
 
 def require(ok, message):
@@ -98,7 +103,7 @@ def decode(raw):
 def validate(catalog_bytes, mapping, request):
     catalog = decode(catalog_bytes)
     request_keys = ['schema','policy_version','catalog_sha512','service_uids','writable_roots',
-                    'readonly_files','code_aliases','devices','network']
+                    'readonly_files','code_aliases','devices','network','resources']
     if type(request) is dict and 'readonly_directories' in request:
         request_keys.append('readonly_directories')
     keys(request, request_keys, 'request')
@@ -185,10 +190,13 @@ def validate(catalog_bytes, mapping, request):
         keys(item,['family','type'],'socket');require(item['family'] in ('unix','inet','inet6') and item['type'] in ('stream','dgram'),'Unsupported socket policy')
         sockets.append((item['family'],item['type']))
     unique(sockets,'Socket policy')
-    return catalog,members,paths,sorted(writable),sorted(readonly),sorted(uids),sorted(devices),sorted(sockets)
+    resources=request['resources'];keys(resources,sorted(RESOURCE_BOUNDS),'resources')
+    for name,bound in RESOURCE_BOUNDS.items():
+        require(type(resources[name]) is int and 0<resources[name]<=bound,'Explicit positive bounded resource limits required')
+    return catalog,members,paths,sorted(writable),sorted(readonly),sorted(uids),sorted(devices),sorted(sockets),resources
 
 def render(catalog_bytes, mapping, request):
-    catalog,members,paths,writable,readonly,uids,devices,sockets=validate(catalog_bytes,mapping,request)
+    catalog,members,paths,writable,readonly,uids,devices,sockets,resources=validate(catalog_bytes,mapping,request)
     binding={'catalog_sha512':request['catalog_sha512'],'mapping':mapping,'request':request}
     # Canonicalize semantically unordered local lists before deriving ownership identity.
     binding['mapping']={'schema':1,'members':sorted(mapping['members'],key=lambda x:x['id'])}
@@ -197,7 +205,10 @@ def render(catalog_bytes, mapping, request):
     if 'readonly_directories' in request:normalized['readonly_directories']=sorted(request['readonly_directories'])
     normalized['code_aliases']=sorted(request['code_aliases'],key=lambda x:(x['member_id'],x['path']))
     normalized['network']=dict(request['network']);normalized['network']['sockets']=sorted(request['network']['sockets'],key=lambda x:(x['family'],x['type']))
-    binding['request']=normalized
+    # The profile identity binds what the AppArmor profile enforces. Resource
+    # limits are unit properties: FILE_HASHES.json and the four-role identity
+    # bind them, and a limit change does not rename this profile.
+    binding['request']={k:v for k,v in normalized.items() if k!='resources'}
     policy_id=hashlib.sha256(canonical(binding)).hexdigest();name='dyt-native-staging-'+policy_id[:24]
     launch_channel='launch_channel' in request['network']
     socket_families={'AF_'+f.upper() for f,t in sockets}
@@ -211,7 +222,12 @@ def render(catalog_bytes, mapping, request):
                 'MemoryDenyWriteExecute':True,
                 'SystemCallErrorNumber':'EPERM',
                 'InaccessiblePaths':['/dev/shm'],'AppArmorProfile':name,'PrivateDevices':True,
-                'PrivateTmp':True,'RestrictSUIDSGID':True,'RestrictAddressFamilies':sorted(socket_families)}
+                'PrivateTmp':True,'RestrictSUIDSGID':True,'RestrictAddressFamilies':sorted(socket_families),
+                # One cgroup holds every node process; LimitNOFILE applies to each.
+                'MemoryMax':resources['memory_max_bytes'],'TasksMax':resources['tasks_max'],
+                'LimitNOFILE':resources['nofile'],
+                # Keys and signing state never reach swap or a core file.
+                'MemorySwapMax':0,'LimitCORE':0}
     # SystemCallFilter is one space-joined deny expression; do not emit separate allow lines.
     properties['SystemCallFilter']=SYSTEM_CALL_DENY
     if not sockets and not launch_channel:
@@ -253,7 +269,7 @@ def render(catalog_bytes, mapping, request):
     def put(file,obj):files[file]=(json.dumps(obj,sort_keys=True,indent=2)+'\n').encode()
     put('unit-properties.json',{'schema':1,'scope':'STAGING_RENDER_ONLY','profile_name':name,
         'policy_id':policy_id,'service_uids':uids,'properties':properties,
-        'merge_rule':'The wrapper may add resource/lifecycle settings and one declared User UID. It must not weaken or replace these controls. Verify effective values before readiness.'})
+        'merge_rule':'The wrapper may add lifecycle settings and one declared User UID. It must not weaken or replace these controls, including the resource limits. Verify effective values before readiness.'})
     files['apparmor.profile']='\n'.join(lines).encode()
     put('validation.json',{'schema':1,'status':'RENDERED_NOT_ACTIVATED','catalog_sha512':request['catalog_sha512'],
         'mapping_sha256':hashlib.sha256(canonical(binding['mapping'])).hexdigest(),'policy_id':policy_id,'profile_name':name,

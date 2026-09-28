@@ -32,13 +32,72 @@ pub const MAX_CONNECTIONS: usize = 32;
 pub const MAX_HEADERS: usize = 64;
 pub const MAX_HEADER_BYTES: usize = 65_536;
 pub const DEADLINE: Duration = Duration::from_secs(10);
+/// Hyper's smallest read buffer; `max_header_bytes` cannot go below it.
+pub const MIN_HEADER_BYTES: usize = 8192;
 type HttpBody = Full<Bytes>;
+
+/// Serving limits. Each starts at its compiled ceiling above; an operator
+/// flag can lower it but never raise it (E04 gap 13, P01 28 September 2026).
+/// The IPC frame limit is the engine's and stays fixed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Limits {
+    pub max_connections: usize,
+    pub max_request_body: usize,
+    pub max_response_body: usize,
+    pub max_headers: usize,
+    pub max_header_bytes: usize,
+    pub deadline: Duration,
+}
+impl Limits {
+    pub const CEILING: Limits = Limits {
+        max_connections: MAX_CONNECTIONS,
+        max_request_body: MAX_REQUEST_BODY,
+        max_response_body: MAX_RESPONSE_BODY,
+        max_headers: MAX_HEADERS,
+        max_header_bytes: MAX_HEADER_BYTES,
+        deadline: DEADLINE,
+    };
+    /// Lower one limit from its flag. A value above the ceiling or below the
+    /// floor (1, or `MIN_HEADER_BYTES` for header bytes) fails.
+    fn tighten(&mut self, flag: &str, value: Option<String>) -> Result<(), String> {
+        let value: u64 = value
+            .ok_or("Missing limit value")?
+            .parse()
+            .map_err(|_| "Limits are decimal integers")?;
+        let (slot, floor, ceiling) = match flag {
+            "--max-connections" => (&mut self.max_connections, 1, MAX_CONNECTIONS),
+            "--max-request-body-bytes" => (&mut self.max_request_body, 1, MAX_REQUEST_BODY),
+            "--max-response-body-bytes" => (&mut self.max_response_body, 1, MAX_RESPONSE_BODY),
+            "--max-headers" => (&mut self.max_headers, 1, MAX_HEADERS),
+            "--max-header-bytes" => (
+                &mut self.max_header_bytes,
+                MIN_HEADER_BYTES,
+                MAX_HEADER_BYTES,
+            ),
+            "--deadline-ms" => {
+                if !(1..=DEADLINE.as_millis() as u64).contains(&value) {
+                    return Err("Deadline must be from 1 ms up to its ceiling".into());
+                }
+                self.deadline = Duration::from_millis(value);
+                return Ok(());
+            }
+            _ => return Err("Unknown or duplicate argument".into()),
+        };
+        let value = usize::try_from(value).map_err(|_| "Limit exceeds its ceiling")?;
+        if !(floor..=ceiling).contains(&value) {
+            return Err("A limit can only be lowered from its ceiling".into());
+        }
+        *slot = value;
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct Config {
     pub home: PathBuf,
     pub listen: SocketAddr,
     pub socket: PathBuf,
+    pub limits: Limits,
 }
 
 impl Config {
@@ -46,6 +105,8 @@ impl Config {
         let mut home = None;
         let mut listen = None;
         let mut profile = None;
+        let mut limits = Limits::CEILING;
+        let mut set = std::collections::BTreeSet::new();
         let mut args = args.into_iter();
         while let Some(arg) = args.next() {
             match arg.as_str() {
@@ -60,6 +121,11 @@ impl Config {
                     );
                 }
                 "--profile" if profile.is_none() => profile = args.next(),
+                flag if (flag.starts_with("--max-") || flag == "--deadline-ms")
+                    && set.insert(flag.to_owned()) =>
+                {
+                    limits.tighten(flag, args.next())?
+                }
                 _ => return Err("Unknown or duplicate argument".into()),
             }
         }
@@ -82,6 +148,7 @@ impl Config {
             home,
             listen,
             socket,
+            limits,
         })
     }
 }
@@ -145,7 +212,7 @@ struct IpcHeaders {
     cache_control: Option<String>,
 }
 
-fn decode_response(raw: &[u8]) -> Result<Response<HttpBody>, String> {
+fn decode_response(raw: &[u8], limits: &Limits) -> Result<Response<HttpBody>, String> {
     let response: IpcResponse = serde_json::from_slice(raw).map_err(|_| "Invalid IPC response")?;
     if response.version != 1 || !(200..=599).contains(&response.status) {
         return Err("Unsupported IPC response version or final status".into());
@@ -153,7 +220,7 @@ fn decode_response(raw: &[u8]) -> Result<Response<HttpBody>, String> {
     let body = STANDARD
         .decode(&response.body_base64)
         .map_err(|_| "Invalid response encoding")?;
-    if body.len() > MAX_RESPONSE_BODY || STANDARD.encode(&body) != response.body_base64 {
+    if body.len() > limits.max_response_body || STANDARD.encode(&body) != response.body_base64 {
         return Err("Noncanonical or excessive response body".into());
     }
     let mut http = Response::builder().status(response.status);
@@ -162,7 +229,7 @@ fn decode_response(raw: &[u8]) -> Result<Response<HttpBody>, String> {
         (header::CACHE_CONTROL, response.headers.cache_control),
     ] {
         if let Some(value) = value {
-            if value.len() > MAX_HEADER_BYTES {
+            if value.len() > limits.max_header_bytes {
                 return Err("Excessive response header".into());
             }
             let parsed =
@@ -174,7 +241,11 @@ fn decode_response(raw: &[u8]) -> Result<Response<HttpBody>, String> {
         .map_err(|_| "Invalid IPC response".to_owned())
 }
 
-async fn forward(socket: &Path, frame: &[u8]) -> Result<Response<HttpBody>, String> {
+async fn forward(
+    socket: &Path,
+    frame: &[u8],
+    limits: &Limits,
+) -> Result<Response<HttpBody>, String> {
     if frame.is_empty() || frame.len() > MAX_FRAME {
         return Err("Excessive request frame".into());
     }
@@ -203,7 +274,7 @@ async fn forward(socket: &Path, frame: &[u8]) -> Result<Response<HttpBody>, Stri
         .read_exact(&mut raw)
         .await
         .map_err(|_| "Incomplete IPC response")?;
-    decode_response(&raw)
+    decode_response(&raw, limits)
 }
 
 fn response(status: StatusCode, message: &'static str) -> Response<HttpBody> {
@@ -288,6 +359,7 @@ async fn handle_inner(
     peer: SocketAddr,
     socket: &Path,
     cors: bool,
+    limits: &Limits,
 ) -> Response<HttpBody> {
     if req.method() == Method::OPTIONS {
         return preflight(req.headers(), cors);
@@ -354,7 +426,7 @@ async fn handle_inner(
             Err(_) => return response(StatusCode::BAD_REQUEST, "HTTP body failed"),
         };
         if let Ok(chunk) = frame.into_data() {
-            if chunk.len() > MAX_REQUEST_BODY - bytes.len() {
+            if chunk.len() > limits.max_request_body - bytes.len() {
                 return response(StatusCode::PAYLOAD_TOO_LARGE, "Request body exceeds limit");
             }
             bytes.extend_from_slice(&chunk);
@@ -375,7 +447,7 @@ async fn handle_inner(
         Ok(frame) if frame.len() <= MAX_FRAME => frame,
         _ => return response(StatusCode::PAYLOAD_TOO_LARGE, "Request frame exceeds limit"),
     };
-    match timeout(DEADLINE, forward(socket, &frame)).await {
+    match timeout(limits.deadline, forward(socket, &frame, limits)).await {
         Ok(Ok(result)) => result,
         Ok(Err(_)) => response(StatusCode::BAD_GATEWAY, "Engine RPC response failed"),
         Err(_) => response(StatusCode::GATEWAY_TIMEOUT, "Engine RPC deadline expired"),
@@ -385,12 +457,13 @@ async fn handle(
     req: Request<Incoming>,
     peer: SocketAddr,
     socket: Arc<PathBuf>,
+    limits: Limits,
 ) -> Result<Response<HttpBody>, Infallible> {
     let cors = match origin_allowed(req.headers()) {
         Ok(cors) => cors,
         Err(_) => return Ok(response(StatusCode::FORBIDDEN, "Origin rejected")),
     };
-    let mut result = handle_inner(req, peer, &socket, cors).await;
+    let mut result = handle_inner(req, peer, &socket, cors, &limits).await;
     add_cors(&mut result, cors);
     Ok(result)
 }
@@ -407,7 +480,8 @@ pub async fn serve(config: Config) -> Result<(), String> {
         "{}",
         serde_json::json!({"status":"EXPERIMENTAL_LOCAL_ONLY","profile":PROFILE,"listen":actual.to_string(),"production_authorized":false,"launch_status":"NO_GO"})
     );
-    let capacity = Arc::new(Semaphore::new(MAX_CONNECTIONS));
+    let limits = config.limits;
+    let capacity = Arc::new(Semaphore::new(limits.max_connections));
     let socket = Arc::new(config.socket);
     loop {
         let (stream, peer) = listener.accept().await.map_err(|_| "Listener failed")?;
@@ -421,15 +495,16 @@ pub async fn serve(config: Config) -> Result<(), String> {
         let socket = socket.clone();
         tokio::spawn(async move {
             let _permit = permit;
-            let deadline = Instant::now() + DEADLINE;
-            let service = hyper::service::service_fn(move |req| handle(req, peer, socket.clone()));
+            let deadline = Instant::now() + limits.deadline;
+            let service =
+                hyper::service::service_fn(move |req| handle(req, peer, socket.clone(), limits));
             let mut builder = hyper::server::conn::http1::Builder::new();
             builder
                 .timer(TokioTimer::new())
                 .keep_alive(false)
-                .max_headers(MAX_HEADERS)
-                .max_buf_size(MAX_HEADER_BYTES)
-                .header_read_timeout(DEADLINE);
+                .max_headers(limits.max_headers)
+                .max_buf_size(limits.max_header_bytes)
+                .header_read_timeout(limits.deadline);
             // One HTTP request per accepted connection. Dropping this future
             // closes the local IPC stream and cancels the engine request.
             let _ = tokio::time::timeout_at(
@@ -444,6 +519,71 @@ pub async fn serve(config: Config) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn limits_can_only_be_lowered_once_each() {
+        let mut limits = Limits::CEILING;
+        for (flag, value) in [
+            ("--max-connections", "8"),
+            ("--max-request-body-bytes", "65536"),
+            ("--max-response-body-bytes", "100000"),
+            ("--max-headers", "16"),
+            ("--max-header-bytes", "8192"),
+            ("--deadline-ms", "2500"),
+        ] {
+            limits.tighten(flag, Some(value.into())).unwrap();
+        }
+        assert_eq!(
+            limits,
+            Limits {
+                max_connections: 8,
+                max_request_body: 65536,
+                max_response_body: 100_000,
+                max_headers: 16,
+                max_header_bytes: 8192,
+                deadline: Duration::from_millis(2500),
+            }
+        );
+        for (flag, value) in [
+            ("--max-connections", "33"),
+            ("--max-connections", "0"),
+            ("--max-connections", "-1"),
+            ("--max-connections", "1e3"),
+            ("--max-request-body-bytes", "1048577"),
+            ("--max-response-body-bytes", "1500001"),
+            ("--max-headers", "65"),
+            ("--max-header-bytes", "8191"),
+            ("--max-header-bytes", "65537"),
+            ("--deadline-ms", "0"),
+            ("--deadline-ms", "10001"),
+            ("--max-sockets", "1"),
+        ] {
+            let mut limits = Limits::CEILING;
+            assert!(
+                limits.tighten(flag, Some(value.into())).is_err(),
+                "{flag} {value}"
+            );
+            assert_eq!(limits, Limits::CEILING);
+        }
+        let mut limits = Limits::CEILING;
+        assert!(limits.tighten("--max-connections", None).is_err());
+        // A repeated flag fails before any path is read, even at the ceiling.
+        assert!(Config::parse(
+            ["--max-connections", "32", "--max-connections", "8"].map(String::from)
+        )
+        .unwrap_err()
+        .contains("duplicate"));
+    }
+    #[test]
+    fn a_lowered_response_limit_refuses_larger_bodies() {
+        let body = STANDARD.encode(vec![b'x'; 101]);
+        let raw = format!(r#"{{"version":1,"status":200,"headers":{{}},"body_base64":"{body}"}}"#);
+        let mut limits = Limits::CEILING;
+        assert!(decode_response(raw.as_bytes(), &limits).is_ok());
+        limits
+            .tighten("--max-response-body-bytes", Some("100".into()))
+            .unwrap();
+        assert!(decode_response(raw.as_bytes(), &limits).is_err());
+    }
     #[test]
     fn production_and_unknown_profiles_refuse_before_paths() {
         assert!(Config::parse(["--production".to_owned()])
@@ -500,7 +640,10 @@ mod tests {
     #[test]
     fn exact_response_contract() {
         let raw=br#"{"version":1,"status":200,"headers":{"Content-Type":"application/json"},"body_base64":"e30="}"#;
-        assert_eq!(decode_response(raw).unwrap().status(), StatusCode::OK);
+        assert_eq!(
+            decode_response(raw, &Limits::CEILING).unwrap().status(),
+            StatusCode::OK
+        );
         for text in [
             r#"{"version":1,"version":1,"status":200,"headers":{},"body_base64":""}"#,
             r#"{"version":2,"status":200,"headers":{},"body_base64":""}"#,
@@ -510,7 +653,7 @@ mod tests {
             r#"{"version":1,"status":200,"headers":{},"body_base64":"e30"}"#,
             r#"{"version":1,"status":200,"headers":{},"body_base64":"","extra":true}"#,
         ] {
-            assert!(decode_response(text.as_bytes()).is_err());
+            assert!(decode_response(text.as_bytes(), &Limits::CEILING).is_err());
         }
     }
 }

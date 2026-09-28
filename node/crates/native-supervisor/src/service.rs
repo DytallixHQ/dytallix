@@ -227,14 +227,18 @@ impl NativeService {
             || self.owner.check_alive(),
         ), Role::Engine, crate::startup_diagnostic::Stage::EngineReadiness)?);
         if let Some(listen) = &self.config.adapter_listen {
-            self.owner.start_adapter(&[
+            let mut args: Vec<std::ffi::OsString> = vec![
                 "--profile".into(),
                 "dytallix-pqc-http-local-v1".into(),
                 "--home".into(),
                 self.config.home.as_os_str().into(),
                 "--listen".into(),
                 listen.into(),
-            ])?;
+            ];
+            if let Some(limits) = &self.config.adapter_limits {
+                args.extend(limits.args());
+            }
+            self.owner.start_adapter(&args)?;
             let adapter_pid = self
                 .owner
                 .owned_pids()

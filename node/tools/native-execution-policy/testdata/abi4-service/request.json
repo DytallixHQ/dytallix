@@ -139,5 +139,10 @@
         "type": "stream"
       }
     ]
+  },
+  "resources": {
+    "memory_max_bytes": 8589934592,
+    "tasks_max": 4096,
+    "nofile": 65536
   }
 }

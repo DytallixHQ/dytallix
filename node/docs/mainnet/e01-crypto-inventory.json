@@ -330,7 +330,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "bcb3771fde4c4eb9fada4e8d423b19205e7dd84db0e11704feaecbffa9a3c553"
+          "sha256": "13182f687c3ea41bc179c150839f0c43fda16a6217c39350759fa49d7fd09804"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

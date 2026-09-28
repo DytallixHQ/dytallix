@@ -56,6 +56,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | 10 | RPC controls (`docs/architecture/rpc-controls-v1.md`, P01 decisions 28 September 2026): the client socket `rpc.sock` serves an 18-method allowlist and a separate 0600 `rpc-operator.sock` adds diagnostics; search, mempool contents, commit-waiting broadcasts and subscriptions are served nowhere; limits and error semantics documented; the gateway contract (TLS, allowlist, limits no looser than the node's, no client authentication) with values left to D12-Q01; the supervisor refuses a leftover operator socket. |
 | 11 | Signed tests (`docs/architecture/signed-tests-v1.md`): M-a, the 21 in-process signed-fixture tests (root genesis, emergency, upgrade and index migration, release handover, history replay) run in CI through `scripts/run_signed_fixture_tests.py` with test-only tools (a snapshot verifier without the owner guard, a disposable fixture signer); four tests updated for phase B (derived observations, the state tree root, verifier order). M-b (P01 decision 28 September 2026): the three process tests run in CI on two test builds of the application (feature `test-snapshot-verifier`, which the production bridge refuses) through the owner launcher `release-runtime-owned-launch`, under no_new_privs and the production system call deny list; the hardened launch stays with E02 and T03. |
 | 12 | Governance reconciliation (`docs/architecture/governance-v1.md`): each committed v3 governance transaction is reconciled with its effects, as v2 receipts and charged recoveries are. The checks: the fee reaches fee custody, a deposit reaches the held total, the actor's nonce advances by one, and nothing else changes (other accounts, burns, staking, validator, penalty, lifecycle and evidence state). A difference is an internal error: ProcessProposal rejects the block and FinalizeBlock fails closed. |
+| 13 | Resource limits (P01 decisions 28 September 2026). Unit: the renderer requires `resources` (MemoryMax, TasksMax, LimitNOFILE) with no defaults, and fixes MemorySwapMax=0 and LimitCORE=0; the E02 native job checks they take effect and that a child inherits them. Adapter: its compiled limits become ceilings that operator flags (passed from the supervisor's `adapter_limits`) can only lower. The values stay with D06-Q02 and D12-Q01. |
 
 ## Policy questions (P01)
 
@@ -127,7 +128,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | OBS-003 | PARTIAL | Some drafts; runbooks missing (GAP 15). |
 | PERF-001 | NOT E04 | T05. |
 | PERF-002 | NOT E04 | T05. |
-| PERF-003 | POLICY + GAP 13 | Values D06-Q02, D12-Q01. |
+| PERF-003 | POLICY | Gap 13 closed: unit limits are required render inputs, swap and core dumps are off, and adapter limits can be lowered at run time. Values are D06-Q02 and D12-Q01. |
 | PERF-004 | NOT E04 | T05. |
 | ASSUR-003 | CLAIM | See claim fixes. |
 

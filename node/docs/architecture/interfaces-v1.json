@@ -639,7 +639,7 @@
       "id": "engine-rpc-http-adapter",
       "group": "engine_rpc",
       "exposure": "external",
-      "format": "Loopback HTTP adapter onto the client socket: POST / and GET /{method}; strict origin; no WebSocket. A public gateway in front of it follows the contract in rpc-controls-v1.md.",
+      "format": "Loopback HTTP adapter onto the client socket: POST / and GET /{method}; strict origin; no WebSocket. Its limits are compiled ceilings that operator flags can only lower. A public gateway in front of it follows the contract in rpc-controls-v1.md.",
       "version": {
         "field": "profile",
         "literal": {
@@ -659,6 +659,10 @@
         {
           "file": "node/consensus/pqc-http-adapter/src/lib.rs",
           "name": "exact_response_contract"
+        },
+        {
+          "file": "node/consensus/pqc-http-adapter/src/lib.rs",
+          "name": "limits_can_only_be_lowered_once_each"
         }
       ]
     },
