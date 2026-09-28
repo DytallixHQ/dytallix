@@ -41,10 +41,27 @@ use dytallix_sdk::keystore::Keystore;
 use dytallix_sdk::{KeystoreEntry, Token};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Version of `config.json` (interfaces v1); a file without one is version 1.
+pub(crate) const CONFIG_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct CliConfig {
+    #[serde(default = "first_version")]
+    pub(crate) version: u32,
     pub(crate) network: NetworkProfile,
     pub(crate) values: BTreeMap<String, String>,
+}
+impl Default for CliConfig {
+    fn default() -> Self {
+        Self {
+            version: CONFIG_VERSION,
+            network: NetworkProfile::default(),
+            values: BTreeMap::new(),
+        }
+    }
+}
+pub(crate) fn first_version() -> u32 {
+    1
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -83,8 +100,16 @@ pub(crate) fn load_config() -> Result<CliConfig> {
     }
 
     let contents = fs::read_to_string(&path)?;
-    serde_json::from_str(&contents)
-        .map_err(|err| anyhow!("Invalid CLI config at {}: {err}", display_path(&path)))
+    let config: CliConfig = serde_json::from_str(&contents)
+        .map_err(|err| anyhow!("Invalid CLI config at {}: {err}", display_path(&path)))?;
+    if config.version != CONFIG_VERSION {
+        return Err(anyhow!(
+            "Unsupported CLI config version {} at {}",
+            config.version,
+            display_path(&path)
+        ));
+    }
+    Ok(config)
 }
 
 pub(crate) fn save_config(config: &CliConfig) -> Result<()> {

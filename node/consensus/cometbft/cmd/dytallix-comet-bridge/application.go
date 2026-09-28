@@ -39,6 +39,14 @@ type txResult struct {
 	Data      string `json:"data"`
 }
 
+// Info labels (interfaces v1): infoVersion names the interface generation;
+// AppVersion is the application protocol version. The supervisor's
+// readiness check requires both labels.
+const (
+	infoData    = "Dytallix consensus application"
+	infoVersion = "dytallix-app-v1"
+)
+
 func parseHash(s string, allowEmpty bool) ([]byte, error) {
 	if allowEmpty && s == "" {
 		return nil, nil
@@ -99,7 +107,7 @@ func (a *application) Info(ctx context.Context, _ *abci.RequestInfo) (*abci.Resp
 	if err != nil {
 		return nil, err
 	}
-	return &abci.ResponseInfo{Data: "Dytallix local qualification", Version: "batch9", AppVersion: result.AppVersion, LastBlockHeight: result.Height, LastBlockAppHash: hash}, nil
+	return &abci.ResponseInfo{Data: infoData, Version: infoVersion, AppVersion: result.AppVersion, LastBlockHeight: result.Height, LastBlockAppHash: hash}, nil
 }
 
 func (a *application) InitChain(ctx context.Context, req *abci.RequestInitChain) (*abci.ResponseInitChain, error) {

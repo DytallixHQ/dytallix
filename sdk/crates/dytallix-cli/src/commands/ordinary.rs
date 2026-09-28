@@ -404,6 +404,8 @@ struct PrivateKeyInput {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct ExistingKeystore {
+    /// Absent before interfaces v1; that format is version 1.
+    version: Option<u32>,
     #[serde(rename = "active")]
     _active: Option<String>,
     entries: Vec<dytallix_sdk::KeystoreEntry>,
@@ -436,6 +438,10 @@ pub(crate) fn load_signing_key(
         (Some(name), None) => {
             let keystore: ExistingKeystore =
                 read_json(&dytallix_sdk::keystore::Keystore::default_path(), true)?;
+            ensure!(
+                keystore.version.unwrap_or(1) == dytallix_sdk::keystore::KEYSTORE_VERSION,
+                "unsupported keystore version"
+            );
             let mut entries = keystore.entries.iter().filter(|entry| entry.name == name);
             let entry = entries.next().context("named wallet does not exist")?;
             ensure!(
@@ -596,9 +602,18 @@ pub(crate) fn write_new(path: &Path, bytes: &[u8]) -> Result<()> {
 pub(crate) fn write_json(path: &Path, value: &impl Serialize) -> Result<()> {
     write_new(path, &serde_json::to_vec_pretty(value)?)
 }
+/// Version of the CLI's JSON output (interfaces v1), on every object it prints.
+pub(crate) const OUTPUT_VERSION: u32 = 1;
 pub(crate) fn print_json(value: &impl Serialize) -> Result<()> {
-    println!("{}", serde_json::to_string(value)?);
+    println!("{}", serde_json::to_string(&versioned_output(value)?)?);
     Ok(())
+}
+fn versioned_output(value: &impl Serialize) -> Result<Value> {
+    let mut value = serde_json::to_value(value)?;
+    if let Value::Object(map) = &mut value {
+        map.insert("output_version".into(), OUTPUT_VERSION.into());
+    }
+    Ok(value)
 }
 pub(crate) fn decimal_u128(raw: &str) -> std::result::Result<u128, String> {
     if raw.is_empty()

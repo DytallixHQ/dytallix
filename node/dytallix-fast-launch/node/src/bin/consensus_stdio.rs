@@ -732,6 +732,61 @@ mod tests {
 #[cfg(test)]
 mod transport_tests {
     use super::*;
+
+    /// Every query path, by variant; a new variant fails to compile here
+    /// until it is named, and the test below fails until it is inventoried.
+    fn variant(path: &QueryPath<'_>) -> &'static str {
+        match path {
+            QueryPath::Status => "Status",
+            QueryPath::OrdinaryProfile => "OrdinaryProfile",
+            QueryPath::GovernanceProfile => "GovernanceProfile",
+            QueryPath::OrdinaryReceipt(_) => "OrdinaryReceipt",
+            QueryPath::OrdinaryAccount(_) => "OrdinaryAccount",
+            QueryPath::EmergencyReceipt(_) => "EmergencyReceipt",
+            QueryPath::StateProof(_) => "StateProof",
+        }
+    }
+    const VARIANTS: [&str; 7] = [
+        "Status",
+        "OrdinaryProfile",
+        "GovernanceProfile",
+        "OrdinaryReceipt",
+        "OrdinaryAccount",
+        "EmergencyReceipt",
+        "StateProof",
+    ];
+
+    /// The interface inventory (interfaces v1) lists exactly the query paths
+    /// the application accepts, each under the variant it parses to.
+    #[test]
+    fn inventory_lists_exactly_the_accepted_query_paths() {
+        let inventory: Value = serde_json::from_str(include_str!(
+            "../../../../docs/architecture/interfaces-v1.json"
+        ))
+        .unwrap();
+        let example = |path: &str| {
+            path.replace("{account_id}", &"a".repeat(64))
+                .replace("{transaction_id}", &"b".repeat(64))
+                .replace("{receipt_sha256}", &"c".repeat(64))
+                .replace("{key}", "6163637400")
+        };
+        let mut listed = std::collections::BTreeSet::new();
+        for entry in inventory["interfaces"].as_array().unwrap() {
+            if entry["group"] != "abci_query" {
+                continue;
+            }
+            let expected = entry["variant"].as_str().unwrap();
+            assert!(listed.insert(expected), "{expected} listed twice");
+            let aliases = entry["aliases"].as_array().cloned().unwrap_or_default();
+            let paths = std::iter::once(entry["path"].clone()).chain(aliases);
+            for path in paths {
+                let path = example(path.as_str().unwrap());
+                let parsed = query_path(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+                assert_eq!(variant(&parsed), expected, "{path}");
+            }
+        }
+        assert_eq!(listed, VARIANTS.into_iter().collect());
+    }
     #[test]
     fn check_tx_kind_requires_explicit_trusted_engine_classification() {
         assert_eq!(

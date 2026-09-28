@@ -10,6 +10,9 @@ use std::sync::Mutex;
 
 pub const FILE_NAME: &str = "dytallix-app.prom";
 const WRITTEN: &str = "dytallix_metrics_written_timestamp_seconds";
+/// The metrics file format (interfaces v1); both processes write it.
+const FORMAT: &str = "dytallix_metrics_format_version";
+pub const FORMAT_VERSION: u32 = 1;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct Summary {
@@ -151,7 +154,8 @@ impl AppMetrics {
         }
         let _ = write!(
             out,
-            "# TYPE {WRITTEN} gauge\n{WRITTEN}{{process=\"app\"}} {}.{:03}\n",
+            "# TYPE {FORMAT} gauge\n{FORMAT}{{process=\"app\"}} {FORMAT_VERSION}\n\
+             # TYPE {WRITTEN} gauge\n{WRITTEN}{{process=\"app\"}} {}.{:03}\n",
             now_unix_millis / 1000,
             now_unix_millis % 1000
         );
@@ -216,6 +220,7 @@ mod tests {
             "dytallix_app_snapshot_latest_height 20",
             "dytallix_app_block_records_pruned_total 0",
             "dytallix_metrics_written_timestamp_seconds{process=\"app\"} 1700000000.250",
+            "dytallix_metrics_format_version{process=\"app\"} 1",
         ] {
             assert!(text.lines().any(|l| l == line), "missing {line} in\n{text}");
         }

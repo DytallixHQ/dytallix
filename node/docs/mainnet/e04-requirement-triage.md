@@ -40,6 +40,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | 13 | Unit resource limits (MemoryMax, TasksMax, LimitNOFILE); adapter limits are compile-time. | PERF-003 | S |
 | 14 | Legacy modules still compiled into the consensus crate but unreachable (`fee_burn`, legacy emission pools, `alerts`, `metrics`, legacy mempool). | — | S–M |
 | 15 | Runbooks: fork, supply mismatch, key compromise, resource exhaustion. | OBS-003 | M (docs) |
+| 16 | **Keystore in plaintext.** The CLI keystore holds private keys unencrypted (found by gap 9; P01, 28 September 2026). Encrypt at rest: a passphrase-derived key with an AEAD cipher, a versioned file format, migration from version 1. | — | M |
 
 ### Progress
 
@@ -51,6 +52,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | 6 | #270. Duplicate bypass: a reservation request carries its signed envelope's digest, so a re-signed copy of a reserved intent is refused (identity mismatch) in CheckTx, rechecks and proposals; only the same bytes are already reserved. The engine requires the flood mempool with recheck, which the per-head admission queue depends on, and a mempool `max_tx_bytes` no larger than the genesis block; the fixture sets it to the application limit. Mempool and P2P capacity values (size, total bytes, cache, peer rates) stay operator settings until D06-Q02. |
 | 7 | #271. Metrics (`docs/architecture/metrics-v1.md`): the core set as Prometheus text files, `dytallix-engine.prom` and `dytallix-app.prom`, at an operator interval, each with its write time; no listener. |
 | 8 | Clients (`docs/architecture/clients-v1.md`): K-a (#272) builder safety, exact vendoring with a CI drift check, independent v2 and v3 vectors. K-b: node query `/ordinary/profile_v3` (committed v3 fee profile and next proposal ID); SDK ordinary v3 and governance action data; `dytallix governance` propose, deposit and vote on v3 (#273). K-c1: pinned chain (P01 decisions 4 and 5); one-step send, stake, balance and governance with v1 addresses and first spend; later-height refresh; legacy REST commands under `dytallix legacy` (#274). K-c2: `legacy-network` non-default; SDK `comet-rpc` feature (Comet client with TLS, no legacy REST client); legacy build tested in CI (#275). K-d: state proofs verified to the state root and the application hash (`protocol-types::state_proof`, cross-checked against `jmt` and the engine's committed hash); verified balances; first spends prove funding and no record. |
+| 9 (in progress) | Interfaces (`docs/architecture/interfaces-v1.md`, P01 decisions 28 September 2026): I-a checked inventory (`interfaces-v1.json`, `scripts/check_interface_inventory.py`, a node test binding query paths); versions on the status and emergency receipt views, metrics files, light-block export, engine ready line, ABCI info (`dytallix-app-v1`), keystore, CLI configuration and pin files and CLI output; keystore written 0600; no ABCI events (decision 3); gap 16 recorded. |
 
 ## Policy questions (P01)
 
@@ -110,7 +112,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | UPG-002 | POLICY | Height activation built; authority open. D11-Q03, D14-Q02. |
 | UPG-003 | PARTIAL | Tests ignored, not rerun on phase B (GAP 11). |
 | UPG-004 | NOT E04 | T05, T06. |
-| API-001 | GAP 9 | No interface inventory or events. |
+| API-001 | GAP 9 | In progress: checked inventory `docs/architecture/interfaces-v1.json`; version fields everywhere; no ABCI events by decision; typed reads next (I-b). |
 | API-002 | PARTIAL | Loopback only; controls missing (GAP 10). |
 | API-003 | GAP 8 | Gap 8 closed (K-a to K-d): SDK and CLI on the consensus chain; SDK header verification later (decision 3); acceptance is T07's. |
 | API-004 | NOT E04 | T04, T05. |

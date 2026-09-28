@@ -112,7 +112,8 @@ async fn main() -> anyhow::Result<()> {
         if ordinary_command {
             eprintln!(
                 "{}",
-                serde_json::json!({"status":"error", "message":err.to_string()})
+                serde_json::json!({"status":"error", "message":err.to_string(),
+                    "output_version": commands::ordinary::OUTPUT_VERSION})
             );
         } else {
             output::error(&err.to_string());

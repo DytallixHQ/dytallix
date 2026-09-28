@@ -154,6 +154,7 @@ func run() error {
 	}
 	summary := runtime.PublicSummary()
 	summary["event"] = "experimental_pqc_engine_ready"
+	summary["version"] = readyVersion
 	if err = json.NewEncoder(os.Stdout).Encode(summary); err != nil {
 		return startupdiag.At(5, err)
 	}
@@ -164,6 +165,10 @@ func run() error {
 	<-ctx.Done()
 	return startupdiag.At(7, engine.Stop())
 }
+
+// readyVersion versions the ready line printed to stdout (interfaces v1).
+const readyVersion = 1
+
 func main() {
 	if err := ownerguard.Run(ownerguard.Engine, run); err != nil {
 		os.Exit(startupdiag.ExitCode(err))

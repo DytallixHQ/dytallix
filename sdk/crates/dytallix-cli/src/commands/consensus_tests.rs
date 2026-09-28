@@ -537,12 +537,29 @@ async fn a_governance_vote_waits_for_the_spent_nonce() {
 #[test]
 fn chain_pins_expiry_and_amounts_are_checked() {
     let config = ChainConfig {
+        version: CHAIN_CONFIG_VERSION,
         endpoint: "http://127.0.0.1:26657".into(),
         network: Network::Development,
         chain_id: CHAIN.into(),
         genesis_digest: "07".repeat(32),
     };
     assert_eq!(config.pin().unwrap(), pin());
+    // A pin file written before interfaces v1 has no version: it is version 1.
+    let mut legacy = serde_json::to_value(&config).unwrap();
+    legacy.as_object_mut().unwrap().remove("version");
+    assert_eq!(
+        serde_json::from_value::<ChainConfig>(legacy).unwrap(),
+        config
+    );
+    assert!(ChainConfig {
+        version: 2,
+        ..config.clone()
+    }
+    .pin()
+    .is_err());
+    let cli: crate::commands::CliConfig =
+        serde_json::from_str(r#"{"network":"testnet","values":{}}"#).unwrap();
+    assert_eq!(cli.version, crate::commands::CONFIG_VERSION);
     let raw = serde_json::to_string(&config).unwrap();
     assert!(raw.contains("\"network\":\"development\""));
     assert_eq!(serde_json::from_str::<ChainConfig>(&raw).unwrap(), config);

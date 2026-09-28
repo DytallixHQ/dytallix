@@ -25,10 +25,15 @@ use super::ordinary::{client, load_signing_key};
 /// Commitment is polled once a second for `--wait-seconds`.
 const WAIT_INTERVAL: Duration = Duration::from_secs(1);
 
+/// Version of `chain.json` (interfaces v1); a file without one is version 1.
+pub(crate) const CHAIN_CONFIG_VERSION: u32 = 1;
+
 /// The pinned chain and its node, from `dytallix config pin-chain`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ChainConfig {
+    #[serde(default = "super::first_version")]
+    pub(crate) version: u32,
     pub(crate) endpoint: String,
     pub(crate) network: Network,
     pub(crate) chain_id: String,
@@ -72,6 +77,11 @@ impl ChainConfig {
         Ok(())
     }
     pub(crate) fn pin(&self) -> Result<ChainPin> {
+        ensure!(
+            self.version == CHAIN_CONFIG_VERSION,
+            "unsupported pinned chain file version {}",
+            self.version
+        );
         ensure!(
             !self.chain_id.is_empty() && self.chain_id.len() <= 128,
             "chain ID must hold 1 to 128 bytes"

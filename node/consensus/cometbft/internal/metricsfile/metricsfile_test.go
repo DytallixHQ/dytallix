@@ -30,6 +30,8 @@ b_total 5
 # TYPE c_seconds summary
 c_seconds_sum{step="propose"} 2
 c_seconds_count{step="propose"} 2
+# TYPE dytallix_metrics_format_version gauge
+dytallix_metrics_format_version{process="engine"} 1
 # TYPE dytallix_metrics_written_timestamp_seconds gauge
 dytallix_metrics_written_timestamp_seconds{process="engine"} 1.70000000025e+09
 `
