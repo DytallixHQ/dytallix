@@ -1032,6 +1032,33 @@
           "name": "chain_pins_expiry_and_amounts_are_checked"
         }
       ]
+    },
+    {
+      "id": "file-restart-authorization",
+      "group": "file",
+      "exposure": "operator",
+      "format": "Restart authorization (restart v1): {kind \"dytallix-release-restart-v1\", payload, signatures}; the handover authority signs DYTALLIX/RELEASE-RESTART/v1 plus the canonical payload. Operators pin it and supply it at startup after a halt (E04 gap 18).",
+      "version": {
+        "field": "payload.schema",
+        "literal": {
+          "file": "node/dytallix-fast-launch/node/src/release_handover/restart.rs",
+          "text": "payload.schema == 1"
+        }
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/release_handover/restart.rs",
+        "symbol": "pub struct Authorization"
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/release_handover/restart_tests.rs",
+          "name": "every_binding_is_checked"
+        },
+        {
+          "file": "node/dytallix-fast-launch/node/src/release_handover/restart_tests.rs",
+          "name": "replay_reproduces_the_committed_receipt"
+        }
+      ]
     }
   ]
 }
