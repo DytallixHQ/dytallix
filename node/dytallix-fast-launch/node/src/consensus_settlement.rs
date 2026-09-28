@@ -15,7 +15,6 @@ use crate::{
     execution::stage_transaction,
     gas::GasSchedule,
     runtime::{
-        emission::EmissionEngine,
         governance_candidate::GovernanceCandidateConfig,
         governance_store,
         issuance_timing::{EpochObservation, TimingState, TIMING_STATE_KEY},
@@ -29,7 +28,6 @@ use crate::{
         },
     },
     settlement::{self, Settlement},
-    state::State,
     storage::{
         receipts::TxReceipt,
         state::Storage,
@@ -4675,12 +4673,8 @@ impl ConsensusApplication {
             size = raw.len();
             out.push(raw.clone());
         }
-        let engine = EmissionEngine::new(
-            self.storage.clone(),
-            Arc::new(Mutex::new(State::new(self.storage.clone()))),
-        );
         let (lifecycle, _, _, _) = block_lifecycle::prepare_adaptive_interval(
-            &engine,
+            &self.storage,
             height,
             u64::try_from(time_seconds)?,
             &parent,
@@ -4919,14 +4913,9 @@ impl ConsensusApplication {
             emergency_plan.as_ref(),
             upgrade_plan.as_ref(),
         )?;
-        // The adaptive planner reads only this handle's storage. Its explicit
-        // TimingState controls every amount; legacy engine defaults are unused.
-        let engine = EmissionEngine::new(
-            self.storage.clone(),
-            Arc::new(Mutex::new(State::new(self.storage.clone()))),
-        );
+        // The explicit TimingState controls every amount.
         let (lifecycle, _, journal, issuance_deletes) = block_lifecycle::prepare_adaptive_interval(
-            &engine,
+            &self.storage,
             input.height,
             u64::try_from(input.time_seconds)?,
             &parent,
@@ -5798,8 +5787,9 @@ impl ConsensusApplication {
     }
     /// An account's balances, bonds, pending and unbonding principal and
     /// claimable rewards (interfaces v1, decision 2). Reads the account's
-    /// own records and the reward, lifecycle and penalty state; the
-    /// unbonding rule matches `supply::inspect_reward_owner`.
+    /// own records and the reward, lifecycle and penalty state. Unbonding
+    /// principal is net of pending penalties under the penalty profile, as
+    /// the supply check counts it.
     fn query_account_summary_validated(&self, address: &str, height: u64) -> Result<serde_json::Value> {
         use dytallix_protocol_types::ordinary_client::{
             AccountSummaryView, BondView, UnbondView, CLIENT_VIEW_VERSION,

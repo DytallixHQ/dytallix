@@ -13,7 +13,6 @@
 | [`crates/protocol-types`](../crates/protocol-types) | `dytallix-protocol-types` | Wire types, addresses and canonical encodings |
 | [`crates/release-runtime`](../crates/release-runtime) | `dytallix-release-runtime` | Release ownership and observation runtime |
 | [`crates/runtime-crypto`](../crates/runtime-crypto) | `dytallix-runtime-crypto` | FIPS 204 ML-DSA-65 signing and verification |
-| [`crates/signature-policy`](../crates/signature-policy) | `dytallix-signature-policy` | Signature policy |
 | [`crates/storage`](../crates/storage) | `dytallix-storage` | RocksDB state, blocks, receipts and transaction records |
 
 [`consensus/pqc-http-adapter`](../consensus/pqc-http-adapter) is a separate
@@ -42,6 +41,5 @@ Notable source areas in the application:
 
 - [`consensus_settlement.rs`](../dytallix-fast-launch/node/src/consensus_settlement.rs): ABCI handlers and block settlement
 - [`runtime/`](../dytallix-fast-launch/node/src/runtime): staking, rewards, issuance, penalties and governance
-- [`mempool/`](../dytallix-fast-launch/node/src/mempool): admission
 - [`storage/`](../dytallix-fast-launch/node/src/storage), [`state/`](../dytallix-fast-launch/node/src/state): state access
 - [`upgrade/`](../dytallix-fast-launch/node/src/upgrade): upgrade migrations

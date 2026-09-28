@@ -7,7 +7,6 @@
     "dytallix-runtime-crypto": "crates/runtime-crypto",
     "dytallix-storage": "crates/storage",
     "dytallix-adaptive-emission": "crates/adaptive-emission",
-    "dytallix-signature-policy": "crates/signature-policy",
     "dytallix-release-runtime": "crates/release-runtime",
     "dytallix-fast-node": "dytallix-fast-launch/node"
   },
@@ -88,17 +87,6 @@
       "path": "crates/adaptive-emission",
       "allowed_dependencies": {
         "dependencies": [],
-        "dev-dependencies": [],
-        "build-dependencies": []
-      }
-    },
-    "dytallix-signature-policy": {
-      "path": "crates/signature-policy",
-      "allowed_dependencies": {
-        "dependencies": [
-          "dytallix-protocol-types",
-          "serde"
-        ],
         "dev-dependencies": [],
         "build-dependencies": []
       }

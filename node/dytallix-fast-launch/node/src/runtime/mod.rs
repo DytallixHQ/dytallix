@@ -1,7 +1,5 @@
 pub mod dead_man_switch;
-pub mod emission;
 pub mod fee_burn;
-pub mod governance;
 pub mod governance_candidate;
 pub mod governance_store;
 pub mod issuance_timing;
@@ -10,11 +8,3 @@ pub mod reward_allocation;
 pub mod reward_runtime;
 pub mod staking;
 pub mod validator_lifecycle;
-
-#[cfg(test)]
-pub mod tests;
-
-// The modules are feature-gated, meaning they will only be compiled
-// and included in the project if the corresponding feature is enabled.
-// This allows for optional functionality and reduces the binary size
-// for users who do not need the extra features.

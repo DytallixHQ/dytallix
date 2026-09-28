@@ -2,7 +2,6 @@
 // to the selected consensus application without a compile-time failure.
 
 pub mod addr; // address derivation
-pub mod alerts; // alerting subsystem
 pub mod crypto; // new crypto module
 pub mod execution; // deterministic execution engine
 pub mod gas; // gas accounting system
@@ -10,28 +9,15 @@ pub mod genesis;
 pub mod emergency_freeze;
 pub mod emergency_verifier;
 pub mod upgrade;
-pub mod mempool;
-pub mod metrics; // observability module (internally feature-gated)
 pub mod runtime;
-// Expose governance module unconditionally; runtime flags gate behavior
-pub use runtime::governance;
-// Expose staking module unconditionally; runtime flags gate behavior
-pub use runtime::staking;
 pub mod state;
 pub mod storage;
 pub mod types; // canonical transaction types
 pub mod util;
- // added util module // p2p networking and gossip
-            // re-export emission types
-pub use runtime::emission::*;
- // vault + sealed keystore providers
 
 mod settlement;
 
-pub mod production_control;
-
 mod block_lifecycle;
-pub mod block_settlement;
 
 mod signed_transaction;
 pub mod supply;

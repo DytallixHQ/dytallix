@@ -934,116 +934,23 @@ fn validate_native_with(
         },
     })
 }
+/// The committed consensus history verifies before any inspection. The
+/// development block adapter these views also served was removed (E04 gap 14).
+fn verify_committed(storage: &Storage) -> Result<()> {
+    ensure!(
+        storage
+            .db
+            .get(crate::consensus_settlement::MODE_KEY)?
+            .is_some(),
+        "Supply inspection requires consensus state"
+    );
+    crate::consensus_settlement::verify_recovery(storage)
+}
 /// Return one committed accounting view. Invalid or unsupported state returns an error.
 pub fn inspect_native(storage: &Storage) -> Result<NativeSupply> {
     let _guard = storage.lock_execution()?;
-    crate::block_settlement::verify_recovery(storage)?;
+    verify_committed(storage)?;
     validate_native(storage, &Writes::new())
-}
-/// Return a committed timing view only when this store contains timing records.
-/// Partial or corrupt timing state returns an error and cannot select legacy defaults.
-pub fn inspect_timed_native(storage: &Storage) -> Result<Option<NativeSupply>> {
-    let _guard = storage.lock_execution()?;
-    let mut timed = false;
-    for prefix in [b"issuance:".as_slice(), b"adaptive:".as_slice()] {
-        for item in storage.db.prefix_iterator(prefix) {
-            let (key, _) = item?;
-            if !key.starts_with(prefix) {
-                break;
-            }
-            timed = true;
-        }
-    }
-    for name in ["validator_rewards", "treasury", "issuance_reserve"] {
-        timed |= storage.db.get(format!("emission:pool:{name}"))?.is_some();
-    }
-    if !timed {
-        return Ok(None);
-    }
-    crate::block_settlement::verify_recovery(storage)?;
-    let supply = validate_native(storage, &Writes::new())?;
-    ensure!(
-        supply.drt.issuance_timing.is_some(),
-        "Missing issuance timing state"
-    );
-    Ok(Some(supply))
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RewardOwnerSupply {
-    pub bonded: u128,
-    pub pending_bonded: u128,
-    pub unbonding: u128,
-    pub unpaid: u128,
-    pub liquid: u128,
-}
-/// Read one committed reward-v2 owner view. None means no reward-v2 records exist.
-/// Malformed, unsupported or inconsistent reward state always returns an error.
-pub fn inspect_reward_owner(storage: &Storage, owner: &str) -> Result<Option<RewardOwnerSupply>> {
-    let _guard = storage.lock_execution()?;
-    let mut has_rewards = false;
-    for item in storage.db.prefix_iterator(b"rewards:") {
-        let (key, _) = item?;
-        if !key.starts_with(b"rewards:") {
-            break;
-        }
-        has_rewards = true;
-        ensure!(
-            key.as_ref() == REWARD_STATE_KEY.as_bytes(),
-            "Unsupported reward record"
-        );
-    }
-    if !has_rewards {
-        return Ok(None);
-    }
-    crate::block_settlement::verify_recovery(storage)?;
-    validate_native(storage, &Writes::new())?;
-    let rewards = RewardState::decode(
-        &storage
-            .db
-            .get(REWARD_STATE_KEY)?
-            .context("Missing reward-v2 state")?,
-    )?;
-    let balances: BTreeMap<String, u128> = storage
-        .db
-        .get(format!("acct:balances:{owner}"))?
-        .map(|raw| bincode::deserialize(&raw))
-        .transpose()?
-        .unwrap_or_default();
-    let pending_bonded = storage
-        .db
-        .get(VALIDATOR_STATE_KEY)?
-        .map(|raw| LifecycleState::decode(&raw)?.pending_bond_by_owner(owner))
-        .transpose()?
-        .unwrap_or(0);
-    let unbonding = if let Some(raw) = storage.db.get(PENALTY_STATE_KEY)? {
-        let penalties = PenaltyState::decode(&raw)?;
-        let validators = LifecycleState::decode(
-            &storage
-                .db
-                .get(VALIDATOR_STATE_KEY)?
-                .context("Penalty custody requires validator lifecycle")?,
-        )?;
-        penalties
-            .net_unbonding_by_owner(&validators)?
-            .get(owner)
-            .copied()
-            .unwrap_or(0)
-    } else {
-        rewards.unbonding.get(owner).copied().unwrap_or(0)
-    };
-    Ok(Some(RewardOwnerSupply {
-        pending_bonded,
-        bonded: rewards.owner_bonded(owner)?,
-        unbonding,
-        unpaid: rewards.unpaid.get(owner).copied().unwrap_or(0),
-        liquid: balances.get("udgt").copied().unwrap_or(0),
-    }))
-}
-pub fn inspect(storage: &Storage) -> Result<DrtSupply> {
-    inspect_native(storage).map(|s| s.drt)
-}
-pub(crate) fn validate(storage: &Storage, overlay: &Writes) -> Result<DrtSupply> {
-    validate_native(storage, overlay).map(|s| s.drt)
 }
 
 #[cfg(test)]
@@ -1326,22 +1233,6 @@ mod reward_v2_tests {
         assert!(validate_native(&storage, &writes).is_err());
     }
     #[test]
-    fn reward_v2_owner_read_uses_stored_bonded_and_unpaid_amounts() {
-        let (_dir, storage, _) = fixture();
-        assert_eq!(
-            inspect_reward_owner(&storage, "alice").unwrap().unwrap(),
-            RewardOwnerSupply {
-                bonded: 40,
-                pending_bonded: 0,
-                unbonding: 0,
-                unpaid: 0,
-                liquid: 60,
-            }
-        );
-        storage.db.put(REWARD_STATE_KEY, b"corrupt").unwrap();
-        assert!(inspect_reward_owner(&storage, "alice").is_err());
-    }
-    #[test]
     fn reward_v2_rejects_sum_preserving_transfer_that_drains_locked_owner() {
         let (_dir, storage, mut rewards) = fixture();
         for permits_staking in [false, true] {
@@ -1443,8 +1334,6 @@ mod issuance_timing_supply_tests {
                 "accepted {key}"
             );
         }
-        storage.db.put("adaptive:v1:head", b"corrupt").unwrap();
-        assert!(inspect_timed_native(&storage).is_err());
     }
 }
 

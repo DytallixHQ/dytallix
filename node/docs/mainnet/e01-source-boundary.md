@@ -76,7 +76,8 @@ Local diagnostics (not qualification): the PQC-only engine binary built with
   required configuration inputs in the inventory remain unset).
 - **E06 / T02:** freeze the release, then qualify the live peer path on
   separate hosts.
-- **E04 follow-up:** remove the legacy signed-transaction path (the
-  `mempool` module, `signature-policy`, and the legacy transaction types). It
+- **E04 follow-up (gap 14):** remove the legacy signed-transaction path. It
   verifies only ML-DSA-65 and is disabled whenever the recovery profile is
-  configured, which mainnet requires, so it is not a G35 exception.
+  configured, which mainnet requires, so it is not a G35 exception. Step L-a
+  removed the `mempool` module and the `signature-policy` crate; step L-b
+  removes the legacy transaction types and the path itself.
