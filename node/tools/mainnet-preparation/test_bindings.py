@@ -77,7 +77,14 @@ class BindingTests(unittest.TestCase):
         self.b['runtime_inputs']['governance_parameters']={'voting':'bonded'};r=self.result();self.assertTrue(any(x['field']=='governance_parameters' and x['supplied'] for x in r['unsupported']))
     def test_missing_inputs_stay_missing(self):
         for key in self.b['runtime_inputs']:self.b['runtime_inputs'][key]=None
-        r=self.result();self.assertEqual(len(r['missing']),11);self.assertFalse(r['runtime_complete'])
+        r=self.result();self.assertEqual(len(r['missing']),12);self.assertFalse(r['runtime_complete'])
+    def test_production_config_requires_recovery_and_ordinary_profiles(self):
+        self.assertIn('recovery_and_ordinary_profiles',self.result()['missing'])
+        self.a['recovery']={};r=self.result()
+        self.assertIn('recovery_and_ordinary_profiles',r['missing'])
+        self.a['ordinary']={};r=self.result()
+        self.assertNotIn('recovery_and_ordinary_profiles',r['missing'])
+        self.assertTrue(any(x['field']=='extended_application_profile' for x in r['unsupported']))
     def test_records_hash_mismatch(self):
         rr=c.n.canonical(self.r);self.b['source_digests']['records_sha256']='0'*64
         self.assertTrue(c.validate(self.b,self.r,rr)['errors'])

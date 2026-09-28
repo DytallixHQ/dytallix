@@ -21,7 +21,7 @@ The records argument uses the existing `PRODUCTION_INPUTS` record IDs and row ar
 | Exact source bytes | Match SHA-256 for the supplied records, native genesis, and application configuration. Match the application's embedded native-genesis digest. |
 | Native amounts | Require decimal strings, u128 bounds, the existing DGT cap, unique accounts, explicit vesting, and checked stake funding. Match funded delegations to reward positions. |
 | Native reward and issuance inputs | Check the current development versions, activation height, decimals, resource limits, validator population, controller bounds, and epoch budget. |
-| Application configuration | Check the fixed-validator local profile, chain ID, gas and byte limits, canonical ML-DSA-65 public key encoding, unique identities, positive bounded power, and reward-validator agreement. |
+| Application configuration | Check the fixed-validator local profile, chain ID, gas and byte limits, canonical ML-DSA-65 public key encoding, unique identities, positive bounded power, and reward-validator agreement. Report `recovery_and_ordinary_profiles` as missing unless both profiles are present: they are the only user-transaction paths (E04 gap 14). |
 | Chain identity | Resolve the D13-Q02 identity policy reference to a typed public document. Match its chain ID to both runtime files. |
 | Beneficiary bindings | Resolve D08-Q01 account references. Match amounts, explicit vesting documents, staking permission, and operator-specific funded delegations. Require every native account and supplied allocation row to map exactly once. |
 | DRT bootstrap | Match each D08-Q03 row to its recipient account and policy reference. Reconcile all rows and the policy total with native DRT balances. |

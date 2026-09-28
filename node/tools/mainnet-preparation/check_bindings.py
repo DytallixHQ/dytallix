@@ -232,6 +232,10 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None):
         n.require(type(genesis) is dict and type(config) is dict,'runtime_document_must_be_object')
         n.require(bindings['source_digests']['native_genesis_sha256']==digest(native_raw) and bindings['source_digests']['application_config_sha256']==digest(config_raw),'runtime_source_digest_mismatch')
     except (ValueError,TypeError,KeyError) as exc:result['errors'].append({'scope':'runtime_source','code':str(exc)});return result
+    # E04 gap 14 (P01, 28 September 2026): the production application config
+    # carries the recovery and ordinary profiles. They are the only
+    # user-transaction paths; without them the chain accepts none.
+    if not all(key in config for key in ('recovery','ordinary')):result['missing'].append('recovery_and_ordinary_profiles')
     if any(key in config for key in ('lifecycle','penalty','recovery','ordinary')):
         result['unsupported'].append({'field':'extended_application_profile','reason':'Typed adapter not implemented for lifecycle, penalty, recovery or ordinary config'});return result
     state=check('native_monetary_reward_timing',lambda:native(genesis))

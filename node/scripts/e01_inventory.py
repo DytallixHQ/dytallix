@@ -200,6 +200,7 @@ EXCEPTIONS = [
 REQUIRED_PRODUCTION_CONFIGURATION = [
     {"path": "config/config.toml", "required": "Explicit P2P IP endpoint, exact persistent peers, loopback RPC, Unix ABCI, no remote signer or TLS"},
     {"path": "config/genesis.json", "required": "Approved chain ID and ML-DSA-65 validator set"},
+    {"path": "application configuration (consensus_stdio --config)", "required": "Recovery and ordinary profiles, the only user-transaction paths (E04 gap 14); lifecycle as ordinary requires"},
     {"path": "config/pqc_transport.json", "required": "Candidate profile, exact chain ID, local full public key, full peer-key and endpoint pins, bounded handshake timeout"},
     {"path": "config/pqc_peer_seed.bin", "required": "Owner-only ML-DSA-65 peer seed, separate from the validator key"},
     {"path": "config/priv_validator_key.json", "required": "Approved distinct ML-DSA-65 validator identity"},
