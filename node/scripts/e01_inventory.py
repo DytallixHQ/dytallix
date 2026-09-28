@@ -124,13 +124,14 @@ ROUTES = [
     {
         "role": "root_authorization",
         "algorithm": "SLH-DSA-SHAKE-256s",
-        "policy": "Emergency, upgrade and handover controls verify through the pinned local root-verify helper",
+        "policy": "Emergency, upgrade, handover and restart controls verify through the pinned local root-verify helper",
         "files": [
             "consensus/root-authorization/authorization.go",
             "consensus/root-authorization/key_validation.go",
             "dytallix-fast-launch/node/src/emergency_verifier.rs",
             "dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs",
             "dytallix-fast-launch/node/src/release_handover.rs",
+            "dytallix-fast-launch/node/src/release_handover/restart.rs",
         ],
     },
     {

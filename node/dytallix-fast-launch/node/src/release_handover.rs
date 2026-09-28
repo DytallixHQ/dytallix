@@ -6,6 +6,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
 
+/// Restart on a new release after a halt (E04 gap 18).
+pub mod restart;
+
 pub const CONTROL_KIND: &str = "dytallix-release-handover-v1";
 pub const STATE_KEY: &str = "consensus:release-handover:v1:state";
 pub const RECEIPT_PREFIX: &str = "consensus:release-handover:v1:receipt:";

@@ -286,10 +286,14 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/release_handover.rs",
-          "sha256": "8e69c10328c88271e8502d15326ed56cf09a98d2cf3344183d99a02c2d85590f"
+          "sha256": "149a84dd32bd3e66c04e3fecaf8a4d164e12bb123beb5973b71c1a1dd9ac3f60"
+        },
+        {
+          "path": "dytallix-fast-launch/node/src/release_handover/restart.rs",
+          "sha256": "53cc6bfae9cc5cf991ca57a98dc893a39664b48beddaeae485199dffcba045de"
         }
       ],
-      "policy": "Emergency, upgrade and handover controls verify through the pinned local root-verify helper",
+      "policy": "Emergency, upgrade, handover and restart controls verify through the pinned local root-verify helper",
       "role": "root_authorization"
     },
     {
