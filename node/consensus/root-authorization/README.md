@@ -42,6 +42,10 @@ The older `diskFixture` remains test-only and uses a mutex for one process. The 
 
 Run `go test -mod=readonly -count=1 -json ./...` and `go vet -mod=readonly ./...`. The bounded race suite uses `go test -mod=readonly -race -count=1 -run '^(TestAtomicExecution|TestPublicKeyEncoding|TestSigningPolicyRejectsBeforePrivateKeyAccess)$' ./...`.
 
+## Test-only commands
+
+`cmd/dytallix-root-verify-snapshot` and `cmd/dytallix-fixture-sign` exist only for the node's signed-fixture tests (`scripts/run_signed_fixture_tests.py`, E04 gap 11). The snapshot verifier runs `VerifyRequest` without the owner guard; the node accepts that launch only in test builds. The fixture signer derives each key from one public byte, so every key it can produce is public. Neither belongs in a release.
+
 Production still requires approved artifact schemas, trusted configuration, a consensus storage adapter, actual action consumers, bounded admission, root parameters, custody, key ceremonies, rotation/revocation/recovery procedures, exact executable review and independent acceptance. This module cannot approve a launch or close G35.
 
 ## Maintained durable file adapter

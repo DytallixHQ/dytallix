@@ -470,19 +470,14 @@ fn required_epoch_observation_and_existing_automatic_work_continue_while_frozen(
     let control = root.control(&f, &app, emergency::Action::Freeze);
     commit(&mut app, 1, vec![control]);
     commit(&mut app, 2, vec![]);
-    let observation = serde_json::to_vec(&WireTransaction::EpochObservation {
-        observation: EpochObservation {
-            epoch: 0,
-            utilization_ppm: 500000,
-            volatility_ppm: 0,
-            first_height: 1,
-            last_height: 2,
-            parent_hash: block(2, vec![]).hash,
-        },
-    })
-    .unwrap();
+    // The observation is derived from committed blocks; a submitted copy is
+    // refused even while frozen, and the proposer adds its own.
+    let observation =
+        derived_observation_wire(&app.storage, &app.config, 2, 3, &block(2, vec![]).hash)
+            .unwrap()
+            .unwrap();
     assert!(!app.process_proposal(block(3, vec![])).unwrap());
-    assert_eq!(app.check_tx(&observation).code, 0);
+    assert_ne!(app.check_tx(&observation).code, 0);
     let tx = ordinary_send(&f, &app);
     assert_eq!(
         app.prepare_proposal(3, 30, 0, vec![tx.clone(), observation.clone()], 1_048_576)

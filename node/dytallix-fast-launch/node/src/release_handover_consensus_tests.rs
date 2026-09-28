@@ -369,16 +369,15 @@ fn handover_pair_commits_once_and_source_stops_after_acknowledgement_loss() {
         },
     );
     assert_eq!(app.check_tx(&hand).code, 0);
-    let observation = serde_json::to_vec(&WireTransaction::EpochObservation {
-        observation: EpochObservation {
-            epoch: 0,
-            utilization_ppm: 500000,
-            volatility_ppm: 0,
-            first_height: 1,
-            last_height: 3,
-            parent_hash: block(3, vec![]).hash,
-        },
-    })
+    // The proposer derives the boundary observation from committed blocks.
+    let observation = derived_observation_wire(
+        &app.storage,
+        &app.config,
+        timing(&app.storage).unwrap().config.epoch_blocks,
+        4,
+        &block(3, vec![]).hash,
+    )
+    .unwrap()
     .unwrap();
     assert!(!app
         .process_proposal(block(4, vec![observation.clone(), up.clone()]))
@@ -607,12 +606,28 @@ fn handover_startup_rejects_missing_verifier_and_structurally_consistent_bad_sig
         decode(&app.storage.db.get(record_key(1)).unwrap().unwrap()).unwrap();
     record.input.txs[0] = serde_json::to_vec(&receipt.control).unwrap();
     record.head.anchor.input_digest = digest(b"dytallix-cometbft-input-v1", &record.input).unwrap();
-    record.head.state_digest =
-        reference_state_digest(&app.storage, &writes, app.config.governance.is_some()).unwrap();
+    // The state root is the state tree's: drop the tree and rebuild it over
+    // the forged state, as a restored snapshot would be.
+    let entries =
+        committed_entries(&app.storage, &writes, app.config.governance.is_some()).unwrap();
+    let mut batch = WriteBatch::default();
+    for item in app.storage.db.iterator(rocksdb::IteratorMode::From(
+        crate::state_tree::PREFIX,
+        rocksdb::Direction::Forward,
+    )) {
+        let (key, _) = item.unwrap();
+        if !key.starts_with(crate::state_tree::PREFIX) {
+            break;
+        }
+        batch.delete(key);
+    }
+    write_sync(&app.storage, batch).unwrap();
+    let tree = crate::state_tree::rebuild(&app.storage, 1, entries).unwrap();
+    record.head.state_digest = hex::encode(tree.root);
     record.head.app_hash = app_hash(&record.head.state_digest, &record.head.anchor).unwrap();
     record.result.app_hash = record.head.app_hash.clone();
     let mut batch = WriteBatch::default();
-    for (key, value) in writes {
+    for (key, value) in writes.into_iter().chain(tree.writes) {
         batch.put(key, value);
     }
     batch.put(record_key(1), serde_json::to_vec(&record).unwrap());
