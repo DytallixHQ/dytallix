@@ -10,6 +10,7 @@ relative to `dytallix-fast-launch/node/src/`.
 | --- | --- |
 | L1 | Evidence stopped the chain. Without a penalty profile, required on mainnet today because that profile refuses vesting locks and production activation, any evidence made prepare and finalize fail. Light-client-attack evidence failed in every profile: the bridge refused it, and CometBFT panics when PrepareProposal fails. CometBFT verifies evidence before a block carries it, and the application cannot refuse it. |
 | L2 | The issuance journal stopped the chain after `max_recorded_epochs` epochs, and every block reread every epoch record and replayed the controller from genesis (in the planner and again in the supply check). |
+| L3 | A validator withdrawal stopped the chain (found 28 September 2026). Without the penalty profile, ordinary v2 admitted a `ValidatorWithdraw` from an unbond's owner, then failed it as an internal fault, so PrepareProposal and FinalizeBlock failed for any block carrying it. Any delegator who had begun unbonding could stop the chain with one transaction. |
 
 ## Decisions (P01, 27 September 2026)
 
@@ -32,6 +33,11 @@ relative to `dytallix-fast-launch/node/src/`.
 - The per-block and complete checks require each recorded fact's record, and
   the complete check refuses records without a committed fact.
 
+**Validator withdrawal.** Without the penalty profile principal withdrawal
+stays disabled. A withdrawal is a paid rule failure,
+`VALIDATOR_WITHDRAWAL_DISABLED` (result code 3): admitted, carried and
+charged, with no custody change. Client receipt checks accept the code.
+
 **Issuance.**
 
 - `adaptive:v1:base` holds the controller state before the oldest retained
@@ -48,6 +54,10 @@ relative to `dytallix-fast-launch/node/src/`.
 
 ## Tests
 
+- Validator withdrawal: without the penalty profile a withdrawal is admitted,
+  proposed and accepted, and commits as a paid `VALIDATOR_WITHDRAWAL_DISABLED`
+  failure with the principal still in unbond custody; before the fix
+  PrepareProposal failed.
 - Evidence: both kinds recorded without a penalty profile, with no set
   change, surviving a restart; a changed or extra record refused by the
   complete check; an unknown kind refused; under the penalty profile a
