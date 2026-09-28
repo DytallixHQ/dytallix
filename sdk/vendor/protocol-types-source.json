@@ -43,8 +43,8 @@
     {
       "path": "src/lib.rs",
       "source_path": "crates/protocol-types/src/lib.rs",
-      "bytes": 1666,
-      "sha256": "f078b7e4317893b0c57baeaa56399e07863bf6e46d54ad7cb56d70d7246de2a6"
+      "bytes": 1574,
+      "sha256": "440287cebfeeb53335dba8a4192c7dc2fe6b3157f6ee5bdb6a99cce3c3690296"
     },
     {
       "path": "src/native_account.rs",
@@ -99,12 +99,6 @@
       "source_path": "crates/protocol-types/src/recovery_wire.rs",
       "bytes": 18202,
       "sha256": "b9b9fc31d79e3379747c780d4a65405197c351786c830993863dfde616dc44c9"
-    },
-    {
-      "path": "src/signature_algorithm.rs",
-      "source_path": "crates/protocol-types/src/signature_algorithm.rs",
-      "bytes": 973,
-      "sha256": "eeb1092582156abc4918b9ac7f2338f37878e36588765ffff801f105667ab43f"
     },
     {
       "path": "src/state_proof.rs",

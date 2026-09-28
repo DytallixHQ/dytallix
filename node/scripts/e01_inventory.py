@@ -48,17 +48,12 @@ ROUTES = [
         "files": ["crates/runtime-crypto/src/ordinary_v3.rs"],
     },
     {
-        "role": "legacy_signed_transaction",
+        "role": "development_signing",
         "algorithm": "ML-DSA-65 (FIPS 204)",
-        "policy": "Only mldsa65 is representable in the verifier; the path is disabled whenever the recovery profile is configured, which mainnet requires (removed in E04 gap 14, step L-b)",
+        "policy": "Key generation and signing for fixtures, tests and qualification harnesses (state-sync-join); no production signing path uses it. The legacy signed-transaction route was removed (E04 gap 14)",
         "files": [
             "crates/runtime-crypto/src/lib.rs",
-            "crates/runtime-crypto/src/pqc_verify.rs",
             "crates/runtime-crypto/src/dilithium_fips204.rs",
-            "crates/protocol-types/src/signature_algorithm.rs",
-            "crates/storage/src/tx.rs",
-            "dytallix-fast-launch/node/src/signed_transaction.rs",
-            "dytallix-fast-launch/node/src/types/tx.rs",
         ],
     },
     {
@@ -77,6 +72,7 @@ ROUTES = [
         "files": [
             "dytallix-fast-launch/node/src/ordinary_validator.rs",
             "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",
+            "crates/runtime-crypto/src/pqc_verify.rs",
         ],
     },
     {
@@ -172,7 +168,6 @@ ROUTES = [
 # Development and fixture tools. They are not production binaries.
 TOOLING = [
     "dytallix-fast-launch/node/src/bin/pqc_signer.rs",
-    "dytallix-fast-launch/node/src/bin/lifecycle_fixture.rs",
     "consensus/cometbft/cmd/dytallix-comet-fixture/main.go",
     "consensus/cometbft/cmd/dytallix-comet-fixture/pqc_engine_fixture.go",
     "consensus/cometbft/cmd/dytallix-comet-proof/main.go",

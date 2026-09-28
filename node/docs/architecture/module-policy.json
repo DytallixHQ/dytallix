@@ -2,7 +2,6 @@
   "schema_version": 1,
   "status": "initial extraction; not mainnet approval",
   "local_packages": {
-    "dytallix-gas": "crates/gas",
     "dytallix-protocol-types": "crates/protocol-types",
     "dytallix-runtime-crypto": "crates/runtime-crypto",
     "dytallix-storage": "crates/storage",
@@ -11,21 +10,6 @@
     "dytallix-fast-node": "dytallix-fast-launch/node"
   },
   "modules": {
-    "dytallix-gas": {
-      "path": "crates/gas",
-      "allowed_dependencies": {
-        "dependencies": [
-          "dytallix-protocol-types",
-          "serde",
-          "serde_json",
-          "thiserror"
-        ],
-        "dev-dependencies": [
-          "dytallix-storage"
-        ],
-        "build-dependencies": []
-      }
-    },
     "dytallix-protocol-types": {
       "path": "crates/protocol-types",
       "allowed_dependencies": {

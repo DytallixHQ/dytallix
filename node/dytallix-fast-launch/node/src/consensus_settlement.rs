@@ -12,8 +12,6 @@ use crate::ordinary_state::{self, OrdinaryConfig, OrdinaryState, STATE_KEY as OR
 use crate::recovery_fees::{RecoveryAccount, RecoveryBook, RecoveryResult, PREFIX as RECOVERY_PREFIX};
 use crate::{
     block_lifecycle::{self, Deletes, Writes},
-    execution::stage_transaction,
-    gas::GasSchedule,
     runtime::{
         governance_candidate::GovernanceCandidateConfig,
         governance_store,
@@ -28,12 +26,7 @@ use crate::{
         },
     },
     settlement::{self, Settlement},
-    storage::{
-        receipts::TxReceipt,
-        state::Storage,
-        transaction_record::{SignedEnvelope, TransactionRecord},
-    },
-    types::SignedTx,
+    storage::state::Storage,
 };
 use crate::{release_handover as handover, upgrade};
 use anyhow::{ensure, Context, Result};
@@ -436,9 +429,6 @@ pub struct FinalizedBlockInput {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum WireTransaction {
-    Signed {
-        envelope: SignedTx,
-    },
     Recovery {
         envelope_base64: String,
     },
@@ -538,20 +528,6 @@ impl TxResult {
             log: String::new(),
         }
     }
-    fn from_receipt(receipt: &TxReceipt, accepted: bool) -> Result<Self> {
-        Ok(Self {
-            code: if receipt.success {
-                0
-            } else if accepted {
-                3
-            } else {
-                2
-            },
-            gas_wanted: i64::try_from(receipt.gas_limit)?,
-            gas_used: i64::try_from(receipt.gas_used)?,
-            log: receipt.error.clone().unwrap_or_default(),
-        })
-    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -574,18 +550,10 @@ struct Head {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Accepted {
-    index: u32,
-    record: TransactionRecord,
-    receipt: TxReceipt,
-}
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct BlockRecord {
     input: FinalizedBlockInput,
     result: FinalizeResult,
     head: Head,
-    accepted: Vec<Accepted>,
 }
 struct Prepared {
     expected_info: Info,
@@ -859,15 +827,12 @@ fn control_anchors(storage: &Storage, config: &ConsensusConfig) -> Result<BTreeS
         .collect())
 }
 /// A record that outlives the window, because a replay reads it: it holds a
-/// recorded control (only a recorded control has one of their results) or
-/// accepted legacy signed transactions, or it is the finalized anchor of a
-/// recorded emergency control. Such records are rare: controls need their
-/// policy's authority, and legacy signed transactions are refused under the
-/// recovery profile.
+/// recorded control (only a recorded control has one of their results), or it
+/// is the finalized anchor of a recorded emergency control. Such records are
+/// rare: controls need their policy's authority.
 fn pinned(height: u64, record: &BlockRecord, anchors: &BTreeSet<u64>) -> bool {
     let recorded = [emergency_result(), upgrade_result(), handover_result()];
-    !record.accepted.is_empty()
-        || anchors.contains(&height)
+    anchors.contains(&height)
         || record
             .result
             .tx_results
@@ -1767,33 +1732,6 @@ fn source_binding(config: &ConsensusConfig, source: &[u8]) -> Result<()> {
     }
     Ok(())
 }
-fn normalize_record(config: &ConsensusConfig, envelope: SignedTx) -> Result<TransactionRecord> {
-    let transaction = if config.penalty.is_some() {
-        crate::signed_transaction::normalize_penalty(&envelope, config.gas_price)?
-    } else {
-        crate::signed_transaction::normalize(&envelope, config.gas_price)?
-    };
-    ensure!(
-        transaction.gas_limit <= i64::MAX as u64,
-        "Transaction gas exceeds engine limit"
-    );
-    let record = TransactionRecord::new(
-        transaction,
-        Some(SignedEnvelope {
-            tx: envelope.tx,
-            public_key: envelope.public_key,
-            signature: envelope.signature,
-            algorithm: envelope.algorithm,
-            version: envelope.version,
-        }),
-    )?;
-    if config.penalty.is_some() {
-        crate::signed_transaction::verify_penalty_mode_record(&record, Some(&config.chain_id))?;
-    } else {
-        crate::signed_transaction::verify_reward_mode_record(&record, Some(&config.chain_id))?;
-    }
-    Ok(record)
-}
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct OrdinaryOuter {
@@ -1867,10 +1805,6 @@ fn wire(config: &ConsensusConfig, raw: &[u8]) -> Result<WireTransaction> {
             WireTransaction::OrdinaryV2 { .. } | WireTransaction::OrdinaryV3 { .. }
         ),
         "Ordinary transport requires type discriminator"
-    );
-    ensure!(
-        config.recovery.is_none() || !matches!(value, WireTransaction::Signed { .. }),
-        "Legacy signed requests disabled under recovery profile"
     );
     ensure!(
         config.recovery.is_some() || !matches!(value, WireTransaction::Recovery { .. }),
@@ -4207,18 +4141,10 @@ impl ConsensusApplication {
                     }
                     return Ok(Some(admission));
                 }
-                WireTransaction::Signed { envelope } => {
-                    let record = normalize_record(&self.config, envelope)?;
-                    ensure!(
-                        !self.has_committed_receipt(&record.transaction.hash)?,
-                        "Already committed transaction"
-                    );
-                }
                 WireTransaction::EpochObservation { .. } => {
                     anyhow::bail!("Epoch observations are derived by the proposer, not submitted");
                 }
             }
-            Ok(None)
         })();
         match checked {
             Ok(Some(result)) => Ok(result),
@@ -4355,13 +4281,6 @@ impl ConsensusApplication {
     }
     // Call with the execution lock held. Commit publishes this key atomically.
     // Any stored value blocks admission, including a malformed receipt.
-    fn has_committed_receipt(&self, hash: &str) -> Result<bool> {
-        Ok(self
-            .storage
-            .db
-            .get(format!("execution:v1:receipt:{hash}"))?
-            .is_some())
-    }
     pub fn prepare_proposal(
         &self,
         height: u64,
@@ -4457,15 +4376,6 @@ impl ConsensusApplication {
                             if seen.insert(id) {
                                 signed.push(raw);
                             }
-                        }
-                    }
-                }
-                Ok(WireTransaction::Signed { envelope }) => {
-                    if let Ok(record) = normalize_record(&self.config, envelope) {
-                        if !self.has_committed_receipt(&record.transaction.hash)?
-                            && seen.insert(record.transaction.hash.clone())
-                        {
-                            signed.push(raw);
                         }
                     }
                 }
@@ -4966,8 +4876,6 @@ impl ConsensusApplication {
             })
             .transpose()?;
         let mut results = Vec::with_capacity(input.txs.len());
-        let mut accepted = Vec::new();
-        let mut seen = BTreeSet::new();
         for (index, item) in decoded.into_iter().enumerate() {
             if matches!(item, Ok(WireTransaction::EmergencyControl { .. })) {
                 ensure!(
@@ -5019,7 +4927,7 @@ impl ConsensusApplication {
                 results.push(result);
                 continue;
             }
-            let envelope = match item {
+            match item {
                 Ok(
                     WireTransaction::EmergencyControl { .. }
                     | WireTransaction::UpgradeControl { .. }
@@ -5031,7 +4939,6 @@ impl ConsensusApplication {
                 Ok(WireTransaction::OrdinaryV3 { .. }) => anyhow::bail!("Governance profile missing"),
                 Ok(WireTransaction::EpochObservation { .. }) => {
                     results.push(TxResult::observation());
-                    continue;
                 }
                 Ok(WireTransaction::Recovery { envelope_base64 }) => {
                     let block = recovery.as_mut().context("Recovery block missing")?;
@@ -5041,9 +4948,7 @@ impl ConsensusApplication {
                     let result =
                         block.execute(input.height, u32::try_from(index)?, &bytes, &mut staged)?;
                     results.push(TxResult::from_recovery(&result)?);
-                    continue;
                 }
-                Ok(WireTransaction::Signed { envelope }) => envelope,
                 Err(_) => {
                     if let Some(block) = &mut recovery {
                         let result = block.execute(
@@ -5057,51 +4962,11 @@ impl ConsensusApplication {
                             "Malformed outer envelope accepted as recovery"
                         );
                         results.push(TxResult::from_recovery(&result)?);
-                        continue;
+                    } else {
+                        results.push(TxResult::invalid("Malformed transaction"));
                     }
-                    results.push(TxResult::invalid("Malformed transaction"));
-                    continue;
                 }
-            };
-            let record = match normalize_record(&self.config, envelope) {
-                Ok(record) => record,
-                Err(_) => {
-                    results.push(TxResult::invalid("Invalid signed transaction"));
-                    continue;
-                }
-            };
-            let tx = &record.transaction;
-            if !seen.insert(tx.hash.clone())
-                || self
-                    .storage
-                    .db
-                    .get(format!("execution:v1:receipt:{}", tx.hash))?
-                    .is_some()
-            {
-                results.push(TxResult::invalid(
-                    "Duplicate or already committed transaction",
-                ));
-                continue;
             }
-            let checkpoint = staged.clone();
-            let execution = stage_transaction(
-                tx,
-                &mut staged,
-                input.height,
-                u32::try_from(index)?,
-                &GasSchedule::default(),
-            )?;
-            let result = TxResult::from_receipt(&execution.result.receipt, execution.accepted)?;
-            if execution.accepted {
-                accepted.push(Accepted {
-                    index: u32::try_from(index)?,
-                    record,
-                    receipt: execution.result.receipt,
-                });
-            } else {
-                staged = checkpoint;
-            }
-            results.push(result);
         }
         if let Some(state) = ordinary.as_mut() {
             state.last_height = input.height;
@@ -5310,7 +5175,6 @@ impl ConsensusApplication {
                     validator_updates,
                 },
                 head,
-                accepted,
             },
         })
     }
@@ -5560,15 +5424,6 @@ impl ConsensusApplication {
             if !key.starts_with(b"adaptive:") {
                 batch.put(key, value);
             }
-        }
-        for item in &prepared.record.accepted {
-            Settlement::append_verified_receipt(
-                &self.storage,
-                &mut batch,
-                &item.record.transaction,
-                &item.receipt,
-                &item.record,
-            )?;
         }
         batch.put(
             record_key(prepared.record.input.height),
@@ -6257,60 +6112,6 @@ fn check_record(config: &ConsensusConfig, h: u64, record: &BlockRecord) -> Resul
     );
     Ok(())
 }
-/// A block's accepted legacy signed transactions against their stored
-/// transaction, settlement and receipt index.
-fn check_accepted(
-    storage: &Storage,
-    config: &ConsensusConfig,
-    h: u64,
-    record: &BlockRecord,
-    indices: &mut BTreeSet<usize>,
-    transactions: &mut BTreeSet<String>,
-) -> Result<()> {
-    for accepted in &record.accepted {
-        let index = usize::try_from(accepted.index)?;
-        ensure!(
-            index < record.input.txs.len()
-                && indices.insert(index)
-                && transactions.insert(accepted.record.transaction.hash.clone()),
-            "Duplicate committed transaction or index"
-        );
-        let WireTransaction::Signed { envelope } = wire(config, &record.input.txs[index])?
-        else {
-            anyhow::bail!("Accepted transaction is not signed");
-        };
-        let verified = normalize_record(config, envelope)?;
-        ensure!(
-            verified.encode()? == accepted.record.encode()?,
-            "Committed original transaction differs"
-        );
-        let stored = storage
-            .get_transaction_record(&verified.transaction.hash)?
-            .context("Committed transaction missing")?;
-        ensure!(
-            stored.encode()? == verified.encode()?,
-            "Stored transaction differs"
-        );
-        let receipt =
-            settlement::existing(storage, &verified.transaction, h, accepted.index)?
-                .context("Committed settlement missing")?;
-        ensure!(
-            serde_json::to_vec(&receipt)? == serde_json::to_vec(&accepted.receipt)?
-                && record.result.tx_results[index]
-                    == TxResult::from_receipt(&receipt, true)?,
-            "Committed receipt or result differs"
-        );
-        ensure!(
-            storage
-                .db
-                .get(format!("rcpt:{}", verified.transaction.hash))?
-                .as_deref()
-                == Some(serde_json::to_vec(&receipt)?.as_slice()),
-            "Receipt index differs"
-        );
-    }
-    Ok(())
-}
 /// With `from`, block checks cover only heights `from..=head`, and the
 /// whole-history checks are skipped: the unknown-key and orphan scans,
 /// cross-history duplicate sets, exact penalty evidence equality and control
@@ -6463,7 +6264,6 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         GENESIS_SOURCE_KEY.as_bytes().to_vec(),
         GENESIS_APP_HASH_KEY.as_bytes().to_vec(),
     ]);
-    let mut transactions = BTreeSet::new();
     let mut recorded_evidence = BTreeMap::new();
     let mut evidence_records = 0usize;
     if let Some(head) = &current {
@@ -6810,7 +6610,6 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                     );
                 }
             }
-            check_accepted(storage, &config, h, &record, &mut indices, &mut transactions)?;
             // Ordinary receipts older than the retention window were pruned.
             let ordinary_receipts_pruned = ordinary
                 .as_ref()
@@ -6978,14 +6777,6 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                 pinned(h, &record, &anchors),
                 "Block record below the retained window is not pinned"
             );
-            check_accepted(
-                storage,
-                &config,
-                h,
-                &record,
-                &mut BTreeSet::new(),
-                &mut transactions,
-            )?;
             known.insert(record_key(h).into_bytes());
         }
     }
@@ -7030,14 +6821,12 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             !key.starts_with(b"execution:block:") && !key.starts_with(b"blk_"),
             "Development block history in consensus mode"
         );
-        for prefix in [b"tx:".as_slice(), b"rcpt:", b"execution:v1:receipt:"] {
-            if let Some(suffix) = key.strip_prefix(prefix) {
-                ensure!(
-                    transactions.contains(std::str::from_utf8(suffix)?),
-                    "Orphan or pending consensus transaction"
-                );
-            }
-        }
+        ensure!(
+            ![b"tx:".as_slice(), b"rcpt:", b"execution:v1:receipt:"]
+                .iter()
+                .any(|prefix| key.starts_with(prefix)),
+            "Legacy transaction record in consensus mode"
+        );
     }
     let emergency_trace = emergency_history_with(history, &config)?;
     ensure!(
@@ -7048,6 +6837,10 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     handover_history(history, &config, &emergency_trace, &outcomes, None)?;
     Ok(emergency_trace)
 }
+
+#[cfg(test)]
+#[path = "ordinary_test_support.rs"]
+pub(crate) mod ordinary_support;
 
 #[cfg(test)]
 #[path = "consensus_settlement_tests.rs"]

@@ -2,7 +2,8 @@
 use super::*;
 use crate::crypto::{ActivePQC, PQC};
 use crate::runtime::validator_lifecycle::{proof_sign_bytes, LifecycleState, STATE_KEY};
-use crate::types::{tx::Tx, Msg, SignedTx};
+use super::ordinary_support;
+use dytallix_protocol_types::ordinary::Action;
 use fips204::{
     ml_dsa_65,
     traits::{KeyGen, SerDes, Signer},
@@ -32,20 +33,13 @@ impl Account {
             public,
         }
     }
-    fn sign(&self, nonce: u64, msgs: Vec<Msg>) -> Vec<u8> {
-        let envelope = SignedTx::sign(
-            Tx {
-                chain_id: CHAIN.into(),
-                nonce,
-                msgs,
-                fee: 200_000,
-                memo: "lifecycle fixture".into(),
-            },
-            &self.secret,
-            &self.public,
-        )
-        .unwrap();
-        serde_json::to_vec(&WireTransaction::Signed { envelope }).unwrap()
+    /// The account's next ordinary transaction, from committed state.
+    fn tx(&self, app: &ConsensusApplication, actions: Vec<Action>) -> Vec<u8> {
+        ordinary_support::transaction(app, &self.secret, &self.public, actions)
+    }
+    /// The account's first ordinary transaction, from genesis state.
+    fn first(&self, config: &ConsensusConfig, actions: Vec<Action>) -> Vec<u8> {
+        ordinary_support::first_transaction(config, &self.secret, &self.public, actions)
     }
 }
 struct ConsensusKey {
@@ -68,7 +62,7 @@ impl ConsensusKey {
         nonce: u64,
         expiry: u64,
         amount: u128,
-    ) -> String {
+    ) -> Vec<u8> {
         let bytes = proof_sign_bytes(
             CHAIN,
             operation,
@@ -80,7 +74,10 @@ impl ConsensusKey {
             amount,
         )
         .unwrap();
-        B64.encode(self.secret.try_sign(&bytes, &[]).unwrap())
+        self.secret.try_sign(&bytes, &[]).unwrap().to_vec()
+    }
+    fn key(&self) -> Vec<u8> {
+        B64.decode(&self.public).unwrap()
     }
 }
 struct Fixture {
@@ -136,7 +133,7 @@ impl Fixture {
             "pubkey_base64":keys[i].public,"power":100,"reward_address":IDS[i]})
             })
             .collect();
-        let config = serde_json::from_value(serde_json::json!({
+        let mut config: ConsensusConfig = serde_json::from_value(serde_json::json!({
             "profile":"cometbft-lifecycle-local-qualification","engine":"cometbft-v0.40.0","chain_id":CHAIN,
             "app_state_sha256":hex::encode(Sha256::digest(&genesis)),"gas_price":1,
             "max_tx_bytes":65536,"max_block_bytes":1048576,"max_txs":64,"validators":engine_validators,
@@ -144,6 +141,8 @@ impl Fixture {
                 "approved_operators":operators,"min_self_bond":"10","max_active":max_active,
                 "evidence_max_age_blocks":3,"evidence_max_age_seconds":3,
                 "processing_margin_blocks":1,"processing_margin_seconds":1}})).unwrap();
+        let publics: Vec<&[u8]> = accounts.iter().map(|a| a.public.as_slice()).collect();
+        ordinary_support::enable(&mut config, &publics);
         Self {
             accounts,
             keys,
@@ -167,32 +166,32 @@ impl Fixture {
         nonce: u64,
         expiry: u64,
         amount: u128,
-    ) -> Msg {
+    ) -> Action {
         let owner = &self.accounts[2].owner;
-        Msg::ValidatorRegister {
-            from: owner.clone(),
-            validator: id.into(),
-            consensus_pubkey: key.public.clone(),
+        Action::ValidatorRegister {
+            validator_id: id.into(),
+            consensus_key: key.key(),
             proof: key.proof("register", id, owner, nonce, expiry, amount),
-            expires_at_height: expiry,
+            proof_expiry_height: expiry,
             amount_udgt: amount,
         }
     }
     fn register(&self) -> Vec<u8> {
-        self.accounts[2].sign(
-            0,
+        self.accounts[2].first(
+            &self.config,
             vec![self.register_message(&self.keys[2], IDS[2], 0, 20, 100)],
         )
     }
-    fn rotate(&self, key: &ConsensusKey, nonce: u64) -> Vec<u8> {
-        self.accounts[0].sign(
-            nonce,
-            vec![Msg::ValidatorRotateKey {
-                from: self.accounts[0].owner.clone(),
-                validator: IDS[0].into(),
-                consensus_pubkey: key.public.clone(),
-                proof: key.proof("rotate", IDS[0], &self.accounts[0].owner, nonce, 20, 0),
-                expires_at_height: 20,
+    fn rotate(&self, app: &ConsensusApplication, key: &ConsensusKey) -> Vec<u8> {
+        let owner = &self.accounts[0].owner;
+        let nonce = ordinary_support::nonce(app, &self.accounts[0].public);
+        self.accounts[0].tx(
+            app,
+            vec![Action::ValidatorRotateKey {
+                validator_id: IDS[0].into(),
+                consensus_key: key.key(),
+                proof: key.proof("rotate", IDS[0], owner, nonce, 20, 0),
+                proof_expiry_height: 20,
             }],
         )
     }
@@ -328,21 +327,19 @@ fn consecutive_bond_and_unbond_requests_preserve_each_activation_and_custody() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = f.initialized(&dir.path().join("db"));
     let owner = &f.accounts[2].owner;
-    let bond = f.accounts[2].sign(
-        0,
-        vec![Msg::RewardBond {
-            from: owner.clone(),
-            validator: IDS[0].into(),
+    let bond = f.accounts[2].tx(
+        &app,
+        vec![Action::RewardBond {
+            validator_id: IDS[0].into(),
             amount_udgt: 100,
         }],
     );
     successful(&commit(&mut app, 1, vec![bond]));
     custody(&app, 200, 100, 0);
-    let unbond = f.accounts[2].sign(
-        1,
-        vec![Msg::RewardBeginUnbond {
-            from: owner.clone(),
-            validator: IDS[0].into(),
+    let unbond = f.accounts[2].tx(
+        &app,
+        vec![Action::RewardBeginUnbond {
+            validator_id: IDS[0].into(),
             amount_udgt: 40,
         }],
     );
@@ -377,17 +374,13 @@ fn exit_preserves_exposure_history_and_withdrawal_stays_disabled_after_age_limit
     let dir = tempfile::tempdir().unwrap();
     let mut app = f.initialized(&dir.path().join("db"));
     let owner = &f.accounts[0].owner;
-    successful(&commit(
-        &mut app,
-        1,
-        vec![f.accounts[0].sign(
-            0,
-            vec![Msg::ValidatorExit {
-                from: owner.clone(),
-                validator: IDS[0].into(),
-            }],
-        )],
-    ));
+    let exit = f.accounts[0].tx(
+        &app,
+        vec![Action::ValidatorExit {
+            validator_id: IDS[0].into(),
+        }],
+    );
+    successful(&commit(&mut app, 1, vec![exit]));
     assert_eq!(power(&app, 2, &f.keys[0].public), 100);
     assert_eq!(power(&app, 3, &f.keys[0].public), 0);
     custody(&app, 200, 0, 0);
@@ -414,19 +407,18 @@ fn exit_preserves_exposure_history_and_withdrawal_stays_disabled_after_age_limit
     assert!(entry
         .maturity_satisfied(&state.config, 7, 25, true)
         .unwrap());
-    let result = commit(
-        &mut app,
-        7,
-        vec![f.accounts[0].sign(
-            1,
-            vec![Msg::ValidatorWithdraw {
-                from: owner.clone(),
-                unbond_id: entry.id.clone(),
-            }],
-        )],
+    let withdraw = f.accounts[0].tx(
+        &app,
+        vec![Action::ValidatorWithdraw {
+            unbond_id: entry.id.clone(),
+        }],
     );
-    assert_ne!(result.tx_results[0].code, 0);
-    assert!(result.tx_results[0].log.contains("withdraw"));
+    let result = commit(&mut app, 7, vec![withdraw]);
+    // Without the penalty profile withdrawal stays disabled: a paid failure.
+    assert_eq!(result.tx_results[0].code, 3);
+    assert!(result.tx_results[0]
+        .log
+        .contains("VALIDATOR_WITHDRAWAL_DISABLED"));
     custody(&app, 100, 0, 100);
     assert_eq!(liquid(&app, owner), 900);
     assert_eq!(lifecycle(&app).unbonding, state.unbonding);
@@ -440,7 +432,8 @@ fn consecutive_key_rotations_remove_old_keys_at_exact_heights_across_restart() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("db");
     let mut app = f.initialized(&path);
-    let first = commit(&mut app, 1, vec![f.rotate(&one, 0)]);
+    let rotation = f.rotate(&app, &one);
+    let first = commit(&mut app, 1, vec![rotation]);
     successful(&first);
     let changes: BTreeMap<_, _> = first
         .validator_updates
@@ -453,7 +446,8 @@ fn consecutive_key_rotations_remove_old_keys_at_exact_heights_across_restart() {
     );
     drop(app);
     let mut app = f.open(&path);
-    let second = commit(&mut app, 2, vec![f.rotate(&two, 1)]);
+    let rotation = f.rotate(&app, &two);
+    let second = commit(&mut app, 2, vec![rotation]);
     successful(&second);
     let changes: BTreeMap<_, _> = second
         .validator_updates
@@ -529,16 +523,14 @@ fn invalid_registration_authorization_proof_capacity_and_addresses_preserve_prin
             if case == 5 { 9 } else { 100 },
         );
         if case == 2 {
-            if let Msg::ValidatorRegister { proof, .. } = &mut msg {
-                let mut bytes = B64.decode(&*proof).unwrap();
-                bytes[0] ^= 1;
-                *proof = B64.encode(bytes);
+            if let Action::ValidatorRegister { proof, .. } = &mut msg {
+                proof[0] ^= 1;
             }
         }
         let tx = if case == 1 {
-            f.accounts[0].sign(0, vec![msg])
+            f.accounts[0].tx(&app, vec![msg])
         } else {
-            f.accounts[2].sign(0, vec![msg])
+            f.accounts[2].tx(&app, vec![msg])
         };
         let result = commit(&mut app, 1, vec![tx]);
         assert_ne!(result.tx_results[0].code, 0, "case {case}");
@@ -554,13 +546,12 @@ fn failed_second_message_rolls_back_registration_and_pending_funding() {
     let f = Fixture::new();
     let dir = tempfile::tempdir().unwrap();
     let mut app = f.initialized(&dir.path().join("db"));
-    let tx = f.accounts[2].sign(
-        0,
+    let tx = f.accounts[2].tx(
+        &app,
         vec![
             f.register_message(&f.keys[2], IDS[2], 0, 20, 100),
-            Msg::RewardBond {
-                from: f.accounts[2].owner.clone(),
-                validator: IDS[0].into(),
+            Action::RewardBond {
+                validator_id: IDS[0].into(),
                 amount_udgt: 10000,
             },
         ],
@@ -571,7 +562,12 @@ fn failed_second_message_rolls_back_registration_and_pending_funding() {
     custody(&app, 200, 0, 0);
     assert_eq!(liquid(&app, &f.accounts[2].owner), 1000);
     assert!(lifecycle(&app).schedules.is_empty());
-    let valid = f.accounts[2].sign(1, vec![f.register_message(&f.keys[2], IDS[2], 1, 20, 100)]);
+    // The proof binds the account's current spending nonce.
+    let nonce = ordinary_support::nonce(&app, &f.accounts[2].public);
+    let valid = f.accounts[2].tx(
+        &app,
+        vec![f.register_message(&f.keys[2], IDS[2], nonce, 20, 100)],
+    );
     successful(&commit(&mut app, 2, vec![valid]));
     custody(&app, 200, 100, 0);
 }
@@ -596,52 +592,3 @@ fn corrupted_pending_lifecycle_fails_recovery_without_repair() {
     assert!(ConsensusApplication::open(&path, f.config.clone(), f.genesis.clone()).is_err());
 }
 
-
-#[test]
-fn stored_unsigned_validator_operations_require_the_original_account_envelope() {
-    let f = Fixture::new();
-    let dir = tempfile::tempdir().unwrap();
-    let storage = Storage::open(dir.path().join("records")).unwrap();
-    let messages = vec![
-        f.register_message(&f.keys[2], IDS[2], 0, 20, 100),
-        Msg::ValidatorRotateKey {
-            from: f.accounts[2].owner.clone(),
-            validator: IDS[2].into(),
-            consensus_pubkey: f.keys[2].public.clone(),
-            proof: f.keys[2].proof("rotate", IDS[2], &f.accounts[2].owner, 0, 20, 0),
-            expires_at_height: 20,
-        },
-        Msg::ValidatorExit {
-            from: f.accounts[2].owner.clone(),
-            validator: IDS[2].into(),
-        },
-        Msg::ValidatorWithdraw {
-            from: f.accounts[2].owner.clone(),
-            unbond_id: "0".into(),
-        },
-    ];
-    for message in messages {
-        let bytes = f.accounts[2].sign(0, vec![message]);
-        let wire: WireTransaction = serde_json::from_slice(&bytes).unwrap();
-        let WireTransaction::Signed { envelope } = wire else {
-            panic!("signed fixture")
-        };
-        let mut transaction = crate::signed_transaction::normalize(&envelope, 1).unwrap();
-        transaction.public_key = None;
-        transaction.signature = None;
-        storage
-            .put_pending_signed_transaction(&transaction, None)
-            .unwrap();
-        let stored = storage
-            .get_transaction_record(&transaction.hash)
-            .unwrap()
-            .unwrap();
-        let error = crate::signed_transaction::verify_record(&stored, Some(CHAIN))
-            .unwrap_err()
-            .to_string();
-        assert!(error.contains("original signed envelope"), "{error}");
-        assert!(
-            crate::signed_transaction::verify_reward_mode_record(&stored, Some(CHAIN)).is_err()
-        );
-    }
-}

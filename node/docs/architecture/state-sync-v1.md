@@ -87,11 +87,11 @@ records chain back from any trusted head.
   state only. This narrows rule 2 as approved.
 - **Pinned records.** A record a replay reads stays after its block leaves
   the window: one with a recorded emergency, upgrade or handover control,
-  one with accepted legacy signed transactions (whose indexes `tx:`, `rcpt:`
-  and the replay guard `execution:v1:receipt:` are never removed), and a
-  recorded emergency control's finalized anchor. Controls need their
-  policy's authority and legacy signed transactions are refused under the
-  recovery profile, so these are rare.
+  and a recorded emergency control's finalized anchor. Controls need their
+  policy's authority, so these are rare. (Blocks with accepted legacy signed
+  transactions were pinned too, until E04 gap 14 removed that path; the
+  complete check now refuses any legacy `tx:`, `rcpt:` or
+  `execution:v1:receipt:` record.)
 - **Startup check.** Replays the blocks after the window start, anchored to
   its record. Evidence naming a removed block is checked for shape; the
   validator fold starts where the lifecycle history holds the set; an epoch

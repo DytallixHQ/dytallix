@@ -114,32 +114,12 @@
           "sha256": "ef019bf721aa7018d6ca3a25242017afbbf7e9cfa225ba25b4944b7326f43f25"
         },
         {
-          "path": "crates/runtime-crypto/src/pqc_verify.rs",
-          "sha256": "b468ebc17a5fcb49ad870832a58b5fbb7f91ce24f1effdd1af91db038ce49225"
-        },
-        {
           "path": "crates/runtime-crypto/src/dilithium_fips204.rs",
           "sha256": "052aca92633925314704c76bc0a2e96a99711992be5f141205eea4054c73bd48"
-        },
-        {
-          "path": "crates/protocol-types/src/signature_algorithm.rs",
-          "sha256": "eeb1092582156abc4918b9ac7f2338f37878e36588765ffff801f105667ab43f"
-        },
-        {
-          "path": "crates/storage/src/tx.rs",
-          "sha256": "8c4474131d31d0e29d42027fac308d437d183fe3dbd09ce3e5b095081d1f23b5"
-        },
-        {
-          "path": "dytallix-fast-launch/node/src/signed_transaction.rs",
-          "sha256": "e66eeb7004a7ac4a42aa5a77ad641d6ffe31907977b6a577909ee25ec6934d2d"
-        },
-        {
-          "path": "dytallix-fast-launch/node/src/types/tx.rs",
-          "sha256": "27933b90067a00244ba2269ab84e8ecd169bab53ab258b7eb0811afa9462290a"
         }
       ],
-      "policy": "Only mldsa65 is representable in the verifier; the path is disabled whenever the recovery profile is configured, which mainnet requires (removed in E04 gap 14, step L-b)",
-      "role": "legacy_signed_transaction"
+      "policy": "Key generation and signing for fixtures, tests and qualification harnesses (state-sync-join); no production signing path uses it. The legacy signed-transaction route was removed (E04 gap 14)",
+      "role": "development_signing"
     },
     {
       "algorithm": "SHA3-256 over the origin public key (no signature)",
@@ -166,6 +146,10 @@
         {
           "path": "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",
           "sha256": "449ebd50f9c000be0226f6b2647f39020597d6e1942153e6927ade336a8785c5"
+        },
+        {
+          "path": "crates/runtime-crypto/src/pqc_verify.rs",
+          "sha256": "b468ebc17a5fcb49ad870832a58b5fbb7f91ce24f1effdd1af91db038ce49225"
         }
       ],
       "policy": "Proof of possession for registered and rotated consensus keys",
@@ -371,10 +355,6 @@
     {
       "path": "dytallix-fast-launch/node/src/bin/pqc_signer.rs",
       "sha256": "7b58702a4d9ea7580a83353ac574334dd069f9332922aa06a8772d0419831c35"
-    },
-    {
-      "path": "dytallix-fast-launch/node/src/bin/lifecycle_fixture.rs",
-      "sha256": "16a8ea9e1f23ecf8d438b5c573b28a114d6b6e0965fb0d6a25f9d5fbaeca56d3"
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-fixture/main.go",
