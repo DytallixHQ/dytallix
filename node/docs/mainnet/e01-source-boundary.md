@@ -72,8 +72,9 @@ Local diagnostics (not qualification): the PQC-only engine binary built with
 - **T01:** classify the standard library's `crypto/internal/boring` markers
   and all loaded providers in the compiled production binaries.
 - **P02:** independent review of the ML-KEM-768 + ML-DSA-65 peer protocol.
-- **E05:** production chain ID, validator and peer keys, endpoints (the seven
-  required configuration inputs in the inventory remain unset).
+- **E05:** production chain ID, validator and peer keys, endpoints (the eight
+  required configuration inputs in the inventory remain unset, among them
+  the application configuration with the recovery and ordinary profiles).
 - **E06 / T02:** freeze the release, then qualify the live peer path on
   separate hosts.
 - **E04 follow-up (gap 14), done:** the legacy signed-transaction path is
