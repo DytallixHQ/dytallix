@@ -366,13 +366,15 @@ fn actual_candidate_startup_binds_signed_manifest_to_running_executable() {
     for (path, bytes) in mismatch_inputs { assert_eq!(std::fs::read(path).unwrap(), bytes); }
 
     // Alter canonical manifest bytes without changing the root-signed request.
+    // The root consumer hashes the manifest before the candidate is prepared,
+    // so the root-signed digest refuses it first.
     let mut altered: crate::runtime_candidate::ManifestV1 = serde_json::from_slice(&manifest).unwrap();
     altered.chain_id = "different-disposable-chain".into();
     std::fs::write(&root.root.release_manifest_path, serde_json::to_vec(&altered).unwrap()).unwrap();
     let changed_db = database.path().join("changed-manifest-db");
     PipeApp::open_with_candidate(&candidate, &root, &changed_db,
         "candidate-changed-manifest", Some(&settings))
-        .assert_startup_rejected(&changed_db, "Candidate manifest digest mismatch");
+        .assert_startup_rejected(&changed_db, "Release manifest artifact verification failed");
     assert_eq!(hex::encode(Sha256::digest(std::fs::read(&candidate).unwrap())), candidate_hash);
     assert_eq!(hex::encode(Sha256::digest(std::fs::read(&baseline).unwrap())), baseline_hash);
     println!("PASS: actual candidate root-bound startup and restart; wrong executable and changed manifest rejected before database creation; no release handover or production acceptance claim");
