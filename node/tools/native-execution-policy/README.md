@@ -42,11 +42,18 @@ The request has these exact fields:
       {"family": "unix", "type": "stream"},
       {"family": "inet", "type": "stream"}
     ]
+  },
+  "resources": {
+    "memory_max_bytes": 8589934592,
+    "tasks_max": 4096,
+    "nofile": 65536
   }
 }
 ```
 
-These are illustrative paths and UIDs, not approved records. `network.mode=private` requires `namespace_path=null`. It creates a separate private network per unit. `shared-private` uses the named external anchor namespace. The live verifier must establish its ownership and isolation. Socket families are unix, inet, or inet6. Socket types are stream or dgram. This profile controls families and types; it does not claim per-address or per-port filtering. An explicit empty sockets list grants no AppArmor network access and denies socket/socketpair syscalls. It omits RestrictAddressFamilies instead of emitting an empty value that resets restrictions.
+These are illustrative paths, UIDs and limits, not approved records. `network.mode=private` requires `namespace_path=null`. It creates a separate private network per unit. `shared-private` uses the named external anchor namespace. The live verifier must establish its ownership and isolation. Socket families are unix, inet, or inet6. Socket types are stream or dgram. This profile controls families and types; it does not claim per-address or per-port filtering. An explicit empty sockets list grants no AppArmor network access and denies socket/socketpair syscalls. It omits RestrictAddressFamilies instead of emitting an empty value that resets restrictions.
+
+`resources` is required and has no defaults (E04 gap 13, P01 28 September 2026); the values are the operator's (D06-Q02, D12-Q01). Each is a positive integer within a kernel bound: `memory_max_bytes` (at most 1 PiB) becomes `MemoryMax`, `tasks_max` (at most PID_MAX_LIMIT) becomes `TasksMax`, and `nofile` (at most the default `fs.nr_open`) becomes `LimitNOFILE`. The unit also fixes `MemorySwapMax=0` and `LimitCORE=0`, so keys and signing state never reach swap or a core file. One unit holds every node process: the memory and task limits cover them together, and `LimitNOFILE` applies to each. The profile identity excludes `resources`, so a limit change keeps the AppArmor profile name. `FILE_HASHES.json`, and through it the four-role identity, binds the limits.
 
 The displayed fields are required. Optional `readonly_directories` accepts exact absolute directory paths. Each receives only a trailing-slash read rule, without descendants or execution. A directory cannot equal a code/file record or lie inside a writable root. An ancestor of a writable root is allowed because this rule grants only directory reading; the writable child remains explicit. Empty `readonly_files`, `code_aliases`, and `devices` lists are permitted. Arrays have bounded sizes. Paths must be absolute, normalized, and free of spaces, control characters, glob syntax, specifiers, and mount-field separators. Writable roots cannot contain code, overlap each other, or designate a broad system root. Aliases cannot collide. Unknown fields and duplicate JSON keys are rejected.
 
@@ -59,11 +66,11 @@ The displayed fields are required. Optional `readonly_directories` accepts exact
 - `normalized-request.json`: deterministic request record.
 - `FILE_HASHES.json`: exact SHA256 and size for the other five output files.
 
-The policy ID binds the exact catalog digest and normalized local inputs. List ordering does not change rendering. Changing catalog bytes changes the identity. Verify the output hash manifest before integration.
+The policy ID binds the exact catalog digest and normalized local inputs other than `resources`. List ordering does not change rendering. Changing catalog bytes changes the identity. Verify the output hash manifest before integration.
 
 Systemd property arrays represent one space-joined property value. Booleans serialize as `yes` or `no`. An empty capability list means `CapabilityBoundingSet=`. `SystemCallFilter` is one complete deny expression starting with `~`; do not turn its entries into separate allow expressions. Do not quote JSON directly into shell text. Use structured process arguments.
 
-The wrapper selects one numeric `User` value from `service_uids` per unit. It may add resource limits, lifecycle settings, and already-approved descriptors/environment. It must not replace or weaken generated controls. Reject any conflicting wrapper property. Keep the Python harness outside the workload unit and catalog.
+The wrapper selects one numeric `User` value from `service_uids` per unit. It may add lifecycle settings and already-approved descriptors/environment. The rendered resource limits are controls like the others. It must not replace or weaken generated controls. Reject any conflicting wrapper property. Keep the Python harness outside the workload unit and catalog.
 
 The paired policy permits executable mappings only for exact catalog paths. Workload executables inherit the profile. Data permissions do not grant executable mappings. Default denial excludes profile changes and unlisted execution. Proc-memory writes and modifying ptrace operations have explicit denials. Read-only owned-process observation remains permitted, including the exact current-profile attribute and tcp/tcp6 listener metadata. The tcp/tcp6 entries are root-owned even for non-root processes on the selected host, so their exact read rules have no owner qualifier. This grants read-only numeric-PID network table access. Readiness code must still bind the selected PID to its owned child and the expected namespace; the file rule itself does not enforce that relationship. No proc-memory write permission is granted. The AppArmor text has no broad library abstraction or unconfined/fallback transition.
 

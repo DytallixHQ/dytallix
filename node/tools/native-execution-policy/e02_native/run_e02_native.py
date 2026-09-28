@@ -16,6 +16,9 @@ in enforce mode and checks, with NoNewPrivileges:
 4. The production syscall filter (systemd `SystemCallFilter`,
    `MemoryDenyWriteExecute`, `SystemCallArchitectures=native`) on the owned
    helper request under AppArmor and on the Rust retained-pidfd pause fixture.
+5. The unit resource controls take effect, by behavior: a child inherits
+   LimitNOFILE and LimitCORE=0, a fork past TasksMax is refused, and memory
+   past MemoryMax with MemorySwapMax=0 ends in an OOM kill.
 
 Diagnostic only: synthetic C parents stand in for the Rust supervisor and
 application; T03 runs the frozen service candidate. Run as root on a host
@@ -164,11 +167,11 @@ def as_service(label, *command):
             "--", "aa-exec", "-p", label, "--", *command]
 
 
-def systemd_unit(*command, apparmor=None):
+def systemd_unit(*command, apparmor=None, extra=()):
     """Run under the production unit syscall policy as the service UID."""
     properties = [f"User={UID}", f"Group={GID}", "NoNewPrivileges=yes",
                   f"SystemCallFilter={render.SYSTEM_CALL_DENY}", "SystemCallErrorNumber=EPERM",
-                  "SystemCallArchitectures=native", "MemoryDenyWriteExecute=yes"]
+                  "SystemCallArchitectures=native", "MemoryDenyWriteExecute=yes", *extra]
     if apparmor:
         properties.append(f"AppArmorProfile={apparmor}")
     args = ["systemd-run", "--quiet", "--wait", "--pipe", "--collect"]
@@ -417,6 +420,53 @@ def filter_checks(pause_bin):
         check(f"filter.rust_pause_{mode}", ok, json.dumps(timings)[:400] if ok else (r.stdout + r.stderr)[-600:])
 
 
+FORK_PROBE = """import os, time
+pids = []
+for _ in range(64):
+    try:
+        pid = os.fork()
+    except OSError:
+        break
+    if pid == 0:
+        time.sleep(5)
+        os._exit(0)
+    pids.append(pid)
+print("forked", len(pids))
+"""
+MEMORY_PROBE = """chunks = [bytearray(b"x" * (16 << 20)) for _ in range(16)]
+print("allocated", sum(map(len, chunks)))
+"""
+
+
+def resource_checks():
+    """The unit resource controls (E04 gap 13) take effect: systemd can skip
+    one the host cannot apply. Checked by behavior: the kernel's view of a
+    child's rlimits, a refused fork past TasksMax, and an OOM kill past
+    MemoryMax with MemorySwapMax=0 (with swap allowed it would page instead).
+    The rendered values themselves are tested in test_render.py."""
+    nofile = str(fixture()[2]["resources"]["nofile"])
+    r = run(*systemd_unit("/bin/sh", "-c", "grep -E '^Max (open files|core file size)' /proc/self/limits",
+                          extra=[f"LimitNOFILE={nofile}", "LimitCORE=0"]), check_exit=False)
+    files = re.search(r"^Max open files\s+(\d+)\s+(\d+)", r.stdout, re.M)
+    core = re.search(r"^Max core file size\s+(\d+)\s+(\d+)", r.stdout, re.M)
+    check("resources.rlimits_inherited", r.returncode == 0 and files is not None
+          and files.groups() == (nofile, nofile) and core is not None and core.groups() == ("0", "0"),
+          r.stdout.strip().replace("\n", " | "))
+    r = run(*systemd_unit("/usr/bin/python3", "-c", FORK_PROBE, extra=["TasksMax=8"]),
+            check_exit=False, timeout=30)
+    forked = re.search(r"^forked (\d+)$", r.stdout, re.M)
+    check("resources.tasks_max_enforced", forked is not None and 0 < int(forked.group(1)) < 8,
+          (r.stdout + r.stderr).strip()[-300:])
+    limited = run(*systemd_unit("/usr/bin/python3", "-c", MEMORY_PROBE,
+                                extra=["MemoryMax=64M", "MemorySwapMax=0"]), check_exit=False, timeout=60)
+    control = run(*systemd_unit("/usr/bin/python3", "-c", MEMORY_PROBE,
+                                extra=["MemoryMax=1G", "MemorySwapMax=0"]), check_exit=False, timeout=60)
+    check("resources.memory_max_without_swap_enforced",
+          limited.returncode != 0 and "allocated" not in limited.stdout
+          and control.returncode == 0 and "allocated" in control.stdout,
+          f"limited exit={limited.returncode} control exit={control.returncode}")
+
+
 # ------------------------------------------------------------------ main ---
 
 def preflight():
@@ -491,6 +541,7 @@ def main():
         check("cleanup.helper", policies[-1].unload())
 
         filter_checks(args.pause_bin)
+        resource_checks()
     except Exception as error:  # record, clean up, then fail
         failure = error
         log(f"FAILURE {type(error).__name__}: {error}")

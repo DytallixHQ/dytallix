@@ -20,7 +20,9 @@ def fixture():
        'readonly_files':['/opt/dyt-policy-fixture/config.json'],'code_aliases':[],
        'devices':['/dev/null','/dev/urandom'],'network':{'mode':'shared-private',
          'namespace_path':'/run/netns/dyt-policy-fixture',
-         'sockets':[{'family':'unix','type':'stream'},{'family':'inet','type':'stream'}]}}
+         'sockets':[{'family':'unix','type':'stream'},{'family':'inet','type':'stream'}]},
+       # Synthetic limits for tests only; production values are D06-Q02/D12-Q01.
+       'resources':{'memory_max_bytes':8*2**30,'tasks_max':4096,'nofile':65536}}
     return raw,m,r
 
 class RenderingTests(unittest.TestCase):
@@ -35,8 +37,12 @@ class RenderingTests(unittest.TestCase):
             '23415deb12c90f6a23bc30fc5241af853c536ad1736aa33e94c56372774ccf0c')
         self.assertEqual(hashlib.sha256(profile[15:]).hexdigest(),
             'de807b46fa5f2bab81bccd248c10496064a62795442c9fbe6e9a37b3638edbc2')
+        # Gap 13 added the resource limits to the unit; the profile is unchanged.
         self.assertEqual(hashlib.sha256(out['unit-properties.json']).hexdigest(),
-            '4d913ded136af4b0ba95957dd54223693ff084388e619f2e6cff3166f396840a')
+            'a4ab5ed97040b72412e6e30c6d52cb9e6d1e3f13c6fe8b23730608cb6f5d1314')
+        properties=json.loads(out['unit-properties.json'])['properties']
+        self.assertEqual({k:properties[k] for k in ['MemoryMax','TasksMax','LimitNOFILE','MemorySwapMax','LimitCORE']},
+            {'MemoryMax':8*2**30,'TasksMax':4096,'LimitNOFILE':65536,'MemorySwapMax':0,'LimitCORE':0})
         requirements=json.loads(out['live-verification-requirements.json'])
         self.assertFalse(requirements['verified'])
         self.assertTrue(any('Before compilation or loading' in item and 'abi/4.0' in item and
@@ -46,6 +52,27 @@ class RenderingTests(unittest.TestCase):
         self.assertEqual(validation['status'],'RENDERED_NOT_ACTIVATED')
         self.assertFalse(validation['production_qualified'])
         self.assertFalse(validation['g35_accepted'])
+
+    def test_resource_limits_are_required_positive_and_bounded(self):
+        raw,m,r=fixture()
+        for change in [lambda x:x.pop('resources'),
+                       lambda x:x['resources'].pop('nofile'),
+                       lambda x:x['resources'].update(extra=1),
+                       lambda x:x['resources'].update(memory_max_bytes=0),
+                       lambda x:x['resources'].update(tasks_max=-1),
+                       lambda x:x['resources'].update(nofile=True),
+                       lambda x:x['resources'].update(nofile=1.5),
+                       lambda x:x['resources'].update(memory_max_bytes=2**50+1),
+                       lambda x:x['resources'].update(tasks_max=4194305),
+                       lambda x:x['resources'].update(nofile=1048577)]:
+            bad=json.loads(json.dumps(r));change(bad)
+            with self.assertRaises(render.Invalid):render.render(raw,m,bad)
+        # A limit change keeps the profile name; the output manifest changes.
+        other=json.loads(json.dumps(r));other['resources']['tasks_max']=512
+        first,second=render.render(raw,m,r),render.render(raw,m,other)
+        self.assertEqual(first['apparmor.profile'],second['apparmor.profile'])
+        self.assertNotEqual(first['FILE_HASHES.json'],second['FILE_HASHES.json'])
+        self.assertEqual(json.loads(second['unit-properties.json'])['properties']['TasksMax'],512)
 
     def test_empty_static_runtime_profile(self):
         raw,m,r=fixture();c=json.loads(raw)

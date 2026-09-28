@@ -68,6 +68,14 @@ Pinned in the production build:
 | HTTP headers | 64, 64 KiB | adapter `MAX_HEADERS`, `MAX_HEADER_BYTES` |
 | ABCI query path | at most 1024 hex characters for state keys; identifiers checked per path | `consensus_stdio::query_path` |
 
+The adapter's values are ceilings (E04 gap 13, P01 28 September 2026). An
+operator can lower each one, never raise it: `--max-connections`,
+`--max-request-body-bytes`, `--max-response-body-bytes`, `--max-headers`,
+`--max-header-bytes` (at least 8192, Hyper's smallest buffer) and
+`--deadline-ms`, each at most once. The supervisor passes them from its
+optional `adapter_limits` block. The IPC frame and the engine's socket limits
+stay fixed; a larger ceiling needs a new build.
+
 ## Errors
 
 | Case | Answer |
