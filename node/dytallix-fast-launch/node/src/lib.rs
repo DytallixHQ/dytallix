@@ -17,6 +17,8 @@ mod settlement;
 mod block_lifecycle;
 
 pub mod supply;
+// Fixed classes for a stopped application (E04 gap 15).
+pub mod failure_class;
 
 pub mod consensus_settlement;
 

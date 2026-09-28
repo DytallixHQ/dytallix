@@ -800,6 +800,60 @@
       "tests": []
     },
     {
+      "id": "operator-state-check-report",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "dytallix-state-check JSON on stdout: result (pass, empty or fail), height and app_hash, or class and the full error text; not_checked names the checks that need the owned root helper.",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/dytallix-fast-launch/node/src/bin/state_check.rs",
+          "text": "\"schema\":1"
+        }
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/bin/state_check.rs",
+        "symbol": "fn report("
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/bin/state_check.rs",
+          "name": "a_failure_reports_its_class_and_full_text"
+        },
+        {
+          "file": "node/dytallix-fast-launch/node/src/state_model_tests.rs",
+          "name": "a_stopped_node_check_names_the_failure_class"
+        }
+      ]
+    },
+    {
+      "id": "operator-application-exit-status",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "Exit status of consensus_stdio and dytallix-state-check: 10 to 17 name the failure class (configuration, history, supply, replay, release, execution, storage, resource), 1 is unclassified; the native supervisor's report repeats the class.",
+      "version": {
+        "none": "The statuses are fixed; a new class takes a new status and the old ones keep their meaning."
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/failure_class.rs",
+        "symbol": "pub fn exit_status(self) -> u8"
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/failure_class.rs",
+          "name": "exit_statuses_are_fixed_and_distinct"
+        },
+        {
+          "file": "node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs",
+          "name": "exit_status_carries_only_the_class"
+        },
+        {
+          "file": "node/crates/native-supervisor/src/startup_diagnostic.rs",
+          "name": "an_application_exit_names_its_failure_class"
+        }
+      ]
+    },
+    {
       "id": "internal-stdio-bridge",
       "group": "internal",
       "exposure": "internal",

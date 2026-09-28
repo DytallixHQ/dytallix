@@ -1,6 +1,7 @@
 //! Fixed-field failure evidence. Never format the source error or configuration.
 use crate::processes::{OperationCancelled, Role};
 use anyhow::Result;
+use dytallix_fast_node::failure_class::{class_of, FailureClass};
 use serde_json::{json, Value};
 
 #[derive(Clone, Copy, Debug)]
@@ -71,8 +72,14 @@ pub(crate) fn child_exit_record(exit: &OwnedChildExit) -> Value {
     let classification=match exit.observation.si_code {
         Some(1)=>"EXITED", Some(2)=>"KILLED", Some(3)=>"DUMPED", None=>"NO_CHILD_STATUS", _=>"OTHER_WAITID_CODE",
     };
+    // The application's exit status names its failure class (E04 gap 15).
+    let failure_class = match (exit.role, exit.observation.si_code, exit.observation.si_status) {
+        (Role::Application, Some(1), Some(status)) => FailureClass::from_exit_status(status).map(FailureClass::name),
+        _ => None,
+    };
     json!({"role":exit.role.as_str(),"owned_pid":exit.pid,"observed_pid":exit.observation.observed_pid,
         "si_code":exit.observation.si_code,"si_status":exit.observation.si_status,"classification":classification,
+        "application_failure_class":failure_class,
         "observation_errno":exit.observation.observation_errno,
         "source":"WAITID_WEXITED_WNOHANG_WNOWAIT","reaped_by_observation":false})
 }
@@ -103,6 +110,8 @@ pub fn record(error: &anyhow::Error) -> Value {
         "role":phase.map(|p|p.role.as_str()), "stage":phase.map(|p|p.stage.name()),
         "error_class":class, "io_kind":kind, "os_errno":io.and_then(|e|e.raw_os_error()),
         "cleanup_failure":crate::processes::has_cleanup_failure(error),
+        // A failed read-only preflight carries the node's class.
+        "failure_class":class_of(error).map(FailureClass::name),
         "child_exit":error.downcast_ref::<OwnedChildExit>().map(child_exit_record),
         "endpoint_violation":error.downcast_ref::<EndpointViolation>().map(|v|v.name()), "production_qualified":false})
 }
@@ -155,6 +164,14 @@ mod exit_record_tests {
             assert_eq!(row["child_exit"]["owned_pid"],123);assert_eq!(row["child_exit"]["observed_pid"],123);assert_eq!(row["child_exit"]["si_status"],9);
             assert_eq!(row["child_exit"]["reaped_by_observation"],false);assert_eq!(row["stage"],"endpoint_ready");
         }
+    }
+    #[test]
+    fn an_application_exit_names_its_failure_class() {
+        let row=|role,code,status|child_exit_record(&OwnedChildExit{role,pid:1,observation:ExitObservation{observed_pid:Some(1),si_code:Some(code),si_status:Some(status),observation_errno:None}})["application_failure_class"].clone();
+        assert_eq!(row(Role::Application,1,12),"supply");assert_eq!(row(Role::Application,1,17),"resource");
+        assert!(row(Role::Application,1,1).is_null());assert!(row(Role::Application,2,12).is_null());assert!(row(Role::Engine,1,12).is_null());
+        let error=dytallix_fast_node::failure_class::classify::<()>(Err(anyhow::anyhow!("private detail")),FailureClass::History).unwrap_err();
+        let record=record(&error);assert_eq!(record["failure_class"],"history");assert!(!record.to_string().contains("private"));
     }
     #[test]
     fn missing_wait_status_does_not_invent_signal_or_code() {

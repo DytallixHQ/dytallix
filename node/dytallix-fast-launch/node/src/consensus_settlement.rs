@@ -2,6 +2,7 @@
 //! The engine supplies finality. This module never creates a finality certificate.
 use crate::emergency_freeze::{self as emergency, ControlVerifier};
 use crate::emergency_verifier::{EmergencyVerifier, EmergencyVerifierConfig};
+use crate::failure_class::{classify, FailureClass};
 use crate::governance_execution;
 use crate::ordinary_authority;
 use crate::ordinary_execution::{self as ordinary_runtime, OrdinaryExecutionResult};
@@ -621,31 +622,72 @@ fn check_stored_startup(
     root_genesis: Option<&crate::root_genesis::PreparedRootGenesis>,
     emergency_verifier: Option<&EmergencyVerifier>,
 ) -> Result<bool> {
-    if let Some(stored) = storage.db.get(MODE_KEY)? {
-        ensure!(stored == serde_json::to_vec(config)?, "Consensus configuration differs from storage");
-        ensure!(storage.db.get(GENESIS_SOURCE_KEY)?.as_deref() == Some(genesis_bytes),
-            "Stored application genesis source differs");
-        crate::root_genesis::check_receipt(
-            storage.db.get(crate::root_genesis::STATE_KEY)?.as_deref(), root_genesis)?;
+    if check_stored_bindings(storage, config, genesis_bytes)? {
+        classify(crate::root_genesis::check_receipt(
+            storage.db.get(crate::root_genesis::STATE_KEY)?.as_deref(), root_genesis),
+            FailureClass::History)?;
         let sequence = storage.db.latest_sequence_number();
         let history = HistoryRead::new(storage);
         let trace = verify_recovery_with(&history)?;
         if let (Some(policy), Some(verifier)) = (&config.emergency, emergency_verifier) {
-            ensure!(emergency::recover(policy, &trace.records, verifier)?
-                == emergency_state(storage, config)?.context("Emergency state missing")?,
-                "Emergency cryptographic replay differs");
-            let outcomes = upgrade_history(&history, config, &trace, Some(verifier))?;
-            handover_history(&history, config, &trace, &outcomes, Some(verifier))?;
+            classify((|| {
+                ensure!(emergency::recover(policy, &trace.records, verifier)?
+                    == emergency_state(storage, config)?.context("Emergency state missing")?,
+                    "Emergency cryptographic replay differs");
+                let outcomes = upgrade_history(&history, config, &trace, Some(verifier))?;
+                handover_history(&history, config, &trace, &outcomes, Some(verifier))
+            })(), FailureClass::Replay)?;
         }
         storage.mark_verified(sequence)?;
         Ok(true)
     } else {
-        // Read errors must not be mistaken for an empty database.
-        match storage.db.iterator(IteratorMode::Start).next() {
-            Some(entry) => { entry?; anyhow::bail!("Existing non-consensus database requires migration"); }
-            None => Ok(false),
-        }
+        Ok(false)
     }
+}
+
+/// Whether the database is initialized, after checking that it was
+/// initialized from this configuration and genesis.
+fn check_stored_bindings(storage: &Storage, config: &ConsensusConfig, genesis_bytes: &[u8]) -> Result<bool> {
+    if let Some(stored) = classify(storage.db.get(MODE_KEY).map_err(Into::into), FailureClass::Storage)? {
+        classify((|| {
+            ensure!(stored == serde_json::to_vec(config)?, "Consensus configuration differs from storage");
+            ensure!(storage.db.get(GENESIS_SOURCE_KEY)?.as_deref() == Some(genesis_bytes),
+                "Stored application genesis source differs");
+            Ok(())
+        })(), FailureClass::Configuration)?;
+        Ok(true)
+    } else {
+        // Read errors must not be mistaken for an empty database.
+        classify(match storage.db.iterator(IteratorMode::Start).next() {
+            Some(entry) => { entry?; Err(anyhow::anyhow!("Existing non-consensus database requires migration")) }
+            None => Ok(false),
+        }, FailureClass::Storage)
+    }
+}
+
+/// What a stopped node's read-only check found.
+#[derive(Debug)]
+pub enum StoppedCheck {
+    /// No consensus state.
+    Empty,
+    /// Every check passed at this committed head.
+    Passed(Info),
+}
+
+/// A stopped node's startup checks, read only, for the operator (E04 gap
+/// 15): the configuration and genesis bindings, every block record, the
+/// complete supply check and the issuance journal. The root receipt's
+/// authorization and the emergency, upgrade and handover replays need the
+/// owned root helper and are not run. A failure carries its class.
+pub fn check_stopped(path: &Path, config: &ConsensusConfig, genesis_bytes: &[u8]) -> Result<StoppedCheck> {
+    classify(config.validate().and_then(|()| source_binding(config, genesis_bytes)),
+        FailureClass::Configuration)?;
+    let storage = classify(Storage::open_read_only(path.to_path_buf()), FailureClass::Storage)?;
+    if !check_stored_bindings(&storage, config, genesis_bytes)? {
+        return Ok(StoppedCheck::Empty);
+    }
+    verify_recovery_with(&HistoryRead::new(&storage))?;
+    Ok(StoppedCheck::Passed(current_info(&storage)?))
 }
 
 fn preflight_prepared_release(
@@ -3212,10 +3254,16 @@ impl ConsensusApplication {
             } else {
                 policy.initial_release_sha512.clone()
             };
-            ensure!(
-                candidate.manifest_sha512() == active,
-                "Committed release requires a different runtime executable"
-            );
+            classify(
+                (|| {
+                    ensure!(
+                        candidate.manifest_sha512() == active,
+                        "Committed release requires a different runtime executable"
+                    );
+                    Ok(())
+                })(),
+                FailureClass::Release,
+            )?;
         }
         Ok(())
     }
@@ -3760,8 +3808,10 @@ impl ConsensusApplication {
         mut emergency_verifier: Option<EmergencyVerifier>,
         candidate: Option<PreparedRuntimeCandidateInput>,
     ) -> Result<Self> {
-        config.validate()?;
-        source_binding(&config, &genesis_bytes)?;
+        classify(
+            config.validate().and_then(|()| source_binding(&config, &genesis_bytes)),
+            FailureClass::Configuration,
+        )?;
         ensure!(
             config.emergency.is_some() == emergency_verifier.is_some(),
             "Emergency policy requires its explicit local verifier"
@@ -3801,7 +3851,10 @@ impl ConsensusApplication {
                 std::fs::remove_dir_all(&leftover)?;
             }
         }
-        let storage = Arc::new(Storage::open(path.as_ref().to_path_buf())?);
+        let storage = Arc::new(classify(
+            Storage::open(path.as_ref().to_path_buf()),
+            FailureClass::Storage,
+        )?);
         let started = std::time::Instant::now();
         let initialized = check_stored_startup(&storage, &config, &genesis_bytes,
             root_genesis.as_ref(), emergency_verifier.as_ref())?;
@@ -5105,12 +5158,18 @@ impl ConsensusApplication {
         // The block's balance changes update the running account totals,
         // which the per-block supply check uses instead of reading every
         // account (E04 gap 5).
-        let totals = crate::supply::account_totals_after(&self.storage, &writes, &deletes)?;
+        let totals = classify(
+            crate::supply::account_totals_after(&self.storage, &writes, &deletes),
+            FailureClass::Supply,
+        )?;
         writes.insert(
             crate::supply::ACCOUNT_TOTALS_KEY.as_bytes().to_vec(),
             totals.encode()?,
         );
-        crate::supply::validate_native_block(&self.storage, &writes, &deletes)?;
+        classify(
+            crate::supply::validate_native_block(&self.storage, &writes, &deletes),
+            FailureClass::Supply,
+        )?;
         let validator_updates = if self.config.lifecycle.is_some() {
             let lifecycle = LifecycleState::decode(
                 writes
@@ -5358,8 +5417,10 @@ impl ConsensusApplication {
         self.commit_with(|storage, batch| {
             let mut options = WriteOptions::default();
             options.set_sync(true);
-            storage.db.write_opt(batch, &options)?;
-            Ok(())
+            classify(
+                storage.db.write_opt(batch, &options).map_err(Into::into),
+                FailureClass::Storage,
+            )
         })
     }
     pub(crate) fn commit_with(
@@ -5449,7 +5510,10 @@ impl ConsensusApplication {
         // check only the new block. On failure the mark stays cleared and the
         // next call repeats the complete check.
         let sequence = self.storage.db.latest_sequence_number();
-        verify_history(&HistoryRead::shared(&self.storage), Some(expected_next.height))?;
+        classify(
+            verify_history(&HistoryRead::shared(&self.storage), Some(expected_next.height)),
+            FailureClass::History,
+        )?;
         self.storage.mark_verified(sequence)?;
         // Snapshot failures never affect consensus (state sync v1, rule 3).
         if let Some(writer) = &mut self.snapshots {
@@ -6077,7 +6141,7 @@ pub fn verify_recovery(storage: &Storage) -> Result<()> {
     storage.mark_verified(sequence)
 }
 fn verify_recovery_with(history: &HistoryRead<'_>) -> Result<EmergencyTrace> {
-    verify_history(history, None)
+    classify(verify_history(history, None), FailureClass::History)
 }
 /// A block record's own commitments: metadata, input and result digests and
 /// the application hash formula.
@@ -6153,15 +6217,18 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     );
     // The complete check reads every account and requires the running totals
     // to match; a block checks the totals alone (E04 gap 5).
-    if from.is_none() {
-        crate::supply::validate_native(storage, &Writes::new())?;
-        ensure!(
-            storage.db.get(crate::supply::ACCOUNT_TOTALS_KEY)?.is_some(),
-            "Account totals missing from consensus state"
-        );
-    } else {
-        crate::supply::validate_native_block(storage, &Writes::new(), &Deletes::new())?;
-    }
+    classify((|| {
+        if from.is_none() {
+            crate::supply::validate_native(storage, &Writes::new())?;
+            ensure!(
+                storage.db.get(crate::supply::ACCOUNT_TOTALS_KEY)?.is_some(),
+                "Account totals missing from consensus state"
+            );
+        } else {
+            crate::supply::validate_native_block(storage, &Writes::new(), &Deletes::new())?;
+        }
+        Ok(())
+    })(), FailureClass::Supply)?;
     // The complete check replays the issuance journal window from its
     // checkpoint; blocks check only the timing state's bindings.
     if from.is_none() && storage.db.get(TIMING_STATE_KEY)?.is_some() {

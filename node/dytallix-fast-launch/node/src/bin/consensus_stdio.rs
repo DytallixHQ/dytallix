@@ -5,12 +5,14 @@ use dytallix_fast_node::consensus_settlement::{
     BlockHistory, ConsensusApplication, ConsensusConfig, FinalizedBlockInput, SnapshotChunk,
     SnapshotOffer, ValidatorConfig,
 };
+use dytallix_fast_node::failure_class::{class_of, FailureClass};
 use dytallix_fast_node::runtime::penalty_custody::EvidenceFact;
 use dytallix_fast_node::runtime::validator_lifecycle::LifecycleConfig;
 use dytallix_release_runtime::ownership::{self, Role};
 use serde_json::{json, Value};
 use std::io::{BufRead, Read, Write};
 use std::os::fd::AsRawFd;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 const MAX_FRAME: u64 = 8 * 1024 * 1024;
 fn string<'a>(v: &'a Value, key: &str) -> Result<&'a str> {
@@ -399,14 +401,41 @@ fn main() -> std::process::ExitCode {
     std::panic::set_hook(Box::new(|_| {}));
     // run() completes owned cleanup before returning. Do not add Rust's generic
     // error-to-stderr fallback to the bounded helper diagnostic channel.
-    match run() {
-        Ok(()) => std::process::ExitCode::SUCCESS,
-        Err(_error) => {
-            // Only the test build reports why it stopped.
-            #[cfg(feature = "test-snapshot-verifier")]
-            eprintln!("{_error:#}");
-            std::process::ExitCode::FAILURE
-        }
+    let result = run();
+    #[cfg(feature = "test-snapshot-verifier")]
+    if let Err(error) = &result {
+        // Only the test build reports why it stopped.
+        eprintln!("{error:#}");
+    }
+    let fatal = FailureClass::from_exit_status(FATAL.load(Ordering::SeqCst).into());
+    exit_code(fatal, result)
+}
+
+/// The exit status of the class of the last failed engine-stopping method,
+/// or 0; a later successful commit clears it. The engine stops on such a
+/// failure, so in service no call follows and the application exits with
+/// its class however its input then ends (E04 gap 15). A test harness may
+/// continue past it.
+static FATAL: AtomicU8 = AtomicU8::new(0);
+
+/// Methods whose failure stops the engine.
+const ENGINE_FATAL: [&str; 6] = [
+    "info",
+    "init_chain",
+    "prepare_proposal",
+    "process_proposal",
+    "finalize_block",
+    "commit",
+];
+
+/// The exit status carries only the failure class (1 when unclassified):
+/// the diagnostic channel gets no text.
+fn exit_code(fatal: Option<FailureClass>, result: Result<()>) -> std::process::ExitCode {
+    let class = fatal.or_else(|| result.as_ref().err().and_then(class_of));
+    match (class, result) {
+        (Some(class), _) => std::process::ExitCode::from(class.exit_status()),
+        (None, Ok(())) => std::process::ExitCode::SUCCESS,
+        (None, Err(_)) => std::process::ExitCode::FAILURE,
     }
 }
 
@@ -622,10 +651,24 @@ fn run() -> Result<()> {
         else {
             return Ok(());
         };
-        let response = match serde_json::from_slice(&line)
+        let response = match serde_json::from_slice::<Value>(&line)
             .map_err(anyhow::Error::from)
-            .and_then(|request| handle(&mut app, &config, request))
-        {
+            .and_then(|request| {
+                let method = request.get("method").and_then(Value::as_str).map(str::to_owned);
+                let result = handle(&mut app, &config, request);
+                let method = method.as_deref().unwrap_or_default();
+                match &result {
+                    Err(error) if ENGINE_FATAL.contains(&method) => FATAL.store(
+                        class_of(error)
+                            .unwrap_or(FailureClass::Execution)
+                            .exit_status(),
+                        Ordering::SeqCst,
+                    ),
+                    Ok(_) if method == "commit" => FATAL.store(0, Ordering::SeqCst),
+                    _ => {}
+                }
+                result
+            }) {
             Ok(result) => json!({"ok":true,"result":result}),
             Err(error) => json!({"ok":false,"error":error.to_string()}),
         };
@@ -647,6 +690,27 @@ fn run() -> Result<()> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn exit_status_carries_only_the_class() {
+        let supply = dytallix_fast_node::failure_class::classify::<()>(
+            Err(anyhow::anyhow!("totals differ")),
+            FailureClass::Supply,
+        );
+        for (fatal, result, expected) in [
+            (None, Ok(()), std::process::ExitCode::SUCCESS),
+            (None, Err(anyhow::anyhow!("unclassified")), std::process::ExitCode::FAILURE),
+            (None, supply, std::process::ExitCode::from(12)),
+            // A failed block method decides the status however the input ends.
+            (Some(FailureClass::Execution), Ok(()), std::process::ExitCode::from(15)),
+            (
+                Some(FailureClass::Storage),
+                Err(anyhow::anyhow!("cancelled")),
+                std::process::ExitCode::from(16),
+            ),
+        ] {
+            assert_eq!(exit_code(fatal, result), expected);
+        }
+    }
     #[test]
     fn cancellable_frames_preserve_boundaries_and_reject_partial_eof() {
         let mut input = std::io::Cursor::new(b"one\ntwo\n");
