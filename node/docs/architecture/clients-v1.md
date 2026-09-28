@@ -162,6 +162,22 @@ and application hash.
   one internal record). A first spend in the file-based `ordinary` flow
   still needs an account view.
 
+## K-c2 implementation notes
+
+- **Features.** The SDK's new `comet-rpc` feature builds the Comet JSON-RPC
+  client over HTTP or HTTPS; `network` (the legacy REST client and faucet)
+  now includes it. The CLI's default feature is `comet-rpc`, so a default
+  build contains no legacy REST client. `legacy-network` adds the testnet
+  commands (`init`, `faucet`, `contract`, `chain`, `node`, `dev` and
+  `legacy`) and their REST helpers, which move to `commands/rest.rs`.
+- **CI.** Both CI definitions also test the legacy build
+  (`dytallix-cli --features legacy-network`, `dytallix-sdk --features
+  network`); the SDK's own CI lints it too.
+- **Distribution.** While the public testnet is the only public network,
+  the published install command and the release archives build with
+  `legacy-network`. The default source build has only the consensus-chain
+  commands.
+
 ## Steps
 
 | Step | Content |

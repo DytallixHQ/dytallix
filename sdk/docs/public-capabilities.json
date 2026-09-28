@@ -9,6 +9,7 @@
       "cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network"
     ],
     "cli": [
+      "cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network",
       "cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix"
     ],
     "publishedOnCratesIo": false

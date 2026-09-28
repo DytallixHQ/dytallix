@@ -425,7 +425,7 @@ fn shared_profile_vector_digest_is_preserved() {
 }
 
 #[cfg(any(
-    feature = "network",
+    feature = "comet-rpc",
     feature = "ordinary-http-only",
     feature = "strict-local-mldsa65"
 ))]

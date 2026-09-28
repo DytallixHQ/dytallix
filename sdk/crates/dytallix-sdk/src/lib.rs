@@ -11,13 +11,13 @@
 
 #[cfg(feature = "network")]
 pub mod client;
-#[cfg(all(feature = "network", feature = "ordinary-http-only"))]
-compile_error!("ordinary-http-only cannot be combined with network/TLS; build separately with --no-default-features");
+#[cfg(all(feature = "comet-rpc", feature = "ordinary-http-only"))]
+compile_error!("ordinary-http-only cannot be combined with comet-rpc, network or TLS; build separately with --no-default-features");
 #[cfg(all(
     feature = "strict-local-mldsa65",
     any(
         feature = "compatibility",
-        feature = "network",
+        feature = "comet-rpc",
         feature = "ordinary-http-only"
     )
 ))]
@@ -27,7 +27,7 @@ pub mod error;
 pub mod faucet;
 pub mod keystore;
 #[cfg(any(
-    feature = "network",
+    feature = "comet-rpc",
     feature = "ordinary-http-only",
     feature = "strict-local-mldsa65"
 ))]

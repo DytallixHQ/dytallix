@@ -22,7 +22,10 @@ required-features = ["network"]
 default = ["compatibility"]
 compatibility = ["dytallix-core/compatibility"]
 strict-local-mldsa65 = ["dep:reqwest", "dep:tokio", "dytallix-core/strict-mldsa65"]
-network = ["compatibility", "dep:reqwest", "dep:tokio", "reqwest/default"]
+# Comet JSON-RPC client for the consensus chain, over HTTP or HTTPS.
+comet-rpc = ["compatibility", "dep:reqwest", "dep:tokio", "reqwest/default"]
+# The legacy testnet REST client and faucet, plus the Comet client.
+network = ["comet-rpc"]
 ordinary-http-only = ["compatibility", "dep:reqwest", "dep:tokio"]
 
 [dependencies]

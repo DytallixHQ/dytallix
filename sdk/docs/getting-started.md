@@ -23,7 +23,7 @@ cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --fe
 Install the CLI:
 
 ```bash
-cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network
 ```
 
 Build from a local clone:
