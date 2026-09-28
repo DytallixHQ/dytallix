@@ -158,6 +158,18 @@ difference is marked.
 - Governance transactions keep no retained receipt. The result is in the
   block record and app hash, and the nonce prevents replay. The complete
   check accepts them like pruned ordinary receipts.
+- Each committed governance transaction is reconciled with its effects
+  before it is kept (E04 gap 12, TXN-004), as v2 receipts and charged
+  recoveries are:
+  - its fee moves from the actor's uDRT to fee custody, and nothing burns;
+  - a successful deposit moves its uDGT from the actor to the header's held
+    total;
+  - the actor's nonce advances by one;
+  - no other loaded account, and no reward, validator, penalty, lifecycle or
+    evidence state, changes.
+
+  A difference is an internal error: ProcessProposal rejects the block,
+  and FinalizeBlock fails closed.
 - Only registered (initialized) accounts can sign a v3 transaction; a
   governance participant has already spent.
 - At genesis `ballot.max_voters` must be at least the staker bound

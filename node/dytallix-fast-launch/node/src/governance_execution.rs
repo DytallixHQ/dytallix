@@ -30,6 +30,7 @@ use dytallix_protocol_types::{
     ordinary_v3::{self as v3, Action, SignedOrdinary},
 };
 use dytallix_runtime_crypto::ordinary_v3::{verify_signed, OrdinaryV3VerificationError};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 type Result<T> = std::result::Result<T, PlanError>;
@@ -357,6 +358,27 @@ fn execute(
         .checked_add(1)
         .ok_or_else(|| internal("Governance nonce exhausted"))?;
     effects.account(&address).map_err(internal)?.nonce = nonce_after;
+    let held = |s: &Settlement| {
+        s.governance
+            .as_ref()
+            .map(|g| g.header().held_udgt)
+            .ok_or_else(|| internal("Governance state is not staged"))
+    };
+    reconcile(
+        settlement,
+        &effects,
+        &Delta {
+            actor: &address,
+            charge,
+            deposit: match (&body.actions[0], failure) {
+                (Action::GovernanceDeposit { amount_udgt, .. }, None) => *amount_udgt,
+                _ => 0,
+            },
+            nonce_before: body.spending_nonce,
+            held_before: held(settlement)?,
+            held_after: held(&effects)?,
+        },
+    )?;
     book.accounts
         .find_mut(&actor_key)
         .map_err(internal)?
@@ -373,6 +395,91 @@ fn execute(
         receipt: None,
         reservation: Some(reservation),
     })
+}
+
+/// What one committed governance transaction may change.
+struct Delta<'a> {
+    actor: &'a str,
+    charge: u128,
+    /// uDGT a successful deposit moved into escrow; zero otherwise.
+    deposit: u128,
+    nonce_before: u64,
+    held_before: u128,
+    held_after: u128,
+}
+
+/// Reconcile one committed governance transaction with its effects (TXN-004,
+/// E04 gap 12), as v2 receipts and charged recoveries are: the fee moves from
+/// the actor's uDRT to fee custody, a successful deposit moves its uDGT from
+/// the actor to the governance held total, and the actor's nonce advances by
+/// one. Nothing else changes: no other loaded account, no burn, and no reward,
+/// validator, penalty, lifecycle or evidence state. The recovery record
+/// changes only its spending nonce, which the caller sets to the same value.
+fn reconcile(before: &Settlement, after: &Settlement, delta: &Delta<'_>) -> Result<()> {
+    if before
+        .ordinary_fee_total()
+        .map_err(internal)?
+        .checked_add(delta.charge)
+        != Some(after.ordinary_fee_total().map_err(internal)?)
+        || before.burned_total().map_err(internal)? != after.burned_total().map_err(internal)?
+    {
+        return Err(internal("Governance fee custody differs from transaction delta"));
+    }
+    if delta.held_before.checked_add(delta.deposit) != Some(delta.held_after) {
+        return Err(internal("Governance held deposits differ from transaction delta"));
+    }
+    if before.rewards != after.rewards
+        || before.reward_timestamp != after.reward_timestamp
+        || before.validators != after.validators
+        || before.penalties != after.penalties
+        || before.lifecycle != after.lifecycle
+        || before.evidence_records != after.evidence_records
+    {
+        return Err(internal(
+            "Governance transaction changed staking or lifecycle state",
+        ));
+    }
+    if !after.accounts.contains_key(delta.actor) {
+        return Err(internal("Governance actor account missing"));
+    }
+    let loaded: BTreeSet<&String> = before.accounts.keys().chain(after.accounts.keys()).collect();
+    for address in loaded {
+        let (Some(initial), Some(final_account)) =
+            (before.accounts.get(address), after.accounts.get(address))
+        else {
+            return Err(internal("Governance transaction loaded an account it cannot change"));
+        };
+        let mut expected = initial.clone();
+        if address == delta.actor {
+            if initial.nonce != delta.nonce_before {
+                return Err(internal("Governance nonce predecessor differs"));
+            }
+            for (denomination, amount) in [("udrt", delta.charge), ("udgt", delta.deposit)] {
+                let balance = initial
+                    .balance_of(denomination)
+                    .checked_sub(amount)
+                    .ok_or_else(|| internal("Governance debit exceeds balance"))?;
+                expected.set_balance(denomination, balance);
+            }
+            expected.nonce = initial
+                .nonce
+                .checked_add(1)
+                .ok_or_else(|| internal("Governance nonce exhausted"))?;
+        }
+        let denominations: BTreeSet<&String> = expected
+            .balances
+            .keys()
+            .chain(final_account.balances.keys())
+            .collect();
+        if final_account.nonce != expected.nonce
+            || denominations
+                .iter()
+                .any(|d| final_account.balance_of(d) != expected.balance_of(d))
+        {
+            return Err(internal("Governance transaction account delta differs"));
+        }
+    }
+    Ok(())
 }
 
 /// Apply the one governance action to `effects`. A rule failure leaves the
@@ -536,4 +643,8 @@ pub(crate) fn open_store(
     GovernanceStore::open(settlement.storage.clone(), candidate.store_rules())
 }
 
-// Tested through the engine in `ordinary_consensus_tests.rs` (module `governance`).
+// Tested through the engine in `ordinary_consensus_tests.rs` (module `governance`);
+// the reconciliation also has unit tests.
+#[cfg(test)]
+#[path = "governance_execution_tests.rs"]
+mod tests;
