@@ -44,7 +44,7 @@ fn commit_next(app: &mut ConsensusApplication, height: u64) {
 
 fn committed_chain(inputs: &Inputs, path: &std::path::Path, height: u64) -> ConsensusApplication {
     let mut app = inputs.initialized(path);
-    app.finalize_block(block(1, vec![signed_wire(inputs.send())]))
+    app.finalize_block(block(1, vec![filler()]))
         .unwrap();
     app.commit().unwrap();
     for h in 2..=height {
@@ -117,7 +117,7 @@ fn committed_operation_runs_no_complete_history_check_after_startup() {
     let dir = tempfile::tempdir().unwrap();
     let mut app = committed_chain(&inputs, &dir.path().join("db"), 1);
     let before = full_passes();
-    let _ = app.check_tx(&signed_wire(inputs.send()));
+    let _ = app.check_tx(&filler());
     for height in 2..=12 {
         commit_next(&mut app, height);
     }
@@ -126,12 +126,12 @@ fn committed_operation_runs_no_complete_history_check_after_startup() {
     assert_eq!(full_passes() - before, 0);
 
     // A write outside commit forces one complete check, which refuses corruption.
-    let saved = app.storage.db.get(record_key(1)).unwrap().unwrap();
-    app.storage.db.put(record_key(1), b"{}").unwrap();
+    let saved = app.storage.db.get(record_key(12)).unwrap().unwrap();
+    app.storage.db.put(record_key(12), b"{}").unwrap();
     let before = full_passes();
     assert!(app.info().is_err());
     assert_eq!(full_passes() - before, 1);
-    app.storage.db.put(record_key(1), saved).unwrap();
+    app.storage.db.put(record_key(12), saved).unwrap();
     app.info().unwrap();
     app.info().unwrap();
     assert_eq!(full_passes() - before, 2);
@@ -258,8 +258,7 @@ fn held(app: &ConsensusApplication) -> Vec<u64> {
 }
 
 /// State sync v1, rule 2: a node keeps the retained window (two epochs of two
-/// blocks here), block 1 because it holds a legacy transaction, and the
-/// parent's and current emission events; it tells the engine the window
+/// blocks here) and the parent's and current emission events; it tells the engine the window
 /// start and restarts from the window.
 #[test]
 fn a_pruned_node_keeps_the_window_and_restarts_from_it() {
@@ -267,7 +266,7 @@ fn a_pruned_node_keeps_the_window_and_restarts_from_it() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("db");
     let app = committed_chain(&inputs, &path, 40);
-    assert_eq!(held(&app), [1, 37, 38, 39, 40]);
+    assert_eq!(held(&app), [37, 38, 39, 40]);
     assert_eq!(retained_from(&app.storage).unwrap(), 37);
     assert_eq!(app.retain_height().unwrap(), 37);
     let events = app
@@ -281,7 +280,7 @@ fn a_pruned_node_keeps_the_window_and_restarts_from_it() {
     let mut app = inputs.open(&path);
     verify_recovery(&app.storage).unwrap();
     commit_next(&mut app, 41);
-    assert_eq!(held(&app), [1, 38, 39, 40, 41]);
+    assert_eq!(held(&app), [38, 39, 40, 41]);
 }
 
 /// Rule 1: the startup check decodes the same block records at any height:
@@ -311,7 +310,7 @@ fn an_archive_node_keeps_every_record_with_the_same_state() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("archive");
     // ML-DSA signatures are randomized: both chains carry the same bytes.
-    let send = signed_wire(inputs.send());
+    let send = filler();
     let chain = |path: &std::path::Path, history| {
         let mut app = inputs.initialized(path).with_block_history(history);
         app.finalize_block(block(1, vec![send.clone()])).unwrap();
@@ -325,7 +324,7 @@ fn an_archive_node_keeps_every_record_with_the_same_state() {
     assert_eq!(held(&app), (1..=12).collect::<Vec<_>>());
     assert_eq!(app.retain_height().unwrap(), 0);
     let pruned = chain(&dir.path().join("pruned"), BlockHistory::Window);
-    assert_eq!(held(&pruned), [1, 9, 10, 11, 12]);
+    assert_eq!(held(&pruned), [9, 10, 11, 12]);
     assert_eq!(app.info().unwrap(), pruned.info().unwrap());
     drop(app);
     verify_recovery(&inputs.open(&path).storage).unwrap();
@@ -338,7 +337,7 @@ fn startup_check_refuses_a_gap_or_a_moved_window_start() {
     let inputs = Inputs::new();
     let dir = tempfile::tempdir().unwrap();
     let app = committed_chain(&inputs, &dir.path().join("db"), 20);
-    assert_eq!(held(&app), [1, 17, 18, 19, 20]);
+    assert_eq!(held(&app), [17, 18, 19, 20]);
     let check = || verify_recovery_with(&HistoryRead::new(&app.storage)).map(|_| ());
     check().unwrap();
     let db = &app.storage.db;
@@ -356,8 +355,8 @@ fn startup_check_refuses_a_gap_or_a_moved_window_start() {
 }
 
 /// Rule 2: a record a replay reads outlives the window: one with a recorded
-/// control or accepted legacy transactions, or a named emergency anchor. A
-/// control that a freeze refused does not pin its block.
+/// control, or a named emergency anchor. A control that a freeze refused does
+/// not pin its block.
 #[test]
 fn records_that_replays_read_are_pinned() {
     let inputs = Inputs::new();
@@ -367,7 +366,7 @@ fn records_that_replays_read_are_pinned() {
         decode(&app.storage.db.get(record_key(height)).unwrap().unwrap()).unwrap()
     };
     let none = BTreeSet::new();
-    assert!(pinned(1, &record_at(1), &none));
+    assert!(!pinned(1, &record_at(1), &none));
     let mut record = record_at(3);
     assert!(!pinned(3, &record, &none));
     assert!(pinned(3, &record, &BTreeSet::from([3])));
@@ -395,7 +394,7 @@ fn snapshot_app(
             keep: 2,
         })
         .unwrap();
-    app.finalize_block(block(1, vec![signed_wire(inputs.send())]))
+    app.finalize_block(block(1, vec![filler()]))
         .unwrap();
     app.commit().unwrap();
     app
@@ -666,14 +665,14 @@ fn committed_blocks_read_no_account_records_for_supply() {
     assert_eq!(account_scans() - before, 1);
 }
 
-/// The running totals follow a transfer that creates a record, and both the
-/// complete check and a block's check refuse totals that do not match.
+/// The running totals match the balances, and both the complete check and a
+/// block's check refuse totals that do not match. (Totals after an ordinary
+/// transfer that creates an account: the ordinary consensus tests.)
 #[test]
 fn account_totals_follow_balances_and_are_audited() {
     let inputs = Inputs::new();
     let dir = tempfile::tempdir().unwrap();
     let app = committed_chain(&inputs, &dir.path().join("db"), 4);
-    assert!(app.storage.db.get(b"acct:balances:recipient").unwrap().is_some());
     assert_eq!(stored_totals(&app), scanned_totals(&app));
     let check = || verify_recovery_with(&HistoryRead::new(&app.storage)).map(|_| ());
     check().unwrap();
@@ -706,7 +705,7 @@ fn committed_chain_records_the_core_application_metrics() {
     let mut app = inputs
         .initialized(&dir.path().join("db"))
         .with_metrics(metrics.clone());
-    app.finalize_block(block(1, vec![signed_wire(inputs.send())]))
+    app.finalize_block(block(1, vec![filler()]))
         .unwrap();
     app.commit().unwrap();
     for height in 2..=10 {
@@ -726,8 +725,8 @@ fn committed_chain_records_the_core_application_metrics() {
         value("dytallix_app_retained_from_height"),
         retained_from(&app.storage).unwrap().to_string()
     );
-    // Window of four after block 10: blocks 2 to 6 left, block 1 is pinned.
-    assert_eq!(value("dytallix_app_block_records_pruned_total"), "5");
+    // Window of four after block 10: blocks 1 to 6 left.
+    assert_eq!(value("dytallix_app_block_records_pruned_total"), "6");
     let supply = crate::supply::inspect_native(&app.storage).unwrap();
     assert_eq!(
         value("dytallix_app_supply_udrt{bucket=\"total\"}"),

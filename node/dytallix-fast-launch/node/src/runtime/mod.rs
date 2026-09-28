@@ -1,5 +1,4 @@
 pub mod dead_man_switch;
-pub mod fee_burn;
 pub mod governance_candidate;
 pub mod governance_store;
 pub mod issuance_timing;

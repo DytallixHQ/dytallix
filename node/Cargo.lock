@@ -351,7 +351,6 @@ dependencies = [
  "borsh",
  "bytes",
  "dytallix-adaptive-emission",
- "dytallix-gas",
  "dytallix-protocol-types",
  "dytallix-release-runtime",
  "dytallix-runtime-crypto",
@@ -374,17 +373,6 @@ dependencies = [
  "tracing",
  "uuid",
  "zeroize",
-]
-
-[[package]]
-name = "dytallix-gas"
-version = "0.1.0"
-dependencies = [
- "dytallix-protocol-types",
- "dytallix-storage",
- "serde",
- "serde_json",
- "thiserror",
 ]
 
 [[package]]

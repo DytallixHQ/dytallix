@@ -3,8 +3,6 @@
 
 pub mod addr; // address derivation
 pub mod crypto; // new crypto module
-pub mod execution; // deterministic execution engine
-pub mod gas; // gas accounting system
 pub mod genesis;
 pub mod emergency_freeze;
 pub mod emergency_verifier;
@@ -12,16 +10,13 @@ pub mod upgrade;
 pub mod runtime;
 pub mod state;
 pub mod storage;
-pub mod types; // canonical transaction types
 pub mod util;
 
 mod settlement;
 
 mod block_lifecycle;
 
-mod signed_transaction;
 pub mod supply;
-pub mod transaction_cost;
 
 pub mod consensus_settlement;
 
