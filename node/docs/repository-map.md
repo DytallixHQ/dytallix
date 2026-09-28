@@ -31,7 +31,9 @@ Cargo workspace.
 
 In [`dytallix-fast-launch/node/src/bin`](../dytallix-fast-launch/node/src/bin):
 
-- `consensus_stdio`: pipe protocol driven by the CometBFT bridge
+- `consensus_stdio`: pipe protocol driven by the CometBFT bridge; feature
+  `test-snapshot-verifier` builds the test application for the signed
+  process tests, which the bridge refuses
 - `lifecycle_fixture`: validator lifecycle fixture
 - `pqc_signer`, `txhash`: signing and hashing utilities
 - `helper-execution-qualification`: requires feature `helper-qualification`

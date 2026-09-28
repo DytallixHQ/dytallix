@@ -31,8 +31,13 @@ impl PipeApp {
     ) -> Self {
         let dir = root._directory.path();
         let stderr = dir.join(format!("process-{label}.stderr"));
-        let mut command = Command::new(binary);
+        // The application admits only an owned launch bound to its release
+        // (E04 gap 11, M-b); the launcher is the owner parent.
+        let release = &root.root.release_manifest_sha512;
+        let mut command = Command::new(std::env::var("DYT_OWNER_LAUNCHER").expect("Explicit owner launcher"));
         command
+            .arg("--context-sha512").arg(release).arg("--").arg(binary)
+            .arg("--release-manifest-sha512").arg(release)
             .arg("--config").arg(dir.join("consensus.json"))
             .arg("--genesis").arg(dir.join("genesis.json"))
             .arg("--db").arg(database)
@@ -78,6 +83,8 @@ impl PipeApp {
                 std::fs::read_to_string(&self.stderr).unwrap_or_default()),
         };
         assert_eq!(response["ok"], true, "{method}: {response}");
+        // Only a test build answers here; the production bridge refuses it.
+        assert_eq!(response["test_build"], "test-snapshot-verifier", "{method}: {response}");
         response["result"].clone()
     }
     fn query(&mut self, path: &str) -> Value {
@@ -171,7 +178,7 @@ fn last_emergency(model: &ConsensusApplication) -> String {
 }
 
 #[test]
-#[ignore = "Requires distinct pinned baseline/candidate apps, real SLH helper and disposable fixture signers"]
+#[ignore = "Requires an owner launcher, distinct test-build baseline/candidate apps, real SLH helper and disposable fixture signers"]
 fn actual_distinct_processes_preserve_v1_history_and_index_across_replacement() {
     let baseline = PathBuf::from(std::env::var("DYT_BASELINE_APP").expect("Explicit baseline app"));
     let candidate = PathBuf::from(std::env::var("DYT_CANDIDATE_APP").expect("Explicit candidate app"));
@@ -300,7 +307,7 @@ fn write_candidate_settings(root: &RootFixture, executable: &Path) -> PathBuf {
 }
 
 #[test]
-#[ignore = "Requires pinned candidate and baseline apps plus real SLH root helper and disposable fixture signers"]
+#[ignore = "Requires an owner launcher, distinct test-build candidate and baseline apps, real SLH root helper and disposable fixture signers"]
 fn actual_candidate_startup_binds_signed_manifest_to_running_executable() {
     let candidate = std::fs::canonicalize(std::env::var("DYT_CANDIDATE_APP").expect("Explicit candidate app")).unwrap();
     let baseline = std::fs::canonicalize(std::env::var("DYT_BASELINE_APP").expect("Explicit baseline app")).unwrap();
@@ -359,13 +366,15 @@ fn actual_candidate_startup_binds_signed_manifest_to_running_executable() {
     for (path, bytes) in mismatch_inputs { assert_eq!(std::fs::read(path).unwrap(), bytes); }
 
     // Alter canonical manifest bytes without changing the root-signed request.
+    // The root consumer hashes the manifest before the candidate is prepared,
+    // so the root-signed digest refuses it first.
     let mut altered: crate::runtime_candidate::ManifestV1 = serde_json::from_slice(&manifest).unwrap();
     altered.chain_id = "different-disposable-chain".into();
     std::fs::write(&root.root.release_manifest_path, serde_json::to_vec(&altered).unwrap()).unwrap();
     let changed_db = database.path().join("changed-manifest-db");
     PipeApp::open_with_candidate(&candidate, &root, &changed_db,
         "candidate-changed-manifest", Some(&settings))
-        .assert_startup_rejected(&changed_db, "Candidate manifest digest mismatch");
+        .assert_startup_rejected(&changed_db, "Release manifest artifact verification failed");
     assert_eq!(hex::encode(Sha256::digest(std::fs::read(&candidate).unwrap())), candidate_hash);
     assert_eq!(hex::encode(Sha256::digest(std::fs::read(&baseline).unwrap())), baseline_hash);
     println!("PASS: actual candidate root-bound startup and restart; wrong executable and changed manifest rejected before database creation; no release handover or production acceptance claim");

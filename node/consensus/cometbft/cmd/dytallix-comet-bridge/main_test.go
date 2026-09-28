@@ -30,6 +30,9 @@ func TestBridgeChildHelper(t *testing.T) {
 		switch mode {
 		case "trailing":
 			fmt.Println(`{"ok":true,"result":{}} {}`)
+		case "test-build":
+			// consensus_stdio built with the test-snapshot-verifier feature.
+			fmt.Println(`{"ok":true,"result":{},"test_build":"test-snapshot-verifier"}`)
 		case "negative":
 			fmt.Println(`{"ok":false,"error":"fixture rejection"}`)
 		case "evidence":
@@ -111,6 +114,19 @@ func TestChildRejectsTrailingJSONAndPoisonsStream(t *testing.T) {
 	}
 	if err := c.call(context.Background(), "fixture", struct{}{}, &result); err == nil {
 		t.Fatal("reused invalid stream")
+	}
+}
+
+// A test build of the application marks every response; the bridge refuses
+// it, so such a build cannot serve a real engine (E04 gap 11, M-b).
+func TestChildRejectsTestBuildResponses(t *testing.T) {
+	c := testChild(t, "test-build")
+	var result struct{}
+	if err := c.call(context.Background(), "info", struct{}{}, &result); err == nil {
+		t.Fatal("accepted a test build response")
+	}
+	if c.broken == nil {
+		t.Fatal("test build stream remained usable")
 	}
 }
 

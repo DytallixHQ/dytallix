@@ -212,9 +212,11 @@ pub(crate) fn validate_helper_execution(
     if let Some(policy) = policy {
         return policy.validate(max_helper_bytes, timeout_ms);
     }
-    #[cfg(test)]
+    // The test-snapshot-verifier feature builds a test application for the
+    // process tests (E04 gap 11, M-b); the production bridge refuses it.
+    #[cfg(any(test, feature = "test-snapshot-verifier"))]
     return Ok(());
-    #[cfg(not(test))]
+    #[cfg(not(any(test, feature = "test-snapshot-verifier")))]
     bail!("Explicit immutable observed helper execution policy is required; historical snapshot launch is test-only")
 }
 
@@ -706,12 +708,12 @@ pub(crate) fn run_verified_helper(config: &VerifiedHelperConfig<'_>) -> Result<H
             bail!("Immutable observed helper execution requires Linux");
         }
     }
-    #[cfg(all(test, unix))]
+    #[cfg(all(any(test, feature = "test-snapshot-verifier"), unix))]
     return run_historical_test_helper(config).map(|outcome| HelperExecution {
         outcome,
         evidence: None,
     });
-    #[cfg(not(all(test, unix)))]
+    #[cfg(not(all(any(test, feature = "test-snapshot-verifier"), unix)))]
     bail!("Historical helper snapshot launcher is not present in this build")
 }
 
@@ -1258,7 +1260,7 @@ mod observed_execution {
     mod tests;
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(any(test, feature = "test-snapshot-verifier"), unix))]
 fn run_historical_test_helper(config: &VerifiedHelperConfig<'_>) -> Result<HelperOutcome> {
     ensure!(
         config.profile == PROFILE
@@ -1448,17 +1450,17 @@ fn run_historical_test_helper(config: &VerifiedHelperConfig<'_>) -> Result<Helpe
     Ok(HelperOutcome::Verified(response))
 }
 
-#[cfg(all(test, unix))]
+#[cfg(all(any(test, feature = "test-snapshot-verifier"), unix))]
 struct PrivateHelperDirectory(PathBuf);
-#[cfg(all(test, unix))]
+#[cfg(all(any(test, feature = "test-snapshot-verifier"), unix))]
 impl Drop for PrivateHelperDirectory {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
     }
 }
-#[cfg(all(test, unix))]
+#[cfg(all(any(test, feature = "test-snapshot-verifier"), unix))]
 struct ChildGuard(Child);
-#[cfg(all(test, unix))]
+#[cfg(all(any(test, feature = "test-snapshot-verifier"), unix))]
 impl Drop for ChildGuard {
     fn drop(&mut self) {
         if self.0.try_wait().ok().flatten().is_none() {

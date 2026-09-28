@@ -31,8 +31,13 @@ impl HandoverProcess {
     ) -> Self {
         let dir = root._directory.path();
         let stderr = dir.join(format!("process-{label}.stderr"));
-        let mut command = Command::new(binary);
+        // The application admits only an owned launch bound to its release
+        // (E04 gap 11, M-b); the launcher is the owner parent.
+        let release = &root.root.release_manifest_sha512;
+        let mut command = Command::new(std::env::var("DYT_OWNER_LAUNCHER").expect("Explicit owner launcher"));
         command
+            .arg("--context-sha512").arg(release).arg("--").arg(binary)
+            .arg("--release-manifest-sha512").arg(release)
             .arg("--config").arg(dir.join("consensus.json"))
             .arg("--genesis").arg(dir.join("genesis.json"))
             .arg("--db").arg(database)
@@ -73,7 +78,8 @@ impl HandoverProcess {
     fn raw(&mut self, method: &str, payload: Value) -> Value {
         self.requests.as_ref().unwrap().send(json!({"method":method,"payload":payload})).unwrap();
         match self.responses.recv_timeout(FRAME_TIMEOUT) {
-            Ok(Ok(value)) => value,
+            // Only a test build answers here; the production bridge refuses it.
+            Ok(Ok(value)) if value["test_build"] == "test-snapshot-verifier" => value,
             error => panic!("Process request {method} failed: {error:?}; stderr: {}",
                 std::fs::read_to_string(&self.stderr).unwrap_or_default()),
         }
@@ -308,7 +314,7 @@ fn check_receipt(app:&mut HandoverProcess,digest:&str,sequence:u64,control:&[u8]
 }
 
 #[test]
-#[ignore="Requires two pinned handover executables, real SLH helper and disposable root/control signers"]
+#[ignore="Requires an owner launcher, two test-build handover executables, real SLH helper and disposable root/control signers"]
 fn actual_signed_handover_pairs_migration_and_changes_executing_candidate() {
     let source=std::fs::canonicalize(std::env::var("DYT_HANDOVER_SOURCE_APP").expect("Explicit source app")).unwrap();
     let target=std::fs::canonicalize(std::env::var("DYT_HANDOVER_TARGET_APP").expect("Explicit target app")).unwrap();
