@@ -39,7 +39,8 @@ docker run --rm -v "$node:/src:ro" -v dyt-state-sync-join-cargo:/usr/local/cargo
 # file system. It is copied out afterwards, pass or fail.
 name="dyt-state-sync-join-$$"
 status=0
-docker run --name "$name" --security-opt "seccomp=$out/seccomp.json" \
+# --init: the harness owns its children and refuses to run as PID 1.
+docker run --init --name "$name" --security-opt "seccomp=$out/seccomp.json" \
   --security-opt no-new-privileges -v "$out/bin:/c5/bin:ro" dyt-state-sync-join-build \
   /c5/bin/state-sync-join --bin /c5/bin --work /tmp/c5 || status=$?
 docker cp "$name:/tmp/c5" "$out/work" >/dev/null 2>&1 || true

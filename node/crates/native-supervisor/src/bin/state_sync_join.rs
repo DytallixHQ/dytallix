@@ -377,7 +377,11 @@ mod linux {
         node.children.clear();
         // A later start refuses existing endpoints.
         let home = paths.home(node.index);
-        for socket in [home.join("abci").join("app.sock"), home.join("data").join("rpc.sock")] {
+        for socket in [
+            home.join("abci").join("app.sock"),
+            home.join("data").join("rpc.sock"),
+            home.join("data").join("rpc-operator.sock"),
+        ] {
             if socket.exists() {
                 fs::remove_file(&socket)?;
             }

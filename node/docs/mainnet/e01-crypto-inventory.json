@@ -326,11 +326,11 @@
       "files": [
         {
           "path": "crates/native-supervisor/src/processes.rs",
-          "sha256": "64893c78d591ef9d5b0566f1a632ab37d3c1c0f08c02b591b8c203b65955d954"
+          "sha256": "ba82ffed717347cc04cc83f67a01ea7355733ce38472bcb91951d397f60d9cd7"
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "40dd35ab6e6405ead6eb2f237c5aff2c4e48d880828faba3d3f82fc5993f5491"
+          "sha256": "bcb3771fde4c4eb9fada4e8d423b19205e7dd84db0e11704feaecbffa9a3c553"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

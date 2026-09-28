@@ -21,8 +21,9 @@ type Server struct {
 
 // Listen binds one private Unix socket. It never removes an existing path.
 func Listen(path string, handler Handler) (*Server, error) {
-	if handler == nil || !filepath.IsAbs(path) || filepath.Clean(path) != path || filepath.Base(path) != "rpc.sock" {
-		return nil, errors.New("clean absolute rpc.sock path and handler required")
+	base := filepath.Base(path)
+	if handler == nil || !filepath.IsAbs(path) || filepath.Clean(path) != path || (base != ClientSocket && base != OperatorSocket) {
+		return nil, errors.New("clean absolute rpc.sock or rpc-operator.sock path and handler required")
 	}
 	parent, err := os.Lstat(filepath.Dir(path))
 	if err != nil {

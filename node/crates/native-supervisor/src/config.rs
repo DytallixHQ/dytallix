@@ -400,6 +400,11 @@ impl NativeServiceConfig {
     pub fn rpc_socket(&self) -> PathBuf {
         self.home.join("data/rpc.sock")
     }
+    /// The engine's operator RPC socket (RPC controls v1): diagnostics for
+    /// the node's owner only.
+    pub fn operator_rpc_socket(&self) -> PathBuf {
+        self.home.join("data/rpc-operator.sock")
+    }
     pub fn lock_paths(&self) -> (PathBuf, PathBuf) {
         // Match the existing supervisor's home and signing-identity leases.
         let home_digest = hex::encode(Sha256::digest(self.home.as_os_str().as_encoded_bytes()));
