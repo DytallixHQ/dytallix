@@ -12,7 +12,7 @@ documentation.workspace = true
 [[bin]]
 name = "dytallix"
 path = "src/main.rs"
-required-features = ["legacy-network"]
+required-features = ["comet-rpc"]
 
 [[bin]]
 name = "dytallix-ordinary-local"
@@ -25,8 +25,12 @@ path = "../../examples/deploy-contract.rs"
 required-features = ["legacy-network"]
 
 [features]
-default = ["legacy-network"]
-legacy-network = ["dytallix-sdk/network", "reqwest/default"]
+default = ["comet-rpc"]
+# The consensus-chain CLI: Comet JSON-RPC over HTTP or HTTPS.
+comet-rpc = ["dytallix-sdk/comet-rpc"]
+# The legacy testnet REST commands, until that testnet retires (clients v1,
+# decision 1).
+legacy-network = ["comet-rpc", "dytallix-sdk/network", "dep:reqwest", "reqwest/default"]
 local-cli = []
 strict-local-mldsa65 = ["local-cli", "dytallix-sdk/strict-local-mldsa65", "dytallix-core/strict-mldsa65"]
 ordinary-http-only = ["local-cli", "dytallix-sdk/ordinary-http-only"]
@@ -41,7 +45,7 @@ colored = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, optional = true }
 sha2 = "0.10"
 
 [dev-dependencies]

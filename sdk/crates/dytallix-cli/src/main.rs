@@ -5,27 +5,25 @@ mod output;
 use clap::{Parser, Subcommand};
 
 use commands::balance::BalanceArgs;
-use commands::chain::ChainArgs;
 use commands::config::ConfigArgs;
-use commands::contract::ContractArgs;
 use commands::crypto::CryptoArgs;
-use commands::dev::DevArgs;
-use commands::faucet::FaucetArgs;
 use commands::governance::GovernanceArgs;
-#[cfg(feature = "legacy-network")]
-use commands::legacy::LegacyArgs;
-use commands::node::NodeArgs;
 use commands::ordinary::OrdinaryArgs;
 use commands::send::SendArgs;
 use commands::stake::StakeArgs;
 use commands::wallet::WalletArgs;
+#[cfg(feature = "legacy-network")]
+use commands::{
+    chain::ChainArgs, contract::ContractArgs, dev::DevArgs, faucet::FaucetArgs, legacy::LegacyArgs,
+    node::NodeArgs,
+};
 
 #[derive(Parser)]
 #[command(
     name = "dytallix",
-    about = "Dytallix public testnet CLI — early alpha",
+    about = "Dytallix CLI — early alpha",
     version,
-    long_about = "Official CLI for the Dytallix public testnet.\n\nKeypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.\n\nDocumentation: https://dytallix.com/docs\nDiscord: https://discord.gg/eyVvu5kmPG\nExplorer: https://dytallix.com/build/blockchain\nGitHub: https://github.com/DytallixHQ"
+    long_about = "Official CLI for Dytallix.\n\nsend, stake, balance and governance use the consensus chain pinned with `dytallix config pin-chain`. Builds with the legacy-network feature add the public testnet commands: init, faucet, contract, chain, node, dev and legacy.\n\nDocumentation: https://dytallix.com/docs\nDiscord: https://discord.gg/eyVvu5kmPG\nExplorer: https://dytallix.com/build/blockchain\nGitHub: https://github.com/DytallixHQ"
 )]
 struct Cli {
     #[command(subcommand)]
@@ -34,7 +32,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Initialize a funded wallet and hit the three developer milestones.
+    /// Initialize a funded testnet wallet and hit the three developer milestones.
+    #[cfg(feature = "legacy-network")]
     Init,
     /// Manage wallets and keypairs.
     Wallet(WalletArgs),
@@ -45,20 +44,25 @@ enum Commands {
     /// Prepare, sign, and submit ordinary-v2 transactions with explicit context.
     Ordinary(OrdinaryArgs),
     /// Request testnet tokens from the faucet.
+    #[cfg(feature = "legacy-network")]
     Faucet(FaucetArgs),
     /// Bond, unbond and claim rewards on the pinned chain in one step.
     Stake(StakeArgs),
     /// Prepare, sign, and submit ordinary-v3 governance transactions.
     Governance(GovernanceArgs),
-    /// Deploy and interact with smart contracts.
+    /// Deploy and interact with smart contracts on the testnet.
+    #[cfg(feature = "legacy-network")]
     Contract(ContractArgs),
-    /// Local node operations.
+    /// Local testnet node operations.
+    #[cfg(feature = "legacy-network")]
     Node(NodeArgs),
-    /// Query chain state.
+    /// Query testnet chain state.
+    #[cfg(feature = "legacy-network")]
     Chain(ChainArgs),
     /// Cryptographic utilities.
     Crypto(CryptoArgs),
-    /// Developer tools and utilities.
+    /// Testnet developer tools and utilities.
+    #[cfg(feature = "legacy-network")]
     Dev(DevArgs),
     /// Configuration management.
     Config(ConfigArgs),
@@ -80,18 +84,24 @@ async fn main() -> anyhow::Result<()> {
             | Commands::Balance(_)
     );
     let result = match cli.command {
+        #[cfg(feature = "legacy-network")]
         Commands::Init => commands::init::run().await,
         Commands::Wallet(args) => commands::wallet::run(args).await,
         Commands::Balance(args) => commands::balance::run(args).await,
         Commands::Send(args) => commands::send::run(args).await,
         Commands::Ordinary(args) => commands::ordinary::run(args).await,
+        #[cfg(feature = "legacy-network")]
         Commands::Faucet(args) => commands::faucet::run(args).await,
         Commands::Stake(args) => commands::stake::run(args).await,
         Commands::Governance(args) => commands::governance::run(args).await,
+        #[cfg(feature = "legacy-network")]
         Commands::Contract(args) => commands::contract::run(args).await,
+        #[cfg(feature = "legacy-network")]
         Commands::Node(args) => commands::node::run(args).await,
+        #[cfg(feature = "legacy-network")]
         Commands::Chain(args) => commands::chain::run(args).await,
         Commands::Crypto(args) => commands::crypto::run(args).await,
+        #[cfg(feature = "legacy-network")]
         Commands::Dev(args) => commands::dev::run(args).await,
         Commands::Config(args) => commands::config::run(args).await,
         #[cfg(feature = "legacy-network")]
@@ -125,11 +135,23 @@ mod tests {
         command.write_long_help(&mut buffer).unwrap();
         let help = String::from_utf8(buffer).unwrap();
 
-        assert!(help.contains("init"));
-        assert!(help.contains("wallet"));
-        assert!(help.contains("send"));
-        assert!(help.contains("contract"));
+        for command in [
+            "wallet",
+            "send",
+            "stake",
+            "balance",
+            "governance",
+            "ordinary",
+            "config",
+        ] {
+            assert!(help.contains(command), "{command}");
+        }
         assert!(help.contains("discord.gg/eyVvu5kmPG"));
         assert!(help.contains("github.com/DytallixHQ"));
+        // Testnet REST commands exist only in legacy-network builds.
+        let testnet = Cli::command()
+            .get_subcommands()
+            .any(|c| ["init", "faucet", "contract", "legacy"].contains(&c.get_name()));
+        assert_eq!(testnet, cfg!(feature = "legacy-network"));
     }
 }

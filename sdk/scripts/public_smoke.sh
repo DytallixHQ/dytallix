@@ -30,7 +30,7 @@ PY
     ;;
   capabilities-require-live)
     node_endpoint="${DYTALLIX_ENDPOINT:-http://localhost:3030}"
-    output="$(DYTALLIX_ENDPOINT="$node_endpoint" CARGO_INCREMENTAL=0 cargo run --locked -p dytallix-cli -- chain capabilities --require-live)"
+    output="$(DYTALLIX_ENDPOINT="$node_endpoint" CARGO_INCREMENTAL=0 cargo run --locked -p dytallix-cli --features legacy-network -- chain capabilities --require-live)"
     printf '%s\n' "$output"
     printf '%s' "$output" | grep -q 'Source: live-node'
     ;;

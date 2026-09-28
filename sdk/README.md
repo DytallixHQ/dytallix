@@ -69,13 +69,18 @@ The SDK is not currently published on crates.io. Use the Git repository:
 ```bash
 cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
 cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network
-cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network
 ```
+
+The `legacy-network` feature adds the public testnet commands used below
+(`init`, `faucet`, `contract`, `chain`, `node`, `dev` and `legacy`). Without it
+the CLI has only the consensus-chain commands (`send`, `stake`, `balance`,
+`governance`, `ordinary`, `wallet`, `crypto` and `config`).
 
 Build from source:
 
 ```bash
-cargo build --release --bin dytallix
+cargo build --release --bin dytallix --features legacy-network
 ```
 
 Release tags matching `v*` build downloadable CLI archives for Linux, macOS,
@@ -103,7 +108,7 @@ These are the three developer milestones this repository is optimized for:
     submit and verify a real transaction:
 
     ```bash
-    cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+    cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network
     dytallix init
     dytallix wallet create --name recipient
     dytallix wallet list

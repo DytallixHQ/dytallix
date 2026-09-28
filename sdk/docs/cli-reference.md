@@ -7,6 +7,15 @@ Keypair, faucet, transfer, and basic contract lifecycle are available for experi
 ## Install
 
 ```bash
+cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network
+```
+
+`legacy-network` adds the public testnet commands: `init`, `faucet`,
+`contract`, `chain`, `node`, `dev` and `legacy`. The default build has only
+the consensus-chain commands (`send`, `stake`, `balance`, `governance`,
+`ordinary`, `wallet`, `crypto` and `config`):
+
+```bash
 cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
 ```
 
