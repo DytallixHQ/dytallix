@@ -7,10 +7,11 @@ Run from the node repository:
 ```text
 python3 -B tools/mainnet-preparation/check_bindings.py \
   --bindings BINDINGS.json --records PRODUCTION_INPUTS.json \
-  --native NATIVE_GENESIS.json --application APPLICATION_CONFIG.json
+  --native NATIVE_GENESIS.json --application APPLICATION_CONFIG.json \
+  --service SERVICE_CONFIG.json
 ```
 
-The native and application files are optional. Without them, the result lists the missing runtime bytes. Exit code 1 means the review remains BLOCKED. Exit code 2 means a supplied field or source binding failed validation. No exit code grants acceptance.
+The native, application and service files are optional. Without them, the result lists the missing runtime bytes. Exit code 1 means the review remains BLOCKED. Exit code 2 means a supplied field or source binding failed validation. No exit code grants acceptance.
 
 The records argument uses the existing `PRODUCTION_INPUTS` record IDs and row arrays. Run the separate intake checker to validate the complete record schema and acceptance state. This tool checks only the records used by its supported bindings. A record reference does not establish approval.
 
@@ -22,6 +23,7 @@ The records argument uses the existing `PRODUCTION_INPUTS` record IDs and row ar
 | Native amounts | Require decimal strings, u128 bounds, the existing DGT cap, unique accounts, explicit vesting, and checked stake funding. Match funded delegations to reward positions. |
 | Native reward and issuance inputs | Check the current development versions, activation height, decimals, resource limits, validator population, controller bounds, and epoch budget. |
 | Application configuration | Check the fixed-validator local profile, chain ID, gas and byte limits, canonical ML-DSA-65 public key encoding, unique identities, positive bounded power, and reward-validator agreement. Report `recovery_and_ordinary_profiles` as missing unless both profiles are present: they are the only user-transaction paths (E04 gap 14). |
+| Service configuration | Report `service_configuration` as missing unless supplied, and `metrics_output` unless it sets `metrics` (an absolute `directory` and `interval_seconds` from 1 to 3600): the incident runbooks read the metrics files (E04 gap 15). No other service field is reviewed. |
 | Chain identity | Resolve the D13-Q02 identity policy reference to a typed public document. Match its chain ID to both runtime files. |
 | Beneficiary bindings | Resolve D08-Q01 account references. Match amounts, explicit vesting documents, staking permission, and operator-specific funded delegations. Require every native account and supplied allocation row to map exactly once. |
 | DRT bootstrap | Match each D08-Q03 row to its recipient account and policy reference. Reconcile all rows and the policy total with native DRT balances. |

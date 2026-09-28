@@ -18,6 +18,14 @@ Child descriptors 5 and 6 retain the lifecycle locks. The bridge inherits descri
 
 Run the binary with `--development-service-config` and one absolute configuration path. `config::NativeServiceConfig` defines the strict input schema. All hash pins, paths, resource limits and listener ports are required inputs. This package contains no production configuration defaults.
 
+The configuration also sets the node's outputs (E04 gap 15):
+
+- `metrics` (required): `directory` and `interval_seconds` (1 to 3600). The engine writes `dytallix-engine.prom` and the application `dytallix-app.prom` there (metrics v1). The directory is owned by the service user, not group or other writable, and outside `config`, `data`, `abci` and `appdb`, so an operator agent can read it.
+- `snapshots` (optional): `directory`, `interval_blocks` and `keep`. The application writes state sync snapshots there and the bridge serves them. The directory is mode 0700 and outside the same protected paths.
+- `block_history` (required): `window` keeps the retained window of block records; `archive` keeps every record.
+
+Each directory must lie inside one of the unit's writable roots. The values are E05 inputs; nothing has a default.
+
 The configuration pins the application configuration, application genesis, root configuration, root request and policy, emergency verifier configuration, V2 candidate configuration and five engine inputs. The V2 catalog separately binds executable and library bytes. An input pin proves byte identity; it does not approve a release.
 
 ## Qualification limits

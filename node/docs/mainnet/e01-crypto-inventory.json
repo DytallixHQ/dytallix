@@ -59,6 +59,11 @@
       "path": "/etc/dytallix-pqc/<instance>.json",
       "production_value_status": "UNSET",
       "required": "Service manifest with pinned executable and configuration hashes"
+    },
+    {
+      "path": "native service configuration (dytallix-native-supervisor)",
+      "production_value_status": "UNSET",
+      "required": "Metrics directory and interval for the engine and application files (E04 gap 15); block history mode; snapshots optional"
     }
   ],
   "routes": [
@@ -307,11 +312,11 @@
       "files": [
         {
           "path": "crates/native-supervisor/src/processes.rs",
-          "sha256": "ba82ffed717347cc04cc83f67a01ea7355733ce38472bcb91951d397f60d9cd7"
+          "sha256": "6fccce2815c84412a032a591a241d0a0bad2ec819d2f7838f45ec78545a87795"
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "13182f687c3ea41bc179c150839f0c43fda16a6217c39350759fa49d7fd09804"
+          "sha256": "c42b8d7f2cdea8fc1dd54512136f776437fece0cb4631b9dc1e2aa9a56da73af"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

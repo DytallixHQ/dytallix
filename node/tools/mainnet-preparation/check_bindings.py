@@ -206,7 +206,18 @@ def transport_binding(value,docs,chain):
     return len(seen)
 
 
-def validate(bindings,records,records_raw,native_raw=None,config_raw=None):
+def service(raw,result):
+    # E04 gap 15 (P01, 28 September 2026): the service configuration writes
+    # the metrics files the incident runbooks read.
+    config=decode(raw);n.require(type(config) is dict,'service_configuration_must_be_object')
+    metrics=config.get('metrics')
+    if metrics is None:result['missing'].append('metrics_output');return
+    n.exact(metrics,'directory interval_seconds')
+    n.require(type(metrics['directory']) is str and metrics['directory'].startswith('/'),'metrics_directory_must_be_absolute')
+    n.require(type(metrics['interval_seconds']) is int and 1<=metrics['interval_seconds']<=3600,'metrics_interval_bound')
+
+
+def validate(bindings,records,records_raw,native_raw=None,config_raw=None,service_raw=None):
     result={'status':'BLOCKED','production_accepted':False,'runtime_complete':False,'genesis_emitted':False,'activation_enabled':False,'checks':[],'errors':[],'missing':[],'unsupported':[]}
     def check(label,fn):
         try:value=fn();result['checks'].append(label);return value
@@ -224,6 +235,8 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None):
         if name not in SUPPORTED:result['unsupported'].append({'field':name,'supplied':runtime[name] is not None,'reason':'No implemented typed consumer adapter'})
     result['unsupported'] += [{'field':x,'reason':'Not established by public structural review'} for x in ['production_activation','custody_and_approval_authenticity','validator_admission_and_power_policy','engine_toml_isolation_and_private_key_binding']]
     docs=check('public_document_hashes_and_types',lambda:documents(bindings['public_documents']))
+    if service_raw is None:result['missing'].append('service_configuration')
+    else:check('service_metrics_output',lambda:service(service_raw,result))
     if native_raw is None or config_raw is None:
         result['missing'].append('native_genesis_or_application_bytes');return result
     try:
@@ -257,10 +270,11 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None):
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--bindings',type=Path,required=True);parser.add_argument('--records',type=Path,required=True);parser.add_argument('--native',type=Path);parser.add_argument('--application',type=Path);args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--bindings',type=Path,required=True);parser.add_argument('--records',type=Path,required=True);parser.add_argument('--native',type=Path);parser.add_argument('--application',type=Path);parser.add_argument('--service',type=Path);args=parser.parse_args()
     try:
         _,b=read(args.bindings);rr,r=read(args.records);nr=read(args.native)[0] if args.native else None;cr=read(args.application)[0] if args.application else None
-        result=validate(b,r,rr,nr,cr)
+        sr=read(args.service)[0] if args.service else None
+        result=validate(b,r,rr,nr,cr,sr)
     except (OSError,ValueError,TypeError,KeyError):result={'status':'BLOCKED','errors':[{'scope':'input','code':'input_unreadable_or_invalid'}],'production_accepted':False,'runtime_complete':False,'genesis_emitted':False}
     print(json.dumps(result,indent=2));return 2 if result['errors'] else 1
 
