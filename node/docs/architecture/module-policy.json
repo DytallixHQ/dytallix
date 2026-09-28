@@ -36,7 +36,8 @@
           "serde",
           "serde_json",
           "sha3",
-          "bech32"
+          "bech32",
+          "sha2"
         ],
         "dev-dependencies": [],
         "build-dependencies": []
