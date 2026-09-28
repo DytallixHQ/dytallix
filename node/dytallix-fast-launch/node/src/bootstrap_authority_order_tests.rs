@@ -173,8 +173,12 @@ fn bootstrap_authority_requires_its_own_scratch_and_does_not_borrow_live_scratch
     )
     .err()
     .expect("Independent scratch must be explicit");
+    // The history verifier refuses a missing scratch path before it launches
+    // anything (emergency_verifier::EmergencyVerifier::new).
     assert!(
-        error.to_string().contains("Independent root scratch"),
+        error
+            .to_string()
+            .contains("private scratch paths must be absolute"),
         "{error:#}"
     );
     assert!(!marker.exists());
