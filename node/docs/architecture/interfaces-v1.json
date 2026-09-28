@@ -387,30 +387,6 @@
       ]
     },
     {
-      "id": "tx-signed-legacy",
-      "group": "transaction",
-      "exposure": "external",
-      "format": "JSON {\"kind\":\"signed\",\"envelope\":SignedTx}. Refused whenever the recovery profile is configured, as on mainnet.",
-      "version": {
-        "field": "SignedTx.version",
-        "constant": {
-          "file": "node/crates/protocol-types/src/lib.rs",
-          "name": "TRANSACTION_FORMAT_VERSION",
-          "value": 1
-        }
-      },
-      "source": {
-        "file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs",
-        "symbol": "!matches!(value, WireTransaction::Signed { .. })"
-      },
-      "tests": [
-        {
-          "file": "node/dytallix-fast-launch/node/src/consensus_settlement_tests.rs",
-          "name": "omitted_governance_config_preserves_legacy_bytes_and_null_rejects"
-        }
-      ]
-    },
-    {
       "id": "tx-emergency-control",
       "group": "transaction",
       "exposure": "external",

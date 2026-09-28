@@ -22,7 +22,7 @@ fn derived(app: &ConsensusApplication) -> EpochObservation {
 fn utilization_is_committed_block_space_over_epoch_capacity() {
     let inputs = Inputs::new();
     let dir = tempfile::tempdir().unwrap();
-    let send = signed_wire(inputs.send());
+    let send = filler();
     let app = epoch_zero(&inputs, &dir.path().join("db"), vec![send.clone()]);
     let observation = derived(&app);
     let capacity = u128::from(EPOCH_BLOCKS) * app.config.max_block_bytes as u128;

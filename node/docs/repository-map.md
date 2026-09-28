@@ -8,7 +8,6 @@
 | --- | --- | --- |
 | [`dytallix-fast-launch/node`](../dytallix-fast-launch/node) | `dytallix-fast-node` | Consensus application |
 | [`crates/adaptive-emission`](../crates/adaptive-emission) | `dytallix-adaptive-emission` | DRT adaptive emission controller |
-| [`crates/gas`](../crates/gas) | `dytallix-gas` | Gas and fee metering |
 | [`crates/native-supervisor`](../crates/native-supervisor) | `dytallix-native-supervisor` | Supervisor that hosts the consensus application |
 | [`crates/protocol-types`](../crates/protocol-types) | `dytallix-protocol-types` | Wire types, addresses and canonical encodings |
 | [`crates/release-runtime`](../crates/release-runtime) | `dytallix-release-runtime` | Release ownership and observation runtime |
@@ -33,8 +32,7 @@ In [`dytallix-fast-launch/node/src/bin`](../dytallix-fast-launch/node/src/bin):
 - `consensus_stdio`: pipe protocol driven by the CometBFT bridge; feature
   `test-snapshot-verifier` builds the test application for the signed
   process tests, which the bridge refuses
-- `lifecycle_fixture`: validator lifecycle fixture
-- `pqc_signer`, `txhash`: signing and hashing utilities
+- `pqc_signer`: signing utility
 - `helper-execution-qualification`: requires feature `helper-qualification`
 
 Notable source areas in the application:

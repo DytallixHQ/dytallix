@@ -45,5 +45,3 @@ pub mod ordinary_fees;
 /// Strict public ordinary RPC views. Reported context is not a light-client proof.
 pub mod ordinary_client;
 
-/// Legacy signature metadata, separate from signing backends.
-pub mod signature_algorithm;

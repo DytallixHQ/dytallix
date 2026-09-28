@@ -94,7 +94,7 @@ separate bandwidth charge to burn.
   after the creation-fee check, the whole amount moves to
   `supply:drt_burned` (`Settlement::burn_withheld_fees`). The counter is zero
   at every commit; the complete check refuses a state where it is not. This
-  covers ordinary, governance, recovery and legacy signed fees.
+  covers ordinary, governance and recovery fees.
 - The reward state gains `validator_payouts` (owed amounts, a reserve for
   rounding and for blocks with no eligible validator, and running totals).
   At block start, after the lifecycle advances, the block's validator credit
@@ -108,8 +108,8 @@ separate bandwidth charge to burn.
   equals the owed payouts plus the reserve.
 - Without a lifecycle there is no voting power, so the validator share stays
   in the reserve (local profiles only).
-- `runtime/fee_burn.rs` is reachable only from the legacy, non-consensus
-  paths; it is left there.
+- `runtime/fee_burn.rs` was reachable only from the legacy, non-consensus
+  paths; E04 gap 14 removed it with them.
 
 ## Tests
 

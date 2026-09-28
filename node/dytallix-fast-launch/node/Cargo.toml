@@ -10,7 +10,6 @@ dytallix-protocol-types = { path = "../../crates/protocol-types" }
 dytallix-runtime-crypto = { path = "../../crates/runtime-crypto", default-features = false }
 dytallix-storage = { path = "../../crates/storage", default-features = false }
 dytallix-release-runtime = { path = "../../crates/release-runtime" }
-dytallix-gas = { path = "../../crates/gas" }
 anyhow = "1"
 libc = "=0.2.184"
 blake3 = "1.5"

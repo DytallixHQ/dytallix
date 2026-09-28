@@ -818,29 +818,25 @@ fn check_tx_rejects_committed_sponsorship_before_and_after_restart() {
 }
 
 #[test]
-fn recovery_profile_rejects_legacy_ordinary_signing_without_fee_or_nonce_changes() {
-    use crate::types::{tx::Tx, Msg, SignedTx};
+fn legacy_signed_envelopes_are_refused_without_fee_or_nonce_changes() {
+    // The legacy signed-transaction kind was removed (E04 gap 14); an
+    // envelope in its shape is an unknown transaction.
     let fixture = Fixture::new();
     let dir = tempfile::tempdir().unwrap();
     let mut app = fixture.initialized(&dir.path().join("db"));
-    let envelope = SignedTx::sign(
-        Tx {
-            chain_id: CHAIN.into(),
-            nonce: 0,
-            msgs: vec![Msg::Send {
-                from: fixture.active.address(),
-                to: fixture.payer.address(),
-                denom: "udrt".into(),
-                amount: 10,
-            }],
-            fee: 50_000,
-            memo: "legacy envelope boundary".into(),
-        },
-        &fixture.active.secret,
-        &fixture.active.identity.public_key,
-    )
+    let raw = serde_json::to_vec(&serde_json::json!({
+        "kind": "signed",
+        "envelope": {
+            "tx": {"chain_id": CHAIN, "nonce": 0, "fee": "50000", "memo": "legacy envelope boundary",
+                "msgs": [{"type": "send", "from": fixture.active.address(),
+                    "to": fixture.payer.address(), "denom": "udrt", "amount": "10"}]},
+            "public_key": B64.encode(&fixture.active.identity.public_key),
+            "signature": B64.encode([0u8; 64]),
+            "algorithm": "mldsa65",
+            "version": 1
+        }
+    }))
     .unwrap();
-    let raw = serde_json::to_vec(&WireTransaction::Signed { envelope }).unwrap();
     let before = data(&app);
     assert_ne!(app.check_tx(&raw).code, 0);
     assert!(app

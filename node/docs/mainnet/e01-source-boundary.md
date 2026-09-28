@@ -76,8 +76,9 @@ Local diagnostics (not qualification): the PQC-only engine binary built with
   required configuration inputs in the inventory remain unset).
 - **E06 / T02:** freeze the release, then qualify the live peer path on
   separate hosts.
-- **E04 follow-up (gap 14):** remove the legacy signed-transaction path. It
-  verifies only ML-DSA-65 and is disabled whenever the recovery profile is
-  configured, which mainnet requires, so it is not a G35 exception. Step L-a
-  removed the `mempool` module and the `signature-policy` crate; step L-b
-  removes the legacy transaction types and the path itself.
+- **E04 follow-up (gap 14), done:** the legacy signed-transaction path is
+  gone. Step L-a removed the `mempool` module and the `signature-policy`
+  crate; step L-b removed the path, the legacy transaction types, their
+  storage records, `SignatureAlgorithm` and the `legacy_signed_transaction`
+  route. `pqc_verify.rs` is listed under validator key proofs, and the
+  fixture signer (`dilithium_fips204.rs`) under `development_signing`.

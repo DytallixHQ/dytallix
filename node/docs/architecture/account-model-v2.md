@@ -144,6 +144,7 @@ which runs every block.
 
 Governance v3 is not yet executed by consensus, and legacy signed requests are
 unreachable under the recovery profile. Both are covered in the last step.
+(Governance v3 now executes; E04 gap 14 removed the legacy signed path.)
 
 ### Consensus-visible change
 
