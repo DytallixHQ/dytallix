@@ -14,6 +14,11 @@ Documentation for the Dytallix mainnet node workspace.
 - [Component contracts and batch records](mainnet/): per-component contracts
   and the dated records of the September 2026 implementation batches
 
+## Operations
+
+- [Incident runbooks](operations/README.md): halt, fork, supply mismatch,
+  key compromise, resource exhaustion, upgrade or handover failure
+
 ## Consensus Engine
 
 - [CometBFT integration](../consensus/cometbft/README.md)
