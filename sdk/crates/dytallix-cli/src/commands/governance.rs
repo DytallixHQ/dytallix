@@ -133,6 +133,17 @@ pub enum GovernanceCommand {
         #[command(flatten)]
         write: WriteArgs,
     },
+    /// Show a proposal, and one account's vote with --voter.
+    Show {
+        #[arg(long, value_parser = decimal_u64)]
+        proposal_id: u64,
+        /// Account address whose vote to show.
+        #[arg(long)]
+        voter: Option<String>,
+        /// Comet RPC endpoint; defaults to the pinned chain's endpoint.
+        #[arg(long)]
+        endpoint: Option<String>,
+    },
     /// Prepare an unsigned body offline from captured views.
     Prepare(PrepareArgs),
     /// Read the committed governance fee profile and next proposal ID.
@@ -339,6 +350,28 @@ pub async fn run(args: GovernanceArgs) -> Result<()> {
             )
             .await?;
             print_json(&report)?;
+        }
+        GovernanceCommand::Show {
+            proposal_id,
+            voter,
+            endpoint,
+        } => {
+            let (pin, client) = consensus::open_chain(endpoint.as_deref())?;
+            let proposal = client
+                .query_proposal(&pin, proposal_id)
+                .await?
+                .with_context(|| format!("proposal {proposal_id} does not exist"))?;
+            let vote = match voter {
+                Some(raw) => {
+                    let address = AccountAddress::decode(pin.network, &raw)
+                        .map_err(|_| anyhow!("voter is not an address on the pinned network"))?;
+                    client
+                        .query_vote(&pin, proposal_id, address.account_id())
+                        .await?
+                }
+                None => None,
+            };
+            print_json(&json!({"proposal": proposal, "vote": vote}))?;
         }
         GovernanceCommand::Prepare(PrepareArgs { command }) => match command {
             PrepareCommand::Propose {

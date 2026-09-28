@@ -59,12 +59,61 @@ enum QueryPath<'a> {
     OrdinaryAccount(&'a str),
     EmergencyReceipt(&'a str),
     StateProof(&'a str),
+    AccountSummary(&'a str),
+    Validators,
+    Proposal(u64),
+    Vote(u64, &'a str),
+}
+/// A canonical decimal proposal ID: no sign, no leading zero, at most u64.
+fn proposal_id(raw: &str) -> Result<u64> {
+    ensure!(
+        !raw.is_empty()
+            && raw.len() <= 20
+            && raw.bytes().all(|b| b.is_ascii_digit())
+            && (raw == "0" || !raw.starts_with('0')),
+        "Proposal ID must be a canonical decimal"
+    );
+    Ok(raw.parse()?)
+}
+fn lowercase_hex64(raw: &str) -> bool {
+    raw.len() == 64
+        && raw
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 fn query_path(path: &str) -> Result<QueryPath<'_>> {
     match path {
         "" | "/status" | "/supply" => Ok(QueryPath::Status),
         "/ordinary/profile" => Ok(QueryPath::OrdinaryProfile),
         "/ordinary/profile_v3" => Ok(QueryPath::GovernanceProfile),
+        "/staking/validators" => Ok(QueryPath::Validators),
+        _ if path.starts_with("/account/") => {
+            let address = path.strip_prefix("/account/").unwrap();
+            // The chain decodes and checks the address; this bounds the input.
+            ensure!(
+                !address.is_empty()
+                    && address.len() <= 128
+                    && address
+                        .bytes()
+                        .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()),
+                "Account summary requires a lowercase account address"
+            );
+            Ok(QueryPath::AccountSummary(address))
+        }
+        _ if path.starts_with("/governance/proposal/") => Ok(QueryPath::Proposal(proposal_id(
+            path.strip_prefix("/governance/proposal/").unwrap(),
+        )?)),
+        _ if path.starts_with("/governance/vote/") => {
+            let rest = path.strip_prefix("/governance/vote/").unwrap();
+            let (id, voter) = rest
+                .split_once('/')
+                .context("Vote query requires a proposal ID and an account ID")?;
+            ensure!(
+                lowercase_hex64(voter),
+                "Vote query requires a lowercase 64-hex account ID"
+            );
+            Ok(QueryPath::Vote(proposal_id(id)?, voter))
+        }
         _ if path.starts_with("/state/proof/") => {
             let key = path.strip_prefix("/state/proof/").unwrap();
             ensure!(
@@ -294,6 +343,10 @@ fn handle(
                 QueryPath::OrdinaryAccount(id) => QueryRequest::OrdinaryAccount(id),
                 QueryPath::EmergencyReceipt(id) => QueryRequest::EmergencyReceipt(id),
                 QueryPath::StateProof(key) => QueryRequest::StateProof(key),
+                QueryPath::AccountSummary(address) => QueryRequest::AccountSummary(address),
+                QueryPath::Validators => QueryRequest::Validators,
+                QueryPath::Proposal(id) => QueryRequest::Proposal(id),
+                QueryPath::Vote(id, voter) => QueryRequest::Vote(id, voter),
             };
             let (info, value) = app.query_at(request, wanted)?;
             Ok(
@@ -744,9 +797,13 @@ mod transport_tests {
             QueryPath::OrdinaryAccount(_) => "OrdinaryAccount",
             QueryPath::EmergencyReceipt(_) => "EmergencyReceipt",
             QueryPath::StateProof(_) => "StateProof",
+            QueryPath::AccountSummary(_) => "AccountSummary",
+            QueryPath::Validators => "Validators",
+            QueryPath::Proposal(_) => "Proposal",
+            QueryPath::Vote(..) => "Vote",
         }
     }
-    const VARIANTS: [&str; 7] = [
+    const VARIANTS: [&str; 11] = [
         "Status",
         "OrdinaryProfile",
         "GovernanceProfile",
@@ -754,7 +811,44 @@ mod transport_tests {
         "OrdinaryAccount",
         "EmergencyReceipt",
         "StateProof",
+        "AccountSummary",
+        "Validators",
+        "Proposal",
+        "Vote",
     ];
+
+    #[test]
+    fn typed_read_paths_require_canonical_identifiers() {
+        assert_eq!(
+            query_path("/staking/validators").unwrap(),
+            QueryPath::Validators
+        );
+        assert_eq!(
+            query_path("/governance/proposal/12").unwrap(),
+            QueryPath::Proposal(12)
+        );
+        let voter = "ab".repeat(32);
+        assert_eq!(
+            query_path(&format!("/governance/vote/3/{voter}")).unwrap(),
+            QueryPath::Vote(3, &voter)
+        );
+        for bad in [
+            "/governance/proposal/",
+            "/governance/proposal/012",
+            "/governance/proposal/+1",
+            "/governance/proposal/18446744073709551616",
+            "/governance/vote/3",
+            "/governance/vote/03/{voter}",
+            "/account/",
+            "/account/DYTALLIX1ABC",
+            "/account/ddytallix1abc/extra",
+            "/staking/validators/",
+        ] {
+            assert!(query_path(&bad.replace("{voter}", &voter)).is_err(), "{bad}");
+        }
+        assert!(query_path(&format!("/governance/vote/3/{}", "AB".repeat(32))).is_err());
+        assert!(query_path(&format!("/account/{}", "a".repeat(129))).is_err());
+    }
 
     /// The interface inventory (interfaces v1) lists exactly the query paths
     /// the application accepts, each under the variant it parses to.
@@ -769,6 +863,8 @@ mod transport_tests {
                 .replace("{transaction_id}", &"b".repeat(64))
                 .replace("{receipt_sha256}", &"c".repeat(64))
                 .replace("{key}", "6163637400")
+                .replace("{address}", "ddytallix1abc")
+                .replace("{proposal_id}", "7")
         };
         let mut listed = std::collections::BTreeSet::new();
         for entry in inventory["interfaces"].as_array().unwrap() {

@@ -62,6 +62,8 @@ struct State {
     tree: (Vec<u8>, Vec<u8>),
     /// Serve headers whose application hash differs from the state's.
     lying_header: bool,
+    /// Typed views by query path; null when absent.
+    views: std::collections::BTreeMap<String, Value>,
 }
 fn anchor(height: u64) -> Anchor {
     Anchor {
@@ -182,6 +184,13 @@ fn respond(state: &Mutex<State>, request: &Value) -> Value {
                     _ => None,
                 };
                 query(height, &receipt)
+            } else if let Some(view) = state.views.get(path) {
+                query(height, view)
+            } else if path.starts_with("/account/")
+                || path.starts_with("/governance/")
+                || path == "/staking/validators"
+            {
+                query(height, &Value::Null)
             } else if let Some(key) = path.strip_prefix("/state/proof/") {
                 let present = unhex(key) == state.tree.0;
                 let value = present.then(|| state.tree.1.clone());
@@ -306,6 +315,7 @@ fn state(account: Option<AccountView>) -> State {
         after_nonce: None,
         tree: (b"unrelated:key".to_vec(), b"x".to_vec()),
         lying_header: false,
+        views: Default::default(),
     }
 }
 fn write(wait_seconds: u64) -> WriteArgs {
@@ -648,6 +658,20 @@ fn one_step_writes_require_an_explicit_gas_limit_and_fee_cap() {
     assert!(parse(&[&["governance", "propose", "--max-active", "16"][..], &fee].concat()).is_ok());
     assert!(parse(&[&["governance", "propose"][..], &fee].concat()).is_err());
     assert!(parse(&["balance"]).is_ok());
+    assert!(parse(&["stake", "status"]).is_ok());
+    assert!(parse(&["stake", "status", to.as_str()]).is_ok());
+    assert!(parse(&["stake", "validators"]).is_ok());
+    assert!(parse(&["governance", "show", "--proposal-id", "3"]).is_ok());
+    assert!(parse(&[
+        "governance",
+        "show",
+        "--proposal-id",
+        "3",
+        "--voter",
+        to.as_str()
+    ])
+    .is_ok());
+    assert!(parse(&["governance", "show"]).is_err());
     assert!(parse(&["balance", to.as_str(), "--wallet", "a"]).is_err());
     let pin_chain = [
         "config",
@@ -761,4 +785,181 @@ async fn a_first_spend_is_refused_when_proofs_show_a_record_or_no_funds() {
         .unwrap_err();
     assert!(error.to_string().contains("fund it first"), "{error}");
     assert!(node.broadcast().is_empty());
+}
+
+#[tokio::test]
+async fn typed_reads_are_checked_against_the_pin_height_and_question() {
+    use dytallix_sdk::ordinary_client::{
+        AccountSummaryView, ProposalPhaseView, ProposalView, ValidatorEntryView, ValidatorSetView,
+        VoteView,
+    };
+    let key = DytallixKeypair::generate();
+    let address = pin().origin_address(&key_identity(&key).unwrap()).unwrap();
+    let summary = AccountSummaryView {
+        version: 1,
+        context: committed(40),
+        address: address.encode(),
+        account_id: *address.account_id(),
+        funded: true,
+        liquid_udgt: 900,
+        liquid_udrt: 7,
+        nonce: 2,
+        bonded_udgt: 100,
+        bonds: Vec::new(),
+        pending_bond_udgt: 0,
+        unbonding_udgt: 0,
+        unbonds: Vec::new(),
+        claimable_rewards_udrt: 3,
+    };
+    let validators = ValidatorSetView {
+        version: 1,
+        enabled: true,
+        context: committed(40),
+        height: 41,
+        validators: vec![ValidatorEntryView {
+            validator_id: "validator-one".into(),
+            owner: address.encode(),
+            consensus_key_base64: "a2V5".into(),
+            power_udgt: 100,
+        }],
+        max_active: 4,
+        min_self_bond_udgt: 10,
+    };
+    let proposal = ProposalView {
+        version: 1,
+        context: committed(40),
+        proposal_id: 3,
+        proposer: *address.account_id(),
+        action_class: 1,
+        action_data: "00".into(),
+        action_digest: [1; 32],
+        admitted_height: 30,
+        deposited_udgt: 5,
+        depositors: 1,
+        phase: ProposalPhaseView::Collecting { close_height: 45 },
+        due_height: 45,
+    };
+    let vote = VoteView {
+        version: 1,
+        context: committed(40),
+        proposal_id: 3,
+        voter: *address.account_id(),
+        choice: Some(VoteChoice::Yes),
+    };
+    let vote_path = format!("/governance/vote/3/{}", bytes_to_hex(address.account_id()));
+    let serve = |summary: &AccountSummaryView,
+                 validators: &ValidatorSetView,
+                 proposal: &ProposalView,
+                 vote: &VoteView| {
+        let mut initial = state(None);
+        initial.views.insert(
+            format!("/account/{}", address.encode()),
+            serde_json::to_value(summary).unwrap(),
+        );
+        initial.views.insert(
+            "/staking/validators".into(),
+            serde_json::to_value(validators).unwrap(),
+        );
+        initial.views.insert(
+            "/governance/proposal/3".into(),
+            serde_json::to_value(proposal).unwrap(),
+        );
+        initial
+            .views
+            .insert(vote_path.clone(), serde_json::to_value(vote).unwrap());
+        FakeNode::start(initial)
+    };
+    let node = serve(&summary, &validators, &proposal, &vote);
+    let client = client(&node.url).unwrap();
+    assert_eq!(
+        client
+            .query_account_summary(&pin(), &address)
+            .await
+            .unwrap(),
+        summary
+    );
+    assert_eq!(client.query_validators(&pin()).await.unwrap(), validators);
+    assert_eq!(
+        client.query_proposal(&pin(), 3).await.unwrap(),
+        Some(proposal.clone())
+    );
+    assert_eq!(client.query_proposal(&pin(), 4).await.unwrap(), None);
+    assert_eq!(
+        client
+            .query_vote(&pin(), 3, address.account_id())
+            .await
+            .unwrap(),
+        Some(vote.clone())
+    );
+    // Another chain, another height, or an answer to a different question.
+    let mut elsewhere = pin();
+    elsewhere.chain_id = "elsewhere".into();
+    assert!(client
+        .query_account_summary(&elsewhere, &address)
+        .await
+        .is_err());
+    assert!(client.query_validators(&elsewhere).await.is_err());
+    let other = AccountAddress::from_account_id(AddressNetwork::Development, [5; 32]);
+    let mismatched = [
+        AccountSummaryView {
+            address: other.encode(),
+            ..summary.clone()
+        },
+        AccountSummaryView {
+            context: committed(39),
+            ..summary.clone()
+        },
+        AccountSummaryView {
+            version: 2,
+            ..summary.clone()
+        },
+    ];
+    for bad in mismatched {
+        let node = serve(&bad, &validators, &proposal, &vote);
+        assert!(
+            client_of(&node)
+                .query_account_summary(&pin(), &address)
+                .await
+                .is_err(),
+            "{bad:?}"
+        );
+    }
+    let empty = ValidatorSetView {
+        validators: Vec::new(),
+        ..validators.clone()
+    };
+    let late = ValidatorSetView {
+        height: 42,
+        ..validators.clone()
+    };
+    for bad in [empty, late] {
+        let node = serve(&summary, &bad, &proposal, &vote);
+        assert!(client_of(&node).query_validators(&pin()).await.is_err());
+    }
+    let node = serve(
+        &summary,
+        &validators,
+        &ProposalView {
+            proposal_id: 9,
+            ..proposal.clone()
+        },
+        &vote,
+    );
+    assert!(client_of(&node).query_proposal(&pin(), 3).await.is_err());
+    let node = serve(
+        &summary,
+        &validators,
+        &proposal,
+        &VoteView {
+            voter: [5; 32],
+            ..vote.clone()
+        },
+    );
+    assert!(client_of(&node)
+        .query_vote(&pin(), 3, address.account_id())
+        .await
+        .is_err());
+}
+fn client_of(node: &FakeNode) -> dytallix_sdk::ordinary_client::CometClient {
+    client(&node.url).unwrap()
 }

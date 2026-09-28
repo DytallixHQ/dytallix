@@ -90,6 +90,38 @@ paths are exactly the ones the application accepts.
   require an owner-only key file, refused it. It is now written owner-only
   (0600) through a temporary file and a rename.
 
+## I-b implementation notes
+
+- **Views** (`protocol-types::ordinary_client`, version 1, each bound to the
+  committed head):
+  - `/account/{address}`, `AccountSummaryView`: liquid DGT and DRT, nonce,
+    bonds by validator, pending bond, unbonding principal (net of pending
+    penalties under the penalty profile, as `supply::inspect_reward_owner`
+    computes it) with each unbond entry, and claimable rewards (unpaid
+    staking rewards plus validator payouts, which one claim pays).
+  - `/staking/validators`, `ValidatorSetView`: the next block's set, with
+    each validator's owner, consensus key and power, plus `max_active` and
+    `min_self_bond`; `enabled` is false without the validator lifecycle.
+  - `/governance/proposal/{id}`, `ProposalView`: proposer, action, deposits,
+    phase (collecting, voting and passed with their tally, finished with its
+    outcome) and due height; null when absent or without governance.
+  - `/governance/vote/{id}/{account_id}`, `VoteView`: one account's choice,
+    null when it has not voted.
+- **Cost.** The account summary and validator set decode the reward and
+  lifecycle records (bounded at 16 MiB); the reads do not run the complete
+  supply check.
+- **Tests.** One node test follows an account through a bond and a
+  begin-unbond, comparing each view with the node's own state and checking
+  that liquid, bonded, pending and unbonding DGT always sum to the account's
+  1000 uDGT. Another follows a proposal from submission to removal. Path
+  tests refuse noncanonical IDs, and the inventory and its path binding list
+  the four views.
+- **SDK and CLI.** `CometClient::query_account_summary`, `query_validators`,
+  `query_proposal` and `query_vote` check the pin, the height and that the
+  view answers the question asked. `dytallix stake status [address]`,
+  `dytallix stake validators` and `dytallix governance show --proposal-id N
+  [--voter address]` print them.
+
 ## Steps
 
 | Step | Content |

@@ -7,6 +7,11 @@ use crate::ordinary_v2::{
 };
 use crate::ordinary_v3::{self, FeeProfileV3, GovernanceProfileView};
 use base64::{engine::general_purpose::STANDARD, Engine};
+/// Typed reads (interfaces v1, decision 2): the node's report, not proofs.
+pub use dytallix_protocol_types::ordinary_client::{
+    AccountSummaryView, BondView, ProposalPhaseView, ProposalView, TallyView, UnbondView,
+    ValidatorEntryView, ValidatorSetView, VoteView,
+};
 use dytallix_protocol_types::{address::AccountAddress, state_proof::StateProofView};
 /// State keys, record decoding and proof verification (clients v1, K-c, K-d).
 pub use dytallix_protocol_types::{native_account, state_proof};
@@ -334,6 +339,80 @@ impl CometClient {
         Err(Error(
             "the chain kept advancing between context queries; retry".into(),
         ))
+    }
+    /// An account's balances, bonds, unbonding and claimable rewards
+    /// (`/account/{address}`). The node's report; `query_balances` proves
+    /// the balances.
+    pub async fn query_account_summary(
+        &self,
+        pin: &ChainPin,
+        address: &AccountAddress,
+    ) -> Result<AccountSummaryView> {
+        let encoded = address.encode();
+        let (height, view): (u64, AccountSummaryView) =
+            self.query(&format!("/account/{encoded}")).await?;
+        pin.check(&view.context)?;
+        if view.version != 1
+            || view.context.height != height
+            || view.address != encoded
+            || view.account_id != *address.account_id()
+        {
+            return Err(Error("inconsistent account summary view".into()));
+        }
+        Ok(view)
+    }
+    /// The validator set of the next block (`/staking/validators`).
+    pub async fn query_validators(&self, pin: &ChainPin) -> Result<ValidatorSetView> {
+        let (height, view): (u64, ValidatorSetView) = self.query("/staking/validators").await?;
+        pin.check(&view.context)?;
+        if view.version != 1
+            || view.context.height != height
+            || Some(view.height) != height.checked_add(1)
+            // An enabled set has validators; a disabled one has none.
+            || view.enabled == view.validators.is_empty()
+        {
+            return Err(Error("inconsistent validator set view".into()));
+        }
+        Ok(view)
+    }
+    /// A governance proposal (`/governance/proposal/{id}`); `None` when it
+    /// does not exist or governance is off.
+    pub async fn query_proposal(&self, pin: &ChainPin, id: u64) -> Result<Option<ProposalView>> {
+        let (height, view): (u64, Option<ProposalView>) =
+            self.query(&format!("/governance/proposal/{id}")).await?;
+        if let Some(proposal) = &view {
+            pin.check(&proposal.context)?;
+            if proposal.version != 1
+                || proposal.context.height != height
+                || proposal.proposal_id != id
+            {
+                return Err(Error("inconsistent proposal view".into()));
+            }
+        }
+        Ok(view)
+    }
+    /// One account's vote (`/governance/vote/{id}/{account_id}`); `None` when
+    /// the proposal does not exist or governance is off.
+    pub async fn query_vote(
+        &self,
+        pin: &ChainPin,
+        id: u64,
+        voter: &[u8; 32],
+    ) -> Result<Option<VoteView>> {
+        let (height, view): (u64, Option<VoteView>) = self
+            .query(&format!("/governance/vote/{id}/{}", hex(voter)))
+            .await?;
+        if let Some(vote) = &view {
+            pin.check(&vote.context)?;
+            if vote.version != 1
+                || vote.context.height != height
+                || vote.proposal_id != id
+                || vote.voter != *voter
+            {
+                return Err(Error("inconsistent vote view".into()));
+            }
+        }
+        Ok(view)
     }
     /// One committed state value with its proof (`/state/proof/{key}`).
     /// Call `StateProof::verify`, or use `query_verified`.

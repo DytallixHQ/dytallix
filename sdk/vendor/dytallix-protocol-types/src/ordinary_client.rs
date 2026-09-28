@@ -143,6 +143,165 @@ pub struct ReceiptView {
     #[serde(with = "decimal_u64")]
     pub nonce_after: u64,
 }
+/// An account's balances, bonds and rewards at `context` (interfaces v1,
+/// decision 2): the node's report, not a proof. Its balances are provable
+/// through `/state/proof`. Staking fields are zero without reward state.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AccountSummaryView {
+    pub version: u16,
+    pub context: CommittedContext,
+    pub address: String,
+    #[serde(with = "hex32")]
+    pub account_id: [u8; 32],
+    /// The account has a native balance record (it has been funded).
+    pub funded: bool,
+    #[serde(with = "decimal_u128")]
+    pub liquid_udgt: u128,
+    #[serde(with = "decimal_u128")]
+    pub liquid_udrt: u128,
+    #[serde(with = "decimal_u64")]
+    pub nonce: u64,
+    #[serde(with = "decimal_u128")]
+    pub bonded_udgt: u128,
+    pub bonds: Vec<BondView>,
+    /// Bonds requested but not yet in the validator set.
+    #[serde(with = "decimal_u128")]
+    pub pending_bond_udgt: u128,
+    /// Unbonding principal, net of pending penalties where the penalty
+    /// profile applies.
+    #[serde(with = "decimal_u128")]
+    pub unbonding_udgt: u128,
+    pub unbonds: Vec<UnbondView>,
+    /// Staking rewards and validator payouts a reward claim would pay.
+    #[serde(with = "decimal_u128")]
+    pub claimable_rewards_udrt: u128,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BondView {
+    pub validator_id: String,
+    #[serde(with = "decimal_u128")]
+    pub amount_udgt: u128,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct UnbondView {
+    pub unbond_id: String,
+    pub validator_id: String,
+    #[serde(with = "decimal_u128")]
+    pub amount_udgt: u128,
+    #[serde(with = "decimal_u64")]
+    pub request_height: u64,
+    #[serde(with = "decimal_u64")]
+    pub effective_height: u64,
+}
+/// The validator set that signs the block after `context`, with each
+/// validator's owner and power; `enabled` is false without the validator
+/// lifecycle.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidatorSetView {
+    pub version: u16,
+    pub enabled: bool,
+    pub context: CommittedContext,
+    #[serde(with = "decimal_u64")]
+    pub height: u64,
+    pub validators: Vec<ValidatorEntryView>,
+    #[serde(with = "decimal_u64")]
+    pub max_active: u64,
+    #[serde(with = "decimal_u128")]
+    pub min_self_bond_udgt: u128,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ValidatorEntryView {
+    pub validator_id: String,
+    pub owner: String,
+    pub consensus_key_base64: String,
+    #[serde(with = "decimal_u128")]
+    pub power_udgt: u128,
+}
+/// A governance proposal at `context`.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProposalView {
+    pub version: u16,
+    pub context: CommittedContext,
+    #[serde(with = "decimal_u64")]
+    pub proposal_id: u64,
+    #[serde(with = "hex32")]
+    pub proposer: [u8; 32],
+    pub action_class: u16,
+    /// Lowercase hexadecimal action data.
+    pub action_data: String,
+    #[serde(with = "hex32")]
+    pub action_digest: [u8; 32],
+    #[serde(with = "decimal_u64")]
+    pub admitted_height: u64,
+    #[serde(with = "decimal_u128")]
+    pub deposited_udgt: u128,
+    pub depositors: u32,
+    pub phase: ProposalPhaseView,
+    /// The height at which the proposal next changes on its own.
+    #[serde(with = "decimal_u64")]
+    pub due_height: u64,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "phase", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ProposalPhaseView {
+    Collecting {
+        #[serde(with = "decimal_u64")]
+        close_height: u64,
+    },
+    Voting {
+        #[serde(with = "decimal_u64")]
+        snapshot_height: u64,
+        #[serde(with = "decimal_u64")]
+        end_height: u64,
+        tally: TallyView,
+    },
+    Passed {
+        #[serde(with = "decimal_u64")]
+        execute_at: u64,
+        tally: TallyView,
+    },
+    Finished {
+        /// below_minimum, rejected, executed or failed_execution.
+        outcome: String,
+        #[serde(deserialize_with = "required_option")]
+        failure: Option<String>,
+        #[serde(with = "decimal_u64")]
+        height: u64,
+    },
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TallyView {
+    #[serde(with = "decimal_u128")]
+    pub yes: u128,
+    #[serde(with = "decimal_u128")]
+    pub no: u128,
+    #[serde(with = "decimal_u128")]
+    pub no_with_veto: u128,
+    #[serde(with = "decimal_u128")]
+    pub abstain: u128,
+    pub votes: u32,
+}
+/// One account's vote on a proposal at `context`; `choice` is null when it
+/// has not voted.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VoteView {
+    pub version: u16,
+    pub context: CommittedContext,
+    #[serde(with = "decimal_u64")]
+    pub proposal_id: u64,
+    #[serde(with = "hex32")]
+    pub voter: [u8; 32],
+    #[serde(deserialize_with = "required_option")]
+    pub choice: Option<crate::ordinary_v3::VoteChoice>,
+}
 fn required_option<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     D: serde::Deserializer<'de>,

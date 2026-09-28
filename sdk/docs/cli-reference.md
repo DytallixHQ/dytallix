@@ -131,7 +131,15 @@ dytallix send --to <address> --amount 1.5 --token drt --gas-limit 10000 --maximu
 dytallix stake bond --validator <validator-id> --amount 10 --gas-limit 10000 --maximum-fee-udrt 20000
 dytallix stake unbond --validator <validator-id> --amount 5 --gas-limit 10000 --maximum-fee-udrt 20000
 dytallix stake claim --gas-limit 10000 --maximum-fee-udrt 20000
+dytallix stake status
+dytallix stake validators
 ```
+
+- `stake status [address]` shows the account's liquid balances, bonds by
+  validator, pending bond, unbonding (with each entry's effective height)
+  and claimable rewards. `stake validators` shows the next block's
+  validator set. Both are the pinned node's report; `balance` proves the
+  balances.
 
 - `balance [address]` reads the account's native record with its state
   proof, and checks the proof against the application hash in the pinned
@@ -158,8 +166,10 @@ Governance uses ordinary-v3 transactions:
   or `--registry-remove <validator-id>`. It takes the node's next proposal ID.
 - `deposit --proposal-id <id> --amount <DGT>`
 - `vote --proposal-id <id> --choice <yes|no|no-with-veto|abstain>`
+- `show --proposal-id <id> [--voter <address>]`: the proposal's phase,
+  deposits and tally, and one account's vote
 
-They run in one step, like `send`:
+The writes run in one step, like `send`:
 
 ```bash
 dytallix governance vote --proposal-id 7 --choice no-with-veto --gas-limit 10000 --maximum-fee-udrt 20000

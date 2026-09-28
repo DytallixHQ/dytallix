@@ -967,6 +967,11 @@ pub enum QueryRequest<'a> {
     OrdinaryProfile,
     /// The governance (ordinary-v3) fee profile (clients v1, decision 2).
     GovernanceProfile,
+    /// Typed reads (interfaces v1, decision 2).
+    AccountSummary(&'a str),
+    Validators,
+    Proposal(u64),
+    Vote(u64, &'a str),
     OrdinaryAccount(&'a str),
     OrdinaryReceipt(&'a str),
     EmergencyReceipt(&'a str),
@@ -5683,6 +5688,12 @@ impl ConsensusApplication {
             QueryRequest::Status => self.query_validated()?,
             QueryRequest::OrdinaryProfile => self.query_ordinary_profile_validated()?,
             QueryRequest::GovernanceProfile => self.query_governance_profile_validated()?,
+            QueryRequest::AccountSummary(address) => {
+                self.query_account_summary_validated(address, info.height)?
+            }
+            QueryRequest::Validators => self.query_validators_validated(info.height)?,
+            QueryRequest::Proposal(id) => self.query_proposal_validated(id)?,
+            QueryRequest::Vote(id, voter) => self.query_vote_validated(id, voter)?,
             QueryRequest::OrdinaryAccount(id) => self.query_ordinary_account_validated(id)?,
             QueryRequest::OrdinaryReceipt(id) => self.query_ordinary_receipt_validated(id)?,
             QueryRequest::EmergencyReceipt(id) => self.query_emergency_receipt_validated(id)?,
@@ -5779,6 +5790,265 @@ impl ConsensusApplication {
             context: self.ordinary_client_context()?,
             fee_profile,
             next_proposal_id,
+        })?)
+    }
+    pub fn query_account_summary(&self, address: &str) -> Result<serde_json::Value> {
+        self.query_at(QueryRequest::AccountSummary(address), 0)
+            .map(|(_, value)| value)
+    }
+    /// An account's balances, bonds, pending and unbonding principal and
+    /// claimable rewards (interfaces v1, decision 2). Reads the account's
+    /// own records and the reward, lifecycle and penalty state; the
+    /// unbonding rule matches `supply::inspect_reward_owner`.
+    fn query_account_summary_validated(&self, address: &str, height: u64) -> Result<serde_json::Value> {
+        use dytallix_protocol_types::ordinary_client::{
+            AccountSummaryView, BondView, UnbondView, CLIENT_VIEW_VERSION,
+        };
+        let book = recovery_book(&self.storage, &self.config)?
+            .context("Account summaries require the recovery profile")?;
+        let network = crate::ordinary_authority::chain_network(&book)?;
+        let parsed = AccountAddress::decode(network, address)
+            .context("Account summary requires a canonical address on this chain")?;
+        let read = |key: String| self.storage.db.get(key);
+        let balances_raw = read(format!("acct:balances:{address}"))?;
+        let balances: BTreeMap<String, u128> = balances_raw
+            .as_ref()
+            .map(|raw| bincode::deserialize(raw))
+            .transpose()?
+            .unwrap_or_default();
+        let nonce: u64 = read(format!("acct:nonce:{address}"))?
+            .map(|raw| bincode::deserialize(&raw))
+            .transpose()?
+            .unwrap_or(0);
+        let rewards = self
+            .storage
+            .db
+            .get(REWARD_STATE_KEY)?
+            .map(|raw| RewardState::decode(&raw))
+            .transpose()?;
+        let lifecycle = lifecycle_state(&self.storage)?;
+        let bonds: Vec<BondView> = rewards
+            .as_ref()
+            .and_then(|r| r.positions.get(address))
+            .map(|positions| {
+                positions
+                    .iter()
+                    .map(|(validator, amount)| BondView {
+                        validator_id: validator.clone(),
+                        amount_udgt: *amount,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let bonded_udgt = bonds.iter().try_fold(0u128, |sum, b| sum.checked_add(b.amount_udgt));
+        let unbonding_udgt = match (penalty_state(&self.storage)?, &lifecycle) {
+            (Some(penalties), Some(lifecycle)) => penalties
+                .net_unbonding_by_owner(lifecycle)?
+                .get(address)
+                .copied()
+                .unwrap_or(0),
+            (Some(_), None) => anyhow::bail!("Penalty custody requires validator lifecycle"),
+            (None, _) => rewards
+                .as_ref()
+                .and_then(|r| r.unbonding.get(address).copied())
+                .unwrap_or(0),
+        };
+        let unbonds = lifecycle
+            .as_ref()
+            .map(|l| {
+                l.unbonding
+                    .values()
+                    .filter(|entry| entry.owner == address)
+                    .map(|entry| UnbondView {
+                        unbond_id: entry.id.clone(),
+                        validator_id: entry.validator.clone(),
+                        amount_udgt: entry.amount,
+                        request_height: entry.request_height,
+                        effective_height: entry.effective_height,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let claimable = rewards.as_ref().map_or(Some(0), |r| {
+            r.unpaid
+                .get(address)
+                .copied()
+                .unwrap_or(0)
+                .checked_add(r.validator_payouts.unpaid.get(address).copied().unwrap_or(0))
+        });
+        let context = self.ordinary_client_context()?;
+        ensure!(context.height == height, "Account summary height differs");
+        Ok(serde_json::to_value(AccountSummaryView {
+            version: CLIENT_VIEW_VERSION,
+            context,
+            address: address.to_owned(),
+            account_id: *parsed.account_id(),
+            funded: balances_raw.is_some(),
+            liquid_udgt: balances.get("udgt").copied().unwrap_or(0),
+            liquid_udrt: balances.get("udrt").copied().unwrap_or(0),
+            nonce,
+            bonded_udgt: bonded_udgt.context("Bonded total overflow")?,
+            bonds,
+            pending_bond_udgt: lifecycle
+                .as_ref()
+                .map(|l| l.pending_bond_by_owner(address))
+                .transpose()?
+                .unwrap_or(0),
+            unbonding_udgt,
+            unbonds,
+            claimable_rewards_udrt: claimable.context("Claimable rewards overflow")?,
+        })?)
+    }
+    pub fn query_validators(&self) -> Result<serde_json::Value> {
+        self.query_at(QueryRequest::Validators, 0)
+            .map(|(_, value)| value)
+    }
+    /// The validator set of the next block, with owners and powers.
+    fn query_validators_validated(&self, height: u64) -> Result<serde_json::Value> {
+        use dytallix_protocol_types::ordinary_client::{
+            ValidatorEntryView, ValidatorSetView, CLIENT_VIEW_VERSION,
+        };
+        let next = height.checked_add(1).context("Height exhausted")?;
+        let context = self.ordinary_client_context()?;
+        let Some(lifecycle) = lifecycle_state(&self.storage)? else {
+            return Ok(serde_json::to_value(ValidatorSetView {
+                version: CLIENT_VIEW_VERSION,
+                enabled: false,
+                context,
+                height: next,
+                validators: Vec::new(),
+                max_active: 0,
+                min_self_bond_udgt: 0,
+            })?);
+        };
+        let set = lifecycle.historical_set(next)?;
+        let validators = set
+            .validators
+            .iter()
+            .map(|(id, identity)| {
+                Ok(ValidatorEntryView {
+                    validator_id: id.clone(),
+                    owner: identity.owner.clone(),
+                    consensus_key_base64: identity.pubkey_base64.clone(),
+                    power_udgt: *set.powers.get(id).context("Validator has no power")?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(serde_json::to_value(ValidatorSetView {
+            version: CLIENT_VIEW_VERSION,
+            enabled: true,
+            context,
+            height: next,
+            validators,
+            max_active: u64::try_from(lifecycle.config.max_active)?,
+            min_self_bond_udgt: lifecycle.config.min_self_bond,
+        })?)
+    }
+    pub fn query_proposal(&self, id: u64) -> Result<serde_json::Value> {
+        self.query_at(QueryRequest::Proposal(id), 0)
+            .map(|(_, value)| value)
+    }
+    /// A governance proposal, or null when absent or governance is off.
+    fn query_proposal_validated(&self, id: u64) -> Result<serde_json::Value> {
+        use crate::runtime::governance_store::{Outcome, Phase, Tally};
+        use dytallix_protocol_types::ordinary_client::{
+            ProposalPhaseView, ProposalView, TallyView, CLIENT_VIEW_VERSION,
+        };
+        let Some(candidate) = &self.config.governance else {
+            return Ok(serde_json::Value::Null);
+        };
+        let store = governance_store::GovernanceStore::open(self.storage.clone(), candidate.store_rules())?;
+        let Some(proposal) = store.proposal(id)? else {
+            return Ok(serde_json::Value::Null);
+        };
+        let tally = |t: &Tally| TallyView {
+            yes: t.yes,
+            no: t.no,
+            no_with_veto: t.no_with_veto,
+            abstain: t.abstain,
+            votes: t.votes,
+        };
+        let phase = match &proposal.phase {
+            Phase::Collecting { close_height } => ProposalPhaseView::Collecting {
+                close_height: *close_height,
+            },
+            Phase::Voting {
+                snapshot_height,
+                end_height,
+                tally: t,
+            } => ProposalPhaseView::Voting {
+                snapshot_height: *snapshot_height,
+                end_height: *end_height,
+                tally: tally(t),
+            },
+            Phase::Passed { execute_at, tally: t } => ProposalPhaseView::Passed {
+                execute_at: *execute_at,
+                tally: tally(t),
+            },
+            Phase::Finished { outcome, height } => {
+                let (name, failure) = match outcome {
+                    Outcome::BelowMinimum => ("below_minimum", None),
+                    Outcome::Rejected => ("rejected", None),
+                    Outcome::Executed => ("executed", None),
+                    Outcome::FailedExecution(reason) => ("failed_execution", Some(reason.clone())),
+                };
+                ProposalPhaseView::Finished {
+                    outcome: name.into(),
+                    failure,
+                    height: *height,
+                }
+            }
+        };
+        Ok(serde_json::to_value(ProposalView {
+            version: CLIENT_VIEW_VERSION,
+            context: self.ordinary_client_context()?,
+            proposal_id: proposal.id,
+            proposer: proposal.proposer,
+            action_class: proposal.action_class,
+            action_data: hex::encode(&proposal.action_data),
+            action_digest: proposal.action_digest,
+            admitted_height: proposal.admitted_height,
+            deposited_udgt: proposal.deposited,
+            depositors: u32::try_from(proposal.deposits.len())?,
+            phase,
+            due_height: proposal.due_height()?,
+        })?)
+    }
+    pub fn query_vote(&self, id: u64, voter: &str) -> Result<serde_json::Value> {
+        self.query_at(QueryRequest::Vote(id, voter), 0)
+            .map(|(_, value)| value)
+    }
+    /// One account's vote, or null when the proposal is absent or
+    /// governance is off; `choice` is null when the account has not voted.
+    fn query_vote_validated(&self, id: u64, voter: &str) -> Result<serde_json::Value> {
+        use crate::runtime::governance_store::VoteChoice as Stored;
+        use dytallix_protocol_types::{
+            ordinary_client::{VoteView, CLIENT_VIEW_VERSION},
+            ordinary_v3::VoteChoice,
+        };
+        valid_hash(voter)?;
+        let owner: [u8; 32] = hex::decode(voter)?
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("Invalid voter account ID"))?;
+        let Some(candidate) = &self.config.governance else {
+            return Ok(serde_json::Value::Null);
+        };
+        let store = governance_store::GovernanceStore::open(self.storage.clone(), candidate.store_rules())?;
+        if store.proposal(id)?.is_none() {
+            return Ok(serde_json::Value::Null);
+        }
+        let choice = store.vote(id, &owner)?.map(|choice| match choice {
+            Stored::Yes => VoteChoice::Yes,
+            Stored::No => VoteChoice::No,
+            Stored::NoWithVeto => VoteChoice::NoWithVeto,
+            Stored::Abstain => VoteChoice::Abstain,
+        });
+        Ok(serde_json::to_value(VoteView {
+            version: CLIENT_VIEW_VERSION,
+            context: self.ordinary_client_context()?,
+            proposal_id: id,
+            voter: owner,
+            choice,
         })?)
     }
     pub fn query_ordinary_account(&self, id: &str) -> Result<serde_json::Value> {

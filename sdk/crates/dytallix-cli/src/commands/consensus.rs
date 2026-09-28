@@ -130,6 +130,44 @@ pub struct Connection {
     #[arg(long)]
     account: Option<String>,
 }
+/// Node and account selection for reads: an address, or the signer's.
+#[derive(Debug, Clone, Args)]
+pub struct ReadArgs {
+    /// Account address on the pinned network; defaults to the signer's.
+    address: Option<String>,
+    /// Comet RPC endpoint; defaults to the pinned chain's endpoint.
+    #[arg(long)]
+    endpoint: Option<String>,
+    /// Keystore wallet whose address to read; defaults to the active wallet.
+    #[arg(long, conflicts_with_all = ["key_file", "address"])]
+    wallet: Option<String>,
+    #[arg(long, conflicts_with = "address")]
+    key_file: Option<PathBuf>,
+}
+impl ReadArgs {
+    pub(crate) fn open(&self) -> Result<(ChainPin, CometClient, AccountAddress)> {
+        let config = ChainConfig::load()?;
+        let pin = config.pin()?;
+        let address = match &self.address {
+            Some(raw) => AccountAddress::decode(pin.network, raw)
+                .map_err(|_| anyhow!("address is not on the pinned network"))?,
+            None => {
+                let key = load_signer(self.wallet.as_deref(), self.key_file.as_deref())?;
+                pin.origin_address(&key_identity(&key)?)?
+            }
+        };
+        let client = client(self.endpoint.as_deref().unwrap_or(&config.endpoint))?;
+        Ok((pin, client, address))
+    }
+}
+/// The pinned chain and a client for its node, for reads of no account.
+pub(crate) fn open_chain(endpoint: Option<&str>) -> Result<(ChainPin, CometClient)> {
+    let config = ChainConfig::load()?;
+    let pin = config.pin()?;
+    let client = client(endpoint.unwrap_or(&config.endpoint))?;
+    Ok((pin, client))
+}
+
 /// Fee and lifetime of one write. The gas limit and fee cap have no default.
 #[derive(Debug, Clone, Args)]
 pub struct WriteArgs {

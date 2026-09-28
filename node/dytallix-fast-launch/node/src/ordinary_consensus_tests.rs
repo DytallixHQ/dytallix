@@ -3653,6 +3653,72 @@ mod governance {
         lifecycle_state(app).config.min_self_bond
     }
 
+    /// Typed governance reads (interfaces v1, decision 2) follow a proposal
+    /// from submission through deposit, vote, tally, execution and removal.
+    #[test]
+    fn typed_reads_follow_a_proposal_through_deposit_vote_and_execution() {
+        use dytallix_protocol_types::ordinary_client::{ProposalPhaseView, ProposalView, VoteView};
+        let f = governed();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app = f.initialized(dir.path());
+        let proposal = |app: &ConsensusApplication| -> Option<ProposalView> {
+            serde_json::from_value(app.query_proposal(1).unwrap()).unwrap()
+        };
+        let vote_of = |app: &ConsensusApplication, key: &Key| -> Option<VoteView> {
+            serde_json::from_value(app.query_vote(1, &hex::encode(key.id())).unwrap()).unwrap()
+        };
+        assert!(proposal(&app).is_none());
+        assert!(vote_of(&app, &f.active).is_none());
+        let data = governance_actions::encode(&ParameterChange::MinSelfBond(50)).unwrap();
+        let tx = propose(&app, &f.active, 1, CLASS_PARAMETER_CHANGE, data.clone());
+        assert_eq!(codes(&commit(&mut app, 1, vec![tx])), vec![0]);
+        let view = proposal(&app).unwrap();
+        assert_eq!(
+            (view.proposal_id, view.proposer, view.action_class, view.admitted_height),
+            (1, f.active.id(), CLASS_PARAMETER_CHANGE, 1)
+        );
+        assert_eq!(view.action_data, hex::encode(&data));
+        assert_eq!(view.context.height, 1);
+        let ProposalPhaseView::Collecting { close_height } = view.phase else {
+            panic!("expected collecting: {:?}", view.phase)
+        };
+        assert_eq!(view.due_height, close_height);
+        let tx = deposit(&app, &f.payer, 1, 5);
+        assert_eq!(codes(&commit(&mut app, 2, vec![tx])), vec![0]);
+        let view = proposal(&app).unwrap();
+        assert_eq!((view.deposited_udgt, view.depositors), (5, 1));
+        let tx = vote(&app, &f.active, 1, v3::VoteChoice::NoWithVeto);
+        assert_eq!(codes(&commit(&mut app, 3, vec![tx])), vec![0]);
+        let ProposalPhaseView::Voting { tally, .. } = proposal(&app).unwrap().phase else {
+            panic!("expected voting")
+        };
+        assert_eq!((tally.votes, tally.no_with_veto, tally.yes), (1, 100, 0));
+        let voted = vote_of(&app, &f.active).unwrap();
+        assert_eq!((voted.voter, voted.choice), (f.active.id(), Some(v3::VoteChoice::NoWithVeto)));
+        assert_eq!(vote_of(&app, &f.payer).unwrap().choice, None);
+        for height in 4..=6 {
+            commit(&mut app, height, vec![]);
+        }
+        // A veto-majority ballot fails and the proposal finishes.
+        let view = proposal(&app).unwrap();
+        let ProposalPhaseView::Finished { outcome, failure, .. } = view.phase else {
+            panic!("expected finished: {:?}", view.phase)
+        };
+        assert_eq!((outcome.as_str(), failure), ("rejected", None));
+        // The finished record is removed at the next block start.
+        commit(&mut app, 7, vec![]);
+        assert!(proposal(&app).is_none());
+        assert!(serde_json::from_value::<Option<ProposalView>>(app.query_proposal(99).unwrap())
+            .unwrap()
+            .is_none());
+        // Without governance there is nothing to read.
+        let plain = Fixture::new();
+        let other = tempfile::tempdir().unwrap();
+        let app = plain.initialized(&other.path().join("db"));
+        assert!(app.query_proposal(1).unwrap().is_null());
+        assert!(app.query_vote(1, &"ab".repeat(32)).unwrap().is_null());
+    }
+
     /// Submission, deposit, vote, tally, timelock and execution at their exact
     /// heights; the deposit is refunded once and the record then removed.
     /// Returns every block's transactions and app hash.
@@ -4226,4 +4292,96 @@ fn state_proofs_verify_to_the_application_hash_the_engine_commits() {
     let (view, value) = proof(&app, &native::recovery_account_key(&address(&fresh)));
     assert!(value.is_some());
     view.verify(value.as_deref(), &hash32(&result.app_hash)).unwrap();
+}
+
+/// Typed account and validator reads (interfaces v1, decision 2) agree with
+/// the node's own state through a bond, a begin-unbond and reward accrual;
+/// an owner's DGT is conserved across liquid, bonded, pending and unbonding.
+#[test]
+fn typed_reads_report_an_account_its_bonds_and_the_validator_set() {
+    use dytallix_protocol_types::ordinary_client::{AccountSummaryView, ValidatorSetView};
+    let fixture = Fixture::new();
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let owner = fixture.secondary.address();
+    let summary = |app: &ConsensusApplication, address: &str| -> AccountSummaryView {
+        serde_json::from_value(app.query_account_summary(address).unwrap()).unwrap()
+    };
+    let check = |app: &ConsensusApplication| -> AccountSummaryView {
+        let view = summary(app, &owner);
+        let rewards = reward_state(app);
+        let lifecycle = lifecycle_state(app);
+        assert_eq!(view.liquid_udgt, asset_balance(app, &owner, "udgt"));
+        assert_eq!(view.liquid_udrt, balance(app, &owner));
+        assert_eq!(view.bonded_udgt, rewards.owner_bonded(&owner).unwrap());
+        assert_eq!(view.pending_bond_udgt, lifecycle.pending_bond_by_owner(&owner).unwrap());
+        assert_eq!(
+            view.claimable_rewards_udrt,
+            rewards.unpaid.get(&owner).copied().unwrap_or(0)
+                + rewards.validator_payouts.unpaid.get(&owner).copied().unwrap_or(0)
+        );
+        assert_eq!(view.nonce, ordinary_nonce(app, &owner));
+        assert_eq!(
+            view.liquid_udgt + view.bonded_udgt + view.pending_bond_udgt + view.unbonding_udgt,
+            1_000,
+            "{view:?}"
+        );
+        let validators: ValidatorSetView =
+            serde_json::from_value(app.query_validators().unwrap()).unwrap();
+        let height = view.context.height + 1;
+        assert!(validators.enabled && validators.height == height);
+        let expected = lifecycle.validator_set(height).unwrap();
+        assert_eq!(validators.validators.len(), expected.len());
+        for entry in &validators.validators {
+            let update = expected
+                .iter()
+                .find(|v| v.pubkey_base64 == entry.consensus_key_base64)
+                .unwrap();
+            assert_eq!(entry.power_udgt, update.power as u128);
+        }
+        view
+    };
+    let initial = check(&app);
+    assert!(initial.funded && initial.bonds.is_empty() && initial.unbonds.is_empty());
+    successful_ordinary(
+        &mut app,
+        &fixture,
+        &fixture.secondary,
+        1,
+        vec![OrdinaryAction::RewardBond {
+            validator_id: "validator-one".into(),
+            amount_udgt: 100,
+        }],
+    );
+    let bonded = check(&app);
+    assert_eq!(bonded.liquid_udgt, 900);
+    assert_eq!(bonded.bonded_udgt + bonded.pending_bond_udgt, 100);
+    successful_ordinary(
+        &mut app,
+        &fixture,
+        &fixture.secondary,
+        2,
+        vec![OrdinaryAction::RewardBeginUnbond {
+            validator_id: "validator-one".into(),
+            amount_udgt: 40,
+        }],
+    );
+    commit(&mut app, 3, vec![]);
+    commit(&mut app, 4, vec![]);
+    let unbonding = check(&app);
+    assert_eq!(unbonding.unbonding_udgt, 40);
+    let entry = &unbonding.unbonds[0];
+    assert_eq!(
+        (entry.validator_id.as_str(), entry.amount_udgt, entry.request_height, entry.effective_height),
+        ("validator-one", 40, 2, 4)
+    );
+    assert_eq!(
+        unbonding.bonds.iter().map(|b| b.amount_udgt).sum::<u128>(),
+        unbonding.bonded_udgt
+    );
+    // An account nobody funded, and an address on another network.
+    let fresh = summary(&app, &Key::new().address());
+    assert!(!fresh.funded && fresh.liquid_udgt == 0 && fresh.nonce == 0);
+    let testnet = AccountAddress::from_account_id(AddressNetwork::Testnet, fixture.secondary.id()).encode();
+    assert!(app.query_account_summary(&testnet).is_err());
 }
