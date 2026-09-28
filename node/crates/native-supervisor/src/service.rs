@@ -197,17 +197,12 @@ impl NativeService {
         self.owner
             .observe_application()
             .context("Native observation call=startup_after_application_info")?;
-        self.owner.start_bridge(&self.config.bridge_socket())?;
+        self.owner.start_bridge_with(
+            &self.config.bridge_socket(),
+            &bridge_arguments(&self.config),
+        )?;
         self.owner.start_engine(
-            &[
-                "start".into(),
-                "--home".into(),
-                self.config.home.as_os_str().into(),
-                "--p2p-profile".into(),
-                "dytallix-pqc-loopback-v1".into(),
-                "--rpc-profile".into(),
-                "dytallix-pqc-unix-v1".into(),
-            ],
+            &engine_arguments(&self.config),
             &self.config.rpc_socket(),
             &self.config.operator_rpc_socket(),
         )?;
@@ -325,23 +320,66 @@ impl NativeService {
 }
 
 fn application_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
-    [
-        ("--config", config.consensus_config.path.clone()),
-        ("--genesis", config.application_genesis.path.clone()),
-        ("--db", config.database()),
-        ("--development-root-config", config.root_config.path.clone()),
+    let mut args: Vec<(&str, OsString)> = vec![
+        ("--config", config.consensus_config.path.clone().into()),
+        ("--genesis", config.application_genesis.path.clone().into()),
+        ("--db", config.database().into()),
+        (
+            "--development-root-config",
+            config.root_config.path.clone().into(),
+        ),
         (
             "--development-emergency-verifier-config",
-            config.emergency_verifier_config.path.clone(),
+            config.emergency_verifier_config.path.clone().into(),
         ),
         (
             "--development-candidate-config",
-            config.candidate_config.path.clone(),
+            config.candidate_config.path.clone().into(),
         ),
+        ("--block-history", config.block_history.arg().into()),
+        ("--metrics-dir", config.metrics.directory.clone().into()),
+        (
+            "--metrics-interval-seconds",
+            config.metrics.interval_seconds.to_string().into(),
+        ),
+    ];
+    if let Some(snapshots) = &config.snapshots {
+        args.extend([
+            ("--snapshot-dir", snapshots.directory.clone().into()),
+            (
+                "--snapshot-interval",
+                snapshots.interval_blocks.to_string().into(),
+            ),
+            ("--snapshot-keep", snapshots.keep.to_string().into()),
+        ]);
+    }
+    args.into_iter()
+        .flat_map(|(key, value)| [OsString::from(key), value])
+        .collect()
+}
+
+/// The bridge serves the application's snapshots (state sync v1).
+fn bridge_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
+    match &config.snapshots {
+        Some(snapshots) => vec!["--snapshot-dir".into(), snapshots.directory.clone().into()],
+        None => Vec::new(),
+    }
+}
+
+fn engine_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
+    vec![
+        "start".into(),
+        "--home".into(),
+        config.home.as_os_str().into(),
+        "--p2p-profile".into(),
+        "dytallix-pqc-loopback-v1".into(),
+        "--rpc-profile".into(),
+        "dytallix-pqc-unix-v1".into(),
+        "--metrics-dir".into(),
+        config.metrics.directory.clone().into(),
+        "--metrics-interval".into(),
+        format!("{}s", config.metrics.interval_seconds).into(),
     ]
-    .into_iter()
-    .flat_map(|(key, value)| [OsString::from(key), value.into_os_string()])
-    .collect()
 }
 
 fn verify_info(bytes: &[u8], authority: &VerifiedReleaseAuthority) -> Result<()> {
@@ -394,6 +432,61 @@ fn application_helper_receipt(bytes: &[u8], application_pid: u32, expected: &Val
     ensure!(serde_json::to_vec(receipt)?.len() <= 4096,
         "Application helper receipt exceeds fixed bound");
     Ok(receipt.clone())
+}
+
+#[cfg(test)]
+mod argument_tests {
+    use super::*;
+    fn config(snapshots: Value) -> NativeServiceConfig {
+        let pin = |path: &str| json!({"path":path,"sha256":"0".repeat(64),"max_bytes":1});
+        serde_json::from_value(json!({
+            "schema":1,"mode":"disposable-loopback-native","home":"/n","lock_directory":"/l",
+            "consensus_config":pin("/c"),"application_genesis":pin("/g"),"root_config":pin("/r"),
+            "root_public_inputs":[],"emergency_verifier_config":pin("/e"),
+            "candidate_config":pin("/k"),"process_admission":pin("/a"),"engine_inputs":[],
+            "validator_public_key_sha256":"0".repeat(64),
+            "process":{"startup_millis":1,"stop_millis":1,"kill_millis":1,"poll_millis":1,
+                "max_argument_bytes":1,"max_environment_bytes":1,"max_probe_request_bytes":1,
+                "max_probe_response_bytes":1},
+            "environment":{},"monitor_interval_millis":1,"max_state_entries":1,
+            "metrics":{"directory":"/m","interval_seconds":15},"snapshots":snapshots,
+            "block_history":"archive"}))
+        .unwrap()
+    }
+    fn strings(args: Vec<OsString>) -> Vec<String> {
+        args.into_iter().map(|v| v.into_string().unwrap()).collect()
+    }
+    #[test]
+    fn every_child_receives_its_outputs() {
+        let config = config(json!({"directory":"/s","interval_blocks":100,"keep":2}));
+        let app = strings(application_arguments(&config));
+        for pair in [
+            ["--block-history", "archive"],
+            ["--metrics-dir", "/m"],
+            ["--metrics-interval-seconds", "15"],
+            ["--snapshot-dir", "/s"],
+            ["--snapshot-interval", "100"],
+            ["--snapshot-keep", "2"],
+        ] {
+            assert!(app.windows(2).any(|w| w == pair), "{pair:?}");
+        }
+        assert_eq!(strings(bridge_arguments(&config)), ["--snapshot-dir", "/s"]);
+        let engine = strings(engine_arguments(&config));
+        assert!(engine.ends_with(&[
+            "--metrics-dir".into(),
+            "/m".into(),
+            "--metrics-interval".into(),
+            "15s".into()
+        ]));
+    }
+    #[test]
+    fn snapshots_are_optional() {
+        let config = config(Value::Null);
+        assert!(!strings(application_arguments(&config))
+            .iter()
+            .any(|a| a.starts_with("--snapshot")));
+        assert!(bridge_arguments(&config).is_empty());
+    }
 }
 
 #[cfg(test)]

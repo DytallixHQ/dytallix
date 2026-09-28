@@ -635,6 +635,10 @@ impl ProcessOwner {
         self.finish(result)
     }
     pub fn start_bridge(&mut self, socket: &Path) -> Result<()> {
+        self.start_bridge_with(socket, &[])
+    }
+    /// Start the bridge with `extra` arguments after the channel arguments.
+    pub fn start_bridge_with(&mut self, socket: &Path, extra: &[OsString]) -> Result<()> {
         let result = (|| {
             self.active()?;
             ensure!(
@@ -652,13 +656,14 @@ impl ProcessOwner {
             // collisions. Both remain CLOEXEC except explicit bridge endpoints.
             let input = duplicate(pipes.input.as_raw_fd())?;
             let output = duplicate(pipes.output.as_raw_fd())?;
-            let args = vec![
+            let mut args = vec![
                 OsString::from("--socket"),
                 OsString::from(format!("unix://{}", socket.display())),
                 OsString::from("--application-channel=inherited-pipes-v1"),
                 OsString::from("--application-input-fd=3"),
                 OsString::from("--application-output-fd=4"),
             ];
+            args.extend_from_slice(extra);
             self.spawn(
                 Role::Bridge,
                 &args,

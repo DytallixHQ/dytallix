@@ -98,6 +98,95 @@ pub struct NativeServiceConfig {
     pub adapter_listen: Option<String>,
     /// Lowers the adapter's compiled limits; requires `adapter_listen`.
     pub adapter_limits: Option<AdapterLimits>,
+    pub metrics: MetricsOutput,
+    pub snapshots: Option<SnapshotOutput>,
+    pub block_history: BlockHistory,
+}
+
+/// The node's metrics files (metrics v1): the engine writes
+/// `dytallix-engine.prom` and the application `dytallix-app.prom` here.
+/// Required (P01, 28 September 2026): the incident runbooks detect with them
+/// (E04 gap 15). An operator agent reads the directory, so it may be group
+/// readable; the values are E05 inputs.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MetricsOutput {
+    pub directory: PathBuf,
+    pub interval_seconds: u64,
+}
+
+/// Application state snapshots (state sync v1): the application writes them
+/// every `interval_blocks` and keeps the latest `keep`; the bridge serves
+/// them. Optional; the values are E05 inputs.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SnapshotOutput {
+    pub directory: PathBuf,
+    pub interval_blocks: u64,
+    pub keep: u64,
+}
+
+/// The application's block records: the retained window, or every record.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum BlockHistory {
+    Window,
+    Archive,
+}
+impl BlockHistory {
+    pub fn arg(self) -> &'static str {
+        match self {
+            Self::Window => "window",
+            Self::Archive => "archive",
+        }
+    }
+}
+
+/// An output directory outside the protected state tree.
+fn output_directory(path: &Path, home: &Path) -> Result<Metadata> {
+    ensure!(
+        path.is_absolute() && std::fs::canonicalize(path)? == path,
+        "Output directory path alias"
+    );
+    ensure!(
+        path != home
+            && !["config", "data", "abci", "appdb"]
+                .iter()
+                .any(|name| path.starts_with(home.join(name))),
+        "Output directory inside protected node state"
+    );
+    let metadata = std::fs::symlink_metadata(path)?;
+    ensure!(
+        metadata.is_dir()
+            && metadata.uid() == unsafe { libc::geteuid() }
+            && metadata.mode() & 0o022 == 0,
+        "Output directory must be a current-user directory without group or other write"
+    );
+    Ok(metadata)
+}
+impl MetricsOutput {
+    pub fn validate(&self, home: &Path) -> Result<()> {
+        output_directory(&self.directory, home)?;
+        ensure!(
+            (1..=3600).contains(&self.interval_seconds),
+            "Metrics interval must be 1 to 3600 seconds"
+        );
+        Ok(())
+    }
+}
+impl SnapshotOutput {
+    pub fn validate(&self, home: &Path) -> Result<()> {
+        let metadata = output_directory(&self.directory, home)?;
+        ensure!(
+            metadata.mode() & 0o7777 == 0o700,
+            "Snapshot directory must be current-user mode 0700"
+        );
+        ensure!(
+            self.interval_blocks > 0 && self.keep > 0,
+            "Snapshot interval and count kept must be positive"
+        );
+        Ok(())
+    }
 }
 
 /// The adapter's tighten-only limits (E04 gap 13, P01 28 September 2026).
@@ -539,6 +628,14 @@ impl NativeServiceConfig {
             );
             limits.validate()?;
         }
+        self.metrics.validate(&self.home)?;
+        if let Some(snapshots) = &self.snapshots {
+            snapshots.validate(&self.home)?;
+            ensure!(
+                snapshots.directory != self.metrics.directory,
+                "Snapshot and metrics directories must differ"
+            );
+        }
         Ok(())
     }
     fn validate_root_inputs(&self) -> Result<()> {
@@ -837,6 +934,81 @@ mod tests {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
         std::fs::hard_link(&path, path.with_extension("link")).unwrap();
         assert!(pin.read().is_err());
+    }
+    #[test]
+    fn output_directories_stay_outside_protected_state() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let home = root.join("home");
+        for dir in [
+            "home/data/metrics",
+            "home/appdb",
+            "home/config",
+            "metrics",
+            "snapshots",
+        ] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+        }
+        let mode = |dir: &str, mode| {
+            std::fs::set_permissions(root.join(dir), std::fs::Permissions::from_mode(mode)).unwrap()
+        };
+        mode("metrics", 0o750);
+        let metrics = |directory: PathBuf, interval_seconds| MetricsOutput {
+            directory,
+            interval_seconds,
+        };
+        metrics(root.join("metrics"), 15).validate(&home).unwrap();
+        for protected in [
+            "home",
+            "home/data",
+            "home/data/metrics",
+            "home/appdb",
+            "home/config",
+        ] {
+            assert!(
+                metrics(root.join(protected), 15).validate(&home).is_err(),
+                "{protected}"
+            );
+        }
+        for interval in [0, 3601] {
+            assert!(metrics(root.join("metrics"), interval)
+                .validate(&home)
+                .is_err());
+        }
+        symlink(root.join("metrics"), root.join("alias")).unwrap();
+        assert!(metrics(root.join("alias"), 15).validate(&home).is_err());
+        mode("metrics", 0o770);
+        assert!(metrics(root.join("metrics"), 15).validate(&home).is_err());
+
+        mode("snapshots", 0o700);
+        let snapshots = |interval_blocks, keep| SnapshotOutput {
+            directory: root.join("snapshots"),
+            interval_blocks,
+            keep,
+        };
+        snapshots(100, 2).validate(&home).unwrap();
+        assert!(snapshots(0, 2).validate(&home).is_err());
+        assert!(snapshots(100, 0).validate(&home).is_err());
+        mode("snapshots", 0o750);
+        assert!(snapshots(100, 2).validate(&home).is_err());
+    }
+    #[test]
+    fn block_history_and_metrics_have_no_defaults() {
+        for (text, mode) in [
+            ("window", BlockHistory::Window),
+            ("archive", BlockHistory::Archive),
+        ] {
+            let parsed: BlockHistory = serde_json::from_value(serde_json::json!(text)).unwrap();
+            assert_eq!((parsed, parsed.arg()), (mode, text));
+        }
+        assert!(serde_json::from_value::<BlockHistory>(serde_json::json!("pruned")).is_err());
+        assert!(
+            serde_json::from_value::<MetricsOutput>(serde_json::json!({"directory":"/m"})).is_err()
+        );
+        assert!(serde_json::from_value::<SnapshotOutput>(
+            serde_json::json!({"directory":"/s","interval_blocks":1,"keep":1,"format":1})
+        )
+        .is_err());
     }
     #[test]
     fn listener_requires_canonical_numeric_loopback() {

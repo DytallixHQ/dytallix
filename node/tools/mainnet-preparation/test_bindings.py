@@ -77,7 +77,18 @@ class BindingTests(unittest.TestCase):
         self.b['runtime_inputs']['governance_parameters']={'voting':'bonded'};r=self.result();self.assertTrue(any(x['field']=='governance_parameters' and x['supplied'] for x in r['unsupported']))
     def test_missing_inputs_stay_missing(self):
         for key in self.b['runtime_inputs']:self.b['runtime_inputs'][key]=None
-        r=self.result();self.assertEqual(len(r['missing']),12);self.assertFalse(r['runtime_complete'])
+        r=self.result();self.assertEqual(len(r['missing']),13);self.assertFalse(r['runtime_complete'])
+    def test_service_configuration_requires_metrics_output(self):
+        nr=c.n.canonical(self.g);self.a['app_state_sha256']=c.digest(nr);ar=c.n.canonical(self.a);rr=c.n.canonical(self.r)
+        self.b['source_digests']={'records_sha256':c.digest(rr),'native_genesis_sha256':c.digest(nr),'application_config_sha256':c.digest(ar)}
+        review=lambda service:c.validate(self.b,self.r,rr,nr,ar,None if service is None else c.n.canonical(service))
+        self.assertIn('service_configuration',review(None)['missing'])
+        r=review({'block_history':'window'});self.assertIn('metrics_output',r['missing']);self.assertNotIn('service_configuration',r['missing'])
+        r=review({'metrics':{'directory':'/srv/node/metrics','interval_seconds':15}})
+        self.assertFalse(r['errors']);self.assertNotIn('metrics_output',r['missing']);self.assertIn('service_metrics_output',r['checks'])
+        for bad in [{'directory':'metrics','interval_seconds':15},{'directory':'/m','interval_seconds':0},{'directory':'/m','interval_seconds':3601},{'directory':'/m'},{'directory':'/m','interval_seconds':15,'extra':1}]:
+            with self.subTest(metrics=bad):self.assertTrue(any(e['scope']=='service_metrics_output' for e in review({'metrics':bad})['errors']))
+        self.assertTrue(review([])['errors'])
     def test_production_config_requires_recovery_and_ordinary_profiles(self):
         self.assertIn('recovery_and_ordinary_profiles',self.result()['missing'])
         self.a['recovery']={};r=self.result()

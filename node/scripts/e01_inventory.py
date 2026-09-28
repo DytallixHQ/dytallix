@@ -206,6 +206,7 @@ REQUIRED_PRODUCTION_CONFIGURATION = [
     {"path": "config/priv_validator_key.json", "required": "Approved distinct ML-DSA-65 validator identity"},
     {"path": "data/priv_validator_state.json", "required": "Persisted validator signing state"},
     {"path": "/etc/dytallix-pqc/<instance>.json", "required": "Service manifest with pinned executable and configuration hashes"},
+    {"path": "native service configuration (dytallix-native-supervisor)", "required": "Metrics directory and interval for the engine and application files (E04 gap 15); block history mode; snapshots optional"},
 ]
 
 
