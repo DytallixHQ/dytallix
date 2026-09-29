@@ -53,6 +53,18 @@ remains `NO_GO`.
    in a selected graph, a classical fork package that becomes buildable, or
    remote-signer sources in `privval`.
 
+**Superseded by E04 gap 20 (29 September 2026).** Items 1 and 2 excluded
+classical code with build tags. Gap 20 deletes it from the source:
+- the classical key packages and `lp2p`;
+- SecretConnection;
+- the remote signer and its server command;
+- the HTTP RPC, gRPC and Prometheus paths;
+- the tests that used classical keys.
+
+The PQC-only build is now the only build. `check_consensus_go_graph.py`
+requires the removed packages to stay absent. See
+`consensus/cometbft/PQC_BUILD_BOUNDARY.md`.
+
 ## E01 exit
 
 | Step | Result |

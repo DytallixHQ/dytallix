@@ -1,27 +1,14 @@
 /*
-Package privval provides different implementations of the types.PrivValidator.
+Package privval provides the file implementation of types.PrivValidator.
 
 # FilePV
 
-FilePV is the simplest implementation and developer default.
-It uses one file for the private key and another to store state.
+FilePV uses one file for the ML-DSA-65 private key and another to store the
+last signing state.
 
-# SignerListenerEndpoint
-
-SignerListenerEndpoint establishes a connection to an external process,
-like a Key Management Server (KMS), using a socket.
-SignerListenerEndpoint listens for the external KMS process to dial in.
-SignerListenerEndpoint takes a listener, which determines the type of connection
-(ie. encrypted over tcp, or unencrypted over unix).
-
-# SignerDialerEndpoint
-
-SignerDialerEndpoint is a simple wrapper around a net.Conn. It's used by both IPCVal and TCPVal.
-
-# SignerClient
-
-SignerClient handles remote validator connections that provide signing services.
-In production, it's recommended to wrap it with RetrySignerClient to avoid
-termination in case of temporary errors.
+The remote signer (SignerListenerEndpoint, SignerDialerEndpoint, SignerClient
+and the socket and Noise transports) was removed from this fork (Dytallix
+E04 gap 20): it used classical key exchange and signatures, and the
+validator signs only with its local file key.
 */
 package privval

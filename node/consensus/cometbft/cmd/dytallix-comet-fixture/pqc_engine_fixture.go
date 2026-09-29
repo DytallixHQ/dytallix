@@ -39,8 +39,6 @@ type pqcFixtureTransport struct {
 
 func fixtureNodeKey(path, profile string) (*p2p.NodeKey, error) {
 	switch profile {
-	case legacyLoopbackTransport:
-		return p2p.LoadOrGenNodeKey(path)
 	case pqcLoopbackTransport:
 		// Use a fresh transport identity, separate from the consensus signing key.
 		// Never call the legacy Ed25519-generating loader in this profile.

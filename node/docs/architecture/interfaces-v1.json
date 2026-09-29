@@ -619,29 +619,6 @@
       ]
     },
     {
-      "id": "engine-rpc-http",
-      "group": "engine_rpc",
-      "exposure": "external",
-      "format": "CometBFT JSON-RPC over HTTP and WebSocket on TCP loopback; development builds only.",
-      "version": {
-        "field": "CometBFT version",
-        "literal": {
-          "file": "node/consensus/cometbft/upstream/version/version.go",
-          "text": "TMCoreSemVer = \"0.39.0\""
-        }
-      },
-      "source": {
-        "file": "node/consensus/cometbft/internal/enginepqc/rpc_profile_http.go",
-        "symbol": "package enginepqc"
-      },
-      "tests": [
-        {
-          "file": "node/consensus/cometbft/internal/enginepqc/engine_test.go",
-          "name": "TestIsolationRejectsAlternativeNetworkAndSignerPaths"
-        }
-      ]
-    },
-    {
       "id": "engine-rpc-http-adapter",
       "group": "engine_rpc",
       "exposure": "external",

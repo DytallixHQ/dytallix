@@ -2,8 +2,8 @@
 """G35 source screen for the PQC-only Go consensus build.
 
 Fails when a selected production package graph imports a prohibited package,
-when a classical fork package becomes buildable under the PQC-only tags, or
-when remote-signer sources return to the PQC-only privval package. This is a
+when a removed classical fork package returns to the fork (E04 gap 20), or
+when remote-signer sources return to the privval package. This is a
 source-graph check; compiled-artifact and provider inspection remain T01.
 """
 
@@ -24,10 +24,10 @@ COMMANDS = (
     ("consensus/cometbft", "./cmd/dytallix-operator-rpc", TAGS),
     ("consensus/root-authorization", "./cmd/dytallix-root-verify", ""),
 )
-# Fork packages that implement classical cryptography or classical transport.
-# Under the PQC-only tags each must have no buildable files, so an accidental
-# import fails compilation instead of reaching a production binary.
-EXCLUDED_PACKAGES = (
+# Fork packages that implemented classical cryptography or classical
+# transport. E04 gap 20 deleted them; each must stay absent from the fork, so
+# an import fails to resolve instead of reaching a binary.
+REMOVED_PACKAGES = (
     "github.com/cometbft/cometbft/crypto/ed25519",
     "github.com/cometbft/cometbft/crypto/secp256k1",
     "github.com/cometbft/cometbft/crypto/secp256k1eth",
@@ -103,12 +103,14 @@ def main():
             "provider_containers_requiring_t01_review": providers,
             "package_import_paths": sorted(p["ImportPath"] for p in packages),
         }
-    excluded = {}
-    for package in EXCLUDED_PACKAGES:
-        result = go(["list", f"-tags={TAGS}", package], module, env, check=False)
-        excluded[package] = result.returncode != 0 and "build constraints exclude all Go files" in result.stderr
-        if not excluded[package]:
-            errors.append(f"{package} is buildable under {TAGS}")
+    removed = {}
+    fork = root / "consensus/cometbft/upstream"
+    for package in REMOVED_PACKAGES:
+        directory = fork / package.removeprefix("github.com/cometbft/cometbft/")
+        result = go(["list", package], module, env, check=False)
+        removed[package] = not directory.exists() and result.returncode != 0
+        if not removed[package]:
+            errors.append(f"{package} is present in the fork")
     privval_files = go(["list", f"-tags={TAGS}", "-f", "{{join .GoFiles \" \"}}", PRIVVAL], module, env).stdout.split()
     if remote_signer_files(privval_files):
         errors.append(f"remote-signer sources in PQC-only privval: {remote_signer_files(privval_files)}")
@@ -122,7 +124,7 @@ def main():
         "rule_source": str(checker.relative_to(root)),
         "rule_source_sha256": hashlib.sha256(checker.read_bytes()).hexdigest(),
         "graphs": graphs,
-        "excluded_under_pqc_tags": excluded,
+        "removed_from_fork": removed,
         "pqc_privval_files": privval_files,
         "errors": errors,
         "launch_approval": False,

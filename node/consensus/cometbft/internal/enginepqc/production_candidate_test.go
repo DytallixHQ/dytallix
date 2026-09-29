@@ -1,5 +1,3 @@
-//go:build dytallix_pqc_only && dytallix_pqc_ipc
-
 package enginepqc
 
 import (

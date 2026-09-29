@@ -195,7 +195,7 @@ ENFORCEMENT = [
     {"check": "scripts/check_consensus_cargo_profile.py",
      "scope": "Locked Rust graph of dytallix-fast-node (pqc-consensus): no classical, TLS, HTTP or legacy PQC crates; FIPS 204 limited to ML-DSA-65"},
     {"check": "scripts/check_consensus_go_graph.py",
-     "scope": "PQC-only Go graphs of the engine, bridge and root verifier: no prohibited packages; classical fork packages unbuildable under the tags; no remote-signer sources"},
+     "scope": "PQC-only Go graphs of the engine, bridge and root verifier: no prohibited packages; the classical fork packages removed from the fork (E04 gap 20); no remote-signer sources"},
     {"check": "go vet / go test / go build -tags dytallix_pqc_only,dytallix_pqc_ipc",
      "scope": "The production Go build and its tests"},
     {"check": "scripts/e01_inventory.py --check",

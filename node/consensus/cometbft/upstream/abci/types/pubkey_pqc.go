@@ -1,5 +1,3 @@
-//go:build dytallix_pqc_only
-
 package types
 
 import cryptoenc "github.com/cometbft/cometbft/crypto/encoding"

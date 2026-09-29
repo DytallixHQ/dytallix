@@ -6,7 +6,7 @@
     },
     {
       "check": "scripts/check_consensus_go_graph.py",
-      "scope": "PQC-only Go graphs of the engine, bridge and root verifier: no prohibited packages; classical fork packages unbuildable under the tags; no remote-signer sources"
+      "scope": "PQC-only Go graphs of the engine, bridge and root verifier: no prohibited packages; the classical fork packages removed from the fork (E04 gap 20); no remote-signer sources"
     },
     {
       "check": "go vet / go test / go build -tags dytallix_pqc_only,dytallix_pqc_ipc",
@@ -186,7 +186,7 @@
         },
         {
           "path": "consensus/cometbft/upstream/node/privval_socket_pqc.go",
-          "sha256": "2a2978d170986f5e074bf60ad046e052e00195ddd1a12626302a081f6069e926"
+          "sha256": "e1a06b177526e8818c2a7d63afe1b809e526ae631327469da89029090ede564a"
         }
       ],
       "policy": "Genesis and local validator keys must be ml_dsa_65; the validator key and state load from checked bytes; remote signing is not compiled into PQC-only builds",
@@ -286,11 +286,11 @@
         },
         {
           "path": "consensus/cometbft/upstream/config/statesync_sources_pqc.go",
-          "sha256": "dad770ce3e8018c5ccaeab5dd3f5a9bf08bb98266809f1613084541eef92d6d6"
+          "sha256": "757428808d570f04165c636761e888c4358755bfb9849597cb260147bb12ea8d"
         },
         {
           "path": "consensus/cometbft/upstream/node/services_pqc.go",
-          "sha256": "12b5ec77bd8d131775b43d3d52ff10d221eb99d52ffd0adb0166d81cabcd2367"
+          "sha256": "424a47554200c39369bdaf29e6211572ba2dde34f37147456939c1472ff78d4d"
         }
       ],
       "policy": "A joining node verifies operator-exported light blocks from the configured trusted height by sequential verification; the trust period stays below the evidence age; PQC-only builds refuse RPC light-client servers",
@@ -403,11 +403,11 @@
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-fixture/main.go",
-      "sha256": "bb060c0d185f47b3db0d9e26ab083845b3fd37686ae30fe5dc3c0e8678dc4be8"
+      "sha256": "5d4b17ae91b7ae83269ebef30db5fedcd8a4b1222bf1fb7f03cb72ed4b4de767"
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-fixture/pqc_engine_fixture.go",
-      "sha256": "a3510947d1d3a71557876d8418c42c9cbc34b902eb04f2f9bab626da73369e29"
+      "sha256": "2a2bcc96b1dcb53a2e250330b82ad68e1a735711775a059ca8c44471346e76d3"
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-proof/main.go",

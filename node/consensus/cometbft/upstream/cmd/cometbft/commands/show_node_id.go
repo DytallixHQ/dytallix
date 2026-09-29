@@ -5,15 +5,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/cometbft/cometbft/lp2p"
 	"github.com/cometbft/cometbft/p2p"
 )
 
-var showNodeIDAsLibP2P bool
-
-func init() {
-	ShowNodeIDCmd.Flags().BoolVar(&showNodeIDAsLibP2P, "libp2p", false, "show node ID as libp2p peer ID")
-}
+// The libp2p ID option left with libp2p (Dytallix E04 gap 20).
 
 // ShowNodeIDCmd dumps node's ID to the standard output.
 var ShowNodeIDCmd = &cobra.Command{
@@ -27,16 +22,6 @@ func showNodeID(*cobra.Command, []string) error {
 	nodeKey, err := p2p.LoadNodeKey(config.NodeKeyFile())
 	if err != nil {
 		return err
-	}
-
-	if showNodeIDAsLibP2P {
-		id, err := lp2p.IDFromPrivateKey(nodeKey.PrivKey)
-		if err != nil {
-			return err
-		}
-
-		fmt.Println(id.String())
-		return nil
 	}
 
 	fmt.Println(nodeKey.ID())

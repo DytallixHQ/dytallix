@@ -58,10 +58,11 @@ The generator creates:
 
 Each node has a new ML-DSA-65 validator key with voting power 10. Only
 `ml_dsa_65` is allowed for consensus. These keys do not replace or convert account
-keys. Each node also has the upstream Ed25519 peer identity. Thus this fixture
-does not establish PQC peer transport. The fixture now labels this path
-`legacy-cometbft-loopback-only`. It rejects production requests and any
-unimplemented P2P profile. It checks loopback isolation before writing configs.
+keys. Each node also has a separate ML-DSA-65 peer identity for the PQC
+transport. The P2P profile is explicit (`--p2p-profile`); the upstream Ed25519
+loopback profile was removed with SecretConnection (E04 gap 20). The generator
+rejects production requests and any unimplemented profile, and it checks each
+profile's isolation before writing configs.
 
 All directories have mode 0700. All generated files have mode 0600. Never copy
 these disposable private keys into evidence reports. Keep signing state with its
@@ -307,18 +308,19 @@ call it. It does not replace SecretConnection and does not establish FIPS 140
 module validation or production protocol security. Component tests cannot open
 the production gate.
 
-The fixture exposes `--p2p-profile legacy-cometbft-loopback-only`. All other values
-fail. `--production` always fails before fixture creation. The generator disables
-libp2p and remote signer listeners. It rejects public or DNS-based peers, public
-listeners, discovery, and TCP ABCI in generated fixtures. These checks apply to
-the generator. They do not prevent a user from editing configs or running the
-upstream engine separately.
+The fixture's profiles are the PQC loopback, seed-backed loopback and
+private-network seed-backed profiles. The upstream `legacy-cometbft-loopback-only`
+profile was removed with SecretConnection (E04 gap 20). `--production` always
+fails before fixture creation. The generator disables libp2p and remote signer
+listeners. It rejects public or DNS-based peers, public listeners, discovery,
+and TCP ABCI in generated fixtures. These checks apply to the generator. They
+do not prevent a user from editing configs.
 
 Before integration, approve a versioned wire protocol, record framing, deadlines,
 resource limits, full-key peer discovery and rotation, key custody, replay rules,
-restart rules, and interoperability evidence. Replace or exclude upstream TCP
-remote signer, Noise and QUIC/TLS paths. Do not wrap SecretConnection in PQC and
-claim that the inner classical trust dependency has been removed.
+restart rules, and interoperability evidence. The upstream TCP
+remote signer, Noise, SecretConnection and TLS paths were removed from the
+source (E04 gap 20).
 
 Run the component and fixture tests locally:
 

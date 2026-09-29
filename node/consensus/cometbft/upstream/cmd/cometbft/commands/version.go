@@ -9,6 +9,10 @@ import (
 	"github.com/cometbft/cometbft/version"
 )
 
+// verbose was declared with the light command, removed with the HTTP light
+// client (Dytallix E04 gap 20).
+var verbose bool
+
 // VersionCmd ...
 var VersionCmd = &cobra.Command{
 	Use:   "version",

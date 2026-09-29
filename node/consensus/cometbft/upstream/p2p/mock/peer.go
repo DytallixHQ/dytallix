@@ -3,7 +3,7 @@ package mock
 import (
 	"net"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
+	"github.com/cometbft/cometbft/crypto/mldsa65"
 	"github.com/cometbft/cometbft/libs/service"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/p2p/conn"
@@ -27,7 +27,11 @@ func NewPeer(ip net.IP) *Peer {
 	} else {
 		netAddr = p2p.NewNetAddressIPPort(ip, 26656)
 	}
-	nodeKey := p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
+	key, err := mldsa65.GenPrivKey()
+	if err != nil {
+		panic(err)
+	}
+	nodeKey := p2p.NodeKey{PrivKey: key}
 	netAddr.ID = nodeKey.ID()
 	mp := &Peer{
 		ip:   ip,
