@@ -64,10 +64,47 @@ Both tools build with the PQC-only tags in the production build step, and
 the Go graph check (G35) covers them: neither graph holds a classical
 package.
 
+## T-c: recovery transactions
+
+Decisions (P01, 29 September 2026):
+
+1. **A typed recovery view.** The state a client needs is readable today
+   only as raw state proofs.
+2. **All nine actions**, through one generic flow. The actions are Enroll,
+   Rotate, Start, Finalize, Cancel, Resume, StagePolicy, ActivatePolicy and
+   CancelPolicy.
+3. **Offline multi-party signing.** `dytallix recovery prepare` writes the
+   unsigned operation and lists the required signers. Each signer then signs
+   on their own machine. `assemble` orders the signatures, and `sponsor`
+   adds the paying account's signature and fee bounds. An SDK module that
+   wallets can reuse underlies all of it.
+
+The protocol sets the rest:
+- Every recovery transaction is paid by a separate sponsor account, never
+  the target.
+- Guardians sign in the operation role. New keys (guardians, replacements)
+  sign in the possession role.
+- The client chooses request and update IDs.
+
+**T-c1: `/recovery/account/{account_id}`.** It returns a
+`RecoveryAccountView` (protocol types, vendored into the SDK) or null. The
+view holds:
+- the domain, address, status, active key and generation;
+- the spending and sponsor nonces;
+- the policy and its version;
+- the recovery and policy sequences;
+- the pending recovery and pending policy, with their heights;
+- the timing and the accepted algorithms;
+- the recovery fee profile's version and digest, and the gas and charge
+  bounds a sponsor signs.
+
+Counters are decimal strings. Due expiries are already applied.
+
 ## Steps
 
 | Step | Content |
 | --- | --- |
 | T-a | `dytallix-validator-key`: generate, proof; golden vector on both sides; E01 route |
 | T-b | `dytallix-operator-rpc`: read-only diagnostics |
-| T-c | Recovery transactions: a CLI and SDK builder for the recovery actions, with guardian and sponsor signing |
+| T-c1 | The typed recovery view `/recovery/account/{account_id}` |
+| T-c2 | The SDK recovery module and the `dytallix recovery` commands: prepare, sign, assemble, sponsor, submit, receipt |

@@ -1820,3 +1820,89 @@ fn unknown_recovery_keys_are_refused() {
     assert!(RecoveryBook::load(&app.storage).is_err());
     assert!(app.info().is_err());
 }
+
+/// E04 gap 17, T-c: the typed recovery view reports the committed record a
+/// client builds and sponsors actions from.
+#[test]
+fn the_recovery_view_reports_the_committed_record() {
+    use dytallix_protocol_types::ordinary_client::RecoveryAccountView;
+    let mut fixture = Fixture::new();
+    fixture.config.max_tx_bytes = 131_072;
+    let dir = tempfile::tempdir().unwrap();
+    let mut app = fixture.initialized(&dir.path().join("db"));
+    let view = |app: &ConsensusApplication, id: [u8; 32]| -> RecoveryAccountView {
+        serde_json::from_value(app.query_recovery_account(&hex::encode(id)).unwrap()).unwrap()
+    };
+    let check = |app: &ConsensusApplication| {
+        let stored = book(app);
+        let account = &stored.accounts[&hex::encode(TARGET)];
+        let target = &account.recovery;
+        let shown = view(app, TARGET);
+        assert_eq!(shown.domain.account_id, TARGET);
+        assert_eq!(shown.address, account.address);
+        assert_eq!(shown.status, target.status);
+        assert_eq!(shown.active_key, target.active_key);
+        assert_eq!(
+            (shown.active_generation, shown.spending_nonce, shown.sponsor_nonce),
+            (target.active_generation, target.spending_nonce, account.sponsor_nonce)
+        );
+        assert_eq!(shown.policy, target.policy);
+        assert_eq!(
+            (shown.policy_version, shown.recovery_sequence, shown.policy_change_sequence),
+            (target.policy_version, target.recovery_sequence, target.policy_change_sequence)
+        );
+        assert_eq!(
+            shown.pending_recovery.clone().map(|p| (p.request_id, p.replacement, p.activation_height, p.expiry_height)),
+            target
+                .pending_recovery
+                .clone()
+                .map(|p| (p.request_id, p.replacement, p.activation_height, p.expiry_height))
+        );
+        assert_eq!(shown.timing.recovery_delay, target.config.recovery_delay);
+        assert_eq!(shown.timing.algorithms, target.config.algorithms.keys().cloned().collect::<Vec<_>>());
+        assert_eq!(shown.fee.profile_version, stored.profile.version);
+        assert_eq!(shown.fee.profile_digest, dytallix_protocol_types::recovery_sponsor::profile_digest(&stored.profile).unwrap());
+        assert_eq!(shown.context.height, app.info().unwrap().height);
+        shown
+    };
+    let initial = check(&app);
+    assert!(initial.policy.is_none() && initial.pending_recovery.is_none());
+    // Enroll the guardians, then start a recovery: the view follows.
+    let target = book(&app).accounts[&hex::encode(TARGET)].recovery.clone();
+    let active = ActiveAuthorization {
+        generation: target.active_generation,
+        nonce: target.spending_nonce,
+    };
+    let enroll = fixture.operation(TARGET, ActionKind::Enroll { active, policy: fixture.policy() }, 40);
+    let guardians: Vec<&Key> = fixture.guardians.iter().collect();
+    let signed = fixture.signed(enroll, &[&fixture.active], &guardians);
+    let sponsor_nonce = book(&app).accounts[&hex::encode(SPONSOR)].sponsor_nonce;
+    let result = commit(&mut app, 1, vec![wire(&fixture.sponsored(signed, sponsor_nonce, GAS_LIMIT))]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results[0]);
+    let enrolled = check(&app);
+    assert_eq!(enrolled.policy, Some(fixture.policy()));
+    assert_eq!(view(&app, SPONSOR).sponsor_nonce, sponsor_nonce + 1);
+    let target = book(&app).accounts[&hex::encode(TARGET)].recovery.clone();
+    let start = fixture.operation(
+        TARGET,
+        ActionKind::Start {
+            recovery: RecoveryAuthorization {
+                policy_version: target.policy_version,
+                sequence: target.recovery_sequence,
+            },
+            request_id: REQUEST,
+            replacement: fixture.replacement.identity.clone(),
+            timing_version: 1,
+        },
+        40,
+    );
+    let signed = fixture.signed(start, &[&fixture.guardians[0], &fixture.guardians[1]], &[&fixture.replacement]);
+    let result = commit(&mut app, 2, vec![wire(&fixture.sponsored(signed, sponsor_nonce + 1, GAS_LIMIT))]);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results[0]);
+    let pending = check(&app);
+    assert_eq!(pending.status, RecoveryStatus::PendingRecovery);
+    assert_eq!(pending.pending_recovery.unwrap().request_id, REQUEST);
+    // Absent and malformed IDs.
+    assert!(app.query_recovery_account(&"ee".repeat(32)).unwrap().is_null());
+    assert!(app.query_recovery_account("EE").is_err());
+}
