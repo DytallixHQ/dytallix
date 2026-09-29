@@ -697,3 +697,16 @@ fn validator_payouts_follow_voting_power_and_skip_jailed_validators() {
     broken.validator_payouts.reserve += 1;
     assert!(broken.validate_internal().is_err());
 }
+
+/// The operator tool (`dytallix-validator-key proof`) encodes the tuple the
+/// same way: its golden vector (cmd/dytallix-validator-key/main_test.go)
+/// uses the same owner, with escaping that serde and Go must agree on.
+#[test]
+fn proof_sign_bytes_match_the_operator_tool() {
+    let key = base64::engine::general_purpose::STANDARD.encode([7u8; 1952]);
+    let bytes = proof_sign_bytes("chain-1", "register", "validator-a", "o\"w\\ñ<&>", &key, 7, 9, 20).unwrap();
+    let golden = format!(
+        "dytallix-validator-key-proof-v1\0[\"chain-1\",\"register\",\"validator-a\",\"o\\\"w\\\\ñ<&>\",\"{key}\",7,9,\"20\"]"
+    );
+    assert_eq!(String::from_utf8(bytes).unwrap(), golden);
+}

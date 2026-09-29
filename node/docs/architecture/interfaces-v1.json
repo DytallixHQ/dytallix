@@ -854,6 +854,57 @@
       ]
     },
     {
+      "id": "operator-validator-key-output",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "dytallix-validator-key JSON on stdout: generate gives address and public_key_base64; proof gives chain_id, operation, address and the ValidatorRegister or ValidatorRotateKey action for dytallix ordinary prepare --actions.",
+      "version": {
+        "field": "version",
+        "constant": {
+          "file": "node/consensus/cometbft/cmd/dytallix-validator-key/main.go",
+          "name": "outputVersion",
+          "value": 1
+        }
+      },
+      "source": {
+        "file": "node/consensus/cometbft/cmd/dytallix-validator-key/main.go",
+        "symbol": "func proof(in proofInput)"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-validator-key/main_test.go",
+          "name": "TestProofSignsTheBuiltPayloadForTheGenesisChain"
+        },
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-validator-key/main_test.go",
+          "name": "TestProofBytesMatchTheNode"
+        }
+      ]
+    },
+    {
+      "id": "operator-rpc-client-output",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "dytallix-operator-rpc prints the engine's JSON-RPC response for one read-only operator-socket method unchanged.",
+      "version": {
+        "none": "It passes the engine's JSON-RPC responses through unchanged; their form is CometBFT's."
+      },
+      "source": {
+        "file": "node/consensus/cometbft/cmd/dytallix-operator-rpc/main.go",
+        "symbol": "var methods = map[string]bool"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-operator-rpc/main_test.go",
+          "name": "TestReadsADiagnosticFromTheOperatorSocket"
+        },
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-operator-rpc/main_test.go",
+          "name": "TestSubmitsNothingAndReportsFailures"
+        }
+      ]
+    },
+    {
       "id": "internal-stdio-bridge",
       "group": "internal",
       "exposure": "internal",

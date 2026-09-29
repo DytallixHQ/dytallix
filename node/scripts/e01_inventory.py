@@ -68,11 +68,12 @@ ROUTES = [
     {
         "role": "validator_key_proof",
         "algorithm": "ML-DSA-65 (FIPS 204)",
-        "policy": "Proof of possession for registered and rotated consensus keys",
+        "policy": "Proof of possession for registered and rotated consensus keys; the operator tool generates keys and signs only proofs it builds for the engine genesis chain",
         "files": [
             "dytallix-fast-launch/node/src/ordinary_validator.rs",
             "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",
             "crates/runtime-crypto/src/pqc_verify.rs",
+            "consensus/cometbft/cmd/dytallix-validator-key/main.go",
         ],
     },
     {

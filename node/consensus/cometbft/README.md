@@ -21,6 +21,8 @@ go build -mod=readonly -o /absolute/bin/dytallix-comet-bridge ./cmd/dytallix-com
 go build -mod=readonly -o /absolute/bin/dytallix-comet-fixture ./cmd/dytallix-comet-fixture
 go build -mod=readonly -o /absolute/bin/dytallix-comet-verify ./cmd/dytallix-comet-verify
 go build -mod=readonly -o /absolute/bin/dytallix-comet-proof ./cmd/dytallix-comet-proof
+# Operator tools (E04 gap 17): validator keys and proofs; operator diagnostics.
+go build -mod=readonly -tags dytallix_pqc_only,dytallix_pqc_ipc -o /absolute/bin/ ./cmd/dytallix-validator-key ./cmd/dytallix-operator-rpc
 go build -mod=readonly -o /absolute/bin/cometbft github.com/cometbft/cometbft/cmd/cometbft
 go test -mod=readonly ./...
 ```

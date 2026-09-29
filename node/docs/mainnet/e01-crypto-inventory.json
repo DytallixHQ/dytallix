@@ -160,9 +160,13 @@
         {
           "path": "crates/runtime-crypto/src/pqc_verify.rs",
           "sha256": "b468ebc17a5fcb49ad870832a58b5fbb7f91ce24f1effdd1af91db038ce49225"
+        },
+        {
+          "path": "consensus/cometbft/cmd/dytallix-validator-key/main.go",
+          "sha256": "df5c1002f03ef4d2691ce58124eb325b37bc20928e5e8cb6d63185aef8621a0c"
         }
       ],
-      "policy": "Proof of possession for registered and rotated consensus keys",
+      "policy": "Proof of possession for registered and rotated consensus keys; the operator tool generates keys and signs only proofs it builds for the engine genesis chain",
       "role": "validator_key_proof"
     },
     {

@@ -92,7 +92,8 @@ no automatic choice of chain.
 
 1. Check `dytallix_engine_p2p_peers` and the peer pins in
    `config/pqc_transport.json`. Peers are admitted only by their pinned
-   ML-DSA-65 public key.
+   ML-DSA-65 public key. `dytallix-operator-rpc --home HOME net_info` lists
+   the connected peers, and `consensus_state` shows the round and its votes.
 2. Check host clocks, the network path and each validator's supervisor
    report. A validator stopped by a failure class belongs to its own
    runbook.
