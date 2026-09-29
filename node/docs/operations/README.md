@@ -58,9 +58,10 @@ owner protocol and cannot start the current application.
 - **Light blocks.** With the node stopped,
   `dytallix-light-export --home HOME --from A --to B --output FILE` exports
   the node's own signed headers and prints the trusted height and hash.
-
-The operator socket (`rpc-operator.sock`: `net_info`, `consensus_state`,
-`dump_consensus_state`, `num_unconfirmed_txs`) has no client yet (gap 17).
+- **Operator socket.** `dytallix-operator-rpc --home HOME METHOD [--query Q]`
+  reads `rpc-operator.sock`. Its methods are `net_info`, `consensus_state`,
+  `dump_consensus_state`, `num_unconfirmed_txs`, `status`, `health` and
+  `validators`. It submits nothing.
 
 ## Application exit classes
 
@@ -117,8 +118,9 @@ Each execution record holds:
   join runs only in the qualification harness.
 - **Penalties.** Evidence is recorded, never penalized, while the penalty
   profile refuses production activation (D09-Q04).
-- **Key tooling (gap 17).** There is no production validator key proof
-  signer, no client for recovery transactions and no operator socket client.
+- **Recovery transactions (gap 17, T-c).** No client builds recovery
+  transactions yet. Validator keys are generated and their proofs signed
+  with `dytallix-validator-key`.
 - **Emergency controls.** Freeze and resume are root-signed controls
   (3 of 5 SLH-DSA signatures). Signing them in production depends on the
   custody procedure (E05, P02); the only signer in the repository is

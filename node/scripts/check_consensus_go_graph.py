@@ -19,6 +19,9 @@ TAGS = "dytallix_pqc_only,dytallix_pqc_ipc"
 COMMANDS = (
     ("consensus/cometbft", "./cmd/dytallix-pqc-engine", TAGS),
     ("consensus/cometbft", "./cmd/dytallix-comet-bridge", TAGS),
+    # Operator tools on the validator host (E04 gap 17).
+    ("consensus/cometbft", "./cmd/dytallix-validator-key", TAGS),
+    ("consensus/cometbft", "./cmd/dytallix-operator-rpc", TAGS),
     ("consensus/root-authorization", "./cmd/dytallix-root-verify", ""),
 )
 # Fork packages that implement classical cryptography or classical transport.

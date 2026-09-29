@@ -7,7 +7,7 @@ a mainnet key.
 
 | Key | Where | What an attacker can do | Response |
 | --- | --- | --- | --- |
-| Validator consensus key (ML-DSA-65) | `config/priv_validator_key.json` | Sign votes as the validator, including conflicting ones | Stop, fence, exit |
+| Validator consensus key (ML-DSA-65) | `config/priv_validator_key.json` | Sign votes as the validator, including conflicting ones | Stop, fence, rotate or exit |
 | Validator operator account key | The operator's wallet | Validator actions (exit, bond, unbond), transfers | Rotate or recover the account (blocked, gap 17) |
 | Node peer key (ML-DSA-65) | `config/node_key.json` or `config/pqc_peer_seed.bin` | Connect to peers as this node | Replace it and update every peer's pins |
 | User account key | The user's wallet | Spend and act as the account | Rotate or recover (blocked, gap 17); freeze for a wide compromise |
@@ -36,8 +36,41 @@ a mainnet key.
    a third of the power or more, the attacker can stop the chain. Above two
    thirds they can finalize conflicting blocks. Follow [halt.md](halt.md)
    and [fork.md](fork.md), case B.
-3. **Remove the key's power.** The operator submits `ValidatorExit` with the
-   operator account, as an ordinary v2 transaction:
+3. **Rotate to a new key**, unless the validator has a recorded fault.
+   1. On the validator host, generate the new key into a new directory:
+      ```sh
+      dytallix-validator-key generate --key-file NEW/priv_validator_key.json \
+        --state-file NEW/priv_validator_state.json
+      ```
+   2. Read the operator account's spending nonce
+      (`dytallix ordinary query-account`) and choose the last height at
+      which the proof is valid.
+   3. Sign the possession proof with the new key:
+      ```sh
+      dytallix-validator-key proof --key-file NEW/priv_validator_key.json \
+        --genesis HOME/config/genesis.json --operation rotate --validator ID \
+        --owner OPERATOR_ADDRESS --nonce N --expiry-height H
+      ```
+      - `--owner` is the operator account's address, as the lifecycle
+        configuration's approved operators name it.
+      - The nonce must be the one the transaction uses.
+      - The tool signs only the proof it builds, for the engine genesis
+        chain. It prints the `ValidatorRotateKey` action.
+   4. Put that action in the actions file (`[ACTION]`) and submit it with
+      the operator account, as below.
+   5. The new key takes effect two blocks after the rotation commits. Then:
+      - move the old key and its state aside (keep them as evidence);
+      - install the new key and its fresh state as `HOME/config/priv_validator_key.json`
+        and `HOME/data/priv_validator_state.json`;
+      - update the supervisor's validator pins (`validator_public_key_sha256`
+        and the key file's engine input hash);
+      - restart.
+
+   A rotation is refused while the validator has a recorded fault
+   (`VALIDATOR_EXPOSURE_BARRED`); exit instead. The old key can never be
+   registered again (`CONSENSUS_KEY_ALREADY_USED`).
+4. **Or remove the key's power.** The operator submits `ValidatorExit` with
+   the operator account, as an ordinary v2 transaction:
    ```sh
    dytallix ordinary query-profile --endpoint URL --output profile.json
    dytallix ordinary query-account --endpoint URL --account-id OPERATOR --output account.json
@@ -52,11 +85,6 @@ a mainnet key.
      starts unbonding and matures after the evidence window.
    - Withdrawing the stake fails as `VALIDATOR_WITHDRAWAL_DISABLED` (a paid
      failure) while the penalty profile is off.
-4. **Rotation is blocked.** `ValidatorRotateKey` needs a possession proof
-   signed by the new key, and there is no production proof signer (gap 17).
-   It is also refused while the validator has a recorded fault
-   (`VALIDATOR_EXPOSURE_BARRED`). The old key can never be registered again
-   (`CONSENSUS_KEY_ALREADY_USED`).
 5. **No penalty.** Evidence is recorded, not penalized (D09-Q04). Removing
    the validator's power is the only response the chain offers.
 
