@@ -466,11 +466,15 @@ method review need refreshing to version 2 before the next E03 run.
 ## Classical code left after gap 19
 
 E04 gap 20 (P01, 29 September 2026) settled these:
-- **The engine fork's source.** The upstream classical packages remain in
-  the source: Ed25519, secp256k1, BLS, SecretConnection, the remote signer
-  and libp2p. The PQC-only tags make them unbuildable, the Go graph check
-  (G35) enforces that, and no production artifact carries them. Gap 20
-  deletes them, and PQC-only becomes the one build.
+- **The engine fork's source.** F-b deleted the upstream classical code:
+  - Ed25519, secp256k1 and BLS;
+  - SecretConnection;
+  - the remote signer;
+  - libp2p;
+  - the HTTP, gRPC and TLS paths the production build excluded.
+
+  PQC-only is now the one build. The Go graph check requires the removed
+  packages to stay absent. See `consensus/cometbft/PQC_BUILD_BOUNDARY.md`.
 - **The testnet faucet** moved to `testnet/faucet`, outside `mainnet/`.
 - **Operator host access** is console-only (E05): validator hosts expose no
   network management port, so no SSH and its classical keys.

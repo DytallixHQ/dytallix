@@ -1,5 +1,3 @@
-//go:build dytallix_pqc_only
-
 package types
 
 import "github.com/cometbft/cometbft/crypto/mldsa65"

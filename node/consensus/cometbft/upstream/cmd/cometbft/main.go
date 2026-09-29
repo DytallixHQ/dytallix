@@ -16,7 +16,6 @@ func main() {
 	rootCmd.AddCommand(
 		cmd.GenValidatorCmd,
 		cmd.InitFilesCmd,
-		cmd.LightCmd,
 		cmd.ReplayCmd,
 		cmd.ReplayConsoleCmd,
 		cmd.ResetAllCmd,

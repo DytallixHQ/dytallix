@@ -1,5 +1,3 @@
-//go:build dytallix_pqc_ipc && dytallix_pqc_only
-
 package node
 
 import (

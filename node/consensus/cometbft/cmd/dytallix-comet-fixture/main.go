@@ -98,7 +98,7 @@ func generateWithLifecycle(output, appFile, chainID, genesisTime string, basePor
 	return generateWithPenalty(output, appFile, chainID, genesisTime, basePort, operatorsFile, false)
 }
 func generateWithPenalty(output, appFile, chainID, genesisTime string, basePort int, operatorsFile string, penalty bool) ([]nodeSummary, error) {
-	return generateWithTransport(output, appFile, chainID, genesisTime, basePort, operatorsFile, penalty, legacyLoopbackTransport)
+	return generateWithTransport(output, appFile, chainID, genesisTime, basePort, operatorsFile, penalty, pqcLoopbackTransport)
 }
 func generateWithTransport(output, appFile, chainID, genesisTime string, basePort int, operatorsFile string, penalty bool, profile string) ([]nodeSummary, error) {
 	return generateWithTransportIPs(output, appFile, chainID, genesisTime, basePort, operatorsFile, penalty, profile, nil)
@@ -288,11 +288,7 @@ func generateWithTransportIPs(output, appFile, chainID, genesisTime string, base
 			}
 		}
 		config.P2P.PersistentPeers = strings.Join(other, ",")
-		if profile == legacyLoopbackTransport {
-			if err := validateLegacyIsolation(config); err != nil {
-				return nil, err
-			}
-		} else if err := enginepqc.ValidateProfileIsolation(config, profile); err != nil {
+		if err := enginepqc.ValidateProfileIsolation(config, profile); err != nil {
 			return nil, err
 		}
 		if profile == pqcLoopbackTransport || profile == pqcSeedLoopbackTransport || profile == pqcPrivateSeedTransport {
@@ -347,10 +343,10 @@ func generateWithTransportIPs(output, appFile, chainID, genesisTime string, base
 	return nodes, nil
 }
 
-const legacyLoopbackTransport = "legacy-cometbft-loopback-only"
-
+// The legacy CometBFT loopback profile left with SecretConnection (E04 gap
+// 20); a profile is always explicit.
 func checkTransportProfile(profile string, production bool) error {
-	if production || (profile != legacyLoopbackTransport && profile != pqcLoopbackTransport && profile != pqcSeedLoopbackTransport && profile != pqcPrivateSeedTransport) {
+	if production || (profile != pqcLoopbackTransport && profile != pqcSeedLoopbackTransport && profile != pqcPrivateSeedTransport) {
 		return pqcp2p.RequireProductionTransport()
 	}
 	return nil
@@ -358,7 +354,7 @@ func checkTransportProfile(profile string, production bool) error {
 
 func run() error {
 	production := flag.Bool("production", false, "production is blocked; this flag always refuses activation")
-	p2pProfile := flag.String("p2p-profile", legacyLoopbackTransport, "explicit legacy, PQC loopback, or private-network PQC seed-backed development transport")
+	p2pProfile := flag.String("p2p-profile", "", "explicit PQC loopback, seed-backed loopback, or private-network seed-backed development transport")
 	peerIPs := flag.String("peer-ips", "", "comma-separated canonical private IP literals; required only for the private PQC fixture")
 	output := flag.String("output", "", "new absolute fixture directory")
 	app := flag.String("app-genesis", "", "compact native development genesis JSON")

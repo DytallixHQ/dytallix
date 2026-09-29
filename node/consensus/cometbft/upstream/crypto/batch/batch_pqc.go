@@ -1,5 +1,3 @@
-//go:build dytallix_pqc_only
-
 package batch
 
 import "github.com/cometbft/cometbft/crypto"
