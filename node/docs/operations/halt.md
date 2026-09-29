@@ -62,10 +62,10 @@ after consensus has stopped.
    - If the cause was outside the committed release (a host, network or
      operator fault), restart on the same release, in the coordinated
      order.
-   - If the correction is new code, **stop here**. Restarting on a new
-     release after a halt needs the reviewed restart mechanism of gap 18,
-     which does not exist yet. The application refuses any release but the
-     committed one, and a handover needs a block.
+   - If the correction is new code, follow [restart.md](restart.md). The
+     application refuses any release but the committed one, and a handover
+     needs a block. A root-signed restart authorization is the only way to
+     run a fixed release at the halted height.
 
    Never write a freeze, a handover or any other state into the database by
    hand.
@@ -92,7 +92,7 @@ after consensus has stopped.
 - Halt and resume controllers, thresholds and communication
   authentication.
 - Checkpoint verification rules and signer fencing evidence.
-- The restart mechanism (gap 18) and failure criteria.
+- The handover custodians who sign a restart, and the failure criteria.
 
 Exercise the procedure on disposable local or assigned staging systems
 before acceptance. Production private keys do not belong in the evidence

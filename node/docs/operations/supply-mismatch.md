@@ -52,8 +52,13 @@ Its effects, or the rules, are wrong. The chain is halted.
      the write failed. The printed error names the rule that failed.
 3. Reproduce the failure on a copy of a stopped node's database, never on
    the original. Identify the rule and the transaction.
-4. A fix is new code. Restarting the chain on a new release after a halt is
-   blocked until gap 18 ([known limits](README.md#known-limits)).
+4. A fix is new code.
+   - After a `pass`, resume the chain on the fixed release with a restart
+     authorization ([restart.md](restart.md)).
+   - After a `fail`, the committed state itself breaks the rules. Every
+     startup refuses it before a restart is considered, so no procedure here
+     resumes the chain. Recovering needs an explicit decision (see
+     [halt.md](halt.md), Do not).
 
 ## 2. One node stops at startup
 
@@ -82,6 +87,6 @@ possible defect in the release. Do not change state.
 ## Do not
 
 - Edit balances, totals or burn counters in the database.
-- Restart on a patched binary. The committed release is enforced; see gap
-  18.
+- Restart on a patched binary without a restart authorization. The
+  committed release is enforced.
 - Delete the database of a node that failed the check.

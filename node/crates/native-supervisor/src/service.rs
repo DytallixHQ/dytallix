@@ -56,12 +56,18 @@ impl NativeService {
             serde_json::from_slice(&config.emergency_verifier_config.read()?)?;
         let candidate: DevelopmentCandidateV2Input =
             serde_json::from_slice(&config.candidate_config.read()?)?;
-        let authority = ConsensusApplication::preflight_development_release_from_root(
+        let restart = config
+            .restart_authorization
+            .as_ref()
+            .map(|pin| pin.read())
+            .transpose()?;
+        let authority = ConsensusApplication::preflight_development_release_with_restart(
             config.database(),
             &consensus,
             &genesis,
             &consensus_source,
             &root,
+            restart.as_deref(),
         )?;
         let catalog = verify_catalog(&candidate, &authority, &root, &emergency)?;
         admission.bind_catalog(&catalog)?;
@@ -343,6 +349,9 @@ fn application_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
             config.metrics.interval_seconds.to_string().into(),
         ),
     ];
+    if let Some(restart) = &config.restart_authorization {
+        args.push(("--restart-authorization", restart.path.clone().into()));
+    }
     if let Some(snapshots) = &config.snapshots {
         args.extend([
             ("--snapshot-dir", snapshots.directory.clone().into()),
@@ -452,6 +461,16 @@ mod argument_tests {
             "metrics":{"directory":"/m","interval_seconds":15},"snapshots":snapshots,
             "block_history":"archive"}))
         .unwrap()
+    }
+    #[test]
+    fn a_pinned_restart_reaches_the_application() {
+        let mut config = config(Value::Null);
+        assert!(!strings(application_arguments(&config)).iter().any(|a| a == "--restart-authorization"));
+        config.restart_authorization = Some(
+            serde_json::from_value(json!({"path":"/r","sha256":"0".repeat(64),"max_bytes":1})).unwrap(),
+        );
+        let app = strings(application_arguments(&config));
+        assert!(app.windows(2).any(|w| w == ["--restart-authorization", "/r"]));
     }
     fn strings(args: Vec<OsString>) -> Vec<String> {
         args.into_iter().map(|v| v.into_string().unwrap()).collect()

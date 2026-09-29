@@ -116,6 +116,13 @@ pub fn encode_receipt(receipt: &Receipt) -> Result<Vec<u8>> {
     Ok(serde_json::to_vec(receipt)?)
 }
 
+/// An operator's authorization file in canonical form. The signatures bind
+/// the payload, not the file's layout, so a formatted file is accepted.
+pub fn canonical_file(bytes: &[u8]) -> Result<Vec<u8>> {
+    let authorization: Authorization =
+        serde_json::from_slice(bytes).context("Invalid restart authorization file")?;
+    Ok(serde_json::to_vec(&authorization)?)
+}
 pub fn decode_authorization(policy: &Policy, bytes: &[u8]) -> Result<Authorization> {
     policy.validate()?;
     ensure!(

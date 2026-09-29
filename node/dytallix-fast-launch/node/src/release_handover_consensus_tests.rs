@@ -783,6 +783,13 @@ fn restart_resumes_a_halted_chain_on_the_running_release() {
     let before = data(&app);
     drop(app);
     assert!(open(&root, &f, &db).is_err());
+    // The operator's builder reads the same checkpoint from the stopped node.
+    let signed: handover::restart::Authorization = serde_json::from_slice(&bound).unwrap();
+    let built = restart_payload(&db, &f.config, &f.genesis, &running, Some(halted.hash.clone()), &"35".repeat(32))
+        .unwrap();
+    assert_eq!(built, signed.payload);
+    // A formatted file is accepted: the signatures bind the payload.
+    let bound = serde_json::to_vec_pretty(&signed).unwrap();
 
     // A restart bound to another block opens, but refuses block 3.
     let mut refusing = open_restart(&root, &f, &db, other_block).unwrap();

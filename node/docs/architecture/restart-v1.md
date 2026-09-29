@@ -155,10 +155,32 @@ block H. The supervisor's preflight selects the target release the same way.
   - The 4th process test switches the executing release between two builds
     at the halted height, with the source refused afterwards.
 
+## S-c: operators
+
+- **Supervisor.** The native service configuration takes an optional
+  pinned `restart_authorization` of at most 256 KiB.
+  - The preflight
+    (`ConsensusApplication::preflight_development_release_with_restart`)
+    verifies it and selects its target.
+  - The application receives `--restart-authorization`.
+- **Formatted files.** A formatted file is accepted: `canonical_file`
+  re-serializes it before it is decoded. The signatures bind the payload,
+  not the file's layout.
+- **Payload builder.** `dytallix-state-check ... --restart-target RELEASE
+  --evidence SHA256 [--halted-block-hash HASH] --restart-output DIR` runs
+  the stopped-node checks and builds the payload (`restart_payload`) from
+  the committed checkpoint. It writes `restart-unsigned.json` and
+  `restart-artifact.bin`, the exact bytes to sign, and prints the sequence,
+  the halted height and the artifact's SHA-512.
+- **Runbook.** [restart.md](../operations/restart.md). The halt, supply
+  mismatch and upgrade failure runbooks now lead to it. A committed state
+  that itself breaks the rules is outside it: startup refuses that state
+  before a restart is considered.
+
 ## Steps
 
 | Step | Content |
 | --- | --- |
 | S-a | This contract; the restart type, validation, signature verification, state transition and replay (`release_handover::restart`) with unit tests |
 | S-b | The application: the flag, startup verification, block H execution, history replay and pruning pins, the status view; a process test of the switch between two builds |
-| S-c | The supervisor's pinned input and preflight; the runbooks (halt, supply mismatch, upgrade failure) replace their gap 18 stop |
+| S-c | The supervisor's pinned input and preflight; formatted files; the payload builder; the restart runbook, which the halt, supply mismatch and upgrade failure runbooks lead to |

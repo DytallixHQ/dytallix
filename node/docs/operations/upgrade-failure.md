@@ -82,8 +82,8 @@ release: a schema-preserving return. That handover needs a block.
 - If the target release still produces blocks, admit and activate the
   return handover.
 - If it cannot produce blocks, the chain is halted and neither release can
-  run. Follow [halt.md](halt.md). Resuming on a working release needs the
-  restart mechanism of gap 18.
+  run. Follow [halt.md](halt.md), then [restart.md](restart.md) with a
+  working release as the target.
 
 ## Do not
 
