@@ -1078,6 +1078,8 @@ pub enum QueryRequest<'a> {
     Proposal(u64),
     Vote(u64, &'a str),
     OrdinaryAccount(&'a str),
+    /// An account's recovery state (E04 gap 17, T-c).
+    RecoveryAccount(&'a str),
     OrdinaryReceipt(&'a str),
     EmergencyReceipt(&'a str),
     /// A committed state key, lowercase hex, with its proof (phase B).
@@ -5900,6 +5902,7 @@ impl ConsensusApplication {
             QueryRequest::Proposal(id) => self.query_proposal_validated(id)?,
             QueryRequest::Vote(id, voter) => self.query_vote_validated(id, voter)?,
             QueryRequest::OrdinaryAccount(id) => self.query_ordinary_account_validated(id)?,
+            QueryRequest::RecoveryAccount(id) => self.query_recovery_account_validated(id)?,
             QueryRequest::OrdinaryReceipt(id) => self.query_ordinary_receipt_validated(id)?,
             QueryRequest::EmergencyReceipt(id) => self.query_emergency_receipt_validated(id)?,
             QueryRequest::StateProof(key) => self.query_state_proof_validated(key, info.height)?,
@@ -6295,6 +6298,79 @@ impl ConsensusApplication {
             spending_nonce: recovery.spending_nonce,
             protected: !recovery.outgoing_allowed(),
             profile_digest: ordinary_fee_wire::profile_digest(&state.config.fee_profile)?,
+        })?)
+    }
+    pub fn query_recovery_account(&self, id: &str) -> Result<serde_json::Value> {
+        self.query_at(QueryRequest::RecoveryAccount(id), 0)
+            .map(|(_, value)| value)
+    }
+    /// What a client needs to build and sponsor a recovery action (E04 gap
+    /// 17, T-c). Null without a recovery profile or record for `id`.
+    fn query_recovery_account_validated(&self, id: &str) -> Result<serde_json::Value> {
+        use dytallix_protocol_types::ordinary_client::{
+            AccountDomain, PendingPolicyView, PendingRecoveryView, RecoveryAccountView,
+            RecoveryFeeView, RecoveryTimingView, CLIENT_VIEW_VERSION,
+        };
+        valid_hash(id)?;
+        let Some(book) = recovery_book(&self.storage, &self.config)? else {
+            return Ok(serde_json::Value::Null);
+        };
+        let Some(account) = book.accounts.find(id)? else {
+            return Ok(serde_json::Value::Null);
+        };
+        let recovery = &account.recovery;
+        let config = &recovery.config;
+        let profile = &book.profile;
+        Ok(serde_json::to_value(RecoveryAccountView {
+            version: CLIENT_VIEW_VERSION,
+            context: self.ordinary_client_context()?,
+            domain: AccountDomain {
+                network: recovery.domain.network,
+                chain_id: recovery.domain.chain_id.clone(),
+                genesis_digest: recovery.domain.genesis_digest,
+                account_id: recovery.domain.account_id,
+            },
+            address: account.address.clone(),
+            status: recovery.status.clone(),
+            active_key: recovery.active_key.clone(),
+            active_generation: recovery.active_generation,
+            spending_nonce: recovery.spending_nonce,
+            sponsor_nonce: account.sponsor_nonce,
+            policy: recovery.policy.clone(),
+            policy_version: recovery.policy_version,
+            recovery_sequence: recovery.recovery_sequence,
+            policy_change_sequence: recovery.policy_change_sequence,
+            pending_recovery: recovery.pending_recovery.as_ref().map(|p| PendingRecoveryView {
+                request_id: p.request_id,
+                replacement: p.replacement.clone(),
+                activation_height: p.activation_height,
+                expiry_height: p.expiry_height,
+            }),
+            pending_policy: recovery.pending_policy.as_ref().map(|p| PendingPolicyView {
+                update_id: p.update_id,
+                policy: p.policy.clone(),
+                activation_height: p.activation_height,
+                expiry_height: p.expiry_height,
+            }),
+            timing: RecoveryTimingView {
+                timing_version: config.timing_version,
+                recovery_delay: config.recovery_delay,
+                finalization_window: config.finalization_window,
+                policy_delay: config.policy_delay,
+                policy_window: config.policy_window,
+                submission_lifetime: config.submission_lifetime,
+                algorithms: config.algorithms.keys().cloned().collect(),
+            },
+            fee: RecoveryFeeView {
+                profile_version: profile.version,
+                profile_digest: dytallix_protocol_types::recovery_sponsor::profile_digest(profile)
+                    .map_err(|e| anyhow::anyhow!(e.to_string()))?,
+                denomination: profile.denomination.clone(),
+                gas_price: profile.gas_price,
+                minimum_gas: profile.minimum_gas,
+                max_transaction_gas: profile.max_transaction_gas,
+                max_fee_cap: profile.max_fee_cap,
+            },
         })?)
     }
     pub fn query_ordinary_receipt(&self, id: &str) -> Result<serde_json::Value> {

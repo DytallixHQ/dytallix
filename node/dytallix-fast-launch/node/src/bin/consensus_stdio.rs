@@ -59,6 +59,7 @@ enum QueryPath<'a> {
     GovernanceProfile,
     OrdinaryReceipt(&'a str),
     OrdinaryAccount(&'a str),
+    RecoveryAccount(&'a str),
     EmergencyReceipt(&'a str),
     StateProof(&'a str),
     AccountSummary(&'a str),
@@ -128,6 +129,15 @@ fn query_path(path: &str) -> Result<QueryPath<'_>> {
                 "State proof query requires a lowercase hex key"
             );
             Ok(QueryPath::StateProof(key))
+        }
+        // E04 gap 17, T-c: what a client needs to build a recovery action.
+        _ if path.starts_with("/recovery/account/") => {
+            let id = path.strip_prefix("/recovery/account/").unwrap();
+            ensure!(
+                lowercase_hex64(id),
+                "Recovery query requires a lowercase 64-hex account ID"
+            );
+            Ok(QueryPath::RecoveryAccount(id))
         }
         _ if path.starts_with("/emergency/receipt/") => {
             let id = path.strip_prefix("/emergency/receipt/").unwrap();
@@ -343,6 +353,7 @@ fn handle(
                 QueryPath::GovernanceProfile => QueryRequest::GovernanceProfile,
                 QueryPath::OrdinaryReceipt(id) => QueryRequest::OrdinaryReceipt(id),
                 QueryPath::OrdinaryAccount(id) => QueryRequest::OrdinaryAccount(id),
+                QueryPath::RecoveryAccount(id) => QueryRequest::RecoveryAccount(id),
                 QueryPath::EmergencyReceipt(id) => QueryRequest::EmergencyReceipt(id),
                 QueryPath::StateProof(key) => QueryRequest::StateProof(key),
                 QueryPath::AccountSummary(address) => QueryRequest::AccountSummary(address),
@@ -890,6 +901,7 @@ mod transport_tests {
             QueryPath::GovernanceProfile => "GovernanceProfile",
             QueryPath::OrdinaryReceipt(_) => "OrdinaryReceipt",
             QueryPath::OrdinaryAccount(_) => "OrdinaryAccount",
+            QueryPath::RecoveryAccount(_) => "RecoveryAccount",
             QueryPath::EmergencyReceipt(_) => "EmergencyReceipt",
             QueryPath::StateProof(_) => "StateProof",
             QueryPath::AccountSummary(_) => "AccountSummary",
@@ -898,12 +910,13 @@ mod transport_tests {
             QueryPath::Vote(..) => "Vote",
         }
     }
-    const VARIANTS: [&str; 11] = [
+    const VARIANTS: [&str; 12] = [
         "Status",
         "OrdinaryProfile",
         "GovernanceProfile",
         "OrdinaryReceipt",
         "OrdinaryAccount",
+        "RecoveryAccount",
         "EmergencyReceipt",
         "StateProof",
         "AccountSummary",
@@ -943,6 +956,14 @@ mod transport_tests {
         }
         assert!(query_path(&format!("/governance/vote/3/{}", "AB".repeat(32))).is_err());
         assert!(query_path(&format!("/account/{}", "a".repeat(129))).is_err());
+        let account = "cd".repeat(32);
+        assert_eq!(
+            query_path(&format!("/recovery/account/{account}")).unwrap(),
+            QueryPath::RecoveryAccount(&account)
+        );
+        for bad in ["CD".repeat(32), "cd".repeat(31), format!("{account}/x"), String::new()] {
+            assert!(query_path(&format!("/recovery/account/{bad}")).is_err(), "{bad}");
+        }
     }
 
     /// The interface inventory (interfaces v1) lists exactly the query paths

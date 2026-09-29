@@ -125,6 +125,36 @@
       ]
     },
     {
+      "id": "abci-query-recovery-account",
+      "group": "abci_query",
+      "exposure": "external",
+      "path": "/recovery/account/{account_id}",
+      "variant": "RecoveryAccount",
+      "format": "JSON RecoveryAccountView or null: status, active key, generation, spending and sponsor nonces, policy and its version, recovery and policy sequences, pending recovery and policy with their heights, timing and algorithms, and the recovery fee profile's version, digest and bounds (E04 gap 17).",
+      "version": {
+        "field": "version",
+        "constant": {
+          "file": "node/crates/protocol-types/src/ordinary_client.rs",
+          "name": "CLIENT_VIEW_VERSION",
+          "value": 1
+        }
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs",
+        "symbol": "fn query_recovery_account_validated("
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/recovery_consensus_tests.rs",
+          "name": "the_recovery_view_reports_the_committed_record"
+        },
+        {
+          "file": "node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs",
+          "name": "typed_read_paths_require_canonical_identifiers"
+        }
+      ]
+    },
+    {
       "id": "abci-query-ordinary-receipt",
       "group": "abci_query",
       "exposure": "external",

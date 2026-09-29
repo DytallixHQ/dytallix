@@ -2,7 +2,11 @@
 //! A committed context identifies the node's reported state. It is not a
 //! light-client proof or authenticated authority. Clients must check their own
 //! expected domain, profile and trusted context before signing.
-use crate::{ordinary_fees::FeeProfile, ordinary_fees_v3::FeeProfileV3, recovery::KeyIdentity};
+use crate::{
+    ordinary_fees::FeeProfile,
+    ordinary_fees_v3::FeeProfileV3,
+    recovery::{KeyIdentity, RecoveryPolicy, RecoveryStatus},
+};
 use serde::{Deserialize, Serialize};
 pub const CLIENT_VIEW_VERSION: u16 = 1;
 
@@ -301,6 +305,99 @@ pub struct VoteView {
     pub voter: [u8; 32],
     #[serde(deserialize_with = "required_option")]
     pub choice: Option<crate::ordinary_v3::VoteChoice>,
+}
+/// An account's recovery state at `context` (E04 gap 17, T-c): what a client
+/// needs to build a recovery action (Enroll through CancelPolicy) and to
+/// sponsor it. The node's report, not a proof; the record is provable
+/// through `/state/proof`. Due expiries are already applied.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecoveryAccountView {
+    pub version: u16,
+    pub context: CommittedContext,
+    pub domain: AccountDomain,
+    pub address: String,
+    pub status: RecoveryStatus,
+    pub active_key: KeyIdentity,
+    #[serde(with = "decimal_u64")]
+    pub active_generation: u64,
+    #[serde(with = "decimal_u64")]
+    pub spending_nonce: u64,
+    /// The account's nonce as a sponsor of another account's recovery.
+    #[serde(with = "decimal_u64")]
+    pub sponsor_nonce: u64,
+    #[serde(deserialize_with = "required_option")]
+    pub policy: Option<RecoveryPolicy>,
+    #[serde(with = "decimal_u64")]
+    pub policy_version: u64,
+    #[serde(with = "decimal_u64")]
+    pub recovery_sequence: u64,
+    #[serde(with = "decimal_u64")]
+    pub policy_change_sequence: u64,
+    #[serde(deserialize_with = "required_option")]
+    pub pending_recovery: Option<PendingRecoveryView>,
+    #[serde(deserialize_with = "required_option")]
+    pub pending_policy: Option<PendingPolicyView>,
+    pub timing: RecoveryTimingView,
+    pub fee: RecoveryFeeView,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PendingRecoveryView {
+    #[serde(with = "hex32")]
+    pub request_id: [u8; 32],
+    pub replacement: KeyIdentity,
+    #[serde(with = "decimal_u64")]
+    pub activation_height: u64,
+    #[serde(with = "decimal_u64")]
+    pub expiry_height: u64,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PendingPolicyView {
+    #[serde(with = "hex32")]
+    pub update_id: [u8; 32],
+    pub policy: RecoveryPolicy,
+    #[serde(with = "decimal_u64")]
+    pub activation_height: u64,
+    #[serde(with = "decimal_u64")]
+    pub expiry_height: u64,
+}
+/// The account's recovery timing and its accepted algorithms.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecoveryTimingView {
+    #[serde(with = "decimal_u64")]
+    pub timing_version: u64,
+    #[serde(with = "decimal_u64")]
+    pub recovery_delay: u64,
+    #[serde(with = "decimal_u64")]
+    pub finalization_window: u64,
+    #[serde(with = "decimal_u64")]
+    pub policy_delay: u64,
+    #[serde(with = "decimal_u64")]
+    pub policy_window: u64,
+    #[serde(with = "decimal_u64")]
+    pub submission_lifetime: u64,
+    pub algorithms: Vec<String>,
+}
+/// The recovery fee profile's identity and the bounds a sponsor signs.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecoveryFeeView {
+    #[serde(with = "decimal_u64")]
+    pub profile_version: u64,
+    #[serde(with = "hex32")]
+    pub profile_digest: [u8; 32],
+    pub denomination: String,
+    #[serde(with = "decimal_u64")]
+    pub gas_price: u64,
+    #[serde(with = "decimal_u64")]
+    pub minimum_gas: u64,
+    #[serde(with = "decimal_u64")]
+    pub max_transaction_gas: u64,
+    #[serde(with = "decimal_u128")]
+    pub max_fee_cap: u128,
 }
 fn required_option<'de, D, T>(deserializer: D) -> Result<Option<T>, D::Error>
 where
