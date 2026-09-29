@@ -22,6 +22,7 @@ import (
 	cstypes "github.com/cometbft/cometbft/consensus/types"
 	cryptoenc "github.com/cometbft/cometbft/crypto/encoding"
 	"github.com/cometbft/cometbft/crypto/tmhash"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/bits"
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/json"
@@ -111,6 +112,7 @@ func stopConsensusNet(logger log.Logger, reactors []*Reactor, eventBuses []*type
 
 // Ensure a testnet makes blocks
 func TestReactorBasic(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 4
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_test", newMockTickerFunc(true), newKVStore)
 	defer cleanup()
@@ -124,6 +126,7 @@ func TestReactorBasic(t *testing.T) {
 
 // Ensure we can process blocks with evidence
 func TestReactorWithEvidence(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	nValidators := 4
 	testName := "consensus_reactor_test"
 	tickerFunc := newMockTickerFunc(true)
@@ -224,6 +227,7 @@ func TestReactorWithEvidence(t *testing.T) {
 
 // Ensure a testnet makes blocks when there are txs
 func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 4
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_test", newMockTickerFunc(true), newKVStore,
 		func(c *cfg.Config) {
@@ -247,6 +251,7 @@ func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
 }
 
 func TestReactorReceiveDoesNotPanicIfAddPeerHasntBeenCalledYet(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 1
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_test", newMockTickerFunc(true), newKVStore)
 	defer cleanup()
@@ -277,6 +282,7 @@ func TestReactorReceiveDoesNotPanicIfAddPeerHasntBeenCalledYet(t *testing.T) {
 }
 
 func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 1
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_test", newMockTickerFunc(true), newKVStore)
 	defer cleanup()
@@ -416,6 +422,7 @@ func TestSwitchToConsensusVoteExtensions(t *testing.T) {
 
 // Test we record stats about votes and block parts from other peers.
 func TestReactorRecordsVotesAndBlockParts(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 4
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_test", newMockTickerFunc(true), newKVStore)
 	defer cleanup()
@@ -440,6 +447,7 @@ func TestReactorRecordsVotesAndBlockParts(t *testing.T) {
 // ensure we can make blocks despite cycling a validator set
 
 func TestReactorVotingPowerChange(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	nVals := 4
 	logger := log.TestingLogger()
 	css, cleanup := randConsensusNet(
@@ -521,6 +529,7 @@ func TestReactorVotingPowerChange(t *testing.T) {
 }
 
 func TestReactorValidatorSetChanges(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	nPeers := 7
 	nVals := 4
 	css, _, _, cleanup := randConsensusNetWithPeers(
@@ -635,6 +644,7 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 
 // Check we can make blocks with skip_timeout_commit=false
 func TestReactorWithTimeoutCommit(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 4
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_with_timeout_commit_test", newMockTickerFunc(false), newKVStore)
 	defer cleanup()
@@ -1184,6 +1194,7 @@ func TestVoteMessageValidateBasic(t *testing.T) {
 // after FinalizeBlock, the consensus reactor receives the update event and
 // updates its internal copy of consensus params.
 func TestReactorConsensusParamsUpdate(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 4
 
 	// Track which block heights should trigger consensus params updates

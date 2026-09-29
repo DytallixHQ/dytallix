@@ -20,6 +20,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/tmhash"
 	"github.com/cometbft/cometbft/evidence"
 	"github.com/cometbft/cometbft/evidence/mocks"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	p2pmocks "github.com/cometbft/cometbft/p2p/mocks"
@@ -38,6 +39,7 @@ var (
 // other reactors receive the evidence and add it to their own respective
 // evidence pools.
 func TestReactorBroadcastEvidence(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config := cfg.TestConfig()
 	N := 7
 
@@ -71,6 +73,7 @@ func TestReactorBroadcastEvidence(t *testing.T) {
 // Reactor 1 which is ahead receives a number of evidence. It should only send the evidence
 // that is below the height of the peer to that peer.
 func TestReactorSelectiveBroadcast(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config := cfg.TestConfig()
 
 	val := types.NewMockPV()
@@ -114,6 +117,7 @@ func TestReactorSelectiveBroadcast(t *testing.T) {
 // Second, evidence to a peer that is behind
 // Third, evidence that was pending and became committed just before the peer caught up
 func TestReactorsGossipNoCommittedEvidence(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config := cfg.TestConfig()
 
 	val := types.NewMockPV()

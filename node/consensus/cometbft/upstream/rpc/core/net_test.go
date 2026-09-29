@@ -7,12 +7,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	cfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	rpctypes "github.com/cometbft/cometbft/rpc/jsonrpc/types"
 )
 
 func TestUnsafeDialSeeds(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	sw := p2p.MakeSwitch(cfg.DefaultP2PConfig(), 1,
 		func(n int, sw *p2p.Switch) *p2p.Switch { return sw })
 	err := sw.Start()
@@ -48,6 +50,7 @@ func TestUnsafeDialSeeds(t *testing.T) {
 }
 
 func TestUnsafeDialPeers(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	sw := p2p.MakeSwitch(cfg.DefaultP2PConfig(), 1,
 		func(n int, sw *p2p.Switch) *p2p.Switch { return sw })
 	sw.SetAddrBook(&p2p.AddrBookMock{

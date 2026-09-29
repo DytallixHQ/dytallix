@@ -35,6 +35,9 @@ files that required those tags lost the requirement. The deletions cover:
   - the upstream end-to-end framework, apart from its sample ABCI app,
     which `proxy` uses;
   - the tests that exercised the removed code or built classical keys.
+    Test hygiene then restored the state, types, light, p2p and codec tests
+    with ML-DSA-65 keys and deleted the rest of the HTTP RPC, gRPC and TLS
+    test code. See `UPSTREAM_TESTS.md`.
 - **Also changed:**
   - the fixture generator's `legacy-cometbft-loopback-only` profile is
     gone, so `--p2p-profile` must be given explicitly;
@@ -50,8 +53,8 @@ gap 20, F-c, removes them.
 
 `scripts/check_consensus_go_graph.py` (from `mainnet/node`) enforces the
 boundary in CI. It fails when a selected graph imports a prohibited package,
-when a removed classical package returns to the fork, or when remote-signer
-sources return to `privval`. The selected engine, bridge and root-verifier
+when a removed classical or gRPC package returns to the fork, or when
+remote-signer sources return to `privval`. The selected engine, bridge and root-verifier
 graphs contain no `crypto/tls`, `crypto/x509`, `net/http` or gRPC packages.
 
 ## Build a candidate
@@ -84,10 +87,10 @@ a clean inventory alone cannot establish PQC compliance.
 
 ## Evidence limits
 
-- **Upstream tests.** CI runs only the upstream `privval` and `node` tests.
-  Many other upstream test packages do not compile in this module: testify's
-  mocks and several test helpers lack module entries, and the gRPC tests
-  reference the removed servers.
+- **Upstream tests.** CI vets and tests every upstream package in the
+  PQC-only build. 43 reactor tests that connect switches through the p2p
+  test helpers are skipped: the helpers have no authenticated PQC upgrade.
+  See `UPSTREAM_TESTS.md`.
 - **Open work.** Remote release-tag equivalence, independent build
   reproduction, root authorization, private-key validation, custody and
   production qualification remain open.

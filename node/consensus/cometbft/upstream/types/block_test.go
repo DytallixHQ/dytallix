@@ -138,11 +138,12 @@ func TestBlockMakePartSetWithEvidence(t *testing.T) {
 	require.NoError(t, err)
 	evList := []Evidence{ev}
 
-	partSet, err := MakeBlock(h, []Tx{Tx("Hello World")}, extCommit.ToCommit(), evList).MakePartSet(512)
+	// Ten ML-DSA-65 commit signatures and one duplicate-vote evidence.
+	partSet, err := MakeBlock(h, []Tx{Tx("Hello World")}, extCommit.ToCommit(), evList).MakePartSet(16384)
 	require.NoError(t, err)
 
 	assert.NotNil(t, partSet)
-	assert.EqualValues(t, 4, partSet.Total())
+	assert.EqualValues(t, 3, partSet.Total())
 }
 
 func TestBlockHashesTo(t *testing.T) {

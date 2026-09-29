@@ -10,6 +10,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/internal/protowire"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/p2p"
@@ -20,6 +21,7 @@ import (
 )
 
 func TestAppReactor(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	t.Run("effectiveMaxBatchBytes", func(t *testing.T) {
 		for _, tt := range []struct {
 			name          string

@@ -18,6 +18,7 @@ import (
 )
 
 func TestReactorAdaptive(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	const waitTime = 5 * time.Second
 	t.Run("ingestsBlock", func(t *testing.T) {
 		// ARRANGE

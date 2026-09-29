@@ -59,7 +59,8 @@ classical code with build tags. Gap 20 deletes it from the source:
 - SecretConnection;
 - the remote signer and its server command;
 - the HTTP RPC, gRPC and Prometheus paths;
-- the tests that used classical keys.
+- the tests that used classical keys. Test hygiene later restored the core
+  ones with ML-DSA-65 keys (`consensus/cometbft/UPSTREAM_TESTS.md`).
 
 The PQC-only build is now the only build. `check_consensus_go_graph.py`
 requires the removed packages to stay absent. See

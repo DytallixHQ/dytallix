@@ -25,6 +25,8 @@ go build -mod=readonly -o /absolute/bin/dytallix-comet-proof ./cmd/dytallix-come
 go build -mod=readonly -tags dytallix_pqc_only,dytallix_pqc_ipc -o /absolute/bin/ ./cmd/dytallix-validator-key ./cmd/dytallix-operator-rpc
 go build -mod=readonly -o /absolute/bin/cometbft github.com/cometbft/cometbft/cmd/cometbft
 go test -mod=readonly ./...
+# The upstream copy (see UPSTREAM_TESTS.md).
+go test -mod=readonly github.com/cometbft/cometbft/...
 ```
 
 The engine module requires Go 1.25.0 or later. A successful build does not establish
