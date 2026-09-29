@@ -40,6 +40,10 @@ base64 = { workspace = true }
 sha3 = { workspace = true }
 sha2 = "0.10"
 thiserror = { workspace = true }
+# Keystore encryption at rest (E04 gap 16).
+argon2 = { version = "0.5", default-features = false, features = ["alloc"] }
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc", "getrandom"] }
+zeroize = "1"
 
 [dev-dependencies]
 anyhow = { workspace = true }

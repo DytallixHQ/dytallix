@@ -6,6 +6,7 @@ pub mod consensus;
 pub mod crypto;
 pub mod governance;
 pub mod ordinary;
+pub(crate) mod passphrase;
 pub mod send;
 pub mod stake;
 pub mod wallet;
@@ -124,9 +125,48 @@ pub(crate) fn load_keystore() -> Result<Keystore> {
     Keystore::open(Keystore::default_path()).map_err(map_keystore_error)
 }
 
+/// The keystore for adding keys: an existing one unlocked, or a new
+/// encrypted one under a new passphrase (E04 gap 16).
 pub(crate) fn load_or_create_keystore() -> Result<Keystore> {
-    Keystore::open_or_create(Keystore::default_path()).map_err(map_keystore_error)
+    let path = Keystore::default_path();
+    if path.exists() {
+        let mut keystore = load_keystore()?;
+        unlock_keystore(&mut keystore)?;
+        Ok(keystore)
+    } else {
+        let passphrase = passphrase::new()?;
+        Keystore::create(path, &passphrase).map_err(map_keystore_error)
+    }
 }
+
+/// Unlock an encrypted keystore with its passphrase. A version 1 keystore
+/// holds plaintext keys and must be migrated first.
+pub(crate) fn unlock_keystore(keystore: &mut Keystore) -> Result<()> {
+    if keystore.version() == 1 {
+        return Err(anyhow!(MIGRATE_MESSAGE));
+    }
+    if !keystore.is_unlocked() {
+        keystore
+            .unlock(&passphrase::existing()?)
+            .map_err(humanize_sdk_error)?;
+    }
+    Ok(())
+}
+
+/// A named keypair, asking for the passphrase when the keystore is locked.
+pub(crate) fn keypair_named(keystore: &Keystore, name: &str) -> Result<DytallixKeypair> {
+    if keystore.version() == 1 {
+        return Err(anyhow!(MIGRATE_MESSAGE));
+    }
+    if keystore.is_unlocked() {
+        keystore.get_keypair(name)
+    } else {
+        keystore.open_keypair(name, &passphrase::existing()?)
+    }
+    .map_err(humanize_sdk_error)
+}
+
+pub(crate) const MIGRATE_MESSAGE: &str = "This keystore holds plaintext private keys (version 1). Run `dytallix wallet migrate` to encrypt it before using its keys.";
 
 pub(crate) fn active_entry(keystore: &Keystore) -> Result<&KeystoreEntry> {
     keystore.active().ok_or_else(|| {
@@ -138,9 +178,7 @@ pub(crate) fn active_entry(keystore: &Keystore) -> Result<&KeystoreEntry> {
 
 pub(crate) fn active_keypair(keystore: &Keystore) -> Result<DytallixKeypair> {
     let entry = active_entry(keystore)?;
-    keystore
-        .get_keypair(&entry.name)
-        .map_err(humanize_sdk_error)
+    keypair_named(keystore, &entry.name)
 }
 
 pub(crate) fn format_number(value: u128) -> String {
@@ -263,6 +301,9 @@ pub(crate) fn humanize_sdk_error(error: SdkError) -> anyhow::Error {
 		SdkError::TransactionRejected(message) => anyhow!("Transaction rejected: {message}"),
 		SdkError::ContractDeployFailed(message) => anyhow!("Contract deployment failed: {message}"),
 		SdkError::KeystoreCorrupt(message) => anyhow!("Keystore corrupt: {message}"),
+		SdkError::KeystoreLocked => anyhow!("The keystore is locked; its passphrase is required."),
+		SdkError::KeystorePlaintext => anyhow!(MIGRATE_MESSAGE),
+		SdkError::KeystorePassphrase => anyhow!("Wrong keystore passphrase."),
 		SdkError::NetworkMismatch(message) => anyhow!("Network mismatch: {message}"),
 		SdkError::InsufficientGas { required, provided } => anyhow!(
 			"Insufficient gas: required {required} units but only {provided} were provided. Increase the gas limit and try again."

@@ -20,7 +20,7 @@ paths are exactly the ones the application accepts.
 | I2 | Unversioned surfaces: the `/status` view (also `""` and `/supply`), the `/emergency/receipt` view, the metrics files, the light-block export output, the engine's ready line, the ABCI info label (`batch9`), the keystore, the CLI configuration and pinned-chain files, and every CLI JSON output. | various |
 | I3 | Stake, rewards and governance are readable only as raw internal records; the reward and validator state are single records of up to 16 MiB. | `node/.../runtime/reward_runtime.rs`, `validator_lifecycle.rs`, `governance_store.rs` |
 | I4 | No ABCI events, and no statement whether there should be. | `node/consensus/cometbft/cmd/dytallix-comet-bridge/application.go` |
-| I5 | The CLI keystore holds private keys in plaintext. | `sdk/crates/dytallix-sdk/src/keystore.rs` |
+| I5 | The CLI keystore holds private keys in plaintext (closed by gap 16: [keystore v2](keystore-v2.md)). | `sdk/crates/dytallix-sdk/src/keystore.rs` |
 
 ## Decisions (P01, approved 28 September 2026)
 

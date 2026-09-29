@@ -11,7 +11,7 @@ use dytallix_core::keypair::{DytallixKeypair, KeyScheme};
 
 use crate::commands::{
     active_entry, active_keypair, bytes_to_hex, display_path, format_number, hex_to_bytes,
-    humanize_sdk_error, load_keystore, load_or_create_keystore, read_bytes,
+    humanize_sdk_error, load_keystore, load_or_create_keystore, passphrase, read_bytes,
 };
 use crate::output;
 
@@ -58,6 +58,8 @@ pub enum WalletCommand {
     Rotate,
     /// Show active wallet details.
     Info,
+    /// Encrypt a version 1 (plaintext) keystore under a new passphrase.
+    Migrate,
 }
 
 /// Runs the `wallet` command.
@@ -70,6 +72,7 @@ pub async fn run(args: WalletArgs) -> Result<()> {
         WalletCommand::Switch { name } => switch_wallet(&name),
         WalletCommand::Rotate => rotate_wallet(),
         WalletCommand::Info => wallet_info(),
+        WalletCommand::Migrate => migrate_wallet(),
     }
 }
 
@@ -135,8 +138,20 @@ fn import_wallet(key_file: PathBuf, name: Option<String>) -> Result<()> {
 fn export_wallet(output_path: PathBuf) -> Result<()> {
     let keystore = load_keystore()?;
     let keypair = active_keypair(&keystore)?;
-    let hex = bytes_to_hex(keypair.private_key());
-    fs::write(&output_path, hex)?;
+    let hex = zeroize::Zeroizing::new(bytes_to_hex(keypair.private_key()));
+    // The export is the plaintext private key: a new file, owner-only.
+    use std::io::Write as _;
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
+    }
+    options
+        .open(&output_path)
+        .map_err(|err| anyhow!("Cannot create {}: {err}", display_path(&output_path)))?
+        .write_all(hex.as_bytes())?;
     output::success(
         &format!("Active wallet exported to {}", display_path(&output_path)),
         None,
@@ -181,11 +196,32 @@ fn rotate_wallet() -> Result<()> {
     ))
 }
 
+fn migrate_wallet() -> Result<()> {
+    let mut keystore = load_keystore()?;
+    if keystore.version() != 1 {
+        return Err(anyhow!(
+            "The keystore is already encrypted (version {}).",
+            keystore.version()
+        ));
+    }
+    let passphrase = passphrase::new()?;
+    keystore.migrate(&passphrase).map_err(humanize_sdk_error)?;
+    keystore.save().map_err(humanize_sdk_error)?;
+    output::success(
+        &format!(
+            "Keystore encrypted: {} wallets now need the passphrase to sign",
+            keystore.list().len()
+        ),
+        None,
+    );
+    Ok(())
+}
+
+// Public details only: no passphrase is needed.
 fn wallet_info() -> Result<()> {
     let keystore = load_keystore()?;
     let entry = active_entry(&keystore)?;
-    let keypair = active_keypair(&keystore)?;
-    let pubkey_hash = hash_public_key(keypair.public_key());
+    let pubkey_hash = hash_public_key(&entry.public_key);
 
     output::section("Active wallet");
     println!("Name:           {}", entry.name);
@@ -194,16 +230,20 @@ fn wallet_info() -> Result<()> {
     println!("Scheme:         {:?}", entry.scheme);
     println!(
         "Public key:     {} bytes",
-        format_number(keypair.public_key().len() as u128)
+        format_number(entry.public_key.len() as u128)
     );
     println!(
-        "Private key:    {} bytes",
-        format_number(keypair.private_key().len() as u128)
+        "Private key:    {}",
+        if keystore.version() == 1 {
+            "plaintext (version 1; run `dytallix wallet migrate`)"
+        } else {
+            "encrypted"
+        }
     );
     // The consensus-chain address depends on the chain (clients v1, K-c).
     if let (Ok(chain), Ok(identity)) = (
         crate::commands::consensus::ChainConfig::load(),
-        crate::commands::consensus::key_identity(&keypair),
+        crate::commands::consensus::entry_identity(entry),
     ) {
         let address = chain.pin()?.origin_address(&identity)?;
         println!(

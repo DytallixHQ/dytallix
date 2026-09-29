@@ -37,8 +37,11 @@ validity bounds, and externally trusted root public key there.
 
 The wallet checks the declared scheme, supplied key pair, and derived address
 when it reloads a keystore. This check preserves existing valid ML-DSA-65 keys.
-The keystore currently writes plaintext with no explicit file permission mode,
-atomic replacement, or encryption. Wallet custody is not production qualified.
+The keystore (version 2) encrypts each private key with AES-256-GCM under an
+Argon2id key from the passphrase, binds each entry's public metadata to its
+ciphertext, and writes the file owner-only through an atomic replacement. A
+version 1 (plaintext) file is refused for signing until `dytallix wallet
+migrate` encrypts it. Wallet custody is not production qualified.
 Raw private-only import remains a legacy API with the pinned backend's malformed
 secret limitations. New applications should import an explicit public/private
 pair with `from_keypair`.
