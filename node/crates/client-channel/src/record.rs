@@ -6,7 +6,7 @@
 //! end-of-message flag is authenticated: a message cut short never completes.
 
 use aes_gcm::aead::{Aead, KeyInit, Payload};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::{Aes256Gcm, Nonce};
 
 use crate::Error;
 
@@ -27,7 +27,7 @@ fn nonce(sequence: u64) -> [u8; 12] {
 }
 
 fn cipher(key: &[u8; 32]) -> Aes256Gcm {
-    Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
+    Aes256Gcm::new(&(*key).into())
 }
 
 /// Seals what one side sends.
@@ -66,7 +66,7 @@ impl Sealer {
             let sealed = self
                 .cipher
                 .encrypt(
-                    Nonce::from_slice(&nonce(self.sequence)),
+                    &Nonce::from(nonce(self.sequence)),
                     Payload {
                         msg: chunk,
                         aad: &header,
@@ -119,7 +119,7 @@ impl Opener {
         let plain = self
             .cipher
             .decrypt(
-                Nonce::from_slice(&nonce(self.sequence)),
+                &Nonce::from(nonce(self.sequence)),
                 Payload {
                     msg: sealed,
                     aad: header,

@@ -645,7 +645,7 @@
       "id": "engine-rpc-http-adapter",
       "group": "engine_rpc",
       "exposure": "external",
-      "format": "Loopback HTTP adapter onto the client socket: POST / and GET /{method}; strict origin; no WebSocket. Its limits are compiled ceilings that operator flags can only lower. A public gateway in front of it follows the contract in rpc-controls-v1.md.",
+      "format": "Loopback HTTP adapter onto the client socket: POST / and GET /{method}; strict origin; no WebSocket. Its limits are compiled ceilings that operator flags can only lower. Remote clients use its client channel listener (engine-rpc-client-channel); a public endpoint follows the contract in rpc-controls-v1.md.",
       "version": {
         "field": "profile",
         "literal": {
@@ -669,6 +669,41 @@
         {
           "file": "node/consensus/pqc-http-adapter/src/lib.rs",
           "name": "limits_can_only_be_lowered_once_each"
+        }
+      ]
+    },
+    {
+      "id": "engine-rpc-client-channel",
+      "group": "engine_rpc",
+      "exposure": "external",
+      "format": "Client channel v1 (client-channel-v1.md): the HTTP adapter's optional public listener (--channel-listen). An anonymous client that pins the endpoint's full ML-DSA-65 key completes an ML-KEM-768 handshake, sends one sealed request (URI GET /{method} or JSON-RPC POST /) and receives one sealed response, under the loopback listener's checks and bounds and on the same client socket. It replaces TLS at a public edge (E04 gap 19).",
+      "version": {
+        "field": "suite",
+        "literal": {
+          "file": "node/crates/client-channel/src/handshake.rs",
+          "text": "dytallix-client-channel-v1/mlkem768/mldsa65/hkdfsha256/aes256gcm"
+        }
+      },
+      "source": {
+        "file": "node/consensus/pqc-http-adapter/src/channel.rs",
+        "symbol": "pub(crate) async fn exchange"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/pqc-http-adapter/src/channel_tests.rs",
+          "name": "requests_cross_the_channel_to_the_engine"
+        },
+        {
+          "file": "node/consensus/pqc-http-adapter/src/channel_tests.rs",
+          "name": "refused_requests_get_the_http_listeners_errors"
+        },
+        {
+          "file": "node/crates/client-channel/src/tests.rs",
+          "name": "fixed_seeds_give_the_recorded_transcript"
+        },
+        {
+          "file": "node/consensus/cometbft/internal/clientchannel/vector_test.go",
+          "name": "TestFixedSeedsGiveTheRecordedTranscript"
         }
       ]
     },
@@ -1146,6 +1181,61 @@
         {
           "file": "node/dytallix-fast-launch/node/src/release_handover/restart_tests.rs",
           "name": "replay_reproduces_the_committed_receipt"
+        }
+      ]
+    },
+    {
+      "id": "file-channel-pin",
+      "group": "file",
+      "exposure": "external",
+      "format": "Endpoint pin (client channel v1): {version, network (the chain ID), address (host:port), public_key_base64 (the full ML-DSA-65 key)}. dytallix-channel-key pin writes it; clients read it, and the supervisor pins it (adapter_channel.pin) and probes the listener with its key (E04 gap 19).",
+      "version": {
+        "field": "version",
+        "constant": {
+          "file": "node/crates/client-channel/src/pin.rs",
+          "name": "VERSION",
+          "value": 1
+        }
+      },
+      "source": {
+        "file": "node/crates/client-channel/src/pin.rs",
+        "symbol": "pub struct EndpointPin"
+      },
+      "tests": [
+        {
+          "file": "node/crates/client-channel/src/tests.rs",
+          "name": "endpoint_pins_are_strict"
+        },
+        {
+          "file": "node/consensus/pqc-http-adapter/src/bin/dytallix-channel-key.rs",
+          "name": "generate_then_pin_and_never_replace"
+        },
+        {
+          "file": "node/crates/native-supervisor/src/config.rs",
+          "name": "adapter_channel_pins_its_endpoint_and_becomes_flags"
+        }
+      ]
+    },
+    {
+      "id": "file-channel-seed",
+      "group": "file",
+      "exposure": "operator",
+      "format": "HOME/config/client_channel_seed.bin: the channel endpoint's 32-byte ML-DSA-65 key seed; a regular file of the service user, mode 0600, one link. dytallix-channel-key generate creates it and never replaces it; the adapter refuses it when it equals the peer transport's seed (E04 gap 19).",
+      "version": {
+        "none": "A raw 32-byte FIPS 204 key generation seed; it has no version field."
+      },
+      "source": {
+        "file": "node/consensus/pqc-http-adapter/src/channel.rs",
+        "symbol": "pub const SEED_PATH"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/pqc-http-adapter/src/channel_tests.rs",
+          "name": "seed_files_are_owner_only_single_link_and_exact"
+        },
+        {
+          "file": "node/consensus/pqc-http-adapter/src/channel_tests.rs",
+          "name": "channel_flags_are_checked_and_complete"
         }
       ]
     },

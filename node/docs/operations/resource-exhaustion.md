@@ -64,9 +64,11 @@ Capacity limits refuse transactions rather than fail the node.
 3. **Keep refusing.** Refusal under load is the designed behavior. Do not
    raise the mempool or queue limits beyond the approved values (D06-Q02).
    Until those are approved, the mempool values are operator settings.
-4. **Gateway.** Rate limits belong at the public gateway, under the
-   gateway contract ([RPC controls v1](../architecture/rpc-controls-v1.md)).
-   Lower `adapter_limits` if the loopback adapter is overloaded.
+4. **Public endpoint.** Its concurrency bounds are in the public endpoint
+   contract ([RPC controls v1](../architecture/rpc-controls-v1.md)).
+   Lower the `adapter_channel` connection limits if its connections are
+   exhausted, and `adapter_limits` if the loopback adapter is overloaded.
+   Rates are D12-Q01's.
 
 ## Do not
 

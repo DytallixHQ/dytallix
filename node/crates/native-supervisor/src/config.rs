@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{Metadata, OpenOptions};
 use std::io::Read;
+use std::net::SocketAddr;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -98,6 +99,9 @@ pub struct NativeServiceConfig {
     pub adapter_listen: Option<String>,
     /// Lowers the adapter's compiled limits; requires `adapter_listen`.
     pub adapter_limits: Option<AdapterLimits>,
+    /// The adapter's client channel listener (client channel v1, E04 gap
+    /// 19); requires `adapter_listen`.
+    pub adapter_channel: Option<AdapterChannel>,
     pub metrics: MetricsOutput,
     pub snapshots: Option<SnapshotOutput>,
     pub block_history: BlockHistory,
@@ -232,6 +236,78 @@ impl AdapterLimits {
             .filter_map(|(flag, value)| value.map(|v| [(*flag).into(), v.to_string().into()]))
             .flatten()
             .collect()
+    }
+}
+
+/// The adapter's client channel listener (E04 gap 19, C-b). The pin is the
+/// file clients receive. Its network must be the chain ID, and before
+/// readiness the supervisor completes a channel exchange with its key, so a
+/// seed that does not match the published pin stops startup.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AdapterChannel {
+    /// A canonical numeric `IP:port`, neither unspecified nor multicast.
+    pub listen: String,
+    pub pin: PinnedInput,
+    /// Lower the adapter's channel ceilings (64 and 4).
+    pub max_connections: Option<u64>,
+    pub max_connections_per_address: Option<u64>,
+}
+impl AdapterChannel {
+    pub fn address(&self) -> Result<SocketAddr> {
+        let address: SocketAddr = self
+            .listen
+            .parse()
+            .context("Channel listener must be a numeric IP:port")?;
+        ensure!(
+            address.to_string() == self.listen
+                && !address.ip().is_unspecified()
+                && !address.ip().is_multicast()
+                && address.port() > 0,
+            "Channel listener must be a canonical explicit address"
+        );
+        Ok(address)
+    }
+    pub fn endpoint_pin(&self) -> Result<dytallix_client_channel::EndpointPin> {
+        ensure!(
+            self.pin.max_bytes <= dytallix_client_channel::MAX_PIN_BYTES,
+            "Channel pin bound exceeds the pin limit"
+        );
+        dytallix_client_channel::EndpointPin::parse(&self.pin.read()?)
+            .map_err(|_| anyhow::anyhow!("Channel pin is malformed"))
+    }
+    fn validate(&self) -> Result<()> {
+        self.address()?;
+        self.endpoint_pin()?;
+        ensure!(
+            [self.max_connections, self.max_connections_per_address]
+                .iter()
+                .all(|v| v.is_none_or(|v| v > 0)),
+            "Channel limits must be positive"
+        );
+        Ok(())
+    }
+    /// The adapter arguments; the network is the candidate's chain ID.
+    pub fn args(&self, chain_id: &str) -> Vec<std::ffi::OsString> {
+        let mut args: Vec<std::ffi::OsString> = vec![
+            "--channel-listen".into(),
+            self.listen.clone().into(),
+            "--channel-network".into(),
+            chain_id.into(),
+        ];
+        for (flag, value) in [
+            ("--max-channel-connections", self.max_connections),
+            (
+                "--max-channel-connections-per-address",
+                self.max_connections_per_address,
+            ),
+        ] {
+            if let Some(value) = value {
+                args.push(flag.into());
+                args.push(value.to_string().into());
+            }
+        }
+        args
     }
 }
 
@@ -632,6 +708,13 @@ impl NativeServiceConfig {
             );
             limits.validate()?;
         }
+        if let Some(channel) = &self.adapter_channel {
+            ensure!(
+                self.adapter_listen.is_some(),
+                "The channel listener requires a configured adapter"
+            );
+            channel.validate()?;
+        }
         self.metrics.validate(&self.home)?;
         if let Some(restart) = &self.restart_authorization {
             ensure!(
@@ -891,6 +974,59 @@ mod tests {
         assert!(
             serde_json::from_value::<AdapterLimits>(serde_json::json!({"max_sockets":1})).is_err()
         );
+    }
+    #[test]
+    fn adapter_channel_pins_its_endpoint_and_becomes_flags() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().canonicalize().unwrap().join("pin.json");
+        let key = dytallix_client_channel::Identity::from_seed(&[1; 32])
+            .public_key()
+            .to_vec();
+        let pin = dytallix_client_channel::EndpointPin::new("chain-a", "node.example:26670", &key)
+            .unwrap()
+            .to_json();
+        std::fs::write(&path, &pin).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let channel = |listen: &str, extra: serde_json::Value| {
+            let mut value = serde_json::json!({"listen": listen, "pin": {
+                "path": path, "sha256": hex::encode(Sha256::digest(&pin)), "max_bytes": 8192}});
+            for (key, field) in extra.as_object().unwrap() {
+                value[key] = field.clone();
+            }
+            serde_json::from_value::<AdapterChannel>(value)
+        };
+        let configured = channel("203.0.113.9:26670", serde_json::json!({"max_connections": 16}))
+            .unwrap();
+        configured.validate().unwrap();
+        assert_eq!(configured.endpoint_pin().unwrap().public_key, key);
+        assert_eq!(
+            configured.args("chain-a"),
+            [
+                "--channel-listen",
+                "203.0.113.9:26670",
+                "--channel-network",
+                "chain-a",
+                "--max-channel-connections",
+                "16"
+            ]
+            .map(std::ffi::OsString::from)
+            .to_vec()
+        );
+        for listen in ["0.0.0.0:26670", "[::]:26670", "203.0.113.9:0", "node:26670", "224.0.0.1:1"] {
+            assert!(
+                channel(listen, serde_json::json!({})).unwrap().validate().is_err(),
+                "{listen}"
+            );
+        }
+        let zero = channel("203.0.113.9:1", serde_json::json!({"max_connections_per_address": 0}));
+        assert!(zero.unwrap().validate().is_err());
+        let large = channel("203.0.113.9:1", serde_json::json!({"pin": {
+            "path": path, "sha256": hex::encode(Sha256::digest(&pin)), "max_bytes": 8193}}));
+        assert!(large.unwrap().validate().is_err());
+        let changed = channel("203.0.113.9:1", serde_json::json!({"pin": {
+            "path": path, "sha256": "00".repeat(32), "max_bytes": 8192}}));
+        assert!(changed.unwrap().validate().is_err());
+        assert!(channel("203.0.113.9:1", serde_json::json!({"key": "x"})).is_err());
     }
     #[test]
     fn observation_pause_requires_explicit_work_and_cleanup_time() {

@@ -21,6 +21,9 @@ use std::os::unix::net::UnixStream;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+#[path = "channel_probe.rs"]
+mod channel_probe;
+
 const IPC_FRAME_LIMIT: usize = 2_097_152;
 const HTTP_HEADER_LIMIT: usize = 16_384;
 const HTTP_HEADER_COUNT: usize = 64;
@@ -595,6 +598,15 @@ fn connect_tcp(address: SocketAddr, deadline: &mut Deadline<'_>) -> Result<TcpSt
         address.ip().is_loopback() && address.port() > 0,
         "Readiness HTTP target must be explicit numeric loopback"
     );
+    connect_address(address, deadline)
+}
+/// Connects to an explicit address of this host: the channel listener may
+/// bind a non-loopback interface.
+fn connect_address(address: SocketAddr, deadline: &mut Deadline<'_>) -> Result<TcpStream> {
+    ensure!(
+        !address.ip().is_unspecified() && address.port() > 0,
+        "Readiness target must be an explicit address"
+    );
     loop {
         let quantum = deadline.quantum()?;
         match TcpStream::connect_timeout(&address, quantum) {
@@ -892,7 +904,7 @@ pub fn verify_adapter(
     expected_chain: &str,
     minimum_height: u64,
     limits: &ProcessLimits,
-    mut health: impl FnMut() -> Result<()>,
+    health: impl FnMut() -> Result<()>,
 ) -> Result<AdapterReady> {
     ensure!(
         address.ip().is_loopback()
@@ -901,6 +913,68 @@ pub fn verify_adapter(
             && expected_chain.len() <= 128,
         "Invalid adapter readiness target"
     );
+    verify_listener(
+        address,
+        expected_adapter_pid,
+        expected_chain,
+        minimum_height,
+        limits,
+        health,
+        Stage::AdapterHttp,
+        |deadline| http_probe(address, limits, deadline),
+    )
+}
+
+/// The adapter's client channel listener (E04 gap 19): the adapter owns it,
+/// and a channel exchange with the pinned key returns the expected chain's
+/// status. A seed that does not match the published pin fails here.
+#[allow(clippy::too_many_arguments)]
+pub fn verify_adapter_channel(
+    address: SocketAddr,
+    pin: &dytallix_client_channel::EndpointPin,
+    expected_adapter_pid: u32,
+    expected_chain: &str,
+    minimum_height: u64,
+    limits: &ProcessLimits,
+    health: impl FnMut() -> Result<()>,
+) -> Result<AdapterReady> {
+    ensure!(
+        !address.ip().is_unspecified()
+            && address.port() > 0
+            && pin.network == expected_chain,
+        "Invalid adapter channel readiness target"
+    );
+    verify_listener(
+        address,
+        expected_adapter_pid,
+        expected_chain,
+        minimum_height,
+        limits,
+        health,
+        Stage::AdapterChannel,
+        |deadline| {
+            channel_probe::status_body(
+                address,
+                &pin.network,
+                &pin.public_key,
+                limits.max_probe_response_bytes,
+                deadline,
+            )
+        },
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn verify_listener(
+    address: SocketAddr,
+    expected_adapter_pid: u32,
+    expected_chain: &str,
+    minimum_height: u64,
+    limits: &ProcessLimits,
+    mut health: impl FnMut() -> Result<()>,
+    stage: Stage,
+    mut probe: impl FnMut(&mut Deadline<'_>) -> Result<Vec<u8>>,
+) -> Result<AdapterReady> {
     let mut deadline = Deadline::new(limits, &mut health)?;
     loop {
         let before = phase(listener_binding(
@@ -914,7 +988,7 @@ pub fn verify_adapter(
             continue;
         }
         let (height, catching_up) =
-            phase(status(&phase(http_probe(address, limits, &mut deadline), Role::Adapter, Stage::AdapterHttp)?, expected_chain), Role::Adapter, Stage::StatusValidation)?;
+            phase(status(&phase(probe(&mut deadline), Role::Adapter, stage)?, expected_chain), Role::Adapter, Stage::StatusValidation)?;
         let after = phase(listener_binding(
             expected_adapter_pid,
             address,

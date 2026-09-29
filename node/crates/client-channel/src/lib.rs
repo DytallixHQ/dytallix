@@ -12,6 +12,7 @@
 
 mod handshake;
 mod message;
+mod pin;
 mod record;
 
 pub use handshake::{
@@ -23,6 +24,7 @@ pub use message::{
     Method, Request, Response, MAX_HEADER_VALUE, MAX_PATH, MAX_QUERY, MAX_REQUEST_BODY,
     MAX_REQUEST_MESSAGE, MAX_RESPONSE_BODY, MAX_RESPONSE_MESSAGE,
 };
+pub use pin::{fingerprint, EndpointPin, MAX_PIN_BYTES};
 pub use record::{
     MessageReader, Opener, Sealer, MAX_RECORDS, MAX_RECORD_PLAINTEXT, RECORD_HEADER_LEN, TAG_LEN,
 };

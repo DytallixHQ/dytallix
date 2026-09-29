@@ -102,8 +102,14 @@ ROUTES = [
     {
         "role": "client_channel",
         "algorithm": "ML-KEM-768 + ML-DSA-65",
-        "policy": "Anonymous clients pin the endpoint's full ML-DSA-65 key; one fixed suite, no negotiation or plaintext fallback (docs/architecture/client-channel-v1.md). No listener or client uses it yet (gap 19 C-b, C-c)",
-        "files": ["crates/client-channel/src/handshake.rs"],
+        "policy": "Anonymous clients pin the endpoint's full ML-DSA-65 key; one fixed suite, no negotiation or plaintext fallback (docs/architecture/client-channel-v1.md). The adapter's channel listener signs with a role key of its own, from an owner-only seed; the supervisor probes it with the published pin. The SDK and CLI do not use it yet (gap 19 C-c)",
+        "files": [
+            "crates/client-channel/src/handshake.rs",
+            "crates/client-channel/src/pin.rs",
+            "consensus/pqc-http-adapter/src/channel.rs",
+            "consensus/pqc-http-adapter/src/bin/dytallix-channel-key.rs",
+            "crates/native-supervisor/src/channel_probe.rs",
+        ],
     },
     {
         "role": "peer_admission_and_startup",

@@ -225,9 +225,25 @@
         {
           "path": "crates/client-channel/src/handshake.rs",
           "sha256": "ca715bab7cbe7d366428bd7cc6d1f3ba9ceda05cf271a3fe9de04c55a8514e56"
+        },
+        {
+          "path": "crates/client-channel/src/pin.rs",
+          "sha256": "8060e3a2f84d6f9c5084f496a1937d6738efa35a7751b60e260087e1e1c8b828"
+        },
+        {
+          "path": "consensus/pqc-http-adapter/src/channel.rs",
+          "sha256": "69061c97777f6d0527cc4889ec3789236ce04bef82bfe9eb5357401375390816"
+        },
+        {
+          "path": "consensus/pqc-http-adapter/src/bin/dytallix-channel-key.rs",
+          "sha256": "7c950c1171ad4e74e4c14bf7d93cab1b90a90db2993e969b29215f6810d8e9c9"
+        },
+        {
+          "path": "crates/native-supervisor/src/channel_probe.rs",
+          "sha256": "77c1b6e72a49a92821cb55b5f9339b9889262092be68fb1879552605885df8da"
         }
       ],
-      "policy": "Anonymous clients pin the endpoint's full ML-DSA-65 key; one fixed suite, no negotiation or plaintext fallback (docs/architecture/client-channel-v1.md). No listener or client uses it yet (gap 19 C-b, C-c)",
+      "policy": "Anonymous clients pin the endpoint's full ML-DSA-65 key; one fixed suite, no negotiation or plaintext fallback (docs/architecture/client-channel-v1.md). The adapter's channel listener signs with a role key of its own, from an owner-only seed; the supervisor probes it with the published pin. The SDK and CLI do not use it yet (gap 19 C-c)",
       "role": "client_channel"
     },
     {
@@ -335,7 +351,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "4848ad8d9d8ad62b4578c2b0347904e268ded005627325932dc8cecf8d2f2e5d"
+          "sha256": "f983347d2f23aabe607b9bda8d11f794288ec9e919582fcf3770804fafbe9d30"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

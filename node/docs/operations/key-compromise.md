@@ -10,6 +10,7 @@ a mainnet key.
 | Validator consensus key (ML-DSA-65) | `config/priv_validator_key.json` | Sign votes as the validator, including conflicting ones | Stop, fence, rotate or exit |
 | Validator operator account key | The operator's wallet | Validator actions (exit, bond, unbond), transfers | Guardian recovery of the account |
 | Node peer key (ML-DSA-65) | `config/node_key.json` or `config/pqc_peer_seed.bin` | Connect to peers as this node | Replace it and update every peer's pins |
+| Channel endpoint key (ML-DSA-65) | `config/client_channel_seed.bin` | Answer as this node's public endpoint to clients that pin it | Replace it and publish a new pin |
 | User account key | The user's wallet | Spend and act as the account | Guardian recovery; freeze for a wide compromise |
 | Root authority keys (SLH-DSA) | Custody | With enough keys: emergency, upgrade and handover controls | No replacement mechanism |
 | CLI keystore | `~/.dytallix/keystore.json` | Version 2: the keys, if the passphrase is also known or guessed. Version 1 (plaintext): every key in it | Handle each key it held; migrate any version 1 file |
@@ -121,6 +122,24 @@ paid by a separate sponsor account.
    the attacker.
 3. **Update the service pins.** Update the supervisor's engine input pins
    (the SHA-256 of each file) and restart in a coordinated order.
+
+## Channel endpoint key
+
+The key lets an attacker who can reach clients answer as the endpoint. It
+cannot sign transactions or forge state proofs, since clients verify those
+against the pinned chain. It can still misreport results that carry no
+proof, such as status, CheckTx and broadcast results.
+
+1. **Replace the seed.** `dytallix-channel-key generate` never replaces a
+   file, so first move the old seed out of the service paths and keep it
+   as evidence. Then generate the new seed and write its pin with
+   `dytallix-channel-key pin`.
+2. **Update the supervisor's pin.** Update `adapter_channel.pin` (the
+   file's SHA-256) and restart. The readiness probe fails until the seed
+   and the pin match.
+3. **Replace the pin at every client.** Version 1 has no key overlap or
+   revocation list. A client that keeps the old pin trusts the attacker.
+   Tell users through a channel they already trust.
 
 ## User account keys
 

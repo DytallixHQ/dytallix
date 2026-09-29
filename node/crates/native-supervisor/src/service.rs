@@ -35,6 +35,7 @@ pub struct NativeService {
     application_startup_helper_admission_receipt: Option<Value>,
     application_helper_expectation: Value,
     adapter_readiness: Option<AdapterReady>,
+    channel_readiness: Option<AdapterReady>,
     started: bool,
 }
 
@@ -157,6 +158,7 @@ impl NativeService {
             application_startup_helper_admission_receipt: None,
             application_helper_expectation,
             adapter_readiness: None,
+            channel_readiness: None,
             started: false,
         })
     }
@@ -239,6 +241,19 @@ impl NativeService {
             if let Some(limits) = &self.config.adapter_limits {
                 args.extend(limits.args());
             }
+            let chain_id = self.authority.expected_candidate().chain_id.clone();
+            let channel = match &self.config.adapter_channel {
+                Some(channel) => {
+                    let pin = channel.endpoint_pin()?;
+                    ensure!(
+                        pin.network == chain_id,
+                        "Channel pin names another network than the chain"
+                    );
+                    args.extend(channel.args(&chain_id));
+                    Some((channel.address()?, pin))
+                }
+                None => None,
+            };
             self.owner.start_adapter(&args)?;
             let adapter_pid = self
                 .owner
@@ -258,6 +273,20 @@ impl NativeService {
                 &self.config.process,
                 || self.owner.check_alive(),
             ), Role::Adapter, crate::startup_diagnostic::Stage::AdapterReadiness)?);
+            if let Some((address, pin)) = channel {
+                self.channel_readiness = Some(crate::startup_diagnostic::phase(readiness::verify_adapter_channel(
+                    address,
+                    &pin,
+                    adapter_pid,
+                    &chain_id,
+                    self.engine_readiness
+                        .as_ref()
+                        .context("Engine readiness absent")?
+                        .minimum_height(),
+                    &self.config.process,
+                    || self.owner.check_alive(),
+                ), Role::Adapter, crate::startup_diagnostic::Stage::AdapterChannel)?);
+            }
         }
         self.lease.recheck()?;
         self.supervisor_security.check_current()?;
@@ -318,6 +347,7 @@ impl NativeService {
             "started":self.started,"supervisor":self.self_snapshot.report(),
             "engine_readiness":self.engine_readiness.as_ref().map(|v|json!({"chain_id":v.chain_id(),"block_height":v.block_height(),"application_height":v.application_info().height,"application_hash":v.application_info().app_hash,"pid":v.engine_pid()})),
             "adapter_readiness":self.adapter_readiness.as_ref().map(|v|json!({"chain_id":v.chain_id(),"block_height":v.block_height(),"pid":v.adapter_pid(),"listener_identity_bound":v.listener_identity_bound()})),
+            "channel_readiness":self.channel_readiness.as_ref().map(|v|json!({"chain_id":v.chain_id(),"block_height":v.block_height(),"pid":v.adapter_pid(),"listener_identity_bound":v.listener_identity_bound()})),
             "observation_timings":self.owner.observation_timings(),
             "helper_admission":dytallix_fast_node::root_genesis::helper_admission_receipt(),
             "application_startup_helper_admission_receipt":self.application_startup_helper_admission_receipt,
