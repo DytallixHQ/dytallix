@@ -1,6 +1,9 @@
 //! Explicit CometBFT JSON-RPC client for ordinary-v2 and ordinary-v3 transactions.
 //! No URL default, legacy fallback, redirect, automatic submission, or consensus
 //! proof is supplied. A successful CheckTx result is not a committed receipt.
+//! Requests go to a loopback node over plain HTTP or to a pinned endpoint
+//! over the post-quantum client channel ([`crate::transport`]); there is no
+//! TLS (E04 gap 19).
 use crate::ordinary_v2::{
     self, error, AccountView, ChainPin, Error, FeeProfile, KeyIdentity, ProfileView, ReceiptView,
     Result, SignedOrdinary, SigningContext,
@@ -20,6 +23,10 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::time::Duration;
+
+pub use crate::transport::Endpoint;
+#[cfg(feature = "comet-rpc")]
+pub use crate::transport::EndpointPin;
 
 /// Reading a context retries this often when a block commits between queries.
 const CONTEXT_ATTEMPTS: usize = 3;
@@ -116,8 +123,7 @@ pub struct FirstSpendProof {
 }
 
 pub struct CometClient {
-    endpoint: reqwest::Url,
-    http: reqwest::Client,
+    endpoint: Endpoint,
     max_response_bytes: usize,
 }
 /// Admission result only. The engine hash and ordinary transaction ID differ.
@@ -136,79 +142,36 @@ impl CheckTxResponse {
     }
 }
 impl CometClient {
-    /// Configure one endpoint and a strict decoded response limit. Requests have
-    /// a 30-second timeout. Redirects and URL credentials are rejected.
+    /// A node on this machine: `http://IP:PORT` with a literal loopback IP,
+    /// and a strict decoded response limit. Requests have a 30-second
+    /// timeout. HTTPS and remote HTTP are refused: reach a remote node
+    /// through [`CometClient::channel`].
     pub fn new(endpoint: &str, max_response_bytes: usize) -> Result<Self> {
-        let endpoint = reqwest::Url::parse(endpoint).map_err(error)?;
-        if !matches!(endpoint.scheme(), "http" | "https")
-            || endpoint.host_str().is_none()
-            || !endpoint.username().is_empty()
-            || endpoint.password().is_some()
-            || endpoint.query().is_some()
-            || endpoint.fragment().is_some()
-            || max_response_bytes == 0
-        {
-            return Err(Error("explicit HTTP RPC endpoint and positive response bound required; URL credentials/query/fragment are forbidden".into()));
+        Self::with_endpoint(Endpoint::loopback(endpoint)?, max_response_bytes)
+    }
+    /// A remote node through the client channel to the pinned endpoint. The
+    /// pin's network is the endpoint's chain ID; the endpoint refuses a
+    /// handshake for another.
+    #[cfg(feature = "comet-rpc")]
+    pub fn channel(pin: EndpointPin, max_response_bytes: usize) -> Result<Self> {
+        Self::with_endpoint(Endpoint::Channel(pin), max_response_bytes)
+    }
+    pub fn with_endpoint(endpoint: Endpoint, max_response_bytes: usize) -> Result<Self> {
+        if max_response_bytes == 0 {
+            return Err(Error("a positive response bound is required".into()));
         }
-        #[cfg(any(feature = "ordinary-http-only", feature = "strict-local-mldsa65"))]
-        {
-            if endpoint.scheme() != "http" {
-                return Err(Error(
-                    "HTTPS is unsupported in ordinary-http-only; no downgrade is permitted".into(),
-                ));
-            }
-            // Literal loopback avoids DNS changes and external plaintext traffic.
-            let host = endpoint
-                .host_str()
-                .unwrap()
-                .trim_start_matches('[')
-                .trim_end_matches(']');
-            if !host
-                .parse::<std::net::IpAddr>()
-                .is_ok_and(|ip| ip.is_loopback())
-            {
-                return Err(Error("ordinary-http-only requires a literal loopback address; production endpoints are unsupported".into()));
-            }
-        }
-        let builder = reqwest::Client::builder();
-        #[cfg(any(feature = "ordinary-http-only", feature = "strict-local-mldsa65"))]
-        let builder = builder.no_proxy();
-        let http = builder
-            .redirect(reqwest::redirect::Policy::none())
-            .timeout(Duration::from_secs(30))
-            .build()
-            .map_err(error)?;
         Ok(Self {
             endpoint,
-            http,
             max_response_bytes,
         })
     }
+    pub fn endpoint(&self) -> &Endpoint {
+        &self.endpoint
+    }
     async fn call<T: DeserializeOwned>(&self, method: &str, params: Value) -> Result<T> {
         let request = json!({"jsonrpc":"2.0","id":"ordinary-v2","method":method,"params":params});
-        let mut response = self
-            .http
-            .post(self.endpoint.clone())
-            .json(&request)
-            .send()
-            .await
-            .map_err(error)?;
-        if !response.status().is_success() {
-            return Err(Error(format!("RPC HTTP status {}", response.status())));
-        }
-        if response
-            .content_length()
-            .is_some_and(|n| n > self.max_response_bytes as u64)
-        {
-            return Err(Error("RPC response exceeds bound".into()));
-        }
-        let mut raw = Vec::new();
-        while let Some(chunk) = response.chunk().await.map_err(error)? {
-            if chunk.len() > self.max_response_bytes - raw.len() {
-                return Err(Error("RPC response exceeds bound".into()));
-            }
-            raw.extend_from_slice(&chunk);
-        }
+        let body = serde_json::to_vec(&request).map_err(error)?;
+        let raw = crate::transport::post(&self.endpoint, body, self.max_response_bytes).await?;
         let rpc: RpcResponse<T> = serde_json::from_slice(&raw).map_err(error)?;
         if rpc.jsonrpc != "2.0" || rpc.id != "ordinary-v2" {
             return Err(Error("RPC version or response ID differs".into()));
@@ -869,15 +832,12 @@ struct BroadcastResult {
     _data: Option<String>,
 }
 
-#[cfg(all(
-    test,
-    any(feature = "ordinary-http-only", feature = "strict-local-mldsa65")
-))]
+#[cfg(test)]
 mod local_endpoint_tests {
     use super::*;
 
     #[test]
-    fn local_profile_rejects_https_external_dns_and_ambiguous_urls() {
+    fn plain_http_reaches_only_a_literal_loopback_node() {
         for endpoint in [
             "https://127.0.0.1:26657",
             "http://example.com:26657",
@@ -887,6 +847,8 @@ mod local_endpoint_tests {
             "http://user@127.0.0.1:26657",
             "http://127.0.0.1:26657?x=1",
             "http://127.0.0.1:26657#x",
+            "http://127.0.0.1:26657/rpc",
+            "http://127.0.0.1",
             "ftp://127.0.0.1",
         ] {
             assert!(
@@ -895,13 +857,21 @@ mod local_endpoint_tests {
             );
         }
         let error = CometClient::new("https://127.0.0.1", 1024).err().unwrap();
-        assert!(error.to_string().contains("HTTPS is unsupported"));
+        assert!(error.to_string().contains("TLS is not supported"));
+        let error = CometClient::new("http://192.0.2.1:26657", 1024)
+            .err()
+            .unwrap();
+        assert!(error.to_string().contains("only a node on this machine"));
     }
 
     #[test]
-    fn local_profile_accepts_literal_loopback_with_positive_bound() {
-        for endpoint in ["http://127.0.0.1:26657", "http://[::1]:26657"] {
-            assert!(CometClient::new(endpoint, 1024).is_ok());
+    fn a_literal_loopback_node_needs_a_positive_bound() {
+        for endpoint in [
+            "http://127.0.0.1:26657",
+            "http://127.0.0.1:26657/",
+            "http://[::1]:26657",
+        ] {
+            assert!(CometClient::new(endpoint, 1024).is_ok(), "{endpoint}");
             assert!(CometClient::new(endpoint, 0).is_err());
         }
     }

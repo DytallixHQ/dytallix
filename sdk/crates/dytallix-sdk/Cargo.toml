@@ -21,17 +21,26 @@ required-features = ["network"]
 [features]
 default = ["compatibility"]
 compatibility = ["dytallix-core/compatibility"]
-strict-local-mldsa65 = ["dep:reqwest", "dep:tokio", "dytallix-core/strict-mldsa65"]
-# Comet JSON-RPC client for the consensus chain, over HTTP or HTTPS.
-comet-rpc = ["compatibility", "dep:reqwest", "dep:tokio", "reqwest/default"]
-# The legacy testnet REST client and faucet, plus the Comet client.
-network = ["comet-rpc"]
-ordinary-http-only = ["compatibility", "dep:reqwest", "dep:tokio"]
+# Loopback HTTP to a node on this machine; no TLS anywhere (E04 gap 19).
+http-loopback = ["dep:tokio", "dep:hyper", "dep:hyper-util", "dep:http-body-util"]
+strict-local-mldsa65 = ["http-loopback", "dytallix-core/strict-mldsa65"]
+# Comet JSON-RPC client for the consensus chain: the post-quantum client
+# channel to a pinned endpoint, or plain HTTP to a loopback node.
+comet-rpc = ["compatibility", "http-loopback", "dep:dytallix-client-channel"]
+# The legacy testnet REST client and faucet, plus the Comet client. They
+# still use TLS and leave in E04 gap 19 C-c2.
+network = ["comet-rpc", "dep:reqwest", "reqwest/default"]
+ordinary-http-only = ["compatibility", "http-loopback"]
 
 [dependencies]
 # Exact canonical source snapshot; verify with scripts/check_protocol_vendor.py.
 dytallix-protocol-types = { path = "../../vendor/dytallix-protocol-types" }
 dytallix-core = { path = "../dytallix-core", default-features = false }
+# Exact node source snapshot, as protocol-types (E04 gap 19).
+dytallix-client-channel = { path = "../../vendor/dytallix-client-channel", optional = true }
+hyper = { workspace = true, optional = true }
+hyper-util = { workspace = true, optional = true }
+http-body-util = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 serde = { workspace = true }

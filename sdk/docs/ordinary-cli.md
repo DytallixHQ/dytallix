@@ -150,8 +150,10 @@ The CLI feature cannot be combined with the default `legacy-network` feature.
 Build each profile separately. Cargo combines dependency features; inspect the
 exact selected dependency graph and compiled artifact before a boundary claim.
 
-The default `dytallix` CLI and SDK `network` feature retain reqwest default
-features, including HTTPS. They are outside this selected local profile.
+The default `dytallix` CLI also reaches remote nodes, through the
+post-quantum client channel (`--endpoint` with an endpoint pin file; see the
+CLI reference). The legacy `network` feature still uses HTTPS until E04
+gap 19 C-c2 removes it. Both are outside this selected local profile.
 This profile is for local qualification. It does not authorize production use,
 qualify a hosted wallet, provide remote transport security, or close G35.
 

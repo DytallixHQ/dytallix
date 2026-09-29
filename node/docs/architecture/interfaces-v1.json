@@ -1011,7 +1011,7 @@
       "id": "sdk-crate",
       "group": "sdk",
       "exposure": "external",
-      "format": "Rust crate dytallix-sdk: ordinary_v2, ordinary_v3, ordinary_client (comet-rpc), keystore, transaction; legacy client and faucet behind network.",
+      "format": "Rust crate dytallix-sdk: ordinary_v2, ordinary_v3, ordinary_client and transport (comet-rpc: loopback HTTP or the client channel, no TLS), keystore, transaction, recovery; legacy client and faucet behind network.",
       "version": {
         "field": "crate version",
         "literal": {
@@ -1027,6 +1027,41 @@
         {
           "file": "sdk/crates/dytallix-sdk/tests/node_context.rs",
           "name": "a_first_spend_signs_with_the_origin_key_at_generation_and_nonce_zero"
+        }
+      ]
+    },
+    {
+      "id": "sdk-transport",
+      "group": "sdk",
+      "exposure": "external",
+      "format": "How the SDK and CLI reach a node (E04 gap 19): plain HTTP only to a literal loopback address, or the post-quantum client channel to a pinned endpoint (client-channel-v1.md). There is no TLS. The CLI's --endpoint takes a loopback URL or an endpoint pin file.",
+      "version": {
+        "field": "suite",
+        "literal": {
+          "file": "sdk/vendor/dytallix-client-channel/src/handshake.rs",
+          "text": "dytallix-client-channel-v1/mlkem768/mldsa65/hkdfsha256/aes256gcm"
+        }
+      },
+      "source": {
+        "file": "sdk/crates/dytallix-sdk/src/transport.rs",
+        "symbol": "pub enum Endpoint"
+      },
+      "tests": [
+        {
+          "file": "sdk/crates/dytallix-sdk/src/transport_tests.rs",
+          "name": "a_request_crosses_the_channel_to_the_pinned_endpoint"
+        },
+        {
+          "file": "sdk/crates/dytallix-sdk/src/transport_tests.rs",
+          "name": "another_key_or_network_gets_no_answer"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/tests/channel_cli.rs",
+          "name": "a_query_crosses_the_channel_named_by_a_pin_file"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/tests/channel_cli.rs",
+          "name": "tls_and_remote_plain_http_are_refused"
         }
       ]
     },
@@ -1137,13 +1172,13 @@
       "id": "file-chain-pin",
       "group": "file",
       "exposure": "external",
-      "format": "~/.dytallix/chain.json: {version, endpoint, network, chain_id, genesis_digest}.",
+      "format": "~/.dytallix/chain.json: {version, endpoint, endpoint_key_base64, network, chain_id, genesis_digest}. The endpoint is a loopback http://IP:PORT, or a channel endpoint's host:port with its full ML-DSA-65 key (version 2, E04 gap 19). A version 1 file still loads, with a loopback endpoint only.",
       "version": {
         "field": "version",
         "constant": {
           "file": "sdk/crates/dytallix-cli/src/commands/consensus.rs",
           "name": "CHAIN_CONFIG_VERSION",
-          "value": 1
+          "value": 2
         }
       },
       "source": {
@@ -1154,6 +1189,10 @@
         {
           "file": "sdk/crates/dytallix-cli/src/commands/consensus_tests.rs",
           "name": "chain_pins_expiry_and_amounts_are_checked"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/src/commands/consensus_tests.rs",
+          "name": "endpoints_are_loopback_or_a_channel_pin_for_the_chain"
         }
       ]
     },

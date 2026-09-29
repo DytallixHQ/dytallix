@@ -13,7 +13,7 @@ impl Keys {
     fn new() -> Self {
         let mut guardians: Vec<DytallixKeypair> =
             (0..3).map(|_| DytallixKeypair::generate()).collect();
-        guardians.sort_by(|a, b| identity(a).unwrap().cmp(&identity(b).unwrap()));
+        guardians.sort_by_key(|a| identity(a).unwrap());
         Self {
             active: DytallixKeypair::generate(),
             guardians,

@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Vendor the node's protocol-types crate exactly and rewrite its manifest.
+"""Vendor the node's shared crates exactly and rewrite their manifests.
 
-Copies every file of NODE_ROOT/crates/protocol-types, plus NODE_ROOT/LICENSE,
-into vendor/dytallix-protocol-types, removes vendored files the node no
-longer has, and records each file's size and SHA-256 in
-vendor/protocol-types-source.json. check_protocol_vendor.py --node-root then
-passes; CI runs it so the SDK cannot drift from the chain (E04 gap 8).
+For each crate in VENDORED (protocol-types, E04 gap 8; client-channel, E04
+gap 19), copies every file of NODE_ROOT/<crate>, plus NODE_ROOT/LICENSE,
+into its vendor directory, removes vendored files the node no longer has,
+and records each file's size and SHA-256 in its manifest.
+check_protocol_vendor.py --node-root then passes; CI runs it so the SDK
+cannot drift from the chain.
 """
 import argparse
 import hashlib
@@ -15,26 +16,20 @@ import shutil
 import subprocess
 import sys
 
-VENDOR = "vendor/dytallix-protocol-types"
-CRATE = "crates/protocol-types"
+from check_protocol_vendor import VENDORED
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sdk-root", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--node-root", type=Path, required=True)
-    args = parser.parse_args()
-    sdk, node = args.sdk_root.resolve(), args.node_root.resolve()
+def sync(sdk, node, spec):
+    CRATE = spec["crate"]
     crate = node / CRATE
     if not (crate / "Cargo.toml").is_file() or not (node / "LICENSE").is_file():
-        print("node root has no protocol-types crate or LICENSE", file=sys.stderr)
-        return 1
+        raise ValueError(f"node root has no {CRATE} crate or LICENSE")
     skipped = {"target", "__pycache__"}
     sources = {p.relative_to(crate).as_posix(): p for p in sorted(crate.rglob("*"))
                if p.is_file() and not skipped.intersection(p.relative_to(crate).parts)
                and p.suffix != ".pyc"}
     sources["LICENSE"] = node / "LICENSE"
-    vendor = sdk / VENDOR
+    vendor = sdk / spec["vendor_path"]
     for path in sorted(vendor.rglob("*"), reverse=True):
         relative = path.relative_to(vendor).as_posix()
         if path.is_file() and relative not in sources:
@@ -55,20 +50,39 @@ def main():
         })
     head = subprocess.run(["git", "-C", str(node), "rev-parse", "HEAD"], capture_output=True,
                           text=True, check=True).stdout.strip()
-    manifest_path = sdk / "vendor/protocol-types-source.json"
-    manifest = json.loads(manifest_path.read_text())
+    manifest_path = sdk / spec["manifest"]
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {
+        "schema_version": 1,
+        "package": spec["package"],
+        "package_version": "0.1.0",
+        "vendor_path": spec["vendor_path"],
+        "hash_algorithm": "sha256",
+    }
     manifest.update({
         "source_repository": "https://github.com/exocognosis/dytallix",
         "source_head": head,
         "source_kind": "working_tree_snapshot",
         "source_head_is_complete_snapshot": False,
-        "source_description": ("Exact bytes of mainnet/node/crates/protocol-types and mainnet/node/LICENSE, "
+        "source_description": (f"Exact bytes of mainnet/node/{CRATE} and mainnet/node/LICENSE, "
                                "copied by scripts/sync_protocol_vendor.py. The file hashes, not "
                                "source_head alone, identify this snapshot."),
         "files": records,
     })
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
-    print(json.dumps({"files": len(records), "source_head": head}))
+    return {"package": spec["package"], "files": len(records), "source_head": head}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--sdk-root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--node-root", type=Path, required=True)
+    args = parser.parse_args()
+    sdk, node = args.sdk_root.resolve(), args.node_root.resolve()
+    try:
+        print(json.dumps([sync(sdk, node, spec) for spec in VENDORED]))
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
     return 0
 
 

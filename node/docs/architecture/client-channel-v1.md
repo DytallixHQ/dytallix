@@ -175,7 +175,8 @@ AES-GCM, and shares only this specification with the Rust crate.
 | --- | --- |
 | C-a | This design. The `dytallix-client-channel` crate and the Go cross-check. The contracts toolkit's CosmWasm bridge removed. A stale `ed25519-dalek` entry removed from the module policy. |
 | C-b | The endpoint: a channel listener in the node HTTP adapter (seed key file, chain ID, limits), the key and pin tool, the supervisor's configuration and readiness probe, the interface inventory, and a public endpoint contract that replaces the TLS gateway. |
-| C-c | The SDK and CLI: the vendored channel crate; `--endpoint-key`; plain HTTP to loopback only; reqwest TLS and the legacy testnet client removed; a CI check that the SDK lockfile holds no classical crate. |
+| C-c1 | The SDK and CLI transport: the vendored channel crate; plain HTTP to loopback only (hyper, no TLS); `--endpoint` takes an endpoint pin file for a remote node; `chain.json` version 2 holds the endpoint key. The default CLI and the Comet and local SDK graphs lose TLS. |
+| C-c2 | The legacy testnet client (`network`, `legacy-network`) and reqwest removed, with its TLS; a CI check that the SDK lockfile holds no classical crate. |
 | C-d | The companion, `dytallix gateway`. |
 | C-e | Peer transport wire version 2, with AES-256-GCM records. |
 
@@ -274,6 +275,59 @@ requires `adapter_listen`.
     fails the probe.
 - **Channel crate:** the endpoint pin is strict about its fields, version,
   key length, canonical base64, duplicate fields and size.
+
+## SDK and CLI (C-c1)
+
+The SDK vendors `dytallix-client-channel` byte for byte, as it vendors
+protocol-types. `scripts/sync_protocol_vendor.py` copies both crates, and
+`check_protocol_vendor.py --node-root` checks both in CI.
+
+- **`dytallix_sdk::transport::Endpoint`.**
+  - `Loopback` is plain HTTP to a literal loopback address, through hyper's
+    HTTP/1 client. Hyper has no TLS code.
+  - `Channel` holds an `EndpointPin` and makes one exchange per request:
+    the handshake, a sealed JSON-RPC `POST /` and the sealed response.
+  - Each request has a 30-second limit and the caller's response bound.
+    Non-2xx statuses are errors.
+- **`CometClient`.**
+  - `new` takes a loopback URL. It refuses HTTPS ("TLS is not supported")
+    and remote plain HTTP.
+  - `channel` takes a pin; `with_endpoint` takes either kind.
+- **The CLI.** `--endpoint` is a loopback URL or the path of an endpoint
+  pin file.
+  - `config pin-chain` stores a pin file's address and key in `chain.json`,
+    version 2. The pin must name the chain being pinned.
+  - An `--endpoint` override must also be for the pinned chain.
+  - A version 1 `chain.json` still loads. A remote `http://` endpoint in it
+    no longer connects; the error says to pin the chain again with the
+    endpoint's pin file.
+- **Features.** `comet-rpc` (the default CLI), `ordinary-http-only` and
+  `strict-local-mldsa65` no longer use reqwest. `cargo tree` shows no TLS
+  crate or reqwest in their graphs. `network` and `legacy-network` keep
+  reqwest's TLS until C-c2.
+- **A repair.** The `dytallix-ordinary-local` binary had not built since
+  gap 16's keystore change, and only the standalone SDK repository's CI
+  builds it. It builds again and signs from a version 2 keystore.
+
+### Tests (C-c1)
+
+- **SDK transport:**
+  - a request crosses the channel to an in-process endpoint, which sees
+    `POST /` and the body;
+  - a pin with another key or another network gets no answer;
+  - statuses and the response bound are checked on both transports;
+  - only literal loopback URLs are plain HTTP endpoints.
+- **CLI binary** (`tests/channel_cli.rs`):
+  - `dytallix ordinary query-account --endpoint PIN_FILE` crosses a real
+    channel, and the endpoint sees the ABCI query;
+  - a pin with another key is refused;
+  - TLS, remote plain HTTP and a missing pin file are refused;
+  - `config pin-chain` with a pin file writes version 2 with the key, and
+    refuses a pin for another chain.
+- **Chain pins:** version 1 and 2, loopback and channel, a noncanonical
+  key, and an override for another chain.
+- **Existing RPC tests:** the SDK's RPC tests and the CLI's one-step tests
+  run unchanged over the new loopback client.
 
 ## Classical code left after gap 19
 

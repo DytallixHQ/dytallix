@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "package": "dytallix-client-channel",
+  "package_version": "0.1.0",
+  "vendor_path": "vendor/dytallix-client-channel",
+  "hash_algorithm": "sha256",
+  "source_repository": "https://github.com/exocognosis/dytallix",
+  "source_head": "d17bab27d4b699788db80defb3e649e3747197f0",
+  "source_kind": "working_tree_snapshot",
+  "source_head_is_complete_snapshot": false,
+  "source_description": "Exact bytes of mainnet/node/crates/client-channel and mainnet/node/LICENSE, copied by scripts/sync_protocol_vendor.py. The file hashes, not source_head alone, identify this snapshot.",
+  "files": [
+    {
+      "path": "Cargo.toml",
+      "source_path": "crates/client-channel/Cargo.toml",
+      "bytes": 766,
+      "sha256": "492cbc7311db0da22c324a59bd146f1380ee7405ed515621b9482a558326fdce"
+    },
+    {
+      "path": "LICENSE",
+      "source_path": "LICENSE",
+      "bytes": 1066,
+      "sha256": "e4b10b3fc81b7b3842dbf47e90868cc4e122cf4b8fe8d20ffd17247560705fe4"
+    },
+    {
+      "path": "src/handshake.rs",
+      "source_path": "crates/client-channel/src/handshake.rs",
+      "bytes": 13261,
+      "sha256": "ca715bab7cbe7d366428bd7cc6d1f3ba9ceda05cf271a3fe9de04c55a8514e56"
+    },
+    {
+      "path": "src/lib.rs",
+      "source_path": "crates/client-channel/src/lib.rs",
+      "bytes": 2496,
+      "sha256": "fba1d7b59dc52d8385b6a1fc470e9aafbc8ab8fbd498a8571f953dcafa9d1df8"
+    },
+    {
+      "path": "src/message.rs",
+      "source_path": "crates/client-channel/src/message.rs",
+      "bytes": 5548,
+      "sha256": "7f09286a08fca7f3785ce4a4a769af3c7ed5695f8db7355f72b738eb30914c24"
+    },
+    {
+      "path": "src/pin.rs",
+      "source_path": "crates/client-channel/src/pin.rs",
+      "bytes": 3741,
+      "sha256": "8060e3a2f84d6f9c5084f496a1937d6738efa35a7751b60e260087e1e1c8b828"
+    },
+    {
+      "path": "src/record.rs",
+      "source_path": "crates/client-channel/src/record.rs",
+      "bytes": 6706,
+      "sha256": "152fe01c1faf2977cc743e14725622d5934d5dc7ec5243200de900e2391d2f60"
+    },
+    {
+      "path": "src/tests.rs",
+      "source_path": "crates/client-channel/src/tests.rs",
+      "bytes": 16416,
+      "sha256": "edd6a802e7f450bb7757dddafce50bb9383e89982c4b6fece7e3f5fcda65af09"
+    }
+  ]
+}

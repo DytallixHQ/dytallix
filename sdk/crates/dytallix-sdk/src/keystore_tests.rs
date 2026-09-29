@@ -189,7 +189,8 @@ fn unsupported_formats_and_parameters_are_refused() {
         .unwrap();
     keystore.save().unwrap();
     let original = raw(&path);
-    let cases: Vec<Box<dyn Fn(&mut serde_json::Value)>> = vec![
+    type Change = Box<dyn Fn(&mut serde_json::Value)>;
+    let cases: Vec<Change> = vec![
         Box::new(|v| v["version"] = 3.into()),
         Box::new(|v| v["cipher"] = "xchacha20poly1305".into()),
         Box::new(|v| v["kdf"]["algorithm"] = "scrypt".into()),

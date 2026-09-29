@@ -1,6 +1,7 @@
 //! The one-step flow against a fake Comet node: context, first spend,
 //! signing, broadcast and the committed result (clients v1, K-c).
 use super::*;
+use crate::commands::ordinary::client;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use clap::Parser;
 use dytallix_sdk::ordinary_client::native_account;
@@ -549,6 +550,7 @@ fn chain_pins_expiry_and_amounts_are_checked() {
     let config = ChainConfig {
         version: CHAIN_CONFIG_VERSION,
         endpoint: "http://127.0.0.1:26657".into(),
+        endpoint_key_base64: None,
         network: Network::Development,
         chain_id: CHAIN.into(),
         genesis_digest: "07".repeat(32),
@@ -557,12 +559,11 @@ fn chain_pins_expiry_and_amounts_are_checked() {
     // A pin file written before interfaces v1 has no version: it is version 1.
     let mut legacy = serde_json::to_value(&config).unwrap();
     legacy.as_object_mut().unwrap().remove("version");
-    assert_eq!(
-        serde_json::from_value::<ChainConfig>(legacy).unwrap(),
-        config
-    );
+    let legacy: ChainConfig = serde_json::from_value(legacy).unwrap();
+    assert_eq!(legacy.version, 1);
+    assert_eq!(legacy.pin().unwrap(), pin());
     assert!(ChainConfig {
-        version: 2,
+        version: 3,
         ..config.clone()
     }
     .pin()
@@ -595,6 +596,101 @@ fn chain_pins_expiry_and_amounts_are_checked() {
     assert!(recipient(&pin(), "tdytallix1notonthisnetwork").is_err());
     let testnet = AccountAddress::from_account_id(AddressNetwork::Testnet, [1; 32]).encode();
     assert!(recipient(&pin(), &testnet).is_err());
+}
+
+#[test]
+fn endpoints_are_loopback_or_a_channel_pin_for_the_chain() {
+    use dytallix_sdk::ordinary_client::{Endpoint, EndpointPin};
+    let dir = std::env::temp_dir().join(format!("dytallix-cli-endpoints-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let key = vec![7u8; 1952];
+    let write_pin = |name: &str, chain: &str| {
+        let path = dir.join(name);
+        let pin = EndpointPin::new(chain, "node.example:26670", &key).unwrap();
+        std::fs::write(&path, pin.to_json()).unwrap();
+        path.to_str().unwrap().to_owned()
+    };
+    let pin_file = write_pin("pin.json", CHAIN);
+
+    // Loopback HTTP needs no key; TLS and remote HTTP are refused.
+    let local = ChainConfig::new(
+        "http://127.0.0.1:26657/",
+        Network::Development,
+        CHAIN.into(),
+        "07".repeat(32),
+    )
+    .unwrap();
+    assert_eq!(local.endpoint, "http://127.0.0.1:26657");
+    assert!(local.endpoint_key_base64.is_none());
+    for bad in ["https://node.example:443", "http://192.0.2.1:26657"] {
+        let error = ChainConfig::new(bad, Network::Development, CHAIN.into(), "07".repeat(32))
+            .unwrap_err()
+            .to_string();
+        assert!(
+            error.contains("TLS is not supported") || error.contains("only a node on this machine"),
+            "{error}"
+        );
+    }
+
+    // A pin file becomes a version 2 pin with the key inline.
+    let remote = ChainConfig::new(
+        &pin_file,
+        Network::Development,
+        CHAIN.into(),
+        "07".repeat(32),
+    )
+    .unwrap();
+    assert_eq!(remote.version, 2);
+    assert_eq!(remote.endpoint, "node.example:26670");
+    assert_eq!(
+        remote.endpoint_key_base64.as_deref(),
+        Some(STANDARD.encode(&key).as_str())
+    );
+    let raw = serde_json::to_string(&remote).unwrap();
+    let reloaded: ChainConfig = serde_json::from_str(&raw).unwrap();
+    match reloaded.endpoint().unwrap() {
+        Endpoint::Channel(pin) => {
+            assert_eq!((pin.network.as_str(), pin.public_key), (CHAIN, key.clone()))
+        }
+        other => panic!("{other:?}"),
+    }
+    // The loopback file does not serialize a key field at all.
+    assert!(!serde_json::to_string(&local)
+        .unwrap()
+        .contains("endpoint_key"));
+
+    // A pin for another chain is refused when pinning and as an override.
+    let other = write_pin("other.json", "another-chain");
+    assert!(ChainConfig::new(&other, Network::Development, CHAIN.into(), "07".repeat(32)).is_err());
+    let error = local.client(Some(&other)).err().unwrap().to_string();
+    assert!(error.contains("not the pinned chain"), "{error}");
+    assert!(local.client(Some(&pin_file)).is_ok());
+
+    // A version 1 file with a remote HTTP endpoint loads but cannot connect:
+    // it must be pinned again with the endpoint's pin file.
+    let old = ChainConfig {
+        version: 1,
+        endpoint: "http://192.0.2.1:26657".into(),
+        ..local.clone()
+    };
+    old.pin().unwrap();
+    let error = old.client(None).err().unwrap().to_string();
+    assert!(error.contains("pin-chain --endpoint PIN_FILE"), "{error}");
+    // Version 1 never carries a key, and a noncanonical key is refused.
+    assert!(ChainConfig {
+        version: 1,
+        ..remote.clone()
+    }
+    .pin()
+    .is_err());
+    let noncanonical = ChainConfig {
+        endpoint_key_base64: Some(format!("{}\n", STANDARD.encode(&key))),
+        ..remote.clone()
+    };
+    assert!(noncanonical.endpoint().is_err());
+    assert!(local.client(Some("/nonexistent/pin.json")).is_err());
+    std::fs::remove_dir_all(&dir).unwrap();
 }
 
 #[test]
