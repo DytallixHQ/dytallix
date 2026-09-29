@@ -6,7 +6,7 @@ This repository contains the public reference contracts toolkit for the Dytallix
 
 - core tokenomics modules for DGT, DRT, and emission control
 - reference staking, governance, and algorithm-registry contracts
-- the shared WASM runtime, bridge, storage, gas, and security utilities
+- the shared WASM runtime, gas, and security utilities
 - standalone example contracts that show how to compose the modules
 - contributor docs, testing guidance, and CI support
 
@@ -54,14 +54,12 @@ cargo test --manifest-path examples/algorithm_guard/Cargo.toml
 - [src/algorithm_registry.rs](src/algorithm_registry.rs) - cryptographic algorithm lifecycle management with circuit breaker support
 - [src/runtime.rs](src/runtime.rs) - WASM execution runtime and host-side contract orchestration
 - [src/security/](src/security) - gas attack analysis, scanning, fuzzing, and audit helpers
-- [src/storage_optimizer.rs](src/storage_optimizer.rs) - storage caching, compression, and access-pattern analysis
 
 ## Canonical Surface
 
 The canonical public modules are the ones exported from [src/lib.rs](src/lib.rs):
 
 - [src/runtime.rs](src/runtime.rs) for the shared WASM runtime
-- [src/cosmos_bridge.rs](src/cosmos_bridge.rs) for the reference Cosmos bridge
 - `oracle` as the dependency-light oracle module re-exported from the crate root
 
 Historical comparison files such as `runtime_backup.rs`, `runtime_clean.rs`,

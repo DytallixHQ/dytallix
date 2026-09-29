@@ -5,7 +5,6 @@
 
 use super::{SecurityAuditResult, SecurityFinding, Severity, VulnerabilityCategory};
 use crate::gas_optimizer::GasStatistics;
-use crate::storage_optimizer::StorageStatistics;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -195,7 +194,6 @@ impl AuditReportGenerator {
         &mut self,
         audit_result: &SecurityAuditResult,
         gas_stats: Option<&GasStatistics>,
-        _storage_stats: Option<&StorageStatistics>,
     ) -> ComprehensiveAuditReport {
         self.report_count += 1;
 
@@ -999,7 +997,7 @@ mod tests {
             auditor_version: "1.0".to_string(),
         };
 
-        let report = generator.generate_report(&audit_result, None, None);
+        let report = generator.generate_report(&audit_result, None);
         let markdown = generator.generate_markdown_report(&report);
 
         assert!(markdown.contains("# Smart Contract Security Audit Report"));

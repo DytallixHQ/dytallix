@@ -220,6 +220,17 @@
       "role": "peer_key_establishment_and_identity"
     },
     {
+      "algorithm": "ML-KEM-768 + ML-DSA-65",
+      "files": [
+        {
+          "path": "crates/client-channel/src/handshake.rs",
+          "sha256": "ca715bab7cbe7d366428bd7cc6d1f3ba9ceda05cf271a3fe9de04c55a8514e56"
+        }
+      ],
+      "policy": "Anonymous clients pin the endpoint's full ML-DSA-65 key; one fixed suite, no negotiation or plaintext fallback (docs/architecture/client-channel-v1.md). No listener or client uses it yet (gap 19 C-b, C-c)",
+      "role": "client_channel"
+    },
+    {
       "algorithm": "Full ML-DSA-65 peer-key pins",
       "files": [
         {
