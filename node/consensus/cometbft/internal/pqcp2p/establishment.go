@@ -16,7 +16,9 @@ import (
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
-const Suite = "dytallix-pqcp2p-component-v1/mlkem768/mldsa65/hkdfsha256"
+// Suite binds every signature and derived key. Version 2 names its record
+// cipher, so a version 1 peer never derives the same keys.
+const Suite = "dytallix-pqcp2p-component-v2/mlkem768/mldsa65/hkdfsha256/aes256gcm"
 
 var ErrRejected = errors.New("PQC session establishment rejected")
 var ErrConsumed = errors.New("PQC session state already consumed")

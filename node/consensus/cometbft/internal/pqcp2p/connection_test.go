@@ -2,13 +2,14 @@ package pqcp2p
 
 import (
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"errors"
 	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
-
-	"golang.org/x/crypto/chacha20poly1305"
 )
 
 type shortConn struct{ net.Conn }
@@ -168,7 +169,14 @@ func TestConnectionHandshakeDeadlineAndHeaderBounds(t *testing.T) {
 	if err == nil || time.Since(start) > time.Second {
 		t.Fatal("handshake deadline did not bound I/O")
 	}
-	for _, h := range [][]byte{{'D', 'Y', 'P', 'H', 1, helloType, 255, 255}, {'D', 'Y', 'P', 'H', 2, helloType, 15, 98}, {'D', 'Y', 'P', 'H', 1, offerType, 0, 32}} {
+	// A bad length, a future version, the retired version 1 (no downgrade)
+	// and the wrong message type are all refused before allocation.
+	for _, h := range [][]byte{
+		{'D', 'Y', 'P', 'H', WireVersion, helloType, 255, 255},
+		{'D', 'Y', 'P', 'H', WireVersion + 1, helloType, 15, 98},
+		{'D', 'Y', 'P', 'H', 1, helloType, 15, 98},
+		{'D', 'Y', 'P', 'H', WireVersion, offerType, 0, 32},
+	} {
 		if _, err := readHandshake(bytes.NewReader(h), helloType); !errors.Is(err, ErrRejected) {
 			t.Fatalf("header accepted: %v", err)
 		}
@@ -180,7 +188,7 @@ func recordPair(t *testing.T) (*Conn, net.Conn) {
 	raw, peer := net.Pipe()
 	key := make([]byte, 32)
 	key[0] = 1
-	aead, err := chacha20poly1305.New(key)
+	aead, err := recordCipher(key)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,6 +201,40 @@ func frame(c *Conn, seq uint64, p []byte) []byte {
 	nonce := recordNonce(seq)
 	return append(h[:], c.receive.Seal(nil, nonce[:], p, h[:])...)
 }
+
+// Version 2 records are AES-256-GCM: an independent AES-GCM, given the key,
+// opens a record Write produced, with the header as associated data and the
+// sequence as the nonce's last eight bytes.
+func TestVersion2RecordsAreAES256GCM(t *testing.T) {
+	c, peer := recordPair(t)
+	go func() { _, _ = c.Write([]byte("wire version 2")) }()
+	record := make([]byte, recordHeaderSize+len("wire version 2")+16)
+	if _, err := io.ReadFull(peer, record); err != nil {
+		t.Fatal(err)
+	}
+	header := record[:recordHeaderSize]
+	if string(header[:4]) != "DYPR" || header[4] != 2 || header[5] != 0 {
+		t.Fatalf("record header %x", header)
+	}
+	key := make([]byte, 32)
+	key[0] = 1
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := gcm.Open(nil, make([]byte, 12), record[recordHeaderSize:], header)
+	if err != nil || string(plain) != "wire version 2" {
+		t.Fatalf("independent AES-256-GCM did not open the record: %q %v", plain, err)
+	}
+	if !strings.Contains(Suite, "-v2/") || !strings.HasSuffix(Suite, "/aes256gcm") {
+		t.Fatalf("suite %q does not name version 2 and its cipher", Suite)
+	}
+}
+
 func TestConnectionRejectsCorruptSequenceLengthAndPartialRecords(t *testing.T) {
 	for _, kind := range []string{"tag", "sequence", "length", "partial"} {
 		t.Run(kind, func(t *testing.T) {

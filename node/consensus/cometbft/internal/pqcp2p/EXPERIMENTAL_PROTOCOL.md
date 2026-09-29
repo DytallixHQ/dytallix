@@ -1,4 +1,6 @@
-# Local experimental PQC transport, wire version 1
+# Local experimental PQC transport, wire version 2
+
+Version 2 (E04 gap 19; P01, 29 September 2026) seals records with AES-256-GCM in place of version 1's ChaCha20-Poly1305. The suite string is `dytallix-pqcp2p-component-v2/mlkem768/mldsa65/hkdfsha256/aes256gcm`. Every signature context and derived key includes the suite, so a version 1 peer never agrees on keys with a version 2 peer. Headers of version 1 are refused. There is no negotiation.
 
 This package is for explicit local integration. It has not received independent protocol review. `RequireProductionTransport` always returns `ErrProductionBlocked`. Component and integration tests do not change this gate.
 
@@ -20,7 +22,7 @@ The caller must separately limit concurrent handshake attempts. A responder sign
 
 ## Handshake framing
 
-The header has eight bytes: `DYPH`, version `1`, message type, and a two-byte big-endian payload length. The parser checks the exact message type and its allowed length before allocating the payload.
+The header has eight bytes: `DYPH`, version `2`, message type, and a two-byte big-endian payload length. The parser checks the exact message type and its allowed length before allocating the payload.
 
 | Type | Payload |
 | --- | --- |
@@ -36,7 +38,7 @@ One absolute I/O deadline covers the handshake. The timeout must be positive and
 
 ## Authenticated records
 
-Each record has a 16-byte header: `DYPR`, version `1`, reserved zero byte, sequence (eight bytes, big-endian), and plaintext length (two bytes, big-endian). ChaCha20-Poly1305 authenticates the complete header as associated data. The ciphertext has the stated plaintext length plus the 16-byte authentication tag.
+Each record has a 16-byte header: `DYPR`, version `2`, reserved zero byte, sequence (eight bytes, big-endian), and plaintext length (two bytes, big-endian). AES-256-GCM authenticates the complete header as associated data. The ciphertext has the stated plaintext length plus the 16-byte authentication tag.
 
 Each direction starts at sequence zero and uses its own traffic key. The 12-byte nonce contains four zero bytes followed by the eight-byte big-endian sequence. The receiver requires the next exact sequence. Record plaintext has 1 to 16384 bytes. Empty application writes produce no record.
 
