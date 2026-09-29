@@ -61,4 +61,4 @@ The current launch brief requires full initial staking, delegation, rewards, fee
 
 Week four requires seven full simulated mainnet launches. The older three-run and 30-day proposals are superseded for this program. Use `launch-rehearsals.json` and `launch-rehearsals.md` for the required run mapping. Local prerequisite checks do not count as full launches. The final run includes the T-minus 6-hour preflight and the T-plus 24-hour reconciliation.
 
-Source evidence and allocation records are in `/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/TOKENOMICS_APPROVED_SOURCE.json` and `/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_ALLOCATION_DRAFT.json`. These are local evidence paths, not portable release references. Publish versioned references before release qualification.
+The allocation record is [GENESIS_ALLOCATION_DRAFT.json](../../../launch/GENESIS_ALLOCATION_DRAFT.json). The approved tokenomics source record is held outside the public repository. Neither is a versioned release reference. Publish versioned references before release qualification.

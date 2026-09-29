@@ -1,5 +1,5 @@
 {
-  "source": "/Users/rickglenn/go/pkg/mod/github.com/cometbft/cometbft@v0.40.0",
+  "source": "$GOMODCACHE/github.com/cometbft/cometbft@v0.40.0",
   "upstream_version": "v0.40.0",
   "declared_commit": "0880b4d378f347ab16e54ec677ff50d803f37d62",
   "provenance": "Exact local module-cache copy before integration edits; no claim that the cache equals the remote tag",

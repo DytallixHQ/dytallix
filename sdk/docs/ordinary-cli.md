@@ -121,9 +121,7 @@ Successful command output is JSON on standard output. Runtime errors use JSON on
 
 ## Existing website wallet qualification
 
-The existing website wallet is:
-
-`/Users/rickglenn/Documents/ChatGPT/Redo Dytallix.com/dytallix-site/src/Wallet.jsx`
+The existing website wallet is the `Wallet.jsx` component of the Dytallix website source. That source is held outside the public repository.
 
 This task did not change that UI. Its current source and adjacent `AGENTS.md` were FileProvider dataless files during inspection. Bounded Git reads also stalled and were stopped. Current wallet behavior could not be checked from those files.
 

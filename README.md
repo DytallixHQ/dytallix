@@ -47,9 +47,10 @@ CI runs all of the above on every change under `mainnet/`
 ## Launch documents
 
 `launch/` is a snapshot of the top-level documents from the local launch
-tracking workspace. Some of them link into `decision-register/`, `batch-*/` and
-`evidence/`. Those directories are local evidence archives (about 9 GB of
-source snapshots, logs and binaries) and are not included here.
+tracking workspace. Some of them link into `assessment/`, `batch-*/`,
+`decision-register/`, `evidence/` and `snapshots/`. Those directories are local
+evidence archives (about 9 GB of source snapshots, logs and binaries) and are not
+included here.
 
 Start with:
 

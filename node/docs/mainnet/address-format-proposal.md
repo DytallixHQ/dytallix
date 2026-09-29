@@ -31,10 +31,10 @@ state updates. Reconcile node, SDK, wallet, genesis, and validator startup.
 Reject unsupported algorithms, wrong networks, obsolete keys, and replayed
 updates. Require one signed migration record for any approved legacy allocation.
 
-The complete Batch 2 recommendation and closure tests are recorded in
-`/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/IDENTITY_DECISION.md`
-and `/Users/rickglenn/Developer/Dytallix-mainnet-launch/PQC_ARCHITECTURE.md`.
-These local planning references are not portable release references.
+The complete Batch 2 recommendation and closure tests are recorded in the
+Batch 2 identity decision, which is held outside the public repository, and in
+[PQC_ARCHITECTURE.md](../../../launch/PQC_ARCHITECTURE.md).
+These planning references are not release references.
 
 A checksum detects input errors. It does not authenticate a sender. An address
 codec does not establish post-quantum security or a validated cryptographic module.
