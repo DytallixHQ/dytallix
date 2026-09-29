@@ -71,7 +71,8 @@ fn wallet_restart_preserves_key_and_rejects_scheme_address_and_key_mismatch() {
     fs::create_dir(&directory).unwrap();
     let path = directory.join("keystore.json");
     let key = DytallixKeypair::generate();
-    let mut store = Keystore::new(path.clone()).unwrap();
+    let passphrase = b"pqc profile passphrase";
+    let mut store = Keystore::create(path.clone(), passphrase).unwrap();
     store.add_keypair(&key, "test").unwrap();
     assert!(store
         .add_keypair(&DytallixKeypair::generate_mldsa87(), "rejected")
@@ -79,12 +80,12 @@ fn wallet_restart_preserves_key_and_rejects_scheme_address_and_key_mismatch() {
     store.save().unwrap();
     let restored = Keystore::open(path.clone())
         .unwrap()
-        .get_keypair("test")
+        .open_keypair("test", passphrase)
         .unwrap();
     assert_eq!(restored.private_key(), key.private_key());
     assert_eq!(restored.public_key(), key.public_key());
     let original: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-    for kind in ["scheme", "address", "private_key"] {
+    for kind in ["scheme", "address", "ciphertext"] {
         let mut changed = original.clone();
         match kind {
             "scheme" => changed["entries"][0]["scheme"] = serde_json::json!("SlhDsa"),
@@ -95,13 +96,14 @@ fn wallet_restart_preserves_key_and_rejects_scheme_address_and_key_mismatch() {
                 )
                 .unwrap();
             }
-            _ => changed["entries"][0]["private_key"] = serde_json::json!(vec![0u8; 4032]),
+            _ => changed["entries"][0]["ciphertext"] = serde_json::json!("AAAA"),
         }
         fs::write(&path, serde_json::to_vec(&changed).unwrap()).unwrap();
+        // Scheme and address are bound to the ciphertext; a changed one
+        // fails to open or to authenticate.
         assert!(
             Keystore::open(path.clone())
-                .unwrap()
-                .get_keypair("test")
+                .and_then(|store| store.open_keypair("test", passphrase))
                 .is_err(),
             "{kind}"
         );

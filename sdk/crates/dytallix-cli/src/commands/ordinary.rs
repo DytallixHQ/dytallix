@@ -400,16 +400,6 @@ struct PrivateKeyInput {
     public_key: Vec<u8>,
     private_key: Vec<u8>,
 }
-// Read the existing keystore format once. This command never imports or saves it.
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ExistingKeystore {
-    /// Absent before interfaces v1; that format is version 1.
-    version: Option<u32>,
-    #[serde(rename = "active")]
-    _active: Option<String>,
-    entries: Vec<dytallix_sdk::KeystoreEntry>,
-}
 fn exact_scheme(algorithm: &str) -> Result<KeyScheme> {
     match algorithm {
         "mldsa65" => Ok(KeyScheme::MlDsa65),
@@ -436,13 +426,13 @@ pub(crate) fn load_signing_key(
             .map_err(|_| anyhow!("private key file does not contain a valid matching key pair"))
         }
         (Some(name), None) => {
-            let keystore: ExistingKeystore =
-                read_json(&dytallix_sdk::keystore::Keystore::default_path(), true)?;
-            ensure!(
-                keystore.version.unwrap_or(1) == dytallix_sdk::keystore::KEYSTORE_VERSION,
-                "unsupported keystore version"
-            );
-            let mut entries = keystore.entries.iter().filter(|entry| entry.name == name);
+            // Through the keystore: a version 2 keystore asks for its
+            // passphrase, a version 1 one must be migrated (E04 gap 16).
+            let keystore = crate::commands::load_keystore()?;
+            let mut entries = keystore
+                .list()
+                .into_iter()
+                .filter(|entry| entry.name == name);
             let entry = entries.next().context("named wallet does not exist")?;
             ensure!(
                 entries.next().is_none(),
@@ -452,8 +442,7 @@ pub(crate) fn load_signing_key(
                 matches!(entry.scheme, KeyScheme::MlDsa65 | KeyScheme::MlDsa87),
                 "ordinary signing requires ML-DSA-65 or ML-DSA-87"
             );
-            DytallixKeypair::from_keypair(entry.scheme, &entry.public_key, &entry.private_key)
-                .map_err(|_| anyhow!("wallet does not contain a valid matching key pair"))
+            crate::commands::keypair_named(&keystore, name)
         }
         _ => Err(anyhow!("select exactly one wallet or private key file")),
     }

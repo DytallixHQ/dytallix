@@ -12,7 +12,7 @@ a mainnet key.
 | Node peer key (ML-DSA-65) | `config/node_key.json` or `config/pqc_peer_seed.bin` | Connect to peers as this node | Replace it and update every peer's pins |
 | User account key | The user's wallet | Spend and act as the account | Rotate or recover (blocked, gap 17); freeze for a wide compromise |
 | Root authority keys (SLH-DSA) | Custody | With enough keys: emergency, upgrade and handover controls | No replacement mechanism |
-| CLI keystore | `~/.dytallix/keystore.json` | Every key in it: stored in plaintext until gap 16 | Handle each key it held |
+| CLI keystore | `~/.dytallix/keystore.json` | Version 2: the keys, if the passphrase is also known or guessed. Version 1 (plaintext): every key in it | Handle each key it held; migrate any version 1 file |
 
 ## Signals
 

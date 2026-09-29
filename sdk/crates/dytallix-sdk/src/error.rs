@@ -58,6 +58,15 @@ pub enum SdkError {
     /// The keystore file contents were malformed or inconsistent.
     #[error("Keystore corrupt: {0}")]
     KeystoreCorrupt(String),
+    /// An encrypted keystore must be unlocked with its passphrase first.
+    #[error("Keystore is locked")]
+    KeystoreLocked,
+    /// A version 1 keystore holds plaintext keys; migrate it first.
+    #[error("Keystore holds plaintext keys (version 1); run `dytallix wallet migrate`")]
+    KeystorePlaintext,
+    /// The passphrase does not unlock the keystore.
+    #[error("Wrong keystore passphrase")]
+    KeystorePassphrase,
     /// The target network does not match the expected network.
     #[error("Network mismatch: {0}")]
     NetworkMismatch(String),

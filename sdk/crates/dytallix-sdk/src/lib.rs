@@ -264,7 +264,8 @@ pub struct FaucetStatus {
     pub retry_after_seconds: Option<u64>,
 }
 
-/// A serialized keystore entry containing key material and metadata.
+/// A keystore entry's public metadata. Version 2 keystores keep the private
+/// key encrypted and bind this metadata to it (E04 gap 16).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct KeystoreEntry {
     /// The human-readable key name.
@@ -273,8 +274,6 @@ pub struct KeystoreEntry {
     pub address: DAddr,
     /// The raw public key bytes.
     pub public_key: Vec<u8>,
-    /// The raw private key bytes.
-    pub private_key: Vec<u8>,
     /// The key scheme used by this entry.
     pub scheme: KeyScheme,
     /// The UNIX timestamp at which the key was added.
@@ -377,11 +376,12 @@ mod tests {
         let path = unique_test_keystore_path();
         let keypair = DytallixKeypair::generate();
 
-        let mut keystore = Keystore::new(path.clone()).unwrap();
+        let mut keystore = Keystore::create(path.clone(), b"round trip").unwrap();
         keystore.add_keypair(&keypair, "test").unwrap();
         keystore.save().unwrap();
 
-        let reopened = Keystore::open(path.clone()).unwrap();
+        let mut reopened = Keystore::open(path.clone()).unwrap();
+        reopened.unlock(b"round trip").unwrap();
         let restored = reopened.get_keypair("test").unwrap();
 
         assert_eq!(restored.public_key(), keypair.public_key());

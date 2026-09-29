@@ -224,18 +224,26 @@ pub(crate) fn load_signer(
     if wallet.is_some() || key_file.is_some() {
         return load_signing_key(wallet, key_file);
     }
-    #[derive(Deserialize)]
-    struct Active {
-        active: Option<String>,
-    }
-    let raw = fs::read(dytallix_sdk::keystore::Keystore::default_path())
-        .map_err(|_| anyhow!("no keystore; select --wallet or --key-file"))?;
-    let active: Active =
-        serde_json::from_slice(&raw).map_err(|_| anyhow!("keystore does not match its schema"))?;
-    let name = active
-        .active
+    let keystore =
+        dytallix_sdk::keystore::Keystore::open(dytallix_sdk::keystore::Keystore::default_path())
+            .map_err(|_| anyhow!("no keystore; select --wallet or --key-file"))?;
+    let name = keystore
+        .active()
+        .map(|entry| entry.name.clone())
         .context("no active wallet; select --wallet or --key-file")?;
     load_signing_key(Some(&name), None)
+}
+/// A keystore entry's identity, from its public metadata alone.
+pub(crate) fn entry_identity(entry: &dytallix_sdk::KeystoreEntry) -> Result<KeyIdentity> {
+    let algorithm = match entry.scheme {
+        KeyScheme::MlDsa65 => "mldsa65",
+        KeyScheme::MlDsa87 => "mldsa87",
+        KeyScheme::SlhDsa => return Err(anyhow!("consensus accounts use ML-DSA-65 or ML-DSA-87")),
+    };
+    Ok(KeyIdentity {
+        algorithm: algorithm.into(),
+        public_key: entry.public_key.clone(),
+    })
 }
 pub(crate) fn key_identity(key: &DytallixKeypair) -> Result<KeyIdentity> {
     let algorithm = match key.scheme() {

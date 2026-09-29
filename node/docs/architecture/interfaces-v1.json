@@ -965,23 +965,31 @@
       "id": "file-keystore",
       "group": "file",
       "exposure": "external",
-      "format": "~/.dytallix/keystore.json, mode 0600: {version, active, entries[name, address, public_key, private_key, scheme, created_at]}. Private keys are plaintext (E04 gap 16).",
+      "format": "~/.dytallix/keystore.json, mode 0600, version 2: {version, cipher \"aes-256-gcm\", kdf{algorithm \"argon2id\", version, memory_kib, iterations, parallelism, salt}, check{nonce, ciphertext}, active, entries[name, address, public_key, scheme, created_at, nonce, ciphertext]}; each private key is encrypted with its metadata as associated data (E04 gap 16). Version 1 (plaintext private_key) still opens and lists, and is refused for signing until migrated.",
       "version": {
         "field": "version",
         "constant": {
           "file": "sdk/crates/dytallix-sdk/src/keystore.rs",
           "name": "KEYSTORE_VERSION",
-          "value": 1
+          "value": 2
         }
       },
       "source": {
         "file": "sdk/crates/dytallix-sdk/src/keystore.rs",
-        "symbol": "struct KeystoreFile"
+        "symbol": "struct EncryptedFile"
       },
       "tests": [
         {
-          "file": "sdk/crates/dytallix-sdk/src/keystore.rs",
-          "name": "keystore_files_are_versioned_and_owner_only"
+          "file": "sdk/crates/dytallix-sdk/src/keystore_tests.rs",
+          "name": "private_keys_are_encrypted_and_the_file_is_owner_only"
+        },
+        {
+          "file": "sdk/crates/dytallix-sdk/src/keystore_tests.rs",
+          "name": "a_version_1_file_lists_but_its_keys_wait_for_migration"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/tests/keystore_cli.rs",
+          "name": "a_version_1_keystore_is_migrated_before_its_keys_are_used"
         }
       ]
     },
