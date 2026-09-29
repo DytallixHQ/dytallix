@@ -568,9 +568,6 @@ fn chain_pins_expiry_and_amounts_are_checked() {
     }
     .pin()
     .is_err());
-    let cli: crate::commands::CliConfig =
-        serde_json::from_str(r#"{"network":"testnet","values":{}}"#).unwrap();
-    assert_eq!(cli.version, crate::commands::CONFIG_VERSION);
     let raw = serde_json::to_string(&config).unwrap();
     assert!(raw.contains("\"network\":\"development\""));
     assert_eq!(serde_json::from_str::<ChainConfig>(&raw).unwrap(), config);
@@ -795,8 +792,8 @@ fn one_step_writes_require_an_explicit_gas_limit_and_fee_cap() {
         "d"
     ])
     .is_err());
-    #[cfg(feature = "legacy-network")]
-    assert!(parse(&["legacy", "send", "addr", "5"]).is_ok());
+    // The legacy testnet commands are gone (E04 gap 19).
+    assert!(parse(&["legacy", "send", "addr", "5"]).is_err());
 }
 
 #[tokio::test]

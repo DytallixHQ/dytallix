@@ -26,7 +26,7 @@ pub struct WalletArgs {
 /// Wallet subcommands.
 #[derive(Debug, Clone, Subcommand)]
 pub enum WalletCommand {
-    /// Generate a keypair without auto-funding.
+    /// Generate a keypair and add it to the encrypted keystore.
     Create {
         /// Optional wallet name.
         #[arg(long)]

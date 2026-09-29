@@ -13,11 +13,6 @@ documentation.workspace = true
 name = "first-keypair"
 path = "../../examples/first-keypair.rs"
 
-[[example]]
-name = "first-transaction"
-path = "../../examples/first-transaction.rs"
-required-features = ["network"]
-
 [features]
 default = ["compatibility"]
 compatibility = ["dytallix-core/compatibility"]
@@ -27,9 +22,6 @@ strict-local-mldsa65 = ["http-loopback", "dytallix-core/strict-mldsa65"]
 # Comet JSON-RPC client for the consensus chain: the post-quantum client
 # channel to a pinned endpoint, or plain HTTP to a loopback node.
 comet-rpc = ["compatibility", "http-loopback", "dep:dytallix-client-channel"]
-# The legacy testnet REST client and faucet, plus the Comet client. They
-# still use TLS and leave in E04 gap 19 C-c2.
-network = ["comet-rpc", "dep:reqwest", "reqwest/default"]
 ordinary-http-only = ["compatibility", "http-loopback"]
 
 [dependencies]
@@ -41,7 +33,6 @@ dytallix-client-channel = { path = "../../vendor/dytallix-client-channel", optio
 hyper = { workspace = true, optional = true }
 hyper-util = { workspace = true, optional = true }
 http-body-util = { workspace = true, optional = true }
-reqwest = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

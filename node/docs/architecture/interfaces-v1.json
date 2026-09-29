@@ -1011,7 +1011,7 @@
       "id": "sdk-crate",
       "group": "sdk",
       "exposure": "external",
-      "format": "Rust crate dytallix-sdk: ordinary_v2, ordinary_v3, ordinary_client and transport (comet-rpc: loopback HTTP or the client channel, no TLS), keystore, transaction, recovery; legacy client and faucet behind network.",
+      "format": "Rust crate dytallix-sdk: ordinary_v2, ordinary_v3, ordinary_client and transport (comet-rpc: loopback HTTP or the client channel, no TLS), keystore, transaction, recovery. The legacy testnet client and faucet were removed (E04 gap 19).",
       "version": {
         "field": "crate version",
         "literal": {
@@ -1069,7 +1069,7 @@
       "id": "cli-commands",
       "group": "cli",
       "exposure": "external",
-      "format": "dytallix: wallet, balance, send, ordinary, stake, governance, crypto, config; with legacy-network also init, faucet, contract, node, chain, dev and legacy.",
+      "format": "dytallix: wallet, balance, send, ordinary, recovery, stake, governance, crypto, config (show, pin-chain). The legacy testnet commands were removed (E04 gap 19).",
       "version": {
         "field": "crate version",
         "literal": {
@@ -1141,30 +1141,6 @@
         {
           "file": "sdk/crates/dytallix-cli/tests/keystore_cli.rs",
           "name": "a_version_1_keystore_is_migrated_before_its_keys_are_used"
-        }
-      ]
-    },
-    {
-      "id": "file-cli-config",
-      "group": "file",
-      "exposure": "external",
-      "format": "~/.dytallix/config.json: {version, network, values}.",
-      "version": {
-        "field": "version",
-        "constant": {
-          "file": "sdk/crates/dytallix-cli/src/commands/mod.rs",
-          "name": "CONFIG_VERSION",
-          "value": 1
-        }
-      },
-      "source": {
-        "file": "sdk/crates/dytallix-cli/src/commands/mod.rs",
-        "symbol": "pub(crate) struct CliConfig"
-      },
-      "tests": [
-        {
-          "file": "sdk/crates/dytallix-cli/src/commands/consensus_tests.rs",
-          "name": "chain_pins_expiry_and_amounts_are_checked"
         }
       ]
     },

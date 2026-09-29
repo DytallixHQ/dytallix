@@ -3,7 +3,7 @@
 //! pinned chain's node (K-c). For offline signing, `prepare` builds a body
 //! from captured views, `sign` signs it and `submit` sends it after
 //! refreshing the views. An admitted transaction whose governance rule fails
-//! is still charged. The testnet REST commands are `dytallix legacy governance`.
+//! is still charged.
 use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, ensure, Context, Result};

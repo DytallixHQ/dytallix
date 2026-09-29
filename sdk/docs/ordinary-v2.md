@@ -5,7 +5,7 @@ This module uses the exact canonical protocol snapshot in
 `vendor/protocol-types-source.json` records the source file hashes and provenance.
 Run `python3 scripts/check_protocol_vendor.py` to verify the snapshot. See
 [source release packaging](source-release.md) for standalone build instructions.
-These APIs do not change the legacy SDK, CLI defaults, or public testnet routes.
+These APIs do not change the legacy `transaction` model.
 
 `ordinary_v2` exposes all twelve approved actions through the shared protocol
 `Action` type. It uses versioned stable account IDs. Do not convert a legacy
@@ -49,10 +49,19 @@ It does not use floating-point arithmetic or saturating conversion.
 
 ## Explicit RPC client
 
-Enable the `network` feature for `ordinary_client::CometClient`.
-`CometClient::new(endpoint, max_response_bytes)` requires an explicit HTTP RPC
-endpoint and response limit. It disables redirects and uses a 30-second timeout.
-It does not use the legacy website gateway or try alternate endpoints.
+Enable the `comet-rpc` feature for `ordinary_client::CometClient`. The client
+requires an explicit endpoint and response limit:
+
+- `CometClient::new(endpoint, max_response_bytes)` takes `http://IP:PORT` with
+  a literal loopback IP, for a node on this machine. HTTPS and plain HTTP to a
+  remote host are refused.
+- `CometClient::channel(pin, max_response_bytes)` reaches a remote node through
+  the post-quantum client channel, with the `EndpointPin` from the endpoint's
+  pin file.
+
+There is no TLS. Each request, handshake included, has a 30-second timeout.
+The client follows no redirects, has no default endpoint, and does not fall
+back from one transport to the other or try alternate endpoints.
 
 Queries use JSON-RPC `abci_query`, height `0` for current committed state, and
 `prove:false`. The profile and account context must match exactly before signing.

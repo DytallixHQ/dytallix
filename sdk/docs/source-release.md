@@ -76,8 +76,9 @@ cargo +1.88.0 test --locked --offline -p dytallix-cli --no-default-features --fe
 cargo +1.88.0 test --locked --offline -p dytallix-sdk --no-default-features --features ordinary-http-only
 ```
 
-The legacy HTTPS and local HTTP profiles are mutually exclusive. Do not use
-`--all-features`. Qualify the two profiles separately.
+The default `comet-rpc` profile and the local `ordinary-http-only` and
+`strict-local-mldsa65` profiles are mutually exclusive. Do not use
+`--all-features`. Qualify each profile separately.
 
 Use `--offline` only when the pinned dependencies are cached. A cache miss is a
 missing prerequisite, not permission to change the lockfile. For low-disk local

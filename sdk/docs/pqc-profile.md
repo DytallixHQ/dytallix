@@ -61,9 +61,8 @@ The Comet client uses no TLS (E04 gap 19).
 
 The default CLI and the `comet-rpc`, `ordinary-http-only` and
 `strict-local-mldsa65` graphs contain no TLS crate or reqwest. The legacy
-testnet client (`network`, `legacy-network`) still uses reqwest's default
-TLS. It leaves in C-c2. The channel still needs its independent protocol
-review before production.
+testnet client, which used TLS, has been removed from the SDK and CLI. The
+channel still needs its independent protocol review before production.
 
 ## Acceptance criteria
 

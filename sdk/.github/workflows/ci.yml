@@ -26,10 +26,13 @@ jobs:
       - name: Check public surface strings
         run: |
           ! rg -n 'explorer\.dytallix\.com|faucet\.dytallix\.com|testnet\.dytallix\.com|localhost:8545' . -g '!**/target/**'
-      - name: Verify public capability alignment
-        run: python3 scripts/check_public_alignment.py
       - name: Verify canonical protocol snapshot
         run: python3 scripts/check_protocol_vendor.py
+      # No classical public-key cryptography or TLS crate (E04 gap 19).
+      - name: No classical cryptography in the lockfile
+        run: |
+          python3 scripts/check_no_classical.py
+          python3 -B -m unittest discover -s scripts -p test_no_classical.py
       - name: Test source packaging checks
         run: python3 scripts/test_source_packaging.py
       - name: Check formatting
@@ -44,13 +47,6 @@ jobs:
         run: bash scripts/public_smoke.sh first-keypair
       - name: Test
         run: cargo test --locked --all
-      # The default build has no testnet REST client; test the legacy build too.
-      - name: Test legacy testnet build
-        run: |
-          cargo test --locked -p dytallix-cli --features legacy-network
-          cargo test --locked -p dytallix-sdk --features network
-      - name: Lint legacy testnet build
-        run: cargo clippy --locked -p dytallix-cli -p dytallix-sdk --features dytallix-cli/legacy-network --all-targets --no-deps -- -D warnings
       - name: Test selected local HTTP profile
         run: |
           cargo test --locked -p dytallix-cli --no-default-features --features ordinary-http-only --bin dytallix-ordinary-local

@@ -130,7 +130,7 @@ impl ChainConfig {
         Ok(CometClient::with_endpoint(endpoint, MAX_RESPONSE_BYTES)?)
     }
     pub(crate) fn path() -> PathBuf {
-        super::config_path().with_file_name("chain.json")
+        super::cli_dir().join("chain.json")
     }
     pub(crate) fn load() -> Result<Self> {
         let path = Self::path();

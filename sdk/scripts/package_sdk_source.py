@@ -14,7 +14,6 @@ from check_protocol_vendor import verify
 ROOT_FILES = (
     ".gitignore", "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "LICENSE",
     "README.md", "CHANGELOG.md", "CONTRIBUTING.md", "SECURITY.md",
-    "start-local.sh", "stop-local.sh",
 )
 ROOT_DIRS = ("crates", "vendor", "examples", "docs", "scripts", ".github")
 EXCLUDED_DIRS = {"target", "__pycache__", ".git", "node_modules", "dist"}

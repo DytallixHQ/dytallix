@@ -6,8 +6,6 @@ use dytallix_core::keypair::DytallixKeypair;
 use serde::Serialize;
 use sha3::{Digest, Sha3_256};
 
-#[cfg(feature = "network")]
-use crate::client::DytallixClient;
 use crate::error::SdkError;
 use crate::FeeEstimate;
 use crate::Token;
@@ -250,39 +248,6 @@ impl Transaction {
             b_gas_cost_drt: b_gas_cost,
             total_cost_drt: self.fee,
         }
-    }
-
-    /// Returns the deterministic fee estimate for a specific gas price.
-    #[cfg(feature = "network")]
-    pub(crate) fn fee_estimate_with_gas_price(&self, gas_price_micro: u64) -> FeeEstimate {
-        let intrinsic_gas = self.c_gas_limit;
-        let execution_gas = self.b_gas_limit;
-        let c_gas_cost = u128::from(intrinsic_gas).saturating_mul(u128::from(gas_price_micro));
-        let b_gas_cost = u128::from(execution_gas).saturating_mul(u128::from(gas_price_micro));
-
-        FeeEstimate {
-            c_gas: intrinsic_gas,
-            c_gas_cost_drt: c_gas_cost,
-            b_gas: execution_gas,
-            b_gas_cost_drt: b_gas_cost,
-            total_cost_drt: c_gas_cost.saturating_add(b_gas_cost),
-        }
-    }
-
-    /// Requests a fee estimate for this transaction from the provided client.
-    #[cfg(feature = "network")]
-    pub async fn estimate_fee(&self, client: &DytallixClient) -> Result<FeeEstimate, SdkError> {
-        client.simulate_transaction(self).await
-    }
-
-    /// Returns a copy of the transaction repriced with the live node's fee schedule.
-    #[cfg(feature = "network")]
-    pub async fn with_estimated_fee(
-        self,
-        client: &DytallixClient,
-    ) -> Result<(Self, FeeEstimate), SdkError> {
-        let fee = self.estimate_fee(client).await?;
-        Ok((self.with_fee_micro(fee.total_cost_drt), fee))
     }
 }
 
