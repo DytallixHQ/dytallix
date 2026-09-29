@@ -286,7 +286,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/release_handover.rs",
-          "sha256": "149a84dd32bd3e66c04e3fecaf8a4d164e12bb123beb5973b71c1a1dd9ac3f60"
+          "sha256": "166aa590dc37b07f77cff8cf1ab29e64948cc491943d0031566ec75ccdd37aed"
         },
         {
           "path": "dytallix-fast-launch/node/src/release_handover/restart.rs",

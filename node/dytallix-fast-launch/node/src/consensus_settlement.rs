@@ -576,6 +576,8 @@ struct PreparedRuntimeCandidateInput {
     input: crate::runtime_candidate_v2::RuntimeCandidateInput,
     root: crate::root_genesis::DevelopmentRootGenesis,
     verifier: EmergencyVerifierConfig,
+    /// A restart authorization's bytes (restart v1, E04 gap 18).
+    restart: Option<Vec<u8>>,
 }
 
 /// This verifier is independent of every candidate/live-helper setting. The
@@ -665,6 +667,42 @@ fn check_stored_bindings(storage: &Storage, config: &ConsensusConfig, genesis_by
     }
 }
 
+/// A supplied restart authorization against committed state (restart v1,
+/// E04 gap 18): `Some` when it applies to the next block, `None` when its
+/// receipt is already committed. Any other one is refused.
+fn select_restart(
+    storage: &Storage,
+    config: &ConsensusConfig,
+    raw: &[u8],
+    verifier: &dyn handover::Verifier,
+) -> Result<Option<handover::restart::Verified>> {
+    classify((|| {
+        let policy = config
+            .release_handover
+            .as_ref()
+            .context("A restart requires a handover policy")?;
+        let authorization = handover::restart::decode_authorization(policy, raw)?;
+        let key = handover::restart::key(authorization.payload.sequence);
+        if let Some(bytes) = storage.db.get(&key)? {
+            let receipt = handover::restart::decode_receipt(policy, &bytes)?;
+            ensure!(
+                receipt.authorization == authorization,
+                "A different restart holds this sequence"
+            );
+            return Ok(None);
+        }
+        let state = handover_state(storage, config)?.context("A restart requires committed state")?;
+        let info = current_info(storage)?;
+        let checkpoint = handover::restart::Checkpoint {
+            height: info.height,
+            app_hash: info.app_hash,
+            emergency_receipt_sha256: emergency_state(storage, config)?
+                .and_then(|state| state.last_receipt_sha256().map(str::to_owned)),
+        };
+        Ok(Some(handover::restart::verify(policy, &state, &checkpoint, raw, verifier)?))
+    })(), FailureClass::Release)
+}
+
 /// What a stopped node's read-only check found.
 #[derive(Debug)]
 pub enum StoppedCheck {
@@ -696,6 +734,7 @@ fn preflight_prepared_release(
     genesis_bytes: &[u8],
     root_genesis: &crate::root_genesis::PreparedRootGenesis,
     verifier: &EmergencyVerifier,
+    restart: Option<&[u8]>,
 ) -> Result<VerifiedReleaseAuthority> {
     let root_release = &config.emergency.as_ref().context("Candidate requires root release")?.release_sha512;
     let mut authority = VerifiedReleaseAuthority {
@@ -718,6 +757,11 @@ fn preflight_prepared_release(
         authority.expected.manifest_sha512 = handover_state(&storage, config)?
             .map(|state| state.active_release_sha512().to_owned())
             .unwrap_or_else(|| root_release.clone());
+        if let Some(raw) = restart {
+            if let Some(verified) = select_restart(&storage, config, raw, verifier)? {
+                authority.expected.manifest_sha512 = verified.target_release_sha512().to_owned();
+            }
+        }
         authority.committed_info = Some(current_info(&storage)?);
         authority.active_schema = upgrade_state(&storage, config)?.map(|state| state.active_schema());
     }
@@ -861,12 +905,24 @@ fn kept_below(storage: &Storage, retained: u64) -> Result<Vec<u64>> {
     }
     Ok(heights)
 }
-/// Heights of the finalized anchors that recorded emergency controls name.
+/// Heights a replay reads besides blocks with recorded controls: the
+/// finalized anchors that recorded emergency controls name, and the blocks
+/// a restart applied to (restart v1).
 fn control_anchors(storage: &Storage, config: &ConsensusConfig) -> Result<BTreeSet<u64>> {
-    Ok(committed_emergency_records(storage, config)?
+    let mut heights: BTreeSet<u64> = committed_emergency_records(storage, config)?
         .into_iter()
         .filter_map(|(receipt, _)| receipt.context.finalized_anchor.map(|a| a.height))
-        .collect())
+        .collect();
+    if let Some(policy) = &config.release_handover {
+        for item in storage.db.prefix_iterator(handover::restart::PREFIX) {
+            let (key, bytes) = item?;
+            if !key.starts_with(handover::restart::PREFIX.as_bytes()) {
+                break;
+            }
+            heights.insert(handover::restart::decode_receipt(policy, &bytes)?.halted_height());
+        }
+    }
+    Ok(heights)
 }
 /// A record that outlives the window, because a replay reads it: it holds a
 /// recorded control (only a recorded control has one of their results), or it
@@ -1005,6 +1061,8 @@ pub struct ConsensusApplication {
     restore: Option<crate::snapshot::Restore>,
     metrics: Option<Arc<crate::app_metrics::AppMetrics>>,
     startup_check_seconds: f64,
+    /// A verified restart for the next block (restart v1, E04 gap 18).
+    restart: Option<handover::restart::Verified>,
 }
 
 /// The application's answer to a snapshot the engine offers (state sync
@@ -2894,8 +2952,9 @@ fn recorded_release_at(
     }
     let storage = history.storage;
     let mut trace = Vec::new();
-    let mut prior_height = 0;
     let mut active = policy.initial_release_sha512.clone();
+    // Handover receipts and restarts (restart v1), in height order.
+    let mut events = Vec::new();
     for item in storage.db.prefix_iterator(handover::RECEIPT_PREFIX) {
         let (key, bytes) = item?;
         if !key.starts_with(handover::RECEIPT_PREFIX.as_bytes()) {
@@ -2906,10 +2965,47 @@ fn recorded_release_at(
             key.as_ref() == handover::receipt_key(receipt.sequence()).as_bytes(),
             "Handover history sequence key differs"
         );
-        let h = receipt.context.height;
-        ensure!(h > prior_height, "Handover history height order differs");
-        prior_height = h;
+        events.push((receipt.context.height, receipt.sequence(), Ok(receipt)));
+    }
+    for item in storage.db.prefix_iterator(handover::restart::PREFIX) {
+        let (key, bytes) = item?;
+        if !key.starts_with(handover::restart::PREFIX.as_bytes()) {
+            break;
+        }
+        let receipt = handover::restart::decode_receipt(policy, &bytes)?;
+        ensure!(
+            key.as_ref() == handover::restart::key(receipt.sequence()).as_bytes(),
+            "Restart history sequence key differs"
+        );
+        events.push((receipt.halted_height(), receipt.sequence(), Err(receipt)));
+    }
+    events.sort_by_key(|(height, _, _)| *height);
+    let (mut prior_height, mut prior_sequence) = (0, 0);
+    for (h, sequence, event) in events {
+        ensure!(
+            h > prior_height && sequence > prior_sequence,
+            "Handover history height order differs"
+        );
+        (prior_height, prior_sequence) = (h, sequence);
         let record = history.block(h)?;
+        let receipt = match event {
+            Ok(receipt) => receipt,
+            Err(restart) => {
+                let payload = &restart.authorization.payload;
+                ensure!(
+                    payload.parent_app_hash == record.head.anchor.prior_app_hash
+                        && payload
+                            .halted_block_hash
+                            .as_ref()
+                            .is_none_or(|hash| *hash == record.input.hash)
+                        && payload.source_release_sha512 == active,
+                    "Restart release history differs from the committed block"
+                );
+                active = payload.target_release_sha512.clone();
+                trace.push((h, active.clone()));
+                continue;
+            }
+        };
         let raw = serde_json::to_vec(&receipt.control)?;
         let indices: Vec<_> = record
             .input
@@ -2986,6 +3082,25 @@ fn handover_history(
     let mut state = handover::State::new(policy)?;
     let mut schema = upgrade::State::new(up)?.active_schema();
     let mut expected = BTreeMap::new();
+    // Restart receipts by halted height (restart v1, E04 gap 18).
+    let mut restarts = BTreeMap::new();
+    for item in storage.db.prefix_iterator(handover::restart::PREFIX) {
+        let (key, bytes) = item?;
+        if !key.starts_with(handover::restart::PREFIX.as_bytes()) {
+            break;
+        }
+        let receipt = handover::restart::decode_receipt(policy, &bytes)?;
+        ensure!(
+            key.as_ref() == handover::restart::key(receipt.sequence()).as_bytes(),
+            "Restart history sequence key differs"
+        );
+        ensure!(
+            restarts
+                .insert(receipt.halted_height(), (key.to_vec(), bytes.to_vec(), receipt))
+                .is_none(),
+            "Two restarts at one height"
+        );
+    }
     let height = block_lifecycle::height(storage, "meta:height")?;
     for h in history.heights(height)? {
         let record = history.block(h)?;
@@ -3022,42 +3137,68 @@ fn handover_history(
                 _ => None,
             })
             .collect();
-        if context.emergency_frozen || context.emergency_control_present {
-            ensure!(migration.is_none(), "Emergency block migrated state");
-            for (index, _) in &controls {
-                ensure!(
-                    record.result.tx_results.get(*index)
-                        == Some(&TxResult::invalid(EMERGENCY_FROZEN)),
-                    "Blocked handover result differs"
-                );
-            }
+        if let Some((key, bytes, receipt)) = restarts.remove(&h) {
+            // The switch applied before the block's transactions.
+            ensure!(
+                controls.is_empty() && migration.is_none(),
+                "A restart block carried a handover control or a migration"
+            );
+            ensure!(
+                receipt
+                    .authorization
+                    .payload
+                    .halted_block_hash
+                    .as_ref()
+                    .is_none_or(|hash| *hash == record.input.hash),
+                "Restart block hash differs from the committed block"
+            );
+            let checkpoint = handover::restart::Checkpoint {
+                height: h - 1,
+                app_hash: record.head.anchor.prior_app_hash.clone(),
+                emergency_receipt_sha256: emergency_state.last_receipt_sha256().map(str::to_owned),
+            };
+            let verified =
+                handover::restart::replay(policy, &state, &checkpoint, &receipt, verifier)?;
+            state = verified.state().clone();
+            ensure!(expected.insert(key, bytes).is_none(), "Restart receipt reused");
         } else {
-            ensure!(controls.len() <= 1, "Multiple committed handover controls");
-            if let Some((index, raw)) = controls.first() {
-                let control = handover::decode_control(policy, raw)?;
-                let key = handover::receipt_key(control.payload.sequence);
-                let bytes = storage.db.get(&key)?.context("Handover receipt missing")?;
-                let receipt = handover::decode_receipt(policy, &bytes)?;
-                ensure!(
-                    receipt.control == control
-                        && record.result.tx_results.get(*index) == Some(&handover_result()),
-                    "Handover receipt input/result differs"
-                );
-                let plan = handover::replay_record(
-                    policy,
-                    &state,
-                    &receipt,
-                    &context,
-                    migration.as_ref(),
-                    verifier,
-                )?;
-                ensure!(
-                    expected.insert(key.into_bytes(), bytes.to_vec()).is_none(),
-                    "Handover receipt reused"
-                );
-                state = plan.state;
+            if context.emergency_frozen || context.emergency_control_present {
+                ensure!(migration.is_none(), "Emergency block migrated state");
+                for (index, _) in &controls {
+                    ensure!(
+                        record.result.tx_results.get(*index)
+                            == Some(&TxResult::invalid(EMERGENCY_FROZEN)),
+                        "Blocked handover result differs"
+                    );
+                }
             } else {
-                ensure!(migration.is_none(), "Unpaired historical migration");
+                ensure!(controls.len() <= 1, "Multiple committed handover controls");
+                if let Some((index, raw)) = controls.first() {
+                    let control = handover::decode_control(policy, raw)?;
+                    let key = handover::receipt_key(control.payload.sequence);
+                    let bytes = storage.db.get(&key)?.context("Handover receipt missing")?;
+                    let receipt = handover::decode_receipt(policy, &bytes)?;
+                    ensure!(
+                        receipt.control == control
+                            && record.result.tx_results.get(*index) == Some(&handover_result()),
+                        "Handover receipt input/result differs"
+                    );
+                    let plan = handover::replay_record(
+                        policy,
+                        &state,
+                        &receipt,
+                        &context,
+                        migration.as_ref(),
+                        verifier,
+                    )?;
+                    ensure!(
+                        expected.insert(key.into_bytes(), bytes.to_vec()).is_none(),
+                        "Handover receipt reused"
+                    );
+                    state = plan.state;
+                } else {
+                    ensure!(migration.is_none(), "Unpaired historical migration");
+                }
             }
         }
         if let Some(outcome) = outcome {
@@ -3068,6 +3209,10 @@ fn handover_history(
             "Historical handover schema differs from migration"
         );
     }
+    ensure!(
+        restarts.is_empty(),
+        "A restart receipt names a block outside the held history"
+    );
     expected.insert(
         handover::STATE_KEY.as_bytes().to_vec(),
         handover::encode_state(&state)?,
@@ -3247,10 +3392,15 @@ impl ConsensusApplication {
                 .as_ref()
                 .context("Handover runtime candidate missing")?;
             let active = if storage.db.get(MODE_KEY)?.is_some() {
-                handover_state(storage, &self.config)?
-                    .context("Handover state missing")?
-                    .active_release_sha512()
-                    .to_owned()
+                let head = current_info(storage)?.height;
+                match self.restart.as_ref().filter(|r| head.checked_add(1) == Some(r.halted_height())) {
+                    // Until block H commits, the restart's target runs it.
+                    Some(restart) => restart.target_release_sha512().to_owned(),
+                    None => handover_state(storage, &self.config)?
+                        .context("Handover state missing")?
+                        .active_release_sha512()
+                        .to_owned(),
+                }
             } else {
                 policy.initial_release_sha512.clone()
             };
@@ -3279,6 +3429,31 @@ impl ConsensusApplication {
         };
         let state =
             handover_state(&self.storage, &self.config)?.context("Handover state missing")?;
+        if let Some(restart) = self.restart.as_ref().filter(|r| r.halted_height() == height) {
+            // Restart v1: the switch applies before the block's
+            // transactions; it pairs with no handover control or migration.
+            ensure!(
+                current_info(&self.storage)?.height.checked_add(1) == Some(height),
+                "Restart block is not next"
+            );
+            ensure!(
+                !txs.iter().any(|raw| matches!(
+                    wire(&self.config, raw),
+                    Ok(WireTransaction::HandoverControl { .. })
+                )),
+                "A restart block carries no handover control"
+            );
+            ensure!(
+                !upgrade_plan.is_some_and(|p| p.migration.is_some()),
+                "A restart block cannot migrate"
+            );
+            return Ok(Some(handover::BlockPlan {
+                state: restart.state().clone(),
+                receipt: None,
+                restart: Some(restart.receipt().clone()),
+                activated_release_sha512: Some(restart.target_release_sha512().to_owned()),
+            }));
+        }
         let emergency_state = emergency_state(&self.storage, &self.config)?
             .context("Handover emergency state missing")?;
         let present = emergency_plan.is_some_and(|p| p.receipt.is_some());
@@ -3290,6 +3465,7 @@ impl ConsensusApplication {
             return Ok(Some(handover::BlockPlan {
                 state,
                 receipt: None,
+                restart: None,
                 activated_release_sha512: None,
             }));
         }
@@ -3709,6 +3885,28 @@ impl ConsensusApplication {
         verifier: EmergencyVerifierConfig,
         candidate: Option<crate::runtime_candidate_v2::RuntimeCandidateInput>,
     ) -> Result<Self> {
+        Self::open_with_development_runtime_candidate_and_restart(
+            path, config, genesis_bytes, consensus_source, authorization, verifier, candidate, None,
+        )
+    }
+    /// As `open_with_development_runtime_candidate`, with a restart
+    /// authorization (restart v1, E04 gap 18). A valid one lets its target
+    /// release run the halted block; one already committed is ignored.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open_with_development_runtime_candidate_and_restart(
+        path: impl AsRef<Path>,
+        config: ConsensusConfig,
+        genesis_bytes: Vec<u8>,
+        consensus_source: &[u8],
+        authorization: crate::root_genesis::DevelopmentRootGenesis,
+        verifier: EmergencyVerifierConfig,
+        candidate: Option<crate::runtime_candidate_v2::RuntimeCandidateInput>,
+        restart: Option<Vec<u8>>,
+    ) -> Result<Self> {
+        ensure!(
+            restart.is_none() || (candidate.is_some() && config.release_handover.is_some()),
+            "A restart requires runtime candidate verification and a handover policy"
+        );
         config.validate()?;
         ensure!(
             config
@@ -3746,7 +3944,7 @@ impl ConsensusApplication {
             EmergencyVerifier::new(verifier.clone())?
         };
         let candidate = candidate.map(|input| PreparedRuntimeCandidateInput {
-            input, root: authorization, verifier,
+            input, root: authorization, verifier, restart,
         });
         Self::open_inner(
             path,
@@ -3798,7 +3996,7 @@ impl ConsensusApplication {
             "Exact consensus source differs from selected runtime configuration");
         let verifier = bootstrap_history_verifier(authorization)?;
         let prepared = authorization.prepare(&config.chain_id, genesis_bytes, consensus_source)?;
-        preflight_prepared_release(path.as_ref(), config, genesis_bytes, &prepared, &verifier)
+        preflight_prepared_release(path.as_ref(), config, genesis_bytes, &prepared, &verifier, None)
     }
     fn open_inner(
         path: impl AsRef<Path>,
@@ -3833,6 +4031,7 @@ impl ConsensusApplication {
                 path.as_ref(), &config, &genesis_bytes,
                 root_genesis.as_ref().context("Candidate requires verified root genesis")?,
                 emergency_verifier.as_ref().context("Candidate requires emergency verifier")?,
+                input.restart.as_deref(),
             )?;
             classify(crate::runtime_candidate_v2::verify_runtime_candidate(
                 &input.input, &authority, &input.root, &input.verifier,
@@ -3859,6 +4058,20 @@ impl ConsensusApplication {
         let initialized = check_stored_startup(&storage, &config, &genesis_bytes,
             root_genesis.as_ref(), emergency_verifier.as_ref())?;
         let startup_check_seconds = started.elapsed().as_secs_f64();
+        // The restart is checked again on the writable database.
+        let restart = match candidate.as_ref().and_then(|input| input.restart.as_deref()) {
+            Some(raw) if initialized => select_restart(
+                &storage,
+                &config,
+                raw,
+                emergency_verifier.as_ref().context("A restart requires the verifier")?,
+            )?,
+            Some(_) => classify(
+                Err(anyhow::anyhow!("A restart requires committed state")),
+                FailureClass::Release,
+            )?,
+            None => None,
+        };
         let runtime_candidate = candidate
             .map(|input| {
                 let expected_release = if initialized {
@@ -3866,6 +4079,11 @@ impl ConsensusApplication {
                 } else {
                     None
                 }
+                .map(|active| {
+                    restart
+                        .as_ref()
+                        .map_or(active, |r| r.target_release_sha512().to_owned())
+                })
                 .or_else(|| config.emergency.as_ref().map(|p| p.release_sha512.clone()))
                 .context("Candidate requires root-authorized release")?;
                 let authority = VerifiedReleaseAuthority {
@@ -3900,6 +4118,7 @@ impl ConsensusApplication {
             restore: None,
             metrics: None,
             startup_check_seconds,
+            restart,
         })
     }
     pub fn info(&self) -> Result<Info> {
@@ -4365,6 +4584,12 @@ impl ConsensusApplication {
         let mut txs = txs;
         if self.config.emergency.is_some() {
             self.ensure_active_runtime()?;
+            if let Some(restart) = self.restart.as_ref().filter(|r| r.halted_height() == height) {
+                ensure!(
+                    restart.applies_to(height, None),
+                    "The restart binds a decided block, which is not proposed again"
+                );
+            }
             self.validate_evidence(height, &misbehavior)?;
             self.emergency_context(height)?;
             ensure!(
@@ -4811,6 +5036,12 @@ impl ConsensusApplication {
     }
     fn prepare(&self, input: FinalizedBlockInput) -> Result<Prepared> {
         self.ensure_active_runtime()?;
+        if let Some(restart) = self.restart.as_ref().filter(|r| r.halted_height() == input.height) {
+            ensure!(
+                restart.applies_to(input.height, Some(&input.hash)),
+                "The restart binds a different block"
+            );
+        }
         input_limits(&self.config, &input)?;
         let expected_info = current_info(&self.storage)?;
         ensure!(
@@ -5095,6 +5326,14 @@ impl ConsensusApplication {
                     "Handover receipt already exists"
                 );
                 writes.insert(key.into_bytes(), handover::encode_receipt(&receipt)?);
+            }
+            if let Some(receipt) = plan.restart {
+                let key = handover::restart::key(receipt.sequence());
+                ensure!(
+                    self.storage.db.get(&key)?.is_none(),
+                    "Restart receipt already exists"
+                );
+                writes.insert(key.into_bytes(), handover::restart::encode_receipt(&receipt)?);
             }
         }
         if let Some(plan) = upgrade_plan {

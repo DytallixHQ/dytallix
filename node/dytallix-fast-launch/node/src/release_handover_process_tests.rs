@@ -29,6 +29,17 @@ impl HandoverProcess {
         label: &str,
         candidate_config: Option<&Path>,
     ) -> Self {
+        Self::open_with_restart(binary, root, database, label, candidate_config, None)
+    }
+    /// With a restart authorization file (restart v1, E04 gap 18).
+    fn open_with_restart(
+        binary: &Path,
+        root: &RootFixture,
+        database: &Path,
+        label: &str,
+        candidate_config: Option<&Path>,
+        restart: Option<&Path>,
+    ) -> Self {
         let dir = root._directory.path();
         let stderr = dir.join(format!("process-{label}.stderr"));
         // The application admits only an owned launch bound to its release
@@ -47,6 +58,9 @@ impl HandoverProcess {
             .stderr(std::fs::File::create(&stderr).unwrap());
         if let Some(path) = candidate_config {
             command.arg("--development-candidate-config").arg(path);
+        }
+        if let Some(path) = restart {
+            command.arg("--restart-authorization").arg(path);
         }
         let mut child = command.spawn().unwrap();
         let mut input = child.stdin.take().unwrap();
@@ -527,4 +541,90 @@ fn actual_signed_handover_pairs_migration_and_changes_executing_candidate() {
     assert_eq!(hex::encode(Sha256::digest(std::fs::read(&source).unwrap())),source_hash);
     assert_eq!(hex::encode(Sha256::digest(std::fs::read(&target).unwrap())),target_hash);
     println!("PASS signed handover: source_sha256={source_hash} target_sha256={target_hash}; 11 committed blocks; 6 historic/later emergency receipts; paired migration; signed schema-preserving forward return; both execution barriers; production disabled");
+}
+
+/// Restart v1 (E04 gap 18): a signed restart authorization from the process's own state.
+fn restart_from_process(root: &RootFixture, f: &Fixture, app: &mut HandoverProcess, target: &str,
+    halted_block_hash: Option<String>) -> Vec<u8> {
+    let (head, status) = app.snapshot();
+    let policy = f.config.release_handover.as_ref().unwrap();
+    let payload = handover::restart::Payload { schema:1, chain_id:CHAIN.into(),
+        genesis_sha256:f.config.app_state_sha256.clone(), policy_sha256:policy.sha256().unwrap(),
+        authority_epoch:1, sequence:status["release_handover"]["next_sequence"].as_u64().unwrap(),
+        source_release_sha512:status["release_handover"]["active_release_sha512"].as_str().unwrap().into(),
+        target_release_sha512:target.into(), state_schema:status["release_handover"]["active_schema"].as_u64().unwrap() as u16,
+        parent_height:head.height, parent_app_hash:head.app_hash, halted_height:head.height+1,
+        halted_block_hash, emergency_receipt_sha256:None, pending_admission_receipt_sha256:None,
+        evidence_sha256:"55".repeat(32) };
+    let signed = signature(root, &handover::restart::artifact_bytes(&payload).unwrap(), "upgrade",
+        payload.sequence, payload.halted_height, 41, "handover");
+    serde_json::to_vec(&handover::restart::Authorization { kind:handover::restart::KIND.into(), payload,
+        signatures:vec![signed] }).unwrap()
+}
+
+#[test]
+#[ignore="Requires an owner launcher, two test-build handover executables, real SLH helper and disposable root/control signers"]
+fn actual_signed_restart_switches_the_executing_release_at_the_halted_height() {
+    let source=std::fs::canonicalize(std::env::var("DYT_HANDOVER_SOURCE_APP").expect("Explicit source app")).unwrap();
+    let target=std::fs::canonicalize(std::env::var("DYT_HANDOVER_TARGET_APP").expect("Explicit target app")).unwrap();
+    let mut f=Fixture::new();
+    let source_manifest=executable_manifest(&f,&source);
+    let target_manifest=executable_manifest(&f,&target);
+    let source_release=hex::encode(Sha512::digest(&source_manifest));
+    let target_release=hex::encode(Sha512::digest(&target_manifest));
+    assert_ne!(source_release,target_release,"A restart requires distinct executables");
+    let root=RootFixture::with_release_manifest(&mut f,&source_manifest,configure_handover);
+    write_process_settings(&root);
+    let target_manifest_path=root._directory.path().join("target-release-manifest.json");
+    std::fs::write(&target_manifest_path,&target_manifest).unwrap();
+    let source_settings=write_candidate_settings(&root,&source,&root.root.release_manifest_path,"source");
+    let target_settings=write_candidate_settings(&root,&target,&target_manifest_path,"target");
+    let database=tempfile::tempdir().unwrap();
+    let db=database.path().join("restart-db");
+    let mut a=HandoverProcess::open_with_candidate(&source,&root,&db,"restart-source",Some(&source_settings));
+    let mut init=json!({"chain_id":CHAIN,"initial_height":1,"app_state_bytes":B64.encode(&f.genesis),"validators":f.config.validators});
+    if let Some(lifecycle)=&f.config.lifecycle {
+        init["evidence_max_age_blocks"]=json!(lifecycle.evidence_max_age_blocks);
+        init["evidence_max_age_seconds"]=json!(lifecycle.evidence_max_age_seconds);
+        init["evidence_max_age_nanos"]=json!(0);
+    }
+    a.request("init_chain",init);
+    a.commit_txs(1,&[]);
+    // The chain stops at height 2; the fixed release is the target build.
+    let halted=process_block(2,&[]);
+    let restart=restart_from_process(&root,&f,&mut a,&target_release,Some(halted["hash"].as_str().unwrap().into()));
+    let checkpoint=a.snapshot();
+    a.close();
+    let restart_path=root._directory.path().join("restart-authorization.json");
+    std::fs::write(&restart_path,&restart).unwrap();
+    // Without the authorization the target is not the committed release.
+    HandoverProcess::open_with_candidate(&target,&root,&db,"restart-target-unauthorized",Some(&target_settings))
+        .assert_startup_rejected("Candidate manifest digest mismatch");
+
+    let mut b=HandoverProcess::open_with_restart(&target,&root,&db,"restart-target",Some(&target_settings),Some(&restart_path));
+    assert_eq!(b.snapshot(),checkpoint,"Opening with a restart changed committed state");
+    let mut other=process_block(2,&[]);
+    other["hash"]=json!("ef".repeat(32));
+    b.rejected("finalize_block",other,"The restart binds a different block");
+    assert_eq!(b.request("process_proposal",halted.clone())["accept"],true);
+    b.request("finalize_block",halted);
+    b.request("commit",json!({}));
+    let restarted=b.snapshot();
+    assert_eq!(restarted.0.height,2);
+    assert_eq!(restarted.1["release_handover"]["active_release_sha512"],target_release);
+    assert_eq!(restarted.1["release_handover"]["next_sequence"],2);
+    b.commit_txs(3,&[]);
+    let after=b.snapshot();
+    b.close();
+
+    // The source no longer runs; the target reopens with or without the file.
+    HandoverProcess::open_with_candidate(&source,&root,&db,"restart-source-obsolete",Some(&source_settings))
+        .assert_startup_rejected("Candidate manifest digest mismatch");
+    let mut b=HandoverProcess::open_with_candidate(&target,&root,&db,"restart-target-replay",Some(&target_settings));
+    assert_eq!(b.snapshot(),after);
+    b.close();
+    let mut b=HandoverProcess::open_with_restart(&target,&root,&db,"restart-target-consumed",Some(&target_settings),Some(&restart_path));
+    assert_eq!(b.snapshot(),after);
+    b.close();
+    println!("PASS signed restart: source {source_release} to target {target_release} at height 2; replayed at startup; source refused");
 }

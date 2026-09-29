@@ -655,3 +655,193 @@ fn handover_startup_rejects_missing_verifier_and_structurally_consistent_bad_sig
 
 #[path = "history_validation_tests.rs"]
 mod history_validation_tests;
+
+/// Restart v1 (E04 gap 18): a signed restart authorization, supplied at startup.
+fn restart_authorization(
+    root: &RootFixture,
+    app: &ConsensusApplication,
+    target: &str,
+    halted_block_hash: Option<String>,
+) -> Vec<u8> {
+    let info = app.info().unwrap();
+    let state = handover_state(&app.storage, &app.config).unwrap().unwrap();
+    let policy = app.config.release_handover.as_ref().unwrap();
+    let payload = handover::restart::Payload {
+        schema: 1,
+        chain_id: CHAIN.into(),
+        genesis_sha256: app.config.app_state_sha256.clone(),
+        policy_sha256: policy.sha256().unwrap(),
+        authority_epoch: 1,
+        sequence: state.next_sequence(),
+        source_release_sha512: state.active_release_sha512().into(),
+        target_release_sha512: target.into(),
+        state_schema: state.active_schema(),
+        parent_height: info.height,
+        parent_app_hash: info.app_hash,
+        halted_height: info.height + 1,
+        halted_block_hash,
+        emergency_receipt_sha256: emergency_state(&app.storage, &app.config)
+            .unwrap()
+            .unwrap()
+            .last_receipt_sha256()
+            .map(str::to_owned),
+        pending_admission_receipt_sha256: None,
+        evidence_sha256: "35".repeat(32),
+    };
+    let signatures = vec![signature(
+        root,
+        &handover::restart::artifact_bytes(&payload).unwrap(),
+        payload.sequence,
+        payload.halted_height,
+        31,
+        "upgrade-31",
+        "upgrade",
+    )];
+    serde_json::to_vec(&handover::restart::Authorization {
+        kind: handover::restart::KIND.into(),
+        payload,
+        signatures,
+    })
+    .unwrap()
+}
+fn open_restart(
+    root: &RootFixture,
+    f: &Fixture,
+    path: &Path,
+    restart: Vec<u8>,
+) -> anyhow::Result<ConsensusApplication> {
+    ConsensusApplication::open_with_development_runtime_candidate_and_restart(
+        path,
+        f.config.clone(),
+        f.genesis.clone(),
+        &root.source,
+        root.root.clone(),
+        root.verifier.clone(),
+        Some(crate::runtime_candidate_v2::RuntimeCandidateInput::V1(
+            DevelopmentCandidateInput {
+                manifest_path: std::fs::canonicalize(&root.root.release_manifest_path).unwrap(),
+                max_manifest_bytes: 65536,
+                max_executable_bytes: 1024 * 1024 * 1024,
+            },
+        )),
+        Some(restart),
+    )
+}
+
+#[test]
+#[ignore = "requires explicit disposable SLH signing helper"]
+fn restart_resumes_a_halted_chain_on_the_running_release() {
+    let mut f = Fixture::new();
+    let mut genesis: serde_json::Value = serde_json::from_slice(&f.genesis).unwrap();
+    genesis["adaptive_issuance"]["epoch_blocks"] = serde_json::json!(3);
+    f.genesis = serde_json::to_vec(&genesis).unwrap();
+    let digest: [u8; 32] = Sha256::digest(&f.genesis).into();
+    f.config.app_state_sha256 = hex::encode(digest);
+    for account in f.config.recovery.as_mut().unwrap().accounts.values_mut() {
+        account.recovery.domain.genesis_digest = digest;
+    }
+    let root = setup(&mut f);
+    let running = f.config.emergency.as_ref().unwrap().release_sha512.clone();
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("state");
+    let mut app = start(&root, &f, &db);
+    // A handover to another release: afterwards the running release is refused.
+    let plan = handover::ReleasePlan {
+        target_release_sha512: "ab".repeat(64),
+        transition: handover::Transition::SchemaPreserving { schema: 0 },
+        authorization_sha256: "31".repeat(32),
+    };
+    let admit = handover_control(&root, &app, handover::Action::Admit { plan: plan.clone() });
+    commit(&mut app, 1, vec![admit]);
+    let pending = handover_state(&app.storage, &app.config)
+        .unwrap()
+        .unwrap()
+        .pending()
+        .unwrap()
+        .clone();
+    let activate = handover_control(
+        &root,
+        &app,
+        handover::Action::Activate {
+            plan,
+            admission_receipt_sha256: pending.admission_receipt_sha256,
+            emergency_receipt_sha256: None,
+            evidence_sha256: "34".repeat(32),
+            upgrade_activation_sha256: None,
+        },
+    );
+    commit(&mut app, 2, vec![activate]);
+    // Block 3 cannot run: the chain is halted at height 3.
+    let halted = block(3, vec![]);
+    let error = app.finalize_block(halted.clone()).unwrap_err();
+    assert_eq!(
+        crate::failure_class::class_of(&error),
+        Some(crate::failure_class::FailureClass::Release)
+    );
+    let bound = restart_authorization(&root, &app, &running, Some(halted.hash.clone()));
+    let other_block = restart_authorization(&root, &app, &running, Some("ef".repeat(32)));
+    let before = data(&app);
+    drop(app);
+    assert!(open(&root, &f, &db).is_err());
+
+    // A restart bound to another block opens, but refuses block 3.
+    let mut refusing = open_restart(&root, &f, &db, other_block).unwrap();
+    assert!(refusing.finalize_block(halted.clone()).is_err());
+    assert!(refusing.prepare_proposal(3, 30, 0, vec![], 1024).is_err());
+    drop(refusing);
+
+    // The bound restart runs block 3 on the running release.
+    let mut app = open_restart(&root, &f, &db, bound.clone()).unwrap();
+    assert_eq!(data(&app), before, "Opening with a restart wrote state");
+    assert!(app.process_proposal(halted.clone()).unwrap());
+    app.finalize_block(halted).unwrap();
+    app.commit().unwrap();
+    let state = handover_state(&app.storage, &app.config).unwrap().unwrap();
+    assert_eq!(state.active_release_sha512(), running);
+    assert_eq!(state.next_sequence(), 4);
+    let receipt = app
+        .storage
+        .db
+        .get(handover::restart::key(3))
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        state.activation_receipt_sha256(),
+        Some(
+            handover::restart::decode_receipt(app.config.release_handover.as_ref().unwrap(), &receipt)
+                .unwrap()
+                .sha256()
+                .unwrap()
+                .as_str()
+        )
+    );
+    // The restart's block outlives the retained window: startup replays it.
+    assert!(control_anchors(&app.storage, &app.config).unwrap().contains(&3));
+    let observation =
+        derived_observation_wire(&app.storage, &app.config, 3, 4, &block(3, vec![]).hash)
+            .unwrap()
+            .unwrap();
+    commit(&mut app, 4, vec![observation]);
+    drop(app);
+
+    // Startup replays the restart with the real helper, with or without the
+    // file; a restart for this checkpoint is refused once the chain moved on.
+    let app = open(&root, &f, &db).unwrap();
+    assert_eq!(app.info().unwrap().height, 4);
+    drop(app);
+    let app = open_restart(&root, &f, &db, bound).unwrap();
+    drop(app);
+    let other = open_restart(&root, &f, &db, restart_authorization_at(&root, &f, &db));
+    assert!(other.is_err());
+}
+
+/// A fresh restart against the current head, for the refusal above.
+fn restart_authorization_at(root: &RootFixture, f: &Fixture, db: &Path) -> Vec<u8> {
+    let app = open(root, f, db).unwrap();
+    let mut authorization: handover::restart::Authorization =
+        serde_json::from_slice(&restart_authorization(root, &app, &"cd".repeat(64), None)).unwrap();
+    // Signed for the current head but naming an older checkpoint.
+    authorization.payload.parent_height -= 1;
+    authorization.payload.halted_height -= 1;
+    serde_json::to_vec(&authorization).unwrap()
+}

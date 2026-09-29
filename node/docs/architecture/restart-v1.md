@@ -115,6 +115,46 @@ block H. The supervisor's preflight selects the target release the same way.
 - The target release must execute every earlier block as the source did.
   The authorization cannot prove that, so release review must.
 
+## S-b: the application
+
+- **Flag.** `consensus_stdio --restart-authorization FILE` requires
+  `--development-candidate-config`. The file is at most 256 KiB, and the
+  handover policy's control bound applies. The library entry point is
+  `ConsensusApplication::open_with_development_runtime_candidate_and_restart`.
+- **Selection.** Both the read-only preflight and the writable open select
+  the restart.
+  - A committed receipt holding the same authorization means it is ignored.
+  - Otherwise it is verified against the committed checkpoint with the root
+    helper.
+  - A failure exits `release` (14).
+- **The target runs block H.** While the committed head is H−1, the
+  runtime check accepts the target as the running release.
+- **Block H.**
+  - The handover plan for H carries the restart: its state, the receipt and
+    the target as the activated release.
+  - The block's write batch stores both.
+  - `prepare` refuses a block whose hash differs from a bound hash.
+  - A bound restart refuses to propose at H, since that block is decided.
+  - A handover control or a migration in H fails the block.
+- **History.**
+  - The release trace merges restarts with handover receipts in height
+    order.
+  - The handover replay checks the restart at its block. The checkpoint
+    comes from the block record's prior application hash, and the emergency
+    history is the state before H. It verifies the signatures with the
+    helper.
+  - A restart outside the held history fails startup.
+  - `control_anchors` pins block H.
+- **Tests.**
+  - The 22nd in-process signed test:
+    1. a handover to another release halts the running release;
+    2. a restart bound to another block is refused;
+    3. the bound restart runs block 3, and block 3 is pinned;
+    4. startup replays it with and without the file;
+    5. a stale restart is refused.
+  - The 4th process test switches the executing release between two builds
+    at the halted height, with the source refused afterwards.
+
 ## Steps
 
 | Step | Content |
