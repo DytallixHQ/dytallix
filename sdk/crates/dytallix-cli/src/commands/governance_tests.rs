@@ -280,8 +280,7 @@ fn propose_requires_exactly_one_change_and_an_owner_only_for_registry_add() {
         assert!(vote(choice).is_ok(), "{choice}");
     }
     assert!(vote("veto").is_err());
-    #[cfg(feature = "legacy-network")]
-    assert!(crate::Cli::try_parse_from(["dytallix", "legacy", "governance", "proposals"]).is_ok());
+    assert!(crate::Cli::try_parse_from(["dytallix", "legacy", "governance", "proposals"]).is_err());
 }
 
 #[tokio::test]

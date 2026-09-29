@@ -2,6 +2,7 @@ package pqcp2p
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/cipher"
 	"crypto/mlkem"
 	"encoding/binary"
@@ -13,11 +14,12 @@ import (
 	"time"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
-	"golang.org/x/crypto/chacha20poly1305"
 )
 
 const (
-	WireVersion  = 1
+	// Version 2 seals records with AES-256-GCM (E04 gap 19, P01 29 September
+	// 2026); version 1 used ChaCha20-Poly1305 and is refused.
+	WireVersion  = 2
 	MaxPins      = 64
 	MaxPlaintext = 16 * 1024
 	// A direction can carry at most 16 GiB per session. Reconnect with fresh keys.
@@ -25,6 +27,7 @@ const (
 	MaxHandshakeTimeout        = time.Minute
 	handshakeHeaderSize        = 8
 	recordHeaderSize           = 16
+	recordNonceSize            = 12
 	helloType           byte   = 1
 	offerType           byte   = 2
 	responseType        byte   = 3
@@ -116,11 +119,11 @@ func Upgrade(raw net.Conn, network string, local *Identity, pins [][]byte, remot
 	if err != nil {
 		return nil, err
 	}
-	send, err := chacha20poly1305.New(keys.Send[:])
+	send, err := recordCipher(keys.Send[:])
 	if err != nil {
 		return nil, err
 	}
-	receive, err := chacha20poly1305.New(keys.Receive[:])
+	receive, err := recordCipher(keys.Receive[:])
 	if err != nil {
 		return nil, err
 	}
@@ -310,10 +313,23 @@ func recordHeader(sequence uint64, n int) [recordHeaderSize]byte {
 	binary.BigEndian.PutUint16(h[14:], uint16(n))
 	return h
 }
-func recordNonce(sequence uint64) [chacha20poly1305.NonceSize]byte {
-	var nonce [chacha20poly1305.NonceSize]byte
+func recordNonce(sequence uint64) [recordNonceSize]byte {
+	var nonce [recordNonceSize]byte
 	binary.BigEndian.PutUint64(nonce[4:], sequence)
 	return nonce
+}
+
+// recordCipher is AES-256-GCM with the standard 96-bit nonce. Each direction
+// has its own key and a counter nonce that never repeats within a session.
+func recordCipher(key []byte) (cipher.AEAD, error) {
+	if len(key) != 32 {
+		return nil, ErrRecord
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, err
+	}
+	return cipher.NewGCM(block)
 }
 
 func (c *Conn) Write(p []byte) (written int, err error) {

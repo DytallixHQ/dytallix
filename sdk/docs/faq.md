@@ -2,7 +2,8 @@
 
 [Docs hub](README.md) | [Getting started](getting-started.md) | [CLI reference](cli-reference.md)
 
-Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.
+This is the mainnet candidate SDK and CLI for the consensus chain. It contains
+no public testnet client.
 
 ## How do I install the SDK if it is not on crates.io yet?
 
@@ -12,17 +13,17 @@ Use the Git repository directly:
 cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
 ```
 
-Enable network support with:
+Add the node client with:
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features comet-rpc
 ```
 
 ## What is the difference between DGT and DRT?
 
 - `DGT` is the governance and delegation token.
-- `DRT` is used for rewards and burns.
-- The current public node charges transaction fees in `udgt`.
+- `DRT` is used for fees and rewards.
+- The consensus chain charges transaction fees in uDRT.
 
 The SDK models both through the `Token` enum.
 
@@ -33,68 +34,61 @@ the public key, which changes the derived address. The CLI surfaces that
 directly and recommends creating a new wallet instead of pretending rotation can
 keep the same identity.
 
-## Why do I need the `network` feature?
+## When do I need the `comet-rpc` feature?
 
-Without `network`, the SDK stays small and supports offline flows such as:
+Without `comet-rpc`, the SDK stays small and supports offline flows such as:
 
 - key generation
 - address derivation
 - signing and verification
 - keystore operations
-- transaction construction
+- ordinary-v2, ordinary-v3, recovery and legacy transaction construction
 
-Enable `network` when you need the async node client or faucet client.
+Enable `comet-rpc` when you need `ordinary_client::CometClient` to query or
+submit to a node.
 
-## Where does the CLI store keys and config?
+## Where does the CLI store keys and the pinned chain?
 
 Under `~/.dytallix/`:
 
 - `keystore.json` stores named key entries and the active wallet
-- `config.json` stores the selected network profile and free-form config values
+- `chain.json` stores the pinned chain and its endpoint
 
 ## Can I use an SLH-DSA keypair as a normal Dytallix wallet?
 
 No. The normal wallet and D-Addr use ML-DSA-65. FIPS 205 root authorization uses a separate component. The SDK legacy `SlhDsa` API is SPHINCS+-SHAKE-192s-simple. It is not FIPS 205. The CLI rejects `crypto keygen --scheme slh-dsa`.
 
-## How do I switch between testnet and local development?
+## How do I choose which node the CLI uses?
 
-Use:
+Pin the chain with its endpoint:
 
 ```bash
-dytallix config network testnet
-dytallix config network local
+dytallix config pin-chain --endpoint http://127.0.0.1:26657 --network <mainnet|testnet|development> \
+  --chain-id <chain-id> --genesis-digest <sha256-of-genesis-hex>
 ```
 
-The active profile controls which node and faucet endpoints the CLI uses. The
-`mainnet` profile remains reserved in config files, but the public CLI does not
-offer a selectable mainnet endpoint.
+`--endpoint` is a loopback URL for a node on this machine, or the path of a
+remote endpoint's pin file. There is no default endpoint. HTTPS and plain HTTP
+to a remote host are refused. Commands that read or write also take
+`--endpoint` for one call. `dytallix config show` prints the pinned chain and
+its endpoint.
 
-## What are the public faucet limits?
+## How do I get funds?
 
-The canonical public testnet faucet currently grants `10 DGT` and `100 DRT`
-per successful request.
+There is no faucet. An account receives funds at genesis or by a transfer from
+a funded account.
 
-The canonical limiter is:
+## Can I stake and vote from the CLI?
 
-- `60` second cooldown between successful requests
-- `20` requests per hour
+Yes, on the pinned chain:
 
-When the faucet is cooling down, the CLI should surface a retry window in
-seconds instead of treating the service as unreachable.
+- `dytallix stake bond`, `unbond` and `claim`
+- `dytallix stake status` and `dytallix stake validators`
+- `dytallix governance propose`, `deposit` and `vote`
+- `dytallix governance show --proposal-id <id>`
 
-## Are staking and governance writes public-ready?
-
-No. Public staking and governance writes are currently disabled on the default
-website gateway.
-
-You can still use:
-
-- `dytallix legacy stake status`
-- `dytallix legacy governance proposals`
-- `dytallix legacy governance status <id>`
-
-For experimental write testing, point the CLI at a local node or direct node
-endpoint.
+Every write requires `--gas-limit` and `--maximum-fee-udrt`. See the
+[CLI reference](cli-reference.md).
 
 ## Where should I ask for help or report issues?
 

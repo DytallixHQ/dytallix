@@ -176,7 +176,7 @@ AES-GCM, and shares only this specification with the Rust crate.
 | C-a | This design. The `dytallix-client-channel` crate and the Go cross-check. The contracts toolkit's CosmWasm bridge removed. A stale `ed25519-dalek` entry removed from the module policy. |
 | C-b | The endpoint: a channel listener in the node HTTP adapter (seed key file, chain ID, limits), the key and pin tool, the supervisor's configuration and readiness probe, the interface inventory, and a public endpoint contract that replaces the TLS gateway. |
 | C-c1 | The SDK and CLI transport: the vendored channel crate; plain HTTP to loopback only (hyper, no TLS); `--endpoint` takes an endpoint pin file for a remote node; `chain.json` version 2 holds the endpoint key. The default CLI and the Comet and local SDK graphs lose TLS. |
-| C-c2 | The legacy testnet client (`network`, `legacy-network`) and reqwest removed, with its TLS; a CI check that the SDK lockfile holds no classical crate. |
+| C-c2 | The legacy testnet client (`network`, `legacy-network`) and reqwest removed, with its TLS; a CI check that no mainnet lockfile holds a classical or TLS crate. |
 | C-d | The companion, `dytallix gateway`. |
 | C-e | Peer transport wire version 2, with AES-256-GCM records. |
 
@@ -303,7 +303,7 @@ protocol-types. `scripts/sync_protocol_vendor.py` copies both crates, and
     endpoint's pin file.
 - **Features.** `comet-rpc` (the default CLI), `ordinary-http-only` and
   `strict-local-mldsa65` no longer use reqwest. `cargo tree` shows no TLS
-  crate or reqwest in their graphs. `network` and `legacy-network` keep
+  crate or reqwest in their graphs. `network` and `legacy-network` kept
   reqwest's TLS until C-c2.
 - **A repair.** The `dytallix-ordinary-local` binary had not built since
   gap 16's keystore change, and only the standalone SDK repository's CI
@@ -329,18 +329,151 @@ protocol-types. `scripts/sync_protocol_vendor.py` copies both crates, and
 - **Existing RPC tests:** the SDK's RPC tests and the CLI's one-step tests
   run unchanged over the new loopback client.
 
+## Legacy testnet client removed (C-c2)
+
+**The SDK** loses:
+- the `network` feature;
+- the legacy REST client (`client.rs`) and the faucet client
+  (`faucet.rs`);
+- their fee-estimation methods on the legacy `Transaction`;
+- the error variants only they used: `FaucetRateLimited`,
+  `FaucetUnavailable`, `NodeUnavailable` and `ContractDeployFailed`.
+
+**The CLI** loses:
+- `legacy-network`;
+- the commands `init`, `faucet`, `contract`, `node`, `chain`, `dev` and
+  `legacy`, with their REST helpers;
+- `config set`, `config network` and `config reset`, with
+  `~/.dytallix/config.json`, which only those commands read. `config show`
+  and `config pin-chain` remain.
+
+**Removed with them:**
+- the testnet examples (`first-transaction`, `deploy-contract`,
+  `contracts/minimal_contract`);
+- the local REST node scripts;
+- the public-testnet alignment check (`public-capabilities.json`,
+  `check_public_alignment.py`) and its daily smoke workflow.
+
+**Release builds.** The SDK's release workflow had built its binaries with
+`legacy-network`. It now builds the consensus-chain CLI.
+
+**Lockfile.** reqwest leaves the workspace, and with it every TLS crate:
+the SDK lockfile loses 1,107 lines.
+- `sdk/scripts/check_no_classical.py` refuses a lockfile package that is
+  one of these:
+  - classical signature or key-exchange code: ring, Ed25519, X25519,
+    secp256k1, P-256 and the other NIST curves, RSA, DSA, BLS or ECDSA;
+  - a TLS or X.509 stack;
+  - QUIC.
+- Cargo records packages that no feature reaches, so a clean lockfile is
+  the strongest source-level statement. Compiled artifacts are T01's.
+- The mainnet CI runs the check on all five Rust lockfiles: SDK, node,
+  HTTP adapter, contracts and PQC. The SDK's own CI runs it on its own.
+
+**Docs.** The SDK docs no longer describe the public testnet, the faucet,
+contracts or a default public endpoint.
+
+## Browser companion (C-d)
+
+`dytallix gateway serve --listen 127.0.0.1:PORT` is the browser path of
+decision 2. It listens only on a literal loopback address, which browsers
+treat as a secure context, and uses the pinned chain or an `--endpoint`
+override.
+
+- **`POST /rpc`** relays one JSON-RPC request unchanged, through
+  `CometClient::relay`, over the client channel or loopback HTTP.
+  - The body must be `application/json`, at most 1 MiB, and a JSON object
+    or array.
+  - The node's allowlist and bounds apply.
+- **`GET /chain`** reports the pinned network, chain ID, genesis digest and
+  endpoint.
+- **Other GETs** serve a wallet bundle, but only with
+  `--bundle DIR --bundle-sha256 DIGEST`.
+  - The digest is the SHA-256 of the bundle's manifest: one
+    `<sha256>  <path>` line per file, sorted by path, as `sha256sum`
+    prints it. `gateway bundle-digest` computes it.
+  - The files are read once, at startup. A digest mismatch stops startup,
+    and symlinks are refused.
+  - Bounds: 1,024 files and 64 MiB.
+
+**Only the gateway's own pages can use it.**
+- **Host.** It refuses a `Host` other than its own literal `IP:PORT`, which
+  stops DNS rebinding. `localhost` is refused too.
+- **Origin.** It refuses an `Origin` other than its own.
+- **Fetch site.** It refuses a `Sec-Fetch-Site` other than `same-origin` or
+  `none`.
+- **POST body.** It refuses a POST that is not JSON.
+- **CORS.** It answers no preflight and sends no CORS headers, so another
+  site can neither send it JSON nor read its answers.
+- **Response headers.** Every response carries `no-store`, `nosniff`,
+  `no-referrer`, `DENY` framing, same-origin resource and opener policies,
+  and a Content-Security-Policy. The policy allows the page's own scripts
+  and WebAssembly (`'wasm-unsafe-eval'`) and connections to the gateway
+  only.
+- **Capacity.** It accepts loopback peers only, holds at most 16
+  connections, and bounds each at 40 seconds.
+
+It holds no keys: a page signs its own transactions. No Dytallix wallet
+bundle exists yet. When one ships, its digest must reach users through a
+channel they already trust, as endpoint pins do.
+
+### Tests (C-d)
+
+These run the real binary and speak raw HTTP:
+- the gateway's own page and a local program are relayed;
+- a foreign `Origin`, `null`, cross-site and same-site fetches, a rebound
+  `Host` and `localhost` are refused before the node sees anything;
+- a form post (`text/plain`) is refused (415), non-JSON bodies are
+  refused (400), and a preflight gets 405 without CORS headers;
+- `/chain` reports the pin;
+- a pinned bundle is served with its content types and headers, and paths
+  outside it are 404;
+- a changed file, or a bundle without a digest, stops startup;
+- non-loopback listen addresses are refused;
+- a page's request crosses the gateway and the client channel to a real
+  endpoint.
+
+## Peer transport version 2 (C-e)
+
+Decision 3 is applied to the peer transport (`internal/pqcp2p`). Wire
+version 2 differs from version 1 in three ways:
+- **Records** are sealed with AES-256-GCM, through Go's `crypto/aes` and
+  `crypto/cipher`, in place of ChaCha20-Poly1305. The 12-byte nonce is four
+  zero bytes and then the eight-byte sequence. The record header remains the
+  associated data.
+- **Handshake and record headers** carry version `2`. A version 1 or future
+  header is refused before allocation. There is no negotiation or
+  downgrade.
+- **The suite** is `dytallix-pqcp2p-component-v2/mlkem768/mldsa65/hkdfsha256/aes256gcm`.
+  Every signature context and derived key includes it, so a version 1 peer
+  never derives version 2 keys. `golang.org/x/crypto/chacha20poly1305`
+  leaves the transport.
+
+What did not change: the handshake (ML-KEM-768 with pinned ML-DSA-65 peers),
+the key schedule (HKDF-SHA-256), and the record limits.
+
+**Tests.** `TestVersion2RecordsAreAES256GCM` opens a record that `Write`
+produced with an independently built AES-256-GCM, using the header as
+associated data and the sequence nonce. The header test refuses version 1,
+version 3, a bad length and a wrong type. The transport and engine tests
+pass with the default tags and with the PQC-only tags.
+
+**Outside the repository.** The E03 negative-peer probe carries a copy of
+these files, with a staging-only rejection observer (see the E01
+inventory's `peer_key_establishment_and_identity` route). That copy and its
+method review need refreshing to version 2 before the next E03 run.
+
 ## Classical code left after gap 19
 
+E04 gap 20 (P01, 29 September 2026) settled these:
 - **The engine fork's source.** The upstream classical packages remain in
-  the source: Ed25519, secp256k1, BLS, SecretConnection and libp2p. The
-  PQC-only tags make them unbuildable, the Go graph check (G35) enforces
-  that, and no production artifact carries them. The default development
-  build still compiles them, and removing them from the source is
-  undecided.
-- **The testnet faucet** (`mainnet/faucet`) is served behind HTTPS and
-  funds testnet only.
-- **Operator host access (SSH)** uses classical host and user keys. It
-  belongs to E05 deployment.
+  the source: Ed25519, secp256k1, BLS, SecretConnection, the remote signer
+  and libp2p. The PQC-only tags make them unbuildable, the Go graph check
+  (G35) enforces that, and no production artifact carries them. Gap 20
+  deletes them, and PQC-only becomes the one build.
+- **The testnet faucet** moved to `testnet/faucet`, outside `mainnet/`.
+- **Operator host access** is console-only (E05): validator hosts expose no
+  network management port, so no SSH and its classical keys.
 
 ## Code (C-a)
 

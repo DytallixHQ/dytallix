@@ -142,16 +142,16 @@ It accepts HTTP endpoints with literal loopback addresses only: `127.0.0.1` or
 `[::1]`. It rejects HTTPS before a request. It does not downgrade HTTPS, use a
 proxy, follow redirects, or provide an external plaintext transport.
 
-The SDK feature is `ordinary-http-only`. It exposes `ordinary_client` without
-legacy network modules or TLS features. Do not combine it with `network`.
-The CLI feature cannot be combined with the default `legacy-network` feature.
+The SDK feature is `ordinary-http-only`. It exposes `ordinary_client` over
+loopback HTTP only, without the client channel or TLS. Do not combine it with
+`comet-rpc`. The CLI feature cannot be combined with the default `comet-rpc`
+feature.
 Build each profile separately. Cargo combines dependency features; inspect the
 exact selected dependency graph and compiled artifact before a boundary claim.
 
 The default `dytallix` CLI also reaches remote nodes, through the
 post-quantum client channel (`--endpoint` with an endpoint pin file; see the
-CLI reference). The legacy `network` feature still uses HTTPS until E04
-gap 19 C-c2 removes it. Both are outside this selected local profile.
+CLI reference). That is outside this selected local profile.
 This profile is for local qualification. It does not authorize production use,
 qualify a hosted wallet, provide remote transport security, or close G35.
 

@@ -21,7 +21,7 @@ cargo test --all
 ## Code Standards
 
 - `cargo fmt --all -- --check` must pass.
-- `cargo clippy --all-targets --all-features -- -D warnings` must pass.
+- `cargo clippy --locked --workspace --exclude dytallix-protocol-types --exclude dytallix-client-channel --all-targets --no-deps -- -D warnings` must pass; the local profiles are linted separately (see `.github/workflows/ci.yml`), since their features cannot be combined.
 - All public items should have doc comments.
 - All new functionality should have tests.
 - User-facing behavior changes should update the relevant markdown in
@@ -40,7 +40,5 @@ Open a GitHub issue or join [Discord](https://discord.gg/eyVvu5kmPG).
 
 ## Other Repositories
 
-- [dytallix-contracts](https://github.com/DytallixHQ/dytallix-contracts)
 - [dytallix-docs](https://github.com/DytallixHQ/dytallix-docs)
 - [dytallix-explorer](https://github.com/DytallixHQ/dytallix-explorer)
-- [dytallix-faucet](https://github.com/DytallixHQ/dytallix-faucet)

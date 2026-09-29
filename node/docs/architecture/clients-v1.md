@@ -177,6 +177,11 @@ and application hash.
   the published install command and the release archives build with
   `legacy-network`. The default source build has only the consensus-chain
   commands.
+- **Superseded (E04 gap 19, C-c1 and C-c2).** HTTPS left `comet-rpc`, and
+  the `network` and `legacy-network` features left the SDK and CLI with
+  their commands, their REST helpers and reqwest. The release archives
+  build the consensus-chain CLI. See
+  [client channel v1](client-channel-v1.md).
 
 ## K-d implementation notes
 

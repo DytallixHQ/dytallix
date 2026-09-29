@@ -1,18 +1,16 @@
-//! Keypair, address, transaction, optional network client, faucet client, and
-//! keystore support for Dytallix.
+//! Keypairs, addresses, an encrypted keystore and the consensus chain's
+//! transactions for Dytallix:
+//! - ordinary-v2 and ordinary-v3 building and signing;
+//! - recovery transactions;
+//! - with `comet-rpc`, a Comet JSON-RPC client. It reaches a node over the
+//!   post-quantum client channel or plain loopback HTTP; there is no TLS
+//!   (E04 gap 19).
 //!
-//! The SDK models the canonical two-token system used by the Dytallix chain:
-//! DGT for governance and delegation, and DRT for rewards. The current public
-//! node charges transaction fees in DGT micro-units.
-//!
-//! Keypair, faucet, transfer, and basic contract lifecycle are available for
-//! experimentation on the public testnet. Staking, governance, and some
-//! advanced or operator paths are not yet production-complete.
+//! The SDK models the canonical two-token system: DGT for governance and
+//! delegation, and DRT for fees and rewards.
 
-#[cfg(feature = "network")]
-pub mod client;
 #[cfg(all(feature = "comet-rpc", feature = "ordinary-http-only"))]
-compile_error!("ordinary-http-only cannot be combined with comet-rpc or network; build separately with --no-default-features");
+compile_error!("ordinary-http-only cannot be combined with comet-rpc; build separately with --no-default-features");
 #[cfg(all(
     feature = "strict-local-mldsa65",
     any(
@@ -21,10 +19,8 @@ compile_error!("ordinary-http-only cannot be combined with comet-rpc or network;
         feature = "ordinary-http-only"
     )
 ))]
-compile_error!("strict-local-mldsa65 cannot include compatibility or legacy network features");
+compile_error!("strict-local-mldsa65 cannot include compatibility or comet-rpc");
 pub mod error;
-#[cfg(feature = "network")]
-pub mod faucet;
 pub mod keystore;
 #[cfg(any(
     feature = "comet-rpc",
@@ -86,21 +82,6 @@ impl fmt::Display for Balance {
     }
 }
 
-/// The current on-chain state for a Dytallix account.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct AccountState {
-    /// The canonical account address.
-    pub address: DAddr,
-    /// The 32-byte public-key hash associated with the account.
-    pub pubkey_hash: [u8; 32],
-    /// The current token balances.
-    pub balance: Balance,
-    /// The next transaction nonce for the account.
-    pub nonce: u64,
-    /// The signing scheme associated with the account key.
-    pub key_scheme: KeyScheme,
-}
-
 /// A micro-denominated fee estimate split into compute and bandwidth gas.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct FeeEstimate {
@@ -139,30 +120,6 @@ impl fmt::Display for FeeEstimate {
     }
 }
 
-/// The status of a submitted transaction.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum TransactionStatus {
-    /// The transaction has been accepted but not yet confirmed.
-    Pending,
-    /// The transaction has been confirmed on-chain.
-    Confirmed,
-    /// The transaction failed with a reason.
-    Failed(String),
-}
-
-/// A transaction receipt returned by the Dytallix network.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct TransactionReceipt {
-    /// The canonical transaction hash.
-    pub hash: String,
-    /// The block number containing the transaction.
-    pub block: u64,
-    /// The transaction execution status.
-    pub status: TransactionStatus,
-    /// The fee charged for the transaction.
-    pub fee: FeeEstimate,
-}
-
 fn format_micro_token(value: u128) -> String {
     let whole = value / 1_000_000;
     let fractional = value % 1_000_000;
@@ -174,103 +131,6 @@ fn format_micro_token(value: u128) -> String {
             .trim_end_matches('.')
             .to_owned()
     }
-}
-
-/// A Dytallix block summary.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Block {
-    /// The block number.
-    pub number: u64,
-    /// The block hash.
-    pub hash: String,
-    /// The parent block hash.
-    pub parent_hash: String,
-    /// The proposer address.
-    pub proposer: DAddr,
-    /// The slot number.
-    pub slot: u64,
-    /// The epoch number.
-    pub epoch: u64,
-    /// The number of transactions in the block.
-    pub tx_count: usize,
-    /// Total compute gas consumed in the block.
-    pub c_gas_used: u64,
-    /// Total bandwidth gas consumed in the block.
-    pub b_gas_used: u64,
-    /// The UNIX timestamp for the block.
-    pub timestamp: u64,
-}
-
-/// The current chain tip and finalization state.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ChainStatus {
-    /// The latest known block height.
-    pub block_height: u64,
-    /// The current epoch.
-    pub epoch: u64,
-    /// The current slot.
-    pub slot: u64,
-    /// The latest finalized checkpoint identifier.
-    pub finalized_checkpoint: String,
-}
-
-/// A validator entry in the active validator set.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Validator {
-    /// The validator address.
-    pub address: DAddr,
-    /// The validator stake weight denominated in DGT.
-    pub stake_weight: u128,
-    /// The validator uptime ratio.
-    pub uptime: f64,
-    /// The number of slash events recorded for the validator.
-    pub slash_count: u32,
-}
-
-/// A DGT delegation and its accrued DRT rewards.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Delegation {
-    /// The validator receiving the delegation.
-    pub validator: DAddr,
-    /// The delegated amount in DGT.
-    pub amount_dgt: u128,
-    /// The unclaimed delegation rewards in DRT.
-    pub unclaimed_drt: u128,
-}
-
-/// Metadata describing a deployed contract instance.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ContractInfo {
-    /// The contract address.
-    pub address: DAddr,
-    /// The deployer address.
-    pub deployer: DAddr,
-    /// The block number in which the contract was deployed.
-    pub deploy_block: u64,
-    /// The current contract state root.
-    pub state_root: String,
-}
-
-/// A block identifier accepted by the SDK client.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum BlockId {
-    /// A block identified by number.
-    Number(u64),
-    /// A block identified by hash.
-    Hash(String),
-    /// The latest block.
-    Latest,
-    /// The latest finalized block.
-    Finalized,
-}
-
-/// Faucet availability state for an address.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct FaucetStatus {
-    /// Whether the address may request funds right now.
-    pub can_request: bool,
-    /// Optional retry window in seconds when the faucet is rate-limited.
-    pub retry_after_seconds: Option<u64>,
 }
 
 /// A keystore entry's public metadata. Version 2 keystores keep the private

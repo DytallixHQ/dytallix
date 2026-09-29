@@ -132,7 +132,7 @@ fn address(pubkey: String) -> Result<()> {
 fn inspect(keystore_file: PathBuf) -> Result<()> {
     if !keystore_file.exists() {
         return Err(anyhow!(
-            "No keystore found at {}. Run dytallix init to create one.",
+            "No keystore found at {}. Run dytallix wallet create to create one.",
             display_path(&keystore_file)
         ));
     }

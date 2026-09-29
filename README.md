@@ -15,9 +15,12 @@ testnet and product code in the rest of this repository.
 | [sdk/](sdk/) | Rust SDK and `dytallix` CLI, including the ordinary-v2 client and browser crate |
 | [pqc/](pqc/) | PQC primitives (ML-DSA, SLH-DSA, ML-KEM, FN-DSA). The node is the qualification authority. |
 | [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry |
-| [faucet/](faucet/) | Testnet faucet service |
 | [docs/](docs/) | Public documentation source (MkDocs). Written for testnet; needs a mainnet revision. |
 | [launch/](launch/) | Mainnet specification, tokenomics, genesis drafts, launch gates, decision register |
+
+The testnet faucet moved to [`testnet/faucet`](../testnet/faucet/) on 29
+September 2026. It is testnet-only and served over TLS, and mainnet has no
+faucet.
 
 ## Build
 

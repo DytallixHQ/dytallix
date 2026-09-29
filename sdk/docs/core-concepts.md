@@ -2,7 +2,8 @@
 
 [Docs hub](README.md) | [Getting started](getting-started.md) | [SDK reference](sdk-reference.md)
 
-Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.
+This is the mainnet candidate SDK and CLI for the consensus chain. It contains
+no public testnet client.
 
 ## Identity and Addresses
 
@@ -25,8 +26,11 @@ The SDK models two canonical tokens:
 
 | Token | Purpose |
 | --- | --- |
-| `DGT` | Governance, delegation, and gas fees |
-| `DRT` | Rewards and burns |
+| `DGT` | Governance and delegation |
+| `DRT` | Fees and rewards |
+
+On the consensus chain, fees are capped and charged in uDRT
+(1 DRT = 1000000 uDRT).
 
 Relevant types:
 
@@ -35,35 +39,40 @@ Relevant types:
 
 ## Accounts and Nonces
 
-An account state includes:
+The node reports an account through `ordinary_client` (`comet-rpc`):
+- `AccountView` holds the account's authority: its origin and current
+  keys, its generation and its counters.
+- `AccountSummaryView` holds its liquid balances, nonce, bonds, unbonding
+  and claimable rewards.
 
-- The canonical address
-- The public-key hash
-- DGT and DRT balances
-- The next transaction nonce
-- The key scheme
-
-The SDK exposes this as [`AccountState`](../crates/dytallix-sdk/src/lib.rs).
+Both are the node's report. `CometClient::query_balances` proves the
+balances against the pinned chain.
 
 ## Transactions and Fees
 
-Transactions are created with
-[`TransactionBuilder`](../crates/dytallix-sdk/src/transaction.rs).
+The consensus chain uses ordinary-v2 transactions for transfers and staking,
+ordinary-v3 transactions for governance, and recovery transactions. See
+[Ordinary-v2](ordinary-v2.md), the [CLI reference](cli-reference.md) and the
+[Recovery CLI](recovery-cli.md). Every write carries an explicit gas limit and
+a maximum fee in uDRT.
 
-Each transaction includes:
+The [`transaction`](../crates/dytallix-sdk/src/transaction.rs) module is the
+legacy transaction model. It builds and signs transactions locally and makes
+no network calls. Legacy transactions are created with `TransactionBuilder`.
+
+Each legacy transaction includes:
 
 - `from` and `to` addresses
-- An amount and token type
+- Either an amount and token type, or `data` bytes, but not both
 - `c_gas_limit` for compute gas
 - `b_gas_limit` for bandwidth gas
 - A sender nonce
-- Optional `data` bytes for contract, staking, and governance payloads
 
 Default behavior:
 
-- Compute gas defaults to `21_000`
-- Bandwidth gas defaults to `data.len() as u64`
-- Fees are always denominated in DGT micro-units.
+- Gas limits default to an estimate from the message
+  (`estimate_default_gas_limits`)
+- Legacy fees are denominated in DGT micro-units.
 
 The fee estimate is represented by
 [`FeeEstimate`](../crates/dytallix-sdk/src/lib.rs) and split into compute and
@@ -74,7 +83,10 @@ bandwidth components.
 The SDK ships with a file-backed keystore:
 
 - Path: `~/.dytallix/keystore.json`
-- Format: JSON
+- Format: JSON, version 2
+- Encryption: each private key is encrypted under a key derived from your
+  passphrase. A version 1 file holds plaintext keys; `dytallix wallet migrate`
+  encrypts it.
 - Behavior: stores named entries and tracks one active wallet
 
 The CLI builds on top of
@@ -82,71 +94,42 @@ The CLI builds on top of
 entry as the default sender for commands such as `balance`, `send`, `stake`,
 and `governance`.
 
-## Network Profiles
+## Reaching a Node
 
-The public CLI currently supports two network profiles:
+The CLI uses one pinned consensus chain, stored in `~/.dytallix/chain.json` by
+`dytallix config pin-chain`. There is no default endpoint and no TLS.
 
-| Profile | Node endpoint | Faucet |
-| --- | --- | --- |
-| `testnet` | `https://dytallix.com` | `https://dytallix.com/api/faucet` |
-| `local` | `http://localhost:3030` | `http://localhost:3030/dev/faucet` |
+- A node on this machine is reached over plain HTTP to a literal loopback
+  address, such as `http://127.0.0.1:26657`.
+- A remote node is reached through its endpoint pin file, which its operator
+  publishes. Requests cross the post-quantum client channel: ML-KEM-768 key
+  exchange, then an ML-DSA-65 signature by the endpoint's pinned key.
 
-The current profile is stored in `~/.dytallix/config.json` and can be changed
-with `dytallix config network <testnet|local>`.
+HTTPS and plain HTTP to a remote host are refused. See
+[Reaching a node](cli-reference.md#reaching-a-node) in the CLI reference.
 
-Compatibility aliases such as `/api/status` and `/api/blockchain/...` are
-still available for older clients while canonical reads live on root routes
-like `/status`, `/account/<daddr>`, and `/balance/<daddr>`.
+## Funding
 
-## Public Faucet Policy
+There is no faucet. An account receives funds at genesis or by a transfer from
+a funded account. A transfer to an address with no account creates it and
+burns the chain's account creation fee.
 
-The canonical public testnet faucet grants a fixed `10 DGT` and `100 DRT` per
-successful request.
+## Staking and Governance
 
-The current public limiter is:
-
-- `60` second cooldown between successful requests
-- `20` requests per hour
-
-The public faucet is distinct from the local development faucet. Testnet flows
-use `https://dytallix.com/api/faucet`, while local development uses
-`POST /dev/faucet` with explicit micro-unit `udgt` and `udrt` amounts.
-
-## Contracts, Governance, and Staking
-
-The current network surface is intentionally split between public-ready flows
-and unfinished operator-preview flows.
-
-Contract lifecycle on the public gateway uses dedicated contract endpoints.
-Some local or direct-node helpers still encode higher-level intent into
-transaction `data` bytes, but those prefixes should not be treated as a stable
-public protocol.
-
-In particular, `stake:*` and `governance:*` payloads are not public-ready write
-messages on the default public gateway. Compatible nodes should reject those
-generic submit-path payloads until staking and governance are implemented end to
-end as typed, production-complete flows.
-
-On the default public website gateway:
-
-- basic contract lifecycle flows are available for experimentation
-- public staking writes are disabled
-- public governance writes are disabled
-- validator-set and delegation legacy JSON reads still require a direct node
-- compatible nodes expose `GET /api/capabilities` for machine-readable runtime
-  contract discovery
-
-Use a local node or direct endpoint for unfinished write paths and operator
-workflows.
+`dytallix stake` bonds, begins unbonding and claims rewards on the pinned chain.
+`dytallix governance` proposes, deposits and votes with ordinary-v3
+transactions. The chain has no contract runtime.
 
 ## Current Scope
 
 This repository currently focuses on:
 
 - Core cryptographic primitives
-- Transaction building and signing
-- Optional node and faucet clients
-- A developer-oriented CLI for testnet workflows
+- Ordinary-v2, ordinary-v3 and recovery transaction building and signing
+- An encrypted keystore
+- An optional Comet JSON-RPC client (`comet-rpc`)
+- The `dytallix` CLI for the consensus chain
+- The legacy transaction model, which makes no network calls
 
 For the current command surface, see [CLI reference](cli-reference.md). For the
 Rust API surface, see [SDK reference](sdk-reference.md).

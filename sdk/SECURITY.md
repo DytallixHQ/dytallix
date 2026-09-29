@@ -37,7 +37,7 @@ We aim to acknowledge receipt within 3 business days.
 The following areas are in scope for security reports:
 
 - `dytallix-core`: ML-DSA-65 key generation, Bech32m address derivation and validation, signature verification, BLAKE3 hashing
-- `dytallix-sdk`: transaction construction and signing, faucet client behavior, keystore handling, network client behavior
+- `dytallix-sdk`: transaction construction and signing, keystore handling, the Comet client and its transports (loopback HTTP and the client channel)
 - `dytallix-cli`: commands that could expose private key material, bypass address validation, or submit unauthorized transactions
 - Chain-level integrations: consensus logic, networking, execution environment, fee market assumptions
 

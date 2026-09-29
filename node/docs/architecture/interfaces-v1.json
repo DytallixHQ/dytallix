@@ -711,20 +711,33 @@
       "id": "p2p-pqc",
       "group": "p2p",
       "exposure": "external",
-      "format": "PQC peer transport (ML-KEM-768, ML-DSA-65, HKDF-SHA-256) under CometBFT P2P protocol 8.",
+      "format": "PQC peer transport (ML-KEM-768, ML-DSA-65, HKDF-SHA-256) under CometBFT P2P protocol 8. Wire version 2 seals records with AES-256-GCM (E04 gap 19).",
       "version": {
         "field": "wire version",
         "constant": {
           "file": "node/consensus/cometbft/internal/pqcp2p/connection.go",
           "name": "WireVersion",
-          "value": 1
+          "value": 2
         }
       },
       "source": {
         "file": "node/consensus/cometbft/internal/pqcp2p/establishment.go",
-        "symbol": "dytallix-pqcp2p-component-v1"
+        "symbol": "dytallix-pqcp2p-component-v2"
       },
-      "tests": []
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/internal/pqcp2p/connection_test.go",
+          "name": "TestVersion2RecordsAreAES256GCM"
+        },
+        {
+          "file": "node/consensus/cometbft/internal/pqcp2p/connection_test.go",
+          "name": "TestConnectionHandshakeDeadlineAndHeaderBounds"
+        },
+        {
+          "file": "node/consensus/cometbft/internal/pqcp2p/establishment_test.go",
+          "name": "TestMutualAuthenticationAndKeyConfirmation"
+        }
+      ]
     },
     {
       "id": "operator-pqc-transport-config",
@@ -1011,7 +1024,7 @@
       "id": "sdk-crate",
       "group": "sdk",
       "exposure": "external",
-      "format": "Rust crate dytallix-sdk: ordinary_v2, ordinary_v3, ordinary_client and transport (comet-rpc: loopback HTTP or the client channel, no TLS), keystore, transaction, recovery; legacy client and faucet behind network.",
+      "format": "Rust crate dytallix-sdk: ordinary_v2, ordinary_v3, ordinary_client and transport (comet-rpc: loopback HTTP or the client channel, no TLS), keystore, transaction, recovery. The legacy testnet client and faucet were removed (E04 gap 19).",
       "version": {
         "field": "crate version",
         "literal": {
@@ -1069,7 +1082,7 @@
       "id": "cli-commands",
       "group": "cli",
       "exposure": "external",
-      "format": "dytallix: wallet, balance, send, ordinary, stake, governance, crypto, config; with legacy-network also init, faucet, contract, node, chain, dev and legacy.",
+      "format": "dytallix: wallet, balance, send, ordinary, recovery, stake, governance, crypto, config (show, pin-chain) and gateway. The legacy testnet commands were removed (E04 gap 19).",
       "version": {
         "field": "crate version",
         "literal": {
@@ -1085,6 +1098,37 @@
         {
           "file": "sdk/crates/dytallix-cli/src/main.rs",
           "name": "cli_structure_help"
+        }
+      ]
+    },
+    {
+      "id": "cli-gateway",
+      "group": "cli",
+      "exposure": "external",
+      "format": "dytallix gateway serve (E04 gap 19, C-d): a literal loopback HTTP listener for browser pages. POST /rpc relays one JSON-RPC request to the pinned chain's endpoint; GET /chain reports the pinned chain; other GETs serve a wallet bundle pinned by the SHA-256 of its sha256sum-style manifest (gateway bundle-digest). It refuses another Host, Origin or cross-site fetch and non-JSON posts, answers no CORS preflight, and sends a strict Content-Security-Policy.",
+      "version": {
+        "none": "The loopback API has one form; the relayed JSON-RPC is the node's own."
+      },
+      "source": {
+        "file": "sdk/crates/dytallix-cli/src/commands/gateway.rs",
+        "symbol": "pub enum GatewayCommand"
+      },
+      "tests": [
+        {
+          "file": "sdk/crates/dytallix-cli/tests/gateway_cli.rs",
+          "name": "the_gateway_relays_only_its_own_pages"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/tests/gateway_cli.rs",
+          "name": "a_pinned_bundle_is_served_and_a_changed_one_is_refused"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/tests/gateway_cli.rs",
+          "name": "the_gateway_relays_over_the_client_channel"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/src/commands/gateway.rs",
+          "name": "a_bundle_digest_is_its_sorted_sha256sum_manifest"
         }
       ]
     },
@@ -1141,30 +1185,6 @@
         {
           "file": "sdk/crates/dytallix-cli/tests/keystore_cli.rs",
           "name": "a_version_1_keystore_is_migrated_before_its_keys_are_used"
-        }
-      ]
-    },
-    {
-      "id": "file-cli-config",
-      "group": "file",
-      "exposure": "external",
-      "format": "~/.dytallix/config.json: {version, network, values}.",
-      "version": {
-        "field": "version",
-        "constant": {
-          "file": "sdk/crates/dytallix-cli/src/commands/mod.rs",
-          "name": "CONFIG_VERSION",
-          "value": 1
-        }
-      },
-      "source": {
-        "file": "sdk/crates/dytallix-cli/src/commands/mod.rs",
-        "symbol": "pub(crate) struct CliConfig"
-      },
-      "tests": [
-        {
-          "file": "sdk/crates/dytallix-cli/src/commands/consensus_tests.rs",
-          "name": "chain_pins_expiry_and_amounts_are_checked"
         }
       ]
     },
