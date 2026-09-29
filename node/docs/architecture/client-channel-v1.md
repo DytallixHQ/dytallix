@@ -176,7 +176,7 @@ AES-GCM, and shares only this specification with the Rust crate.
 | C-a | This design. The `dytallix-client-channel` crate and the Go cross-check. The contracts toolkit's CosmWasm bridge removed. A stale `ed25519-dalek` entry removed from the module policy. |
 | C-b | The endpoint: a channel listener in the node HTTP adapter (seed key file, chain ID, limits), the key and pin tool, the supervisor's configuration and readiness probe, the interface inventory, and a public endpoint contract that replaces the TLS gateway. |
 | C-c1 | The SDK and CLI transport: the vendored channel crate; plain HTTP to loopback only (hyper, no TLS); `--endpoint` takes an endpoint pin file for a remote node; `chain.json` version 2 holds the endpoint key. The default CLI and the Comet and local SDK graphs lose TLS. |
-| C-c2 | The legacy testnet client (`network`, `legacy-network`) and reqwest removed, with its TLS; a CI check that the SDK lockfile holds no classical crate. |
+| C-c2 | The legacy testnet client (`network`, `legacy-network`) and reqwest removed, with its TLS; a CI check that no mainnet lockfile holds a classical or TLS crate. |
 | C-d | The companion, `dytallix gateway`. |
 | C-e | Peer transport wire version 2, with AES-256-GCM records. |
 
@@ -303,7 +303,7 @@ protocol-types. `scripts/sync_protocol_vendor.py` copies both crates, and
     endpoint's pin file.
 - **Features.** `comet-rpc` (the default CLI), `ordinary-http-only` and
   `strict-local-mldsa65` no longer use reqwest. `cargo tree` shows no TLS
-  crate or reqwest in their graphs. `network` and `legacy-network` keep
+  crate or reqwest in their graphs. `network` and `legacy-network` kept
   reqwest's TLS until C-c2.
 - **A repair.** The `dytallix-ordinary-local` binary had not built since
   gap 16's keystore change, and only the standalone SDK repository's CI
@@ -328,6 +328,50 @@ protocol-types. `scripts/sync_protocol_vendor.py` copies both crates, and
   key, and an override for another chain.
 - **Existing RPC tests:** the SDK's RPC tests and the CLI's one-step tests
   run unchanged over the new loopback client.
+
+## Legacy testnet client removed (C-c2)
+
+**The SDK** loses:
+- the `network` feature;
+- the legacy REST client (`client.rs`) and the faucet client
+  (`faucet.rs`);
+- their fee-estimation methods on the legacy `Transaction`;
+- the error variants only they used: `FaucetRateLimited`,
+  `FaucetUnavailable`, `NodeUnavailable` and `ContractDeployFailed`.
+
+**The CLI** loses:
+- `legacy-network`;
+- the commands `init`, `faucet`, `contract`, `node`, `chain`, `dev` and
+  `legacy`, with their REST helpers;
+- `config set`, `config network` and `config reset`, with
+  `~/.dytallix/config.json`, which only those commands read. `config show`
+  and `config pin-chain` remain.
+
+**Removed with them:**
+- the testnet examples (`first-transaction`, `deploy-contract`,
+  `contracts/minimal_contract`);
+- the local REST node scripts;
+- the public-testnet alignment check (`public-capabilities.json`,
+  `check_public_alignment.py`) and its daily smoke workflow.
+
+**Release builds.** The SDK's release workflow had built its binaries with
+`legacy-network`. It now builds the consensus-chain CLI.
+
+**Lockfile.** reqwest leaves the workspace, and with it every TLS crate:
+the SDK lockfile loses 1,107 lines.
+- `sdk/scripts/check_no_classical.py` refuses a lockfile package that is
+  one of these:
+  - classical signature or key-exchange code: ring, Ed25519, X25519,
+    secp256k1, P-256 and the other NIST curves, RSA, DSA, BLS or ECDSA;
+  - a TLS or X.509 stack;
+  - QUIC.
+- Cargo records packages that no feature reaches, so a clean lockfile is
+  the strongest source-level statement. Compiled artifacts are T01's.
+- The mainnet CI runs the check on all five Rust lockfiles: SDK, node,
+  HTTP adapter, contracts and PQC. The SDK's own CI runs it on its own.
+
+**Docs.** The SDK docs no longer describe the public testnet, the faucet,
+contracts or a default public endpoint.
 
 ## Classical code left after gap 19
 

@@ -65,9 +65,9 @@ jobs:
         run: cargo test --locked --workspace --target ${{ matrix.target }}
 
       - name: Build release binary
-        # Release archives serve the public testnet until it retires, so they
-        # include its REST commands (clients v1, decision 1).
-        run: cargo build --locked --release --bin ${{ env.BIN_NAME }} --features legacy-network --target ${{ matrix.target }}
+        # Release archives carry the consensus-chain CLI; the legacy testnet
+        # commands were removed (E04 gap 19).
+        run: cargo build --locked --release --bin ${{ env.BIN_NAME }} --target ${{ matrix.target }}
 
       - name: Verify packaged binary
         run: ${{ matrix.binary_path }} --version

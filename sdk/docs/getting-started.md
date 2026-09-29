@@ -2,7 +2,8 @@
 
 [Docs hub](README.md) | [Project README](../README.md) | [Examples](../examples/README.md)
 
-Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.
+This is the mainnet candidate SDK and CLI for the consensus chain. It contains
+no public testnet client.
 
 ## Install Paths
 
@@ -14,16 +15,16 @@ Add the library crate:
 cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
 ```
 
-Add the library crate with the network client and faucet support:
+Add the library crate with the node client (`ordinary_client::CometClient`):
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features comet-rpc
 ```
 
 Install the CLI:
 
 ```bash
-cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network
+cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
 ```
 
 Build from a local clone:
@@ -52,125 +53,91 @@ If you cloned this repository, you can run the same flow directly:
 cargo run -p dytallix-sdk --example first-keypair
 ```
 
-## Network Features
+## Node Client
 
-```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network
-```
-
-If you cloned this repository, the network example runs with:
-
-```bash
-cargo run -p dytallix-sdk --features network --example first-transaction
-```
-
-Minimal networked flow in Rust:
+The `comet-rpc` feature adds `ordinary_client::CometClient`, a CometBFT
+JSON-RPC client for the consensus chain:
 
 ```rust
-use dytallix_sdk::client::DytallixClient;
-use dytallix_sdk::faucet::FaucetClient;
+use dytallix_sdk::ordinary_client::{CometClient, EndpointPin};
 
-let client = DytallixClient::testnet().await?;
-let faucet = FaucetClient::testnet();
+// A node on this machine: plain HTTP to a literal loopback address.
+let local = CometClient::new("http://127.0.0.1:26657", 1024 * 1024)?;
+let profile = local.query_profile().await?;
+
+// A remote node: the post-quantum client channel to the endpoint in its pin file.
+let pin = EndpointPin::parse(&std::fs::read("endpoint-pin.json")?)?;
+let remote = CometClient::channel(pin, 1024 * 1024)?;
 ```
 
-The public testnet surface is still evolving, but the SDK now targets the live
-read, faucet, and transaction submission routes exposed from
-`https://dytallix.com`.
+There is no default endpoint. HTTPS and plain HTTP to a remote host are
+refused. See [Ordinary-v2](ordinary-v2.md) for preparing and signing
+transactions.
 
 ## CLI Quickstart
 
 The CLI stores its state under `~/.dytallix/`.
 
-Create a wallet, persist it to the keystore, and request faucet funds:
+Create a wallet. The first wallet creates the encrypted keystore and asks for
+its passphrase:
 
 ```bash
-dytallix init
+dytallix wallet create --name default
 ```
 
-Inspect the active wallet:
+Pin the consensus chain. Take the network, chain ID and genesis digest from a
+source you trust, never from the node itself. For a node on this machine, use
+its loopback URL:
+
+```bash
+dytallix config pin-chain --endpoint http://127.0.0.1:26657 --network <mainnet|testnet|development> \
+  --chain-id <chain-id> --genesis-digest <sha256-of-genesis-hex>
+```
+
+For a remote node, pass the endpoint's pin file, which its operator publishes:
+
+```bash
+dytallix config pin-chain --endpoint ./endpoint-pin.json --network <mainnet|testnet|development> \
+  --chain-id <chain-id> --genesis-digest <sha256-of-genesis-hex>
+```
+
+`pin-chain` asks the node which chain it reports and refuses a mismatch.
+
+Inspect the wallet and its balance:
 
 ```bash
 dytallix wallet info
 dytallix balance
 ```
 
-When you use the default public endpoint at `https://dytallix.com`, manual
-checks can use root routes such as `/status`, `/balance/<daddr>`,
-`/account/<daddr>`, and `/submit`. Compatibility aliases are also available on
-`/api/status` and `/api/blockchain/...`.
+Once a chain is pinned, `wallet info` prints the wallet's address on that
+chain.
 
-Check faucet eligibility:
+There is no faucet. An account receives funds at genesis or by a transfer from
+a funded account.
 
-```bash
-dytallix faucet status
-```
-
-The canonical public faucet currently grants `10 DGT` and `100 DRT` per
-successful request, enforces a `60` second cooldown, and caps usage at `20`
-requests per hour.
-
-Public staking and governance writes are disabled on the default public website
-gateway. Use a local node or direct node endpoint for those experimental write
-paths.
-
-Send a test transfer:
+Send a transfer:
 
 ```bash
-dytallix wallet create --name recipient
-dytallix wallet switch recipient
-dytallix wallet info
-dytallix wallet switch default
-dytallix send <recipient-daddr> 100
-dytallix wallet switch recipient
-dytallix balance
+dytallix send --to <address> --amount 1.5 --gas-limit <n> --maximum-fee-udrt <n>
 ```
 
-Use a different recipient address than the one created by `dytallix init`.
-The `send` command waits for the public `/tx/<hash>` route to leave `Pending`
-when that route is already indexing. If the recipient balance still shows `0`
-immediately after confirmation, run `dytallix balance` again after a moment.
+`--gas-limit` and `--maximum-fee-udrt` are required; the CLI never chooses
+them. `send` signs, submits, and waits up to `--wait-seconds` (default 30) for
+the committed receipt. A `send` to an address with no account creates it and
+burns the chain's account creation fee.
 
-Prepare a first contract deployment:
-
-```bash
-dytallix contract deploy ./my_contract.wasm
-```
-
-The default testnet profile already targets `https://dytallix.com`, and the
-public gateway accepts `POST /contracts/deploy` on that endpoint.
-
-If you want to test against a direct node endpoint or a local node instead,
-override the active endpoint:
-
-```bash
-dytallix config set endpoint http://localhost:3030
-```
-
-To run a local node from this repository checkout:
-
-```bash
-./start-local.sh
-dytallix config network local
-```
-
-After deploy, verify the indexed contract metadata with:
-
-```bash
-dytallix contract info <contract-address>
-```
-
-On the public testnet gateway, `dytallix contract info <contract-address>` is the
-canonical verification path if `/tx/<hash>` indexing lags behind contract metadata.
+See the [CLI reference](cli-reference.md) for `stake`, `governance`,
+`ordinary` and `recovery`.
 
 ## Local Files
 
 - Keystore: `~/.dytallix/keystore.json`
-- CLI config: `~/.dytallix/config.json`
+- Pinned chain: `~/.dytallix/chain.json`
 
 ## Next Steps
 
-- Read [Core concepts](core-concepts.md) for tokens, addresses, gas, and network profiles.
+- Read [Core concepts](core-concepts.md) for tokens, addresses, fees, and how the CLI reaches a node.
 - Read [SDK reference](sdk-reference.md) for the Rust API layout.
 - Read [CLI reference](cli-reference.md) for command-by-command examples.
 - Read [FAQ](faq.md) for current operational caveats.

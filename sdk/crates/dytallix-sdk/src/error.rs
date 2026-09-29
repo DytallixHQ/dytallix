@@ -24,34 +24,9 @@ pub enum SdkError {
         /// The provided gas units.
         provided: u64,
     },
-    /// The faucet endpoint rate-limited a request.
-    #[error("Faucet rate limited: retry after {retry_after_seconds}s")]
-    FaucetRateLimited {
-        /// Seconds until the next allowed faucet request.
-        retry_after_seconds: u64,
-    },
-    /// The faucet endpoint could not serve the request.
-    #[error("Faucet unavailable at {endpoint}: {reason}")]
-    FaucetUnavailable {
-        /// The faucet endpoint that failed.
-        endpoint: String,
-        /// The reported failure reason.
-        reason: String,
-    },
-    /// The node endpoint could not serve the request.
-    #[error("Node unavailable at {endpoint}: {reason}")]
-    NodeUnavailable {
-        /// The node endpoint that failed.
-        endpoint: String,
-        /// The reported failure reason.
-        reason: String,
-    },
     /// A transaction was rejected by the local builder or remote node.
     #[error("Transaction rejected: {0}")]
     TransactionRejected(String),
-    /// A contract deployment attempt failed.
-    #[error("Contract deployment failed: {0}")]
-    ContractDeployFailed(String),
     /// The requested keystore file did not exist.
     #[error("Keystore not found at {0}")]
     KeystoreNotFound(std::path::PathBuf),

@@ -27,7 +27,6 @@ blake3 = "1.5"
 bech32 = "0.11"
 tokio = { version = "1", features = ["full"] }
 futures = "0.3"
-reqwest = { version = "0.12", default-features = false, features = ["json"] }
 # Loopback HTTP/1 only; hyper has no TLS (E04 gap 19).
 hyper = { version = "1", default-features = false, features = ["client", "http1"] }
 hyper-util = { version = "0.1", default-features = false, features = ["tokio"] }

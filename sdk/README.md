@@ -2,12 +2,15 @@
 
 [![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust)](https://www.rust-lang.org/tools/install)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Status: Testnet](https://img.shields.io/badge/Status-Testnet-0a7f5a)](https://dytallix.com)
+[![Status: Mainnet candidate](https://img.shields.io/badge/Status-Mainnet%20candidate-0a7f5a)](https://dytallix.com)
 [![CI](https://github.com/DytallixHQ/dytallix-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/DytallixHQ/dytallix-sdk/actions/workflows/ci.yml)
 
-Official Rust SDK and CLI for the Dytallix public testnet.
+Official Rust SDK and CLI for the Dytallix consensus chain.
 
-Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.
+This is the mainnet candidate SDK. It contains no public testnet client: no
+faucet, no testnet REST endpoint and no contract deployment. The CLI reaches a
+consensus-chain node (CometBFT JSON-RPC) over loopback HTTP on this machine,
+or over the post-quantum client channel for a remote node. There is no TLS.
 
 This repository contains the Rust workspace for the core cryptography crate,
 the application SDK, and the `dytallix` CLI.
@@ -15,16 +18,14 @@ the application SDK, and the `dytallix` CLI.
 ## Repository Role
 
 - Role: public SDK and CLI source
-- Current publication state: canonical public client source for install,
-  onboarding, and runtime capability consumption
-- Important boundary: this repository describes and consumes the public surface,
-    but it does not replace the separate publication boundaries for the website
-    frontend, explorer frontend, or faucet backend source
+- Current publication state: mainnet candidate client source, installed from
+  Git
+- Important boundary: this repository holds client code only. Node operators
+  publish their own endpoint pin files.
 
 ## Quick Links
 
 - [Docs hub](docs/README.md)
-- [Capability manifest](docs/public-capabilities.json)
 - [Getting started](docs/getting-started.md)
 - [Core concepts](docs/core-concepts.md)
 - [SDK reference](docs/sdk-reference.md)
@@ -33,7 +34,6 @@ the application SDK, and the `dytallix` CLI.
 - [Examples](examples/README.md)
 - [Releases](https://github.com/DytallixHQ/dytallix-sdk/releases)
 - [CI workflow](.github/workflows/ci.yml)
-- [Public smoke workflow](.github/workflows/public-smoke.yml)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -43,9 +43,9 @@ the application SDK, and the `dytallix` CLI.
 
 - [`crates/dytallix-core`](crates/dytallix-core) - cryptographic primitives
 - [`crates/dytallix-sdk`](crates/dytallix-sdk) - Rust SDK library
-- [`crates/dytallix-cli`](crates/dytallix-cli) - public testnet CLI
-- [`docs/`](docs/README.md) - repository documentation and capability notes
-- [`examples/`](examples/README.md) - runnable examples for keypair, transfer, and contract flows
+- [`crates/dytallix-cli`](crates/dytallix-cli) - `dytallix` CLI for the consensus chain
+- [`docs/`](docs/README.md) - repository documentation
+- [`examples/`](examples/README.md) - the runnable first-keypair example
 
 All signing uses ML-DSA-65 (FIPS 204). All addresses are canonical Bech32m.
 Only PQC-native accounts are supported.
@@ -56,39 +56,30 @@ Install [Rust](https://www.rust-lang.org/tools/install) with `rustup`. That
 provides the Rust toolchain, `cargo`, and target management used throughout the
 Dytallix Rust repositories.
 
-If you plan to build WASM contracts locally, add the standard target:
-
-```bash
-rustup target add wasm32-unknown-unknown
-```
-
 ## Install
 
 The SDK is not currently published on crates.io. Use the Git repository:
 
 ```bash
 cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features network
-cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features comet-rpc
+cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
 ```
 
-The `legacy-network` feature adds the public testnet commands used below
-(`init`, `faucet`, `contract`, `chain`, `node`, `dev` and `legacy`). Without it
-the CLI has only the consensus-chain commands (`send`, `stake`, `balance`,
-`governance`, `ordinary`, `wallet`, `crypto` and `config`).
+The `comet-rpc` feature adds the node client, `ordinary_client::CometClient`.
+The CLI has the consensus-chain commands: `wallet`, `balance`, `send`,
+`ordinary`, `recovery`, `stake`, `governance`, `crypto` and `config`.
 
 Build from source:
 
 ```bash
-cargo build --release --bin dytallix --features legacy-network
+cargo build --release --bin dytallix
 ```
 
 Release tags matching `v*` build downloadable CLI archives for Linux, macOS,
 and Windows through GitHub Actions.
 
 ## Developer Path
-
-These are the three developer milestones this repository is optimized for:
 
 1. **First keypair: under 60 seconds**
 
@@ -102,85 +93,40 @@ These are the three developer milestones this repository is optimized for:
 
     Start here: [first-keypair example](examples/first-keypair.rs)
 
-2. **First transaction on testnet: 2-3 minutes**
+2. **First transaction on the consensus chain**
 
-    Create a funded sender wallet, create a separate recipient wallet, then
-    submit and verify a real transaction:
+    You need a node to reach and a funded account. There is no faucet: an
+    account receives funds at genesis or by a transfer from a funded account.
 
     ```bash
-    cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix --features legacy-network
-    dytallix init
-    dytallix wallet create --name recipient
-    dytallix wallet list
-    dytallix wallet switch default
-    dytallix send <recipient-daddr> 100
-    dytallix wallet switch recipient
+    cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+    dytallix wallet create --name default
+    dytallix config pin-chain --endpoint http://127.0.0.1:26657 --network <network> \
+      --chain-id <chain-id> --genesis-digest <sha256-of-genesis-hex>
+    dytallix wallet info
     dytallix balance
+    dytallix send --to <address> --amount 1.5 --gas-limit <n> --maximum-fee-udrt <n>
     ```
 
-    Use a different recipient address than the one printed by `dytallix init`
-    so you do not self-send. The `send` command waits for the submitted
-    transaction to leave `Pending` when the public receipt route is already
-    indexing.
+    `--network` is `mainnet`, `testnet` or `development`. Take it, the chain
+    ID and the genesis digest from a source you trust, never from the node
+    itself. For a remote node, pass the endpoint's pin file as `--endpoint`.
+    After `pin-chain`, `wallet info` prints the wallet's address on the
+    pinned chain.
 
-    Continue with: [first-transaction example](examples/first-transaction.rs) · [Explorer](https://dytallix.com/build/blockchain) · [Releases](https://github.com/DytallixHQ/dytallix-sdk/releases)
+## Reaching a Node
 
-3. **First contract build: under 15 minutes**
+There is no default endpoint. `--endpoint`, on `config pin-chain` and on each
+command that reads or writes, takes one of two forms:
 
-    Build a minimal WASM contract now. The default public gateway accepts
-    `POST /contracts/deploy` and `POST /contracts/call`; use a direct node
-    endpoint or a local node only when you want local testing or custom
-    infrastructure.
+- a node on this machine: plain HTTP to a literal loopback address, such as
+  `http://127.0.0.1:26657`;
+- a remote node: the path of the endpoint's pin file, which its operator
+  publishes. Requests cross the post-quantum client channel: ML-KEM-768 key
+  exchange, then an ML-DSA-65 signature by the endpoint's pinned key.
 
-    ```bash
-    rustup target add wasm32-unknown-unknown
-    cargo build --manifest-path examples/contracts/minimal_contract/Cargo.toml --target wasm32-unknown-unknown --release
-    ```
-
-    Continue with: [deploy-contract example](examples/deploy-contract.rs) · [dytallix-contracts](https://github.com/DytallixHQ/dytallix-contracts) · [Docs](https://dytallix.com/docs)
-
-## Public Testnet Scope
-
-The default public endpoint is `https://dytallix.com`.
-
-Supported on the public website gateway today:
-
-- keypair and wallet generation
-- faucet funding and cooldown/status checks
-- balance reads and transfers
-- chain status, block, and transaction reads
-- basic contract call, query, info, and events
-- governance proposal reads
-- staking balance reads
-
-Not public-complete on the default website gateway:
-
-- staking writes such as delegate, undelegate, and claim
-- governance writes such as vote and propose
-- validator/delegation legacy JSON reads
-- advanced or operator-only paths
-
-For local development or direct-node testing, point the CLI at a custom endpoint
-with `DYTALLIX_ENDPOINT` or `dytallix config set endpoint ...`.
-
-## First CLI Session
-
-```bash
-dytallix init
-dytallix balance
-dytallix faucet status
-dytallix send <daddr> 100
-```
-
-If you have a compiled contract artifact, you can also deploy on the default
-public testnet profile:
-
-```bash
-dytallix contract deploy <path-to-your-contract.wasm>
-```
-
-Use a direct node endpoint or local node only when you want local testing or a
-custom RPC base.
+HTTPS and plain HTTP to a remote host are refused. `config pin-chain` stores
+the chain in `~/.dytallix/chain.json`.
 
 See [Getting started](docs/getting-started.md) and the
 [CLI reference](docs/cli-reference.md) for the full flow.
@@ -190,14 +136,13 @@ See [Getting started](docs/getting-started.md) and the
 This repository ships the Rust SDK, core cryptography crate, and the
 `dytallix` CLI.
 
-It does include the client code that talks to the live faucet endpoint, but it
-does not contain the faucet backend implementation.
+It does not contain the node.
 
 ## Documentation Map
 
 - [Docs hub](docs/README.md) - overview of every repo documentation page
 - [Getting started](docs/getting-started.md) - install, first keypair, first CLI session
-- [Core concepts](docs/core-concepts.md) - tokens, addresses, gas, keystore, network profiles
+- [Core concepts](docs/core-concepts.md) - tokens, addresses, fees, keystore, reaching a node
 - [SDK reference](docs/sdk-reference.md) - crate surface and common Rust workflows
 - [CLI reference](docs/cli-reference.md) - command map and examples
 - [FAQ](docs/faq.md) - operational and product questions
@@ -207,10 +152,8 @@ does not contain the faucet backend implementation.
 
 - [dytallix-sdk](https://github.com/DytallixHQ/dytallix-sdk) - this repository
 - [dytallix-node](https://github.com/DytallixHQ/dytallix-node) - public node and runtime source
-- [dytallix-contracts](https://github.com/DytallixHQ/dytallix-contracts) - protocol contracts
 - [dytallix-docs](https://github.com/DytallixHQ/dytallix-docs) - broader documentation
 - [dytallix-explorer](https://github.com/DytallixHQ/dytallix-explorer) - explorer surface documentation repo
-- [dytallix-faucet](https://github.com/DytallixHQ/dytallix-faucet) - canonical public faucet backend source
 - [DytallixHQ](https://github.com/DytallixHQ)
 
 ## External Links
@@ -218,5 +161,3 @@ does not contain the faucet backend implementation.
 - [Website](https://dytallix.com)
 - [Documentation site](https://dytallix.com/docs)
 - [Discord](https://discord.gg/eyVvu5kmPG)
-- [Explorer app](https://dytallix.com/build/blockchain)
-- [Faucet API](https://dytallix.com/api/faucet)
