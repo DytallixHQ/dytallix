@@ -681,6 +681,7 @@ fn select_restart(
             .release_handover
             .as_ref()
             .context("A restart requires a handover policy")?;
+        let raw = &handover::restart::canonical_file(raw)?;
         let authorization = handover::restart::decode_authorization(policy, raw)?;
         let key = handover::restart::key(authorization.payload.sequence);
         if let Some(bytes) = storage.db.get(&key)? {
@@ -701,6 +702,49 @@ fn select_restart(
         };
         Ok(Some(handover::restart::verify(policy, &state, &checkpoint, raw, verifier)?))
     })(), FailureClass::Release)
+}
+
+/// The unsigned restart payload for a stopped node's committed checkpoint
+/// (restart v1, E04 gap 18): the facts the handover custodians sign. The
+/// halted height is the head plus one.
+pub fn restart_payload(
+    path: &Path,
+    config: &ConsensusConfig,
+    genesis_bytes: &[u8],
+    target_release_sha512: &str,
+    halted_block_hash: Option<String>,
+    evidence_sha256: &str,
+) -> Result<handover::restart::Payload> {
+    let StoppedCheck::Passed(info) = check_stopped(path, config, genesis_bytes)? else {
+        anyhow::bail!("A restart needs committed state");
+    };
+    let policy = config
+        .release_handover
+        .as_ref()
+        .context("A restart requires a handover policy")?;
+    let storage = Storage::open_read_only(path.to_path_buf())?;
+    let state = handover_state(&storage, config)?.context("Handover state missing")?;
+    Ok(handover::restart::Payload {
+        schema: 1,
+        chain_id: policy.chain_id.clone(),
+        genesis_sha256: policy.genesis_sha256.clone(),
+        policy_sha256: policy.sha256()?,
+        authority_epoch: policy.authority_epoch,
+        sequence: state.next_sequence(),
+        source_release_sha512: state.active_release_sha512().to_owned(),
+        target_release_sha512: target_release_sha512.to_owned(),
+        state_schema: state.active_schema(),
+        parent_height: info.height,
+        parent_app_hash: info.app_hash,
+        halted_height: info.height.checked_add(1).context("Height exhausted")?,
+        halted_block_hash,
+        emergency_receipt_sha256: emergency_state(&storage, config)?
+            .and_then(|state| state.last_receipt_sha256().map(str::to_owned)),
+        pending_admission_receipt_sha256: state
+            .pending()
+            .map(|pending| pending.admission_receipt_sha256.clone()),
+        evidence_sha256: evidence_sha256.to_owned(),
+    })
 }
 
 /// What a stopped node's read-only check found.
@@ -3985,6 +4029,20 @@ impl ConsensusApplication {
         consensus_source: &[u8],
         authorization: &crate::root_genesis::DevelopmentRootGenesis,
     ) -> Result<VerifiedReleaseAuthority> {
+        Self::preflight_development_release_with_restart(
+            path, config, genesis_bytes, consensus_source, authorization, None,
+        )
+    }
+    /// As `preflight_development_release_from_root`; a valid restart
+    /// authorization selects its target release (restart v1, E04 gap 18).
+    pub fn preflight_development_release_with_restart(
+        path: impl AsRef<Path>,
+        config: &ConsensusConfig,
+        genesis_bytes: &[u8],
+        consensus_source: &[u8],
+        authorization: &crate::root_genesis::DevelopmentRootGenesis,
+        restart: Option<&[u8]>,
+    ) -> Result<VerifiedReleaseAuthority> {
         config.validate()?;
         ensure!(config.emergency.as_ref().context("Emergency policy required")?.release_sha512
             == authorization.release_manifest_sha512,
@@ -3996,7 +4054,7 @@ impl ConsensusApplication {
             "Exact consensus source differs from selected runtime configuration");
         let verifier = bootstrap_history_verifier(authorization)?;
         let prepared = authorization.prepare(&config.chain_id, genesis_bytes, consensus_source)?;
-        preflight_prepared_release(path.as_ref(), config, genesis_bytes, &prepared, &verifier, None)
+        preflight_prepared_release(path.as_ref(), config, genesis_bytes, &prepared, &verifier, restart)
     }
     fn open_inner(
         path: impl AsRef<Path>,

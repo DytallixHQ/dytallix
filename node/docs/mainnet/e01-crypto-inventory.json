@@ -290,7 +290,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/release_handover/restart.rs",
-          "sha256": "53cc6bfae9cc5cf991ca57a98dc893a39664b48beddaeae485199dffcba045de"
+          "sha256": "afb12d516b92e5fdc41ad8ac240ab0002bbe037676451115bbfb81417ba6157e"
         }
       ],
       "policy": "Emergency, upgrade, handover and restart controls verify through the pinned local root-verify helper",
@@ -320,7 +320,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "3341f4a649972eeb9fae5bddbb41954d834c3f5c319a909e085378604cf07fc3"
+          "sha256": "4848ad8d9d8ad62b4578c2b0347904e268ded005627325932dc8cecf8d2f2e5d"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

@@ -347,3 +347,18 @@ fn replay_reproduces_the_committed_receipt() {
     other_policy.authority_epoch = 4;
     assert!(decode_receipt(&other_policy, &bytes).is_err());
 }
+
+#[test]
+fn an_operator_file_may_be_formatted_but_not_extended() {
+    let policy = policy();
+    let state = State::new(&policy).unwrap();
+    let authorization = signed(payload(&policy, &state));
+    let formatted = serde_json::to_vec_pretty(&authorization).unwrap();
+    assert!(decode_authorization(&policy, &formatted).is_err());
+    let canonical = canonical_file(&formatted).unwrap();
+    assert_eq!(canonical, raw(&authorization));
+    assert_eq!(decode_authorization(&policy, &canonical).unwrap(), authorization);
+    let mut extended = serde_json::to_value(&authorization).unwrap();
+    extended["payload"]["note"] = serde_json::json!("extra");
+    assert!(canonical_file(&serde_json::to_vec(&extended).unwrap()).is_err());
+}

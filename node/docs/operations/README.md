@@ -22,6 +22,7 @@ before acceptance.
 | Key compromise | [key-compromise.md](key-compromise.md) |
 | Resource exhaustion | [resource-exhaustion.md](resource-exhaustion.md) |
 | Upgrade or handover failure | [upgrade-failure.md](upgrade-failure.md) |
+| Restart on a fixed release after a halt | [restart.md](restart.md) |
 | Oracle failure | Not applicable. No oracle is in the consensus path (AC-010): the epoch observation is derived from committed blocks, and a submitted one is refused. |
 
 The procedures assume the native supervisor (`crates/native-supervisor`) as
@@ -107,11 +108,9 @@ Each execution record holds:
 
 ## Known limits
 
-- **Restart on new code (gap 18).** A committed block that every validator
-  fails to execute stops the chain. Fixed code is a new release, and the
-  application refuses any release other than the committed one; changing it
-  takes an on-chain handover, which needs a block. Until gap 18, such a
-  halt cannot be resumed on a fixed release.
+- **Restart on new code.** A halt that needs new code resumes only through a
+  root-signed restart authorization ([restart.md](restart.md)). Its
+  signing depends on the handover custodians (E05, P02).
 - **Rejoin.** The supervisor refuses `statesync.enable`, so a node whose
   database is set aside can rejoin only by block sync from a peer that still
   holds every block (an archive node, `block_history: archive`). State sync

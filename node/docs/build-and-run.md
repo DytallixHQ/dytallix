@@ -35,6 +35,11 @@ complete supply check and the issuance journal. The root receipt's
 authorization and the emergency, upgrade and handover replays need the
 owned root helper; the report lists them under `not_checked`.
 
+After a halt, `--restart-target RELEASE_SHA512 --evidence SHA256
+[--halted-block-hash HASH] --restart-output DIR` also writes the unsigned
+restart authorization for the committed checkpoint and the exact bytes to
+sign ([restart runbook](operations/restart.md)).
+
 A stopped application writes no text. Its exit status names the failure
 class, which the native supervisor's report repeats
 (`application_failure_class`, or `failure_class` for a failed preflight).

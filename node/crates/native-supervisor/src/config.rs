@@ -101,6 +101,10 @@ pub struct NativeServiceConfig {
     pub metrics: MetricsOutput,
     pub snapshots: Option<SnapshotOutput>,
     pub block_history: BlockHistory,
+    /// After a halt, the pinned restart authorization (restart v1, E04 gap
+    /// 18). The preflight selects its target release; the application runs
+    /// the halted block on it.
+    pub restart_authorization: Option<PinnedInput>,
 }
 
 /// The node's metrics files (metrics v1): the engine writes
@@ -629,6 +633,13 @@ impl NativeServiceConfig {
             limits.validate()?;
         }
         self.metrics.validate(&self.home)?;
+        if let Some(restart) = &self.restart_authorization {
+            ensure!(
+                restart.max_bytes <= 262_144,
+                "Restart authorization bound exceeds the application limit"
+            );
+            restart.read()?;
+        }
         if let Some(snapshots) = &self.snapshots {
             snapshots.validate(&self.home)?;
             ensure!(

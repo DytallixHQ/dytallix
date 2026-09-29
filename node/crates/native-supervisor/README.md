@@ -23,6 +23,7 @@ The configuration also sets the node's outputs (E04 gap 15):
 - `metrics` (required): `directory` and `interval_seconds` (1 to 3600). The engine writes `dytallix-engine.prom` and the application `dytallix-app.prom` there (metrics v1). The directory is owned by the service user, not group or other writable, and outside `config`, `data`, `abci` and `appdb`, so an operator agent can read it.
 - `snapshots` (optional): `directory`, `interval_blocks` and `keep`. The application writes state sync snapshots there and the bridge serves them. The directory is mode 0700 and outside the same protected paths.
 - `block_history` (required): `window` keeps the retained window of block records; `archive` keeps every record.
+- `restart_authorization` (optional, E04 gap 18): a pinned restart authorization, at most 256 KiB. After a halt, the preflight verifies it against the committed checkpoint and selects its target release, and the application runs the halted block on that release. Once its receipt is committed, the same file is ignored; remove the pin afterwards.
 
 Each directory must lie inside one of the unit's writable roots. The values are E05 inputs; nothing has a default.
 

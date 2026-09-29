@@ -803,7 +803,7 @@
       "id": "operator-state-check-report",
       "group": "operator_output",
       "exposure": "operator",
-      "format": "dytallix-state-check JSON on stdout: result (pass, empty or fail), height and app_hash, or class and the full error text; not_checked names the checks that need the owned root helper.",
+      "format": "dytallix-state-check JSON on stdout: result (pass, empty or fail), height and app_hash, or class and the full error text; not_checked names the checks that need the owned root helper; with --restart-target, restart gives the sequence, halted height, artifact SHA-512 and the paths of restart-unsigned.json and restart-artifact.bin.",
       "version": {
         "field": "schema",
         "literal": {
