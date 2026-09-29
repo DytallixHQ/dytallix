@@ -1148,6 +1148,34 @@
           "name": "replay_reproduces_the_committed_receipt"
         }
       ]
+    },
+    {
+      "id": "file-recovery-cli",
+      "group": "file",
+      "exposure": "external",
+      "format": "dytallix recovery files, each with file_version and kind: dytallix-recovery-operation (operation_id, operation_base64, requirements, request), dytallix-recovery-signature (operation_id, role, key, signature_base64), dytallix-recovery-signed (operation_id, signed_base64), dytallix-recovery-transaction (operation_id, authorization_id, envelope_base64). The base64 payloads are the node's recovery wire encodings (E04 gap 17).",
+      "version": {
+        "field": "file_version",
+        "constant": {
+          "file": "sdk/crates/dytallix-cli/src/commands/recovery.rs",
+          "name": "FILE_VERSION",
+          "value": 1
+        }
+      },
+      "source": {
+        "file": "sdk/crates/dytallix-cli/src/commands/recovery.rs",
+        "symbol": "struct OperationFile"
+      },
+      "tests": [
+        {
+          "file": "sdk/crates/dytallix-cli/tests/recovery_cli.rs",
+          "name": "guardians_sign_offline_and_a_sponsor_pays"
+        },
+        {
+          "file": "sdk/crates/dytallix-sdk/src/recovery_tests.rs",
+          "name": "assembly_checks_every_signature_and_the_quorum"
+        }
+      ]
     }
   ]
 }

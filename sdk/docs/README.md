@@ -19,6 +19,8 @@ Keypair, faucet, transfer, and basic contract lifecycle are available for experi
   Rust workflows
 - [CLI reference](cli-reference.md) - command map, examples, and local file
   locations
+- [Recovery CLI](recovery-cli.md) - account recovery transactions: offline
+  per-party signing, assembly and a separate sponsor
 - [FAQ](faq.md) - common operational questions
 
 ## Repository References

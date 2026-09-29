@@ -118,9 +118,6 @@ Each execution record holds:
   join runs only in the qualification harness.
 - **Penalties.** Evidence is recorded, never penalized, while the penalty
   profile refuses production activation (D09-Q04).
-- **Recovery transactions (gap 17, T-c).** No client builds recovery
-  transactions yet. Validator keys are generated and their proofs signed
-  with `dytallix-validator-key`.
 - **Emergency controls.** Freeze and resume are root-signed controls
   (3 of 5 SLH-DSA signatures). Signing them in production depends on the
   custody procedure (E05, P02); the only signer in the repository is

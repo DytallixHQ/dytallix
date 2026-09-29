@@ -7,6 +7,7 @@ pub mod crypto;
 pub mod governance;
 pub mod ordinary;
 pub(crate) mod passphrase;
+pub mod recovery;
 pub mod send;
 pub mod stake;
 pub mod wallet;

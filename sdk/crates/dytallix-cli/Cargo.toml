@@ -47,6 +47,8 @@ serde_json = { workspace = true }
 anyhow = { workspace = true }
 reqwest = { workspace = true, optional = true }
 sha2 = "0.10"
+# Recovery files (E04 gap 17).
+base64 = { workspace = true }
 # Keystore passphrases without echo (E04 gap 16).
 rpassword = "7"
 zeroize = "1"

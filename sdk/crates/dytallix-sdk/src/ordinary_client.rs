@@ -612,6 +612,57 @@ impl CometClient {
         }
         Ok(view)
     }
+    /// An account's recovery state (E04 gap 17), to build and sponsor
+    /// recovery actions from. The node's report, not a proof.
+    pub async fn query_recovery_account(
+        &self,
+        id: &[u8; 32],
+    ) -> Result<Option<crate::recovery::RecoveryAccountView>> {
+        let (height, view): (u64, Option<crate::recovery::RecoveryAccountView>) = self
+            .query(&format!("/recovery/account/{}", hex(id)))
+            .await?;
+        if let Some(account) = &view {
+            if account.version != 1
+                || account.context.height != height
+                || account.domain.account_id != *id
+            {
+                return Err(Error("inconsistent recovery query view".into()));
+            }
+        }
+        Ok(view)
+    }
+    /// CheckTx for a sponsored recovery transaction (`recovery::transaction`).
+    pub async fn check_recovery_tx(
+        &self,
+        sponsored: &crate::recovery::SponsoredRecovery,
+    ) -> Result<CheckTxResponse> {
+        let tx = crate::recovery::transaction(sponsored)?;
+        self.check(tx, &crate::recovery::authorization_id(sponsored)?)
+            .await
+    }
+    /// Explicit broadcast of a sponsored recovery transaction. A zero code
+    /// only reports CheckTx admission.
+    pub async fn submit_recovery_sync(
+        &self,
+        sponsored: &crate::recovery::SponsoredRecovery,
+    ) -> Result<CheckTxResponse> {
+        let tx = crate::recovery::transaction(sponsored)?;
+        self.broadcast(tx, &crate::recovery::authorization_id(sponsored)?)
+            .await
+    }
+    /// The sponsor receipt of `authorization_id`
+    /// (`recovery:v2:receipt:<hex>`), verified against the application
+    /// hash. An absent value is not success; receipts are kept until the
+    /// operation's submission expiry.
+    pub async fn query_recovery_receipt(
+        &self,
+        pin: &ChainPin,
+        authorization_id: &[u8; 32],
+        trusted: Option<[u8; 32]>,
+    ) -> Result<VerifiedValue> {
+        let key = format!("recovery:v2:receipt:{}", hex(authorization_id));
+        self.query_verified(pin, key.as_bytes(), trusted).await
+    }
     /// A receipt is only reported committed state. Call validate_receipt to bind
     /// it to a signed envelope, and verify its context through caller trust.
     pub async fn query_receipt(&self, id: &[u8; 32]) -> Result<Option<ReceiptView>> {

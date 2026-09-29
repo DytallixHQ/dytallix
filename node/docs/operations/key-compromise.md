@@ -8,9 +8,9 @@ a mainnet key.
 | Key | Where | What an attacker can do | Response |
 | --- | --- | --- | --- |
 | Validator consensus key (ML-DSA-65) | `config/priv_validator_key.json` | Sign votes as the validator, including conflicting ones | Stop, fence, rotate or exit |
-| Validator operator account key | The operator's wallet | Validator actions (exit, bond, unbond), transfers | Rotate or recover the account (blocked, gap 17) |
+| Validator operator account key | The operator's wallet | Validator actions (exit, bond, unbond), transfers | Guardian recovery of the account |
 | Node peer key (ML-DSA-65) | `config/node_key.json` or `config/pqc_peer_seed.bin` | Connect to peers as this node | Replace it and update every peer's pins |
-| User account key | The user's wallet | Spend and act as the account | Rotate or recover (blocked, gap 17); freeze for a wide compromise |
+| User account key | The user's wallet | Spend and act as the account | Guardian recovery; freeze for a wide compromise |
 | Root authority keys (SLH-DSA) | Custody | With enough keys: emergency, upgrade and handover controls | No replacement mechanism |
 | CLI keystore | `~/.dytallix/keystore.json` | Version 2: the keys, if the passphrase is also known or guessed. Version 1 (plaintext): every key in it | Handle each key it held; migrate any version 1 file |
 
@@ -95,13 +95,21 @@ The operator account authorizes the validator's actions. An attacker could:
 - unbond its stake to the attacker's control;
 - send liquid funds.
 
-1. **Race to rotate.** Replace the account's key before the attacker acts.
-   Use a recovery `Rotate` signed by the active key, or guardian recovery:
-   `Start`, then `Finalize` after the delay. `Cancel` locks a recovery in
-   progress.
-2. **Blocked:** no client builds recovery transactions yet (gap 17).
-3. **Until then,** watch the account's receipts, and keep the validator's
-   consensus key safe; it is not affected.
+The account's key is replaced through recovery, with `dytallix recovery`
+([recovery CLI](../../../sdk/docs/recovery-cli.md)). Every transaction is
+paid by a separate sponsor account.
+
+1. **Start a guardian recovery to a new key.** Two guardians sign in the
+   operation role and the new key in the possession role. Starting advances
+   the account's generation, which voids anything the old key signed. The
+   account's own actions are then blocked while the recovery is pending.
+2. **Finalize after the recovery delay.** The new key signs.
+3. **Race.** `rotate` needs only the active key, so an attacker holding it
+   can rotate first. That is why the guardian path is the response. If a
+   recovery was started against you, the guardians can `cancel` it, which
+   locks the account; a new `start` recovers it.
+4. **Meanwhile,** keep the validator's consensus key safe; it is not
+   affected.
 
 ## Node peer key
 
@@ -116,7 +124,9 @@ The operator account authorizes the validator's actions. An attacker could:
 
 ## User account keys
 
-- **One account:** the user rotates or recovers as above (blocked, gap 17).
+- **One account:** guardian recovery, as above. An account without an
+  enrolled guardian policy can only `rotate`, which the attacker can race;
+  enroll guardians before a compromise.
 - **Many accounts,** for example a compromised wallet release: an emergency
   freeze stops every user transaction while consensus continues
   ([emergency transaction freeze](../mainnet/emergency-transaction-freeze.md)).
