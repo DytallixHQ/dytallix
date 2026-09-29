@@ -64,6 +64,9 @@
     },
     {
       "folder": "mainnet/faucet",
+      "moved_to": "testnet/faucet",
+      "moved_on": "2026-09-29",
+      "moved_because": "Testnet-only and served over TLS; mainnet carries no classical public-key cryptography (E04 gap 20, P01 29 September 2026)",
       "source_repository": "dytallix-faucet",
       "source_path": "~/Developer/Dytallix-mainnet/dytallix-faucet",
       "source_branch": "codex/restored-baseline",
