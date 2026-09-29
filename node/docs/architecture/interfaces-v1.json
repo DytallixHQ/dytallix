@@ -711,20 +711,33 @@
       "id": "p2p-pqc",
       "group": "p2p",
       "exposure": "external",
-      "format": "PQC peer transport (ML-KEM-768, ML-DSA-65, HKDF-SHA-256) under CometBFT P2P protocol 8.",
+      "format": "PQC peer transport (ML-KEM-768, ML-DSA-65, HKDF-SHA-256) under CometBFT P2P protocol 8. Wire version 2 seals records with AES-256-GCM (E04 gap 19).",
       "version": {
         "field": "wire version",
         "constant": {
           "file": "node/consensus/cometbft/internal/pqcp2p/connection.go",
           "name": "WireVersion",
-          "value": 1
+          "value": 2
         }
       },
       "source": {
         "file": "node/consensus/cometbft/internal/pqcp2p/establishment.go",
-        "symbol": "dytallix-pqcp2p-component-v1"
+        "symbol": "dytallix-pqcp2p-component-v2"
       },
-      "tests": []
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/internal/pqcp2p/connection_test.go",
+          "name": "TestVersion2RecordsAreAES256GCM"
+        },
+        {
+          "file": "node/consensus/cometbft/internal/pqcp2p/connection_test.go",
+          "name": "TestConnectionHandshakeDeadlineAndHeaderBounds"
+        },
+        {
+          "file": "node/consensus/cometbft/internal/pqcp2p/establishment_test.go",
+          "name": "TestMutualAuthenticationAndKeyConfirmation"
+        }
+      ]
     },
     {
       "id": "operator-pqc-transport-config",

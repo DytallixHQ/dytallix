@@ -197,11 +197,11 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/pqcp2p/establishment.go",
-          "sha256": "ef82f834256746618140b6f6967408418b13a5a593e33aabeb48bfec0a465a3d"
+          "sha256": "ec1a674d2e7feb12d1eb824b675fb79b12b84a0d4c64466b3454b86a47f85f78"
         },
         {
           "path": "consensus/cometbft/internal/pqcp2p/connection.go",
-          "sha256": "580716d9661dafffabf45ee8a26ea44292ae652994681cc7c61bd4f33434c7b2"
+          "sha256": "1634a216e40a2813be5b42108b2816bef37b797b6b831bab24fd03359d9f3905"
         },
         {
           "path": "consensus/cometbft/internal/pqcp2p/identity.go",

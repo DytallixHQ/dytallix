@@ -433,6 +433,36 @@ These run the real binary and speak raw HTTP:
 - a page's request crosses the gateway and the client channel to a real
   endpoint.
 
+## Peer transport version 2 (C-e)
+
+Decision 3 is applied to the peer transport (`internal/pqcp2p`). Wire
+version 2 differs from version 1 in three ways:
+- **Records** are sealed with AES-256-GCM, through Go's `crypto/aes` and
+  `crypto/cipher`, in place of ChaCha20-Poly1305. The 12-byte nonce is four
+  zero bytes and then the eight-byte sequence. The record header remains the
+  associated data.
+- **Handshake and record headers** carry version `2`. A version 1 or future
+  header is refused before allocation. There is no negotiation or
+  downgrade.
+- **The suite** is `dytallix-pqcp2p-component-v2/mlkem768/mldsa65/hkdfsha256/aes256gcm`.
+  Every signature context and derived key includes it, so a version 1 peer
+  never derives version 2 keys. `golang.org/x/crypto/chacha20poly1305`
+  leaves the transport.
+
+What did not change: the handshake (ML-KEM-768 with pinned ML-DSA-65 peers),
+the key schedule (HKDF-SHA-256), and the record limits.
+
+**Tests.** `TestVersion2RecordsAreAES256GCM` opens a record that `Write`
+produced with an independently built AES-256-GCM, using the header as
+associated data and the sequence nonce. The header test refuses version 1,
+version 3, a bad length and a wrong type. The transport and engine tests
+pass with the default tags and with the PQC-only tags.
+
+**Outside the repository.** The E03 negative-peer probe carries a copy of
+these files, with a staging-only rejection observer (see the E01
+inventory's `peer_key_establishment_and_identity` route). That copy and its
+method review need refreshing to version 2 before the next E03 run.
+
 ## Classical code left after gap 19
 
 - **The engine fork's source.** The upstream classical packages remain in
