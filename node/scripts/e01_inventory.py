@@ -100,6 +100,12 @@ ROUTES = [
         ],
     },
     {
+        "role": "client_channel",
+        "algorithm": "ML-KEM-768 + ML-DSA-65",
+        "policy": "Anonymous clients pin the endpoint's full ML-DSA-65 key; one fixed suite, no negotiation or plaintext fallback (docs/architecture/client-channel-v1.md). No listener or client uses it yet (gap 19 C-b, C-c)",
+        "files": ["crates/client-channel/src/handshake.rs"],
+    },
+    {
         "role": "peer_admission_and_startup",
         "algorithm": "Full ML-DSA-65 peer-key pins",
         "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",

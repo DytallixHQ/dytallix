@@ -39,6 +39,5 @@
 
 - [`src/runtime.rs`](../src/runtime.rs) for WASM deployment and execution
 - [`src/security/gas_attack_analyzer.rs`](../src/security/gas_attack_analyzer.rs) for gas-abuse detection
-- [`src/storage_optimizer.rs`](../src/storage_optimizer.rs) for caching, compression, and storage recommendations
 - [`src/gas_optimizer.rs`](../src/gas_optimizer.rs) for gas-cost estimation support
 

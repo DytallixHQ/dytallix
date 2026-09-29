@@ -7,7 +7,8 @@
     "dytallix-storage": "crates/storage",
     "dytallix-adaptive-emission": "crates/adaptive-emission",
     "dytallix-release-runtime": "crates/release-runtime",
-    "dytallix-fast-node": "dytallix-fast-launch/node"
+    "dytallix-fast-node": "dytallix-fast-launch/node",
+    "dytallix-client-channel": "crates/client-channel"
   },
   "modules": {
     "dytallix-protocol-types": {
@@ -54,7 +55,6 @@
           "base64",
           "bincode",
           "dytallix-protocol-types",
-          "ed25519-dalek",
           "rocksdb",
           "serde",
           "serde_json",
@@ -109,6 +109,23 @@
         "dev-dependencies": [
           "tempfile"
         ],
+        "build-dependencies": []
+      }
+    },
+    "dytallix-client-channel": {
+      "path": "crates/client-channel",
+      "allowed_dependencies": {
+        "dependencies": [
+          "aes-gcm",
+          "fips203",
+          "fips204",
+          "hkdf",
+          "rand_core",
+          "sha2",
+          "subtle",
+          "zeroize"
+        ],
+        "dev-dependencies": [],
         "build-dependencies": []
       }
     }

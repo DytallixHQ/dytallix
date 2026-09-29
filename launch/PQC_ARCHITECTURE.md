@@ -17,7 +17,7 @@ ML-KEM establishes a shared secret. It does not authenticate a peer. Peer authen
 
 The production trust boundary includes consensus, P2P, account and wallet authorization, recovery, governance, trusted RPC/proof paths, root authorization, custody and management channels required to control these systems. An external service cannot escape this boundary merely because it uses TLS, SSH or a browser. Classify its actual role and verify isolation.
 
-Classical code can remain in separate development compatibility artifacts. A dependency name does not prove runtime use. An absent symbol does not prove isolation. The release must exclude or demonstrably isolate prohibited asymmetric implementations and fallback paths. The current upstream P2P path remains prohibited for production.
+Classical code can remain in separate development compatibility artifacts. P01 narrowed this on 28 September 2026: no classical public-key cryptography anywhere in the stack, client edges included (E04 gap 19, `node/docs/architecture/client-channel-v1.md`). A dependency name does not prove runtime use. An absent symbol does not prove isolation. The release must exclude or demonstrably isolate prohibited asymmetric implementations and fallback paths. The current upstream P2P path remains prohibited for production.
 
 Keep ML-DSA-65, ML-DSA-87, legacy Dilithium and legacy SPHINCS+ distinct. Existing state needs an explicit migration. Stable account identifiers must not change when authorized keys rotate. Operational keys must not acquire root authority. Root signatures require a separately configured trusted key, chain, action, sequence and artifact commitment. Persistent replay policy and execution integration remain mandatory.
 

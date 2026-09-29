@@ -7,7 +7,7 @@
 - [`src/staking.rs`](../src/staking.rs) implements validator registration, delegation, reward accrual, and slashing.
 - [`src/governance.rs`](../src/governance.rs) implements proposal deposits, voting, quorum checks, timelock, and execution routing.
 - [`src/algorithm_registry.rs`](../src/algorithm_registry.rs) manages the PQC algorithm allowlist and emergency controls.
-- [`src/security/`](../src/security) and [`src/storage_optimizer.rs`](../src/storage_optimizer.rs) provide operational hardening helpers.
+- [`src/security/`](../src/security) provides operational hardening helpers.
 
 ## Design Approach
 

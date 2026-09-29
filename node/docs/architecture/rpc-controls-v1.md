@@ -93,6 +93,11 @@ stay fixed; a larger ceiling needs a new build.
 
 ## Gateway contract
 
+Gap 19 replaces item 1. The P01 decision of 29 September 2026 allows no TLS
+at a public edge, so a public endpoint serves the post-quantum
+[client channel](client-channel-v1.md) instead. C-b rewrites this contract
+around it.
+
 A public gateway in front of a node's HTTP adapter must:
 
 1. Terminate TLS (1.3) with a certificate for its public name, and speak

@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/adaptive-emission",
+    "crates/client-channel",
     "crates/protocol-types",
     "crates/runtime-crypto",
     "crates/release-runtime",
