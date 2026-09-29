@@ -74,7 +74,7 @@
     },
     {
       "name": "dytallix-faucet",
-      "source": "../faucet",
+      "source": "../../testnet/faucet",
       "commit": "33c6aa29b927ff5b8ed1a5e130e0b3e2dd859878",
       "archive_sha256": "dc675a9b41d655532d9870ac8aa9117d51dcdd4bcdefab355be0e3067ac1b889",
       "snapshot": "snapshots/dytallix-faucet",
@@ -5113,5 +5113,5 @@
   "canonical_gate_view_ref": "MAINNET_GATE_MASTER.md",
   "gate_consolidation_ref": "decision-register/gate-consolidation-20260912/RECONCILIATION_REPORT.md",
   "artifact_status_scope": "Existing artifact states and narratives record package-level delivery history. They do not override the canonical readiness gate list.",
-  "path_scope": "Relative paths resolve from this folder (mainnet/launch/). Paths under assessment/, batch-*/, decision-register/, evidence/ and snapshots/ name files in the local launch evidence archive. Paths under verification-launch-rehearsals/ name local launch rehearsal output. Both are held outside the public repository. Paths beginning with ../ name the matching mainnet/ folders of this repository. Each sha256 records the file as verified at its hash_verified_at_utc time; later edits change the current digest."
+  "path_scope": "Relative paths resolve from this folder (mainnet/launch/). Paths under assessment/, batch-*/, decision-register/, evidence/ and snapshots/ name files in the local launch evidence archive. Paths under verification-launch-rehearsals/ name local launch rehearsal output. Both are held outside the public repository. Paths beginning with ../ name the matching folders of this repository; the faucet has since moved to testnet/faucet. Each sha256 records the file as verified at its hash_verified_at_utc time; later edits change the current digest."
 }
