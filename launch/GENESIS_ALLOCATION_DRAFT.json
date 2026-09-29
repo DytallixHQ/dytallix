@@ -158,7 +158,7 @@
       "constraint": "Initial liquid DRT funding remains open. Local claim recovery now exists; production bootstrap supply and recipients require approval."
     },
     "emission_model_selection": "corrected_adaptive_controller",
-    "emission_selection_source": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/docs/mainnet/specification-decisions.md:73-83",
+    "emission_selection_source": "../node/docs/mainnet/specification-decisions.md:73-83",
     "adaptive_integration_status": "LOCALLY_IMPLEMENTED_PRODUCTION_UNQUALIFIED",
     "approved_controller_parameters": null,
     "approved_timebase": {
@@ -281,7 +281,7 @@
   },
   "release_authorization": null,
   "superseded_testnet_candidate": {
-    "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/genesis.dyt-local-1.json",
+    "path": "../node/deploy/genesis.dyt-local-1.json",
     "lines": "3-12",
     "shares_percent": [
       40,

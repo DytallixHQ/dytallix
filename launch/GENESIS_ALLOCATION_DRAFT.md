@@ -4,7 +4,7 @@
 
 **High-level allocations: USER_APPROVED_SOURCE. Executable genesis: incomplete. Not valid for mainnet. Not an importable genesis file.**
 
-The [JSON draft](/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_ALLOCATION_DRAFT.json) records approved DGT category amounts and DRT reward shares. Recipient identities, beneficiaries, custody, vesting, DRT genesis supply, and release approval remain `null`. It contains no copied testnet recipient addresses or keys.
+The [JSON draft](GENESIS_ALLOCATION_DRAFT.json) records approved DGT category amounts and DRT reward shares. Recipient identities, beneficiaries, custody, vesting, DRT genesis supply, and release approval remain `null`. It contains no copied testnet recipient addresses or keys.
 
 ## Approved DGT allocation
 
@@ -21,11 +21,11 @@ The user states that approved mainnet allocations are at [Dytallix Tokenomics](h
 
 JSON monetary values use decimal strings with explicit units. Batch 6 approved six decimals. One billion DGT equals `1000000000000000` udgt. Full issuance at genesis, beneficiaries and custody remain open.
 
-The approved human-token total matches the observed native cap when converted at six decimals. Native genesis currently checks that issuance does not exceed the cap; it does not require full issuance: [cap](/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/state/mod.rs:6), [genesis check](/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/genesis.rs:129).
+The approved human-token total matches the observed native cap when converted at six decimals. Native genesis currently checks that issuance does not exceed the cap; it does not require full issuance. The cap and genesis check cited for this statement are in a frozen dytallix-node source snapshot held outside the public repository.
 
-The earlier 40/25/15/10/10 split is a superseded testnet candidate. It is not the mainnet allocation: [testnet source](/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/genesis.dyt-local-1.json:3).
+The earlier 40/25/15/10/10 split is a superseded testnet candidate. It is not the mainnet allocation: [testnet source](../node/deploy/genesis.dyt-local-1.json#L3).
 
-Bucket labels do not enforce locks. “Reserve” does not create a lock. “Team and advisors” does not create vesting. Approve each recipient, custody rule, lock implementation, vesting schedule, and stake mapping separately. The existing testnet file has no actual delegations: [source](/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/genesis.dyt-local-1.json:11).
+Bucket labels do not enforce locks. “Reserve” does not create a lock. “Team and advisors” does not create vesting. Approve each recipient, custody rule, lock implementation, vesting schedule, and stake mapping separately. The existing testnet file has no actual delegations: [source](../node/deploy/genesis.dyt-local-1.json#L11).
 
 ## DRT and adaptive issuance
 

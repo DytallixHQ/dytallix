@@ -17,7 +17,7 @@ Decision: **NO GO for protocol freeze or production launch.** Continue assessmen
 
 ## Files changed
 
-All outputs are under `/Users/rickglenn/Developer/Dytallix-mainnet-launch`. See README.md and evidence/ARTIFACT_DIGESTS.json for the final artifact set. No active chain source files or synced project files were changed.
+All outputs are in the local launch tracking workspace, which is held outside the public repository. Its top-level documents are copied into this folder. See README.md and evidence/ARTIFACT_DIGESTS.json for the final artifact set. No active chain source files or synced project files were changed.
 
 ## Tests added, passed, and failed
 

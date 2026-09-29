@@ -17,7 +17,7 @@ Actual registered operators: **0**. Actual approved validators: **0**.
 These counts describe this register. They do not assert that no operators exist elsewhere.
 
 This document creates a reviewable architecture proposal. It does not select consensus, approve economic parameters, authorize production signing, or attest infrastructure.
-See [source assessment](/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md) for source references and blocker closure tests.
+The consensus and genesis source assessment, with source references and blocker closure tests, is held outside the public repository.
 
 ## Required protocol decision
 

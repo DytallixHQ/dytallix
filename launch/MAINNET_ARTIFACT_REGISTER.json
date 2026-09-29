@@ -38,73 +38,73 @@
   "source_repositories": [
     {
       "name": "dytallix-node",
-      "source": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-node",
+      "source": "../node",
       "commit": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
       "archive_sha256": "3c753fddeb5558ee1d64cf9ba6beaf75eae2a1e9ab77b82c6771e76f3c0cd3be",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node",
+      "snapshot": "snapshots/dytallix-node",
       "worktree_status_excluded": " M Cargo.lock\n M crates/protocol-types/Cargo.toml\n M crates/protocol-types/src/lib.rs\n M crates/runtime-crypto/src/pqc_verify.rs\n M docs/architecture/module-policy.json\n M dytallix-fast-launch/node/src/addr.rs\n M dytallix-fast-launch/node/src/main.rs\n M dytallix-fast-launch/node/src/secrets/mod.rs\n M dytallix-fast-launch/node/src/signed_transaction.rs\n?? crates/protocol-types/src/address.rs\n?? crates/protocol-types/tests/\n?? docs/mainnet/launch-rehearsals.json\n?? docs/mainnet/launch-rehearsals.md\n?? scripts/address_reference.py\n?? scripts/run_launch_rehearsals.py\n",
       "tracked_file_count": 383
     },
     {
       "name": "dytallix-pqc",
-      "source": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-pqc",
+      "source": "../pqc",
       "commit": "f3ed0a30b208cfe9878c62c5474749c75ea62f35",
       "archive_sha256": "8dc58bf8fbbb4ffad7062ad77c1c45c7b8da4b6b40310a04df137f2615d829d3",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-pqc",
+      "snapshot": "snapshots/dytallix-pqc",
       "worktree_status_excluded": "",
       "tracked_file_count": 27
     },
     {
       "name": "dytallix-sdk",
-      "source": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-sdk",
+      "source": "../sdk",
       "commit": "2ae360498a2d6b0e95136934d313ce2a458af105",
       "archive_sha256": "4670acd5444d1ee111be734ef7e272ff3410cb706d1f42fbfaba433aaf6116aa",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-sdk",
+      "snapshot": "snapshots/dytallix-sdk",
       "worktree_status_excluded": "",
       "tracked_file_count": 62
     },
     {
       "name": "dytallix-contracts",
-      "source": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-contracts",
+      "source": "../contracts",
       "commit": "cb2844a1e2dff9e9859a53162f78cd4dbc882bb8",
       "archive_sha256": "40ca7c9a098c8fc329bb47bec4ce6bf7b088c3531ba16fecb7ce65537f6e668a",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-contracts",
+      "snapshot": "snapshots/dytallix-contracts",
       "worktree_status_excluded": "",
       "tracked_file_count": 60
     },
     {
       "name": "dytallix-faucet",
-      "source": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-faucet",
+      "source": "../faucet",
       "commit": "33c6aa29b927ff5b8ed1a5e130e0b3e2dd859878",
       "archive_sha256": "dc675a9b41d655532d9870ac8aa9117d51dcdd4bcdefab355be0e3067ac1b889",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-faucet",
+      "snapshot": "snapshots/dytallix-faucet",
       "worktree_status_excluded": "",
       "tracked_file_count": 27
     },
     {
       "name": "dytallix-docs",
-      "source": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-docs",
+      "source": "../docs",
       "commit": "c2c0357a2ed7b7a821f7b3f08c4e3f6963713da1",
       "archive_sha256": "d330ed9f30de8e893df948ed995e105ed7b857fe2188c7d9c5a2bcaa50b61a6f",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-docs",
+      "snapshot": "snapshots/dytallix-docs",
       "worktree_status_excluded": "",
       "tracked_file_count": 24
     },
     {
       "name": "dytallix-explorer",
-      "source": "/Users/rickglenn/Documents/Codex/2026-09-08/sc/work/repos/dytallix-explorer",
+      "source": "Local clone held outside the public repository",
       "commit": "4a38f3c07c39c272e7664e0995a8cced7530d337",
       "archive_sha256": "e65c58047ecfd04b050714a005aad82fc89ad6b80475ceb5f31adabd1d8eb7a2",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-explorer",
+      "snapshot": "snapshots/dytallix-explorer",
       "worktree_status_excluded": "",
       "tracked_file_count": 6
     },
     {
       "name": ".github",
-      "source": "/Users/rickglenn/Documents/Codex/2026-09-08/sc/work/repos/.github",
+      "source": "Local clone held outside the public repository",
       "commit": "4f97080abca29162b070a23ba0878e15ff58bf4c",
       "archive_sha256": "285d58eee28202ac1c54cd9847a63230239c5f2cd5b38b84aaca3ead4c423ce9",
-      "snapshot": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/.github",
+      "snapshot": "snapshots/.github",
       "worktree_status_excluded": "",
       "tracked_file_count": 11
     }
@@ -129,7 +129,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/MAINNET_READINESS_REPORT.md",
+          "path": "MAINNET_READINESS_REPORT.md",
           "exists": true,
           "sha256": "7e37cc503edde6ebf86afdea3bd6f55d9d10430ba2a52f10ba47fcf610d42d19",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -137,7 +137,7 @@
           "hash_verified_at_utc": "2026-09-12T04:38:56.157293+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md",
+          "path": "assessment/consensus-genesis.md",
           "exists": true,
           "sha256": "867772a5dac17f65cdb38e7880f389196e69871f8dab9e2febfb41673aaa07a7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -145,7 +145,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -153,7 +153,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/crypto-wallet.md",
+          "path": "assessment/crypto-wallet.md",
           "exists": true,
           "sha256": "cce02fbd0622dddd0990cbde58392a5d127deac6983cfaf1ab4b6de9fdb7292d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -161,7 +161,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md",
+          "path": "assessment/release-operations.md",
           "exists": true,
           "sha256": "384909b781151a2b16d54ac6c81bc8629be96d0a2e3b6a1b4983792af45f30c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -169,140 +169,140 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/BATCH_1_REPORT.md",
+          "path": "batch-1/BATCH_1_REPORT.md",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "07113f2510f647126896026451874b2232033d5c9819da31e0174e92efd9c48c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/BLOCKER_REGISTER.json",
+          "path": "batch-1/BLOCKER_REGISTER.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "acaf83d3578b7f89806d23822ec5f5cc943acee62e4e9c522d73db94a75db734",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/BATCH_3_REPORT.md",
+          "path": "batch-3/BATCH_3_REPORT.md",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "178e200d8cf74d9ecbf943ba2d2367c59c0f513188baef9e0911d20dfba192eb",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/BATCH_4_REPORT.md",
+          "path": "batch-4/BATCH_4_REPORT.md",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "38ea9968ce6df90439a80d5d5d1e383a9af5132163117ef672c3fd95c5a3f421",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/BATCH_5_REPORT.md",
+          "path": "batch-5/BATCH_5_REPORT.md",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "b7ff6c8df1e6e31a3740b157da8efbbbf4cc78f3d66c56eedb048aa8cb1e51f0",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/REPORT.md",
+          "path": "batch-5/eligibility-followup/REPORT.md",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "0cbec08e3cbcf20d9e98af76d1dafd31c392439353089ca0cd7d240eba880926",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/DECISIONS.md",
+          "path": "batch-6/DECISIONS.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "4c3d6c1e31ba8496d798d112d85dd07e0caafc169a1cf3de0b76ad766a104a3c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/APPROVAL.json",
+          "path": "batch-6/APPROVAL.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "a4ecc3be290e0b84ed962bfb91c7dd03d806238174dd03f039e10f845f4bfd1f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REWARD_IMPLEMENTATION.md",
+          "path": "batch-6/REWARD_IMPLEMENTATION.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "5131ac063f11c6ca93d286358317d9e7f9f306fe8c40471a61566a98c6681367",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/REPORT.md",
+          "path": "batch-6/issuance-timing/REPORT.md",
           "exists": true,
           "sha256": "12d098122562b52db0a12c3b998ae61aa371ec7efad024e570207af0e2effe39",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/APPROVAL.json",
+          "path": "batch-6/issuance-timing/APPROVAL.json",
           "exists": true,
           "sha256": "3281101bba9443761fea9d9f2d5b2910334def8c9cc9f6d52f36b094625ae220",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/TEST_RESULTS.json",
+          "path": "batch-6/issuance-timing/TEST_RESULTS.json",
           "exists": true,
           "sha256": "8d558493cab54750808544b4b60dd47867b660ebb5d6b2578bea928a93da742c",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "14126032963b73453ea4565ebf0d6667e238260b44ef11c7cdc58a40b87daa6a",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/REPORT.md",
+          "path": "batch-7/REPORT.md",
           "exists": true,
           "sha256": "5d40179b0494388d02952e45d6bc1c310f9dfb157b3f0e7d42155e957554f4c7",
           "source_state": "local qualification evidence; not release-qualified",
@@ -310,7 +310,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/TEST_RESULTS.json",
+          "path": "batch-7/TEST_RESULTS.json",
           "exists": true,
           "sha256": "147243a8fcde397fb2d28387eb6e0adae1c2be227cb1421b03438a4161172553",
           "source_state": "local qualification evidence; not release-qualified",
@@ -318,7 +318,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/network/RESULT.json",
+          "path": "batch-7/network/RESULT.json",
           "exists": true,
           "sha256": "784c948b90b833ddca7254122e51aaa8fbc5e6765c8505e9dc3430d69cbaa01d",
           "source_state": "local qualification evidence; not release-qualified",
@@ -326,7 +326,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/SOURCE_REVIEW.md",
+          "path": "batch-7/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "3821a7e47be8d19d71f4cfa25054be80c835616b5eb5e701de9fd29cda539300",
           "source_state": "local qualification evidence; not release-qualified",
@@ -334,7 +334,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/evidence/SOURCE_AFTER.json",
+          "path": "batch-7/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "320a5ced27b419f1b797cadb1074949f0bdbc5d51a7b9f7feed784219567a704",
           "source_state": "local qualification evidence; not release-qualified",
@@ -342,35 +342,35 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/REPORT.md",
+          "path": "batch-8/REPORT.md",
           "exists": true,
           "sha256": "f06f25025c808572d0b5b5a368dad156fafbdc7f3040e53d0c70cb024958a37b",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/POLICY_PROPOSAL.md",
+          "path": "batch-8/POLICY_PROPOSAL.md",
           "exists": true,
           "sha256": "1e2e063ebbef6fab91c6f3889d98b1df603e9909fc6bb05a0b71bbfbd4496265",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/POLICY_PROPOSAL.json",
+          "path": "batch-8/POLICY_PROPOSAL.json",
           "exists": true,
           "sha256": "30270668cf4e9b52d0dc0d5867f4d84589f28f97fdf1f1fecb703a2df137c571",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/IMPLEMENTATION_PLAN.md",
+          "path": "batch-8/IMPLEMENTATION_PLAN.md",
           "exists": true,
           "sha256": "bc16ae07addbde55fd555424908b4f28e18b876a0de22f104a0c411d4973f117",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/MAINNET_READINESS_REPORT.md",
+      "target_path": "MAINNET_READINESS_REPORT.md",
       "target_exists": true
     },
     {
@@ -393,7 +393,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/MAINNET_V1_SPEC.md",
+          "path": "MAINNET_V1_SPEC.md",
           "exists": true,
           "sha256": "f986dda6090e52a82f0ed698925918c7d1d2887efafa267b65e29e36983efa86",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -401,7 +401,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/DECISIONS_REQUIRED.md",
+          "path": "DECISIONS_REQUIRED.md",
           "exists": true,
           "sha256": "5c3b50a1d05d4cfdddc2fd9a593e4168e38f913cf15d377ba79c27a80f21cb23",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -409,7 +409,7 @@
           "hash_verified_at_utc": "2026-09-12T04:38:56.157293+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/MAINNET_V1_SPEC.md",
+      "target_path": "MAINNET_V1_SPEC.md",
       "target_exists": true,
       "current_work_ids": [
         "W06",
@@ -443,7 +443,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_ARCHITECTURE.md",
+          "path": "VALIDATOR_ARCHITECTURE.md",
           "exists": true,
           "sha256": "34165f9e110b8aa61e33cfeb56bf2a5ef5bf5b0155eefceb9581435437b62060",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -451,7 +451,7 @@
           "hash_verified_at_utc": "2026-09-12T04:38:56.157293+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_OPERATOR_REGISTER.json",
+          "path": "VALIDATOR_OPERATOR_REGISTER.json",
           "exists": true,
           "sha256": "a89d7b92378332110c98e7bfef9facf4741c8c5c7cd06f6186bc8044394c9328",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -459,91 +459,91 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/APPROVAL.json",
+          "path": "batch-8/implementation/APPROVAL.json",
           "exists": true,
           "sha256": "d8b87730387a83f9f45647832482e796ec80ed40f6baa7e30621e2a0d98f34bd",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/REPORT.md",
+          "path": "batch-8/implementation/REPORT.md",
           "exists": true,
           "sha256": "7d40014c95b04e14960a318d84ce91b5ea1524d973d6416b1b7486567bc65c7a",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/TEST_RESULTS.json",
+          "path": "batch-8/implementation/TEST_RESULTS.json",
           "exists": true,
           "sha256": "734013a17334407139b6efa62da9f3e905401cdb1b8305e076fd61ed3fa95240",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/SOURCE_REVIEW.md",
+          "path": "batch-8/implementation/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "d70e411f84d55c2f48b164cda07f751f35d57b021aa6cd4b38de39a6ebec9815",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/SCOPE.json",
+          "path": "batch-9/SCOPE.json",
           "exists": true,
           "sha256": "96e54cdab1ada874b04471680ddd3571c6506f649326e64a9275bf0c1c0b9cdb",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/REPORT.md",
+          "path": "batch-9/REPORT.md",
           "exists": true,
           "sha256": "7126780b0d39d40647274bedbdbb9b70f3af920afdfb0e429d9ce357895e158d",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/TEST_RESULTS.json",
+          "path": "batch-9/TEST_RESULTS.json",
           "exists": true,
           "sha256": "942c3da2aeaaeac837a8862e7d3211a22a21e697d8b89fe63a00e7d010f6df4c",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/SOURCE_REVIEW.md",
+          "path": "batch-9/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "d47006fe6eb23f8e2da8a72810b086deeb9cb68898915d922f6e64eb6689dbb3",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/SCOPE.json",
+          "path": "batch-10/SCOPE.json",
           "exists": true,
           "sha256": "70361233a71a9c98076dfb80e5cfc4015c7659f904f6145704172fc958f47702",
           "source_state": "Batch 10 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/REPORT.md",
+          "path": "batch-10/REPORT.md",
           "exists": true,
           "sha256": "edef71f61eedac15992206928f0b505db7bc2db7edfcaf27283cc0ed76daf37f",
           "source_state": "Batch 10 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/TEST_RESULTS.json",
+          "path": "batch-10/TEST_RESULTS.json",
           "exists": true,
           "sha256": "c4260b9489dd98a03fe1d4c8ff5cf0a04defa776eaeb6fa30d888757f7ffd584",
           "source_state": "Batch 10 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/SOURCE_REVIEW.md",
+          "path": "batch-10/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "b1c914e40eaf26a5ab982b0b7e293aeb0c4e79aa1ad647c218f444804ea5b52d",
           "source_state": "Batch 10 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_ARCHITECTURE.md",
+      "target_path": "VALIDATOR_ARCHITECTURE.md",
       "target_exists": true,
       "current_work_ids": [
         "W09"
@@ -577,7 +577,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/systemd/README.md",
+          "path": "snapshots/dytallix-node/deploy/systemd/README.md",
           "exists": true,
           "sha256": "63b750b937c386fd4aa4cddb5701571d7456ea9797f687eda6df710cb5d3225f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -585,7 +585,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_OPERATIONS.md",
+      "target_path": "VALIDATOR_OPERATIONS.md",
       "target_exists": false,
       "current_work_ids": [
         "W09"
@@ -618,7 +618,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_ARCHITECTURE.md",
+          "path": "VALIDATOR_ARCHITECTURE.md",
           "exists": true,
           "sha256": "34165f9e110b8aa61e33cfeb56bf2a5ef5bf5b0155eefceb9581435437b62060",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -626,7 +626,7 @@
           "hash_verified_at_utc": "2026-09-12T04:38:56.157293+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md",
+          "path": "assessment/consensus-genesis.md",
           "exists": true,
           "sha256": "867772a5dac17f65cdb38e7880f389196e69871f8dab9e2febfb41673aaa07a7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -634,7 +634,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_SECURITY_MODEL.md",
+      "target_path": "VALIDATOR_SECURITY_MODEL.md",
       "target_exists": false,
       "current_work_ids": [
         "W09"
@@ -668,7 +668,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_ALLOCATION_DRAFT.md",
+          "path": "GENESIS_ALLOCATION_DRAFT.md",
           "exists": true,
           "sha256": "2ec04f6944febadcb0cd357640fa7ef71d36cbe1e680bc620b111a3fd06986fc",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -676,7 +676,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -684,49 +684,49 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/DRT_TOKENOMICS.md",
+          "path": "DRT_TOKENOMICS.md",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "1bc1bced3b01af655e72b8f2f3e48a02752aea4e2249046c46fa1c3759bbb4cc",
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/ECONOMIC_DECISIONS.json",
+          "path": "batch-2/ECONOMIC_DECISIONS.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "3674fe18c875b1fa2e4375fb936bedf4cfd8a6a17179aeb5936cbbf12f521333",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/REPORT.md",
+          "path": "batch-6/issuance-timing/REPORT.md",
           "exists": true,
           "sha256": "12d098122562b52db0a12c3b998ae61aa371ec7efad024e570207af0e2effe39",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/APPROVAL.json",
+          "path": "batch-6/issuance-timing/APPROVAL.json",
           "exists": true,
           "sha256": "3281101bba9443761fea9d9f2d5b2910334def8c9cc9f6d52f36b094625ae220",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/TEST_RESULTS.json",
+          "path": "batch-6/issuance-timing/TEST_RESULTS.json",
           "exists": true,
           "sha256": "8d558493cab54750808544b4b60dd47867b660ebb5d6b2578bea928a93da742c",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "14126032963b73453ea4565ebf0d6667e238260b44ef11c7cdc58a40b87daa6a",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/DRT_TOKENOMICS.md",
+      "target_path": "DRT_TOKENOMICS.md",
       "target_exists": true,
       "current_work_ids": [
         "W01",
@@ -763,7 +763,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_ALLOCATION_DRAFT.md",
+          "path": "GENESIS_ALLOCATION_DRAFT.md",
           "exists": true,
           "sha256": "2ec04f6944febadcb0cd357640fa7ef71d36cbe1e680bc620b111a3fd06986fc",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -771,7 +771,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -779,56 +779,56 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/DGT_TOKENOMICS.md",
+          "path": "DGT_TOKENOMICS.md",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "87dd16927e731020b1ec5b199a619c9019506da685b491a2429dd016aee4e390",
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/ECONOMIC_DECISIONS.json",
+          "path": "batch-2/ECONOMIC_DECISIONS.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "3674fe18c875b1fa2e4375fb936bedf4cfd8a6a17179aeb5936cbbf12f521333",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/APPROVAL.json",
+          "path": "batch-6/APPROVAL.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "a4ecc3be290e0b84ed962bfb91c7dd03d806238174dd03f039e10f845f4bfd1f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REWARD_IMPLEMENTATION.md",
+          "path": "batch-6/REWARD_IMPLEMENTATION.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "5131ac063f11c6ca93d286358317d9e7f9f306fe8c40471a61566a98c6681367",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/DGT_TOKENOMICS.md",
+      "target_path": "DGT_TOKENOMICS.md",
       "target_exists": true
     },
     {
@@ -849,7 +849,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -857,7 +857,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/supply.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/supply.rs",
           "exists": true,
           "sha256": "e3ea16ca2601cfa79c99f6adb4e8b0251939e57456009b49cec3ebf6339a079f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -865,49 +865,49 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/TOKEN_SUPPLY_MODEL.md",
+          "path": "TOKEN_SUPPLY_MODEL.md",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "791f1c345d314ae888d2af05e4074f87e791c17aef3ece122da8f058d0d92d08",
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/evidence/ECONOMIC_ARITHMETIC.json",
+          "path": "batch-2/evidence/ECONOMIC_ARITHMETIC.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "49a909d0fd89d5351edf833bb988efd01374fc975bab6e2a4e7c95c6daed3910",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/REPORT.md",
+          "path": "batch-6/issuance-timing/REPORT.md",
           "exists": true,
           "sha256": "12d098122562b52db0a12c3b998ae61aa371ec7efad024e570207af0e2effe39",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/APPROVAL.json",
+          "path": "batch-6/issuance-timing/APPROVAL.json",
           "exists": true,
           "sha256": "3281101bba9443761fea9d9f2d5b2910334def8c9cc9f6d52f36b094625ae220",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/TEST_RESULTS.json",
+          "path": "batch-6/issuance-timing/TEST_RESULTS.json",
           "exists": true,
           "sha256": "8d558493cab54750808544b4b60dd47867b660ebb5d6b2578bea928a93da742c",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "14126032963b73453ea4565ebf0d6667e238260b44ef11c7cdc58a40b87daa6a",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/TOKEN_SUPPLY_MODEL.md",
+      "target_path": "TOKEN_SUPPLY_MODEL.md",
       "target_exists": true,
       "current_work_ids": [
         "W05"
@@ -935,7 +935,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/crypto-wallet.md",
+          "path": "assessment/crypto-wallet.md",
           "exists": true,
           "sha256": "cce02fbd0622dddd0990cbde58392a5d127deac6983cfaf1ab4b6de9fdb7292d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -943,21 +943,21 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/PQC_ARCHITECTURE.md",
+          "path": "PQC_ARCHITECTURE.md",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "f1d195291522e80d41566a18b15af5e4e06d6f1f73c58a9aada5a9d8c74ee2cb",
           "hash_verified_at_utc": "2026-09-12T04:38:56.157293+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/IDENTITY_DECISION.json",
+          "path": "batch-2/IDENTITY_DECISION.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "772b5a259a0fa2ca03813b5908821888f8ab6d3916ac5e65a2ea90dc1465def7",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/PQC_ARCHITECTURE.md",
+      "target_path": "PQC_ARCHITECTURE.md",
       "target_exists": true,
       "current_work_ids": [
         "W10"
@@ -993,7 +993,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/crypto-wallet.md",
+          "path": "assessment/crypto-wallet.md",
           "exists": true,
           "sha256": "cce02fbd0622dddd0990cbde58392a5d127deac6983cfaf1ab4b6de9fdb7292d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1001,7 +1001,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/TEST_BASELINE.json",
+          "path": "evidence/TEST_BASELINE.json",
           "exists": true,
           "sha256": "e934a3c3adaa4890aa7ee98452cc5a1ddfba223585f347e1c3fbbadd650f45c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1009,7 +1009,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/PQC_TEST_REPORT.md",
+      "target_path": "PQC_TEST_REPORT.md",
       "target_exists": false
     },
     {
@@ -1033,7 +1033,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_MANIFEST.json",
+          "path": "GENESIS_MANIFEST.json",
           "exists": true,
           "sha256": "eb28772292d9268b8dc17921413ce7fd1eda8318dd5da66c6d4f637232eb0fc2",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1041,7 +1041,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md",
+          "path": "assessment/consensus-genesis.md",
           "exists": true,
           "sha256": "867772a5dac17f65cdb38e7880f389196e69871f8dab9e2febfb41673aaa07a7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1049,49 +1049,49 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_SPEC.md",
+          "path": "GENESIS_SPEC.md",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "2a8f9f4f46e049a8bd9c0b56ee3f9cea4a88ff379de89e4d2280e26e014ba640",
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/GENESIS_INPUT_CHECK.json",
+          "path": "batch-2/GENESIS_INPUT_CHECK.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "6cac87aa93671faa66392aed906e73edf7ff5ec5b7d429e7b744bfe3b2b6d2fb",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/REPORT.md",
+          "path": "batch-6/issuance-timing/REPORT.md",
           "exists": true,
           "sha256": "12d098122562b52db0a12c3b998ae61aa371ec7efad024e570207af0e2effe39",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/APPROVAL.json",
+          "path": "batch-6/issuance-timing/APPROVAL.json",
           "exists": true,
           "sha256": "3281101bba9443761fea9d9f2d5b2910334def8c9cc9f6d52f36b094625ae220",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/TEST_RESULTS.json",
+          "path": "batch-6/issuance-timing/TEST_RESULTS.json",
           "exists": true,
           "sha256": "8d558493cab54750808544b4b60dd47867b660ebb5d6b2578bea928a93da742c",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "14126032963b73453ea4565ebf0d6667e238260b44ef11c7cdc58a40b87daa6a",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_SPEC.md",
+      "target_path": "GENESIS_SPEC.md",
       "target_exists": true,
       "current_work_ids": [
         "W08"
@@ -1125,7 +1125,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_MANIFEST.json",
+          "path": "GENESIS_MANIFEST.json",
           "exists": true,
           "sha256": "eb28772292d9268b8dc17921413ce7fd1eda8318dd5da66c6d4f637232eb0fc2",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1133,7 +1133,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_CEREMONY.md",
+      "target_path": "GENESIS_CEREMONY.md",
       "target_exists": false,
       "current_work_ids": [
         "W13"
@@ -1163,7 +1163,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md",
+          "path": "assessment/consensus-genesis.md",
           "exists": true,
           "sha256": "867772a5dac17f65cdb38e7880f389196e69871f8dab9e2febfb41673aaa07a7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1171,7 +1171,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/scripts/check_genesis_startup.py",
+          "path": "snapshots/dytallix-node/scripts/check_genesis_startup.py",
           "exists": true,
           "sha256": "69d892bb65b739b879c355aaccd810af5620223db51d74be583fb29ed314bcf5",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -1179,7 +1179,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_VALIDATION.md",
+      "target_path": "GENESIS_VALIDATION.md",
       "target_exists": false,
       "current_work_ids": [
         "W13"
@@ -1212,7 +1212,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_MANIFEST.json",
+          "path": "GENESIS_MANIFEST.json",
           "exists": true,
           "sha256": "eb28772292d9268b8dc17921413ce7fd1eda8318dd5da66c6d4f637232eb0fc2",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1220,7 +1220,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_MANIFEST.json",
+      "target_path": "GENESIS_MANIFEST.json",
       "target_exists": true,
       "current_work_ids": [
         "W08"
@@ -1253,7 +1253,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/systemd/README.md",
+          "path": "snapshots/dytallix-node/deploy/systemd/README.md",
           "exists": true,
           "sha256": "63b750b937c386fd4aa4cddb5701571d7456ea9797f687eda6df710cb5d3225f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -1261,7 +1261,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/PRODUCTION_INFRASTRUCTURE_DRAFT.md",
+          "path": "PRODUCTION_INFRASTRUCTURE_DRAFT.md",
           "exists": true,
           "sha256": "6c54655de67728e392496565b0e97cef9c84535594c2bb54e81fa07233fdc323",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1269,7 +1269,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_DEPLOYMENT.md",
+      "target_path": "VALIDATOR_DEPLOYMENT.md",
       "target_exists": false,
       "current_work_ids": [
         "W12"
@@ -1303,7 +1303,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/systemd/README.md",
+          "path": "snapshots/dytallix-node/deploy/systemd/README.md",
           "exists": true,
           "sha256": "63b750b937c386fd4aa4cddb5701571d7456ea9797f687eda6df710cb5d3225f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -1311,7 +1311,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_RUNBOOK.md",
+      "target_path": "VALIDATOR_RUNBOOK.md",
       "target_exists": false,
       "current_work_ids": [
         "W12"
@@ -1345,7 +1345,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/systemd/README.md",
+          "path": "snapshots/dytallix-node/deploy/systemd/README.md",
           "exists": true,
           "sha256": "63b750b937c386fd4aa4cddb5701571d7456ea9797f687eda6df710cb5d3225f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -1353,7 +1353,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md",
+          "path": "assessment/release-operations.md",
           "exists": true,
           "sha256": "384909b781151a2b16d54ac6c81bc8629be96d0a2e3b6a1b4983792af45f30c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1361,7 +1361,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_RECOVERY.md",
+      "target_path": "VALIDATOR_RECOVERY.md",
       "target_exists": false,
       "current_work_ids": [
         "W12"
@@ -1396,7 +1396,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/crypto-wallet.md",
+          "path": "assessment/crypto-wallet.md",
           "exists": true,
           "sha256": "cce02fbd0622dddd0990cbde58392a5d127deac6983cfaf1ab4b6de9fdb7292d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1404,7 +1404,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/WALLET_TEST_REPORT.md",
+      "target_path": "WALLET_TEST_REPORT.md",
       "target_exists": false,
       "current_work_ids": [
         "W10"
@@ -1439,7 +1439,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md",
+          "path": "assessment/release-operations.md",
           "exists": true,
           "sha256": "384909b781151a2b16d54ac6c81bc8629be96d0a2e3b6a1b4983792af45f30c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1447,7 +1447,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/DISASTER_RECOVERY.md",
+      "target_path": "DISASTER_RECOVERY.md",
       "target_exists": false,
       "current_work_ids": [
         "W12"
@@ -1482,7 +1482,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md",
+          "path": "assessment/release-operations.md",
           "exists": true,
           "sha256": "384909b781151a2b16d54ac6c81bc8629be96d0a2e3b6a1b4983792af45f30c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1490,7 +1490,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/FAILURE_TEST_REPORT.md",
+      "target_path": "FAILURE_TEST_REPORT.md",
       "target_exists": false,
       "current_work_ids": [
         "W14"
@@ -1522,7 +1522,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1530,7 +1530,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/ECONOMIC_SECURITY_REPORT.md",
+      "target_path": "ECONOMIC_SECURITY_REPORT.md",
       "target_exists": false,
       "current_work_ids": [
         "W01"
@@ -1561,7 +1561,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1569,7 +1569,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GOVERNANCE_SECURITY_REPORT.md",
+      "target_path": "GOVERNANCE_SECURITY_REPORT.md",
       "target_exists": false,
       "current_work_ids": [
         "W11"
@@ -1605,7 +1605,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/MAINNET_EXECUTION_PLAN.md",
+          "path": "MAINNET_EXECUTION_PLAN.md",
           "exists": true,
           "sha256": "99e5ef3eeb11665ca539526dd58a2b58cf2d004739bbb6d6236d236c442b8edd",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1613,14 +1613,14 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/REQUIREMENTS_RECONCILIATION.md",
+          "path": "batch-1/REQUIREMENTS_RECONCILIATION.md",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "9ad3f93dd77f8c459fed948094a3cb6daf56920d94fc40973b48f42cec7c1e20",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/FINAL_MAINNET_SIMULATION_REPORT.md",
+      "target_path": "FINAL_MAINNET_SIMULATION_REPORT.md",
       "target_exists": false,
       "current_work_ids": [
         "W14"
@@ -1660,7 +1660,7 @@
       "release_destination": "Versioned launch repository; approved public copy in Dytallix documentation. Keep restricted evidence by opaque reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1668,7 +1668,7 @@
           "hash_verified_at_utc": "2026-09-12T04:38:56.157293+00:00"
         }
       ],
-      "target_path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/FINAL_GO_NO_GO_REPORT.md",
+      "target_path": "FINAL_GO_NO_GO_REPORT.md",
       "target_exists": false,
       "current_work_ids": [
         "W14"
@@ -1695,7 +1695,7 @@
       "release_destination": "Versioned launch repository and release assets.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/REPOSITORY_MANIFEST.json",
+          "path": "evidence/REPOSITORY_MANIFEST.json",
           "exists": true,
           "sha256": "b892737e9421de234c39abb00b98615885e8b54aff46cc2aa46e28cee2b5af0a",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1703,42 +1703,42 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/REPORT.md",
+          "path": "batch-6/claim-recovery/REPORT.md",
           "exists": true,
           "sha256": "ebe990eb04b5bf8e7bf1908bffc7ef3ba4d5227fa0ff752e6ccd7f16f78e863c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/APPROVAL.json",
+          "path": "batch-6/claim-recovery/APPROVAL.json",
           "exists": true,
           "sha256": "124558f69e13d3947dfe02f53d932fcab921219abae27918069529f15bab41ef",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/TEST_RESULTS.json",
+          "path": "batch-6/claim-recovery/TEST_RESULTS.json",
           "exists": true,
           "sha256": "fd9756a86743b3d556e1f5b55e5c451fb8194f1ed4012ccea8601ca6a0305039",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/FAILURE_STATUS.json",
+          "path": "batch-6/claim-recovery/FAILURE_STATUS.json",
           "exists": true,
           "sha256": "d0ff6bb94bc2f86f74cdd23e045952c37cd2565d780e88af379f9bfbe6b5a8de",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/CHANGE_REVIEW.md",
+          "path": "batch-6/claim-recovery/CHANGE_REVIEW.md",
           "exists": true,
           "sha256": "2fd09f00203801d59bd385be6c05c00f71decbfa36fdb5cf585f2456e91f7e05",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/claim-recovery/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "74986f59727be5e5213ad8b132a855292e82034b125e6d3061461d9a4edc40a7",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
@@ -1763,7 +1763,7 @@
       "release_destination": "Source repository.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-node/crates/protocol-types/src/address.rs",
+          "path": "../node/crates/protocol-types/src/address.rs",
           "exists": true,
           "sha256": "215409ad82d86db24eabc74a4b79c5ffc29ebb4eebfe677b170051b698565ad6",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1771,7 +1771,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-node/docs/mainnet/launch-rehearsals.json",
+          "path": "../node/docs/mainnet/launch-rehearsals.json",
           "exists": true,
           "sha256": "8480aecb532486c799b5c858ba488615cf38fabecf02be48faaea057fcbb0030",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -1779,196 +1779,196 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/ACTIVE_CHANGE_REVIEW.json",
+          "path": "batch-1/ACTIVE_CHANGE_REVIEW.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "92ee3becf04935d92884ffb772eafb659d808075b735e674ed55287b346e8475",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/SOURCE_RECONCILIATION.md",
+          "path": "batch-1/SOURCE_RECONCILIATION.md",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "38e1940672bec5b777e774f13753871574e0adc0b590dab5a9bf4d83b6244a26",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/evidence/SOURCE_PIN.json",
+          "path": "batch-1/evidence/SOURCE_PIN.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "a99099f87a762fa813ec30140818b46c71657b2d1530d1331abe4ba3a1a0f046",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/evidence/SOURCE_PIN.json",
+          "path": "batch-2/evidence/SOURCE_PIN.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "ce04244e461df9217b56f22932aa17fd5f1acc0a971a9d090f7ac8d5f27a5b09",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/evidence/identity-before/MANIFEST.json",
+          "path": "batch-2/evidence/identity-before/MANIFEST.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "bf5658d1a1b9fe93087742ad60e2a72ae241e5638b59c0ac41d3c6e79a5d1e53",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/evidence/SOURCE_AFTER.json",
+          "path": "batch-3/evidence/SOURCE_AFTER.json",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "b7abc29851c28efac7a8dd17b1c2b69d3ed8d0a695d8ae262bbe4cb8c8df5ce6",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/evidence/IMPLEMENTATION.patch",
+          "path": "batch-3/evidence/IMPLEMENTATION.patch",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "404846355ac7d3edc20c285c8e075846dea67b953bd250755c7df7c429951597",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/CHANGE_REVIEW.md",
+          "path": "batch-3/CHANGE_REVIEW.md",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "affd0b42f3c76e8f71761364561b8d4c1436c0bfb27cb1f14ddb341045ac2c20",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/evidence/SOURCE_AFTER.json",
+          "path": "batch-4/evidence/SOURCE_AFTER.json",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "2a6debe2bd233e67ce0ed9bc9af913e2b1c272f0f63f391403cac339f668bbaa",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/evidence/IMPLEMENTATION.patch",
+          "path": "batch-4/evidence/IMPLEMENTATION.patch",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "7b3d667036fa327d76d3738dd780aacc5e48e79076c7378ed5f563fed88ff12e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/CHANGE_REVIEW.md",
+          "path": "batch-4/CHANGE_REVIEW.md",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "5d2a4fc114797459f88500bc61a3f6d09fb691ea6124185a86eeb6b005c94d52",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/evidence/SOURCE_AFTER.json",
+          "path": "batch-5/evidence/SOURCE_AFTER.json",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "e5edebaf186a501f564df97bbb47b5fc6a0e595172ec86b7a62e5b67765bbfde",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/evidence/IMPLEMENTATION.patch",
+          "path": "batch-5/evidence/IMPLEMENTATION.patch",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "52a81080b33cfd2bd8c49fb76640c77175c4c2f70fda1c62441f29c2f1c5b877",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/CHANGE_REVIEW.md",
+          "path": "batch-5/CHANGE_REVIEW.md",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "87c5741e68eff0aa050d279d80d13c49b6a8b095a17c7f6e16e41911c323c245",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/evidence/SOURCE_AFTER.json",
+          "path": "batch-5/eligibility-followup/evidence/SOURCE_AFTER.json",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "6a16e4658cdfcda75d6a5d19477d7345b443e659e3d76af21a5ab729448a0e49",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/evidence/IMPLEMENTATION.patch",
+          "path": "batch-5/eligibility-followup/evidence/IMPLEMENTATION.patch",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "d0493619b8bbfef68974b890966db50adefeb12721c702618d974df518c2ac94",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/CHANGE_REVIEW.md",
+          "path": "batch-5/eligibility-followup/CHANGE_REVIEW.md",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "c9220bcca79d73878db48d07ed7ba197e495e680576e98deb255d1c6963a91a7",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/APPROVAL.json",
+          "path": "batch-5/eligibility-followup/APPROVAL.json",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "61870e56defbefe49e90293ebf49068993207cc100c6d144872d0e596dce5434",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/DECISIONS.md",
+          "path": "batch-6/DECISIONS.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "4c3d6c1e31ba8496d798d112d85dd07e0caafc169a1cf3de0b76ad766a104a3c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/APPROVAL.json",
+          "path": "batch-6/APPROVAL.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "a4ecc3be290e0b84ed962bfb91c7dd03d806238174dd03f039e10f845f4bfd1f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REWARD_IMPLEMENTATION.md",
+          "path": "batch-6/REWARD_IMPLEMENTATION.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "5131ac063f11c6ca93d286358317d9e7f9f306fe8c40471a61566a98c6681367",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/REPORT.md",
+          "path": "batch-7/REPORT.md",
           "exists": true,
           "sha256": "5d40179b0494388d02952e45d6bc1c310f9dfb157b3f0e7d42155e957554f4c7",
           "source_state": "local qualification evidence; not release-qualified",
@@ -1976,7 +1976,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/TEST_RESULTS.json",
+          "path": "batch-7/TEST_RESULTS.json",
           "exists": true,
           "sha256": "147243a8fcde397fb2d28387eb6e0adae1c2be227cb1421b03438a4161172553",
           "source_state": "local qualification evidence; not release-qualified",
@@ -1984,7 +1984,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/network/RESULT.json",
+          "path": "batch-7/network/RESULT.json",
           "exists": true,
           "sha256": "784c948b90b833ddca7254122e51aaa8fbc5e6765c8505e9dc3430d69cbaa01d",
           "source_state": "local qualification evidence; not release-qualified",
@@ -1992,7 +1992,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/SOURCE_REVIEW.md",
+          "path": "batch-7/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "3821a7e47be8d19d71f4cfa25054be80c835616b5eb5e701de9fd29cda539300",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2000,7 +2000,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/evidence/SOURCE_AFTER.json",
+          "path": "batch-7/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "320a5ced27b419f1b797cadb1074949f0bdbc5d51a7b9f7feed784219567a704",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2026,7 +2026,7 @@
       "release_destination": "Source repository and release manifest.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/rust-toolchain.toml",
+          "path": "snapshots/dytallix-node/rust-toolchain.toml",
           "exists": true,
           "sha256": "6a3177dca3783745b00765ea571974808dad2644947fc0a8df5927048edf13a5",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2034,7 +2034,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/Cargo.lock",
+          "path": "snapshots/dytallix-node/Cargo.lock",
           "exists": true,
           "sha256": "0eeb9d12d218610566985ebe1e4e530e3b605bb683384540ec271d79f93dc74d",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2042,7 +2042,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/.github/workflows/rust.yml",
+          "path": "snapshots/dytallix-node/.github/workflows/rust.yml",
           "exists": true,
           "sha256": "3b8641890a82d6d2810d1611ef39814cca355c54bdc405e20e7ebfc4a7f4bd4c",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2072,7 +2072,7 @@
       "release_destination": "Signed release assets; install on validator and RPC hosts.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-node/target/release/dytallix-fast-node",
+          "path": "../node/target/release/dytallix-fast-node",
           "exists": false,
           "source_state": "Historical unqualified build cache removed to provide test disk space; current qualified-scope network executable retained separately",
           "committed_node_baseline": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2081,7 +2081,7 @@
           "cleanup_record": "batch-8/implementation/evidence/CACHE_CLEANUP.json"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/final-checks.json",
+          "path": "evidence/final-checks.json",
           "exists": true,
           "sha256": "97de6b862dcb6f5d1045412ab1833433af69d82e401d4f745f2c20afe6615803",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2089,35 +2089,35 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/tests/generated-artifacts.json",
+          "path": "batch-1/tests/generated-artifacts.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "af529561e9a7b19ef4520d3acc2d09c26244847e65aa55c337557cb61814d92d",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/BATCH_3_REPORT.md",
+          "path": "batch-3/BATCH_3_REPORT.md",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "178e200d8cf74d9ecbf943ba2d2367c59c0f513188baef9e0911d20dfba192eb",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/tests/performance-release.json",
+          "path": "batch-4/tests/performance-release.json",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "0661cb3883613270d78a27347c0f75296fe51d22c79e32a4b44acde17d0a8217",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/TEST_RESULTS.json",
+          "path": "batch-5/TEST_RESULTS.json",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "f8d6bdb77a7f5935fefc7c4f922261411f490d888846ab6a8ef92a9a9039ca9a",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/REPORT.md",
+          "path": "batch-7/REPORT.md",
           "exists": true,
           "sha256": "5d40179b0494388d02952e45d6bc1c310f9dfb157b3f0e7d42155e957554f4c7",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2125,7 +2125,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/TEST_RESULTS.json",
+          "path": "batch-7/TEST_RESULTS.json",
           "exists": true,
           "sha256": "147243a8fcde397fb2d28387eb6e0adae1c2be227cb1421b03438a4161172553",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2133,7 +2133,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/network/RESULT.json",
+          "path": "batch-7/network/RESULT.json",
           "exists": true,
           "sha256": "784c948b90b833ddca7254122e51aaa8fbc5e6765c8505e9dc3430d69cbaa01d",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2141,7 +2141,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/SOURCE_REVIEW.md",
+          "path": "batch-7/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "3821a7e47be8d19d71f4cfa25054be80c835616b5eb5e701de9fd29cda539300",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2149,7 +2149,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/evidence/SOURCE_AFTER.json",
+          "path": "batch-7/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "320a5ced27b419f1b797cadb1074949f0bdbc5d51a7b9f7feed784219567a704",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2157,14 +2157,14 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/runtime/bin/consensus_stdio-qualified",
+          "path": "batch-8/implementation/runtime/bin/consensus_stdio-qualified",
           "exists": true,
           "sha256": "442c9d34bac5e3eb43baeb0928c5a3408c9aeb74e21ea26ac371e219952c8565",
           "source_state": "Retained Batch 8 local network executable; not release or production qualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/runtime/bin/lifecycle_fixture-qualified",
+          "path": "batch-8/implementation/runtime/bin/lifecycle_fixture-qualified",
           "exists": true,
           "sha256": "563d1b26ff2b41eaee5136e11c9deae88efb8596ac1987f344a2963d12464ea0",
           "source_state": "Retained Batch 8 local network executable; not release or production qualified",
@@ -2192,7 +2192,7 @@
           "approval_scope": "Allocation shares only. Page retrieval and extraction are recorded by the parent task."
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_ALLOCATION_DRAFT.json",
+          "path": "GENESIS_ALLOCATION_DRAFT.json",
           "exists": true,
           "sha256": "d6edf5c1fefca50d7aa8eca6e25c81cb9859d53e84d3e79bfa004f2a309cca8a",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2200,7 +2200,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/TOKENOMICS_APPROVED_SOURCE.json",
+          "path": "evidence/TOKENOMICS_APPROVED_SOURCE.json",
           "exists": true,
           "sha256": "b148b54bd05540d6f4c50d105deb0ab623ce0c2321857e5ab89d37862aef88af",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2229,7 +2229,7 @@
       "release_destination": "Node source, release binary and public protocol specification.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md",
+          "path": "assessment/consensus-genesis.md",
           "exists": true,
           "sha256": "867772a5dac17f65cdb38e7880f389196e69871f8dab9e2febfb41673aaa07a7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2237,7 +2237,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/main.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/main.rs",
           "exists": true,
           "sha256": "9bbdb3607aae04d7d32a8721e2750fff4f0339adcd7adb789e89dcb67fb126a0",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2245,7 +2245,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/crates/storage/src/blocks.rs",
+          "path": "snapshots/dytallix-node/crates/storage/src/blocks.rs",
           "exists": true,
           "sha256": "82c2c2c320bdc64aa7f9237c5efbb8ce776f5cfa3c43de6ebfcc0fd1f5b2942d",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2253,14 +2253,14 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/CONSENSUS_DECISION.json",
+          "path": "batch-2/CONSENSUS_DECISION.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "4cf4ef09e88de26fb76a5a46f69d8d7201a3243f5181e86769273fe8bbb438c7",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/REPORT.md",
+          "path": "batch-7/REPORT.md",
           "exists": true,
           "sha256": "5d40179b0494388d02952e45d6bc1c310f9dfb157b3f0e7d42155e957554f4c7",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2268,7 +2268,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/TEST_RESULTS.json",
+          "path": "batch-7/TEST_RESULTS.json",
           "exists": true,
           "sha256": "147243a8fcde397fb2d28387eb6e0adae1c2be227cb1421b03438a4161172553",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2276,7 +2276,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/network/RESULT.json",
+          "path": "batch-7/network/RESULT.json",
           "exists": true,
           "sha256": "784c948b90b833ddca7254122e51aaa8fbc5e6765c8505e9dc3430d69cbaa01d",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2284,7 +2284,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/SOURCE_REVIEW.md",
+          "path": "batch-7/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "3821a7e47be8d19d71f4cfa25054be80c835616b5eb5e701de9fd29cda539300",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2292,7 +2292,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/evidence/SOURCE_AFTER.json",
+          "path": "batch-7/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "320a5ced27b419f1b797cadb1074949f0bdbc5d51a7b9f7feed784219567a704",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2300,112 +2300,112 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/REPORT.md",
+          "path": "batch-8/REPORT.md",
           "exists": true,
           "sha256": "f06f25025c808572d0b5b5a368dad156fafbdc7f3040e53d0c70cb024958a37b",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/POLICY_PROPOSAL.md",
+          "path": "batch-8/POLICY_PROPOSAL.md",
           "exists": true,
           "sha256": "1e2e063ebbef6fab91c6f3889d98b1df603e9909fc6bb05a0b71bbfbd4496265",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/POLICY_PROPOSAL.json",
+          "path": "batch-8/POLICY_PROPOSAL.json",
           "exists": true,
           "sha256": "30270668cf4e9b52d0dc0d5867f4d84589f28f97fdf1f1fecb703a2df137c571",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/IMPLEMENTATION_PLAN.md",
+          "path": "batch-8/IMPLEMENTATION_PLAN.md",
           "exists": true,
           "sha256": "bc16ae07addbde55fd555424908b4f28e18b876a0de22f104a0c411d4973f117",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/APPROVAL.json",
+          "path": "batch-8/implementation/APPROVAL.json",
           "exists": true,
           "sha256": "d8b87730387a83f9f45647832482e796ec80ed40f6baa7e30621e2a0d98f34bd",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/REPORT.md",
+          "path": "batch-8/implementation/REPORT.md",
           "exists": true,
           "sha256": "7d40014c95b04e14960a318d84ce91b5ea1524d973d6416b1b7486567bc65c7a",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/TEST_RESULTS.json",
+          "path": "batch-8/implementation/TEST_RESULTS.json",
           "exists": true,
           "sha256": "734013a17334407139b6efa62da9f3e905401cdb1b8305e076fd61ed3fa95240",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/implementation/SOURCE_REVIEW.md",
+          "path": "batch-8/implementation/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "d70e411f84d55c2f48b164cda07f751f35d57b021aa6cd4b38de39a6ebec9815",
           "source_state": "Batch 8 approved local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/SCOPE.json",
+          "path": "batch-9/SCOPE.json",
           "exists": true,
           "sha256": "96e54cdab1ada874b04471680ddd3571c6506f649326e64a9275bf0c1c0b9cdb",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/REPORT.md",
+          "path": "batch-9/REPORT.md",
           "exists": true,
           "sha256": "7126780b0d39d40647274bedbdbb9b70f3af920afdfb0e429d9ce357895e158d",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/TEST_RESULTS.json",
+          "path": "batch-9/TEST_RESULTS.json",
           "exists": true,
           "sha256": "942c3da2aeaaeac837a8862e7d3211a22a21e697d8b89fe63a00e7d010f6df4c",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-9/SOURCE_REVIEW.md",
+          "path": "batch-9/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "d47006fe6eb23f8e2da8a72810b086deeb9cb68898915d922f6e64eb6689dbb3",
           "source_state": "Batch 9 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/SCOPE.json",
+          "path": "batch-10/SCOPE.json",
           "exists": true,
           "sha256": "70361233a71a9c98076dfb80e5cfc4015c7659f904f6145704172fc958f47702",
           "source_state": "Batch 10 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/REPORT.md",
+          "path": "batch-10/REPORT.md",
           "exists": true,
           "sha256": "edef71f61eedac15992206928f0b505db7bc2db7edfcaf27283cc0ed76daf37f",
           "source_state": "Batch 10 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/TEST_RESULTS.json",
+          "path": "batch-10/TEST_RESULTS.json",
           "exists": true,
           "sha256": "c4260b9489dd98a03fe1d4c8ff5cf0a04defa776eaeb6fa30d888757f7ffd584",
           "source_state": "Batch 10 local implementation; not production qualification",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-10/SOURCE_REVIEW.md",
+          "path": "batch-10/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "b1c914e40eaf26a5ab982b0b7e293aeb0c4e79aa1ad647c218f444804ea5b52d",
           "source_state": "Batch 10 local implementation; not production qualification",
@@ -2448,7 +2448,7 @@
       "release_destination": "Node source and release binary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2456,7 +2456,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/supply.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/supply.rs",
           "exists": true,
           "sha256": "e3ea16ca2601cfa79c99f6adb4e8b0251939e57456009b49cec3ebf6339a079f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2464,7 +2464,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/crates/adaptive-emission/src/lib.rs",
+          "path": "snapshots/dytallix-node/crates/adaptive-emission/src/lib.rs",
           "exists": true,
           "sha256": "1eaaeb9b122001bfe5472b0bff582d060e9e48e5e6f0a72affc5a1af73d84efb",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2472,35 +2472,35 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/REPORT.md",
+          "path": "batch-6/issuance-timing/REPORT.md",
           "exists": true,
           "sha256": "12d098122562b52db0a12c3b998ae61aa371ec7efad024e570207af0e2effe39",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/APPROVAL.json",
+          "path": "batch-6/issuance-timing/APPROVAL.json",
           "exists": true,
           "sha256": "3281101bba9443761fea9d9f2d5b2910334def8c9cc9f6d52f36b094625ae220",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/TEST_RESULTS.json",
+          "path": "batch-6/issuance-timing/TEST_RESULTS.json",
           "exists": true,
           "sha256": "8d558493cab54750808544b4b60dd47867b660ebb5d6b2578bea928a93da742c",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "14126032963b73453ea4565ebf0d6667e238260b44ef11c7cdc58a40b87daa6a",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/REPORT.md",
+          "path": "batch-7/REPORT.md",
           "exists": true,
           "sha256": "5d40179b0494388d02952e45d6bc1c310f9dfb157b3f0e7d42155e957554f4c7",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2508,7 +2508,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/TEST_RESULTS.json",
+          "path": "batch-7/TEST_RESULTS.json",
           "exists": true,
           "sha256": "147243a8fcde397fb2d28387eb6e0adae1c2be227cb1421b03438a4161172553",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2516,7 +2516,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/network/RESULT.json",
+          "path": "batch-7/network/RESULT.json",
           "exists": true,
           "sha256": "784c948b90b833ddca7254122e51aaa8fbc5e6765c8505e9dc3430d69cbaa01d",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2524,7 +2524,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/SOURCE_REVIEW.md",
+          "path": "batch-7/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "3821a7e47be8d19d71f4cfa25054be80c835616b5eb5e701de9fd29cda539300",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2532,7 +2532,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/evidence/SOURCE_AFTER.json",
+          "path": "batch-7/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "320a5ced27b419f1b797cadb1074949f0bdbc5d51a7b9f7feed784219567a704",
           "source_state": "local qualification evidence; not release-qualified",
@@ -2581,7 +2581,7 @@
       "release_destination": "Node/SDK source and versioned public vector bundle.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/crypto-wallet.md",
+          "path": "assessment/crypto-wallet.md",
           "exists": true,
           "sha256": "cce02fbd0622dddd0990cbde58392a5d127deac6983cfaf1ab4b6de9fdb7292d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2589,7 +2589,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/crates/runtime-crypto/src/pqc_verify.rs",
+          "path": "snapshots/dytallix-node/crates/runtime-crypto/src/pqc_verify.rs",
           "exists": true,
           "sha256": "905e2f7c9ac08bdf630e33edb417b9a9874b33cf32ec6082fe1666cce9f8ab0b",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2597,7 +2597,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-sdk/crates/dytallix-core/src/keypair.rs",
+          "path": "snapshots/dytallix-sdk/crates/dytallix-core/src/keypair.rs",
           "exists": true,
           "sha256": "26c43c3df3e52af78112bd7cc6089da745e7d6f15e6dd7dca5f8c19fe2b19ab3",
           "revision": "2ae360498a2d6b0e95136934d313ce2a458af105",
@@ -2605,7 +2605,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/IDENTITY_DECISION.json",
+          "path": "batch-2/IDENTITY_DECISION.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "772b5a259a0fa2ca03813b5908821888f8ab6d3916ac5e65a2ea90dc1465def7",
@@ -2647,7 +2647,7 @@
       "release_destination": "Node source and public governance specification.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2655,7 +2655,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/runtime/governance.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/runtime/governance.rs",
           "exists": true,
           "sha256": "ea4781cba4ccfd4453f0c8a5ca452c52d0393a00b0445140e1e4f3e8e151dc3c",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2690,7 +2690,7 @@
       "release_destination": "Public validator summary; restricted operator detail store.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_OPERATOR_REGISTER.json",
+          "path": "VALIDATOR_OPERATOR_REGISTER.json",
           "exists": true,
           "sha256": "a89d7b92378332110c98e7bfef9facf4741c8c5c7cd06f6186bc8044394c9328",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2698,7 +2698,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_ARCHITECTURE.md",
+          "path": "VALIDATOR_ARCHITECTURE.md",
           "exists": true,
           "sha256": "34165f9e110b8aa61e33cfeb56bf2a5ef5bf5b0155eefceb9581435437b62060",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2737,7 +2737,7 @@
       "release_destination": "Protected operator store; public fingerprints and opaque proof references only.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/VALIDATOR_ARCHITECTURE.md",
+          "path": "VALIDATOR_ARCHITECTURE.md",
           "exists": true,
           "sha256": "34165f9e110b8aa61e33cfeb56bf2a5ef5bf5b0155eefceb9581435437b62060",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2745,7 +2745,7 @@
           "hash_verified_at_utc": "2026-09-12T04:38:56.157293+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/systemd/README.md",
+          "path": "snapshots/dytallix-node/deploy/systemd/README.md",
           "exists": true,
           "sha256": "63b750b937c386fd4aa4cddb5701571d7456ea9797f687eda6df710cb5d3225f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2788,7 +2788,7 @@
       "release_destination": "Public allocation schedule and genesis; restricted custody evidence.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_ALLOCATION_DRAFT.json",
+          "path": "GENESIS_ALLOCATION_DRAFT.json",
           "exists": true,
           "sha256": "d6edf5c1fefca50d7aa8eca6e25c81cb9859d53e84d3e79bfa004f2a309cca8a",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2796,7 +2796,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_ALLOCATION_DRAFT.md",
+          "path": "GENESIS_ALLOCATION_DRAFT.md",
           "exists": true,
           "sha256": "2ec04f6944febadcb0cd357640fa7ef71d36cbe1e680bc620b111a3fd06986fc",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2804,49 +2804,49 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/GENESIS_INPUTS.json",
+          "path": "batch-2/GENESIS_INPUTS.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "a12dafaee82dea03fca48e31c03908e81db5ccd21047a5675077796b401d9682",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/GENESIS_INPUT_CHECK.json",
+          "path": "batch-2/GENESIS_INPUT_CHECK.json",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "6cac87aa93671faa66392aed906e73edf7ff5ec5b7d429e7b744bfe3b2b6d2fb",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/APPROVAL.json",
+          "path": "batch-6/APPROVAL.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "a4ecc3be290e0b84ed962bfb91c7dd03d806238174dd03f039e10f845f4bfd1f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REWARD_IMPLEMENTATION.md",
+          "path": "batch-6/REWARD_IMPLEMENTATION.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "5131ac063f11c6ca93d286358317d9e7f9f306fe8c40471a61566a98c6681367",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
@@ -2883,7 +2883,7 @@
       "release_destination": "Protected operator store; public topology summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/PRODUCTION_INFRASTRUCTURE_DRAFT.json",
+          "path": "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
           "exists": true,
           "sha256": "892e02f38abff65cb188aa112f0b37dd22befd40e28e07515520f66270b12d37",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2891,7 +2891,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/github-records.md",
+          "path": "assessment/github-records.md",
           "exists": true,
           "sha256": "203c36821aee523058068f5db84420a165a10ec1af198ddcc180bef5ca61aa31",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2899,7 +2899,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/OPERATIONS_EVIDENCE.json",
+          "path": "batch-1/OPERATIONS_EVIDENCE.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "70f64f703208137023c6ad25ddd31136bc00795d881e6edb6398b1dec5bda447",
@@ -2939,7 +2939,7 @@
       "release_destination": "Immutable release assets and public network repository.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/genesis.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/genesis.rs",
           "exists": true,
           "sha256": "166454bff45ccb5356c0a6bd29cc3cddde4140db4b2aa40e5b60931f8ab8760e",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -2947,7 +2947,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_MANIFEST.json",
+          "path": "GENESIS_MANIFEST.json",
           "exists": true,
           "sha256": "eb28772292d9268b8dc17921413ce7fd1eda8318dd5da66c6d4f637232eb0fc2",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2991,7 +2991,7 @@
       "release_destination": "Source tags and release registry.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/github-records.md",
+          "path": "assessment/github-records.md",
           "exists": true,
           "sha256": "203c36821aee523058068f5db84420a165a10ec1af198ddcc180bef5ca61aa31",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -2999,7 +2999,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_MANIFEST.json",
+          "path": "GENESIS_MANIFEST.json",
           "exists": true,
           "sha256": "eb28772292d9268b8dc17921413ce7fd1eda8318dd5da66c6d4f637232eb0fc2",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3035,7 +3035,7 @@
       "release_destination": "OCI container registry.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/.github/workflows/rust.yml",
+          "path": "snapshots/dytallix-node/.github/workflows/rust.yml",
           "exists": true,
           "sha256": "3b8641890a82d6d2810d1611ef39814cca355c54bdc405e20e7ebfc4a7f4bd4c",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3043,7 +3043,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-faucet/Dockerfile",
+          "path": "snapshots/dytallix-faucet/Dockerfile",
           "exists": true,
           "sha256": "180dda30329dfcb70be6eec24f05fc706d13da3881e50bf8ecb1ea4694923469",
           "revision": "33c6aa29b927ff5b8ed1a5e130e0b3e2dd859878",
@@ -3080,7 +3080,7 @@
       "release_destination": "Public release registry; private signing material remains in protected custody.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-sdk/.github/workflows/release.yml",
+          "path": "snapshots/dytallix-sdk/.github/workflows/release.yml",
           "exists": true,
           "sha256": "f9c2a71b9841403d11e6bdf9991680897e87c8e73937fe857230ef124e69a078",
           "revision": "2ae360498a2d6b0e95136934d313ce2a458af105",
@@ -3088,7 +3088,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/REPOSITORY_MANIFEST.json",
+          "path": "evidence/REPOSITORY_MANIFEST.json",
           "exists": true,
           "sha256": "b892737e9421de234c39abb00b98615885e8b54aff46cc2aa46e28cee2b5af0a",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3126,7 +3126,7 @@
       "release_destination": "Source repository; environment-specific protected operator configuration.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/systemd/dytallix-fast-node.service",
+          "path": "snapshots/dytallix-node/deploy/systemd/dytallix-fast-node.service",
           "exists": true,
           "sha256": "02025e9d655dbbdad4bb1148b4d0da70591e907cda922964248940b2f1a88c11",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3134,7 +3134,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/systemd/check-runtime-paths.sh",
+          "path": "snapshots/dytallix-node/deploy/systemd/check-runtime-paths.sh",
           "exists": true,
           "sha256": "74cd6d40ad67d39565779f2124fda519e7bd28a86d64b39aafb9f866df5b68fd",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3142,7 +3142,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/pm2/dytallix-fast-node.ecosystem.cjs",
+          "path": "snapshots/dytallix-node/deploy/pm2/dytallix-fast-node.ecosystem.cjs",
           "exists": true,
           "sha256": "224b6410eb5549f4de15271a272201a0401695d4b5206a430a7e491581af3acc",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3181,7 +3181,7 @@
       "release_destination": "Signed release registry; package registry if selected; public install docs.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-sdk/crates/dytallix-sdk/src/keystore.rs",
+          "path": "snapshots/dytallix-sdk/crates/dytallix-sdk/src/keystore.rs",
           "exists": true,
           "sha256": "d68538ea17772047378ffc96a7c434d6eda4f8b36c43a310cfb6a18b99621d10",
           "revision": "2ae360498a2d6b0e95136934d313ce2a458af105",
@@ -3189,7 +3189,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-sdk/crates/dytallix-cli/src/commands/wallet.rs",
+          "path": "snapshots/dytallix-sdk/crates/dytallix-cli/src/commands/wallet.rs",
           "exists": true,
           "sha256": "309580424cb5a929f51d4db7117da14f9929569ddcea2560c357e4e10dc225b8",
           "revision": "2ae360498a2d6b0e95136934d313ce2a458af105",
@@ -3197,7 +3197,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-sdk/.github/workflows/release.yml",
+          "path": "snapshots/dytallix-sdk/.github/workflows/release.yml",
           "exists": true,
           "sha256": "f9c2a71b9841403d11e6bdf9991680897e87c8e73937fe857230ef124e69a078",
           "revision": "2ae360498a2d6b0e95136934d313ce2a458af105",
@@ -3205,7 +3205,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/crypto-wallet.md",
+          "path": "assessment/crypto-wallet.md",
           "exists": true,
           "sha256": "cce02fbd0622dddd0990cbde58392a5d127deac6983cfaf1ab4b6de9fdb7292d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3250,7 +3250,7 @@
       "release_destination": "Source repository and public developer documentation.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/docs/rpc-and-apis.md",
+          "path": "snapshots/dytallix-node/docs/rpc-and-apis.md",
           "exists": true,
           "sha256": "06d2d487d6cf4267b2f3ad779bd162aeca705464a94d82ca0fcc15964273f4ef",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3258,7 +3258,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-docs/docs/rpc-reference.md",
+          "path": "snapshots/dytallix-docs/docs/rpc-reference.md",
           "exists": true,
           "sha256": "2e7778acc0a3163e87db19a8f7ddbeb627f9a05566764d266460b3f7799f300a",
           "revision": "c2c0357a2ed7b7a821f7b3f08c4e3f6963713da1",
@@ -3293,7 +3293,7 @@
       "release_destination": "Protected operator configuration; public endpoint catalog.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/PRODUCTION_INFRASTRUCTURE_DRAFT.json",
+          "path": "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
           "exists": true,
           "sha256": "892e02f38abff65cb188aa112f0b37dd22befd40e28e07515520f66270b12d37",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3301,7 +3301,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/docs/public-deployment-evidence.md",
+          "path": "snapshots/dytallix-node/docs/public-deployment-evidence.md",
           "exists": true,
           "sha256": "f67c727f4f13b69af1ebc66a4e1e6dc39b9fedc5e07752dbc5450035e43bcb1f",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3342,7 +3342,7 @@
       "release_destination": "Versioned monitoring configuration; restricted delivery routes and on-call records.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/metrics.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/metrics.rs",
           "exists": true,
           "sha256": "37fd2eecba3b8e075e33778dec29bb6e672f4bba4185b6b371bc29a234b7e557",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3350,7 +3350,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/alerts.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/alerts.rs",
           "exists": true,
           "sha256": "a8f13e11af9a603bfc65a5b146476df1308386e5ce795d91ab4d0e2ee4e78447",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3358,7 +3358,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md",
+          "path": "assessment/release-operations.md",
           "exists": true,
           "sha256": "384909b781151a2b16d54ac6c81bc8629be96d0a2e3b6a1b4983792af45f30c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3399,7 +3399,7 @@
       "release_destination": "Protected backup store; public format and hash verification instructions.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md",
+          "path": "assessment/consensus-genesis.md",
           "exists": true,
           "sha256": "867772a5dac17f65cdb38e7880f389196e69871f8dab9e2febfb41673aaa07a7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3407,7 +3407,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md",
+          "path": "assessment/release-operations.md",
           "exists": true,
           "sha256": "384909b781151a2b16d54ac6c81bc8629be96d0a2e3b6a1b4983792af45f30c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3447,7 +3447,7 @@
       "release_destination": "Source migration scripts, release assets and protected execution records.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/deploy/RELAUNCH.md",
+          "path": "snapshots/dytallix-node/deploy/RELAUNCH.md",
           "exists": true,
           "sha256": "ced9ce4550aefeecda3546a62901f39a672f0bd7ce95942947ca2be2d2e7fc28",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3455,7 +3455,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/dytallix-fast-launch/node/src/block_settlement.rs",
+          "path": "snapshots/dytallix-node/dytallix-fast-launch/node/src/block_settlement.rs",
           "exists": true,
           "sha256": "cd206e448fe581a3855b0b8cb3e75d9a178363e59fc8c433bd82d9cae0060f94",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3492,7 +3492,7 @@
       "release_destination": "Release registry; restricted advisory details by controlled reference.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/.github/workflows/rust.yml",
+          "path": "snapshots/dytallix-node/.github/workflows/rust.yml",
           "exists": true,
           "sha256": "3b8641890a82d6d2810d1611ef39814cca355c54bdc405e20e7ebfc4a7f4bd4c",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3500,7 +3500,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-node/Cargo.lock",
+          "path": "snapshots/dytallix-node/Cargo.lock",
           "exists": true,
           "sha256": "0eeb9d12d218610566985ebe1e4e530e3b605bb683384540ec271d79f93dc74d",
           "revision": "5e86d1046ae2423b98f125ee8fd09f7d7d837fc7",
@@ -3540,7 +3540,7 @@
       "release_destination": "Versioned evidence index and retained release/CI artifacts.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/TEST_BASELINE.json",
+          "path": "evidence/TEST_BASELINE.json",
           "exists": true,
           "sha256": "e934a3c3adaa4890aa7ee98452cc5a1ddfba223585f347e1c3fbbadd650f45c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3548,7 +3548,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/final-checks.json",
+          "path": "evidence/final-checks.json",
           "exists": true,
           "sha256": "97de6b862dcb6f5d1045412ab1833433af69d82e401d4f745f2c20afe6615803",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3556,196 +3556,196 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/TEST_BASELINE.json",
+          "path": "batch-1/TEST_BASELINE.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "979b0cc72d2fa0afcaf52bf35024cbddfac761217873ee5e397d11d8f210b228",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/TEST_FAILURES.json",
+          "path": "batch-1/TEST_FAILURES.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "0e84a186fb0c9f70c209c3f70896143c2b3ef39b3da8987f5feed1f3e1d186d2",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/TEST_RESULTS.json",
+          "path": "batch-3/TEST_RESULTS.json",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "aec467d69c6e1d324e074854d8abf744f8ef0a849f1d0b21651313a4bf2be8e4",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/FAILURE_STATUS.json",
+          "path": "batch-3/FAILURE_STATUS.json",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "1f020879eabf79713ce4c96dc2032fee66ef01a1d288218977849018e9bc432f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/TEST_RESULTS.json",
+          "path": "batch-4/TEST_RESULTS.json",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "4b75a2281e06f309340ab2fa00e0f7c5396db84fe80ccd212b952b882f24950d",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/FAILURE_STATUS.json",
+          "path": "batch-4/FAILURE_STATUS.json",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "710a7d0de92322d2dee39791bd0929acae1c81f49b49536d18c7f9d92974232a",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/PERFORMANCE_RESULTS.json",
+          "path": "batch-4/PERFORMANCE_RESULTS.json",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "05256fe18db1124588211c8cb2b9dac28c19c929208bdd2a6a07b64f530a58fa",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/TEST_RESULTS.json",
+          "path": "batch-5/TEST_RESULTS.json",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "f8d6bdb77a7f5935fefc7c4f922261411f490d888846ab6a8ef92a9a9039ca9a",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/FAILURE_STATUS.json",
+          "path": "batch-5/FAILURE_STATUS.json",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "4ba307de7f006f9c1ad02cec806ec934c5cda91f8df7f6816745df877547880b",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/GOVERNANCE_DECISION.md",
+          "path": "batch-5/GOVERNANCE_DECISION.md",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "aa487baa7d98213a5975bafd27445fa0741aaf8fa02d63cd041a42afc657403f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/TEST_RESULTS.json",
+          "path": "batch-5/eligibility-followup/TEST_RESULTS.json",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "a84cf7e697beb282ee4181a8d69f8ec2c4977f3880c7c74a025192e6c6d06e1b",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/FAILURE_STATUS.json",
+          "path": "batch-5/eligibility-followup/FAILURE_STATUS.json",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "ff98e6f3bdbcc6cceecc38f99b331b5248ea90a3e7a15854d54c437efe651243",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/DECISIONS.md",
+          "path": "batch-6/DECISIONS.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "4c3d6c1e31ba8496d798d112d85dd07e0caafc169a1cf3de0b76ad766a104a3c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/APPROVAL.json",
+          "path": "batch-6/APPROVAL.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "a4ecc3be290e0b84ed962bfb91c7dd03d806238174dd03f039e10f845f4bfd1f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REWARD_IMPLEMENTATION.md",
+          "path": "batch-6/REWARD_IMPLEMENTATION.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "5131ac063f11c6ca93d286358317d9e7f9f306fe8c40471a61566a98c6681367",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/REPORT.md",
+          "path": "batch-6/claim-recovery/REPORT.md",
           "exists": true,
           "sha256": "ebe990eb04b5bf8e7bf1908bffc7ef3ba4d5227fa0ff752e6ccd7f16f78e863c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/APPROVAL.json",
+          "path": "batch-6/claim-recovery/APPROVAL.json",
           "exists": true,
           "sha256": "124558f69e13d3947dfe02f53d932fcab921219abae27918069529f15bab41ef",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/TEST_RESULTS.json",
+          "path": "batch-6/claim-recovery/TEST_RESULTS.json",
           "exists": true,
           "sha256": "fd9756a86743b3d556e1f5b55e5c451fb8194f1ed4012ccea8601ca6a0305039",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/FAILURE_STATUS.json",
+          "path": "batch-6/claim-recovery/FAILURE_STATUS.json",
           "exists": true,
           "sha256": "d0ff6bb94bc2f86f74cdd23e045952c37cd2565d780e88af379f9bfbe6b5a8de",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/CHANGE_REVIEW.md",
+          "path": "batch-6/claim-recovery/CHANGE_REVIEW.md",
           "exists": true,
           "sha256": "2fd09f00203801d59bd385be6c05c00f71decbfa36fdb5cf585f2456e91f7e05",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/claim-recovery/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "74986f59727be5e5213ad8b132a855292e82034b125e6d3061461d9a4edc40a7",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/REPORT.md",
+          "path": "batch-7/REPORT.md",
           "exists": true,
           "sha256": "5d40179b0494388d02952e45d6bc1c310f9dfb157b3f0e7d42155e957554f4c7",
           "source_state": "local qualification evidence; not release-qualified",
@@ -3753,7 +3753,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/TEST_RESULTS.json",
+          "path": "batch-7/TEST_RESULTS.json",
           "exists": true,
           "sha256": "147243a8fcde397fb2d28387eb6e0adae1c2be227cb1421b03438a4161172553",
           "source_state": "local qualification evidence; not release-qualified",
@@ -3761,7 +3761,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/network/RESULT.json",
+          "path": "batch-7/network/RESULT.json",
           "exists": true,
           "sha256": "784c948b90b833ddca7254122e51aaa8fbc5e6765c8505e9dc3430d69cbaa01d",
           "source_state": "local qualification evidence; not release-qualified",
@@ -3769,7 +3769,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/SOURCE_REVIEW.md",
+          "path": "batch-7/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "3821a7e47be8d19d71f4cfa25054be80c835616b5eb5e701de9fd29cda539300",
           "source_state": "local qualification evidence; not release-qualified",
@@ -3777,7 +3777,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/evidence/SOURCE_AFTER.json",
+          "path": "batch-7/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "320a5ced27b419f1b797cadb1074949f0bdbc5d51a7b9f7feed784219567a704",
           "source_state": "local qualification evidence; not release-qualified",
@@ -3818,7 +3818,7 @@
       "release_destination": "Protected review evidence with publishable final summaries.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/consensus-genesis.md",
+          "path": "assessment/consensus-genesis.md",
           "exists": true,
           "sha256": "867772a5dac17f65cdb38e7880f389196e69871f8dab9e2febfb41673aaa07a7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3826,7 +3826,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/economics.md",
+          "path": "assessment/economics.md",
           "exists": true,
           "sha256": "6dc5c31e8a4b2d771336c0bacc8cabf3b4e936a7fe9e1733e2c4695afaf7432d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3834,7 +3834,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/crypto-wallet.md",
+          "path": "assessment/crypto-wallet.md",
           "exists": true,
           "sha256": "cce02fbd0622dddd0990cbde58392a5d127deac6983cfaf1ab4b6de9fdb7292d",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3842,7 +3842,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3886,7 +3886,7 @@
       "release_destination": "Source repository and qualification evidence store.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet/dytallix-node/docs/mainnet/launch-rehearsals.json",
+          "path": "../node/docs/mainnet/launch-rehearsals.json",
           "exists": true,
           "sha256": "8480aecb532486c799b5c858ba488615cf38fabecf02be48faaea057fcbb0030",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3894,7 +3894,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet/verification-launch-rehearsals/status.md",
+          "path": "verification-launch-rehearsals/status.md",
           "exists": true,
           "sha256": "34c9a891039125bb4b5c919d59f932a71a866a3f5cf056498f4af861e038b891",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3902,7 +3902,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet/verification-launch-rehearsals/run-002/report.json",
+          "path": "verification-launch-rehearsals/run-002/report.json",
           "exists": true,
           "sha256": "cc0b1328c37f0c406ef439a9e4e288fcb82ec22db8a7a1a88df6cc4bd35f2a68",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3910,7 +3910,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3918,14 +3918,14 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/REQUIREMENTS_RECONCILIATION.md",
+          "path": "batch-1/REQUIREMENTS_RECONCILIATION.md",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "9ad3f93dd77f8c459fed948094a3cb6daf56920d94fc40973b48f42cec7c1e20",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/CONTRADICTION_REGISTER.json",
+          "path": "batch-1/CONTRADICTION_REGISTER.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "a9af69e45a46be747a99b8899e0b56ad595be86dd9ada571c2a42a053b284260",
@@ -3959,7 +3959,7 @@
       "release_destination": "Protected qualification evidence store; public redacted run summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -3967,7 +3967,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4003,7 +4003,7 @@
       "release_destination": "Protected qualification evidence store; public redacted run summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4011,7 +4011,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4047,7 +4047,7 @@
       "release_destination": "Protected qualification evidence store; public redacted run summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4055,7 +4055,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4091,7 +4091,7 @@
       "release_destination": "Protected qualification evidence store; public redacted run summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4099,7 +4099,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4135,7 +4135,7 @@
       "release_destination": "Protected qualification evidence store; public redacted run summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4143,7 +4143,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4179,7 +4179,7 @@
       "release_destination": "Protected qualification evidence store; public redacted run summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4187,7 +4187,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4223,7 +4223,7 @@
       "release_destination": "Protected qualification evidence store; public redacted run summary.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4231,7 +4231,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/LAUNCH_GATES.json",
+          "path": "LAUNCH_GATES.json",
           "exists": true,
           "sha256": "44f44025a154568db8d3e225187f81b1d247ac0186a73e18fe8a39f946736f2e",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4278,7 +4278,7 @@
       "release_destination": "Release registry, public network/docs and protected operator acceptance store.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/github-records.md",
+          "path": "assessment/github-records.md",
           "exists": true,
           "sha256": "203c36821aee523058068f5db84420a165a10ec1af198ddcc180bef5ca61aa31",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4286,7 +4286,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-docs/docs/getting-started.md",
+          "path": "snapshots/dytallix-docs/docs/getting-started.md",
           "exists": true,
           "sha256": "c99ba00cad632763e35f3384c1b84dc79291a86525a334488b297e8f606bf725",
           "revision": "c2c0357a2ed7b7a821f7b3f08c4e3f6963713da1",
@@ -4294,7 +4294,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/snapshots/dytallix-docs/docs/node-operators.md",
+          "path": "snapshots/dytallix-docs/docs/node-operators.md",
           "exists": true,
           "sha256": "2197a77aca46c0a17f9ae7217ff831630217e775d4812ec8ee242c781ca6aa89",
           "revision": "c2c0357a2ed7b7a821f7b3f08c4e3f6963713da1",
@@ -4302,7 +4302,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/OPERATIONS_EVIDENCE.json",
+          "path": "batch-1/OPERATIONS_EVIDENCE.json",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "70f64f703208137023c6ad25ddd31136bc00795d881e6edb6398b1dec5bda447",
@@ -4335,7 +4335,7 @@
       "release_destination": "Versioned launch repository.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/MAINNET_EXECUTION_PLAN.md",
+          "path": "MAINNET_EXECUTION_PLAN.md",
           "exists": true,
           "sha256": "99e5ef3eeb11665ca539526dd58a2b58cf2d004739bbb6d6236d236c442b8edd",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4343,7 +4343,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4351,7 +4351,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/DAY_0_STATUS.md",
+          "path": "DAY_0_STATUS.md",
           "exists": true,
           "sha256": "ccc1c3826f3fe249153723efb779b0dac52db9549a02ea183a462b7c96112876",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4359,189 +4359,189 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-1/BATCH_1_REPORT.md",
+          "path": "batch-1/BATCH_1_REPORT.md",
           "source_state": "Batch 1 local evidence; not production qualification",
           "exists": true,
           "sha256": "07113f2510f647126896026451874b2232033d5c9819da31e0174e92efd9c48c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-2/BATCH_2_REPORT.md",
+          "path": "batch-2/BATCH_2_REPORT.md",
           "source_state": "Batch 2 draft or bounded evidence; not release qualification",
           "exists": true,
           "sha256": "59e0d81f8ed1189e9103e8ff97671c4a3180cba666bd284d7490010135262e3a",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-3/BATCH_3_REPORT.md",
+          "path": "batch-3/BATCH_3_REPORT.md",
           "source_state": "Batch 3 local repair evidence; not production qualification",
           "exists": true,
           "sha256": "178e200d8cf74d9ecbf943ba2d2367c59c0f513188baef9e0911d20dfba192eb",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-4/BATCH_4_REPORT.md",
+          "path": "batch-4/BATCH_4_REPORT.md",
           "source_state": "Batch 4 local implementation and separate build-profile tests; no production qualification",
           "exists": true,
           "sha256": "38ea9968ce6df90439a80d5d5d1e383a9af5132163117ef672c3fd95c5a3f421",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/BATCH_5_REPORT.md",
+          "path": "batch-5/BATCH_5_REPORT.md",
           "source_state": "Batch 5 local governance repair; target partial pending policy decision; no production qualification",
           "exists": true,
           "sha256": "b7ff6c8df1e6e31a3740b157da8efbbbf4cc78f3d66c56eedb048aa8cb1e51f0",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/REPORT.md",
+          "path": "batch-5/eligibility-followup/REPORT.md",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "0cbec08e3cbcf20d9e98af76d1dafd31c392439353089ca0cd7d240eba880926",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-5/eligibility-followup/BATCH_6_SCOPE.md",
+          "path": "batch-5/eligibility-followup/BATCH_6_SCOPE.md",
           "source_state": "User-approved bonded-stake-only eligibility; local governance repairs complete; no production qualification",
           "exists": true,
           "sha256": "fec8ccfe7dbce109cd74644a641f376bff13c1404c4d1b9966cffbfd28faab60",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/DECISIONS.md",
+          "path": "batch-6/DECISIONS.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "4c3d6c1e31ba8496d798d112d85dd07e0caafc169a1cf3de0b76ad766a104a3c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REPORT.md",
+          "path": "batch-6/REPORT.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d47af063b43ab3bf50efa676c41cb2dbe456897c9224810314ac486b30d5d52f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/TEST_RESULTS.json",
+          "path": "batch-6/TEST_RESULTS.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "11af5a2fabca78a373264313553e8c5fa7a7ea294c24bfb82a34b4c85ccd051e",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/APPROVAL.json",
+          "path": "batch-6/APPROVAL.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "a4ecc3be290e0b84ed962bfb91c7dd03d806238174dd03f039e10f845f4bfd1f",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/REWARD_IMPLEMENTATION.md",
+          "path": "batch-6/REWARD_IMPLEMENTATION.md",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "5131ac063f11c6ca93d286358317d9e7f9f306fe8c40471a61566a98c6681367",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/evidence/SOURCE_AFTER.json",
           "source_state": "Four user-approved items implemented as components; no production qualification",
           "exists": true,
           "sha256": "d5682ab1f25dfb12a0fab0d0131f5f03399dd10db76f7336c4611db527225c58",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/REPORT.md",
+          "path": "batch-6/claim-recovery/REPORT.md",
           "exists": true,
           "sha256": "ebe990eb04b5bf8e7bf1908bffc7ef3ba4d5227fa0ff752e6ccd7f16f78e863c",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/APPROVAL.json",
+          "path": "batch-6/claim-recovery/APPROVAL.json",
           "exists": true,
           "sha256": "124558f69e13d3947dfe02f53d932fcab921219abae27918069529f15bab41ef",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/TEST_RESULTS.json",
+          "path": "batch-6/claim-recovery/TEST_RESULTS.json",
           "exists": true,
           "sha256": "fd9756a86743b3d556e1f5b55e5c451fb8194f1ed4012ccea8601ca6a0305039",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/FAILURE_STATUS.json",
+          "path": "batch-6/claim-recovery/FAILURE_STATUS.json",
           "exists": true,
           "sha256": "d0ff6bb94bc2f86f74cdd23e045952c37cd2565d780e88af379f9bfbe6b5a8de",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/CHANGE_REVIEW.md",
+          "path": "batch-6/claim-recovery/CHANGE_REVIEW.md",
           "exists": true,
           "sha256": "2fd09f00203801d59bd385be6c05c00f71decbfa36fdb5cf585f2456e91f7e05",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/claim-recovery/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/claim-recovery/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "74986f59727be5e5213ad8b132a855292e82034b125e6d3061461d9a4edc40a7",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00",
           "source_state": "Local claim recovery evidence; no policy change or production qualification"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/REPORT.md",
+          "path": "batch-6/issuance-timing/REPORT.md",
           "exists": true,
           "sha256": "12d098122562b52db0a12c3b998ae61aa371ec7efad024e570207af0e2effe39",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/APPROVAL.json",
+          "path": "batch-6/issuance-timing/APPROVAL.json",
           "exists": true,
           "sha256": "3281101bba9443761fea9d9f2d5b2910334def8c9cc9f6d52f36b094625ae220",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/TEST_RESULTS.json",
+          "path": "batch-6/issuance-timing/TEST_RESULTS.json",
           "exists": true,
           "sha256": "8d558493cab54750808544b4b60dd47867b660ebb5d6b2578bea928a93da742c",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
+          "path": "batch-6/issuance-timing/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "14126032963b73453ea4565ebf0d6667e238260b44ef11c7cdc58a40b87daa6a",
           "source_state": "Approved issuance timing implemented and locally checked; production unqualified",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/REPORT.md",
+          "path": "batch-7/REPORT.md",
           "exists": true,
           "sha256": "5d40179b0494388d02952e45d6bc1c310f9dfb157b3f0e7d42155e957554f4c7",
           "source_state": "local qualification evidence; not release-qualified",
@@ -4549,7 +4549,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/TEST_RESULTS.json",
+          "path": "batch-7/TEST_RESULTS.json",
           "exists": true,
           "sha256": "147243a8fcde397fb2d28387eb6e0adae1c2be227cb1421b03438a4161172553",
           "source_state": "local qualification evidence; not release-qualified",
@@ -4557,7 +4557,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/network/RESULT.json",
+          "path": "batch-7/network/RESULT.json",
           "exists": true,
           "sha256": "784c948b90b833ddca7254122e51aaa8fbc5e6765c8505e9dc3430d69cbaa01d",
           "source_state": "local qualification evidence; not release-qualified",
@@ -4565,7 +4565,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/SOURCE_REVIEW.md",
+          "path": "batch-7/SOURCE_REVIEW.md",
           "exists": true,
           "sha256": "3821a7e47be8d19d71f4cfa25054be80c835616b5eb5e701de9fd29cda539300",
           "source_state": "local qualification evidence; not release-qualified",
@@ -4573,7 +4573,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-7/evidence/SOURCE_AFTER.json",
+          "path": "batch-7/evidence/SOURCE_AFTER.json",
           "exists": true,
           "sha256": "320a5ced27b419f1b797cadb1074949f0bdbc5d51a7b9f7feed784219567a704",
           "source_state": "local qualification evidence; not release-qualified",
@@ -4581,28 +4581,28 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/REPORT.md",
+          "path": "batch-8/REPORT.md",
           "exists": true,
           "sha256": "f06f25025c808572d0b5b5a368dad156fafbdc7f3040e53d0c70cb024958a37b",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/POLICY_PROPOSAL.md",
+          "path": "batch-8/POLICY_PROPOSAL.md",
           "exists": true,
           "sha256": "1e2e063ebbef6fab91c6f3889d98b1df603e9909fc6bb05a0b71bbfbd4496265",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/POLICY_PROPOSAL.json",
+          "path": "batch-8/POLICY_PROPOSAL.json",
           "exists": true,
           "sha256": "30270668cf4e9b52d0dc0d5867f4d84589f28f97fdf1f1fecb703a2df137c571",
           "source_state": "proposed policy; not approved or implemented",
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/batch-8/IMPLEMENTATION_PLAN.md",
+          "path": "batch-8/IMPLEMENTATION_PLAN.md",
           "exists": true,
           "sha256": "bc16ae07addbde55fd555424908b4f28e18b876a0de22f104a0c411d4973f117",
           "source_state": "proposed policy; not approved or implemented",
@@ -4629,7 +4629,7 @@
       "release_destination": "Release evidence registry.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md",
+          "path": "assessment/release-operations.md",
           "exists": true,
           "sha256": "384909b781151a2b16d54ac6c81bc8629be96d0a2e3b6a1b4983792af45f30c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4637,7 +4637,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/final-checks.json",
+          "path": "evidence/final-checks.json",
           "exists": true,
           "sha256": "97de6b862dcb6f5d1045412ab1833433af69d82e401d4f745f2c20afe6615803",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4677,7 +4677,7 @@
       "release_destination": "Release evidence registry and public conservative capacity guidance.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/evidence/TEST_BASELINE.json",
+          "path": "evidence/TEST_BASELINE.json",
           "exists": true,
           "sha256": "e934a3c3adaa4890aa7ee98452cc5a1ddfba223585f347e1c3fbbadd650f45c7",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4685,7 +4685,7 @@
           "hash_verified_at_utc": "2026-09-11T13:57:45.743385+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/USER_LAUNCH_REQUIREMENTS.txt",
+          "path": "USER_LAUNCH_REQUIREMENTS.txt",
           "exists": true,
           "sha256": "a8fac1c8140d0b7f3b5156d4455bc62e6b7a502a8d42c44cb8566678f7a9ec11",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4729,7 +4729,7 @@
       "release_destination": "Public protocol configuration and protected per-host operator store.",
       "evidence": [
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/MAINNET_V1_SPEC.md",
+          "path": "MAINNET_V1_SPEC.md",
           "exists": true,
           "sha256": "f986dda6090e52a82f0ed698925918c7d1d2887efafa267b65e29e36983efa86",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4737,7 +4737,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/GENESIS_MANIFEST.json",
+          "path": "GENESIS_MANIFEST.json",
           "exists": true,
           "sha256": "eb28772292d9268b8dc17921413ce7fd1eda8318dd5da66c6d4f637232eb0fc2",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -4745,7 +4745,7 @@
           "hash_verified_at_utc": "2026-09-12T03:45:14.323200+00:00"
         },
         {
-          "path": "/Users/rickglenn/Developer/Dytallix-mainnet-launch/PRODUCTION_INFRASTRUCTURE_DRAFT.json",
+          "path": "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
           "exists": true,
           "sha256": "892e02f38abff65cb188aa112f0b37dd22befd40e28e07515520f66270b12d37",
           "source_state": "active development file; outside snapshot; not release-qualified",
@@ -5112,5 +5112,6 @@
   "canonical_gate_register_ref": "LAUNCH_GATES.json",
   "canonical_gate_view_ref": "MAINNET_GATE_MASTER.md",
   "gate_consolidation_ref": "decision-register/gate-consolidation-20260912/RECONCILIATION_REPORT.md",
-  "artifact_status_scope": "Existing artifact states and narratives record package-level delivery history. They do not override the canonical readiness gate list."
+  "artifact_status_scope": "Existing artifact states and narratives record package-level delivery history. They do not override the canonical readiness gate list.",
+  "path_scope": "Relative paths resolve from this folder (mainnet/launch/). Paths under assessment/, batch-*/, decision-register/, evidence/ and snapshots/ name files in the local launch evidence archive. Paths under verification-launch-rehearsals/ name local launch rehearsal output. Both are held outside the public repository. Paths beginning with ../ name the matching mainnet/ folders of this repository. Each sha256 records the file as verified at its hash_verified_at_utc time; later edits change the current digest."
 }

@@ -6,7 +6,7 @@ Status: **DRAFT. NOT APPROVED. NOT IMPLEMENTED.**
 
 This draft defines a candidate architecture and its required records. It does not select a provider, buy resources, assign operators, or approve launch. The approved mainnet inventory is empty. Batch 1 verified one existing Hetzner host and six service observations. No provider resources, addresses, operator identities, budgets, or test results were invented.
 
-The companion [JSON record](/Users/rickglenn/Developer/Dytallix-mainnet-launch/PRODUCTION_INFRASTRUCTURE_DRAFT.json) contains the asset schema, empty inventories, record templates, decisions, and acceptance checks. The [static assessment](/Users/rickglenn/Developer/Dytallix-mainnet-launch/assessment/release-operations.md) identifies current release and operations blockers. Frozen source snapshots remain unchanged.
+The companion [JSON record](PRODUCTION_INFRASTRUCTURE_DRAFT.json) contains the asset schema, empty inventories, record templates, decisions, and acceptance checks. The static release and operations assessment identifies current release and operations blockers. It is held outside the public repository. Frozen source snapshots remain unchanged.
 
 ## Candidate architecture
 
