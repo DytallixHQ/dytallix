@@ -100,6 +100,33 @@ view holds:
 
 Counters are decimal strings. Due expiries are already applied.
 
+**T-c2: the builder.** `dytallix_sdk::recovery` has five parts:
+- **`build`.** It builds each of the nine actions from the view: counters,
+  pending IDs, the timing version, and random request or update IDs unless
+  given. It checks each action's preconditions and names the signers:
+  - operation keys that must all sign;
+  - a guardian quorum;
+  - the exact possession keys.
+- **`sign`.** ML-DSA-65, empty context, over the node's signing bytes.
+- **`assemble`.** It verifies every signature, drops duplicates, refuses
+  unnamed keys, checks the quorum and the possession set, and orders the
+  signatures.
+- **`sponsor`.** A separate, normal account signs with its active key. Its
+  generation and sponsor nonce come from its view. It checks the gas
+  bounds, a charge of at least gas limit times price and at most the cap,
+  and an expiry above the height.
+- **`transaction` and `authorization_id`.** The submitted bytes, and the ID
+  of the sponsor receipt.
+
+The codecs are the vendored protocol types, so the bytes are the node's.
+The client gains `query_recovery_account`, `check_recovery_tx`,
+`submit_recovery_sync` and the verified `query_recovery_receipt`.
+
+The CLI's `dytallix recovery` has `query`, `prepare`, `sign`, `assemble`,
+`sponsor`, `submit` and `receipt`. All but `query`, `submit` and `receipt`
+work offline, with version 1 files: the operation, the signature, the
+signed operation and the transaction. See `sdk/docs/recovery-cli.md`.
+
 ## Steps
 
 | Step | Content |

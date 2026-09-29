@@ -34,6 +34,8 @@ pub mod keystore;
 pub mod ordinary_client;
 pub mod ordinary_v2;
 pub mod ordinary_v3;
+/// Recovery transactions (E04 gap 17).
+pub mod recovery;
 pub mod transaction;
 
 use std::fmt;

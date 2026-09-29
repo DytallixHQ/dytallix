@@ -43,6 +43,8 @@ enum Commands {
     Send(SendArgs),
     /// Prepare, sign, and submit ordinary-v2 transactions with explicit context.
     Ordinary(OrdinaryArgs),
+    /// Account recovery transactions, signed by each party offline.
+    Recovery(commands::recovery::RecoveryArgs),
     /// Request testnet tokens from the faucet.
     #[cfg(feature = "legacy-network")]
     Faucet(FaucetArgs),
@@ -78,6 +80,7 @@ async fn main() -> anyhow::Result<()> {
     let ordinary_command = matches!(
         &cli.command,
         Commands::Ordinary(_)
+            | Commands::Recovery(_)
             | Commands::Governance(_)
             | Commands::Send(_)
             | Commands::Stake(_)
@@ -90,6 +93,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Balance(args) => commands::balance::run(args).await,
         Commands::Send(args) => commands::send::run(args).await,
         Commands::Ordinary(args) => commands::ordinary::run(args).await,
+        Commands::Recovery(args) => commands::recovery::run(args).await,
         #[cfg(feature = "legacy-network")]
         Commands::Faucet(args) => commands::faucet::run(args).await,
         Commands::Stake(args) => commands::stake::run(args).await,

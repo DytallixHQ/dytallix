@@ -13,7 +13,7 @@ cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli 
 `legacy-network` adds the public testnet commands: `init`, `faucet`,
 `contract`, `chain`, `node`, `dev` and `legacy`. The default build has only
 the consensus-chain commands (`send`, `stake`, `balance`, `governance`,
-`ordinary`, `wallet`, `crypto` and `config`):
+`ordinary`, `recovery`, `wallet`, `crypto` and `config`):
 
 ```bash
 cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
@@ -27,9 +27,11 @@ dytallix --help
 
 ## Local State
 
-- Keystore: `~/.dytallix/keystore.json`, written owner-only (mode 0600). It
-  holds private keys unencrypted (format version 1); keep the disk
-  encrypted. Encryption at rest is planned.
+- Keystore: `~/.dytallix/keystore.json`, written owner-only (mode 0600).
+  Version 2 encrypts each private key with AES-256-GCM under an Argon2id key
+  from your passphrase (typed without echo, or read from the owner-only file
+  named by `DYTALLIX_KEYSTORE_PASSPHRASE_FILE`). A version 1 file holds
+  plaintext keys; `dytallix wallet migrate` encrypts it.
 - Config: `~/.dytallix/config.json`
 - Pinned chain: `~/.dytallix/chain.json` (`dytallix config pin-chain`)
 
@@ -48,6 +50,7 @@ including errors, carries `output_version`.
 | `faucet` | Request faucet funds or inspect eligibility | `dytallix faucet status` |
 | `stake` | Bond, begin unbonding and claim rewards on the pinned chain | `dytallix stake bond --validator <id> --amount 10 --gas-limit <n> --maximum-fee-udrt <n>` |
 | `governance` | Propose, deposit and vote on the pinned chain (ordinary v3) | `dytallix governance vote --proposal-id 7 --choice yes --gas-limit <n> --maximum-fee-udrt <n>` |
+| `recovery` | Account recovery: prepare, sign offline per party, assemble, sponsor, submit ([recovery CLI](recovery-cli.md)) | `dytallix recovery prepare --view view.json --request request.json --expiry-height <h> --output op.json` |
 | `contract` | Deploy, call, query, and inspect contracts | `dytallix contract info <address>` |
 | `node` | Operate or inspect a local node workflow | `dytallix node status` |
 | `chain` | Query block, epoch, status, and chain params | `dytallix chain status` |
