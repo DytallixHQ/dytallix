@@ -44,6 +44,10 @@ base64 = { workspace = true }
 # Keystore passphrases without echo (E04 gap 16).
 rpassword = "7"
 zeroize = "1"
+# The loopback browser companion, `dytallix gateway` (E04 gap 19, C-d).
+hyper = { workspace = true, features = ["server"] }
+hyper-util = { workspace = true }
+http-body-util = { workspace = true }
 
 [dev-dependencies]
 base64 = { workspace = true }

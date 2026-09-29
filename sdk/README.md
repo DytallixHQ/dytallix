@@ -128,6 +128,11 @@ command that reads or writes, takes one of two forms:
 HTTPS and plain HTTP to a remote host are refused. `config pin-chain` stores
 the chain in `~/.dytallix/chain.json`.
 
+For a browser wallet, run `dytallix gateway serve --listen 127.0.0.1:4173` on
+the same machine. It relays the page's JSON-RPC to the pinned chain, and can
+serve a wallet bundle pinned by digest. See the
+[CLI reference](docs/cli-reference.md#gateway).
+
 See [Getting started](docs/getting-started.md) and the
 [CLI reference](docs/cli-reference.md) for the full flow.
 

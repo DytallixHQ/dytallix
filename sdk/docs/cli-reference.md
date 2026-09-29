@@ -43,6 +43,7 @@ including errors, carries `output_version`.
 | `recovery` | Account recovery: prepare, sign offline per party, assemble, sponsor, submit ([recovery CLI](recovery-cli.md)) | `dytallix recovery prepare --view view.json --request request.json --expiry-height <h> --output op.json` |
 | `crypto` | Key generation, signing, verification, and keystore inspection | `dytallix crypto keygen` |
 | `config` | Show the pinned chain; pin the consensus chain | `dytallix config pin-chain ...` |
+| `gateway` | Serve a browser wallet on this machine and relay it to the pinned chain | `dytallix gateway serve --listen 127.0.0.1:4173` |
 
 ## Command Groups
 
@@ -224,6 +225,49 @@ dytallix config show
 dytallix config pin-chain --endpoint ./endpoint-pin.json --network <mainnet|testnet|development> \
   --chain-id <chain-id> --genesis-digest <sha256-of-genesis-hex>
 ```
+
+### `gateway`
+
+Browsers cannot use post-quantum certificates, so there is no public HTTPS
+endpoint. `dytallix gateway serve` is the browser path. It runs on your
+machine, at a literal loopback address, which browsers treat as a secure
+context:
+
+```bash
+dytallix gateway serve --listen 127.0.0.1:4173
+dytallix gateway serve --listen 127.0.0.1:4173 --bundle ./wallet --bundle-sha256 <digest>
+dytallix gateway bundle-digest ./wallet
+```
+
+It prints its URL. Open that URL in the browser.
+
+- **`POST /rpc`** relays one JSON-RPC request to the pinned chain's
+  endpoint, over the client channel or loopback HTTP. `--endpoint`
+  overrides the endpoint, as on other commands. The node's own method
+  allowlist applies.
+- **`GET /chain`** reports the pinned network, chain ID, genesis digest
+  and endpoint.
+- **With `--bundle`,** it serves a wallet page from a directory. The
+  page's digest must match `--bundle-sha256`, the SHA-256 of the bundle's
+  manifest. The manifest is one `<sha256>  <path>` line per file, sorted
+  by path, as `sha256sum` prints it; `bundle-digest` computes it. Take the
+  digest from a source you trust.
+  - The files are read once, at startup.
+  - A changed file stops startup.
+  - Symlinks are refused.
+
+Only pages the gateway serves can use it. It refuses:
+- a `Host` other than its own address, such as a rebound DNS name or
+  `localhost`;
+- an `Origin` other than its own;
+- a cross-site or same-site fetch;
+- a POST that is not `application/json`.
+
+It answers no CORS preflight. Every response forbids caching, framing and
+cross-origin use, and carries a Content-Security-Policy that lets a page
+run only its own scripts and WebAssembly and talk only to the gateway.
+There is no key custody in the gateway: a page signs its own
+transactions.
 
 ## Production cryptographic profile
 

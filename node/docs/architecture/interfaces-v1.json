@@ -1069,7 +1069,7 @@
       "id": "cli-commands",
       "group": "cli",
       "exposure": "external",
-      "format": "dytallix: wallet, balance, send, ordinary, recovery, stake, governance, crypto, config (show, pin-chain). The legacy testnet commands were removed (E04 gap 19).",
+      "format": "dytallix: wallet, balance, send, ordinary, recovery, stake, governance, crypto, config (show, pin-chain) and gateway. The legacy testnet commands were removed (E04 gap 19).",
       "version": {
         "field": "crate version",
         "literal": {
@@ -1085,6 +1085,37 @@
         {
           "file": "sdk/crates/dytallix-cli/src/main.rs",
           "name": "cli_structure_help"
+        }
+      ]
+    },
+    {
+      "id": "cli-gateway",
+      "group": "cli",
+      "exposure": "external",
+      "format": "dytallix gateway serve (E04 gap 19, C-d): a literal loopback HTTP listener for browser pages. POST /rpc relays one JSON-RPC request to the pinned chain's endpoint; GET /chain reports the pinned chain; other GETs serve a wallet bundle pinned by the SHA-256 of its sha256sum-style manifest (gateway bundle-digest). It refuses another Host, Origin or cross-site fetch and non-JSON posts, answers no CORS preflight, and sends a strict Content-Security-Policy.",
+      "version": {
+        "none": "The loopback API has one form; the relayed JSON-RPC is the node's own."
+      },
+      "source": {
+        "file": "sdk/crates/dytallix-cli/src/commands/gateway.rs",
+        "symbol": "pub enum GatewayCommand"
+      },
+      "tests": [
+        {
+          "file": "sdk/crates/dytallix-cli/tests/gateway_cli.rs",
+          "name": "the_gateway_relays_only_its_own_pages"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/tests/gateway_cli.rs",
+          "name": "a_pinned_bundle_is_served_and_a_changed_one_is_refused"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/tests/gateway_cli.rs",
+          "name": "the_gateway_relays_over_the_client_channel"
+        },
+        {
+          "file": "sdk/crates/dytallix-cli/src/commands/gateway.rs",
+          "name": "a_bundle_digest_is_its_sorted_sha256sum_manifest"
         }
       ]
     },

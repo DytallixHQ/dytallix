@@ -45,6 +45,8 @@ enum Commands {
     Crypto(CryptoArgs),
     /// Configuration management.
     Config(ConfigArgs),
+    /// Serve a browser wallet on this machine and relay it to the pinned chain.
+    Gateway(commands::gateway::GatewayArgs),
 }
 
 #[tokio::main]
@@ -70,6 +72,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Governance(args) => commands::governance::run(args).await,
         Commands::Crypto(args) => commands::crypto::run(args).await,
         Commands::Config(args) => commands::config::run(args).await,
+        Commands::Gateway(args) => commands::gateway::run(args).await,
     };
 
     if let Err(err) = result {
