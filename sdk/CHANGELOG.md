@@ -6,6 +6,10 @@
 
 - Documentation hub and linked reference pages
 - Example index for runnable repository flows
+- `dytallix gateway`, the local browser companion (E04 gap 19): it relays a
+	page's JSON-RPC from a loopback address to the pinned chain, over the
+	client channel or loopback HTTP, and serves a wallet bundle pinned by its
+	manifest digest; `gateway bundle-digest` computes the digest
 
 ### Changed
 

@@ -373,6 +373,66 @@ the SDK lockfile loses 1,107 lines.
 **Docs.** The SDK docs no longer describe the public testnet, the faucet,
 contracts or a default public endpoint.
 
+## Browser companion (C-d)
+
+`dytallix gateway serve --listen 127.0.0.1:PORT` is the browser path of
+decision 2. It listens only on a literal loopback address, which browsers
+treat as a secure context, and uses the pinned chain or an `--endpoint`
+override.
+
+- **`POST /rpc`** relays one JSON-RPC request unchanged, through
+  `CometClient::relay`, over the client channel or loopback HTTP.
+  - The body must be `application/json`, at most 1 MiB, and a JSON object
+    or array.
+  - The node's allowlist and bounds apply.
+- **`GET /chain`** reports the pinned network, chain ID, genesis digest and
+  endpoint.
+- **Other GETs** serve a wallet bundle, but only with
+  `--bundle DIR --bundle-sha256 DIGEST`.
+  - The digest is the SHA-256 of the bundle's manifest: one
+    `<sha256>  <path>` line per file, sorted by path, as `sha256sum`
+    prints it. `gateway bundle-digest` computes it.
+  - The files are read once, at startup. A digest mismatch stops startup,
+    and symlinks are refused.
+  - Bounds: 1,024 files and 64 MiB.
+
+**Only the gateway's own pages can use it.**
+- **Host.** It refuses a `Host` other than its own literal `IP:PORT`, which
+  stops DNS rebinding. `localhost` is refused too.
+- **Origin.** It refuses an `Origin` other than its own.
+- **Fetch site.** It refuses a `Sec-Fetch-Site` other than `same-origin` or
+  `none`.
+- **POST body.** It refuses a POST that is not JSON.
+- **CORS.** It answers no preflight and sends no CORS headers, so another
+  site can neither send it JSON nor read its answers.
+- **Response headers.** Every response carries `no-store`, `nosniff`,
+  `no-referrer`, `DENY` framing, same-origin resource and opener policies,
+  and a Content-Security-Policy. The policy allows the page's own scripts
+  and WebAssembly (`'wasm-unsafe-eval'`) and connections to the gateway
+  only.
+- **Capacity.** It accepts loopback peers only, holds at most 16
+  connections, and bounds each at 40 seconds.
+
+It holds no keys: a page signs its own transactions. No Dytallix wallet
+bundle exists yet. When one ships, its digest must reach users through a
+channel they already trust, as endpoint pins do.
+
+### Tests (C-d)
+
+These run the real binary and speak raw HTTP:
+- the gateway's own page and a local program are relayed;
+- a foreign `Origin`, `null`, cross-site and same-site fetches, a rebound
+  `Host` and `localhost` are refused before the node sees anything;
+- a form post (`text/plain`) is refused (415), non-JSON bodies are
+  refused (400), and a preflight gets 405 without CORS headers;
+- `/chain` reports the pin;
+- a pinned bundle is served with its content types and headers, and paths
+  outside it are 404;
+- a changed file, or a bundle without a digest, stops startup;
+- non-loopback listen addresses are refused;
+- a page's request crosses the gateway and the client channel to a real
+  endpoint.
+
 ## Classical code left after gap 19
 
 - **The engine fork's source.** The upstream classical packages remain in

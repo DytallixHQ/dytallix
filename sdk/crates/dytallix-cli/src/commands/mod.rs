@@ -4,6 +4,7 @@ pub mod balance;
 pub mod config;
 pub mod consensus;
 pub mod crypto;
+pub mod gateway;
 pub mod governance;
 pub mod ordinary;
 pub(crate) mod passphrase;

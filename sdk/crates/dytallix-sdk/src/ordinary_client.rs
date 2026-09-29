@@ -168,6 +168,13 @@ impl CometClient {
     pub fn endpoint(&self) -> &Endpoint {
         &self.endpoint
     }
+    /// Forwards one JSON-RPC request body unchanged and returns the node's
+    /// response body, within this client's response bound. For local relays
+    /// such as the CLI's browser companion, which check the JSON themselves.
+    /// Nothing here is verified against the chain.
+    pub async fn relay(&self, body: Vec<u8>) -> Result<Vec<u8>> {
+        crate::transport::post(&self.endpoint, body, self.max_response_bytes).await
+    }
     async fn call<T: DeserializeOwned>(&self, method: &str, params: Value) -> Result<T> {
         let request = json!({"jsonrpc":"2.0","id":"ordinary-v2","method":method,"params":params});
         let body = serde_json::to_vec(&request).map_err(error)?;
