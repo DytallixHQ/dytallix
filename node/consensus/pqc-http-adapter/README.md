@@ -2,7 +2,7 @@
 
 This standalone Rust workspace provides a loopback HTTP/1 adapter for the experimental Go Unix RPC profile. Hyper 1.9.0 parses HTTP. The Go engine interprets JSON-RPC and owns chain state. This prototype cannot authorize production. The command rejects `--production` and requires an explicit experimental profile.
 
-The adapter contains no TLS implementation dependency. Its selected executable and operating-system providers still require inventory review. A plain loopback listener does not provide secure hosted-wallet ingress. No independent acceptance is supplied here.
+The adapter contains no TLS implementation dependency. Its selected executable and operating-system providers still require inventory review. A plain loopback listener does not provide secure hosted-wallet ingress; remote clients use the optional client channel listener below. No independent acceptance is supplied here.
 
 ## Start order
 
@@ -32,6 +32,29 @@ CORS permits only `http://127.0.0.1:4173`. Native requests without Origin remain
 
 The adapter returns 501 for WebSocket upgrades, `/websocket`, root browsing and URI-form POST. It does not implement HTTP/2, TLS, compression, signing, custody, or application RPC methods. Unsupported features remain available only through separately selected historical profiles. This does not approve their removal from a required production release.
 
+## Client channel listener
+
+Remote clients reach the node through the post-quantum client channel, not TLS (E04 gap 19; [client channel v1](../../docs/architecture/client-channel-v1.md)). Add these flags:
+
+```text
+--channel-listen IP:PORT --channel-network CHAIN_ID
+```
+
+- **Address.** An explicit IP: not unspecified, not multicast.
+- **Engine path.** The listener sends each request down the same path as HTTP: the client socket, the allowlist, the adapter's bounds and its fixed errors.
+- **Connection bounds.** At most 64 connections in all and 4 per client address. `--max-channel-connections` and `--max-channel-connections-per-address` only lower these.
+- **The key.** The endpoint signs with the seed in `HOME/config/client_channel_seed.bin`: 32 bytes, mode 0600, one link, owned by the service user. The adapter refuses a seed equal to the peer transport's.
+- **Readiness line.** It adds `channel_listen` and `channel_key_sha256`.
+
+`dytallix-channel-key` is built from this package. Run it as the service user:
+
+```text
+dytallix-channel-key generate --seed-file HOME/config/client_channel_seed.bin
+dytallix-channel-key pin --seed-file HOME/config/client_channel_seed.bin --network CHAIN_ID --address HOST:PORT --output pin.json
+```
+
+`generate` never replaces a file, and neither command prints the seed. The supervisor pins `pin.json` (`adapter_channel`) and probes the listener with its key before readiness.
+
 ## Build and local tests
 
 The package has an independent `[workspace]` and lockfile. It does not join or modify the node workspace. Dependencies use the existing pinned versions. Use one Cargo job and keep at least 2 GiB free disk.
@@ -41,6 +64,8 @@ CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 cargo build --locked --offline --release
 CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 cargo test --locked --offline --release
 python3 -B tools/test_loopback.py --binary target/release/dytallix-pqc-http-adapter --output /new/absolute/loopback-result.json
 ```
+
+`tools/test_loopback.py` starts the adapter without the owner guard's descriptors. The adapter now admits itself through that guard (Linux only), so the script no longer runs as is. The Rust tests cover both listeners.
 
 The loopback tests start the actual adapter and a private synthetic IPC fixture. They verify POST, chunked bodies, GET queries, CORS, unsupported interfaces, response-header policy, restart, and path permissions. They do not simulate consensus or prove transaction commitment. The fixture creates no private signing keys and removes its temporary directory.
 

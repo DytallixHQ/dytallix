@@ -395,3 +395,75 @@ fn fixed_seeds_give_the_recorded_transcript() {
         "74a0f0cae5e6ae2effe560bb09a8191384019f4e99d27d2b9c42c37616c759f8"
     );
 }
+
+#[test]
+fn endpoint_pins_are_strict() {
+    let key = identity(9).public_key().to_vec();
+    let pin = EndpointPin::new(NETWORK, "203.0.113.5:26670", &key).unwrap();
+    assert_eq!(EndpointPin::parse(&pin.to_json()).unwrap(), pin);
+    assert_eq!(pin.fingerprint(), fingerprint(&key));
+    assert_eq!(pin.fingerprint().len(), 64);
+    for address in ["node.example:26670", "[2001:db8::1]:26670", "127.0.0.1:1"] {
+        assert!(
+            EndpointPin::new(NETWORK, address, &key).is_ok(),
+            "{address}"
+        );
+    }
+    for address in [
+        "",
+        "host",
+        "host:",
+        "host:0",
+        "host:65536",
+        "host:01",
+        ":80",
+        "2001:db8::1:80",
+        "[nothost]:80",
+        "a b:80",
+    ] {
+        assert!(
+            EndpointPin::new(NETWORK, address, &key).is_err(),
+            "{address}"
+        );
+    }
+    assert!(EndpointPin::new("", "h:1", &key).is_err());
+    assert!(EndpointPin::new("a b", "h:1", &key).is_err());
+    assert!(EndpointPin::new(NETWORK, "h:1", &key[1..]).is_err());
+
+    let json: serde_json::Value = serde_json::from_slice(&pin.to_json()).unwrap();
+    let encoded = json["public_key_base64"].as_str().unwrap().to_owned();
+    // The key's last base64 digit carries unused bits; setting them is noncanonical.
+    let mut noncanonical = encoded.clone().into_bytes();
+    let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let at = noncanonical.len() - 2;
+    let digit = alphabet
+        .iter()
+        .position(|c| *c == noncanonical[at])
+        .unwrap();
+    noncanonical[at] = alphabet[digit ^ 1];
+    for (field, value) in [
+        ("version", serde_json::json!(2)),
+        ("extra", serde_json::json!(1)),
+        ("public_key_base64", serde_json::json!("AAAA")),
+        (
+            "public_key_base64",
+            serde_json::json!(String::from_utf8(noncanonical).unwrap()),
+        ),
+        ("network", serde_json::json!("")),
+    ] {
+        let mut changed = json.clone();
+        changed[field] = value;
+        assert!(
+            EndpointPin::parse(changed.to_string().as_bytes()).is_err(),
+            "{field}"
+        );
+    }
+    let duplicate = format!(
+        r#"{{"version":1,"version":1,"network":"{NETWORK}","address":"h:1","public_key_base64":"{encoded}"}}"#
+    );
+    assert!(EndpointPin::parse(duplicate.as_bytes()).is_err());
+    assert_eq!(
+        EndpointPin::parse(&vec![b' '; MAX_PIN_BYTES + 1]),
+        Err(Error::Limit)
+    );
+}

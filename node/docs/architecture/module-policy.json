@@ -97,6 +97,7 @@
         "dependencies": [
           "anyhow",
           "base64",
+          "dytallix-client-channel",
           "dytallix-fast-node",
           "dytallix-release-runtime",
           "hex",
@@ -117,10 +118,13 @@
       "allowed_dependencies": {
         "dependencies": [
           "aes-gcm",
+          "base64",
           "fips203",
           "fips204",
           "hkdf",
           "rand_core",
+          "serde",
+          "serde_json",
           "sha2",
           "subtle",
           "zeroize"

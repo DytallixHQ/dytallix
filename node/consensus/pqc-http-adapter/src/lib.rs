@@ -1,6 +1,10 @@
 //! Experimental loopback HTTP/1 adapter. No production authority or TLS provider.
 //! Hyper owns the HTTP parser. The Go engine owns JSON-RPC interpretation.
+//! An optional client channel listener (E04 gap 19) serves the same requests
+//! to remote clients over the post-quantum channel.
 #![forbid(unsafe_op_in_unsafe_fn)]
+
+pub mod channel;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use bytes::Bytes;
@@ -98,6 +102,7 @@ pub struct Config {
     pub listen: SocketAddr,
     pub socket: PathBuf,
     pub limits: Limits,
+    pub channel: Option<channel::ChannelConfig>,
 }
 
 impl Config {
@@ -106,11 +111,17 @@ impl Config {
         let mut listen = None;
         let mut profile = None;
         let mut limits = Limits::CEILING;
+        let mut channel = channel::ChannelArgs::default();
         let mut set = std::collections::BTreeSet::new();
         let mut args = args.into_iter();
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--production" => return Err("NO_GO: production is prohibited".into()),
+                flag if channel::ChannelArgs::FLAGS.contains(&flag)
+                    && set.insert(flag.to_owned()) =>
+                {
+                    channel.set(flag, args.next())?
+                }
                 "--home" if home.is_none() => home = args.next().map(PathBuf::from),
                 "--listen" if listen.is_none() => {
                     listen = Some(
@@ -144,16 +155,18 @@ impl Config {
         private_dir(&home.join("data"))?;
         let socket = home.join("data/rpc.sock");
         validate_socket(&socket)?;
+        let channel = channel.finish(&home)?;
         Ok(Self {
             home,
             listen,
             socket,
             limits,
+            channel,
         })
     }
 }
 
-fn own_metadata(path: &Path) -> Result<std::fs::Metadata, String> {
+pub(crate) fn own_metadata(path: &Path) -> Result<std::fs::Metadata, String> {
     let meta =
         std::fs::symlink_metadata(path).map_err(|_| "Required private path is unavailable")?;
     // This reads the calling process identity. It neither accesses nor loads keys.
@@ -212,7 +225,48 @@ struct IpcHeaders {
     cache_control: Option<String>,
 }
 
-fn decode_response(raw: &[u8], limits: &Limits) -> Result<Response<HttpBody>, String> {
+/// An engine answer, or a fixed local error, before it takes the HTTP or the
+/// channel form.
+pub(crate) struct Reply {
+    pub status: u16,
+    pub content_type: Option<String>,
+    pub cache_control: Option<String>,
+    pub body: Vec<u8>,
+}
+
+impl Reply {
+    /// Fixed local errors contain no request, transaction or key material.
+    pub(crate) fn error(status: StatusCode, message: &'static str) -> Self {
+        Reply {
+            status: status.as_u16(),
+            content_type: Some("application/json".into()),
+            cache_control: None,
+            body: serde_json::to_vec(&serde_json::json!({"error":message}))
+                .expect("fixed error JSON"),
+        }
+    }
+
+    fn into_http(self) -> Response<HttpBody> {
+        let mut http = Response::builder().status(self.status);
+        for (name, value) in [
+            (header::CONTENT_TYPE, self.content_type),
+            (header::CACHE_CONTROL, self.cache_control),
+        ] {
+            if let Some(value) = value {
+                match header::HeaderValue::from_str(&value) {
+                    Ok(parsed) => http = http.header(name, parsed),
+                    Err(_) => {
+                        return response(StatusCode::BAD_GATEWAY, "Engine RPC response failed")
+                    }
+                }
+            }
+        }
+        http.body(Full::new(Bytes::from(self.body)))
+            .unwrap_or_else(|_| response(StatusCode::BAD_GATEWAY, "Engine RPC response failed"))
+    }
+}
+
+fn decode_reply(raw: &[u8], limits: &Limits) -> Result<Reply, String> {
     let response: IpcResponse = serde_json::from_slice(raw).map_err(|_| "Invalid IPC response")?;
     if response.version != 1 || !(200..=599).contains(&response.status) {
         return Err("Unsupported IPC response version or final status".into());
@@ -223,29 +277,27 @@ fn decode_response(raw: &[u8], limits: &Limits) -> Result<Response<HttpBody>, St
     if body.len() > limits.max_response_body || STANDARD.encode(&body) != response.body_base64 {
         return Err("Noncanonical or excessive response body".into());
     }
-    let mut http = Response::builder().status(response.status);
-    for (name, value) in [
-        (header::CONTENT_TYPE, response.headers.content_type),
-        (header::CACHE_CONTROL, response.headers.cache_control),
-    ] {
-        if let Some(value) = value {
-            if value.len() > limits.max_header_bytes {
-                return Err("Excessive response header".into());
-            }
-            let parsed =
-                header::HeaderValue::from_str(&value).map_err(|_| "Invalid IPC response header")?;
-            http = http.header(name, parsed);
+    for value in [
+        &response.headers.content_type,
+        &response.headers.cache_control,
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if value.len() > limits.max_header_bytes {
+            return Err("Excessive response header".into());
         }
+        header::HeaderValue::from_str(value).map_err(|_| "Invalid IPC response header")?;
     }
-    http.body(Full::new(Bytes::from(body)))
-        .map_err(|_| "Invalid IPC response".to_owned())
+    Ok(Reply {
+        status: response.status,
+        content_type: response.headers.content_type,
+        cache_control: response.headers.cache_control,
+        body,
+    })
 }
 
-async fn forward(
-    socket: &Path,
-    frame: &[u8],
-    limits: &Limits,
-) -> Result<Response<HttpBody>, String> {
+async fn forward(socket: &Path, frame: &[u8], limits: &Limits) -> Result<Reply, String> {
     if frame.is_empty() || frame.len() > MAX_FRAME {
         return Err("Excessive request frame".into());
     }
@@ -274,17 +326,45 @@ async fn forward(
         .read_exact(&mut raw)
         .await
         .map_err(|_| "Incomplete IPC response")?;
-    decode_response(&raw, limits)
+    decode_reply(&raw, limits)
+}
+
+/// Sends one checked request to the engine's client socket within the
+/// deadline. Both listeners end here.
+pub(crate) async fn engine(
+    method: &str,
+    path: &str,
+    query: &str,
+    body: &[u8],
+    peer: SocketAddr,
+    socket: &Path,
+    limits: &Limits,
+) -> Reply {
+    let ipc = IpcRequest {
+        version: 1,
+        method,
+        path,
+        query,
+        body_base64: STANDARD.encode(body),
+        remote_addr: peer.to_string(),
+    };
+    let frame = match serde_json::to_vec(&ipc) {
+        Ok(frame) if frame.len() <= MAX_FRAME => frame,
+        _ => return Reply::error(StatusCode::PAYLOAD_TOO_LARGE, "Request frame exceeds limit"),
+    };
+    match timeout(limits.deadline, forward(socket, &frame, limits)).await {
+        Ok(Ok(reply)) => reply,
+        Ok(Err(_)) => Reply::error(StatusCode::BAD_GATEWAY, "Engine RPC response failed"),
+        Err(_) => Reply::error(StatusCode::GATEWAY_TIMEOUT, "Engine RPC deadline expired"),
+    }
 }
 
 fn response(status: StatusCode, message: &'static str) -> Response<HttpBody> {
-    // Fixed local errors contain no request, transaction or key material.
+    let reply = Reply::error(status, message);
     Response::builder()
-        .status(status)
+        .status(reply.status)
         .header(header::CONTENT_TYPE, "application/json")
-        .body(Full::new(Bytes::from(
-            serde_json::to_vec(&serde_json::json!({"error":message})).expect("fixed error JSON"),
-        )))
+        .body(Full::new(Bytes::from(reply.body)))
         .expect("fixed HTTP response")
 }
 fn add_cors(response: &mut Response<HttpBody>, permitted: bool) {
@@ -346,7 +426,7 @@ fn preflight(headers: &header::HeaderMap, cors: bool) -> Response<HttpBody> {
         .body(Full::new(Bytes::new()))
         .expect("fixed preflight")
 }
-fn valid_rpc_path(path: &str) -> bool {
+pub(crate) fn valid_rpc_path(path: &str) -> bool {
     path.len() <= 128
         && path.starts_with('/')
         && path.as_bytes()[1..]
@@ -435,23 +515,17 @@ async fn handle_inner(
     if parts.method == Method::GET && !bytes.is_empty() {
         return response(StatusCode::BAD_REQUEST, "GET body is unsupported");
     }
-    let ipc = IpcRequest {
-        version: 1,
-        method: parts.method.as_str(),
-        path: parts.uri.path(),
-        query: parts.uri.query().unwrap_or(""),
-        body_base64: STANDARD.encode(bytes),
-        remote_addr: peer.to_string(),
-    };
-    let frame = match serde_json::to_vec(&ipc) {
-        Ok(frame) if frame.len() <= MAX_FRAME => frame,
-        _ => return response(StatusCode::PAYLOAD_TOO_LARGE, "Request frame exceeds limit"),
-    };
-    match timeout(limits.deadline, forward(socket, &frame, limits)).await {
-        Ok(Ok(result)) => result,
-        Ok(Err(_)) => response(StatusCode::BAD_GATEWAY, "Engine RPC response failed"),
-        Err(_) => response(StatusCode::GATEWAY_TIMEOUT, "Engine RPC deadline expired"),
-    }
+    engine(
+        parts.method.as_str(),
+        parts.uri.path(),
+        parts.uri.query().unwrap_or(""),
+        &bytes,
+        peer,
+        socket,
+        limits,
+    )
+    .await
+    .into_http()
 }
 async fn handle(
     req: Request<Incoming>,
@@ -476,13 +550,41 @@ pub async fn serve(config: Config) -> Result<(), String> {
     let actual = listener
         .local_addr()
         .map_err(|_| "Cannot inspect listener")?;
-    println!(
-        "{}",
-        serde_json::json!({"status":"EXPERIMENTAL_LOCAL_ONLY","profile":PROFILE,"listen":actual.to_string(),"production_authorized":false,"launch_status":"NO_GO"})
-    );
+    let channel = match config.channel {
+        Some(channel) => {
+            let listener = TcpListener::bind(channel.listen)
+                .await
+                .map_err(|_| "Cannot bind channel listener")?;
+            Some((listener, channel))
+        }
+        None => None,
+    };
+    let mut ready = serde_json::json!({"status":"EXPERIMENTAL_LOCAL_ONLY","profile":PROFILE,"listen":actual.to_string(),"production_authorized":false,"launch_status":"NO_GO"});
+    if let Some((listener, channel)) = &channel {
+        let bound = listener
+            .local_addr()
+            .map_err(|_| "Cannot inspect channel listener")?;
+        ready["channel_listen"] = bound.to_string().into();
+        ready["channel_key_sha256"] = channel.fingerprint().into();
+    }
+    println!("{ready}");
     let limits = config.limits;
-    let capacity = Arc::new(Semaphore::new(limits.max_connections));
     let socket = Arc::new(config.socket);
+    match channel {
+        Some((channel_listener, channel)) => tokio::select! {
+            result = serve_http(listener, socket.clone(), limits) => result,
+            result = channel::serve(channel_listener, channel, socket, limits) => result,
+        },
+        None => serve_http(listener, socket, limits).await,
+    }
+}
+
+async fn serve_http(
+    listener: TcpListener,
+    socket: Arc<PathBuf>,
+    limits: Limits,
+) -> Result<(), String> {
+    let capacity = Arc::new(Semaphore::new(limits.max_connections));
     loop {
         let (stream, peer) = listener.accept().await.map_err(|_| "Listener failed")?;
         if !peer.ip().is_loopback() {
@@ -578,11 +680,11 @@ mod tests {
         let body = STANDARD.encode(vec![b'x'; 101]);
         let raw = format!(r#"{{"version":1,"status":200,"headers":{{}},"body_base64":"{body}"}}"#);
         let mut limits = Limits::CEILING;
-        assert!(decode_response(raw.as_bytes(), &limits).is_ok());
+        assert!(decode_reply(raw.as_bytes(), &limits).is_ok());
         limits
             .tighten("--max-response-body-bytes", Some("100".into()))
             .unwrap();
-        assert!(decode_response(raw.as_bytes(), &limits).is_err());
+        assert!(decode_reply(raw.as_bytes(), &limits).is_err());
     }
     #[test]
     fn production_and_unknown_profiles_refuse_before_paths() {
@@ -640,10 +742,7 @@ mod tests {
     #[test]
     fn exact_response_contract() {
         let raw=br#"{"version":1,"status":200,"headers":{"Content-Type":"application/json"},"body_base64":"e30="}"#;
-        assert_eq!(
-            decode_response(raw, &Limits::CEILING).unwrap().status(),
-            StatusCode::OK
-        );
+        assert_eq!(decode_reply(raw, &Limits::CEILING).unwrap().status, 200);
         for text in [
             r#"{"version":1,"version":1,"status":200,"headers":{},"body_base64":""}"#,
             r#"{"version":2,"status":200,"headers":{},"body_base64":""}"#,
@@ -653,7 +752,7 @@ mod tests {
             r#"{"version":1,"status":200,"headers":{},"body_base64":"e30"}"#,
             r#"{"version":1,"status":200,"headers":{},"body_base64":"","extra":true}"#,
         ] {
-            assert!(decode_response(text.as_bytes(), &Limits::CEILING).is_err());
+            assert!(decode_reply(text.as_bytes(), &Limits::CEILING).is_err());
         }
     }
 }

@@ -10,7 +10,7 @@ pub enum Stage {
     ObserveInitial, SecurityAfter, GuardRelease, EndpointAbsent, EndpointReady,
     ControlledObservation, EngineReadiness, AdapterReadiness, IpcConnect, IpcPeer, IpcFrame,
     StatusRpc, StatusValidation, ApplicationRpc, ApplicationValidation, ApplicationComparison,
-    ReadinessDeadline, AdapterListener, AdapterHttp, AdapterIdentity,
+    ReadinessDeadline, AdapterListener, AdapterHttp, AdapterIdentity, AdapterChannel,
 }
 impl Stage {
     fn name(self) -> &'static str {
@@ -27,6 +27,7 @@ impl Stage {
             Self::ApplicationRpc=>"application_rpc",Self::ApplicationValidation=>"application_validation",
             Self::ApplicationComparison=>"application_comparison",Self::ReadinessDeadline=>"readiness_deadline",
             Self::AdapterListener=>"adapter_listener",Self::AdapterHttp=>"adapter_http",Self::AdapterIdentity=>"adapter_identity",
+            Self::AdapterChannel=>"adapter_channel",
         }
     }
 }

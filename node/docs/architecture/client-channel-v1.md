@@ -148,8 +148,8 @@ two request forms and within its bounds.
   - Resumption: v1 has one exchange per connection.
   - Guaranteed erasure of Rust memory beyond `zeroize`.
 - **Endpoint costs.** Each hello costs the endpoint one encapsulation and one
-  signature. C-b bounds concurrent handshakes and per-address connections.
-  D12-Q01 sets the rates.
+  signature, run on the adapter's single thread. C-b bounds connections in
+  all and per client address. D12-Q01 sets the rates.
 - **Review.** The protocol has not had an independent review, which P02
   requires before production.
 
@@ -174,10 +174,106 @@ AES-GCM, and shares only this specification with the Rust crate.
 | Task | Scope |
 | --- | --- |
 | C-a | This design. The `dytallix-client-channel` crate and the Go cross-check. The contracts toolkit's CosmWasm bridge removed. A stale `ed25519-dalek` entry removed from the module policy. |
-| C-b | The endpoint: a channel listener in the node HTTP adapter (seed key file, chain ID, limits), the supervisor's service configuration, the execution policy and interface inventory, and a gateway contract that replaces TLS. |
+| C-b | The endpoint: a channel listener in the node HTTP adapter (seed key file, chain ID, limits), the key and pin tool, the supervisor's configuration and readiness probe, the interface inventory, and a public endpoint contract that replaces the TLS gateway. |
 | C-c | The SDK and CLI: the vendored channel crate; `--endpoint-key`; plain HTTP to loopback only; reqwest TLS and the legacy testnet client removed; a CI check that the SDK lockfile holds no classical crate. |
 | C-d | The companion, `dytallix gateway`. |
 | C-e | Peer transport wire version 2, with AES-256-GCM records. |
+
+## Endpoint (C-b)
+
+The node's HTTP adapter serves the channel beside its loopback HTTP
+listener. Both end in the same engine path: the client socket, the
+allowlist, the adapter's body, response and deadline bounds, and its fixed
+errors. The rewritten contract is the
+[public endpoint contract](rpc-controls-v1.md#public-endpoint-contract).
+
+### Endpoint key and pin
+
+- **The seed.** `HOME/config/client_channel_seed.bin` holds 32 bytes. It is
+  a regular file of the service user, mode 0600, with one link.
+  - `dytallix-channel-key generate --seed-file FILE` creates it and never
+    replaces a file.
+  - The adapter refuses a seed equal to the peer transport's
+    (`config/pqc_peer_seed.bin`), so the two role keys stay distinct.
+- **The pin.** `dytallix-channel-key pin --seed-file FILE --network CHAIN_ID --address HOST:PORT --output FILE`
+  writes the file that clients receive:
+
+  ```json
+  {"version":1,"network":"CHAIN_ID","address":"HOST:PORT","public_key_base64":"..."}
+  ```
+
+  - `address` is an IP literal (IPv6 in brackets) or a DNS name. The key,
+    not the address, authenticates the endpoint.
+  - The tool reports the key's SHA-256 fingerprint, for people to compare,
+    and never prints the seed.
+  - Clients trust a pin only as far as the channel through which they
+    received it.
+
+### Adapter
+
+`--channel-listen IP:PORT --channel-network CHAIN_ID` enables the listener.
+The address is explicit: neither unspecified nor multicast.
+- **Bounds.** At most 64 connections in all and 4 per client address.
+  `--max-channel-connections` and `--max-channel-connections-per-address`
+  can only lower them.
+- **Refusals.** A connection over either bound is closed at once.
+- **Deadline.** Each exchange ends at the adapter's deadline (10 s).
+- **Failures.** A handshake that fails closes the connection with no reply.
+- **Request errors.** After the handshake, a refused request gets the
+  loopback listener's error in channel form: 400, 413, 501, 502 or 504.
+- **Readiness line.** The adapter's readiness line adds the channel address
+  and the key fingerprint.
+
+### Supervisor
+
+`adapter_channel` in the service configuration holds `listen` and `pin` (a
+pinned input: path, SHA-256, bound), plus optional lowered limits. It
+requires `adapter_listen`.
+1. **Before start.** The pin's network must be the candidate's chain ID.
+   The supervisor then passes the channel flags to the adapter.
+2. **Readiness.** After the loopback readiness, it checks that the adapter
+   owns the channel listener. It then completes a channel exchange with the
+   pinned key. That exchange is a sealed `GET /status`, and it must report
+   the chain at the expected height. A seed that does not match the
+   published pin, or a broken listener, stops startup at the
+   `adapter_channel` stage.
+3. **Report.** The service report adds `channel_readiness`.
+
+### Operating an endpoint
+
+1. **Create the seed and the pin.** On the node host, as the service user,
+   run `dytallix-channel-key generate`, then `dytallix-channel-key pin` with
+   the chain ID and the public address.
+2. **Configure the supervisor.** Set `adapter_channel` with the listener
+   address and the pin's path and SHA-256.
+3. **Publish the pin** through a channel clients already trust, together
+   with its fingerprint.
+4. **If the key is exposed,** follow
+   [key compromise](../operations/key-compromise.md#channel-endpoint-key).
+   Version 1 has no key overlap: clients must replace the pin.
+
+### Tests (C-b)
+
+- **Adapter:**
+  - a GET and a POST cross the channel to a stand-in engine, which sees the
+    client's address;
+  - a client that pins another key gets nothing;
+  - refused requests get the loopback errors: 501, 400 and 413 at a
+    lowered body limit;
+  - an unavailable engine is a 502;
+  - seed files must be owner-only, single-link and 32 bytes;
+  - the channel flags are checked, and a partial set or a seed equal to
+    the peer transport's is refused;
+  - each client address has its own bound;
+  - the key tool generates, pins and never replaces a file.
+- **Supervisor:**
+  - `adapter_channel` pins a valid endpoint and becomes the adapter flags,
+    and bad listeners, limits, bounds and hashes are refused;
+  - the probe completes an exchange with the pinned key;
+  - another key, another network, a non-200 status or an oversized body
+    fails the probe.
+- **Channel crate:** the endpoint pin is strict about its fields, version,
+  key length, canonical base64, duplicate fields and size.
 
 ## Classical code left after gap 19
 

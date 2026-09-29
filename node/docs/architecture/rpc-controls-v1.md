@@ -25,6 +25,8 @@ public gateway in front of it must do.
    public gateway terminates TLS and enforces the contract below; client
    methods need no authentication, since transactions are signed and reads
    are public chain data. D12-Q01 sets the topology and the values.
+   Gap 19 (P01, 29 September 2026) replaced the TLS gateway: the public
+   endpoint is the adapter's client channel listener.
 
 ## Methods
 
@@ -91,29 +93,37 @@ stay fixed; a larger ceiling needs a new build.
 | `abci_query` refused by the application (unknown path, malformed identifier, historical height) | GET: HTTP 500; POST: JSON-RPC -32603, with the application's reason in the message |
 | Transaction results | code 0 success, 1 refused and not charged, 2 infrastructure failure, 3 charged failure (interfaces v1) |
 
-## Gateway contract
+## Public endpoint contract
 
-Gap 19 replaces item 1. The P01 decision of 29 September 2026 allows no TLS
-at a public edge, so a public endpoint serves the post-quantum
-[client channel](client-channel-v1.md) instead. C-b rewrites this contract
-around it.
+Rewritten by gap 19 (C-b). The P01 decision of 29 September 2026 allows no
+TLS at a public edge. A node's public endpoint is its HTTP adapter's
+[client channel](client-channel-v1.md) listener. No other node listener
+faces the network. The endpoint:
 
-A public gateway in front of a node's HTTP adapter must:
-
-1. Terminate TLS (1.3) with a certificate for its public name, and speak
-   plain HTTP/1.1 only to the adapter on loopback.
-2. Forward only the client methods above, in both request forms, and
-   answer every other method itself with the node's error form. It never
+1. **Serves only the client channel.** It uses ML-KEM-768 key exchange and
+   an ML-DSA-65 signature by the endpoint's own key. The operator publishes
+   that key's pin. There is no TLS, and no plaintext listener beyond
+   loopback.
+2. **Reaches only the client socket.** It forwards to `rpc.sock`, so only
+   the client methods above are served, in both request forms. It never
    reaches the operator socket.
-3. Enforce per-client rate and concurrency limits, and request and
-   response sizes and deadlines no looser than the node's (1 MiB, 1.5 MB,
-   10 s). D12-Q01 sets the rates.
-4. Refuse WebSocket upgrades, and cache only responses the adapter marks
-   cacheable.
-5. Require no authentication for client methods. Operator access is only
-   through the host.
-6. Log requests without bodies or client credentials; body logging would
-   record signed transactions before they are public.
+3. **Bounds each connection.** At most 64 connections in all and 4 per
+   client address; flags can lower both. The request and response sizes
+   and the deadline are the loopback listener's: 1 MiB, 1.5 MB and 10 s.
+4. **Offers no WebSocket or upgrade,** and carries one request per
+   connection.
+5. **Requires no client authentication,** since transactions are signed and
+   reads are public chain data. Operator access is only through the host.
+6. **Logs no requests.** Its one readiness line holds the listener address
+   and the key fingerprint. A log of bodies would record signed
+   transactions before they are public.
+
+A device in front of the endpoint may only pass TCP through, as a load
+balancer or firewall does. It cannot terminate the channel.
+- **Rates.** D12-Q01 sets the per-address handshake and request rates. The
+  adapter enforces concurrency, not rates.
+- **Handshake cost.** Each handshake costs the adapter one encapsulation
+  and one signature, run on its single thread.
 
 ## R-a implementation notes
 
