@@ -414,6 +414,8 @@ impl Receipt {
 pub struct BlockPlan {
     pub state: State,
     pub receipt: Option<Receipt>,
+    /// A restart applied before the block's transactions (restart v1).
+    pub restart: Option<restart::Receipt>,
     /// Commit this handover before stopping source execution. No binary writes.
     pub activated_release_sha512: Option<String>,
 }
@@ -515,6 +517,7 @@ pub fn plan_block(
         return Ok(BlockPlan {
             state: state.clone(),
             receipt: None,
+            restart: None,
             activated_release_sha512: None,
         });
     };
@@ -764,6 +767,7 @@ fn transition(
     Ok(BlockPlan {
         state: next,
         receipt: Some(receipt),
+        restart: None,
         activated_release_sha512,
     })
 }

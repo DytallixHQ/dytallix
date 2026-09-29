@@ -30,8 +30,8 @@ root, derived epoch observations).
 - **Runner.** `scripts/run_signed_fixture_tests.py` builds the tools, signs
   the three public fixtures (emergency, upgrade, and a second emergency key),
   sets the `DYT_*` variables and runs the ignored node library tests. It
-  fails unless exactly 21 pass, so a renamed or filtered test cannot drop
-  out silently. `--tools DIR` uses prebuilt tools on a host without Go.
+  fails unless exactly 22 pass (the 21 below and the restart test of gap 18),
+  so a renamed or filtered test cannot drop out silently. `--tools DIR` uses prebuilt tools on a host without Go.
 - **CI.** The node job runs the runner after the workspace tests.
 - **Drift fixed on the phase B layout.**
   - Two tests built an epoch observation by hand (`utilization_ppm:
@@ -86,7 +86,8 @@ hardened launch stays with E02 and T03.
   baseline.
 - **Runner and CI.** `scripts/run_signed_fixture_tests.py --process systemd`
   runs the three tests through `sudo systemd-run` with no_new_privs and the
-  production system call deny list, and fails unless exactly 3 pass. The
+  production system call deny list, and fails unless exactly 4 pass (the
+  three below and the restart test of gap 18). The
   node CI job runs it after the in-process tests. `--process none` runs
   them where both already apply, such as a container started with
   `--security-opt no-new-privileges`.

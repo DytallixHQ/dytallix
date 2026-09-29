@@ -456,6 +456,7 @@ fn run() -> Result<()> {
     let mut snapshot_keep = None;
     let mut metrics_dir = None;
     let mut metrics_interval = None;
+    let mut restart_path = None;
     while let Some(arg) = args.next() {
         let value = args.next().context("Each argument requires a value")?;
         let slot = match arg.as_str() {
@@ -472,6 +473,7 @@ fn run() -> Result<()> {
             "--snapshot-keep" => &mut snapshot_keep,
             "--metrics-dir" => &mut metrics_dir,
             "--metrics-interval-seconds" => &mut metrics_interval,
+            "--restart-authorization" => &mut restart_path,
             _ => bail!("Unsupported argument"),
         };
         ensure!(slot.replace(value).is_none(), "Duplicate argument");
@@ -514,6 +516,21 @@ fn run() -> Result<()> {
             || (development_root_path.is_some() && emergency_verifier_path.is_some()),
         "Candidate verification requires root and emergency configuration"
     );
+    // Restart v1 (E04 gap 18): the target release runs the halted block.
+    ensure!(
+        restart_path.is_none() || candidate_path.is_some(),
+        "--restart-authorization requires --development-candidate-config"
+    );
+    let restart = restart_path
+        .map(|path| -> Result<Vec<u8>> {
+            let mut bytes = Vec::new();
+            std::fs::File::open(path)?
+                .take(262_145)
+                .read_to_end(&mut bytes)?;
+            ensure!(bytes.len() <= 262_144, "Restart authorization exceeds limit");
+            Ok(bytes)
+        })
+        .transpose()?;
     let mut app = match (development_root_path, emergency_verifier_path) {
         (Some(root_path), Some(verifier_path)) => {
             let bytes = std::fs::read(verifier_path)?;
@@ -548,7 +565,7 @@ fn run() -> Result<()> {
             };
             // The unchanged root consumer verifies the signed manifest digest
             // before opening state. Candidate input cannot authorize a release.
-            ConsensusApplication::open_with_development_runtime_candidate(
+            ConsensusApplication::open_with_development_runtime_candidate_and_restart(
                 std::path::Path::new(&database),
                 config.clone(),
                 genesis,
@@ -556,6 +573,7 @@ fn run() -> Result<()> {
                 authorization,
                 serde_json::from_slice(&bytes)?,
                 candidate,
+                restart,
             )?
         }
         (Some(path), None) => {

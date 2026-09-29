@@ -14,8 +14,8 @@ keys:
 - the root-authorization test binary, whose TestExportDevelopmentGenesis
   signs development genesis bundles.
 
-By default it runs the 21 in-process tests. With --process (Linux only) it
-runs the three process tests instead (cross_binary_compat,
+By default it runs the 22 in-process tests. With --process (Linux only) it
+runs the four process tests instead (cross_binary_compat,
 release_handover_process): it also builds the owner launcher and two
 test builds of consensus_stdio with distinct bytes (feature
 test-snapshot-verifier; the second at opt-level 1), and each application
@@ -64,8 +64,8 @@ FIXTURES = {
 PROCESS_TESTS = ['cross_binary_compat', 'release_handover_process']
 SKIP = PROCESS_TESTS + ['ten_thousand']
 # A test dropped by a rename or a filter must fail the run, not shrink it.
-EXPECTED_IN_PROCESS = 21
-EXPECTED_PROCESS = 3
+EXPECTED_IN_PROCESS = 22
+EXPECTED_PROCESS = 4
 # The second application build differs only in the node crate's optimization.
 CANDIDATE_BUILD = ['--config', 'profile.dev.package.dytallix-fast-node.opt-level=1']
 
