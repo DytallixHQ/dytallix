@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, ensure, Context, Result};
 use clap::{Args, Subcommand};
 use dytallix_core::keypair::{DytallixKeypair, KeyScheme};
-use dytallix_sdk::ordinary_client::CometClient;
+use dytallix_sdk::ordinary_client::{CometClient, Endpoint};
 use dytallix_sdk::ordinary_v2::{
     self as ordinary, AccountAddress, AccountView, Action, AddressNetwork, FeeProfile, FeeQuote,
     KeyIdentity, KeypairSigner, OrdinaryTransaction, OriginKeyAlgorithm, PreparedTransaction,
@@ -19,7 +19,7 @@ use sha2::{Digest, Sha256};
 use super::bytes_to_hex;
 
 const MAX_FILE_BYTES: usize = 1_048_576;
-const MAX_RESPONSE_BYTES: usize = 1_048_576;
+pub(crate) const MAX_RESPONSE_BYTES: usize = 1_048_576;
 
 #[derive(Debug, Clone, Args)]
 pub struct OrdinaryArgs {
@@ -379,8 +379,35 @@ pub async fn run(args: OrdinaryArgs) -> Result<()> {
     Ok(())
 }
 
+/// A client for an `--endpoint` value (see [`endpoint`]).
 pub(crate) fn client(endpoint: &str) -> Result<CometClient> {
-    Ok(CometClient::new(endpoint, MAX_RESPONSE_BYTES)?)
+    Ok(CometClient::with_endpoint(
+        self::endpoint(endpoint)?,
+        MAX_RESPONSE_BYTES,
+    )?)
+}
+
+/// An `--endpoint` value: a node on this machine as `http://IP:PORT` with a
+/// literal loopback IP, or the path of a remote endpoint's pin file (client
+/// channel v1, E04 gap 19). There is no TLS.
+pub(crate) fn endpoint(value: &str) -> Result<Endpoint> {
+    if value.starts_with("http://") || value.starts_with("https://") {
+        return Ok(Endpoint::loopback(value)?);
+    }
+    #[cfg(feature = "comet-rpc")]
+    {
+        let raw = fs::read(value).with_context(|| {
+            format!("--endpoint is a loopback http://IP:PORT or a remote endpoint's pin file; cannot read {value}")
+        })?;
+        let pin = dytallix_sdk::ordinary_client::EndpointPin::parse(&raw)
+            .map_err(|_| anyhow!("{value} is not a valid endpoint pin file"))?;
+        Ok(Endpoint::Channel(pin))
+    }
+    // The local qualification build has no channel client.
+    #[cfg(not(feature = "comet-rpc"))]
+    Err(anyhow!(
+        "--endpoint is a loopback http://IP:PORT in this build"
+    ))
 }
 
 fn describe(body: &OrdinaryTransaction, profile: &FeeProfile, status: &str) -> Result<Value> {
@@ -428,7 +455,7 @@ pub(crate) fn load_signing_key(
         (Some(name), None) => {
             // Through the keystore: a version 2 keystore asks for its
             // passphrase, a version 1 one must be migrated (E04 gap 16).
-            let keystore = crate::commands::load_keystore()?;
+            let keystore = super::load_keystore()?;
             let mut entries = keystore
                 .list()
                 .into_iter()
@@ -442,7 +469,7 @@ pub(crate) fn load_signing_key(
                 matches!(entry.scheme, KeyScheme::MlDsa65 | KeyScheme::MlDsa87),
                 "ordinary signing requires ML-DSA-65 or ML-DSA-87"
             );
-            crate::commands::keypair_named(&keystore, name)
+            super::keypair_named(&keystore, name)
         }
         _ => Err(anyhow!("select exactly one wallet or private key file")),
     }

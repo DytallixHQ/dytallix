@@ -20,13 +20,17 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::bytes_to_hex;
-use super::ordinary::{client, load_signing_key};
+use super::ordinary::{endpoint as parse_endpoint, load_signing_key, MAX_RESPONSE_BYTES};
+use base64::{engine::general_purpose::STANDARD, Engine};
+use dytallix_sdk::ordinary_client::{Endpoint, EndpointPin};
 
 /// Commitment is polled once a second for `--wait-seconds`.
 const WAIT_INTERVAL: Duration = Duration::from_secs(1);
 
 /// Version of `chain.json` (interfaces v1); a file without one is version 1.
-pub(crate) const CHAIN_CONFIG_VERSION: u32 = 1;
+/// Version 2 (E04 gap 19) adds the endpoint key; version 1 files still load,
+/// with a loopback endpoint only.
+pub(crate) const CHAIN_CONFIG_VERSION: u32 = 2;
 
 /// The pinned chain and its node, from `dytallix config pin-chain`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,7 +38,11 @@ pub(crate) const CHAIN_CONFIG_VERSION: u32 = 1;
 pub(crate) struct ChainConfig {
     #[serde(default = "super::first_version")]
     pub(crate) version: u32,
+    /// A loopback `http://IP:PORT`, or a channel endpoint's `host:port`.
     pub(crate) endpoint: String,
+    /// The channel endpoint's full ML-DSA-65 key, from its pin file.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) endpoint_key_base64: Option<String>,
     pub(crate) network: Network,
     pub(crate) chain_id: String,
     /// Lowercase hexadecimal SHA-256 of the exact genesis file.
@@ -57,6 +65,70 @@ impl From<Network> for AddressNetwork {
     }
 }
 impl ChainConfig {
+    /// A new pin from `pin-chain`: the endpoint is a loopback URL or a
+    /// channel endpoint's pin file, which must name the same chain.
+    pub(crate) fn new(
+        endpoint: &str,
+        network: Network,
+        chain_id: String,
+        genesis_digest: String,
+    ) -> Result<Self> {
+        let (endpoint, endpoint_key_base64) = match parse_endpoint(endpoint)? {
+            Endpoint::Loopback(address) => (format!("http://{address}"), None),
+            Endpoint::Channel(pin) => {
+                ensure!(
+                    pin.network == chain_id,
+                    "the endpoint pin is for chain {}, not {chain_id}",
+                    pin.network
+                );
+                (pin.address, Some(STANDARD.encode(&pin.public_key)))
+            }
+        };
+        let config = ChainConfig {
+            version: CHAIN_CONFIG_VERSION,
+            endpoint,
+            endpoint_key_base64,
+            network,
+            chain_id,
+            genesis_digest,
+        };
+        config.pin()?;
+        Ok(config)
+    }
+    /// The pinned endpoint. A loopback URL needs no key; a remote endpoint
+    /// needs its key.
+    pub(crate) fn endpoint(&self) -> Result<Endpoint> {
+        let Some(encoded) = &self.endpoint_key_base64 else {
+            return Endpoint::loopback(&self.endpoint).map_err(|e| {
+                anyhow!("{e}; pin the chain again with the endpoint's pin file (`dytallix config pin-chain --endpoint PIN_FILE`)")
+            });
+        };
+        let key = STANDARD
+            .decode(encoded)
+            .ok()
+            .filter(|key| STANDARD.encode(key) == *encoded)
+            .context("the pinned endpoint key is not canonical base64")?;
+        let pin = EndpointPin::new(&self.chain_id, &self.endpoint, &key)
+            .map_err(|_| anyhow!("the pinned endpoint is not a valid host:port and key"))?;
+        Ok(Endpoint::Channel(pin))
+    }
+    /// A client for the pinned endpoint, or for an `--endpoint` override. A
+    /// channel endpoint must be for the pinned chain.
+    pub(crate) fn client(&self, endpoint: Option<&str>) -> Result<CometClient> {
+        let endpoint = match endpoint {
+            Some(value) => parse_endpoint(value)?,
+            None => self.endpoint()?,
+        };
+        if let Endpoint::Channel(pin) = &endpoint {
+            ensure!(
+                pin.network == self.chain_id,
+                "the endpoint pin is for chain {}, not the pinned chain {}",
+                pin.network,
+                self.chain_id
+            );
+        }
+        Ok(CometClient::with_endpoint(endpoint, MAX_RESPONSE_BYTES)?)
+    }
     pub(crate) fn path() -> PathBuf {
         super::config_path().with_file_name("chain.json")
     }
@@ -78,7 +150,8 @@ impl ChainConfig {
     }
     pub(crate) fn pin(&self) -> Result<ChainPin> {
         ensure!(
-            self.version == CHAIN_CONFIG_VERSION,
+            self.version == CHAIN_CONFIG_VERSION
+                || (self.version == 1 && self.endpoint_key_base64.is_none()),
             "unsupported pinned chain file version {}",
             self.version
         );
@@ -116,7 +189,8 @@ pub(crate) fn hex32(raw: &str) -> Result<[u8; 32]> {
 /// Node, signer and account selection shared by every consensus command.
 #[derive(Debug, Clone, Args)]
 pub struct Connection {
-    /// Comet RPC endpoint; defaults to the pinned chain's endpoint.
+    /// A loopback http://IP:PORT node or a remote endpoint's pin file;
+    /// defaults to the pinned chain's endpoint.
     #[arg(long)]
     endpoint: Option<String>,
     /// Keystore wallet to sign with; defaults to the active wallet.
@@ -135,7 +209,8 @@ pub struct Connection {
 pub struct ReadArgs {
     /// Account address on the pinned network; defaults to the signer's.
     address: Option<String>,
-    /// Comet RPC endpoint; defaults to the pinned chain's endpoint.
+    /// A loopback http://IP:PORT node or a remote endpoint's pin file;
+    /// defaults to the pinned chain's endpoint.
     #[arg(long)]
     endpoint: Option<String>,
     /// Keystore wallet whose address to read; defaults to the active wallet.
@@ -156,7 +231,7 @@ impl ReadArgs {
                 pin.origin_address(&key_identity(&key)?)?
             }
         };
-        let client = client(self.endpoint.as_deref().unwrap_or(&config.endpoint))?;
+        let client = config.client(self.endpoint.as_deref())?;
         Ok((pin, client, address))
     }
 }
@@ -164,7 +239,7 @@ impl ReadArgs {
 pub(crate) fn open_chain(endpoint: Option<&str>) -> Result<(ChainPin, CometClient)> {
     let config = ChainConfig::load()?;
     let pin = config.pin()?;
-    let client = client(endpoint.unwrap_or(&config.endpoint))?;
+    let client = config.client(endpoint)?;
     Ok((pin, client))
 }
 
@@ -198,7 +273,7 @@ impl Connection {
     pub(crate) fn open(&self) -> Result<Session> {
         let config = ChainConfig::load()?;
         let pin = config.pin()?;
-        let client = client(self.endpoint.as_deref().unwrap_or(&config.endpoint))?;
+        let client = config.client(self.endpoint.as_deref())?;
         let key = load_signer(self.wallet.as_deref(), self.key_file.as_deref())?;
         let identity = key_identity(&key)?;
         let address = match &self.account {

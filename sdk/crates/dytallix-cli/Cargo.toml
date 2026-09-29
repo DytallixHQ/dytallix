@@ -55,3 +55,4 @@ zeroize = "1"
 
 [dev-dependencies]
 base64 = { workspace = true }
+dytallix-client-channel = { path = "../../vendor/dytallix-client-channel" }

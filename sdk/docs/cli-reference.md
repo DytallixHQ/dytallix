@@ -114,6 +114,33 @@ dytallix config pin-chain --endpoint http://127.0.0.1:26657 --network testnet \
 `pin-chain` asks the node which chain it reports and refuses a mismatch;
 `--no-check` stores the pin without asking.
 
+### Reaching a node
+
+There is no TLS (E04 gap 19). `--endpoint`, on `pin-chain` and on every
+command that reads or writes, takes one of two forms:
+
+- **A node on this machine:** `http://127.0.0.1:PORT` or `http://[::1]:PORT`.
+  Plain HTTP goes only to a literal loopback address. HTTPS, DNS names and
+  other hosts are refused.
+- **A remote node:** the path of its endpoint pin file. The operator
+  publishes that file:
+
+  ```json
+  {"version":1,"network":"CHAIN_ID","address":"HOST:PORT","public_key_base64":"..."}
+  ```
+
+  - **The channel.** Requests cross the post-quantum client channel:
+    ML-KEM-768 key exchange, then an ML-DSA-65 signature by the endpoint's
+    key. The key is pinned in full.
+  - **Refusals.** An endpoint that cannot prove that key gets no request.
+    A pin for another chain is refused.
+  - **Trust.** Take the pin from a source you trust, and compare its key
+    fingerprint.
+
+`pin-chain` stores a pin file's address and key in `chain.json`, version
+2. A version 1 `chain.json` with a remote `http://` endpoint still loads,
+but it cannot connect: pin the chain again with the endpoint's pin file.
+
 Each write is one step. The CLI reads the account and fee profile from the
 node, refuses them unless the node reports the pinned chain, then prepares,
 signs, submits, and waits up to `--wait-seconds` (default 30; 0 returns after
@@ -355,7 +382,7 @@ Subcommands:
 - `set <key> <value>`
 - `network <testnet|local>`
 - `reset`
-- `pin-chain --endpoint <rpc> --network <mainnet|testnet|development> --chain-id <id> --genesis-digest <hex>`
+- `pin-chain --endpoint <http://loopback:port | endpoint-pin-file> --network <mainnet|testnet|development> --chain-id <id> --genesis-digest <hex>`
 
 Examples:
 

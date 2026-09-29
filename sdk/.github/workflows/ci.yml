@@ -35,9 +35,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Clippy
-        # Preserve the exact upstream protocol snapshot. Its lint policy belongs
+        # Preserve the exact upstream snapshots (protocol types, client channel). Their lint policy belongs
         # to the canonical node repository; tests still cover the whole workspace.
-        run: cargo clippy --locked --workspace --exclude dytallix-protocol-types --all-targets --no-deps -- -D warnings
+        run: cargo clippy --locked --workspace --exclude dytallix-protocol-types --exclude dytallix-client-channel --all-targets --no-deps -- -D warnings
       - name: Build
         run: cargo build --locked --all
       - name: Verify first keypair path

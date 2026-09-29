@@ -52,12 +52,18 @@ requires a reviewed hash security budget and compatible protocol definitions.
 The SDK's deterministic seed derivation is an application construction. These
 tests do not establish a FIPS-validated cryptographic module.
 
-SDK HTTP uses `reqwest` with default native TLS. On this macOS build its chain
-includes `native-tls`, `hyper-tls`, and `security-framework`. The SDK does not
-restrict TLS to post-quantum asymmetric authentication or key establishment.
-Default HTTPS therefore does not close G35 for a production RPC trust boundary.
-Qualify a PQC-authenticated transport or remove reliance on that channel for
-production authentication and integrity through a reviewed protocol.
+The Comet client uses no TLS (E04 gap 19).
+- **A node on this machine:** plain HTTP to a literal loopback address,
+  through hyper, which has no TLS code.
+- **A remote node:** the post-quantum client channel: ML-KEM-768 key
+  exchange, a pinned ML-DSA-65 endpoint key, and AES-256-GCM records. The
+  node documents it in `docs/architecture/client-channel-v1.md`.
+
+The default CLI and the `comet-rpc`, `ordinary-http-only` and
+`strict-local-mldsa65` graphs contain no TLS crate or reqwest. The legacy
+testnet client (`network`, `legacy-network`) still uses reqwest's default
+TLS. It leaves in C-c2. The channel still needs its independent protocol
+review before production.
 
 ## Acceptance criteria
 

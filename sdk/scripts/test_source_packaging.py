@@ -9,7 +9,7 @@ import tempfile
 import unittest
 import sys
 sys.dont_write_bytecode = True
-from check_protocol_vendor import verify
+from check_protocol_vendor import VENDORED, verify
 from package_sdk_source import package, source_files
 
 
@@ -58,6 +58,14 @@ class SourcePackagingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify(self.root)
 
+    def test_every_vendored_crate_is_checked(self):
+        self.assertEqual([c["package"] for c in verify(self.root)["crates"]],
+                         ["dytallix-protocol-types", "dytallix-client-channel"])
+        channel = self.root / "vendor/dytallix-client-channel/src/handshake.rs"
+        channel.write_bytes(channel.read_bytes() + b"\n")
+        with self.assertRaises(ValueError):
+            verify(self.root)
+
     def test_symlinked_source_rejects(self):
         source = self.vendor / "src/ordinary.rs"
         outside = self.root.parent / "ordinary.rs"
@@ -79,11 +87,12 @@ class SourcePackagingTests(unittest.TestCase):
 
     def test_optional_canonical_source_comparison_detects_drift(self):
         node = self.root.parent / "canonical-node"
-        manifest = json.loads(self.manifest.read_text())
-        for record in manifest["files"]:
-            path = node / record["source_path"]
-            path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(self.vendor / record["path"], path)
+        for spec in VENDORED:
+            manifest = json.loads((self.root / spec["manifest"]).read_text())
+            for record in manifest["files"]:
+                path = node / record["source_path"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(self.root / spec["vendor_path"] / record["path"], path)
         self.assertTrue(verify(self.root, node)["canonical_node_compared"])
         extra = node / "crates/protocol-types/src/new.rs"
         extra.write_text("unrecorded")

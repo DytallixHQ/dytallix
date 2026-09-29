@@ -6,7 +6,6 @@ use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
 
 use crate::commands::consensus::{ChainConfig, Network};
-use crate::commands::ordinary::client;
 use crate::commands::{
     config_path, display_path, ensure_cli_dir, load_config, save_config, CliConfig, NetworkProfile,
 };
@@ -43,7 +42,8 @@ pub enum ConfigCommand {
     /// governance. Take the chain ID and genesis digest from a source you
     /// trust, never from the node itself.
     PinChain {
-        /// Comet RPC endpoint of a node you trust.
+        /// A node you trust: a loopback http://IP:PORT, or a remote
+        /// endpoint's pin file (client channel v1). There is no TLS.
         #[arg(long)]
         endpoint: String,
         #[arg(long, value_enum)]
@@ -95,13 +95,7 @@ pub async fn run(args: ConfigArgs) -> Result<()> {
             no_check,
         } => {
             pin_chain(
-                ChainConfig {
-                    version: crate::commands::consensus::CHAIN_CONFIG_VERSION,
-                    endpoint,
-                    network,
-                    chain_id,
-                    genesis_digest,
-                },
+                ChainConfig::new(&endpoint, network, chain_id, genesis_digest)?,
                 no_check,
             )
             .await
@@ -112,7 +106,7 @@ pub async fn run(args: ConfigArgs) -> Result<()> {
 async fn pin_chain(config: ChainConfig, no_check: bool) -> Result<()> {
     let pin = config.pin()?;
     if !no_check {
-        let reported = client(&config.endpoint)?.query_profile().await?.context;
+        let reported = config.client(None)?.query_profile().await?.context;
         pin.check(&reported).map_err(|_| {
             anyhow::anyhow!(
                 "the node reports chain {} with genesis digest {}; nothing was pinned",
@@ -125,7 +119,9 @@ async fn pin_chain(config: ChainConfig, no_check: bool) -> Result<()> {
     output::success(
         &format!(
             "Pinned chain {} ({:?}) at {}",
-            config.chain_id, config.network, config.endpoint
+            config.chain_id,
+            config.network,
+            config.endpoint()?.describe()
         ),
         None,
     );
@@ -143,7 +139,10 @@ fn show_config() -> Result<()> {
         Ok(chain) => {
             println!("Pinned chain: {} ({:?})", chain.chain_id, chain.network);
             println!("Genesis digest: {}", chain.genesis_digest);
-            println!("Chain endpoint: {}", chain.endpoint);
+            match chain.endpoint() {
+                Ok(endpoint) => println!("Chain endpoint: {}", endpoint.describe()),
+                Err(error) => println!("Chain endpoint: {} ({error})", chain.endpoint),
+            }
         }
         Err(_) => println!("Pinned chain: none"),
     }

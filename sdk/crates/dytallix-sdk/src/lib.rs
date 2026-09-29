@@ -12,7 +12,7 @@
 #[cfg(feature = "network")]
 pub mod client;
 #[cfg(all(feature = "comet-rpc", feature = "ordinary-http-only"))]
-compile_error!("ordinary-http-only cannot be combined with comet-rpc, network or TLS; build separately with --no-default-features");
+compile_error!("ordinary-http-only cannot be combined with comet-rpc or network; build separately with --no-default-features");
 #[cfg(all(
     feature = "strict-local-mldsa65",
     any(
@@ -37,6 +37,13 @@ pub mod ordinary_v3;
 /// Recovery transactions (E04 gap 17).
 pub mod recovery;
 pub mod transaction;
+/// How requests reach a node: loopback HTTP or the client channel (E04 gap 19).
+#[cfg(any(
+    feature = "comet-rpc",
+    feature = "ordinary-http-only",
+    feature = "strict-local-mldsa65"
+))]
+pub mod transport;
 
 use std::fmt;
 

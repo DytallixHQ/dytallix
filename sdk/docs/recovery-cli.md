@@ -16,7 +16,9 @@ dytallix recovery query --endpoint http://127.0.0.1:26657 --account-id TARGET_64
 dytallix recovery query --endpoint http://127.0.0.1:26657 --account-id SPONSOR_64_HEX --output sponsor-view.json
 ```
 
-A view is the node's `/recovery/account/{id}` report. It holds:
+`--endpoint` is a loopback `http://` URL or a remote endpoint's pin file (see
+the CLI reference). A view is the node's `/recovery/account/{id}` report. It
+holds:
 - the account's status and active key;
 - its generation and nonces, the sponsor nonce included;
 - its guardian policy and sequences;
