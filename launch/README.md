@@ -13,6 +13,7 @@ The master records each requirement, completed work, evidence, remaining work, a
 - [Current emergency policy approval](decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md)
 - [Production decision input packet](decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md)
 - [Decision and required-record register](DECISIONS_REQUIRED.md)
+- [E05 intake packet: production values and records](E05_INTAKE.md)
 - [Work queue](decision-register/WORK_QUEUE.md)
 - [Execution plan and seven simulations](MAINNET_EXECUTION_PLAN.md)
 - [Core-function alignment program and three-week gate schedule](decision-register/core-function-alignment/README.md)
