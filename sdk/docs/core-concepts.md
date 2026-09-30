@@ -30,7 +30,8 @@ The SDK models two canonical tokens:
 | `DRT` | Fees and rewards |
 
 On the consensus chain, fees are capped and charged in uDRT
-(1 DRT = 1000000 uDRT).
+(1 DRT = 1000000 uDRT), and every fee is burned. DGT pays no
+fees.
 
 Relevant types:
 
@@ -72,7 +73,8 @@ Default behavior:
 
 - Gas limits default to an estimate from the message
   (`estimate_default_gas_limits`)
-- Legacy fees are denominated in DGT micro-units.
+- Legacy fees are denominated in DGT micro-units. The consensus chain charges
+  no fee in DGT.
 
 The fee estimate is represented by
 [`FeeEstimate`](../crates/dytallix-sdk/src/lib.rs) and split into compute and

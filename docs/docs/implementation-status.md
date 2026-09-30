@@ -1,7 +1,9 @@
 # Implementation Status
 
-This page records the public behavior that was verified on April 13, 2026 and
-the practical limitations that still matter for public integrations.
+This page records the public testnet behavior that was verified on April 13,
+2026 and the practical limitations that still matter for public integrations.
+It does not describe the mainnet candidate, which has no faucet, no contract
+runtime and no testnet REST routes; see [`index.md`](index.md).
 
 ## Treat These As Canonical Today
 
@@ -66,8 +68,9 @@ public testnet on April 6, 2026. The flow:
 
 ### Fee Token Language
 
-Several older docs and adjacent notes describe `DRT` as the fee token. The
-current public node and live `/status` endpoint report:
+The mainnet candidate charges fees in uDRT and burns every fee (see
+[`tokenomics.md`](tokenomics.md)). The public testnet differs. Its node and
+live `/status` endpoint report:
 
 - `fee_denom: "udgt"`
 - `min_gas_price: 1000`
@@ -77,8 +80,7 @@ The published SDK snapshot also formats fee estimates in `DGT`.
 Practical guidance:
 
 - use `DGT` as the current public testnet fee token
-- keep `DRT` documented as the reward token and as part of the long-range
-  dual-token design language
+- use `DRT` as the fee token on the mainnet candidate
 
 ### Public `GET /v1/*` JSON Routes
 
@@ -97,9 +99,11 @@ The public SDK and CLI now align on the live public hosts and the `3030` local
 port. The remaining mismatch is narrower:
 
 - validator and delegation reads still require a direct node endpoint
-- contract lifecycle reads and writes are implemented on the current node and
-  CLI, but the public website gateway still does not forward the contract write
-  routes and can still lag the read routes
+- contract lifecycle reads and writes are implemented on the testnet node and
+  the testnet CLI release, but the public website gateway still does not
+  forward the contract write routes and can still lag the read routes; the
+  mainnet candidate has no contract runtime and its CLI has no `contract`
+  commands
 - the public website gateway remains centered on root RPC reads and selected
   `/api/*` surfaces
 

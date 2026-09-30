@@ -120,14 +120,24 @@
         {
           "id": "D02-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What eligibility and allocation rules apply to the separate validator reward pool?",
           "recommendation": "Specify the validator pool independently. Preserve owner entitlements and zero staking-pool commission.",
-          "selected_value": null,
+          "selected_value": {
+            "eligibility": "EFFECTIVE_VALIDATORS_SKIPPING_JAILED_OR_INACTIVE",
+            "allocation": "EACH_BLOCK_VALIDATOR_BUDGET_DIVIDED_BY_VOTING_POWER_SUMMED_PER_OPERATOR_OWNER",
+            "cadence": "EVERY_BLOCK_AT_BLOCK_START",
+            "credited_to": "OPERATOR_OWNER_CLAIMABLE_REWARDS",
+            "claim_path": "EXISTING_REWARD_CLAIM",
+            "validator_outside_set": "EARNS_NOTHING_FOR_THAT_BLOCK",
+            "rounding": "FLOOR_WITH_REMAINDER_AND_NO_ELIGIBLE_VALIDATOR_BLOCKS_KEPT_IN_POOL_RESERVE",
+            "supply_check": "HELD_PLUS_CLAIMED_EQUALS_ISSUED",
+            "production_issuance_values": null
+          },
           "owner_role_proposed": "Reward accounting and treasury leads",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "blocks_work": [
             "W02"
           ],
@@ -136,7 +146,12 @@
             "evidence/TOKENOMICS_APPROVED_SOURCE.json",
             "batch-6/APPROVAL.json",
             "batch-6/integration-followup/APPROVAL.json",
-            "batch-6/issuance-timing/APPROVAL.json"
+            "batch-6/issuance-timing/APPROVAL.json",
+            "../node/docs/architecture/fees-v1.md"
+          ],
+          "approved_portion": "Validator option A (P01, 27 September 2026): each block's validator budget is divided by voting power among the validators in the effective set and credited to each operator's owner, claimed with the existing RewardClaim. A validator outside the set earns nothing for that block and the rounding remainder stays in the pool. Issuance values remain E05 inputs.",
+          "approval_records": [
+            "../node/docs/architecture/fees-v1.md"
           ]
         },
         {
@@ -391,7 +406,9 @@
             "decision-register/ordinary-client-compatibility/README.md",
             "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
             "decision-register/ordinary-client-compatibility/REPORT.md",
-            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+            "../node/docs/architecture/account-model-v2.md",
+            "../node/docs/architecture/governance-v1.md"
           ],
           "prepared_recommendation_ids": [
             "RF02"
@@ -421,7 +438,8 @@
           "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
           "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
           "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
-          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+          "approved_creation_fee_portion": "The account creation fee is a field of the signed ordinary fee profile, committed through fee_profile_digest, and only Send creates accounts (P01, 26 September 2026). Governance sets new fee profile versions (gas price, resource costs, creation fee) within genesis bounds (P01, 27 September 2026). Production values and bounds remain unset."
         },
         {
           "id": "D04-Q02",
@@ -475,7 +493,8 @@
             "decision-register/ordinary-client-compatibility/README.md",
             "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
             "decision-register/ordinary-client-compatibility/REPORT.md",
-            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+            "../node/docs/architecture/fees-v1.md"
           ],
           "prepared_recommendation_ids": [
             "RF01",
@@ -499,7 +518,6 @@
           "approved_fee_portion": "Recovery uses separate sponsor authority and a signed cap. Reserve the cap, charge the measured permitted amount and release the remainder atomically. Invalid, stale, expired or unfunded requests cause no debit or sponsor nonce change. Charge only success or accepted out-of-gas results. Use stable identifiers to prevent duplicate charges. Credit fees to undistributed custody with no recipient, burn or sweep operation.",
           "remaining_choices": [
             "Production profile and receipt retention parameters",
-            "Production fee distribution authority and recipient records",
             "Any settlement policy outside the selected ordinary and recovery contracts"
           ],
           "ordinary_fee_boundary": "OF01 through OF05 select the fee outcome contract. The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification.",
@@ -516,7 +534,8 @@
           "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
           "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
           "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
-          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+          "fee_destination_portion": "Fees are burned in the block that charges them, with no recipient records (D05-Q01, P01, 27 September 2026). This supersedes the undistributed custody in RF05 and OF05."
         }
       ],
       "work": {
@@ -651,14 +670,31 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "recommendation": "Review bandwidth-only DRT burning. Specify exact debit and supply equations before approval.",
-          "selected_value": null,
+          "selected_value": {
+            "burned_components": "EVERY_TRANSACTION_FEE_INCLUDING_THE_ACCOUNT_CREATION_FEE",
+            "covered_fees": [
+              "ORDINARY",
+              "GOVERNANCE",
+              "SPONSORED_RECOVERY",
+              "ACCOUNT_CREATION"
+            ],
+            "bandwidth_only_burn": false,
+            "burn_time": "END_OF_THE_CHARGING_BLOCK",
+            "payer_debit": "CHARGE_IN_UDRT",
+            "supply_change": "SUPPLY_DRT_BURNED_INCREASES_BY_THE_CHARGE",
+            "withheld_counter": "COLLECTS_DURING_THE_BLOCK_ZERO_AT_EVERY_COMMIT",
+            "supply_equation": "GENESIS_PLUS_EMITTED_MINUS_BURNED",
+            "charged_outcomes": "SUCCESS_ACCEPTED_FAILURE_AND_OUT_OF_GAS",
+            "recipients_or_sweep": false,
+            "dgt_fee_or_burn": false
+          },
           "owner_role_proposed": "Economics and supply accounting leads",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "blocks_work": [
             "W05"
           ],
@@ -666,7 +702,9 @@
           "evidence_refs": [
             "evidence/TOKENOMICS_APPROVED_SOURCE.json",
             "batch-2/ECONOMIC_DECISIONS.json",
-            "decision-register/recovery-fee-implementation/APPROVAL.json"
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "../node/docs/architecture/fees-v1.md",
+            "../node/docs/architecture/account-model-v2.md"
           ],
           "prepared_recommendation_ids": [
             "RF05"
@@ -675,7 +713,11 @@
           "recovery_custody_boundary": "RF05 approves undistributed recovery fee custody with no burn, recipient or sweep operation in this integration. The general DRT burn policy remains open.",
           "recovery_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json",
           "ordinary_custody_boundary": "OF05 selects existing undistributed udrt custody with no recipient, burn or sweep operation. General DRT burn policy remains open. Fee delta must be reconciled separately from successful action balance changes.",
-          "ordinary_fee_approval_ref": "decision-register/ordinary-fee-implementation/APPROVAL.json"
+          "ordinary_fee_approval_ref": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "approved_portion": "Fee option A (P01, 27 September 2026): every transaction fee, ordinary, governance and sponsored recovery, is burned. Fees collect in the withheld counter while a block runs; at the end of the block the whole amount moves to supply:drt_burned, so the payer's uDRT falls and supply:drt_burned rises by each charge and the withheld counter is zero at every commit. Supply is genesis plus emitted minus burned. The account creation fee is burned (P01, 26 September 2026). A bandwidth-only burn was not offered because the approved meter has one combined gas charge.",
+          "approval_records": [
+            "../node/docs/architecture/fees-v1.md"
+          ]
         },
         {
           "id": "D05-Q02",
@@ -1121,14 +1163,24 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "recommendation": "Approve explicit funded limits and a separate registry amendment authority. Preserve admission and H+2 rules.",
-          "selected_value": null,
+          "selected_value": {
+            "registry_amendment_authority": "GOVERNANCE_VALIDATOR_REGISTRY_ACTION_CLASS",
+            "registry_action": "ADD_APPROVED_OPERATOR_OR_REMOVE_OPERATOR_WITH_NO_REGISTERED_VALIDATOR",
+            "maximum_operators": 64,
+            "min_self_bond_authority": "GOVERNANCE_WITHIN_GENESIS_BOUNDS",
+            "max_active_authority": "GOVERNANCE_WITHIN_GENESIS_BOUNDS",
+            "admission_and_h_plus_2_rules": "UNCHANGED",
+            "production_min_self_bond": null,
+            "production_max_active": null,
+            "genesis_bounds": null
+          },
           "owner_role_proposed": "Protocol and staking leads with validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/governance-v1.md",
           "blocks_work": [
             "W09"
           ],
@@ -1137,7 +1189,15 @@
             "batch-8/implementation/APPROVAL.json",
             "batch-8/POLICY_PROPOSAL.json",
             "batch-9/SCOPE.json",
-            "batch-9/POLICY.md"
+            "batch-9/POLICY.md",
+            "../node/docs/architecture/governance-v1.md"
+          ],
+          "approved_portion": "Governance is the operator-registry amendment authority through the validator registry action class, and governs min_self_bond and max_active within genesis bounds (P01, 27 September 2026). Admission and H+2 rules are unchanged.",
+          "remaining_choices": [
+            "Production min_self_bond and max_active values and their genesis bounds (E05)"
+          ],
+          "approval_records": [
+            "../node/docs/architecture/governance-v1.md"
           ]
         },
         {
@@ -1889,7 +1949,8 @@
             "batch-5/eligibility-followup/APPROVAL.json",
             "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
             "decision-register/core-function-alignment/E04_GOVERNANCE_ENTRY_POLICY_APPROVAL_2026-09-25.json",
-            "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json"
+            "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json",
+            "../node/docs/architecture/governance-v1.md"
           ]
         },
         {
@@ -1909,7 +1970,10 @@
             "production_approval_bps": null,
             "production_veto_bps": null,
             "production_deposit_and_period_values": null,
-            "proposal_cancellation": false
+            "proposal_cancellation": false,
+            "block_order": "AUTOMATIC_TRANSITIONS_THEN_SIGNED_TRANSACTIONS",
+            "finished_proposal_retention": "REMOVE_PROPOSAL_VOTES_SNAPSHOT_AND_ESCROW_AT_NEXT_BLOCK_START_AFTER_REFUND_KEEP_RUNNING_TOTALS",
+            "failed_execution": "REFUND_AND_CONTINUE"
           },
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
@@ -1924,7 +1988,12 @@
             "batch-5/eligibility-followup/APPROVAL.json",
             "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
             "decision-register/core-function-alignment/E04_GOVERNANCE_ENTRY_POLICY_APPROVAL_2026-09-25.json",
-            "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json"
+            "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json",
+            "../node/docs/architecture/governance-v1.md"
+          ],
+          "approval_records": [
+            "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
+            "../node/docs/architecture/governance-v1.md"
           ]
         },
         {
@@ -2023,6 +2092,24 @@
               "halt_authority": null,
               "restart_authority": null,
               "operators": null
+            },
+            "routine_governance": {
+              "action_classes": [
+                "PARAMETER_CHANGE",
+                "VALIDATOR_REGISTRY"
+              ],
+              "governed_parameters": [
+                "ORDINARY_FEE_PROFILE_VERSION_GAS_PRICE_RESOURCE_COSTS_ACCOUNT_CREATION_FEE",
+                "MIN_SELF_BOND",
+                "MAX_ACTIVE"
+              ],
+              "parameter_bounds": "GENESIS_BOUNDS",
+              "fee_authority": "GOVERNANCE",
+              "fee_destination_change": "UPGRADE_ONLY",
+              "other_parameters": "UPGRADE_ONLY",
+              "upgrade_authority": "ROOT_SIGNED_ONLY_NO_GOVERNANCE_APPROVAL_CLASS",
+              "treasury_spending": "POST_MAINNET",
+              "genesis_bound_values": null
             }
           },
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
@@ -2043,7 +2130,8 @@
             "decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md",
             "decision-register/emergency-release-staging/policy/APPROVAL.json",
             "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.md",
-            "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.json"
+            "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.json",
+            "../node/docs/architecture/governance-v1.md"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2067,11 +2155,13 @@
             "Actual incident, freeze receipt, restored state, candidate and recovery evidence for any production resume.",
             "Upgrade clearance authority membership and approval threshold; exact candidate, migration, sequence, activation height and activation-path qualification.",
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
-            "Other routine governance actions, parameter bounds, treasury powers, registry changes and upgrade or recovery authorities covered by D11-Q03."
+            "Genesis bound values for each governed parameter (E05).",
+            "Recovery authorities covered by D11-Q03."
           ],
           "approval_records": [
             "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
-            "decision-register/emergency-release-staging/policy/APPROVAL.json"
+            "decision-register/emergency-release-staging/policy/APPROVAL.json",
+            "../node/docs/architecture/governance-v1.md"
           ]
         }
       ],
@@ -2646,8 +2736,9 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 20,
-    "partially_approved_policy_questions": 6,
+    "fully_open_policy_questions": 15,
+    "partially_approved_policy_questions": 9,
+    "approved_policy_questions": 2,
     "required_records": 8
   },
   "supersessions": [
@@ -2981,6 +3072,22 @@
         "decision-register/ordinary-client-compatibility/REPORT.md",
         "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
       ]
+    },
+    {
+      "source": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+      "prior_statement": "OF05 selects existing undistributed udrt custody with no recipient, burn or sweep operation",
+      "current_disposition": "Fee option A (P01, 27 September 2026): every ordinary and governance fee is burned in the block that charges it, and the withheld counter is zero at every commit. OF01 through OF04 are unchanged.",
+      "later_evidence_refs": [
+        "../node/docs/architecture/fees-v1.md"
+      ]
+    },
+    {
+      "source": "decision-register/recovery-fee-implementation/APPROVAL.json",
+      "prior_statement": "RF05 approves undistributed recovery fee custody with no burn, recipient or sweep operation",
+      "current_disposition": "Fee option A (P01, 27 September 2026): sponsored recovery fees are burned in the block that charges them. RF01 through RF04 and RF06 are unchanged.",
+      "later_evidence_refs": [
+        "../node/docs/architecture/fees-v1.md"
+      ]
     }
   ],
   "workflow": [
@@ -3046,5 +3153,100 @@
   "canonical_gate_register_ref": "LAUNCH_GATES.json",
   "canonical_gate_view_ref": "MAINNET_GATE_MASTER.md",
   "gate_reconciliation_ref": "decision-register/gate-consolidation-20260912/RECONCILIATION_REPORT.md",
-  "progress_rule": "Policy and required-record statuses remain authoritative here. Read all gate progress, completed work and remaining qualification from LAUNCH_GATES.json. Earlier local implementation boundary fields retain their historical scope."
+  "progress_rule": "Policy and required-record statuses remain authoritative here. Read all gate progress, completed work and remaining qualification from LAUNCH_GATES.json. Earlier local implementation boundary fields retain their historical scope.",
+  "design_approvals": [
+    {
+      "id": "P01-2026-09-26-ACCOUNT-MODEL",
+      "approved": "2026-09-26",
+      "approved_by": "P01",
+      "record_ref": "../node/docs/architecture/account-model-v2.md",
+      "decisions": [
+        "Option A: implicit account creation; only Send creates accounts.",
+        "The sender pays an account creation fee, which is burned; it is a field of the signed ordinary fee profile.",
+        "A received account takes its recovery settings from one genesis account template; guardians enroll later.",
+        "Touched-account execution."
+      ],
+      "question_refs": [
+        "D04-Q01",
+        "D05-Q01"
+      ],
+      "unset": [
+        "Creation fee amount",
+        "Account template values"
+      ]
+    },
+    {
+      "id": "P01-2026-09-27-FEES-V1",
+      "approved": "2026-09-27",
+      "approved_by": "P01",
+      "record_ref": "../node/docs/architecture/fees-v1.md",
+      "decisions": [
+        "Fee destination A: every transaction fee is burned when charged.",
+        "Validator rewards A: each block's validator budget is divided by voting power among the active validators and credited to each operator's owner."
+      ],
+      "question_refs": [
+        "D02-Q01",
+        "D04-Q02",
+        "D05-Q01"
+      ],
+      "unset": [
+        "Gas prices, creation fee and issuance values (E05)"
+      ]
+    },
+    {
+      "id": "P01-2026-09-27-GOVERNANCE-V1",
+      "approved": "2026-09-27",
+      "approved_by": "P01",
+      "record_ref": "../node/docs/architecture/governance-v1.md",
+      "decisions": [
+        "Block order: automatic transitions first, then signed transactions.",
+        "Action classes: parameter change and validator registry; upgrades stay root-signed only; treasury spending is POST MAINNET.",
+        "Governed parameters: new ordinary fee profile versions (gas price, resource costs, account creation fee), min_self_bond and max_active, each within genesis bounds. Governance is the fee authority (EC-12).",
+        "Retention: remove finished proposals with their votes, snapshots and escrow records at the next block start after the refund."
+      ],
+      "question_refs": [
+        "D09-Q01",
+        "D11-Q01",
+        "D11-Q02",
+        "D11-Q03"
+      ],
+      "unset": [
+        "Quorum, approval, veto, deposit, periods, timelock and parameter bounds (E05)"
+      ]
+    },
+    {
+      "id": "P01-2026-09-27-VALIDATOR-LIFECYCLE-RETENTION",
+      "approved": "2026-09-27",
+      "approved_by": "P01",
+      "record_ref": "../node/docs/architecture/validator-lifecycle-retention.md",
+      "decisions": [
+        "Retention horizon: the existing evidence limits plus processing margins, with no new parameter.",
+        "Remove withdrawn unbond records and settled, expired incidents, keeping running totals.",
+        "Keep the permanent no-reuse rule for consensus keys.",
+        "Release a staker slot when the owner holds nothing."
+      ],
+      "question_refs": [
+        "D09-Q03",
+        "D09-Q05"
+      ],
+      "unset": [
+        "Evidence age limits and margins (D09-Q03)",
+        "Penalty rates, delegator liability and evidence types (D06, D09)"
+      ]
+    },
+    {
+      "id": "P01-2026-09-27-STATE-ROOT-V2",
+      "approved": "2026-09-27",
+      "approved_by": "P01",
+      "record_ref": "../node/docs/architecture/state-root-v2.md",
+      "decisions": [
+        "Tree implementation: the jmt crate, if its dependency graph passes the G35 check.",
+        "Proof queries at launch: yes.",
+        "State sync is the next step, before launch."
+      ],
+      "question_refs": [],
+      "unset": []
+    }
+  ],
+  "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset."
 }

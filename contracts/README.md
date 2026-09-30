@@ -2,6 +2,8 @@
 
 Reference WASM contracts, protocol state machines, and example contract patterns for Dytallix.
 
+**Not part of the mainnet candidate chain.** The consensus build has no contract runtime and no cross-chain bridge. The node does not depend on this crate, and nothing here runs on the chain: the chain's staking, governance, token and emission rules live in the node (`mainnet/node`), and it has no algorithm registry. Whether a contract runtime is ever added is part of open decision D07-Q01 (`mainnet/launch/MAINNET_DECISION_REGISTER.json`).
+
 This repository contains the public reference contracts toolkit for the Dytallix contract layer:
 
 - core tokenomics modules for DGT, DRT, and emission control
@@ -81,5 +83,5 @@ and `runtime_simple.rs` are not part of the supported public API surface.
 
 ## Notes
 
-This repository is the reference contracts and examples surface for Dytallix. It is not a claim that every module here is already wired into the current public testnet deployment path. The authoritative protocol and API notes live in [dytallix-docs](https://github.com/DytallixHQ/dytallix-docs).
+This repository is the reference contracts and examples surface for Dytallix. It is not a claim that any module here runs on the mainnet candidate, or that every module is wired into the public testnet deployment path. The authoritative protocol and API notes live in [dytallix-docs](https://github.com/DytallixHQ/dytallix-docs).
 

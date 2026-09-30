@@ -2,13 +2,13 @@
 
 Status: algorithms approved for local implementation. Production qualification is open. Mainnet remains **NO GO**.
 
-The [profile](decision-register/pqc-profile/PROFILE.json) and [G35 specification](decision-register/pqc-profile/GATE_SPEC.json) supersede earlier broad prohibitions on all classical cryptography. Preserve the [prior architecture](decision-register/pqc-profile/evidence/before/PQC_ARCHITECTURE.md) as historical evidence.
+The [profile](decision-register/pqc-profile/PROFILE.json) and [G35 specification](decision-register/pqc-profile/GATE_SPEC.json) supersede earlier broad prohibitions on all classical cryptography. P01 has since prohibited classical public-key cryptography everywhere in the stack (below). Preserve the [prior architecture](decision-register/pqc-profile/evidence/before/PQC_ARCHITECTURE.md) as historical evidence.
 
 | Role | Selected algorithm | Implementation boundary |
 |---|---|---|
-| P2P key establishment | FIPS 203 ML-KEM-768 | Authenticated session component under development. Active upstream SecretConnection still uses X25519. Production integration remains blocked. |
-| Peer identity | FIPS 204 ML-DSA-65 | Separate full public-key trust pins. Upstream Ed25519 identities and truncated peer IDs cannot establish the new trust boundary. |
-| Validators, votes and proposals | FIPS 204 ML-DSA-65 | Current CometBFT validator support exists. Registration, codec/default restrictions, remote signer and custody qualification remain required. |
+| P2P key establishment | FIPS 203 ML-KEM-768 | Peer transport wire version 2 (`internal/pqcp2p`): ML-KEM-768 key exchange, ML-DSA-65 identities and AES-256-GCM records. SecretConnection and its X25519 exchange were deleted from the engine fork (E04 gap 20). Production qualification, including the E03 negative-peer trial on dedicated hosts, remains open. |
+| Peer identity | FIPS 204 ML-DSA-65 | Separate full public-key trust pins; a truncated peer ID cannot establish the trust boundary. The fork's Ed25519 identities were deleted (E04 gap 20). |
+| Validators, votes and proposals | FIPS 204 ML-DSA-65 | Current CometBFT validator support exists. The remote signer was removed (E04 gap 20); a validator signs with its local file key. Registration, codec/default restrictions and custody qualification remain required. |
 | Transactions, wallets and operational authorization | FIPS 204 ML-DSA-65 | Explicit parameter identifiers and key sizes. Preserve old keys and account identities. Do not reinterpret old signatures. |
 | Genesis, upgrades and exceptional authorization | FIPS 205 SLH-DSA | Separate root keys and policy. Local component selects SHAKE-256s pending production review. No automatic execution or mainnet approval. |
 | Symmetric encryption, derivation and hashes | Existing appropriate primitives | Review each use, key/output length, transcript binding, nonce policy and security requirement. |
@@ -17,7 +17,7 @@ ML-KEM establishes a shared secret. It does not authenticate a peer. Peer authen
 
 The production trust boundary includes consensus, P2P, account and wallet authorization, recovery, governance, trusted RPC/proof paths, root authorization, custody and management channels required to control these systems. An external service cannot escape this boundary merely because it uses TLS, SSH or a browser. Classify its actual role and verify isolation.
 
-Classical code can remain in separate development compatibility artifacts. P01 narrowed this on 28 September 2026: no classical public-key cryptography anywhere in the stack, client edges included (E04 gap 19, `node/docs/architecture/client-channel-v1.md`). A dependency name does not prove runtime use. An absent symbol does not prove isolation. The release must exclude or demonstrably isolate prohibited asymmetric implementations and fallback paths. The current upstream P2P path remains prohibited for production.
+P01 decided on 28 September 2026 that no classical public-key cryptography is used anywhere in the stack, client edges included (E04 gap 19, `node/docs/architecture/client-channel-v1.md`). The engine fork's classical code was deleted from source on 29 September 2026 (E04 gap 20, `node/consensus/cometbft/PQC_BUILD_BOUNDARY.md`), and CI refuses a classical or TLS crate in any mainnet Rust lockfile. A dependency name does not prove runtime use. An absent symbol does not prove isolation. The release must exclude prohibited asymmetric implementations and fallback paths.
 
 Keep ML-DSA-65, ML-DSA-87, legacy Dilithium and legacy SPHINCS+ distinct. Existing state needs an explicit migration. Stable account identifiers must not change when authorized keys rotate. Operational keys must not acquire root authority. Root signatures require a separately configured trusted key, chain, action, sequence and artifact commitment. Persistent replay policy and execution integration remain mandatory.
 

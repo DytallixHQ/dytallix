@@ -48,10 +48,25 @@
       "`get_validators()` and `get_delegations()` still require a direct node"
     ],
     "docs/cli-reference.md": [
-      "network <testnet|local>",
-      "https://dytallix.com/build/blockchain",
-      "https://dytallix.com/api/governance/proposals",
-      "http://localhost:3030"
+      "The CLI has no faucet, no contract commands, no public testnet REST commands",
+      "There is no faucet.",
+      "the path of its endpoint pin file",
+      "dytallix gateway serve --listen 127.0.0.1:4173",
+      "--maximum-fee-udrt"
+    ],
+    "docs/contract-quickstart.md": [
+      "The mainnet candidate has no contract runtime."
+    ],
+    "docs/tokenomics.md": [
+      "Fees are paid in uDRT by the transaction's actor. There are no tips.",
+      "Every transaction fee is burned"
+    ],
+    "docs/security-model.md": [
+      "No bridge ships in the consensus build.",
+      "The consensus build has no oracle and no oracle reporters."
+    ],
+    "docs/whitepapers.md": [
+      "## Errata for the mainnet candidate"
     ],
     "docs/index.md": [
       "GET https://dytallix.com/api/capabilities",

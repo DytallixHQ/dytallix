@@ -1,7 +1,9 @@
 # Core Concepts
 
 This page explains the developer-facing concepts that show up across the SDK,
-CLI, public RPC, and whitepapers.
+CLI, public RPC, and whitepapers. Its transaction, gas and interface sections
+describe the public testnet. The mainnet candidate differs; see
+[Mainnet Candidate](#mainnet-candidate) at the end.
 
 ## Accounts And Identity
 
@@ -37,10 +39,10 @@ Micro-denoms:
 
 Important current-testnet note:
 
-- the public node currently reports `fee_denom: "udgt"` on `/status`
-- several older notes describe `DRT` as the gas token
-- integrators should rely on the live public node behavior, which is currently
-  `DGT`-denominated fees
+- the public testnet node reports `fee_denom: "udgt"` on `/status`
+- on the public testnet, fees are `DGT`-denominated
+- on the mainnet candidate, `DRT` is the fee token: fees are charged in uDRT
+  and every fee is burned (see [`tokenomics.md`](tokenomics.md))
 
 ## Transactions
 
@@ -157,3 +159,18 @@ current public node is the implementation developers integrate with today.
 
 When there is a difference, this documentation follows the current public node
 first and calls out the mismatch explicitly.
+
+## Mainnet Candidate
+
+The mainnet candidate is a different chain from the public testnet:
+
+- consensus is CometBFT, and the chain runs ordinary-v2, ordinary-v3
+  (governance) and recovery transactions; it has no contract runtime
+- fees are charged in uDRT as `max(measured gas, minimum gas) × gas price`,
+  with no tips, and every fee is burned
+- nodes serve CometBFT JSON-RPC, not the testnet's REST routes; remote nodes
+  are reached through the post-quantum client channel, with no TLS
+- there is no faucet
+
+See [`tokenomics.md`](tokenomics.md), [`security-model.md`](security-model.md)
+and [`cli-reference.md`](cli-reference.md).

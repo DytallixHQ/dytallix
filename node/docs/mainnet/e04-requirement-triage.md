@@ -19,7 +19,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | GAP | 5 | — |
 | POLICY | 15 | 5 |
 | NOT E04 | 12 | 3 |
-| CLAIM | 4 | 4 |
+| CLAIM | 4, all fixed | 4, all fixed |
 
 ## Engineering gaps, by risk
 
@@ -106,7 +106,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | ECON-004 | PARTIAL | Conservation checked every block, from running account totals (gap 5 closed); vesting with penalties. |
 | GOV-001 | NOT E04 | Rules done; values E05. |
 | GOV-002 | DONE | Timelock, bound action, one execution, refunds. |
-| GOV-004 | CLAIM | Linear stake weighting; remove quadratic voting and decay claims. |
+| GOV-004 | DONE | Claim fixed: linear stake weighting; the docs and whitepaper errata drop quadratic voting and decay. |
 | STATE-001 | PARTIAL | Commitment frozen (JMT); layout still changes; no key-space spec. |
 | STATE-002 | PARTIAL | Windows done; block and emission records unpruned; journal limit halts (GAP 2); restart replays all (GAP 3). |
 | STATE-003 | GAP 4 | Snapshots are stubs. |
@@ -121,7 +121,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | MEM-004 | NOT E04 | T05. |
 | ORC-001 | POLICY | No oracle; gas price governed; utilization only. D01-Q02. |
 | ORC-002 | POLICY | No reporters; D01-Q02. |
-| ORC-003 | CLAIM | No outlier slashing; retract the claim. |
+| ORC-003 | DONE | Claim fixed: no outlier slashing (security model, errata). |
 | ORC-004 | DONE | Only bounded fee values and validator limits governable. |
 | UPG-001 | NOT E04 | E06 provenance. |
 | UPG-002 | POLICY | Height activation built; authority open. D11-Q03, D14-Q02. |
@@ -133,7 +133,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | API-004 | NOT E04 | T04, T05. |
 | BRG-001 | POLICY | Bridge excluded in code; D07-Q01, D08-Q02. |
 | BRG-002 | POLICY | N/A if D07-Q01 excludes bridges. |
-| BRG-003 | CLAIM | Add the boundary disclosure to the security model. |
+| BRG-003 | DONE | Claim fixed: the security model's bridge boundary section. |
 | BRG-004 | NOT E04 | P02. |
 | OBS-002 | PARTIAL | Core metrics written as text files (gap 7 closed); thresholds and routing open (D12-Q02). |
 | OBS-003 | PARTIAL | Runbooks for every class (gap 15 closed, `docs/operations/`), including restart on a fixed release after a halt (gap 18 closed); roles, thresholds, custodians and channel open (D12-Q02, D14-Q03, E05). |
@@ -141,7 +141,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | PERF-002 | NOT E04 | T05. |
 | PERF-003 | POLICY | Gap 13 closed: unit limits are required render inputs, swap and core dumps are off, and adapter limits can be lowered at run time. Values are D06-Q02 and D12-Q01. |
 | PERF-004 | NOT E04 | T05. |
-| ASSUR-003 | CLAIM | See claim fixes. |
+| ASSUR-003 | DONE | See claim fixes. |
 
 ## Conflicts
 
@@ -150,19 +150,23 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | AC-001 | POLICY | D01: approve observation contract v1; drop the claim that issuance controls utilization. |
 | AC-002 | RESOLVED | Every fee burned (P01, 27 Sep); the minimum fee resists spam only. |
 | AC-003 | POLICY + GAP 1 | D09-Q04, D09-Q05. |
-| AC-004 | CLAIM + GAP 1 | CometBFT finality; the papers' checkpoint and LMD-GHOST model applies to nothing. |
+| AC-004 | RESOLVED | CometBFT finality; gap 1 closed, and the errata correct the papers' checkpoint and LMD-GHOST model. |
 | AC-005 | NOT E04 | Engineering part resolved (governance v1); values E05, signers P02. |
-| AC-006 | CLAIM | Linear stake weighting; decay and delegation claims remain in docs. |
-| AC-007 | CLAIM | Algorithms change only by root-signed upgrade; fix the registry wording. |
+| AC-006 | RESOLVED | Linear stake weighting; the decay and delegation claims are corrected. |
+| AC-007 | RESOLVED | Algorithms change only by root-signed upgrade; the registry wording is corrected. |
 | AC-008 | NOT E04 | E05 (D08). |
 | AC-009 | POLICY | D07-Q01, D08-Q02. |
 | AC-010 | POLICY | D01-Q02, D07-Q01: no oracle at launch. |
 | AC-011 | POLICY | Horizon equals maturity; values D03-Q01, D09-Q03, D01-Q01. |
 | AC-012 | NOT E04 | E01 closed at source; T01, T02. |
 | AC-013 | RESOLVED | Fees move to the burn counter; withheld zero at commit. |
-| AC-014 | CLAIM | The three whitepaper PDFs. |
+| AC-014 | RESOLVED | The PDFs are unchanged; `mainnet/docs/docs/whitepapers.md` lists their errata. |
 
 ## Claim fixes
+
+All done in the E04 claim-fix batch (29 September 2026). The whitepaper
+PDFs are unchanged; `mainnet/docs/docs/whitepapers.md` lists their errata,
+and `mainnet/docs/public-surface.json` now pins the corrected statements.
 
 - Tokenomics paper: vote decay, delegation and VRF sortition; fee split (now
   every fee burned, no tips); fee floor for validator viability; Oracle
@@ -185,6 +189,10 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
   fee authority; fee burn and validator payouts; retention; state root) and
   update D02-Q01, D05-Q01, D11-Q01, D11-Q02.
 - SDK `docs/core-concepts.md`: fees are paid in DRT.
+- Also corrected: the other `mainnet/docs/docs` pages that repeated a claim;
+  `launch/PQC_ARCHITECTURE.md` (peer transport v2, no SecretConnection or
+  remote signer); `docs/architecture/modular-node.md` (storage helpers and the
+  gas crate removed).
 
 ## First live CI run (27 September)
 

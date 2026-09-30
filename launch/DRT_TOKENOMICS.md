@@ -64,13 +64,22 @@ APPROVED means the user selected the rule within the recorded scope. OBSERVED me
 
 ## Fees and burn
 
-**PROPOSED — EC-12.** Use DRT for fees. Separate compute charge, bandwidth charge, and explicit tip. Reserve one maximum liability before execution. Charge metered accepted work within that maximum. Refund unused liability. Require the same versioned calculation in admission and settlement. Unaccepted invalid transactions create no on-chain fee debit; accepted execution failures retain only their approved metered charge.
+**SUPERSEDED — EC-12, by [fees v1](../node/docs/architecture/fees-v1.md) (P01, 27 September 2026).** The EC-12 proposals below are kept as history and do not apply. The fees v1 rule:
 
-**PROPOSED — EC-12.** Burn the bandwidth charge from DRT custody. Pay the compute charge and tip to the eligible block reward recipient. Define `maximum_reservation = refund + compute + bandwidth + tip`. Use integer prices in udrt per metered unit. This recommended destination rule is separate from issuance shares and remains unapproved.
+- Fees are paid in udrt by the transaction's actor, with no tips.
+- The charge is `max(measured gas, minimum gas) × gas price`, one price on a combined gas total, paid also by failed and out-of-gas transactions. There is no separate bandwidth charge, so a bandwidth-only burn does not exist.
+- Every transaction fee (ordinary, governance and sponsored recovery) is burned when charged: the payer's udrt falls and `supply:drt_burned` rises by the charge. Fees collect in the withheld counter during a block and burn at the block's end; the counter is zero at every commit. The account creation fee is burned too.
+- No fee goes to a validator or block proposer. The validator share of issuance (40%) is divided every block by voting power among the active validators and credited to each operator's owner, claimed with `RewardClaim`.
+- No DGT fees and no DGT burn.
+- Governance sets fee values within genesis bounds; changing where fees go needs an upgrade. Production fee values are E05 inputs.
 
-**PROPOSED — EC-12.** Commit fee debit, refund, recipient credit, burn counter, supply reduction, and receipt in one state transition. A failed state commit changes none of them. Do not label a diagnostic fee percentage as a token burn. Do not burn DGT to settle a DRT liability.
+**PROPOSED — EC-12 (superseded).** Use DRT for fees. Separate compute charge, bandwidth charge, and explicit tip. Reserve one maximum liability before execution. Charge metered accepted work within that maximum. Refund unused liability. Require the same versioned calculation in admission and settlement. Unaccepted invalid transactions create no on-chain fee debit; accepted execution failures retain only their approved metered charge.
 
-**MISSING — EC-12.** Meter definitions, price bounds, minimum charge, recipient eligibility, failed-execution rules, fee update limits, and governance authority need approval and tests. Current scalar gas and diagnostic burn defaults do not approve this proposal.
+**PROPOSED — EC-12 (superseded).** Burn the bandwidth charge from DRT custody. Pay the compute charge and tip to the eligible block reward recipient. Define `maximum_reservation = refund + compute + bandwidth + tip`. Use integer prices in udrt per metered unit. This recommended destination rule is separate from issuance shares and remains unapproved.
+
+**PROPOSED — EC-12 (superseded).** Commit fee debit, refund, recipient credit, burn counter, supply reduction, and receipt in one state transition. A failed state commit changes none of them. Do not label a diagnostic fee percentage as a token burn. Do not burn DGT to settle a DRT liability.
+
+**MISSING — EC-12 (superseded).** Meter definitions, price bounds, minimum charge, recipient eligibility, failed-execution rules, fee update limits, and governance authority need approval and tests. Current scalar gas and diagnostic burn defaults do not approve this proposal.
 
 ## Evidence and activation
 

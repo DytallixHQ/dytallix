@@ -30,7 +30,7 @@ Install MkDocs only if you want to preview the documentation site locally.
 - [Publication Status](docs/publication-status.md) — repo roles, source availability, and current publication boundaries
 - [Implementation Status](docs/implementation-status.md) — verified public behavior and known mismatches
 - [Getting Started](docs/getting-started.md) — SDK and CLI quickstart
-- [Contract Quickstart](docs/contract-quickstart.md) — canonical public WASM deploy path
+- [Contract Quickstart](docs/contract-quickstart.md) — the mainnet candidate has no contract runtime
 - [Core Concepts](docs/core-concepts.md) — accounts, tokens, gas, and transaction model
 - [CLI Reference](docs/cli-reference.md) — command reference for `dytallix`
 - [SDK Reference](docs/sdk-reference.md) — Rust SDK crate and API reference

@@ -7,6 +7,10 @@ The Dytallix SDK is a Rust workspace centered on three crates:
 - `dytallix-cli`
 
 This page focuses on the Rust SDK surface used by applications and automation.
+It describes the public testnet SDK release. The mainnet candidate SDK has no
+`network` feature, no `DytallixClient` or `FaucetClient` and no TLS; its node
+client is the `comet-rpc` feature. See the SDK's
+[SDK reference](../../sdk/docs/sdk-reference.md).
 
 ## Install
 
@@ -66,6 +70,7 @@ Public interpretation today:
 
 - `DGT` is used for governance, staking, and current public testnet fees
 - `DRT` is the reward token and a first-class transferable asset
+- on the mainnet candidate, `DRT` pays every fee (in uDRT) and `DGT` pays none
 
 ### Other Core Data Types
 
