@@ -1968,7 +1968,9 @@
             "drill_evidence"
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D10-Q03.json",
-          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
+          "upgrade_custodian_intake_ref": "custody/upgrade/INTAKE.md",
+          "upgrade_custodian_intake_boundary": "Public template and structural checker only (E05-c). The completed packet, names and evidence stay in the custody system; no custodian, key or acceptance is recorded."
         }
       ],
       "work": {
@@ -2371,13 +2373,15 @@
               "implementation": "PRODUCTION_UPGRADE_POLICY_SCHEMA_2",
               "names": null,
               "public_keys": null,
-              "key_epochs": null
-            }
+              "key_epochs": null,
+              "intake_ref": "custody/upgrade/INTAKE.md"
+            },
+            "production_parameter_set": "SLH-DSA-SHAKE-256s"
           },
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_CUSTODY_2026-09-30.json",
           "blocks_work": [
             "W11",
             "W02",
@@ -2396,7 +2400,8 @@
             "../node/docs/architecture/governance-v1.md",
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "../node/docs/mainnet/upgrade-execution.md",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_CUSTODY_2026-09-30.json"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2415,7 +2420,7 @@
           "remaining_choices": [
             "Named independent emergency custodians, control groups, public keys, key epochs, custody and backup records, and signed role acceptances.",
             "Numeric finalized-height validity windows and maximum anchor age, selected from measured signing and propagation evidence.",
-            "Production root parameter-set approval and exact production control wire schema, with reviewed authority-epoch and anchor binding.",
+            "Exact production control wire schema, with reviewed authority-epoch and anchor binding.",
             "Execution and qualification evidence for each approved mandatory transition and blocked discretionary path.",
             "Actual incident, freeze receipt, restored state, candidate and recovery evidence for any production resume.",
             "Upgrade clearance authority membership and approval threshold; exact candidate, migration, sequence, activation height and activation-path qualification.",
@@ -2429,7 +2434,8 @@
             "decision-register/emergency-release-staging/policy/APPROVAL.json",
             "../node/docs/architecture/governance-v1.md",
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_CUSTODY_2026-09-30.json"
           ]
         }
       ],

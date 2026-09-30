@@ -105,6 +105,12 @@ three (D06-Q02); issuance of 1,000 DRT a block as base and ceiling, 500 floor,
 10 DRT account creation fee within 1 to 100 DRT (D04-Q01); a 1,000,000 DRT
 bootstrap (D08-Q02).
 
+E05-c (30 September 2026,
+`launch/approvals/P01_E05_CUSTODY_2026-09-30.json`): root, emergency and
+upgrade custodian keys use SLH-DSA-SHAKE-256s (D11-Q03). The upgrade custodian
+intake and its checker are in `launch/custody/upgrade/` and
+`tools/mainnet-preparation/upgrade_custodian_intake.py`; the records stay open.
+
 | Decision | Question | Rows |
 | --- | --- | --- |
 | D09-Q05 | Parameter migration. | VAL-004 |

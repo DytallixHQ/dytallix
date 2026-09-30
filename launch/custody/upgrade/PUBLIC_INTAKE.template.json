@@ -1,0 +1,109 @@
+{
+  "schema": "dytallix.upgrade-custodian-intake.v1",
+  "production_accepted": false,
+  "threshold": 3,
+  "authority_size": 5,
+  "authority_epoch": null,
+  "profile": {
+    "parameter_set": "SLH-DSA-SHAKE-256s",
+    "approval": null
+  },
+  "custodians": [
+    {
+      "slot": 1,
+      "controller_id": null,
+      "name": null,
+      "organization": null,
+      "control_group": null,
+      "appointment": null,
+      "independence_review": null,
+      "key": {
+        "key_id": null,
+        "public_key_base64": null,
+        "signer_control_group": null,
+        "backup_control_group": null,
+        "signer_record": null,
+        "backup_record": null,
+        "proof_of_possession": null,
+        "drill_record": null
+      }
+    },
+    {
+      "slot": 2,
+      "controller_id": null,
+      "name": null,
+      "organization": null,
+      "control_group": null,
+      "appointment": null,
+      "independence_review": null,
+      "key": {
+        "key_id": null,
+        "public_key_base64": null,
+        "signer_control_group": null,
+        "backup_control_group": null,
+        "signer_record": null,
+        "backup_record": null,
+        "proof_of_possession": null,
+        "drill_record": null
+      }
+    },
+    {
+      "slot": 3,
+      "controller_id": null,
+      "name": null,
+      "organization": null,
+      "control_group": null,
+      "appointment": null,
+      "independence_review": null,
+      "key": {
+        "key_id": null,
+        "public_key_base64": null,
+        "signer_control_group": null,
+        "backup_control_group": null,
+        "signer_record": null,
+        "backup_record": null,
+        "proof_of_possession": null,
+        "drill_record": null
+      }
+    },
+    {
+      "slot": 4,
+      "controller_id": null,
+      "name": null,
+      "organization": null,
+      "control_group": null,
+      "appointment": null,
+      "independence_review": null,
+      "key": {
+        "key_id": null,
+        "public_key_base64": null,
+        "signer_control_group": null,
+        "backup_control_group": null,
+        "signer_record": null,
+        "backup_record": null,
+        "proof_of_possession": null,
+        "drill_record": null
+      }
+    },
+    {
+      "slot": 5,
+      "controller_id": null,
+      "name": null,
+      "organization": null,
+      "control_group": null,
+      "appointment": null,
+      "independence_review": null,
+      "key": {
+        "key_id": null,
+        "public_key_base64": null,
+        "signer_control_group": null,
+        "backup_control_group": null,
+        "signer_record": null,
+        "backup_record": null,
+        "proof_of_possession": null,
+        "drill_record": null
+      }
+    }
+  ],
+  "evidence": {}
+}

@@ -50,8 +50,19 @@ Genesis time, governance parameters, SLH-DSA root authorization, and approval-bu
 
 The tool does not establish production activation, custody, signature authenticity, validator admission, stake-to-power policy, or independent review. The supported runtime profiles remain local development profiles. Mainnet remains NO GO.
 
+## Upgrade custodian intake
+
+`upgrade_custodian_intake.py` checks a completed upgrade custodian packet (E05-c). The packet format and collection steps are in [the upgrade intake](../../../launch/custody/upgrade/INTAKE.md).
+
+```text
+python3 -B tools/mainnet-preparation/upgrade_custodian_intake.py \
+  UPGRADE_INTAKE.working.json --emergency EMERGENCY_INTAKE.working.json
+```
+
+It requires exactly five custodians, three of five, one explicit authority epoch, and SLH-DSA-SHAKE-256s keys (P01, 30 September 2026). It checks distinct controllers, control groups and keys, SHA-256 key IDs, purpose- and epoch-bound public evidence, reviewer separation, and that no controller, control group or key also appears in the complete emergency intake. On success it emits `authority_fragment`, the node's upgrade authority shape with keys sorted by key ID. It does not verify signatures, identity or independence, and it never reports production acceptance. Exit code 0 means structurally complete; 2 means incomplete or invalid.
+
 ## Tests
 
-Run `python3 -B -m unittest discover -s tools/mainnet-preparation -p test_bindings.py`.
+Run `python3 -B -m unittest discover -s tools/mainnet-preparation -p 'test_*.py'`.
 
 The fixtures are synthetic. They reuse public keys and selected local parameters from prior development evidence. They contain no production private key and establish no production operator, beneficiary, amount, vesting schedule, network address, or approval. Runtime startup and heavy builds are outside this test scope.
