@@ -1,0 +1,41 @@
+{
+  "decision_id": "P01-2026-09-30-E05-VALUES-3",
+  "approved": "2026-09-30",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05-d: builder scope, issuance controller calibration, fee values and the transfer range rule"
+  },
+  "packet_ref": "E05_INTAKE.md",
+  "decisions": [
+    {
+      "question": "E05-d scope",
+      "selected": "Rehearsal builder now, activation next",
+      "rule": "Build the deterministic genesis builder against the profiles the node accepts today. Open values come from a labeled proposals file and the manifest marks the output not production. A committed synthetic build is rebuilt byte for byte and loaded by the Rust node and the Go engine; check_bindings is extended to the full configuration. Production activation (the development gates and the chain-ID ban) is its own design step."
+    },
+    {
+      "question": "D01-Q01",
+      "selected": "One-day linear",
+      "values": {"controller_window_samples": "1", "controller_soft_proportional": "17280000000000", "controller_soft_integral": "0", "controller_soft_derivative": "0", "controller_hard_proportional": "17280000000000", "controller_hard_integral": "0", "controller_hard_derivative": "0"},
+      "note": "Issuance stays at 1,000 DRT a block up to 50% utilization, then falls linearly to 500 at full blocks, one epoch later. Soft and hard gains are equal, so the shock threshold and integral bounds have no effect; they stay open as proposals. If the capacity tests (T05) show blocks cannot fill completely, the proportional gain is rescaled so the floor is reached at the measured maximum."
+    },
+    {
+      "question": "D04-Q01",
+      "selected": "Floor pricing, free reads",
+      "values": {"ordinary_gas_price": "10", "ordinary_minimum_gas": "100000", "ordinary_transaction_overhead": "10000", "ordinary_receipt_metadata_cost": "1000", "ordinary_wire_byte_cost": "2", "ordinary_read_byte_cost": "0", "ordinary_write_byte_cost": "1", "ordinary_action_costs": "5000 each of 12", "ordinary_signature_costs": {"mldsa65": "20000"}, "ordinary_validator_proof_costs": {"mldsa65": "20000"}, "governance_action_costs": "5000 each of 3", "bounds_gas_price": {"min": "1", "max": "100"}, "bounds_resource_cost": {"min": "0", "max": "100000"}},
+      "note": "Gas price 10 times minimum gas 100,000 is 1 DRT. A basic ML-DSA-65 Send uses about 47,600 gas, so it pays the floor; the governed gas price range 1 to 100 moves it between 0.1 and 10 DRT."
+    },
+    {
+      "question": "D10-Q02",
+      "selected": "Floor pricing, free reads (recovery on the same scale)",
+      "values": {"recovery_gas_price": "10", "recovery_minimum_gas": "100000", "recovery_wire_byte_cost": "2", "recovery_read_byte_cost": "0", "recovery_write_byte_cost": "1", "recovery_action_costs": "5000 each of 9", "recovery_signature_costs": {"mldsa65": "20000"}},
+      "note": "Each sponsored recovery action costs the sponsor at least 1 DRT."
+    },
+    {
+      "question": "D11-Q03",
+      "selected": "Add a node check",
+      "rule": "A fee-profile governance proposal is refused unless a reference basic Send, at fixed sizes, would cost between 0.1 and 10 DRT under the proposed values. Built with production activation, with tests."
+    }
+  ],
+  "does_not_authorize": ["production activation", "gate acceptance", "mainnet launch"]
+}

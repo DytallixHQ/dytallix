@@ -51,8 +51,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
 
 The block interval is approved at about 5 seconds (`timeout_commit` 4 s); every
 block count follows from it. Approved values are marked and recorded in the
-[first](approvals/P01_E05_VALUES_1_2026-09-30.json) and
-[second](approvals/P01_E05_VALUES_2_2026-09-30.json) sets.
+[first](approvals/P01_E05_VALUES_1_2026-09-30.json),
+[second](approvals/P01_E05_VALUES_2_2026-09-30.json) and
+[third](approvals/P01_E05_VALUES_3_2026-09-30.json) sets.
 
 | Area | Value | Proposal | Basis or input needed |
 | --- | --- | --- | --- |
@@ -68,10 +69,12 @@ block count follows from it. Approved values are marked and recorded in the
 | | `min_self_bond`, `bounds_min_self_bond` | **Approved:** 100,000 DGT; 10,000 to 1,000,000 DGT | 0.01% of supply and 10 times the governance deposit; the 5% penalty costs at least 5,000 DGT |
 | Issuance | `epoch_blocks` | **Approved:** 17,280 (1 day) | |
 | | `base_udrt`, `max_udrt`, `min_udrt`, `target_ppm`, `initial_epoch_budget_udrt` | **Approved:** 1,000 DRT a block as base and ceiling (about 6.31 billion DRT a year); 500 floor; 50% target; first command equal to the base | Launch issuance equals the published base and never exceeds it; it falls toward half as blocks fill past the target |
-| | gains, integral limits, `window_samples`, `shock_threshold_ppm` | — | Engineering proposal next: calibrate to the approved level |
-| Fees | basic transfer | **Approved target:** 1 DRT, governed between 0.1 and 10 DRT | Full blocks of transfers burn about 10% of base issuance; the gas price and per-resource costs follow from the metering and come back for confirmation |
+| | `window_samples`, soft and hard gains | **Approved:** 1; proportional 17,280,000,000,000, integral and derivative 0 | One-day linear response: 1,000 DRT a block at 50% utilization down to 500 at full blocks |
+| | integral limits, `shock_threshold_ppm` | Proposed: 0, 0; 1,000,000 | No effect with these gains ([proposals](genesis/PROPOSALS.json)) |
+| Fees | basic transfer | **Approved target:** 1 DRT, governed between 0.1 and 10 DRT | Full blocks of transfers burn about 10% of base issuance |
+| | gas price, minimum gas, per-resource costs, bounds | **Approved:** 10 × 100,000 = 1 DRT floor; overhead 10,000, receipt 1,000, wire 2, read 0, write 1, signature and proof 20,000, actions 5,000; price bounds 1 to 100, cost bounds 0 to 100,000 | A basic Send uses about 47,600 gas and pays the floor; free reads keep it flat as shared state grows. The node will refuse governed fee changes that put a basic Send outside 0.1 to 10 DRT |
 | | `account_creation_fee_udrt`, bounds | **Approved:** 10 DRT; 1 to 100 DRT | Accounts are permanent state |
-| | governance and recovery costs, their bounds | — | Follow from the metering model |
+| | governance and recovery costs | **Approved:** the same scale (governance actions 5,000; recovery price 10, minimum 100,000) | Each proposal, deposit, vote and sponsored recovery action costs 1 DRT |
 | DRT bootstrap | `drt_bootstrap_total_udrt` | **Approved:** 1,000,000 DRT | Operator startup (7 × 1,000 DRT) and about 90,000 new accounts at 11 DRT; validators earn from block 1. Rows are D08-Q03 |
 | Recovery template | `template_recovery_delay`, `_finalization_window`, `_policy_delay`, `_policy_window` | **Approved:** 7 days each | Time for an owner to see and cancel a recovery |
 | | `template_submission_lifetime` | **Approved:** 1 day (17,280) | Guardians have a day to collect signatures; sponsor receipts clear within a day |
@@ -124,6 +127,8 @@ of 1.
 
 - Done (E05-c): the [upgrade custodian intake](custody/upgrade/INTAKE.md) and
   `node/tools/mainnet-preparation/upgrade_custodian_intake.py`.
-- A deterministic genesis builder: from the approved values and records to
-  the application genesis, consensus configuration and engine genesis,
-  checked by the binding review, with a reproducible digest.
+- Done (E05-d, rehearsal): the deterministic
+  [genesis builder](../node/docs/mainnet/e05-genesis-builder.md), with the
+  open values it needs proposed in [genesis/PROPOSALS.json](genesis/PROPOSALS.json).
+- Next: the binding review of the full configuration (E05-d2), then
+  production activation.

@@ -263,9 +263,11 @@
       "couplings": "Maximum charge = gas_limit x gas_price (node/dytallix-fast-launch/node/src/recovery_fees.rs:1362).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10,
+      "basis": "Same scale as ordinary: each sponsored recovery action costs at least 1 DRT.",
+      "approved": 10,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "recovery_minimum_gas",
@@ -279,9 +281,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 100000,
+      "basis": null,
+      "approved": 100000,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "recovery_max_transaction_gas",
@@ -439,9 +443,31 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": [
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000
+      ],
+      "basis": null,
+      "approved": [
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000
+      ],
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "recovery_wire_byte_cost",
@@ -455,9 +481,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 2,
+      "basis": null,
+      "approved": 2,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "recovery_read_byte_cost",
@@ -471,9 +499,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": null,
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "recovery_write_byte_cost",
@@ -487,9 +517,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1,
+      "basis": null,
+      "approved": 1,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "recovery_signature_costs",
@@ -503,9 +535,15 @@
       "couplings": "Account template algorithms must appear here (node/dytallix-fast-launch/node/src/ordinary_state.rs:199-207).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": {
+        "mldsa65": 20000
+      },
+      "basis": null,
+      "approved": {
+        "mldsa65": 20000
+      },
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_activation_height",
@@ -535,11 +573,11 @@
       "couplings": "Charge = max(gas_used, minimum_gas) x gas_price (node/dytallix-fast-launch/node/src/ordinary_fee_settlement.rs:356). Signed request needs gas_limit x gas_price <= maximum_fee <= max_fee_cap (node/crates/protocol-types/src/ordinary_fees.rs:126-138). Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87). Because max_fee_cap is ungoverned, a governed gas_price above max_fee_cap / max_transaction_gas lowers the usable gas limit; no check ties parameter_bounds.gas_price.max to max_fee_cap.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null,
-      "approved_target": "A basic transfer costs 1 DRT (1,000,000 uDRT); derive the price with the per-resource costs.",
-      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
+      "status": "APPROVED",
+      "proposed": 10,
+      "basis": "Gas price 10 times minimum gas 100,000 is the 1 DRT transfer.",
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "approved": 10
     },
     {
       "name": "ordinary_minimum_gas",
@@ -553,9 +591,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 100000,
+      "basis": "The floor a basic Send (about 47,600 gas) pays.",
+      "approved": 100000,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_max_transaction_gas",
@@ -793,9 +833,11 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87). Bounded by parameter_bounds.resource_cost on change.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": null,
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_receipt_metadata_cost",
@@ -809,9 +851,11 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000,
+      "basis": null,
+      "approved": 1000,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_wire_byte_cost",
@@ -825,9 +869,11 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 2,
+      "basis": null,
+      "approved": 2,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_read_byte_cost",
@@ -841,9 +887,11 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": "Reads of shared state grow with the chain; free reads keep the transfer fee flat.",
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_write_byte_cost",
@@ -857,9 +905,11 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1,
+      "basis": null,
+      "approved": 1,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_action_costs",
@@ -873,9 +923,37 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": [
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000
+      ],
+      "basis": null,
+      "approved": [
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000
+      ],
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_signature_costs",
@@ -889,9 +967,15 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87). Keys cannot change (node/dytallix-fast-launch/node/src/governance_actions.rs:108-120).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": {
+        "mldsa65": 20000
+      },
+      "basis": null,
+      "approved": {
+        "mldsa65": 20000
+      },
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "ordinary_validator_proof_costs",
@@ -905,9 +989,15 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": {
+        "mldsa65": 20000
+      },
+      "basis": null,
+      "approved": {
+        "mldsa65": 20000
+      },
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "account_creation_fee_udrt",
@@ -1221,9 +1311,19 @@
       "couplings": "Governed with the other costs, bounded by parameter_bounds.resource_cost (node/dytallix-fast-launch/node/src/governance_actions.rs:48-60, 78-87).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": [
+        5000,
+        5000,
+        5000
+      ],
+      "basis": "Proposals, deposits and votes pay the 1 DRT floor.",
+      "approved": [
+        5000,
+        5000,
+        5000
+      ],
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "quorum_bps",
@@ -1443,11 +1543,17 @@
       "couplings": "Checked only on proposals (node/dytallix-fast-launch/node/src/governance_actions.rs:78-87); genesis ordinary gas_price not checked within. Upper bound not checked against max_fee_cap / max_transaction_gas.",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null,
-      "approved_target": "Governance can move a basic transfer only between 0.1 and 10 DRT; derive the price and cost bounds together.",
-      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
+      "status": "APPROVED",
+      "proposed": {
+        "min": 1,
+        "max": 100
+      },
+      "basis": "Moves the 1 DRT transfer between 0.1 and 10 DRT.",
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "approved": {
+        "min": 1,
+        "max": 100
+      }
     },
     {
       "name": "bounds_resource_cost",
@@ -1461,11 +1567,17 @@
       "couplings": "Applies to every per-resource cost including governance action costs (node/dytallix-fast-launch/node/src/governance_actions.rs:48-60).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null,
-      "approved_target": "Governance can move a basic transfer only between 0.1 and 10 DRT; derive the price and cost bounds together.",
-      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
+      "status": "APPROVED",
+      "proposed": {
+        "min": 0,
+        "max": 100000
+      },
+      "basis": "Read cost 0 needs a floor of 0.",
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "approved": {
+        "min": 0,
+        "max": 100000
+      }
     },
     {
       "name": "bounds_account_creation_fee_udrt",
@@ -2004,9 +2116,11 @@
       "couplings": "Integral bounds scale with it (node/crates/adaptive-emission/src/lib.rs:73-80). No duration implied (node/crates/adaptive-emission/src/lib.rs:31).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1,
+      "basis": null,
+      "approved": 1,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "controller_integral_min",
@@ -2052,9 +2166,11 @@
       "couplings": "Term = gain x error / 1e6 in i128 (node/crates/adaptive-emission/src/lib.rs:224-228).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 17280000000000,
+      "basis": "Reaches the 500 DRT floor exactly at full blocks: issuance falls linearly from 1,000 DRT a block at 50% utilization.",
+      "approved": 17280000000000,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "controller_soft_integral",
@@ -2068,9 +2184,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": null,
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "controller_soft_derivative",
@@ -2084,9 +2202,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": null,
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "controller_hard_proportional",
@@ -2100,9 +2220,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 17280000000000,
+      "basis": "Equal to the soft gain, so the regime switch changes nothing.",
+      "approved": 17280000000000,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "controller_hard_integral",
@@ -2116,9 +2238,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": null,
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "controller_hard_derivative",
@@ -2132,9 +2256,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": null,
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json"
     },
     {
       "name": "controller_base_udrt",

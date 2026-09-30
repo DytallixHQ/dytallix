@@ -15,6 +15,7 @@ The master records each requirement, completed work, evidence, remaining work, a
 - [Production decision input packet](decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md)
 - [Decision and required-record register](DECISIONS_REQUIRED.md)
 - [E05 intake packet: production values and records](E05_INTAKE.md)
+- [Genesis builder (rehearsal)](../node/docs/mainnet/e05-genesis-builder.md) and its [proposals](genesis/PROPOSALS.json)
 - [Work queue](decision-register/WORK_QUEUE.md)
 - [Execution plan and seven simulations](MAINNET_EXECUTION_PLAN.md)
 - [Core-function alignment program and three-week gate schedule](decision-register/core-function-alignment/README.md)

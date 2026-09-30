@@ -111,12 +111,18 @@ upgrade custodian keys use SLH-DSA-SHAKE-256s (D11-Q03). The upgrade custodian
 intake and its checker are in `launch/custody/upgrade/` and
 `tools/mainnet-preparation/upgrade_custodian_intake.py`; the records stay open.
 
+E05 values, third set (30 September 2026,
+`launch/approvals/P01_E05_VALUES_3_2026-09-30.json`): a one-day linear
+issuance response (D01-Q01, D03-Q01); floor-priced fees with free reads, a 1 DRT
+floor from gas price 10 and minimum gas 100,000 (D04-Q01, D10-Q02); fee bounds
+and a node check keeping a basic transfer between 0.1 and 10 DRT (D11-Q03). The
+rehearsal genesis builder (E05-d) is in `docs/mainnet/e05-genesis-builder.md`.
+
 | Decision | Question | Rows |
 | --- | --- | --- |
 | D09-Q05 | Parameter migration. | VAL-004 |
 | D06-Q02 | Fault assumptions; state-sync trust source, trust period and snapshot peers; whether operator rollback is allowed. | CONS-001, SYNC-001 |
-| D01-Q01 | The controller's gains, integral limits, sample window and shock threshold. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
-| D03-Q01 | The sample window, with D01-Q01. | AC-011 |
+| D01-Q01 | The controller's shock threshold and integral limits (no effect with the approved gains); a gain rescale after T05. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
 | D08-Q03 (records, E05) | The DRT bootstrap recipient rows. | BRG-001, AC-009 |
 | D06-Q02 (values, E05) | Mempool, queue and peer capacity values. | MEM-002 |
 | D11-Q03, D14-Q02 (records and values, E05, E06) | Upgrade custodians; the production upgrade policy (schema 2); client compatibility window. | UPG-002 |

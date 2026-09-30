@@ -61,6 +61,10 @@ python3 -B tools/mainnet-preparation/upgrade_custodian_intake.py \
 
 It requires exactly five custodians, three of five, one explicit authority epoch, and SLH-DSA-SHAKE-256s keys (P01, 30 September 2026). It checks distinct controllers, control groups and keys, SHA-256 key IDs, purpose- and epoch-bound public evidence, reviewer separation, and that no controller, control group or key also appears in the complete emergency intake. On success it emits `authority_fragment`, the node's upgrade authority shape with keys sorted by key ID. It does not verify signatures, identity or independence, and it never reports production acceptance. Exit code 0 means structurally complete; 2 means incomplete or invalid.
 
+## Genesis inputs (E05-d)
+
+`resolve_genesis_inputs.py` writes the genesis builder's inputs from the approved values in `launch/E05_VALUES.json`, the labeled proposals in `launch/genesis/PROPOSALS.json`, and the records, with a report of each value's source. `--check` compares instead of writing. `genesis_rehearsal_records.py` writes the synthetic rehearsal records. The builder itself is the node's `dytallix-genesis-build`; see [the genesis builder](../../docs/mainnet/e05-genesis-builder.md). `fixtures/genesis-rehearsal/` holds the committed rehearsal: records, inputs, resolution and the four built files.
+
 ## Tests
 
 Run `python3 -B -m unittest discover -s tools/mainnet-preparation -p 'test_*.py'`.
