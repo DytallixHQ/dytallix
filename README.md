@@ -14,9 +14,15 @@ testnet and product code in the rest of this repository.
 | [node/](node/) | Consensus application (`dytallix-fast-node`), CometBFT v0.40.0 fork with PQC transport (`node/consensus/cometbft`), PQC HTTP adapter, native supervisor, adaptive emission and storage crates |
 | [sdk/](sdk/) | Rust SDK and `dytallix` CLI, including the ordinary-v2 client and browser crate |
 | [pqc/](pqc/) | PQC primitives (ML-DSA, SLH-DSA, ML-KEM, FN-DSA). The node is the qualification authority. |
-| [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry |
-| [docs/](docs/) | Public documentation source (MkDocs). Written for testnet; needs a mainnet revision. |
+| [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry. Not part of the consensus build; nothing here runs on the chain. |
+| [docs/](docs/) | Public documentation source (MkDocs). Mostly written for the public testnet; the tokenomics, security model, CLI reference, contract quickstart and whitepaper errata pages describe the mainnet candidate. |
 | [launch/](launch/) | Mainnet specification, tokenomics, genesis drafts, launch gates, decision register |
+
+The consensus build has no contract runtime and no cross-chain bridge. It
+runs ordinary, governance and recovery transactions only. Whether a contract
+runtime or bridges are added is open decision D07-Q01.
+`dytallix-comet-bridge` in `node/consensus/cometbft` is the adapter between
+the consensus engine and the application, not a cross-chain bridge.
 
 The testnet faucet moved to [`testnet/faucet`](../testnet/faucet/) on 29
 September 2026. It is testnet-only and served over TLS, and mainnet has no
@@ -55,7 +61,7 @@ included here.
 Start with:
 
 - [launch/USER_LAUNCH_REQUIREMENTS.txt](launch/USER_LAUNCH_REQUIREMENTS.txt): launch requirements
-- [launch/MAINNET_V1_SPEC.md](launch/MAINNET_V1_SPEC.md): protocol specification (draft)
+- [launch/MAINNET_V1_SPEC.md](launch/MAINNET_V1_SPEC.md): protocol specification (draft, stale in part; see its notice)
 - [launch/DECISIONS_REQUIRED.md](launch/DECISIONS_REQUIRED.md): open decisions
 - [launch/DGT_TOKENOMICS.md](launch/DGT_TOKENOMICS.md), [launch/DRT_TOKENOMICS.md](launch/DRT_TOKENOMICS.md): token models
 - [launch/GENESIS_SPEC.md](launch/GENESIS_SPEC.md): genesis requirements

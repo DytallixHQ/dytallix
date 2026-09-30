@@ -1,7 +1,13 @@
 # Getting Started
 
 This page gets you from zero to a funded Dytallix address and a confirmed
-transaction.
+transaction on the public testnet.
+
+It uses the public testnet SDK and CLI releases. The mainnet candidate's SDK
+and CLI have no `network` feature, no faucet client, no `init` or `faucet`
+commands, no testnet REST client and no TLS, and the mainnet candidate has no
+faucet. For the mainnet candidate, see the [CLI reference](cli-reference.md)
+and the SDK's [getting started](../../sdk/docs/getting-started.md).
 
 ## What You Need
 
@@ -69,7 +75,8 @@ Install the CLI:
 cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
 ```
 
-Initialize a local keystore and request faucet funds:
+With the testnet CLI release, initialize a local keystore and request faucet
+funds:
 
 ```bash
 dytallix init

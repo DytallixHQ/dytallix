@@ -1,6 +1,13 @@
 # RPC & Explorer Reference
 
-This page documents the public HTTP interfaces that are actually useful today.
+This page documents the public HTTP interfaces that are actually useful today
+on the public testnet.
+
+The mainnet candidate serves none of these routes, no faucet and no TLS. A
+mainnet candidate node serves an allowlist of CometBFT JSON-RPC methods on
+local sockets, and remote clients reach it through the post-quantum client
+channel. See [RPC controls v1](../../node/docs/architecture/rpc-controls-v1.md)
+and [client channel v1](../../node/docs/architecture/client-channel-v1.md).
 
 There are two main surfaces:
 

@@ -131,8 +131,8 @@ separate bandwidth charge to burn.
 
 ## Also found
 
-- `mainnet/launch/MAINNET_DECISION_REGISTER.json` does not yet record the
+- `mainnet/launch/MAINNET_DECISION_REGISTER.json` did not record the
   creation-fee burn (26 September) or governance as fee authority
-  (27 September).
-- `docs/mainnet/drt-supply-contract.md` still says there is no burn
-  transition; the creation-fee burn exists.
+  (27 September). It now records both, with D02-Q01 and D05-Q01 approved.
+- `docs/mainnet/drt-supply-contract.md` said there was no burn transition;
+  it now describes the burn.

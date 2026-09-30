@@ -21,9 +21,9 @@ New reusable components live under crates/. Their versions begin at 0.1.0 and pu
 | economics (target) | Approved parameters, prior controller/accounting state, validated observations | Deterministic mint, burn, fee, reward updates | No local time, floating-point consensus values, direct network, or uncontrolled randomness |
 | node services | Operator configuration, peer and client traffic | Composition, RPC, admission, monitoring | May compose modules; lower modules must not depend on node services |
 
-The extracted storage crate initially preserves existing public database access and optional bridge/oracle helpers. It is a compatibility boundary, not completed capability isolation. Its current write sequence is not claimed to be atomic. A database reopen test does not prove crash recovery or finalized-state continuity.
+The extracted storage crate preserves existing public database access. Its bridge helpers went with the legacy node, and its oracle, block, transaction and receipt stores with the legacy signed-transaction path (E04 gap 14). It is a compatibility boundary, not completed capability isolation. Its current write sequence is not claimed to be atomic. A database reopen test does not prove crash recovery or finalized-state continuity.
 
-The gas crate preserves the existing schedule. It does not implement or approve the paper's economic model. Protocol-types preserves current debug output and encoding. The current JSON codec is the chain's existing codec; this extraction does not claim an external canonical-JSON standard.
+The gas crate was removed with the legacy signed-transaction path (E04 gap 14); fees follow [fees v1](fees-v1.md). Protocol-types preserves current debug output and encoding. The current JSON codec is the chain's existing codec; this extraction does not claim an external canonical-JSON standard.
 
 ## Versions and upgrades
 

@@ -2,11 +2,21 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains 20 OPEN policy questions, six PARTIALLY_APPROVED policy questions and eight OPEN required records. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains 15 OPEN policy questions, nine PARTIALLY_APPROVED policy questions, two APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
 Each recorded approval scope below retains its original implementation context. Read current implementation progress and remaining work in the linked gates. Exact question fields, approvals and supersession records remain in [MAINNET_DECISION_REGISTER.json](MAINNET_DECISION_REGISTER.json).
+
+## Design approvals, 26–27 September 2026
+
+P01 approved these engineering designs. Each document records the options and the decisions; the register lists them under `design_approvals`.
+
+- [account model v2](../node/docs/architecture/account-model-v2.md) (26 September): implicit account creation by `Send`, with an account creation fee that is burned. The fee amount and account template values are unset.
+- [fees v1](../node/docs/architecture/fees-v1.md) (27 September): every transaction fee is burned in the block that charges it (D05-Q01); the validator share of issuance is divided every block by voting power (D02-Q01).
+- [governance v1](../node/docs/architecture/governance-v1.md) (27 September): block order, action classes, governed parameters and fee authority, and finished-proposal retention (D09-Q01, D11-Q02, D11-Q03).
+- [validator lifecycle retention](../node/docs/architecture/validator-lifecycle-retention.md) (27 September): retention horizon from the existing evidence limits plus margins, removal of withdrawn unbonds and settled incidents, permanent consensus-key no-reuse, and staker-slot release.
+- [state root v2](../node/docs/architecture/state-root-v2.md) (27 September): the `jmt` tree if it passes G35, proof queries at launch, and state sync before launch.
 
 ## D01 — Adaptive issuance
 
@@ -40,9 +50,13 @@ Gate references: G14, G16, G17, G19, G23.
 
 **Recorded approval scope and historical implementation context:** 40/30/30 validator/staker/treasury split. Six decimals. Checked floor allocation by eligible stake. Sole recipient gets the budget. Staking pool pays owners with no commission. Separate rounding and inactive reserves have no automatic recipient or sweep authority. LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.
 
-### D02-Q01 — OPEN
+### D02-Q01 — APPROVED
 
 What eligibility and allocation rules apply to the separate validator reward pool?
+
+Approved (validator option A, P01, 27 September 2026): each block's validator budget is divided by voting power among the validators in the effective set and credited to each operator's owner, claimed with the existing `RewardClaim`. A validator outside the set earns nothing for that block; the rounding remainder stays in the pool. Issuance values remain E05 inputs.
+
+Recorded approval: [fees v1](../node/docs/architecture/fees-v1.md).
 
 Required output: Validator reward specification.
 
@@ -82,11 +96,13 @@ Evidence: [batch-6/integration-followup/APPROVAL.json](batch-6/integration-follo
 
 Gate references: G10, G11, G12, G14, G20.
 
-**Recorded approval scope and historical implementation context:** Recovery RF01 through RF06 and ordinary actor-paid udrt/no-tips authority remain selected. OF01 through OF05 select ordinary fee contract format 1, canonical profile binding, deterministic metering, zero-charge preacceptance rejection, measured accepted application failure, accepted out-of-gas, shared reservations, atomic cap release and nonce outcomes, and undistributed udrt custody. Production values and actual runtime or durable integration remain separate. Reserve metadata gas before acceptance and count it once. Initial vesting/custody eligibility remains a zero-charge funding condition; a later breached reservation guarantee is an internal fault. Dms authority checks precede acceptance while maturity is a typed post-acceptance state condition. Shared aggregate limits supplement recovery-specific ceilings; mandatory expiry retains its own budget. General distribution and burn policy remain open. The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification. The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.
+**Recorded approval scope and historical implementation context:** Recovery RF01 through RF06 and ordinary actor-paid udrt/no-tips authority remain selected. OF01 through OF05 select ordinary fee contract format 1, canonical profile binding, deterministic metering, zero-charge preacceptance rejection, measured accepted application failure, accepted out-of-gas, shared reservations, atomic cap release and nonce outcomes, and undistributed udrt custody. Production values and actual runtime or durable integration remain separate. Reserve metadata gas before acceptance and count it once. Initial vesting/custody eligibility remains a zero-charge funding condition; a later breached reservation guarantee is an internal fault. Dms authority checks precede acceptance while maturity is a typed post-acceptance state condition. Shared aggregate limits supplement recovery-specific ceilings; mandatory expiry retains its own budget. The later fee burn (D05-Q01, P01, 27 September 2026) supersedes the undistributed udrt custody. The current result records local OF-W04 and OF-W05 runtime and durable integration checks within its reported scope. This closes neither the parent production work nor OF-W06 client, production parameter, custody, genesis, operator or release qualification. The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.
 
 ### D04-Q01 — PARTIALLY_APPROVED
 
 Which fee denomination, metering, formula, prices, bounds and tips apply?
+
+Account creation fee: a field of the signed ordinary fee profile, committed through `fee_profile_digest` ([account model v2](../node/docs/architecture/account-model-v2.md), 26 September 2026). Governance sets new fee profile versions within genesis bounds ([governance v1](../node/docs/architecture/governance-v1.md), 27 September 2026). Production values and bounds remain unset.
 
 Required output: Fee parameter specification.
 
@@ -100,6 +116,8 @@ Evidence: [batch-2/ECONOMIC_DECISIONS.json](batch-2/ECONOMIC_DECISIONS.json), [b
 
 How do reservation, failures, refunds, minimum charges and recipient credits work?
 
+Fee destination: fees are burned in the block that charges them, with no recipient records (D05-Q01, [fees v1](../node/docs/architecture/fees-v1.md)). Remaining inputs: production profile and receipt retention parameters.
+
 Required output: Fee settlement specification.
 
 Proposed owner role: Fee accounting lead. Named assignment and reviewer remain as recorded in the structured register.
@@ -112,11 +130,15 @@ Evidence: [batch-2/ECONOMIC_DECISIONS.json](batch-2/ECONOMIC_DECISIONS.json), [b
 
 Gate references: G05, G12, G13, G14, G15, G20, G23.
 
-**Recorded approval scope and historical implementation context:** Fixed one-billion DGT total and category shares approved. Production burn rules and supply authority remain open. RF05 approves undistributed recovery fee custody with no burn, recipient or sweep operation in this integration. The general DRT burn policy remains open. OF05 selects existing undistributed udrt custody with no recipient, burn or sweep operation. General DRT burn policy remains open. Fee delta must be reconciled separately from successful action balance changes.
+**Recorded approval scope and historical implementation context:** Fixed one-billion DGT total and category shares approved. RF05 and OF05 selected undistributed udrt custody with no recipient, burn or sweep operation; the D05-Q01 fee burn (P01, 27 September 2026) supersedes both. Fee delta must be reconciled separately from successful action balance changes. DGT issuance authority (D05-Q02) remains open.
 
-### D05-Q01 — OPEN
+### D05-Q01 — APPROVED
 
 Which DRT fee components burn, and what custody debit and supply change occur on success or failure?
+
+Approved (fee option A, P01, 27 September 2026): every transaction fee, ordinary, governance and sponsored recovery, is burned. Fees collect in the withheld counter while a block runs and move to `supply:drt_burned` at its end, so the payer's uDRT falls and the burned total rises by each charge, on success, accepted failure and out-of-gas alike. The withheld counter is zero at every commit, and supply is genesis plus emitted minus burned. The account creation fee is burned (P01, 26 September 2026). A bandwidth-only burn was not offered: the approved meter has one combined gas charge.
+
+Recorded approvals: [fees v1](../node/docs/architecture/fees-v1.md), [account model v2](../node/docs/architecture/account-model-v2.md).
 
 Required output: DRT burn specification.
 
@@ -224,9 +246,15 @@ Gate references: G01, G02, G04, G05, G07, G08, G15, G16, G17, G18, G21, G22, G30
 
 **Recorded approval scope and historical implementation context:** All seven Batch 8 rules approved: effective bonded power; permissioned initial admission with key proof; funded self-bond and capacity checks; H+2 changes; owner-specific unbonding held through both evidence limits, margins and penalty settlement; authorized key rotation; atomic recovery. Batch 9 penalty values are synthetic.
 
-### D09-Q01 — OPEN
+### D09-Q01 — PARTIALLY_APPROVED
 
 What minimum self-bond, maximum active set and operator-registry amendment authority apply?
+
+Approved portion (P01, 27 September 2026): governance amends the operator registry through the validator registry action class (add an approved operator, or remove one with no registered validator; at most 64) and governs `min_self_bond` and `max_active` within genesis bounds. Admission and H+2 rules are unchanged.
+
+Recorded approval: [governance v1](../node/docs/architecture/governance-v1.md).
+
+Remaining inputs: production `min_self_bond` and `max_active` values and their genesis bounds (E05).
 
 Required output: Validator admission configuration.
 
@@ -324,9 +352,13 @@ Gate references: G17, G19, G21, G22, G23, G24, G31.
 
 **Recorded approval scope and historical implementation context:** Only bonded stake gives voting power. Liquid DGT gives zero. Count each owner stake once; do not add validator aggregate stake.
 
-### D11-Q01 — OPEN
+### D11-Q01 — PARTIALLY_APPROVED
 
 What governance snapshot, validator eligibility and delegated vote ownership rules apply?
+
+Approved portions (25 September 2026): registered accounts with effective bonded DGT at the finalized parent block, by stable account ID; each owner votes its own bond only; validators have no special vote; no delegation; the snapshot is fixed at the parent block before voting starts; a proposer is a registered account with positive effective bond.
+
+Recorded approval: [25 September governance rules](decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json). Design: [governance v1](../node/docs/architecture/governance-v1.md).
 
 Required output: Governance electorate specification.
 
@@ -334,9 +366,15 @@ Proposed owner role: Governance lead with protocol and custody reviewers. Named 
 
 Evidence: [batch-5/eligibility-followup/APPROVAL.json](batch-5/eligibility-followup/APPROVAL.json).
 
-### D11-Q02 — OPEN
+### D11-Q02 — PARTIALLY_APPROVED
 
 What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?
+
+Approved portions (25 September 2026): abstain counts for quorum only; integer basis points with required weight rounded up; deposits held in accounted DGT escrow and refunded once at every terminal outcome, with no burn or sweep; execution at an explicit finalized height with the action bound before voting; no cancellation. Added 27 September 2026: automatic transitions run before signed transactions; a failed execution refunds and continues; finished proposals are removed with their votes, snapshots and escrow records at the next block start after the refund, keeping running totals.
+
+Recorded approvals: [25 September governance rules](decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json), [governance v1](../node/docs/architecture/governance-v1.md).
+
+Remaining inputs: production quorum, approval and veto basis points, deposit, periods and timelock (E05).
 
 Required output: Governance parameter specification.
 
@@ -348,11 +386,11 @@ Evidence: [batch-5/eligibility-followup/APPROVAL.json](batch-5/eligibility-follo
 
 Which actions, parameter bounds, treasury powers, emergency powers and upgrade or recovery authorities apply?
 
-Approved portions: transaction freeze while consensus continues; separate resume; persistent upgrade hold; three signatures from five independent custodians with distinct freeze/resume keys; measured height-based validity windows; continued mandatory transitions; evidence-bound resume; separate candidate-specific upgrade clearance; and a separate full-halt procedure.
+Approved portions: transaction freeze while consensus continues; separate resume; persistent upgrade hold; three signatures from five independent custodians with distinct freeze/resume keys; measured height-based validity windows; continued mandatory transitions; evidence-bound resume; separate candidate-specific upgrade clearance; and a separate full-halt procedure. Routine governance (27 September 2026): the action classes are parameter change and validator registry; the governed parameters are new ordinary fee profile versions (gas price, resource costs, account creation fee), `min_self_bond` and `max_active`, each within genesis bounds, and governance is the fee authority; everything else, including where fees go, changes only by upgrade; upgrades stay root-signed only; treasury spending is POST MAINNET.
 
-Approvals: [initial emergency rules](decision-register/emergency-transaction-freeze/policy/APPROVAL.json), [six additional recommendations](decision-register/emergency-release-staging/policy/APPROVAL.json).
+Approvals: [initial emergency rules](decision-register/emergency-transaction-freeze/policy/APPROVAL.json), [six additional recommendations](decision-register/emergency-release-staging/policy/APPROVAL.json), [governance v1](../node/docs/architecture/governance-v1.md).
 
-Remaining inputs: custodian names, keys and epochs; numeric timing limits; acceptance of production control formats; upgrade-clearance membership and threshold; halt/restart authority; and the remaining governance authority matrix. Version 2 emergency bindings and the first actual receipt-index upgrade executor are implemented with development-only inputs. Cross-binary and production qualification remain open. Use the [custodian intake packet](decision-register/emergency-upgrade-execution/custody/INTAKE.md) to supply public records. This implementation adds no policy approval.
+Remaining inputs: custodian names, keys and epochs; numeric timing limits; acceptance of production control formats; upgrade-clearance membership and threshold; halt/restart authority; genesis bounds for each governed parameter; and recovery authorities. Version 2 emergency bindings and the first actual receipt-index upgrade executor are implemented with development-only inputs. Cross-binary and production qualification remain open. Use the [custodian intake packet](decision-register/emergency-upgrade-execution/custody/INTAKE.md) to supply public records. This implementation adds no policy approval.
 
 Required output: Governance authority matrix.
 

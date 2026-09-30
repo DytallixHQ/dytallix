@@ -15,9 +15,12 @@ all verified against `https://dytallix.com` on April 13, 2026.
 
 Use the public faucet:
 
-- `dytallix init`
-- `dytallix faucet`
+- `dytallix init` or `dytallix faucet`, in the testnet CLI release
 - `POST https://dytallix.com/api/faucet/request`
+
+The mainnet candidate has no faucet, and its CLI has no `init` or `faucet`
+command. An account receives funds at genesis or by a transfer from a funded
+account.
 
 ## Which signature scheme should I use?
 
@@ -33,11 +36,14 @@ ML-DSA-65 public key.
 On the current public testnet, gas is charged in `DGT` according to the live
 `/status` endpoint and the published node source.
 
+On the mainnet candidate, fees are charged in uDRT, with no tips, and every
+fee is burned. See [`tokenomics.md`](tokenomics.md).
+
 ## Then what is DRT for?
 
-`DRT` remains a first-class token in balances, transfers, and reward-token
-language across the SDK and explorer metadata. It is part of the dual-token
-model even though the current public fee denom is `udgt`.
+`DRT` is a first-class token in balances, transfers, and reward-token
+language across the SDK and explorer metadata. On the mainnet candidate it
+pays every fee and all rewards. The public testnet's fee denom is `udgt`.
 
 ## Where do I view blocks and transactions?
 
@@ -65,10 +71,14 @@ Yes. The most useful public routes today are:
 
 ## Are all CLI commands fully live on the public gateway?
 
-Not yet. Wallet, balance, faucet, core transfer flows, and the basic contract
-deploy/call/query/info/events loop are straightforward today. Governance
-writes, staking writes, and some `/v1/*`-backed read surfaces are still ahead
+On the public testnet, not yet. As of April 2026, wallet, balance, faucet,
+core transfer flows, and the basic contract deploy/call/query/info/events loop
+worked through the public gateway with the testnet CLI release. Governance
+writes, staking writes, and some `/v1/*`-backed read surfaces were still ahead
 of the public gateway routing.
+
+The mainnet candidate CLI has no faucet, contract or testnet REST commands.
+It uses a pinned consensus chain; see [`cli-reference.md`](cli-reference.md).
 
 ## What port does the local node use?
 

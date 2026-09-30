@@ -224,7 +224,8 @@ execution rule.
 
 ## Also found
 
-- `mainnet/launch/DECISIONS_REQUIRED.md` still marks D11-Q01 and D11-Q02
-  open; the JSON register has them partially approved.
+- `mainnet/launch/DECISIONS_REQUIRED.md` marked D11-Q01 and D11-Q02 open
+  while the JSON register had them partially approved. Both now record the
+  25 and 27 September approvals.
 - AC-006 (quadratic voting, vote decay) conflicts with the approved stake
   weighting and is still in the conflict register.

@@ -2,7 +2,14 @@
 
 This page summarizes the published Dytallix node snapshot, the reproducible
 deployment path published with it, and the practical defaults that matter when
-running it locally.
+running it locally. That snapshot is the public testnet node.
+
+The mainnet candidate's node is different: a CometBFT engine and a Rust
+consensus application under a native supervisor. It has no HTTP RPC server on
+port `3030`, no contract runtime, no bridge and no oracle, and it charges fees
+in uDRT and burns them. Its operator documents are in `mainnet/node/docs`, for
+example [RPC controls v1](../../node/docs/architecture/rpc-controls-v1.md) and
+[key tooling v1](../../node/docs/architecture/key-tooling-v1.md).
 
 Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.
 
@@ -19,7 +26,7 @@ Primary components:
 - `dytallix-fast-launch/node` — public RPC node and execution engine
 - `blockchain-core` — shared chain logic
 - `pqc-crypto` — PQC helpers and CLIs
-- `smart-contracts` — contract runtime and examples
+- `smart-contracts` — contract runtime and examples (testnet snapshot only)
 
 ## Build
 
@@ -118,13 +125,14 @@ Relevant environment variables include:
 
 ## Fee And Denom Behavior
 
-The current node source and live `/status` endpoint both report fees in
+The testnet node source and live `/status` endpoint both report fees in
 `udgt`.
 
 That means:
 
 - the public testnet is presently charging fees in the governance-token denom
-- this overrides older nearby docs that described `DRT` as the fee token
+- the mainnet candidate differs: it charges fees in uDRT and burns every fee
+  (see [`tokenomics.md`](tokenomics.md))
 
 ## Local Tooling Alignment
 

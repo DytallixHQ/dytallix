@@ -1,118 +1,123 @@
 # Tokenomics
 
-Dytallix documentation and source materials consistently describe a dual-token
-system, but the current public testnet implementation has one important
-short-term caveat: fees are presently charged in `DGT`.
+This page describes the token model of the mainnet candidate. The public
+testnet is a separate chain with different fee rules; see
+[Public Testnet](#public-testnet) at the end.
 
-This page separates the token roles from the current live-node behavior.
+Decision IDs (such as D05-Q02) refer to
+`mainnet/launch/MAINNET_DECISION_REGISTER.json`. Where a value is still an
+open decision, this page says so.
 
 ## Token Roles
 
 ### `DGT`
 
-Current documented role:
+- staking: DGT is bonded to validators
+- governance: voting weight and proposal deposits
+- fixed total: 1,000,000,000 DGT
+- micro-denom: `udgt` (1 DGT = 1,000,000 uDGT)
 
-- governance
-- staking and delegation
-- current public testnet fee token
-
-Micro-denom:
-
-- `udgt`
+No fee is paid in DGT, and no DGT is burned. Whether all DGT is issued at
+genesis, with no later mint, is open (D05-Q02).
 
 ### `DRT`
 
-Current documented role:
+- pays every transaction fee
+- pays validator and staking rewards
+- micro-denom: `udrt` (1 DRT = 1,000,000 uDRT)
 
-- rewards
-- transferable asset on the public testnet
-- staking reward and reward-token language in explorer and SDK docs
+The initial DRT supply, and how users first get DRT for fees, are open
+(D08-Q02, D08-Q03).
 
-Micro-denom:
+## Fees
 
-- `udrt`
+- Fees are paid in uDRT by the transaction's actor. There are no tips.
+- The charge is `max(measured gas, minimum gas) × gas price`. Failed and
+  out-of-gas transactions pay it too.
+- Every transaction fee is burned: ordinary, governance and recovery. The
+  payer's uDRT and the DRT supply fall by the same amount.
+- A transfer to an address with no account creates the account and burns
+  the account creation fee.
+- The minimum fee protects against spam. It is not a floor for validator
+  income; validators are paid from issuance.
+- The gas price, per-resource costs and account creation fee are set at
+  genesis. Governance can change them within genesis bounds. Changing where
+  fees go needs an upgrade.
+- No production fee values are set yet. They are genesis inputs.
 
-## Current Public Testnet Behavior
+Every write carries an explicit gas limit and maximum fee in uDRT. The CLI
+requires both (`--gas-limit`, `--maximum-fee-udrt`); see the
+[CLI reference](cli-reference.md).
 
-The live `GET /status` endpoint currently reports:
+Defined in [fees v1](../../node/docs/architecture/fees-v1.md) and
+[governance v1](../../node/docs/architecture/governance-v1.md).
 
-- `fee_denom: "udgt"`
-- `min_gas_price: 1000`
+## Issuance And Rewards
 
-The published node source also charges upfront fees from `udgt`.
+- DRT supply is the genesis supply plus issuance minus burns.
+- Issuance is split 40% validator rewards, 30% staking rewards and 30%
+  treasury. The rounding remainder goes to the issuance reserve.
+- The validator share is divided every block by voting power among the
+  active validators and credited to each operator's owner.
+- The staking share is paid pro rata to bonded stake, with no commission.
+- Both are claimed with `dytallix stake claim`.
+- Treasury spending is POST MAINNET.
 
-Practical integration guidance:
+Issuance per epoch comes from the adaptive emission controller. Its only
+input is an observation that every validator derives from committed blocks:
+block-space utilization, with volatility 0. There is no oracle. This
+observation contract is the proposal for open decision D01-Q02. The
+controller's parameters and first command (D01-Q01) and the epoch length
+(D03-Q01) are open.
 
-- budget gas in `DGT`
-- treat `DRT` as a separate balance you may transfer or receive
-- check `/status` before hard-coding fee assumptions
+Defined in [fees v1](../../node/docs/architecture/fees-v1.md) and
+[adaptive emission v1](../../node/docs/mainnet/adaptive-emission-v1.md).
 
-## Faucet Distribution
+## Staking And Governance
 
-The public faucet reported the following limits on April 6, 2026:
+Staking:
 
-- `10 DGT`
-- `100 DRT`
-- `60` minute cooldown
-- `3` requests per hour
+- An account bonds DGT to a validator with `dytallix stake bond` and begins
+  unbonding with `dytallix stake unbond`.
+- An unbond matures after the evidence age limits plus processing margins.
+  Those values are open (D09-Q03).
+- Without the penalty profile, which mainnet cannot use today, withdrawing
+  unbonded principal is disabled: a withdrawal is charged and fails with
+  `VALIDATOR_WITHDRAWAL_DISABLED`. Withdrawal activation is open (D09-Q05).
+- Duplicate-vote and light-client-attack evidence is recorded only. No stake
+  is slashed until the penalty rules are decided (D09-Q04).
 
-This matches the typical quickstart pattern where developers need both:
+Governance:
 
-- `DGT` for fees
-- `DRT` for transfers and reward-token testing
+- Voting weight is linear in stake. Each account votes with its own
+  effective bonded DGT at the proposal's snapshot. Liquid, queued and
+  non-effective DGT count zero.
+- Votes cannot be delegated, and voting weight does not decay.
+- Abstain counts for quorum only.
+- Proposal deposits are held in DGT escrow and refunded at every outcome.
+  No deposit is burned.
+- Governance can change the ordinary fee profile, `min_self_bond`,
+  `max_active` and the validator operator registry. Everything else changes
+  only by a root-signed upgrade.
+- Quorum, thresholds, deposit, periods and timelock are open (D11-Q02).
 
-## Whitepaper And Design-Language Caveat
+Defined in [governance v1](../../node/docs/architecture/governance-v1.md)
+and [liveness v1](../../node/docs/architecture/liveness-v1.md).
 
-Some whitepaper and adjacent tokenomics language describes a broader long-range
-economic design in which `DRT` plays a larger role in fees, rewards, burns, and
-market-facing economics.
+## Whitepapers
 
-For builders, the right distinction is:
+The whitepapers describe an earlier design: vote decay, a fee split with
+tips, an oracle-enforced fee floor and a liquidity bootstrapping pool. The
+mainnet candidate supersedes those claims. See
+[Errata for the mainnet candidate](whitepapers.md#errata-for-the-mainnet-candidate).
 
-- whitepapers describe the protocol design direction
-- the live public node defines current integration behavior
+## Public Testnet
 
-When they differ, use the live public node for software behavior.
+The public testnet at `https://dytallix.com` is a separate chain running a
+different node. In April 2026 its `GET /status` reported
+`fee_denom: "udgt"` and `min_gas_price: 1000`, so testnet fees are paid in
+DGT. It also has a faucet; see [Getting Started](getting-started.md). Check
+the testnet's `/status` before hard-coding fee assumptions for it.
 
-## Gas Economics In Practice
-
-The live node publishes:
-
-- transfer base gas
-- per-byte gas
-- per additional signature gas
-- key-value read gas
-- key-value write gas
-
-The published SDK converts that into a two-part fee estimate:
-
-- `c_gas`
-- `b_gas`
-
-Current fee estimates are displayed in `DGT`.
-
-## Governance And Staking
-
-Across the codebase and companion appendix material, DGT is the token tied to:
-
-- governance weight
-- delegation
-- validator stake
-
-Appendix material also discusses:
-
-- governance decay controls
-- validator and oracle assumptions
-- bounded governance parameters
-
-Those materials are best read as protocol-design context rather than a strict
-statement that every mechanism is already live in the public gateway.
-
-## What Integrators Should Assume
-
-Assume the following unless the public gateway changes:
-
-- account balances expose both `udgt` and `udrt`
-- fees are charged in `udgt`
-- faucet requests may fund both tokens
-- the dual-token model is real, but some economic details are still evolving
+None of this applies to the mainnet candidate, which charges fees in uDRT
+and has no faucet.

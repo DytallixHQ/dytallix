@@ -58,12 +58,14 @@ Cr(h) = Ir + Mr(h) - Dr(h)
 
 **APPROVED — EC-07 epoch budget distribution.** The [issuance timing approval](batch-6/issuance-timing/APPROVAL.json) adopts an explicit positive finalized-block count `N` and explicit epoch-zero command `E0`. Split each command `E` into `floor(4E/10)`, `floor(3E/10)`, `floor(3E/10)` and the remaining `issuance_reserve` budget. Schedule each of the four budgets as `floor(B/N)` per block plus one base DRT unit in the first `B mod N` blocks. The four complete block schedules sum to `E`. Later commands use the completed previous epoch's observation bound to the expected parent. Numeric production inputs remain unselected.
 
+**SUPERSEDED — EC-12, by [fees v1](../node/docs/architecture/fees-v1.md) (P01, 27 September 2026).** Every transaction fee (ordinary, governance and sponsored recovery) is paid in udrt, with no tips, and burned when charged: the payer's `Lr` falls and `Dr` rises by the charge. Fees collect in the withheld counter (`Fr`) during a block and burn at the block's end, so `Fr` is zero at every commit. The account creation fee is burned too. No fee goes to a recipient; validators are paid from `Vr`, divided every block by voting power. DRT supply is `genesis + emitted − burned`. The EC-12 fee equation and the fee example below are kept as history and do not apply.
+
 **PROPOSED — remaining EC-08/12 transition model.** The first two equations below express approved budget conservation. The remaining custody and fee model still requires its stated approvals:
 
 ```text
 epoch E = sum(block_validator_credit + block_staker_credit + block_treasury_credit + block_issuance_reserve_credit)
 pool budget B = sum(new integer entitlements) + pool_rounding_credit
-fee reservation = refund + fee_recipient_credits + burn + retained_fee_credit
+fee reservation = refund + fee_recipient_credits + burn + retained_fee_credit   (EC-12, superseded by fees v1)
 claim pool debit = liquid beneficiary credit
 bond liquid_or_locked_debit = bonded_credit
 unbond bonded_debit = unbonding_credit
@@ -98,7 +100,7 @@ The pool budget is the new interval allocation, not all funds in a pool that als
 | Pool B = 250000 udrt, one eligible weight | Entitlement 250000; payout residual 0 |
 | Pool B = 7 udrt, eligible weights 1 and 2 | Entitlements 2 and 4; payout residual 1 |
 | Pool B = 7 udrt, no eligible weight | Inactive-period reserve 7; entitlement 0 |
-| Fee reservation 100 udrt; compute 40, bandwidth 15, tip 5 | Refund 40; recipient 45; burn 15; supply falls 15 |
+| Fee reservation 100 udrt; compute 40, bandwidth 15, tip 5 (EC-12, superseded) | Under fees v1 there is no tip or split: the whole charge is burned and supply falls by it |
 
 **APPROVED — EC-08 reward-pool remainder only.** The unallocated integer remainder stays in a separately recorded reward-pool reserve. It has no automatic recipient or sweep authority.
 
