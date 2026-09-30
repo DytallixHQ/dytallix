@@ -40,22 +40,35 @@
         {
           "id": "D01-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which observations, sources, authentication, aggregation and missing-input or resume rules apply?",
           "recommendation": "Specify a deterministic observation contract. Never substitute an invented observation.",
-          "selected_value": null,
+          "selected_value": {
+            "contract": "OBSERVATION_CONTRACT_V1",
+            "source": "DERIVED_BY_EVERY_VALIDATOR_FROM_COMMITTED_BLOCKS",
+            "utilization": "EPOCH_TRANSACTION_BYTES_EXCLUDING_OWN_OBSERVATION_OVER_EPOCH_BLOCKS_TIMES_MAX_BLOCK_BYTES_PPM_CAPPED",
+            "volatility": 0,
+            "submitted_observations": "REFUSED_IN_CHECKTX",
+            "proposer": "INSERTS_DERIVED_OBSERVATION",
+            "execution": "REJECTS_A_DIFFERING_OBSERVATION",
+            "missing_input": "NONE_BFT_CHAIN_HAS_NO_MISSING_HEIGHTS",
+            "external_oracle_at_launch": false
+          },
           "owner_role_proposed": "Protocol and economics lead",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "blocks_work": [
             "W01"
           ],
           "blocking_output": "Observation contract",
           "evidence_refs": [
             "snapshots/dytallix-node/docs/mainnet/specification-decisions.md",
-            "batch-6/issuance-timing/APPROVAL.json"
-          ]
+            "batch-6/issuance-timing/APPROVAL.json",
+            "approvals/P01_E04_POLICY_2026-09-29.json",
+            "../node/docs/mainnet/adaptive-emission-v1.md"
+          ],
+          "approved_portion": "Observation contract v1 (P01, 29 September 2026): every validator derives utilization from committed blocks, volatility is 0, CheckTx refuses submitted observations and execution rejects a mismatch. No external oracle at launch."
         }
       ],
       "work": {
@@ -722,14 +735,23 @@
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "recommendation": "Review this existing proposal explicitly. A fixed total does not establish executable issuance or authority rules.",
-          "selected_value": null,
+          "selected_value": {
+            "genesis_issuance": "FULL_FIXED_TOTAL",
+            "total_udgt": "1000000000000000",
+            "post_genesis_mint": false,
+            "runtime_mint_path": "REMOVED",
+            "dgt_burn": false,
+            "penalized_dgt": "PENALTY_ESCROW_UNTIL_D09_SETS_DESTINATION",
+            "total_change": "UPGRADE_ONLY",
+            "enforcement": "BINDING_REVIEW_REPORTS_FULL_DGT_ISSUANCE_MISSING"
+          },
           "owner_role_proposed": "Economics and supply accounting leads",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "blocks_work": [
             "W05"
           ],
@@ -737,8 +759,11 @@
           "evidence_refs": [
             "evidence/TOKENOMICS_APPROVED_SOURCE.json",
             "batch-2/ECONOMIC_DECISIONS.json",
-            "decision-register/recovery-fee-implementation/APPROVAL.json"
-          ]
+            "decision-register/recovery-fee-implementation/APPROVAL.json",
+            "approvals/P01_E04_POLICY_2026-09-29.json",
+            "DGT_TOKENOMICS.md"
+          ],
+          "approved_portion": "All at genesis, no mint (P01, 29 September 2026): genesis issues the whole 1,000,000,000 DGT, nothing mints DGT later and no DGT is burned. Penalized DGT goes to a penalty escrow until D09 sets its destination; changing the total needs an upgrade."
         }
       ],
       "work": {
@@ -917,14 +942,37 @@
         {
           "id": "D07-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What exact enabled-module and interface matrix satisfies the required launch scope?",
           "recommendation": "List each required feature and interface, including the gRPC decision. Defer optional features only after dependency review.",
-          "selected_value": null,
+          "selected_value": {
+            "launch_modules": [
+              "ORDINARY_V2_TRANSFERS_AND_STAKING",
+              "ORDINARY_V3_GOVERNANCE",
+              "RECOVERY",
+              "EMERGENCY_CONTROLS",
+              "ROOT_SIGNED_UPGRADES",
+              "STATE_SYNC",
+              "CLIENT_CHANNEL",
+              "LOCAL_GATEWAY"
+            ],
+            "post_mainnet": [
+              "CONTRACT_RUNTIME",
+              "BRIDGES",
+              "AIRLOCK",
+              "LIQUIDITY_BOOTSTRAPPING_POOL",
+              "WRAPPED_USDC",
+              "EXTERNAL_ORACLES",
+              "GRPC",
+              "TREASURY_SPENDING"
+            ],
+            "client_interfaces": "CLIENT_SOCKET_ALLOWLIST_OVER_THE_CLIENT_CHANNEL_AND_LOOPBACK",
+            "grpc": false
+          },
           "owner_role_proposed": "Product and protocol leads",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "blocks_work": [
             "W07",
             "W12"
@@ -932,10 +980,12 @@
           "blocking_output": "Launch feature matrix",
           "evidence_refs": [
             "USER_LAUNCH_REQUIREMENTS.txt",
-            "batch-1/REQUIREMENTS_RECONCILIATION.md"
+            "batch-1/REQUIREMENTS_RECONCILIATION.md",
+            "approvals/P01_E04_POLICY_2026-09-29.json"
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
-          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json"
+          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approved_portion": "Current build only (P01, 29 September 2026): mainnet v1 launches with ordinary v2 transfers and staking, ordinary v3 governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET."
         }
       ],
       "work": {
@@ -1034,14 +1084,21 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "recommendation": "Review an explicit liquid fee bootstrap with supply reconciliation and recipient controls.",
-          "selected_value": null,
+          "selected_value": {
+            "bootstrap": "LIQUID_ORDINARY_TRANSFERABLE_DRT_AT_GENESIS",
+            "supply": "COUNTED_IN_GENESIS_SUPPLY",
+            "recipients": "NAMED_ACCOUNTS_IN_THE_GENESIS_MANIFEST",
+            "restrictions": "NONE_BEYOND_ORDINARY_DRT",
+            "amount_udrt": null,
+            "per_account_distribution": null
+          },
           "owner_role_proposed": "Genesis coordinator with custody and economics reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "blocks_work": [
             "W08",
             "W04"
@@ -1050,7 +1107,14 @@
           "evidence_refs": [
             "evidence/TOKENOMICS_APPROVED_SOURCE.json",
             "batch-6/APPROVAL.json",
-            "batch-6/integration-followup/APPROVAL.json"
+            "batch-6/integration-followup/APPROVAL.json",
+            "approvals/P01_E04_POLICY_2026-09-29.json",
+            "DRT_TOKENOMICS.md"
+          ],
+          "approved_portion": "Genesis DRT to named accounts (P01, 29 September 2026): genesis creates a fixed liquid amount of ordinary, transferable DRT, counted in supply, assigned by the genesis manifest to named accounts such as validator operators and custody accounts.",
+          "remaining_choices": [
+            "Bootstrap amount (E05)",
+            "Recipient rows and custody records (D08-Q03)"
           ]
         },
         {
@@ -2736,9 +2800,9 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 15,
-    "partially_approved_policy_questions": 9,
-    "approved_policy_questions": 2,
+    "fully_open_policy_questions": 11,
+    "partially_approved_policy_questions": 10,
+    "approved_policy_questions": 5,
     "required_records": 8
   },
   "supersessions": [
@@ -3246,6 +3310,29 @@
       ],
       "question_refs": [],
       "unset": []
+    },
+    {
+      "id": "P01-2026-09-29-E04-POLICY-1",
+      "approved": "2026-09-29",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E04_POLICY_2026-09-29.json",
+      "decisions": [
+        "D07-Q01: current build only; the other modules are POST MAINNET.",
+        "D05-Q02: all DGT at genesis, no mint, no DGT burn.",
+        "D01-Q02: observation contract v1, no external oracle at launch.",
+        "D08-Q02: liquid genesis DRT to named accounts."
+      ],
+      "question_refs": [
+        "D01-Q02",
+        "D05-Q02",
+        "D07-Q01",
+        "D08-Q02"
+      ],
+      "unset": [
+        "DRT bootstrap amount and rows",
+        "Controller parameters (D01-Q01)",
+        "Penalty escrow destination (D09-Q04)"
+      ]
     }
   ],
   "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset."

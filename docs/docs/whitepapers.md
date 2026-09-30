@@ -111,9 +111,8 @@ Where a value is still an open decision, the entry says so.
   only issuance input is the epoch observation, which every validator
   derives from committed blocks: utilization is the epoch's transaction
   bytes over its block capacity, and volatility is 0. CheckTx refuses a
-  submitted observation. This observation contract is implemented as the
-  proposal for open decision D01-Q02; confirming that no external oracle is
-  used at launch is open (D01-Q02, D07-Q01).
+  submitted observation. This observation contract is approved, and no
+  external oracle is used at launch (D01-Q02, D07-Q01, P01, 29 September 2026).
 - Defined in:
   [adaptive emission v1](../../node/docs/mainnet/adaptive-emission-v1.md)
   (observation contract v1); triage ORC-001 to ORC-003, AC-001 and AC-010.
@@ -123,9 +122,10 @@ Where a value is still an open decision, the entry says so.
 - Paper: a 95/5 DRT and USDC liquidity bootstrapping pool sets a DRT floor
   price before the first epoch.
 - Mainnet candidate: there is no liquidity bootstrapping pool, no USDC or
-  other wrapped asset and no floor price. How users get DRT for fees without
-  one, and the initial DRT supply, are open (D08-Q02, D08-Q03). Marking the
-  pool and wrapped USDC POST MAINNET is open (D07-Q01).
+  other wrapped asset and no floor price; the pool and wrapped USDC are POST
+  MAINNET (D07-Q01, P01, 29 September 2026). The first users get DRT for
+  fees from a liquid genesis bootstrap assigned to named accounts (D08-Q02);
+  its amount and recipients are genesis inputs (D08-Q02, D08-Q03).
 - Defined in: triage BRG-001 and AC-009.
 
 **MPC Airlock** (§7.3)
@@ -133,8 +133,8 @@ Where a value is still an open decision, the entry says so.
 - Paper: legacy assets migrate through multi-party computation custody and a
   proof of reserve, and PQC-native tokens are minted against them.
 - Mainnet candidate: the consensus build has no Airlock, no bridge and no
-  multi-party custody. Marking the Airlock and bridges POST MAINNET is open
-  (D07-Q01).
+  multi-party custody. The Airlock and bridges are POST MAINNET (D07-Q01,
+  P01, 29 September 2026).
 - Defined in: triage BRG-001, BRG-002 and AC-009; the bridge boundary in
   the [security model](security-model.md#bridge-boundary).
 
@@ -177,8 +177,8 @@ paper, §7.1 and §9.1.3)
 
 - Paper: a WASM virtual machine with precompiled contracts.
 - Mainnet candidate: the consensus build has no contract runtime. It runs
-  ordinary, governance and recovery transactions only. Whether a contract
-  runtime is added is part of open decision D07-Q01.
+  ordinary, governance and recovery transactions only. A contract runtime
+  is POST MAINNET (D07-Q01, P01, 29 September 2026).
 - Defined in: the SDK's
   [core concepts](../../sdk/docs/core-concepts.md); the
   [contract quickstart](contract-quickstart.md).
@@ -224,7 +224,7 @@ paper, §7.1 and §9.1.3)
 - Paper: legacy-chain value enters through an Airlock migration process
   instead of a bridge.
 - Mainnet candidate: there is no Airlock or migration interface, and no
-  bridge. Marking the Airlock POST MAINNET is open (D07-Q01).
+  bridge. The Airlock is POST MAINNET (D07-Q01, P01, 29 September 2026).
 - Defined in: triage BRG-001 and AC-009; the bridge boundary in the
   [security model](security-model.md#bridge-boundary).
 

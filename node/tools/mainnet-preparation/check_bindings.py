@@ -13,6 +13,7 @@ import native_checks as n
 LIMIT = 8*1024*1024
 RUNTIME_FIELDS = 'chain_id genesis_time account_bindings validator_bindings governance_parameters issuance_parameters reward_parameters consensus_configuration network_configuration root_authorization approval_bundle'.split()
 SUPPORTED = {'chain_id','account_bindings','validator_bindings','issuance_parameters','reward_parameters','consensus_configuration','network_configuration'}
+DGT_TOTAL_UDGT = 10**15  # the fixed 1,000,000,000 DGT, in udgt (DGT_TOKENOMICS.md)
 
 
 def decode(raw):
@@ -59,7 +60,7 @@ def native(genesis):
         n.vesting(a['vesting'],g)
         if a['vesting']['kind']!='unlocked':locks.add(a['address'])
         accounts[a['address']]=a
-    n.require(dgt<=10**15 and drt<=n.U128_MAX,'native_supply_bound')
+    n.require(dgt<=DGT_TOTAL_UDGT and drt<=n.U128_MAX,'native_supply_bound')
     n.exact(genesis['staking'],'delegations'); stakes={}
     for s in genesis['staking']['delegations']:
         n.exact(s,'delegator amount_udgt');owner=s['delegator'];value=n.amount(s['amount_udgt'])
@@ -217,6 +218,14 @@ def service(raw,result):
     n.require(type(metrics['interval_seconds']) is int and 1<=metrics['interval_seconds']<=3600,'metrics_interval_bound')
 
 
+def full_dgt_issuance(genesis,result):
+    # D05-Q02 (P01, 29 September 2026): genesis issues the whole fixed DGT
+    # total, and nothing mints DGT later.
+    n.require(type(genesis.get('accounts')) is list,'native_accounts_missing')
+    total=sum(n.amount(a['balances']['udgt']) for a in genesis['accounts'])
+    if total!=DGT_TOTAL_UDGT:result['missing'].append('full_dgt_issuance')
+
+
 def validate(bindings,records,records_raw,native_raw=None,config_raw=None,service_raw=None):
     result={'status':'BLOCKED','production_accepted':False,'runtime_complete':False,'genesis_emitted':False,'activation_enabled':False,'checks':[],'errors':[],'missing':[],'unsupported':[]}
     def check(label,fn):
@@ -249,6 +258,7 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     # carries the recovery and ordinary profiles. They are the only
     # user-transaction paths; without them the chain accepts none.
     if not all(key in config for key in ('recovery','ordinary')):result['missing'].append('recovery_and_ordinary_profiles')
+    check('full_dgt_issuance',lambda:full_dgt_issuance(genesis,result))
     if any(key in config for key in ('lifecycle','penalty','recovery','ordinary')):
         result['unsupported'].append({'field':'extended_application_profile','reason':'Typed adapter not implemented for lifecycle, penalty, recovery or ordinary config'});return result
     state=check('native_monetary_reward_timing',lambda:native(genesis))
@@ -265,7 +275,7 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     if state is not None and docs is not None and operators is not None and runtime['account_bindings'] is not None:check('beneficiary_amount_vesting_stake_bindings',lambda:accounts_binding(runtime['account_bindings'],records,docs,state,operators))
     if docs is not None and runtime['network_configuration'] is not None:check('public_transport_pin_bindings',lambda:transport_binding(runtime['network_configuration'],docs,genesis['chain_id']))
     result['supported_supplied_fields_valid']=not result['errors']
-    result['limits']=['Public reference and hash equality is not approval or signature verification.','Current profiles are local development only. Production startup remains disabled.','Records schema and acceptance require the separate intake checker.','Allocation-entitlement versus partial genesis mint needs a separate approved adapter; this version requires exact amounts.']
+    result['limits']=['Public reference and hash equality is not approval or signature verification.','Current profiles are local development only. Production startup remains disabled.','Records schema and acceptance require the separate intake checker.','Genesis issues the whole fixed DGT total (D05-Q02); allocation amounts must match native genesis credits exactly.']
     return result
 
 

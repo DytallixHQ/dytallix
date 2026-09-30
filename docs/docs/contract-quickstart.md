@@ -4,8 +4,8 @@
 ordinary, governance and recovery transactions only. No contract can be
 deployed, called or queried on it, and its CLI has no `contract` commands.
 
-Whether a contract runtime is ever added is part of open decision D07-Q01
-(the launch module matrix in `mainnet/launch/MAINNET_DECISION_REGISTER.json`).
+A contract runtime is POST MAINNET: mainnet v1 launches with the current
+build (D07-Q01, P01, 29 September 2026; `mainnet/launch/MAINNET_DECISION_REGISTER.json`).
 
 ## What The Chain Runs Instead
 

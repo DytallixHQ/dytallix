@@ -231,31 +231,6 @@ impl State {
             .unwrap_or(0)
     }
 
-    fn set_dgt_total_minted(&self, total: u128) {
-        if let Ok(bytes) = bincode::serialize(&total) {
-            let _ = self.storage.db.put(DGT_MINTED_KEY, bytes);
-        }
-    }
-
-    /// Mint DGT (udgt) to an address, enforcing the fixed `DGT_MAX_SUPPLY` cap.
-    /// Runtime mint path. Atomic genesis import separately enforces the same cap.
-    /// Returns an error (minting nothing) if
-    /// the mint would push cumulative DGT past the cap.
-    pub fn mint_dgt(&mut self, addr: &str, amount: u128) -> Result<u128, String> {
-        let minted = self.dgt_total_minted();
-        let new_total = minted
-            .checked_add(amount)
-            .ok_or_else(|| "DGT mint overflow".to_string())?;
-        if new_total > DGT_MAX_SUPPLY {
-            return Err(format!(
-                "DGT supply cap exceeded: {minted} + {amount} > {DGT_MAX_SUPPLY}"
-            ));
-        }
-        self.credit(addr, "udgt", amount);
-        self.set_dgt_total_minted(new_total);
-        Ok(amount)
-    }
-
     /// Set balance for specific denomination (used by execution engine)
     pub fn set_balance(&mut self, addr: &str, denom: &str, amount: u128) {
         let mut a = self.get_account(addr);

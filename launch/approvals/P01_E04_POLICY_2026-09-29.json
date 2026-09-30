@@ -1,0 +1,41 @@
+{
+  "decision_id": "P01-2026-09-29-E04-POLICY-1",
+  "approved": "2026-09-29",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E04 remaining policy questions, first set"
+  },
+  "decisions": [
+    {
+      "question": "D07-Q01",
+      "selected": "Current build only",
+      "rule": "Mainnet v1 launches with ordinary v2 transfers and staking, ordinary v3 governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET."
+    },
+    {
+      "question": "D05-Q02",
+      "selected": "All at genesis, no mint",
+      "rule": "Genesis issues the whole fixed total of 1,000,000,000 DGT and nothing mints DGT later; the runtime mint path is removed. No DGT is burned. Penalized DGT goes to a penalty escrow until D09 sets its destination. Changing the total needs an upgrade."
+    },
+    {
+      "question": "D01-Q02",
+      "selected": "Observation contract v1",
+      "rule": "Every validator derives the epoch observation from committed blocks: utilization is the epoch's transaction bytes, excluding its own observation, over epoch_blocks times max_block_bytes, in parts per million; volatility is 0. CheckTx refuses submitted observations, the proposer inserts the derived one and execution rejects a mismatch. No external oracle is used at launch."
+    },
+    {
+      "question": "D08-Q02",
+      "selected": "Genesis DRT, named accounts",
+      "rule": "Genesis creates a fixed liquid amount of ordinary, transferable DRT, counted in genesis supply, and the genesis manifest assigns it to named accounts such as validator operators and custody accounts."
+    }
+  ],
+  "unset": [
+    "DRT bootstrap amount and recipient rows (D08-Q02 amount, D08-Q03; E05)",
+    "Controller parameters, first command and E_min (D01-Q01)",
+    "Penalty escrow destination (D09-Q04)"
+  ],
+  "does_not_authorize": [
+    "production activation",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
