@@ -6,10 +6,10 @@ Run from the CometBFT module directory:
 
 ```sh
 CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false \
-  -tags=dytallix_pqc_only -o /tmp/dytallix-pqc-candidate ./cmd/dytallix-pqc-engine
+  -o /tmp/dytallix-pqc-candidate ./cmd/dytallix-pqc-engine
 python3 tools/pqc_boundary/check_boundary.py \
   --module-dir "$PWD" --binary /tmp/dytallix-pqc-candidate \
-  --profile pqc-engine-v1 --tags dytallix_pqc_only --rebuild \
+  --profile pqc-engine-v1 --rebuild \
   --output /tmp/dytallix-pqc-boundary.json
 ```
 
@@ -27,7 +27,7 @@ The report records:
 - Shortest import paths from the engine to prohibited packages.
 - Byte-identical rebuild result and checks for input changes during inspection.
 
-The required profile uses either the exact `dytallix_pqc_only` tag or the exact `dytallix_pqc_only,dytallix_pqc_ipc` tag selection, `CGO_ENABLED=0`, `-trimpath`, and `-buildvcs=false`. It retains symbols. Missing executables, unexpected digests, unknown profiles or tags, unreadable symbols, stripped executables, custom linker flags, or unproven source binding fail the check. Run without `--rebuild` to inventory an existing baseline; the source binding remains unproven and the result fails.
+The required profile uses no build tags (the fork has one build, E04 gap 20), `CGO_ENABLED=0`, `-trimpath`, and `-buildvcs=false`. It retains symbols. Missing executables, unexpected digests, unknown profiles, any build tag, unreadable symbols, stripped executables, custom linker flags, or unproven source binding fail the check. Run without `--rebuild` to inventory an existing baseline; the source binding remains unproven and the result fails.
 
 The rules include known classical asymmetric algorithms, standard TLS and X.509, CometBFT legacy key implementations, libp2p, Noise, QUIC, DTLS, WebRTC, and SecretConnection symbols. Protobuf format declarations alone do not count as implementations. Symmetric encryption and hashes do not count as classical asymmetric cryptography.
 
@@ -41,6 +41,8 @@ Run tests:
 python3 -m unittest discover -s tools/pqc_boundary -v
 ```
 
-The combined tag selects the experimental private Unix RPC adapter. It requires `--rpc-profile dytallix-pqc-unix-v1` at engine startup. A separately inventoried HTTP adapter must serve ordinary clients. This does not exempt that adapter or other release executables from G35. The prior tag and the default build retain their existing HTTP adapter.
+The engine serves RPC on its Unix sockets and requires `--rpc-profile dytallix-pqc-unix-v1` at startup. A separately inventoried HTTP adapter serves ordinary clients. This does not exempt that adapter or other release executables from G35.
 
-Use `tools/build_pqc_candidate.py --tags dytallix_pqc_only,dytallix_pqc_ipc --output-dir NEW_DIRECTORY` for a fresh bounded candidate and inventory. Both tag selections use the same crypto classification and provider review rules. The combined tag alone does not establish a passing boundary result.
+Use `tools/build_pqc_candidate.py --output-dir NEW_DIRECTORY` for a fresh bounded candidate and inventory.
+
+The provider exception (`provider_exception.py`) pins one reviewed engine binary, built before E04 gap 20 with the tags that F-c later removed. Any later engine differs from that binary, so its BoringCrypto provider containers fail until a new exception is reviewed and pinned for it.

@@ -43,13 +43,12 @@ func syncing(c *cfg.Config) {
 	c.StateSync.TrustHash = strings.Repeat("ab", 32)
 }
 
-// Only the PQC-only build takes state sync, from operator light blocks.
-func TestIsolationTakesStateSyncFromLightBlocksInThePQCBuild(t *testing.T) {
+// State sync takes operator light blocks.
+func TestIsolationTakesStateSyncFromLightBlocks(t *testing.T) {
 	c := isolatedConfig(t)
 	syncing(c)
-	err := ValidateIsolation(c)
-	if (BuildProfile == "dytallix_pqc_only") != (err == nil) {
-		t.Fatal(BuildProfile, err)
+	if err := ValidateIsolation(c); err != nil {
+		t.Fatal(err)
 	}
 }
 

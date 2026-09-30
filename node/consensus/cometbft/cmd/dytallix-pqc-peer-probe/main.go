@@ -150,9 +150,6 @@ func run(args []string, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if enginepqc.BuildProfile != "dytallix_pqc_only" || enginepqc.RPCBuildProfile != "dytallix-pqc-unix-v1" {
-		return errors.New("strict PQC-only IPC build tags are required")
-	}
 	runtime, err := enginepqc.Load(options.home, enginepqc.RemoteSeedProfile)
 	if err != nil {
 		return err

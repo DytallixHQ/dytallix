@@ -15,9 +15,7 @@ import tempfile
 PROFILE = 'pqc-engine-v1'
 PACKAGE = './cmd/dytallix-pqc-engine'
 IMPORT = 'dytallix.local/consensus/cometbft/cmd/dytallix-pqc-engine'
-TAG = 'dytallix_pqc_only'
-IPC_TAG = 'dytallix_pqc_only,dytallix_pqc_ipc'
-ALLOWED_TAGS = (TAG, IPC_TAG)
+# The fork has one build (E04 gap 20): an executable built with any tag fails.
 # Symmetric encryption and hashes are not classical asymmetric cryptography.
 # Package rules deliberately include TLS/X.509 containers, even if the linker
 # removes an individual method. This is a source-graph exclusion policy.
@@ -160,7 +158,6 @@ def inspect(args):
   'boundary_status':'FAIL','errors':[]}
  try:
   if args.profile!=PROFILE:raise ValueError('unknown profile')
-  if args.tags not in ('',*ALLOWED_TAGS):raise ValueError('unknown build tag selection')
   report['checker']={'path':str(Path(__file__).resolve()),'sha256':digest(__file__)}
   binary=Path(args.binary).resolve();directory=Path(args.module_dir).resolve()
   binary_hash=check_binary(binary,args.expected_sha256)
@@ -180,16 +177,14 @@ def inspect(args):
   if not version.splitlines()[0].endswith(toolenv['GOVERSION']):report['errors'].append('binary and inspecting toolchain versions differ')
   for key in ('CGO_ENABLED','GOOS','GOARCH','GOARM64','GOAMD64'):
    if key in build:env[key]=build[key]
-  graph_cmd=[go,'list','-mod=readonly','-deps','-json']
-  if args.tags:graph_cmd.append('-tags='+args.tags)
-  graph_cmd.append(PACKAGE)
+  graph_cmd=[go,'list','-mod=readonly','-deps','-json',PACKAGE]
   packages=json_stream(run(graph_cmd,directory,env))
   if any(p.get('Error') or p.get('DepsErrors') or p.get('Incomplete') for p in packages):raise ValueError('incomplete dependency graph')
   graph={p['ImportPath']:p.get('Imports',[]) for p in packages}
   manifest=source_manifest(packages)
   if not any(k.endswith('/go.sum') for k in manifest['locks']):raise ValueError('module lock go.sum missing')
   report['source']={'manifest':manifest,'sha256':canonical_hash(manifest),'package_count':len(packages),
-   'graph':graph,'selected_build_tags':args.tags,
+   'graph':graph,
    'ignored_files':{p['ImportPath']:p.get('IgnoredGoFiles',[]) for p in packages if p.get('IgnoredGoFiles')}}
   report['prohibited_packages']=[{'package':name,'rules':classify_package(name),'shortest_import_path':shortest_path(graph,IMPORT,name)} for name in sorted(graph) if classify_package(name)]
   report['provider_review_packages']=[{'package':name,'rules':classify_provider_package(name),'shortest_import_path':shortest_path(graph,IMPORT,name)} for name in sorted(graph) if classify_provider_package(name)]
@@ -201,7 +196,7 @@ def inspect(args):
   if report['prohibited_packages']:report['errors'].append('prohibited packages in selected source graph')
   if report['prohibited_symbols']:report['errors'].append('prohibited symbols in executable')
   if build.get('CGO_ENABLED')!='0':report['errors'].append('CGO or external native code not excluded')
-  if args.tags not in ALLOWED_TAGS or build.get('-tags')!=args.tags:report['errors'].append('required build tag is not bound to binary')
+  if '-tags' in build:report['errors'].append('profile requires a build without tags')
   if build.get('-trimpath')!='true':report['errors'].append('required trimpath build setting absent')
   if any(k.startswith('vcs') for k in build):report['errors'].append('profile requires buildvcs=false')
   report['rebuild']={'requested':args.rebuild,'byte_identical':False}
@@ -210,7 +205,7 @@ def inspect(args):
    if build.get('-compiler','gc')!='gc' or build.get('-buildmode','exe')!='exe':raise ValueError('unsupported compiler or build mode')
    with tempfile.TemporaryDirectory(prefix='dyt-pqc-boundary-') as temp:
     output=Path(temp)/'engine'
-    command=[go,'build','-mod=readonly','-trimpath','-buildvcs=false','-tags='+args.tags,'-p=1','-o',str(output),PACKAGE]
+    command=[go,'build','-mod=readonly','-trimpath','-buildvcs=false','-p=1','-o',str(output),PACKAGE]
     report['rebuild']['command']=command[:-2]+['<temporary-executable>',PACKAGE]
     run(command,directory,env)
     rebuilt_hash=digest(output);report['rebuild']['sha256']=rebuilt_hash
@@ -245,7 +240,6 @@ def main():
  parser.add_argument('--module-dir',required=True)
  parser.add_argument('--binary',required=True)
  parser.add_argument('--profile',required=True)
- parser.add_argument('--tags',default='')
  parser.add_argument('--expected-sha256')
  parser.add_argument('--rebuild',action='store_true')
  parser.add_argument('--output',required=True)

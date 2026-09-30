@@ -2,8 +2,9 @@
 """G35 source screen for the PQC-only Go consensus build.
 
 Fails when a selected production package graph imports a prohibited package,
-when a removed classical fork package returns to the fork (E04 gap 20), or
-when remote-signer sources return to the privval package. This is a
+when a removed classical fork package returns to the fork (E04 gap 20), when
+remote-signer sources return to the privval package, or when a fork source
+file gains a Dytallix build constraint (the fork has one build). This is a
 source-graph check; compiled-artifact and provider inspection remain T01.
 """
 
@@ -13,17 +14,20 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 
-TAGS = "dytallix_pqc_only,dytallix_pqc_ipc"
 COMMANDS = (
-    ("consensus/cometbft", "./cmd/dytallix-pqc-engine", TAGS),
-    ("consensus/cometbft", "./cmd/dytallix-comet-bridge", TAGS),
+    ("consensus/cometbft", "./cmd/dytallix-pqc-engine"),
+    ("consensus/cometbft", "./cmd/dytallix-comet-bridge"),
     # Operator tools on the validator host (E04 gap 17).
-    ("consensus/cometbft", "./cmd/dytallix-validator-key", TAGS),
-    ("consensus/cometbft", "./cmd/dytallix-operator-rpc", TAGS),
-    ("consensus/root-authorization", "./cmd/dytallix-root-verify", ""),
+    ("consensus/cometbft", "./cmd/dytallix-validator-key"),
+    ("consensus/cometbft", "./cmd/dytallix-operator-rpc"),
+    ("consensus/root-authorization", "./cmd/dytallix-root-verify"),
 )
+# The fork has one build (E04 gap 20): no source file may select itself by a
+# Dytallix build tag, which would let classical code return behind a tag.
+DYTALLIX_CONSTRAINT = re.compile(r"^//go:build .*\bdytallix_", re.M)
 # Fork packages that implemented classical cryptography, classical transport
 # or gRPC. E04 gap 20 deleted them; each must stay absent from the fork, so an
 # import fails to resolve instead of reaching a binary.
@@ -37,7 +41,7 @@ REMOVED_PACKAGES = (
     "github.com/cometbft/cometbft/rpc/grpc",
     "github.com/cometbft/cometbft/proto/tendermint/rpc/grpc",
 )
-# Remote signing is not compiled into PQC-only builds.
+# Remote signing is not compiled into the fork.
 PRIVVAL = "github.com/cometbft/cometbft/privval"
 REMOTE_SIGNER_PREFIXES = ("signer_", "socket_", "retry_signer", "noise_", "msgs")
 
@@ -76,6 +80,11 @@ def remote_signer_files(go_files):
     return sorted(name for name in go_files if name.startswith(REMOTE_SIGNER_PREFIXES))
 
 
+def tagged_sources(module):
+    return sorted(str(path.relative_to(module)) for path in module.rglob("*.go")
+                  if DYTALLIX_CONSTRAINT.search(path.read_text(encoding="utf-8", errors="replace")))
+
+
 def go(arguments, cwd, env, check=True):
     return subprocess.run(["go", *arguments], cwd=cwd, env=env, capture_output=True, text=True, check=check)
 
@@ -91,8 +100,8 @@ def main():
     env.update(GOWORK="off", GOFLAGS="-mod=readonly", CGO_ENABLED="0", GOOS="linux", GOARCH="amd64")
     errors = []
     graphs = {}
-    for module_rel, command, tags in COMMANDS:
-        arguments = ["list", *( [f"-tags={tags}"] if tags else []), "-deps", "-json", command]
+    for module_rel, command in COMMANDS:
+        arguments = ["list", "-deps", "-json", command]
         packages = list(parse_stream(go(arguments, root / module_rel, env).stdout))
         incomplete, prohibited, providers = evaluate_graph(rules, packages)
         name = f"{module_rel}:{command}"
@@ -114,21 +123,24 @@ def main():
         removed[package] = not directory.exists() and result.returncode != 0
         if not removed[package]:
             errors.append(f"{package} is present in the fork")
-    privval_files = go(["list", f"-tags={TAGS}", "-f", "{{join .GoFiles \" \"}}", PRIVVAL], module, env).stdout.split()
+    privval_files = go(["list", "-f", "{{join .GoFiles \" \"}}", PRIVVAL], module, env).stdout.split()
     if remote_signer_files(privval_files):
-        errors.append(f"remote-signer sources in PQC-only privval: {remote_signer_files(privval_files)}")
+        errors.append(f"remote-signer sources in privval: {remote_signer_files(privval_files)}")
+    constrained = tagged_sources(module)
+    if constrained:
+        errors.append(f"Dytallix build constraints in fork sources: {constrained}")
     report = {
         "schema": "dytallix-consensus-go-graph-v1",
         "status": "FAIL" if errors else "PASS",
-        "scope": "selected Go package graphs and PQC-only tag exclusions; no binary, provider, host or protocol acceptance",
+        "scope": "selected Go package graphs, removed classical packages and untagged fork sources; no binary, provider, host or protocol acceptance",
         "target": "linux/amd64",
         "cgo_enabled": False,
-        "tags": TAGS,
         "rule_source": str(checker.relative_to(root)),
         "rule_source_sha256": hashlib.sha256(checker.read_bytes()).hexdigest(),
         "graphs": graphs,
         "removed_from_fork": removed,
         "pqc_privval_files": privval_files,
+        "dytallix_constrained_sources": constrained,
         "errors": errors,
         "launch_approval": False,
     }

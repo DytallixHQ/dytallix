@@ -9,7 +9,7 @@
       "scope": "PQC-only Go graphs of the engine, bridge and root verifier: no prohibited packages; the classical fork packages removed from the fork (E04 gap 20); no remote-signer sources"
     },
     {
-      "check": "go vet / go test / go build -tags dytallix_pqc_only,dytallix_pqc_ipc",
+      "check": "go vet / go test / go build (the fork's one build, no tags)",
       "scope": "The production Go build and its tests"
     },
     {
@@ -174,7 +174,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "fcffa9b2f8940a2c6fc67ddafac47655b2c8b15169c1b569280a2e9a4d6b4eff"
+          "sha256": "8cddddf474c92c6c9532a862c52c2631e2521b069241147f5a7efc54640227c8"
         },
         {
           "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
@@ -186,7 +186,7 @@
         },
         {
           "path": "consensus/cometbft/upstream/node/privval_socket_pqc.go",
-          "sha256": "e1a06b177526e8818c2a7d63afe1b809e526ae631327469da89029090ede564a"
+          "sha256": "6ab78197e319c94eb85f8178b016be0ae6872ca7040a124cfa0fc522ca0851dc"
         }
       ],
       "policy": "Genesis and local validator keys must be ml_dsa_65; the validator key and state load from checked bytes; remote signing is not compiled into PQC-only builds",
@@ -251,11 +251,11 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "fcffa9b2f8940a2c6fc67ddafac47655b2c8b15169c1b569280a2e9a4d6b4eff"
+          "sha256": "8cddddf474c92c6c9532a862c52c2631e2521b069241147f5a7efc54640227c8"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",
-          "sha256": "3911f01507c0148d0157dba314197dcf8ec1bfcc00d56d9699554b7b32fad210"
+          "sha256": "086e232d0ec0c57e1818bc2f9d2c0b8d3af6bebf355efe2dcdf3e6cf7b1e5673"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/remote_address.go",
@@ -286,11 +286,11 @@
         },
         {
           "path": "consensus/cometbft/upstream/config/statesync_sources_pqc.go",
-          "sha256": "757428808d570f04165c636761e888c4358755bfb9849597cb260147bb12ea8d"
+          "sha256": "570f69cafbc3babb8bcf4a756c4234f2a42298797df514735b1614d0c28dd098"
         },
         {
           "path": "consensus/cometbft/upstream/node/services_pqc.go",
-          "sha256": "424a47554200c39369bdaf29e6211572ba2dde34f37147456939c1472ff78d4d"
+          "sha256": "9f1dc959d2aa06677e02d065f1fc5f30af35e9fbf6d6a4392cb9767190450a30"
         }
       ],
       "policy": "A joining node verifies operator-exported light blocks from the configured trusted height by sequential verification; the trust period stays below the evidence age; PQC-only builds refuse RPC light-client servers",
@@ -381,7 +381,7 @@
           "sha256": "e386e21c7716c8c14f3b108360e3d0ea30f376a91f7bc89dbed3da08946ba1a1"
         }
       ],
-      "policy": "Unix ABCI and IPC RPC under dytallix_pqc_ipc; HTTP/1 loopback adapter; no TLS",
+      "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",
       "role": "rpc_and_application_boundary"
     }
   ],
@@ -389,7 +389,7 @@
   "source_exceptions_and_limits": [
     "The selected Go graphs contain the standard library's crypto/internal/boring and crypto/internal/boring/sig. With CGO disabled these are disabled stubs and no-op markers; classifying them in the compiled executable belongs to T01.",
     "Package and symbol rules cannot detect every renamed or unknown algorithm. A clean inventory alone does not establish PQC compliance.",
-    "The upstream Comet fork retains its classical packages for the default development build. Under dytallix_pqc_only they have no buildable files; they are not deleted.",
+    "E04 gap 20 deleted the engine fork's classical packages; the fork has one build, with no build tags.",
     "The production startup flag remains fail-closed. The candidate transport runs only with an explicit staging flag and a reserved staging chain identity.",
     "The ML-KEM-768 + ML-DSA-65 peer protocol still requires independent protocol review (P02).",
     "Production chain identity, addresses, keys, custody, the release commit, the full distribution inventory and independent review are not frozen (E05, E06, P01, P02)."
@@ -423,7 +423,7 @@
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-pqc-peer-probe/main.go",
-      "sha256": "453276676eae5cd7a0be650a6365b4f29d2c3a1eade460fb7f44de0c70a7aef9"
+      "sha256": "509c927d920872fcdf5ab4ab818c6db965314584828003802bddd21b7f496797"
     }
   ]
 }

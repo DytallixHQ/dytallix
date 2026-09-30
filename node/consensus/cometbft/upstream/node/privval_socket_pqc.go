@@ -16,5 +16,5 @@ func createAndStartPrivValidatorSocketClient(
 	*p2p.NodeKey,
 	log.Logger,
 ) (types.PrivValidator, error) {
-	return nil, errors.New("remote signing excluded by dytallix_pqc_only")
+	return nil, errors.New("remote signing is not built (Dytallix PQC-only fork)")
 }

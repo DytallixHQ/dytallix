@@ -11,18 +11,18 @@ func validateBuildServices(c *cfg.Config) error {
 	// State sync runs only with a state provider the engine injects; the
 	// HTTP light client is not built (Dytallix state sync v1, rule 5).
 	if c.RPC.GRPCListenAddress != "" || c.ABCI != "socket" || c.RPC.IsPprofEnabled() || c.Instrumentation.IsPrometheusEnabled() || c.RPC.IsTLSEnabled() || c.TxIndex.Indexer == "psql" {
-		return errors.New("dytallix_pqc_only excludes gRPC, RPC TLS, profiling, Prometheus listener and SQL indexer")
+		return errors.New("the Dytallix PQC-only fork has no gRPC, RPC TLS, profiling, Prometheus listener or SQL indexer")
 	}
 	return nil
 }
 func (n *Node) startGRPCForBuild(*rpccore.Environment) (net.Listener, error) {
-	return nil, errors.New("gRPC RPC excluded by dytallix_pqc_only")
+	return nil, errors.New("gRPC RPC is not built (Dytallix PQC-only fork)")
 }
 func (n *Node) startPprofServer() (auxiliaryServer, net.Listener, error) {
-	return nil, nil, errors.New("profiling excluded by dytallix_pqc_only")
+	return nil, nil, errors.New("profiling is not built (Dytallix PQC-only fork)")
 }
 
 // validateBuildServices rejects this configuration before node state is opened.
 func (n *Node) startPrometheusServer() (auxiliaryServer, error) {
-	return nil, errors.New("Prometheus listener excluded by dytallix_pqc_only")
+	return nil, errors.New("Prometheus listener is not built (Dytallix PQC-only fork)")
 }

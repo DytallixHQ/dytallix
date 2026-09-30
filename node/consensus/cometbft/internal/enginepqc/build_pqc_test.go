@@ -24,8 +24,8 @@ func TestPQCBuildCodecRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if key.Type() != mldsa65.KeyType || BuildProfile != "dytallix_pqc_only" {
-		t.Fatal("wrong profile default")
+	if key.Type() != mldsa65.KeyType {
+		t.Fatal("wrong key default")
 	}
 	message := []byte("PQC build profile roundtrip")
 	signature, err := key.Sign(message)

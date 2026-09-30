@@ -52,24 +52,27 @@ func TestProductionCandidateBindsLivePeerSourceAndKey(t *testing.T) {
 	defer right.Close()
 	aConn := claimedConn{left, &net.TCPAddr{IP: net.ParseIP("9.9.9.9"), Port: 41000}, &net.TCPAddr{IP: net.ParseIP("8.8.8.8"), Port: 31000}}
 	bConn := claimedConn{right, &net.TCPAddr{IP: net.ParseIP("8.8.8.8"), Port: 31000}, &net.TCPAddr{IP: net.ParseIP("9.9.9.9"), Port: 41000}}
-	response := make(chan error, 1)
+	type upgraded struct {
+		conn p2p.AuthenticatedConn
+		err  error
+	}
+	response := make(chan upgraded, 1)
 	go func() {
 		conn, err := b.Upgrade(log.NewNopLogger())(bConn, nil, 5*time.Second)
-		if conn != nil {
-			_ = conn.Close()
-		}
-		response <- err
+		response <- upgraded{conn, err}
 	}()
 	conn, err := a.Upgrade(log.NewNopLogger())(aConn, &p2p.NetAddress{ID: keyB.ID(), IP: net.ParseIP("8.8.8.8"), Port: 31000}, 5*time.Second)
-	// Close only after the responder returns: closing one end of a net.Pipe
-	// closes both, and the responder still clears its deadline after the
-	// initiator's last write (harmless on a TCP socket).
-	responderErr := <-response
-	if conn != nil {
-		_ = conn.Close()
+	// Close only after both sides return: closing one end of a net.Pipe
+	// closes both, and each side still clears its deadline after the other's
+	// last write (harmless on a TCP socket).
+	responder := <-response
+	for _, c := range []p2p.AuthenticatedConn{conn, responder.conn} {
+		if c != nil {
+			_ = c.Close()
+		}
 	}
-	if err != nil || responderErr != nil {
-		t.Fatalf("pinned candidate handshake failed: %v / %v", err, responderErr)
+	if err != nil || responder.err != nil {
+		t.Fatalf("pinned candidate handshake failed: %v / %v", err, responder.err)
 	}
 	wrongLeft, wrongRight := net.Pipe()
 	defer wrongLeft.Close()

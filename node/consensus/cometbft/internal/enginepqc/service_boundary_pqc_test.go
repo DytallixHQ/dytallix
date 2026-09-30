@@ -30,7 +30,7 @@ func TestPQCBuildServicesRejectBeforeDatabaseOpen(t *testing.T) {
 			change(config)
 			// Nil providers would panic if construction proceeded to database or application work.
 			engine, err := node.NewNodeWithContext(context.Background(), config, nil, nil, nil, nil, nil, nil, log.NewNopLogger())
-			if engine != nil || err == nil || !strings.Contains(err.Error(), "excludes") {
+			if engine != nil || err == nil || !strings.Contains(err.Error(), "PQC-only fork has no") {
 				t.Fatalf("unsupported service reached construction: %v", err)
 			}
 		})
@@ -39,7 +39,7 @@ func TestPQCBuildServicesRejectBeforeDatabaseOpen(t *testing.T) {
 
 func TestPQCBuildGRPCABCIExcluded(t *testing.T) {
 	client, err := abcicli.NewClient("127.0.0.1:1", "grpc", true)
-	if client != nil || err == nil || !strings.Contains(err.Error(), "excluded") {
+	if client != nil || err == nil || !strings.Contains(err.Error(), "not built") {
 		t.Fatalf("gRPC client accepted: %v", err)
 	}
 	socket, err := abcicli.NewClient("unix:///unopened.sock", "socket", false)
@@ -52,21 +52,21 @@ func TestPQCBuildSQLIndexerExcluded(t *testing.T) {
 	config := isolatedConfig(t)
 	config.TxIndex.Indexer = "psql"
 	txidx, blockidx, err := block.IndexerFromConfig(config, nil, "local-fixture")
-	if txidx != nil || blockidx != nil || err == nil || !strings.Contains(err.Error(), "excluded") {
+	if txidx != nil || blockidx != nil || err == nil || !strings.Contains(err.Error(), "not built") {
 		t.Fatalf("SQL indexer accepted: %v", err)
 	}
 }
 
 func TestPQCBuildRPCServeTLSExcluded(t *testing.T) {
 	// Nil arguments prove the disabled adapter fails before listener or key access.
-	if err := rpcserver.ServeTLS(nil, nil, "unopened-cert", "unopened-key", nil, nil); err == nil || !strings.Contains(err.Error(), "excluded") {
+	if err := rpcserver.ServeTLS(nil, nil, "unopened-cert", "unopened-key", nil, nil); err == nil || !strings.Contains(err.Error(), "not built") {
 		t.Fatalf("RPC TLS adapter accepted: %v", err)
 	}
 }
 
 func TestPQCBuildGRPCABCIServerExcluded(t *testing.T) {
 	server, err := abciserver.NewServer("tcp://127.0.0.1:1", "grpc", abcitypes.NewBaseApplication())
-	if server != nil || err == nil || !strings.Contains(err.Error(), "excluded") {
+	if server != nil || err == nil || !strings.Contains(err.Error(), "not built") {
 		t.Fatalf("gRPC ABCI server accepted: %v", err)
 	}
 }

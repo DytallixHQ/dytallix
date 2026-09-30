@@ -1,4 +1,0 @@
-package enginepqc
-
-// BuildProfile identifies source exclusion only. It does not establish PQC compliance.
-const BuildProfile = "dytallix_pqc_only"

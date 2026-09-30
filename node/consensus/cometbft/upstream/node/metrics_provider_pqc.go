@@ -16,7 +16,7 @@ import (
 func DefaultMetricsProvider(config *cfg.InstrumentationConfig) MetricsProvider {
 	return func(string) (*cs.Metrics, *p2p.Metrics, *mempl.Metrics, *sm.Metrics, *proxy.Metrics, *blocksync.Metrics, *statesync.Metrics) {
 		if config.Prometheus {
-			panic("Prometheus metrics excluded by dytallix_pqc_only")
+			panic("Prometheus metrics are not built (Dytallix PQC-only fork)")
 		}
 		return cs.NopMetrics(), p2p.NopMetrics(), mempl.NopMetrics(), sm.NopMetrics(), proxy.NopMetrics(), blocksync.NopMetrics(), statesync.NopMetrics()
 	}

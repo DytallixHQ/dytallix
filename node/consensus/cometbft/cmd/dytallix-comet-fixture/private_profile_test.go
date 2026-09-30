@@ -45,12 +45,6 @@ func TestPrivateSeedFixtureRequiresExplicitDistinctHostIPs(t *testing.T) {
 			t.Fatalf("packed peer key exists: %v", err)
 		}
 		runtime, err := enginepqc.Load(node.Home, enginepqc.RemoteSeedProfile)
-		if enginepqc.BuildProfile != "dytallix_pqc_only" || enginepqc.RPCBuildProfile != "dytallix-pqc-unix-v1" {
-			if err == nil {
-				t.Fatal("private profile accepted a nonselected build")
-			}
-			continue
-		}
 		if err != nil {
 			t.Fatal(err)
 		}
