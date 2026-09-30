@@ -84,10 +84,12 @@ a mainnet key.
    - The validator leaves the set two blocks after the exit commits.
    - Every position bonded to it, the operator's and each delegator's,
      starts unbonding and matures after the evidence window.
-   - Withdrawing the stake fails as `VALIDATOR_WITHDRAWAL_DISABLED` (a paid
-     failure) while the penalty profile is off.
-5. **No penalty.** Evidence is recorded, not penalized (D09-Q04). Removing
-   the validator's power is the only response the chain offers.
+   - Each owner can withdraw once the unbond matures and no penalty on it is
+     unsettled ([penalties v1](../architecture/penalties-v1.md)).
+5. **Penalty.** If the key double-signed, the validator's first duplicate
+   vote deducts the penalty rate from every stake bonded to it at that
+   height and removes the validator for good, two blocks after the evidence
+   commits (D09-Q04). Light-client-attack evidence is recorded only.
 
 ## Validator operator account key
 

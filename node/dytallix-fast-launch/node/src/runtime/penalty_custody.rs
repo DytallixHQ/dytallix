@@ -166,6 +166,10 @@ pub struct PenaltyState {
     /// deductions.
     pub pruned_deducted: u128,
     pub pruned_released: u128,
+    /// Cumulative deductions of each vesting-locked owner's stake (penalties
+    /// v1, rule 1). The owner's lock falls by this amount, which survives
+    /// the removal of released tranches.
+    pub lock_relief: BTreeMap<String, u128>,
 }
 
 fn valid_id(id: &str) -> Result<()> {
@@ -240,10 +244,6 @@ impl PenaltyState {
             "Penalty custody requires fresh genesis"
         );
         ensure!(
-            rewards.locks.is_empty(),
-            "Locked principal penalty policy is not configured"
-        );
-        ensure!(
             config.chain_id == lifecycle.config.chain_id,
             "Penalty chain differs from lifecycle"
         );
@@ -259,6 +259,7 @@ impl PenaltyState {
             evidence_processed_height: 0,
             pruned_deducted: 0,
             pruned_released: 0,
+            lock_relief: BTreeMap::new(),
         };
         for (owner, positions) in &lifecycle.effective.positions {
             for (validator, amount) in positions {
@@ -345,8 +346,21 @@ impl PenaltyState {
             self.tranches.len() <= MAX_ITEMS
                 && self.incidents.len() <= MAX_ITEMS
                 && self.releases.len() <= MAX_ITEMS
-                && self.first_faults.len() <= 64,
+                && self.first_faults.len() <= MAX_ITEMS
+                && self.lock_relief.len() <= MAX_ITEMS,
             "Penalty record capacity exceeded"
+        );
+        for (owner, relief) in &self.lock_relief {
+            valid_id(owner)?;
+            ensure!(*relief > 0, "Zero lock relief entry");
+            ensure!(
+                *relief >= self.owner_deducted(owner)?,
+                "Lock relief is below the owner's held deductions"
+            );
+        }
+        ensure!(
+            sum(self.lock_relief.values().copied())? <= self.deducted_total()?,
+            "Lock relief exceeds the penalty reserve"
         );
         for (id, tranche) in &self.tranches {
             valid_id(&tranche.owner)?;
@@ -732,11 +746,14 @@ impl PenaltyState {
         Ok(())
     }
 
+    /// `locked` names the owners with a vesting lock; their settled
+    /// deductions add to `lock_relief`.
     pub fn begin_block(
         &mut self,
         height: u64,
         parent_time: (u64, i32),
         lifecycle: &LifecycleState,
+        locked: &BTreeSet<String>,
     ) -> Result<()> {
         self.validate_internal()?;
         valid_time(parent_time)?;
@@ -793,6 +810,10 @@ impl PenaltyState {
                     .checked_add(*amount)
                     .context("Penalty deduction overflow")?;
                 tranche.remaining()?;
+                let owner = tranche.owner.clone();
+                if locked.contains(&owner) {
+                    add(&mut next.lock_relief, &owner, *amount)?;
+                }
             }
             next.incidents
                 .get_mut(&id)
@@ -1199,6 +1220,31 @@ impl PenaltyState {
             .values()
             .filter(|t| t.owner == owner)
             .map(|t| t.deducted))
+    }
+    /// The lock check's terms for one owner (penalties v1, rule 2): the
+    /// released and deducted amounts that gross custody still counts, and
+    /// the owner's lock relief.
+    pub fn lock_terms(&self, owner: &str) -> Result<(u128, u128)> {
+        let offset = self
+            .owner_deducted(owner)?
+            .checked_add(self.owner_released(owner)?)
+            .context("Penalty custody overflow")?;
+        Ok((offset, self.lock_relief.get(owner).copied().unwrap_or(0)))
+    }
+    /// Every relief entry names a locked owner, and every locked owner's
+    /// relief covers the deductions its held tranches carry.
+    pub fn validate_lock_relief(&self, locked: &BTreeSet<String>) -> Result<()> {
+        ensure!(
+            self.lock_relief.keys().all(|owner| locked.contains(owner)),
+            "Lock relief names an owner without a vesting lock"
+        );
+        for owner in locked {
+            ensure!(
+                self.lock_relief.get(owner).copied().unwrap_or(0) >= self.owner_deducted(owner)?,
+                "Locked owner's deductions lack lock relief"
+            );
+        }
+        Ok(())
     }
     pub fn owner_released(&self, owner: &str) -> Result<u128> {
         sum(self

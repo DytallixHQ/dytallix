@@ -258,6 +258,10 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     # carries the recovery and ordinary profiles. They are the only
     # user-transaction paths; without them the chain accepts none.
     if not all(key in config for key in ('recovery','ordinary')):result['missing'].append('recovery_and_ordinary_profiles')
+    # Penalties v1 (P01, 30 September 2026): the lifecycle and penalty profiles
+    # penalize double-signing; without the penalty profile no unbond can be
+    # withdrawn.
+    if not all(key in config for key in ('lifecycle','penalty')):result['missing'].append('lifecycle_and_penalty_profiles')
     check('full_dgt_issuance',lambda:full_dgt_issuance(genesis,result))
     if any(key in config for key in ('lifecycle','penalty','recovery','ordinary')):
         result['unsupported'].append({'field':'extended_application_profile','reason':'Typed adapter not implemented for lifecycle, penalty, recovery or ordinary config'});return result

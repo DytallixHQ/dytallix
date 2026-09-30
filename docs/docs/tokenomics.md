@@ -84,11 +84,18 @@ Staking:
   unbonding with `dytallix stake unbond`.
 - An unbond matures after the evidence age limits plus processing margins.
   Those values are open (D09-Q03).
-- Without the penalty profile, which mainnet cannot use today, withdrawing
-  unbonded principal is disabled: a withdrawal is charged and fails with
-  `VALIDATOR_WITHDRAWAL_DISABLED`. Withdrawal activation is open (D09-Q05).
-- Duplicate-vote and light-client-attack evidence is recorded only. No stake
-  is slashed until the penalty rules are decided (D09-Q04).
+- An unbond can be withdrawn once it matures and no penalty on it is
+  unsettled (D09-Q05, P01, 30 September 2026).
+- Double-signing is penalized: a validator's first duplicate vote deducts a
+  fixed share from all stake bonded to it at that height, the operator's and
+  every delegator's, and removes the validator for good. Later evidence
+  against it adds nothing. Light-client-attack evidence is recorded only,
+  and there is no downtime penalty (D09-Q04, P01, 30 September 2026). The rate is a genesis
+  input.
+- Vesting-locked stake carries the same risk: a penalty comes off the amount
+  still locked, on the same vesting dates.
+- Penalized DGT moves to a penalty escrow that nothing can spend; the DGT
+  total stays fixed.
 
 Governance:
 

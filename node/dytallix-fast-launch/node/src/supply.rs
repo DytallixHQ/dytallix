@@ -584,14 +584,15 @@ fn validate_native_with(
             .as_ref()
             .context("Penalty custody requires validator lifecycle")?;
         penalties.validate(validators)?;
-        ensure!(
-            reward_state
+        penalties.validate_lock_relief(
+            &reward_state
                 .as_ref()
                 .context("Penalty custody requires reward state")?
                 .locks
-                .is_empty(),
-            "Penalty custody does not support vesting locks"
-        );
+                .keys()
+                .cloned()
+                .collect(),
+        )?;
     }
     let penalty_reserve = penalties
         .as_ref()
@@ -819,6 +820,10 @@ fn validate_native_with(
                 event.1
             };
             for owner in rewards.locks.keys() {
+                let (offset, relief) = match &penalties {
+                    Some(penalties) => penalties.lock_terms(owner)?,
+                    None => (0, 0),
+                };
                 let balances: BTreeMap<String, u128> = bincode::deserialize(
                     &balance_record(owner)?.context("Vesting lock owner has no account record")?,
                 )?;
@@ -832,6 +837,8 @@ fn validate_native_with(
                             .context("Owner bond custody exceeds u128")?,
                         rewards.unbonding.get(owner).copied().unwrap_or(0),
                         timestamp,
+                        offset,
+                        relief,
                     )
                     .context("Vesting lock has insufficient owner custody")?;
             }

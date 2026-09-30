@@ -110,15 +110,12 @@ impl Settlement {
             "Stored penalty custody requires a staged activation plan"
         );
         if let Some(penalties) = &penalties {
-            anyhow::ensure!(
-                rewards.locks.is_empty(),
-                "Penalty custody does not support vesting locks"
-            );
             penalties.validate(
                 validators
                     .as_ref()
                     .context("Penalty custody requires validator lifecycle")?,
             )?;
+            penalties.validate_lock_relief(&rewards.locks.keys().cloned().collect())?;
         }
         self.penalties = penalties;
         self.validators = validators;
@@ -326,6 +323,11 @@ impl Settlement {
         {
             return Ok(liquid);
         }
+        // Staged penalties include this block's releases (penalties v1).
+        let (offset, relief) = match &self.penalties {
+            Some(penalties) => penalties.lock_terms(owner)?,
+            None => (0, 0),
+        };
         rewards.liquid_spendable(
             owner,
             liquid,
@@ -336,6 +338,8 @@ impl Settlement {
             rewards.unbonding.get(owner).copied().unwrap_or(0),
             self.reward_timestamp
                 .context("Missing staged reward timestamp")?,
+            offset,
+            relief,
         )
     }
     pub(crate) fn burned_total(&self) -> Result<u128> {

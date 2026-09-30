@@ -521,6 +521,11 @@ impl RewardState {
             .map_or(Ok(0), |lock| lock.locked_amount(timestamp))
     }
     /// Nonliquid custody backs locked principal only when the lock permits staking.
+    /// Under the penalty profile, `custody_offset` is the released and
+    /// deducted principal that gross custody still counts, and `lock_relief`
+    /// the owner's cumulative penalties, which the lock no longer requires
+    /// (penalties v1, rule 2). Both are zero otherwise.
+    #[allow(clippy::too_many_arguments)]
     pub fn liquid_spendable(
         &self,
         owner: &str,
@@ -528,11 +533,17 @@ impl RewardState {
         bonded: u128,
         unbonding: u128,
         timestamp: u64,
+        custody_offset: u128,
+        lock_relief: u128,
     ) -> Result<u128> {
         let custody = bonded
             .checked_add(unbonding)
-            .context("Nonliquid custody exceeds u128")?;
-        let locked = self.locked_amount(owner, timestamp)?;
+            .context("Nonliquid custody exceeds u128")?
+            .checked_sub(custody_offset)
+            .context("Penalty custody offset exceeds owner custody")?;
+        let locked = self
+            .locked_amount(owner, timestamp)?
+            .saturating_sub(lock_relief);
         let liquid_lock = if self
             .locks
             .get(owner)

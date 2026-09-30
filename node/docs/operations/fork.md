@@ -82,10 +82,11 @@ no automatic choice of chain.
 2. **Follow the [full halt](halt.md) procedure.** Fence every signer, then
    identify the last checkpoint that every honest party accepts.
 3. **Identify the faulty validators** from the signatures on both commits
-   and from the recorded evidence. Evidence is recorded but not penalized
-   while the penalty profile stays off (D09-Q04). Removing faulty power
-   therefore needs a governance or operator decision, not an automatic
-   penalty.
+   and from the recorded evidence. A validator's first duplicate vote is
+   penalized and the validator removed two blocks later
+   ([penalties v1](../architecture/penalties-v1.md), D09-Q04).
+   Light-client-attack evidence is recorded only, so removing other faulty
+   power needs a governance registry action or the operator's exit.
 4. Do not create a replacement genesis or revert finalized history.
 
 ## C. No progress

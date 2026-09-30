@@ -2,13 +2,13 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains 11 OPEN policy questions, ten PARTIALLY_APPROVED policy questions, five APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains nine OPEN policy questions, 12 PARTIALLY_APPROVED policy questions, five APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
 Each recorded approval scope below retains its original implementation context. Read current implementation progress and remaining work in the linked gates. Exact question fields, approvals and supersession records remain in [MAINNET_DECISION_REGISTER.json](MAINNET_DECISION_REGISTER.json).
 
-## Design and policy approvals, 26–29 September 2026
+## Design and policy approvals, 26–30 September 2026
 
 P01 approved these engineering designs. Each document records the options and the decisions; the register lists them under `design_approvals`.
 
@@ -18,6 +18,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [validator lifecycle retention](../node/docs/architecture/validator-lifecycle-retention.md) (27 September): retention horizon from the existing evidence limits plus margins, removal of withdrawn unbonds and settled incidents, permanent consensus-key no-reuse, and staker-slot release.
 - [state root v2](../node/docs/architecture/state-root-v2.md) (27 September): the `jmt` tree if it passes G35, proof queries at launch, and state sync before launch.
 - [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json) (29 September): launch scope (D07-Q01), all DGT at genesis (D05-Q02), observation contract v1 (D01-Q02) and the genesis DRT bootstrap policy (D08-Q02).
+- [penalties v1](../node/docs/architecture/penalties-v1.md), with the [30 September penalty approvals](approvals/P01_E04_PENALTIES_2026-09-30.json) (30 September): double-signing penalized with removal (D09-Q04), withdrawals from genesis (D09-Q05), vesting-locked stake penalized like unlocked stake, and a permanent penalty escrow.
 
 ## D01 — Adaptive issuance
 
@@ -303,9 +304,15 @@ Proposed owner role: Protocol and staking leads with validator coordinator. Name
 
 Evidence: [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json), [batch-8/POLICY_PROPOSAL.json](batch-8/POLICY_PROPOSAL.json), [batch-9/SCOPE.json](batch-9/SCOPE.json), [batch-9/POLICY.md](batch-9/POLICY.md).
 
-### D09-Q04 — OPEN
+### D09-Q04 — PARTIALLY_APPROVED
 
 Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?
+
+Approved portion (P01, 30 September 2026): double-signing only, with removal. A validator's first duplicate vote deducts a fixed share from all stake bonded to it at that height, self-bond, delegators and vesting-locked stake alike. The validator is removed for good two blocks later and its consensus key is never reused; later evidence adds nothing. Light-client attacks are recorded only; there is no downtime penalty or jailing. Penalized DGT moves to an escrow that nothing can spend.
+
+Recorded approval: [30 September penalty approvals](approvals/P01_E04_PENALTIES_2026-09-30.json). Design: [penalties v1](../node/docs/architecture/penalties-v1.md).
+
+Remaining inputs: the penalty rate (E05).
 
 Required output: Production penalty specification.
 
@@ -313,9 +320,15 @@ Proposed owner role: Protocol and staking leads with validator coordinator. Name
 
 Evidence: [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json), [batch-8/POLICY_PROPOSAL.json](batch-8/POLICY_PROPOSAL.json), [batch-9/SCOPE.json](batch-9/SCOPE.json), [batch-9/POLICY.md](batch-9/POLICY.md).
 
-### D09-Q05 — OPEN
+### D09-Q05 — PARTIALLY_APPROVED
 
 How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?
+
+Approved portion (P01, 30 September 2026): withdrawals work from genesis. An unbond can be withdrawn once both evidence age limits plus margins have passed and no penalty on it is unsettled. Vesting-locked stake carries the same penalty risk; a penalty comes off the amount still locked, on the same vesting dates. The launch configuration carries the lifecycle and penalty profiles.
+
+Recorded approval: [30 September penalty approvals](approvals/P01_E04_PENALTIES_2026-09-30.json). Design: [penalties v1](../node/docs/architecture/penalties-v1.md).
+
+Remaining inputs: evidence age limits and margins (D09-Q03, E05) and parameter migration rules.
 
 Required output: Withdrawal and locked-liability specification.
 

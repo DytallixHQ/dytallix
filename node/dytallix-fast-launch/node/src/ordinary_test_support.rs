@@ -180,6 +180,23 @@ pub(crate) fn transaction(
     let height = app.info().unwrap().height;
     sign(&app.config, state, secret, public, actions, height)
 }
+/// The account's transaction `ahead` nonces after its next one, for a later
+/// transaction in the same block.
+pub(crate) fn transaction_ahead(
+    app: &ConsensusApplication,
+    secret: &[u8],
+    public: &[u8],
+    actions: Vec<Action>,
+    ahead: u64,
+) -> Vec<u8> {
+    let book = RecoveryBook::load(&app.storage).unwrap().unwrap();
+    let mut state = book.accounts[&hex::encode(account_id(&app.config.chain_id, public))]
+        .recovery
+        .clone();
+    state.spending_nonce += ahead;
+    let height = app.info().unwrap().height;
+    sign(&app.config, &state, secret, public, actions, height)
+}
 /// The account's first ordinary transaction, from its genesis state.
 pub(crate) fn first_transaction(
     config: &ConsensusConfig,

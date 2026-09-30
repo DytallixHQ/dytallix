@@ -33,7 +33,7 @@
     {
       "path": "application configuration (consensus_stdio --config)",
       "production_value_status": "UNSET",
-      "required": "Recovery and ordinary profiles, the only user-transaction paths (E04 gap 14); lifecycle as ordinary requires"
+      "required": "Recovery and ordinary profiles, the only user-transaction paths (E04 gap 14); lifecycle and penalty profiles, which penalize double-signing and allow withdrawals (penalties v1)"
     },
     {
       "path": "config/pqc_transport.json",
@@ -151,7 +151,7 @@
       "files": [
         {
           "path": "dytallix-fast-launch/node/src/ordinary_validator.rs",
-          "sha256": "f9cd48c0725dd4dac7251adcb586617b43d5946dd10bd1ccc4b00bf9f2eb0bbd"
+          "sha256": "95d8c2cdd49453cdeebe5ebb35b0d1381a7f3ef38f55890e17929a599411c9f6"
         },
         {
           "path": "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",

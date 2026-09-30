@@ -161,15 +161,17 @@ paper, §7.1 and §9.1.3)
 
 - Paper: equivocation forfeits the whole stake, so finalizing a conflicting
   chain costs at least one third of the stake.
-- Mainnet candidate: no stake is burned for double signing. Until the
-  penalty rules are decided, duplicate-vote and light-client-attack evidence
-  is recorded only, with no effect on stake or the validator set. Production
-  penalties are refused, and there is no jailing. Which faults are penalized,
-  and at what rates, is open (D09-Q04, D09-Q05). Two quorums of more than two
-  thirds still overlap in more than one third of voting power, but that
-  bound is not a monetary loss.
-- Defined in: [liveness v1](../../node/docs/architecture/liveness-v1.md)
-  (evidence); triage CONS-002, VAL-002 and AC-003;
+- Mainnet candidate: no stake is burned, and double-signing does not cost
+  the whole stake. A validator's first duplicate vote deducts a fixed share
+  (a genesis input) from all stake bonded to it at that height and removes
+  the validator for good; the penalized DGT moves to an escrow that nothing
+  can spend. Light-client attacks are recorded only, and there is no
+  downtime penalty or jailing (D09-Q04, D09-Q05, P01, 30 September 2026). The rate sets the
+  monetary cost of equivocation; two quorums of more than two thirds still
+  overlap in more than one third of voting power.
+- Defined in: [penalties v1](../../node/docs/architecture/penalties-v1.md);
+  [liveness v1](../../node/docs/architecture/liveness-v1.md) (evidence);
+  triage CONS-002, VAL-002 and AC-003;
   [specification decisions](../../node/docs/mainnet/specification-decisions.md)
   (mathematical corrections).
 
@@ -193,8 +195,8 @@ paper, §7.1 and §9.1.3)
   liveness faults 0.1% (§9.5, §14.4).
 - Mainnet candidate: CometBFT consensus with commit finality, as in the
   technical paper entry above. There is no VRF, fork choice, checkpoint
-  block or checkpoint attestation. Evidence is recorded only until the
-  penalty rules are decided (D09-Q04, D09-Q05).
+  block or checkpoint attestation. Only a first duplicate vote is
+  penalized, with removal; there is no liveness penalty (D09-Q04).
 - Defined in: triage CONS-001 and AC-004;
   [liveness v1](../../node/docs/architecture/liveness-v1.md);
   [state sync v1](../../node/docs/architecture/state-sync-v1.md).
