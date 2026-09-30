@@ -1,0 +1,46 @@
+{
+  "decision_id": "P01-2026-09-30-E04-OPERATIONS",
+  "approved": "2026-09-30",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E04 remaining policy questions, mempool, upgrades and topology"
+  },
+  "decisions": [
+    {
+      "question": "D06-Q02, D04-Q01",
+      "selected": "Adopt as implemented",
+      "rule": "The implemented mempool rule is normative: arrival order; one pending transaction per account nonce; fee caps reserved against the payer's balance; no replacement or eviction when full; expiry at each transaction's expiry height; reservations released at each committed block.",
+      "record_ref": "../node/docs/architecture/mempool-v1.md"
+    },
+    {
+      "question": "D11-Q03",
+      "selected": "Separate 3-of-5 group",
+      "rule": "Five independent upgrade custodians, distinct from the emergency custodians. Each upgrade needs three SLH-DSA signatures to be admitted and three fresh ones to activate.",
+      "record_ref": "../node/docs/mainnet/upgrade-execution.md"
+    },
+    {
+      "question": "D11-Q03, D14-Q02 (UPG-002)",
+      "selected": "Fixed minimum notice",
+      "rule": "Activation must be at least a fixed number of blocks after admission. The admitted plan is on chain; urgent problems use the emergency freeze first.",
+      "record_ref": "../node/docs/mainnet/upgrade-execution.md"
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "Private behind sentries",
+      "rule": "Each validator peers only with its own sentries, pinned by full key. Sentries face the network, and separate endpoint nodes serve the client channel. Validator hosts run no RPC and no management port.",
+      "record_ref": "PRODUCTION_INFRASTRUCTURE_DRAFT.md"
+    }
+  ],
+  "unset": [
+    "Mempool, queue and peer capacity values (D06-Q02, E05)",
+    "Upgrade custodian names, keys and epochs (D10-Q03, D11-Q03, E05)",
+    "Upgrade notice length in blocks (E05)",
+    "Validator, sentry and endpoint counts, hosts, regions and failure domains (D12-Q01, D12-Q03, E05)"
+  ],
+  "does_not_authorize": [
+    "production activation",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

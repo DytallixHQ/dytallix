@@ -525,3 +525,58 @@ mod cross_binary_compat_tests;
 
 #[path = "release_handover_process_tests.rs"]
 mod release_handover_process_tests;
+
+/// Upgrades have their own custodian group (P01, 30 September 2026): a key
+/// that holds a freeze or resume role cannot also sign upgrades. Synthetic
+/// keys: this checks configuration only, with no signature.
+#[test]
+fn upgrade_keys_cannot_hold_an_emergency_role() {
+    let mut f = Fixture::new();
+    let key = |n: u8, purpose: &str| emergency::AuthorityKey {
+        key_id: format!("{purpose}-{n}"),
+        public_key_hex: hex::encode([n; 64]),
+    };
+    let one = |key: emergency::AuthorityKey| emergency::AuthorityPolicy {
+        keys: vec![key],
+        threshold: 1,
+    };
+    let release = hex::encode(sha2::Sha512::digest(b"synthetic release"));
+    f.config.emergency = Some(emergency::Policy {
+        schema: 1,
+        development_only: true,
+        chain_id: CHAIN.into(),
+        release_sha512: release.clone(),
+        initial_sequence: 1,
+        freeze_authority: one(key(11, "freeze")),
+        resume_authority: one(key(12, "resume")),
+        max_control_bytes: 4_096,
+        max_signatures: 1,
+        automatic_transition_policy: emergency::AutomaticTransitionPolicy::ContinueExisting,
+        v2: None,
+    });
+    let policy = |key: emergency::AuthorityKey| upgrade::Policy {
+        schema: 1,
+        development_only: true,
+        chain_id: CHAIN.into(),
+        genesis_sha256: f.config.app_state_sha256.clone(),
+        source_release_sha512: release.clone(),
+        authority_epoch: 1,
+        authority: one(key),
+        initial_sequence: 1,
+        max_control_bytes: 4_096,
+        max_signatures: 1,
+        migration_bounds: upgrade::MigrationBounds {
+            max_receipts: 16,
+            max_receipt_bytes: 4 * 1024 * 1024,
+            max_write_bytes: 64 * 1024,
+        },
+    };
+    let mut config = f.config.clone();
+    config.upgrade = Some(policy(key(31, "upgrade")));
+    config.validate().unwrap();
+    for shared in [11, 12] {
+        config.upgrade = Some(policy(key(shared, "upgrade")));
+        let error = config.validate().unwrap_err().to_string();
+        assert!(error.contains("share a key"), "{error}");
+    }
+}

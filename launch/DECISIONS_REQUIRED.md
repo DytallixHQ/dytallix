@@ -2,7 +2,7 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains nine OPEN policy questions, 12 PARTIALLY_APPROVED policy questions, five APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains seven OPEN policy questions, 14 PARTIALLY_APPROVED policy questions, five APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
@@ -19,6 +19,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [state root v2](../node/docs/architecture/state-root-v2.md) (27 September): the `jmt` tree if it passes G35, proof queries at launch, and state sync before launch.
 - [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json) (29 September): launch scope (D07-Q01), all DGT at genesis (D05-Q02), observation contract v1 (D01-Q02) and the genesis DRT bootstrap policy (D08-Q02).
 - [penalties v1](../node/docs/architecture/penalties-v1.md), with the [30 September penalty approvals](approvals/P01_E04_PENALTIES_2026-09-30.json) (30 September): double-signing penalized with removal (D09-Q04), withdrawals from genesis (D09-Q05), vesting-locked stake penalized like unlocked stake, and a permanent penalty escrow.
+- [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json) (30 September): the implemented mempool rule is normative ([mempool v1](../node/docs/architecture/mempool-v1.md), D06-Q02), a separate 3-of-5 upgrade custodian group with a fixed minimum notice (D11-Q03), and private validators behind sentries (D12-Q01).
 
 ## D01 — Adaptive issuance
 
@@ -184,9 +185,15 @@ Evidence: [batch-7/APPROVAL.json](batch-7/APPROVAL.json), [batch-9/REPORT.md](ba
 
 Approved portion: ML-KEM-768 and ML-DSA-65 authenticated pinned peers; ML-DSA-65 validators; distinct role keys; exact approved IP endpoints; no classical or plaintext fallback. The exact engine commit, production chain ID, addresses, keys, custody and candidate-bound review remain open.
 
-### D06-Q02 — OPEN
+### D06-Q02 — PARTIALLY_APPROVED
 
 What timing, capacity, fault assumptions, synchronization and history requirements apply?
+
+Approved portion (P01, 30 September 2026): the implemented mempool rule is normative ([mempool v1](../node/docs/architecture/mempool-v1.md)): arrival order, one pending transaction per account nonce, fee caps reserved against the payer's balance, no replacement or eviction when full, expiry, and release at each committed block.
+
+Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
+
+Remaining inputs: block time and timeouts, mempool, queue and peer capacity values, fault assumptions, and the state-sync trust source, trust period, snapshot peers, interval and retention (E05).
 
 Required output: Consensus operating specification.
 
@@ -418,11 +425,11 @@ Evidence: [batch-5/eligibility-followup/APPROVAL.json](batch-5/eligibility-follo
 
 Which actions, parameter bounds, treasury powers, emergency powers and upgrade or recovery authorities apply?
 
-Approved portions: transaction freeze while consensus continues; separate resume; persistent upgrade hold; three signatures from five independent custodians with distinct freeze/resume keys; measured height-based validity windows; continued mandatory transitions; evidence-bound resume; separate candidate-specific upgrade clearance; and a separate full-halt procedure. Routine governance (27 September 2026): the action classes are parameter change and validator registry; the governed parameters are new ordinary fee profile versions (gas price, resource costs, account creation fee), `min_self_bond` and `max_active`, each within genesis bounds, and governance is the fee authority; everything else, including where fees go, changes only by upgrade; upgrades stay root-signed only; treasury spending is POST MAINNET.
+Approved portions: transaction freeze while consensus continues; separate resume; persistent upgrade hold; three signatures from five independent custodians with distinct freeze/resume keys; measured height-based validity windows; continued mandatory transitions; evidence-bound resume; separate candidate-specific upgrade clearance; and a separate full-halt procedure. Routine governance (27 September 2026): the action classes are parameter change and validator registry; the governed parameters are new ordinary fee profile versions (gas price, resource costs, account creation fee), `min_self_bond` and `max_active`, each within genesis bounds, and governance is the fee authority; everything else, including where fees go, changes only by upgrade; upgrades stay root-signed only; treasury spending is POST MAINNET. Upgrade authority (30 September 2026): a separate group of five upgrade custodians, distinct from the emergency custodians, with three SLH-DSA signatures to admit and three fresh ones to activate, and a fixed minimum notice between admission and activation; the configuration check refuses an upgrade key that holds an emergency role.
 
-Approvals: [initial emergency rules](decision-register/emergency-transaction-freeze/policy/APPROVAL.json), [six additional recommendations](decision-register/emergency-release-staging/policy/APPROVAL.json), [governance v1](../node/docs/architecture/governance-v1.md).
+Approvals: [initial emergency rules](decision-register/emergency-transaction-freeze/policy/APPROVAL.json), [six additional recommendations](decision-register/emergency-release-staging/policy/APPROVAL.json), [governance v1](../node/docs/architecture/governance-v1.md), [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
 
-Remaining inputs: custodian names, keys and epochs; numeric timing limits; acceptance of production control formats; upgrade-clearance membership and threshold; halt/restart authority; genesis bounds for each governed parameter; and recovery authorities. Version 2 emergency bindings and the first actual receipt-index upgrade executor are implemented with development-only inputs. Cross-binary and production qualification remain open. Use the [custodian intake packet](decision-register/emergency-upgrade-execution/custody/INTAKE.md) to supply public records. This implementation adds no policy approval.
+Remaining inputs: custodian names, keys and epochs; numeric timing limits; acceptance of production control formats; upgrade-clearance membership and threshold; the upgrade custodians, the notice length and the production upgrade policy (schema 2); halt/restart authority; genesis bounds for each governed parameter; and recovery authorities. Version 2 emergency bindings and the first actual receipt-index upgrade executor are implemented with development-only inputs. Cross-binary and production qualification remain open. Use the [custodian intake packet](decision-register/emergency-upgrade-execution/custody/INTAKE.md) to supply public records. This implementation adds no policy approval.
 
 Required output: Governance authority matrix.
 
@@ -436,9 +443,15 @@ Gate references: G01, G07, G08, G09, G24, G25, G26, G27, G28, G29, G30, G31, G32
 
 **Recorded approval scope and historical implementation context:** Existing servers are on Hetzner. The observed host is not an approved production topology.
 
-### D12-Q01 — OPEN
+### D12-Q01 — PARTIALLY_APPROVED
 
 What resources, regions, account separation, peer topology, access controls and capacity budget apply?
+
+Approved portion (P01, 30 September 2026): validators are private and peer only with their own sentries, pinned by full key; sentries face the network; separate endpoint nodes serve the client channel. Validator hosts run no RPC and no management port, and operator access is console-only.
+
+Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
+
+Remaining inputs: counts, hosts, regions, account separation, failure domains and the capacity budget (E05).
 
 Required output: Production topology and budget.
 

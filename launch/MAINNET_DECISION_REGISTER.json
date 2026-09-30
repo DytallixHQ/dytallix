@@ -850,14 +850,27 @@
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "recommendation": "Specify measurable limits and supported recovery behavior. Include light-client and proof-query requirements.",
-          "selected_value": null,
+          "selected_value": {
+            "mempool_rule": "MEMPOOL_V1_AS_IMPLEMENTED",
+            "ordering": "ARRIVAL_ORDER",
+            "per_nonce": "ONE_PENDING_TRANSACTION",
+            "reservation": "FEE_CAP_AND_DEBITS_AGAINST_ELIGIBLE_BALANCE",
+            "replacement": false,
+            "eviction": false,
+            "expiry": "TRANSACTION_EXPIRY_HEIGHT",
+            "release": "EACH_COMMITTED_BLOCK",
+            "per_account_cap": false,
+            "capacity_values": null,
+            "timing_values": null,
+            "fault_assumptions": null
+          },
           "owner_role_proposed": "Protocol lead with cryptography and network reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_OPERATIONS_2026-09-30.json",
           "blocks_work": [
             "W06"
           ],
@@ -865,7 +878,16 @@
           "evidence_refs": [
             "batch-7/APPROVAL.json",
             "batch-9/REPORT.md",
-            "batch-10/REPORT.md"
+            "batch-10/REPORT.md",
+            "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+            "../node/docs/architecture/mempool-v1.md"
+          ],
+          "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing, capacity, fault assumptions and synchronization values remain open.",
+          "remaining_choices": [
+            "Block time and timeouts",
+            "Mempool, queue and peer capacity values",
+            "Fault assumptions",
+            "State-sync trust source, trust period, snapshot peers, interval and retention"
           ]
         }
       ],
@@ -2209,12 +2231,26 @@
               "upgrade_authority": "ROOT_SIGNED_ONLY_NO_GOVERNANCE_APPROVAL_CLASS",
               "treasury_spending": "POST_MAINNET",
               "genesis_bound_values": null
+            },
+            "upgrade_authority": {
+              "custodians": 5,
+              "threshold": 3,
+              "distinct_from_emergency_custodians": true,
+              "admission_and_activation_signed_separately": true,
+              "algorithm": "SLH_DSA",
+              "governance_approval_class": false,
+              "minimum_notice": "FIXED_BLOCKS_BETWEEN_ADMISSION_AND_ACTIVATION",
+              "minimum_notice_blocks": null,
+              "implementation": "PRODUCTION_UPGRADE_POLICY_SCHEMA_2",
+              "names": null,
+              "public_keys": null,
+              "key_epochs": null
             }
           },
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E04_OPERATIONS_2026-09-30.json",
           "blocks_work": [
             "W11",
             "W02",
@@ -2230,7 +2266,9 @@
             "decision-register/emergency-release-staging/policy/APPROVAL.json",
             "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.md",
             "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.json",
-            "../node/docs/architecture/governance-v1.md"
+            "../node/docs/architecture/governance-v1.md",
+            "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+            "../node/docs/mainnet/upgrade-execution.md"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2255,12 +2293,14 @@
             "Upgrade clearance authority membership and approval threshold; exact candidate, migration, sequence, activation height and activation-path qualification.",
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
             "Genesis bound values for each governed parameter (E05).",
-            "Recovery authorities covered by D11-Q03."
+            "Recovery authorities covered by D11-Q03.",
+            "Upgrade custodian names, keys and epochs; the minimum notice in blocks; the production upgrade policy (schema 2)."
           ],
           "approval_records": [
             "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
             "decision-register/emergency-release-staging/policy/APPROVAL.json",
-            "../node/docs/architecture/governance-v1.md"
+            "../node/docs/architecture/governance-v1.md",
+            "approvals/P01_E04_OPERATIONS_2026-09-30.json"
           ]
         }
       ],
@@ -2325,14 +2365,25 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "recommendation": "Review fault domains, validator isolation, sentry and public RPC roles, and signer fencing.",
-          "selected_value": null,
+          "selected_value": {
+            "validators": "PRIVATE_PEER_ONLY_WITH_OWN_SENTRIES_PINNED_BY_FULL_KEY",
+            "sentries": "FACE_THE_NETWORK",
+            "client_endpoints": "SEPARATE_ENDPOINT_NODES_SERVE_THE_CLIENT_CHANNEL",
+            "validator_host_rpc": false,
+            "validator_host_management_port": false,
+            "operator_access": "CONSOLE_ONLY",
+            "counts": null,
+            "regions": null,
+            "failure_domains": null,
+            "capacity_budget": null
+          },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_OPERATIONS_2026-09-30.json",
           "blocks_work": [
             "W12",
             "W06"
@@ -2340,7 +2391,14 @@
           "blocking_output": "Production topology and budget",
           "evidence_refs": [
             "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
-            "batch-1/OPERATIONS_EVIDENCE.json"
+            "batch-1/OPERATIONS_EVIDENCE.json",
+            "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+            "PRODUCTION_INFRASTRUCTURE_DRAFT.md"
+          ],
+          "approved_portion": "Private validators behind sentries (P01, 30 September 2026): validators peer only with their own sentries, sentries face the network and separate endpoint nodes serve the client channel; validator hosts run no RPC or management port.",
+          "remaining_choices": [
+            "Counts, hosts, regions, account separation and failure domains (E05)",
+            "Capacity budget (E05)"
           ]
         },
         {
@@ -2835,8 +2893,8 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 9,
-    "partially_approved_policy_questions": 12,
+    "fully_open_policy_questions": 7,
+    "partially_approved_policy_questions": 14,
     "approved_policy_questions": 5,
     "required_records": 8
   },
@@ -3388,6 +3446,28 @@
         "Penalty rate",
         "Evidence age limits and margins (D09-Q03)",
         "Parameter migration rules"
+      ]
+    },
+    {
+      "id": "P01-2026-09-30-E04-OPERATIONS",
+      "approved": "2026-09-30",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+      "decisions": [
+        "D06-Q02: the implemented mempool rule is normative (mempool v1).",
+        "D11-Q03: a separate 3-of-5 upgrade custodian group.",
+        "D11-Q03, D14-Q02: a fixed minimum notice between admission and activation.",
+        "D12-Q01: private validators behind sentries."
+      ],
+      "question_refs": [
+        "D06-Q02",
+        "D11-Q03",
+        "D12-Q01"
+      ],
+      "unset": [
+        "Capacity values",
+        "Upgrade custodians and notice length",
+        "Topology counts and hosts"
       ]
     }
   ],
