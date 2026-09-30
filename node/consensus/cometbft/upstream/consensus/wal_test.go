@@ -202,10 +202,10 @@ func TestWALPeriodicSync(t *testing.T) {
 		wal.Wait()
 	}()
 
-	time.Sleep(walTestFlushInterval + (10 * time.Millisecond))
-
-	// The data should have been flushed by the periodic sync
-	assert.Zero(t, wal.Group().Buffered())
+	// The data should be flushed by the periodic sync. Wait for it rather than
+	// for one interval: a loaded runner can delay the flush routine.
+	require.Eventually(t, func() bool { return wal.Group().Buffered() == 0 },
+		5*time.Second, walTestFlushInterval/10)
 
 	h := int64(4)
 	gr, found, err := wal.SearchForEndHeight(h, &WALSearchOptions{})

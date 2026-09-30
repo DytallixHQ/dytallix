@@ -32,7 +32,7 @@ const evidenceChainID = "test_chain"
 
 var (
 	defaultEvidenceTime           = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
-	defaultEvidenceMaxBytes int64 = 1000
+	defaultEvidenceMaxBytes int64 = 16384 // two ML-DSA-65 duplicate-vote evidences
 )
 
 func TestEvidencePoolBasic(t *testing.T) {
@@ -82,7 +82,8 @@ func TestEvidencePoolBasic(t *testing.T) {
 	next := pool.EvidenceFront()
 	assert.Equal(t, ev, next.Value.(types.Evidence))
 
-	const evidenceBytes int64 = 372
+	// One duplicate-vote evidence with two ML-DSA-65 signed votes.
+	const evidenceBytes int64 = 6864
 	evs, size = pool.PendingEvidence(evidenceBytes)
 	assert.Equal(t, 1, len(evs))
 	assert.Equal(t, evidenceBytes, size) // check that the size of the single evidence in bytes is correct
@@ -377,7 +378,7 @@ func initializeStateFromValidatorSet(valSet *types.ValidatorSet, height int64) s
 			Evidence: types.EvidenceParams{
 				MaxAgeNumBlocks: 20,
 				MaxAgeDuration:  20 * time.Minute,
-				MaxBytes:        1000,
+				MaxBytes:        defaultEvidenceMaxBytes,
 			},
 		},
 	}

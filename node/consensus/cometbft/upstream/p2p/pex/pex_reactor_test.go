@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/p2p/mock"
@@ -66,6 +67,7 @@ func TestPEXReactorAddRemovePeer(t *testing.T) {
 // peers have different IP addresses, they all have the same underlying remote
 // IP: 127.0.0.1.
 func TestPEXReactorRunning(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 3
 	switches := make([]*p2p.Switch, N)
 
@@ -137,6 +139,7 @@ func TestPEXReactorReceive(t *testing.T) {
 }
 
 func TestPEXReactorRequestMessageAbuse(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	r, book := createReactor(&ReactorConfig{})
 	defer teardownReactor(book)
 
@@ -171,6 +174,7 @@ func TestPEXReactorRequestMessageAbuse(t *testing.T) {
 }
 
 func TestPEXReactorAddrsMessageAbuse(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	r, book := createReactor(&ReactorConfig{})
 	defer teardownReactor(book)
 
@@ -202,6 +206,7 @@ func TestPEXReactorAddrsMessageAbuse(t *testing.T) {
 }
 
 func TestCheckSeeds(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	// directory to store address books
 	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
@@ -245,6 +250,7 @@ func TestCheckSeeds(t *testing.T) {
 }
 
 func TestPEXReactorUsesSeedsIfNeeded(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	// directory to store address books
 	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
@@ -265,6 +271,7 @@ func TestPEXReactorUsesSeedsIfNeeded(t *testing.T) {
 }
 
 func TestConnectionSpeedForPeerReceivedFromSeed(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	// directory to store address books
 	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
@@ -312,6 +319,7 @@ func TestConnectionSpeedForPeerReceivedFromSeed(t *testing.T) {
 }
 
 func TestPEXReactorSeedMode(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	// directory to store address books
 	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
@@ -351,6 +359,7 @@ func TestPEXReactorSeedMode(t *testing.T) {
 }
 
 func TestPEXReactorDoesNotDisconnectFromPersistentPeerInSeedMode(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	// directory to store address books
 	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
@@ -389,6 +398,7 @@ func TestPEXReactorDoesNotDisconnectFromPersistentPeerInSeedMode(t *testing.T) {
 }
 
 func TestPEXReactorDialsPeerUpToMaxAttemptsInSeedMode(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	// directory to store address books
 	dir, err := os.MkdirTemp("", "pex_reactor")
 	require.Nil(t, err)
@@ -422,6 +432,7 @@ func TestPEXReactorDialsPeerUpToMaxAttemptsInSeedMode(t *testing.T) {
 // with FlushStop. Before a fix, this non-deterministically reproduced
 // https://github.com/tendermint/tendermint/issues/3231.
 func TestPEXReactorSeedModeFlushStop(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 2
 	switches := make([]*p2p.Switch, N)
 
@@ -517,6 +528,7 @@ func TestPEXReactorDoesNotAddPrivatePeersToAddrBook(t *testing.T) {
 }
 
 func TestPEXReactorDialPeer(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	pexR, book := createReactor(&ReactorConfig{})
 	defer teardownReactor(book)
 

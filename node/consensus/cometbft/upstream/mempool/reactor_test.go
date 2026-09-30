@@ -15,6 +15,7 @@ import (
 	"github.com/cometbft/cometbft/abci/example/kvstore"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/p2p"
 	memproto "github.com/cometbft/cometbft/proto/tendermint/mempool"
@@ -38,6 +39,7 @@ func (ps peerState) GetHeight() int64 {
 // Send a bunch of txs to the first reactor's mempool and wait for them all to
 // be received in the others.
 func TestReactorBroadcastTxsMessage(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config := cfg.TestConfig()
 	// if there were more than two reactors, the order of transactions could not be
 	// asserted in waitForTxsOnReactors (due to transactions gossiping). If we
@@ -64,6 +66,7 @@ func TestReactorBroadcastTxsMessage(t *testing.T) {
 
 // regression test for https://github.com/cometbft/cometbft/issues/5408
 func TestReactorConcurrency(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config := cfg.TestConfig()
 	const N = 2
 	reactors, _ := makeAndConnectReactors(config, N)
@@ -125,6 +128,7 @@ func TestReactorConcurrency(t *testing.T) {
 // Send a bunch of txs to the first reactor's mempool, claiming it came from peer
 // ensure peer gets no txs.
 func TestReactorNoBroadcastToSender(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config := cfg.TestConfig()
 	const N = 2
 	reactors, _ := makeAndConnectReactors(config, N)
@@ -147,6 +151,7 @@ func TestReactorNoBroadcastToSender(t *testing.T) {
 }
 
 func TestMempoolReactorMaxTxBytes(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config := cfg.TestConfig()
 
 	const N = 2
@@ -186,6 +191,7 @@ func TestMempoolReactorMaxTxBytes(t *testing.T) {
 }
 
 func TestBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}
@@ -211,6 +217,7 @@ func TestBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
 }
 
 func TestBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	if testing.Short() {
 		t.Skip("skipping test in short mode.")
 	}

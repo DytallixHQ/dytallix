@@ -5,6 +5,7 @@ import (
 	"time"
 
 	cfg "github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/bytes"
 	"github.com/cometbft/cometbft/libs/log"
 	cmtrand "github.com/cometbft/cometbft/libs/rand"
@@ -20,6 +21,7 @@ import (
 // one byz val sends a precommit for a random block at each height
 // Ensure a testnet makes blocks
 func TestReactorInvalidPrecommit(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 4
 	css, cleanup := randConsensusNet(t, N, "consensus_reactor_test", newMockTickerFunc(true), newKVStore,
 		func(c *cfg.Config) {

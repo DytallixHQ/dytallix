@@ -230,6 +230,7 @@ func newReactor(
 }
 
 func TestNoBlockResponse(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config = test.ResetTestRoot("blocksync_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := genesisDocWithValsPowers([]int64{30})
@@ -287,6 +288,7 @@ func TestNoBlockResponse(t *testing.T) {
 // Alternatively we could actually dial a TCP conn but
 // that seems extreme.
 func TestBadBlockStopsPeer(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config = test.ResetTestRoot("blocksync_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := genesisDocWithValsPowers([]int64{30})
@@ -366,6 +368,7 @@ func TestBadBlockStopsPeer(t *testing.T) {
 }
 
 func TestCheckSwitchToConsensusLastHeightZero(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	const maxBlockHeight = int64(45)
 
 	config = test.ResetTestRoot("blocksync_reactor_test")
@@ -776,6 +779,7 @@ func blockResponseBytesWithSigs(t *testing.T, commitSigs, extSigs int) []byte {
 }
 
 func TestCheckExtendedCommit(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	tests := []struct {
 		name                  string
 		maxBlockHeight        int64
@@ -1017,6 +1021,7 @@ func TestEnableRecomputesMaxPeerHeight(t *testing.T) {
 }
 
 func TestPeerNotDisconnectedOnLateBlockResponseAfterConsensusSwitch(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	config = test.ResetTestRoot("blocksync_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 

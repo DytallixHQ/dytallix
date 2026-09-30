@@ -1,11 +1,15 @@
 package test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/cometbft/cometbft/config"
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/mldsa65"
+	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmtos "github.com/cometbft/cometbft/libs/os"
 )
 
@@ -31,7 +35,7 @@ func ResetTestRootWithChainID(testName string, chainID string) *config.Config {
 		if chainID == "" {
 			chainID = DefaultTestChainID
 		}
-		testGenesis := fmt.Sprintf(testGenesisFmt, chainID)
+		testGenesis := fmt.Sprintf(testGenesisFmt, chainID, testValidatorPubKey)
 		cmtos.MustWriteFile(genesisFilePath, []byte(testGenesis), 0o644)
 	}
 	// we always overwrite the priv val
@@ -59,7 +63,7 @@ var testGenesisFmt = `{
 		},
 		"validator": {
 			"pub_key_types": [
-				"ed25519"
+				"ml_dsa_65"
 			]
 		},
 		"abci": {
@@ -69,10 +73,7 @@ var testGenesisFmt = `{
 	},
   "validators": [
     {
-      "pub_key": {
-        "type": "tendermint/PubKeyEd25519",
-        "value":"AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
-      },
+      "pub_key": %s,
       "power": "10",
       "name": ""
     }
@@ -80,17 +81,30 @@ var testGenesisFmt = `{
   "app_hash": ""
 }`
 
-var testPrivValidatorKey = `{
-  "address": "A3258DCBF45DCA0DF052981870F2D1441A36D145",
-  "pub_key": {
-    "type": "tendermint/PubKeyEd25519",
-    "value": "AT/+aaL1eB0477Mud9JMm8Sh8BIvOYlPGC9KkIUmFaE="
-  },
-  "priv_key": {
-    "type": "tendermint/PrivKeyEd25519",
-    "value": "EVkqJO/jIXp3rkASXfh9YnyToYXRXhBr6g9cQVxPFnQBP/5povV4HTjvsy530kybxKHwEi85iU8YL0qQhSYVoQ=="
-  }
-}`
+// The test validator key is ML-DSA-65, derived from a fixed seed so that
+// every test root holds the same validator.
+var testPrivValidatorKey, testValidatorPubKey = testValidatorKeyFiles()
+
+func testValidatorKeyFiles() (string, string) {
+	privKey, err := mldsa65.GenPrivKeyFromSeed(bytes.Repeat([]byte{0x01}, mldsa65.SeedSize))
+	if err != nil {
+		panic(err)
+	}
+	pubKey := privKey.PubKey()
+	key, err := cmtjson.MarshalIndent(struct {
+		Address crypto.Address `json:"address"`
+		PubKey  crypto.PubKey  `json:"pub_key"`
+		PrivKey crypto.PrivKey `json:"priv_key"`
+	}{pubKey.Address(), pubKey, privKey}, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	genesisKey, err := cmtjson.Marshal(pubKey)
+	if err != nil {
+		panic(err)
+	}
+	return string(key), string(genesisKey)
+}
 
 var testPrivValidatorState = `{
   "height": "0",

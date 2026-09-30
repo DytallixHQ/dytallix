@@ -91,11 +91,12 @@ func makePeers(numPeers int, minHeight, maxHeight int64) testPeers {
 	peers := make(testPeers, numPeers)
 	for i := 0; i < numPeers; i++ {
 		peerID := p2p.ID(cmtrand.Str(12))
-		height := minHeight + cmtrand.Int63n(maxHeight-minHeight)
+		// Heights start above every base. The pool ignores a peer until the
+		// pool's height reaches the peer's base, so a peer with base and
+		// height both at minHeight stalled the pool at its first block and
+		// hung TestBlockPoolBasic (about 1 run in 1,000).
+		height := minHeight + int64(numPeers) + cmtrand.Int63n(maxHeight-minHeight-int64(numPeers))
 		base := minHeight + int64(i)
-		if base > height {
-			base = height
-		}
 		peers[peerID] = &testPeer{peerID, base, height, make(chan inputData, 10), false}
 	}
 	return peers

@@ -232,12 +232,6 @@ func TestClientServer(t *testing.T) {
 	client, _, err := makeClientServer(t, kvstore, "kvstore-socket", "socket")
 	require.NoError(t, err)
 	runClientTests(ctx, t, client)
-
-	// set up grpc app
-	kvstore = NewInMemoryApplication()
-	gclient, _, err := makeClientServer(t, kvstore, t.TempDir(), "grpc")
-	require.NoError(t, err)
-	runClientTests(ctx, t, gclient)
 }
 
 func makeApplyBlock(

@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	valEd25519   = []string{ABCIPubKeyTypeEd25519}
-	valSecp256k1 = []string{ABCIPubKeyTypeSecp256k1}
+	valMlDsa65 = []string{ABCIPubKeyTypeMlDsa65}
+	// Update copies key types without validating them.
+	valUpdated = []string{"updated_key_type"}
 )
 
 func TestConsensusParamsValidation(t *testing.T) {
@@ -23,29 +24,29 @@ func TestConsensusParamsValidation(t *testing.T) {
 		valid  bool
 	}{
 		// test block params
-		0: {makeParams(1, 0, 2, 0, valEd25519, 0, ""), true},
-		1: {makeParams(0, 0, 2, 0, valEd25519, 0, ""), false},
-		2: {makeParams(47*1024*1024, 0, 2, 0, valEd25519, 0, ""), true},
-		3: {makeParams(10, 0, 2, 0, valEd25519, 0, ""), true},
-		4: {makeParams(100*1024*1024, 0, 2, 0, valEd25519, 0, ""), true},
-		5: {makeParams(101*1024*1024, 0, 2, 0, valEd25519, 0, ""), false},
-		6: {makeParams(1024*1024*1024, 0, 2, 0, valEd25519, 0, ""), false},
+		0: {makeParams(1, 0, 2, 0, valMlDsa65, 0, ""), true},
+		1: {makeParams(0, 0, 2, 0, valMlDsa65, 0, ""), false},
+		2: {makeParams(47*1024*1024, 0, 2, 0, valMlDsa65, 0, ""), true},
+		3: {makeParams(10, 0, 2, 0, valMlDsa65, 0, ""), true},
+		4: {makeParams(100*1024*1024, 0, 2, 0, valMlDsa65, 0, ""), true},
+		5: {makeParams(101*1024*1024, 0, 2, 0, valMlDsa65, 0, ""), false},
+		6: {makeParams(1024*1024*1024, 0, 2, 0, valMlDsa65, 0, ""), false},
 		// test evidence params
-		7:  {makeParams(1, 0, 0, 0, valEd25519, 0, ""), false},
-		8:  {makeParams(1, 0, 2, 2, valEd25519, 0, ""), false},
-		9:  {makeParams(1000, 0, 2, 1, valEd25519, 0, ""), true},
-		10: {makeParams(1, 0, -1, 0, valEd25519, 0, ""), false},
+		7:  {makeParams(1, 0, 0, 0, valMlDsa65, 0, ""), false},
+		8:  {makeParams(1, 0, 2, 2, valMlDsa65, 0, ""), false},
+		9:  {makeParams(1000, 0, 2, 1, valMlDsa65, 0, ""), true},
+		10: {makeParams(1, 0, -1, 0, valMlDsa65, 0, ""), false},
 		// test no pubkey type provided
 		11: {makeParams(1, 0, 2, 0, []string{}, 0, ""), false},
 		// test invalid pubkey type provided
 		12: {makeParams(1, 0, 2, 0, []string{"potatoes make good pubkeys"}, 0, ""), false},
-		13: {makeParams(-1, 0, 2, 0, valEd25519, 0, ""), true},
-		14: {makeParams(-2, 0, 2, 0, valEd25519, 0, ""), false},
+		13: {makeParams(-1, 0, 2, 0, valMlDsa65, 0, ""), true},
+		14: {makeParams(-2, 0, 2, 0, valMlDsa65, 0, ""), false},
 		// test authority params
-		15: {makeParams(1, 0, 2, 0, valEd25519, 0, ""), true},
-		16: {makeParams(1, 0, 2, 0, valEd25519, 0, string(make([]byte, 257))), false},
-		17: {makeParams(1, 0, 2, 0, valEd25519, 0, "governance-module"), true},
-		18: {makeParams(1, 0, 2, 0, valEd25519, 0, "cosmos10d07y265gmmuvt4z0w9aw880jnsr700j6zn9kn"), true},
+		15: {makeParams(1, 0, 2, 0, valMlDsa65, 0, ""), true},
+		16: {makeParams(1, 0, 2, 0, valMlDsa65, 0, string(make([]byte, 257))), false},
+		17: {makeParams(1, 0, 2, 0, valMlDsa65, 0, "governance-module"), true},
+		18: {makeParams(1, 0, 2, 0, valMlDsa65, 0, "cosmos10d07y265gmmuvt4z0w9aw880jnsr700j6zn9kn"), true},
 	}
 	for i, tc := range testCases {
 		if tc.valid {
@@ -87,14 +88,14 @@ func makeParams(
 
 func TestConsensusParamsHash(t *testing.T) {
 	params := []ConsensusParams{
-		makeParams(4, 2, 3, 1, valEd25519, 0, ""),
-		makeParams(1, 4, 3, 1, valEd25519, 0, ""),
-		makeParams(1, 2, 4, 1, valEd25519, 0, ""),
-		makeParams(2, 5, 7, 1, valEd25519, 0, ""),
-		makeParams(1, 7, 6, 1, valEd25519, 0, ""),
-		makeParams(9, 5, 4, 1, valEd25519, 0, ""),
-		makeParams(7, 8, 9, 1, valEd25519, 0, ""),
-		makeParams(4, 6, 5, 1, valEd25519, 0, ""),
+		makeParams(4, 2, 3, 1, valMlDsa65, 0, ""),
+		makeParams(1, 4, 3, 1, valMlDsa65, 0, ""),
+		makeParams(1, 2, 4, 1, valMlDsa65, 0, ""),
+		makeParams(2, 5, 7, 1, valMlDsa65, 0, ""),
+		makeParams(1, 7, 6, 1, valMlDsa65, 0, ""),
+		makeParams(9, 5, 4, 1, valMlDsa65, 0, ""),
+		makeParams(7, 8, 9, 1, valMlDsa65, 0, ""),
+		makeParams(4, 6, 5, 1, valMlDsa65, 0, ""),
 	}
 
 	hashes := make([][]byte, len(params))
@@ -120,13 +121,13 @@ func TestConsensusParamsUpdate(t *testing.T) {
 	}{
 		// empty updates
 		{
-			makeParams(1, 2, 3, 0, valEd25519, 0, ""),
+			makeParams(1, 2, 3, 0, valMlDsa65, 0, ""),
 			&cmtproto.ConsensusParams{},
-			makeParams(1, 2, 3, 0, valEd25519, 0, ""),
+			makeParams(1, 2, 3, 0, valMlDsa65, 0, ""),
 		},
 		// fine updates
 		{
-			makeParams(1, 2, 3, 0, valEd25519, 0, ""),
+			makeParams(1, 2, 3, 0, valMlDsa65, 0, ""),
 			&cmtproto.ConsensusParams{
 				Block: &cmtproto.BlockParams{
 					MaxBytes: 100,
@@ -138,10 +139,10 @@ func TestConsensusParamsUpdate(t *testing.T) {
 					MaxBytes:        50,
 				},
 				Validator: &cmtproto.ValidatorParams{
-					PubKeyTypes: valSecp256k1,
+					PubKeyTypes: valUpdated,
 				},
 			},
-			makeParams(100, 200, 300, 50, valSecp256k1, 0, ""),
+			makeParams(100, 200, 300, 50, valUpdated, 0, ""),
 		},
 	}
 
@@ -151,7 +152,7 @@ func TestConsensusParamsUpdate(t *testing.T) {
 }
 
 func TestConsensusParamsUpdate_AppVersion(t *testing.T) {
-	params := makeParams(1, 2, 3, 0, valEd25519, 0, "")
+	params := makeParams(1, 2, 3, 0, valMlDsa65, 0, "")
 
 	assert.EqualValues(t, 0, params.Version.App)
 
@@ -162,7 +163,7 @@ func TestConsensusParamsUpdate_AppVersion(t *testing.T) {
 }
 
 func TestConsensusParamsUpdate_Authority(t *testing.T) {
-	params := makeParams(1, 2, 3, 0, valEd25519, 0, "")
+	params := makeParams(1, 2, 3, 0, valMlDsa65, 0, "")
 
 	assert.Equal(t, "", params.Authority.Authority)
 
@@ -229,7 +230,7 @@ func TestConsensusParamsUpdate_VoteExtensionsEnableHeight(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(*testing.T) {
-			initialParams := makeParams(1, 0, 2, 0, valEd25519, tc.from, "")
+			initialParams := makeParams(1, 0, 2, 0, valMlDsa65, tc.from, "")
 			update := &cmtproto.ConsensusParams{}
 			if tc.to == nilTest {
 				update.Abci = nil
@@ -249,17 +250,17 @@ func TestConsensusParamsUpdate_VoteExtensionsEnableHeight(t *testing.T) {
 
 func TestProto(t *testing.T) {
 	params := []ConsensusParams{
-		makeParams(4, 2, 3, 1, valEd25519, 1, ""),
-		makeParams(1, 4, 3, 1, valEd25519, 1, ""),
-		makeParams(1, 2, 4, 1, valEd25519, 1, ""),
-		makeParams(2, 5, 7, 1, valEd25519, 1, ""),
-		makeParams(1, 7, 6, 1, valEd25519, 1, ""),
-		makeParams(9, 5, 4, 1, valEd25519, 1, ""),
-		makeParams(7, 8, 9, 1, valEd25519, 1, ""),
-		makeParams(4, 6, 5, 1, valEd25519, 1, ""),
-		makeParams(1, 2, 3, 1, valEd25519, 1, ""),
-		makeParams(1, 2, 3, 1, valEd25519, 1, "governance-module"),
-		makeParams(1, 2, 3, 1, valEd25519, 1, "cosmos10d07y265gmmuvt4z0w9aw880jnsr700j6zn9kn"),
+		makeParams(4, 2, 3, 1, valMlDsa65, 1, ""),
+		makeParams(1, 4, 3, 1, valMlDsa65, 1, ""),
+		makeParams(1, 2, 4, 1, valMlDsa65, 1, ""),
+		makeParams(2, 5, 7, 1, valMlDsa65, 1, ""),
+		makeParams(1, 7, 6, 1, valMlDsa65, 1, ""),
+		makeParams(9, 5, 4, 1, valMlDsa65, 1, ""),
+		makeParams(7, 8, 9, 1, valMlDsa65, 1, ""),
+		makeParams(4, 6, 5, 1, valMlDsa65, 1, ""),
+		makeParams(1, 2, 3, 1, valMlDsa65, 1, ""),
+		makeParams(1, 2, 3, 1, valMlDsa65, 1, "governance-module"),
+		makeParams(1, 2, 3, 1, valMlDsa65, 1, "cosmos10d07y265gmmuvt4z0w9aw880jnsr700j6zn9kn"),
 	}
 
 	for i := range params {

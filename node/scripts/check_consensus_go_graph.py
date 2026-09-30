@@ -24,15 +24,18 @@ COMMANDS = (
     ("consensus/cometbft", "./cmd/dytallix-operator-rpc", TAGS),
     ("consensus/root-authorization", "./cmd/dytallix-root-verify", ""),
 )
-# Fork packages that implemented classical cryptography or classical
-# transport. E04 gap 20 deleted them; each must stay absent from the fork, so
-# an import fails to resolve instead of reaching a binary.
+# Fork packages that implemented classical cryptography, classical transport
+# or gRPC. E04 gap 20 deleted them; each must stay absent from the fork, so an
+# import fails to resolve instead of reaching a binary.
 REMOVED_PACKAGES = (
     "github.com/cometbft/cometbft/crypto/ed25519",
     "github.com/cometbft/cometbft/crypto/secp256k1",
     "github.com/cometbft/cometbft/crypto/secp256k1eth",
     "github.com/cometbft/cometbft/crypto/bls12381",
     "github.com/cometbft/cometbft/lp2p",
+    # The gRPC broadcast API and its generated service (test hygiene).
+    "github.com/cometbft/cometbft/rpc/grpc",
+    "github.com/cometbft/cometbft/proto/tendermint/rpc/grpc",
 )
 # Remote signing is not compiled into PQC-only builds.
 PRIVVAL = "github.com/cometbft/cometbft/privval"

@@ -8,16 +8,19 @@ import (
 
 	"github.com/cometbft/cometbft/abci/types"
 	cryptoencoding "github.com/cometbft/cometbft/crypto/encoding"
+	"github.com/cometbft/cometbft/crypto/mldsa65"
 	cmtrand "github.com/cometbft/cometbft/libs/rand"
 	"github.com/cometbft/cometbft/proto/tendermint/crypto"
 )
 
-// RandVal creates one random validator, with a key derived
-// from the input value
+// RandVal creates one random validator with a fresh ML-DSA-65 key.
 func RandVal() types.ValidatorUpdate {
-	pubkey := cmtrand.Bytes(32)
+	privKey, err := mldsa65.GenPrivKey()
+	if err != nil {
+		panic(err)
+	}
 	power := cmtrand.Uint16() + 1
-	v := types.UpdateValidator(pubkey, int64(power), "")
+	v := types.UpdateValidator(privKey.PubKey().Bytes(), int64(power), mldsa65.KeyType)
 	return v
 }
 

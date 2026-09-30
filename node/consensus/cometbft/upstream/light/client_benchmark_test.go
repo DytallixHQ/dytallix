@@ -2,6 +2,7 @@ package light_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/cometbft/cometbft/light/provider"
 	mockp "github.com/cometbft/cometbft/light/provider/mock"
 	dbs "github.com/cometbft/cometbft/light/store/db"
+	"github.com/cometbft/cometbft/types"
 )
 
 // NOTE: block is produced every minute. Make sure the verification time
@@ -21,12 +23,17 @@ import (
 // or -benchtime 100x.
 //
 // Remember that none of these benchmarks account for network latency.
-var (
-	benchmarkFullNode = mockp.New(genMockNode(chainID, 1000, 100, 1, bTime))
-	genesisBlock, _   = benchmarkFullNode.LightBlock(context.Background(), 1)
-)
+//
+// The node is built on first use: its 1000 blocks of 100 ML-DSA-65
+// signatures would otherwise be signed on every test run.
+var benchmarkNode = sync.OnceValues(func() (*mockp.Mock, *types.LightBlock) {
+	node := mockp.New(genMockNode(chainID, 1000, 100, 1, bTime))
+	genesisBlock, _ := node.LightBlock(context.Background(), 1)
+	return node, genesisBlock
+})
 
 func BenchmarkSequence(b *testing.B) {
+	benchmarkFullNode, genesisBlock := benchmarkNode()
 	c, err := light.NewClient(
 		context.Background(),
 		chainID,
@@ -55,6 +62,7 @@ func BenchmarkSequence(b *testing.B) {
 }
 
 func BenchmarkBisection(b *testing.B) {
+	benchmarkFullNode, genesisBlock := benchmarkNode()
 	c, err := light.NewClient(
 		context.Background(),
 		chainID,
@@ -82,6 +90,7 @@ func BenchmarkBisection(b *testing.B) {
 }
 
 func BenchmarkBackwards(b *testing.B) {
+	benchmarkFullNode, _ := benchmarkNode()
 	trustedBlock, _ := benchmarkFullNode.LightBlock(context.Background(), 0)
 	c, err := light.NewClient(
 		context.Background(),

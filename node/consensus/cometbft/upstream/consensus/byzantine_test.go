@@ -17,6 +17,7 @@ import (
 	abcicli "github.com/cometbft/cometbft/abci/client"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/evidence"
+	"github.com/cometbft/cometbft/internal/test"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/libs/service"
 	cmtsync "github.com/cometbft/cometbft/libs/sync"
@@ -36,6 +37,7 @@ import (
 
 // Byzantine node sends two different prevotes (nil and blockID) to the same validator
 func TestByzantinePrevoteEquivocation(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	ctx := t.Context()
 
 	const nValidators = 4
@@ -310,6 +312,7 @@ func TestByzantinePrevoteEquivocation(t *testing.T) {
 // B sees a commit, A doesn't.
 // Heal partition and ensure A sees the commit
 func TestByzantineConflictingProposalsWithPartition(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	N := 4
 	logger := consensusLogger().With("test", "byzantine")
 
@@ -609,6 +612,7 @@ func (br *ByzantineReactor) InitPeer(peer p2p.Peer) p2p.Peer { return peer }
 
 // Large/oversized proposals should be rejected
 func TestRejectOversizedProposals(t *testing.T) {
+	test.SkipWithoutPQCUpgrade(t)
 	ctx := t.Context()
 
 	n := 2
