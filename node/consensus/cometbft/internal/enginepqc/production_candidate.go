@@ -51,9 +51,6 @@ func ValidateProductionCandidateBinding(home string, binding ProductionCandidate
 // without loading keys, opening a socket, or authorizing production startup.
 // The caller must supply the exact chain ID read from its proposed genesis.
 func ValidateProductionTransportCandidate(c *cfg.Config, tc TransportConfig, key *p2p.NodeKey, chainID string) error {
-	if BuildProfile != "dytallix_pqc_only" || RPCBuildProfile != "dytallix-pqc-unix-v1" {
-		return errors.New("production candidate requires the selected PQC-only IPC build")
-	}
 	if chainID == "" || len(chainID) > 64 || strings.TrimSpace(chainID) != chainID || key == nil || key.PrivKey == nil || key.PrivKey.Type() != mldsa65.KeyType {
 		return errors.New("production candidate requires an exact chain ID and ML-DSA-65 peer key")
 	}

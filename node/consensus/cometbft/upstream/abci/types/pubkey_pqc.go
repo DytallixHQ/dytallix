@@ -17,5 +17,5 @@ func UpdateValidator(pk []byte, power int64, keyType string) ValidatorUpdate {
 
 // Ed25519ValidatorUpdate fails closed in this profile.
 func Ed25519ValidatorUpdate([]byte, int64) ValidatorUpdate {
-	panic("ed25519 excluded by dytallix_pqc_only")
+	panic("ed25519 is not built (Dytallix PQC-only fork)")
 }

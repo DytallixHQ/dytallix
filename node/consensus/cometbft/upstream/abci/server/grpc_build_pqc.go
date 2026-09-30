@@ -7,5 +7,5 @@ import (
 )
 
 func newGRPCServerForBuild(string, types.Application) (service.Service, error) {
-	return nil, errors.New("gRPC ABCI server excluded by dytallix_pqc_only")
+	return nil, errors.New("gRPC ABCI server is not built (Dytallix PQC-only fork)")
 }

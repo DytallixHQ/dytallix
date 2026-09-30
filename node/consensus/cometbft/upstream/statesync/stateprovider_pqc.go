@@ -9,5 +9,5 @@ import (
 )
 
 func NewLightClientStateProvider(context.Context, string, cmtstate.Version, int64, []string, light.TrustOptions, log.Logger) (StateProvider, error) {
-	return nil, errors.New("HTTP state provider excluded by dytallix_pqc_only")
+	return nil, errors.New("HTTP state provider is not built (Dytallix PQC-only fork)")
 }

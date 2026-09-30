@@ -169,7 +169,7 @@ ROUTES = [
     {
         "role": "rpc_and_application_boundary",
         "algorithm": "None (local transport)",
-        "policy": "Unix ABCI and IPC RPC under dytallix_pqc_ipc; HTTP/1 loopback adapter; no TLS",
+        "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",
         "files": [
             "consensus/cometbft/cmd/dytallix-comet-bridge/application.go",
             "consensus/cometbft/cmd/dytallix-comet-bridge/snapshots.go",
@@ -196,7 +196,7 @@ ENFORCEMENT = [
      "scope": "Locked Rust graph of dytallix-fast-node (pqc-consensus): no classical, TLS, HTTP or legacy PQC crates; FIPS 204 limited to ML-DSA-65"},
     {"check": "scripts/check_consensus_go_graph.py",
      "scope": "PQC-only Go graphs of the engine, bridge and root verifier: no prohibited packages; the classical fork packages removed from the fork (E04 gap 20); no remote-signer sources"},
-    {"check": "go vet / go test / go build -tags dytallix_pqc_only,dytallix_pqc_ipc",
+    {"check": "go vet / go test / go build (the fork's one build, no tags)",
      "scope": "The production Go build and its tests"},
     {"check": "scripts/e01_inventory.py --check",
      "scope": "Routed files match this inventory"},
@@ -205,7 +205,7 @@ ENFORCEMENT = [
 EXCEPTIONS = [
     "The selected Go graphs contain the standard library's crypto/internal/boring and crypto/internal/boring/sig. With CGO disabled these are disabled stubs and no-op markers; classifying them in the compiled executable belongs to T01.",
     "Package and symbol rules cannot detect every renamed or unknown algorithm. A clean inventory alone does not establish PQC compliance.",
-    "The upstream Comet fork retains its classical packages for the default development build. Under dytallix_pqc_only they have no buildable files; they are not deleted.",
+    "E04 gap 20 deleted the engine fork's classical packages; the fork has one build, with no build tags.",
     "The production startup flag remains fail-closed. The candidate transport runs only with an explicit staging flag and a reserved staging chain identity.",
     "The ML-KEM-768 + ML-DSA-65 peer protocol still requires independent protocol review (P02).",
     "Production chain identity, addresses, keys, custody, the release commit, the full distribution inventory and independent review are not frozen (E05, E06, P01, P02).",

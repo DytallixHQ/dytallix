@@ -11,7 +11,7 @@ import check_boundary as boundary
 
 class BoundaryTests(unittest.TestCase):
  def args(self, binary, **extra):
-  values=dict(profile=boundary.PROFILE,binary=str(binary),module_dir=str(binary.parent),tags='',expected_sha256=None,rebuild=False)
+  values=dict(profile=boundary.PROFILE,binary=str(binary),module_dir=str(binary.parent),expected_sha256=None,rebuild=False)
   values.update(extra)
   return argparse.Namespace(**values)
 
@@ -32,16 +32,6 @@ class BoundaryTests(unittest.TestCase):
  def test_unknown_profile_fails(self):
   report=boundary.inspect(self.args(Path('/absent'),profile='allow-everything'))
   self.assertEqual(report['errors'],['unknown profile'])
-
- def test_unknown_tags_fail(self):
-  report=boundary.inspect(self.args(Path('/absent'),tags='dytallix_pqc_only,legacy'))
-  self.assertEqual(report['errors'],['unknown build tag selection'])
-
- def test_ipc_tags_do_not_skip_artifact_checks(self):
-  report=boundary.inspect(self.args(Path('/absent'),tags=boundary.IPC_TAG))
-  self.assertEqual(report['errors'],['binary is missing or not a regular file'])
-  report=boundary.inspect(self.args(Path('/absent'),tags='dytallix_pqc_ipc'))
-  self.assertEqual(report['errors'],['unknown build tag selection'])
 
  def test_empty_or_stripped_symbols_fail(self):
   for symbols in ('', 'reading engine: no symbol section', 'abc T main.main\n'):

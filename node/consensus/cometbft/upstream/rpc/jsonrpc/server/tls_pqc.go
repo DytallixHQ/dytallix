@@ -8,5 +8,5 @@ import (
 )
 
 func ServeTLS(net.Listener, http.Handler, string, string, log.Logger, *Config) error {
-	return errors.New("RPC TLS excluded by dytallix_pqc_only")
+	return errors.New("RPC TLS is not built (Dytallix PQC-only fork)")
 }

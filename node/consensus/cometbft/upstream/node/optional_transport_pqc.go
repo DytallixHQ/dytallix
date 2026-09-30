@@ -8,5 +8,5 @@ import (
 )
 
 func createOptionalSwitch(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, reactors []optionalSwitchReactor, metrics *p2p.Metrics, logger log.Logger, height int64) (p2p.Switcher, error) {
-	return nil, fmt.Errorf("libp2p excluded by dytallix_pqc_only")
+	return nil, fmt.Errorf("libp2p is not built (Dytallix PQC-only fork)")
 }

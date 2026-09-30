@@ -48,8 +48,10 @@ Upstream still carries configuration fields for the removed features, such as
 the libp2p settings and the remote-signer address. The engine's isolation
 checks refuse them.
 
-The two tags now select nothing. CI and the build tools still pass them; E04
-gap 20, F-c, removes them.
+F-c removed the two tags from CI, the build tools and the docs. The G35 graph
+check (`scripts/check_consensus_go_graph.py`) refuses a fork source file with
+a Dytallix build constraint, and the boundary checker refuses an engine built
+with any tag.
 
 `scripts/check_consensus_go_graph.py` (from `mainnet/node`) enforces the
 boundary in CI. It fails when a selected graph imports a prohibited package,

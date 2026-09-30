@@ -18,11 +18,9 @@ arch="$(docker info --format '{{.Architecture}}')"
 case "$arch" in aarch64|arm64) goarch=arm64 ;; x86_64|amd64) goarch=amd64 ;; *) echo "unsupported $arch" >&2; exit 2 ;; esac
 
 (cd "$node/consensus/cometbft" &&
-  GOOS=linux GOARCH="$goarch" CGO_ENABLED=0 go build -mod=readonly -trimpath \
-    -tags dytallix_pqc_only,dytallix_pqc_ipc -o "$out/bin/" \
-    ./cmd/dytallix-pqc-engine ./cmd/dytallix-comet-bridge ./cmd/dytallix-light-export &&
-  GOOS=linux GOARCH="$goarch" CGO_ENABLED=0 go build -mod=readonly -trimpath \
-    -o "$out/bin/" ./cmd/dytallix-comet-fixture)
+  GOOS=linux GOARCH="$goarch" CGO_ENABLED=0 go build -mod=readonly -trimpath -o "$out/bin/" \
+    ./cmd/dytallix-pqc-engine ./cmd/dytallix-comet-bridge ./cmd/dytallix-light-export \
+    ./cmd/dytallix-comet-fixture)
 python3 "$node/tools/native-execution-policy/oci_seccomp.py" --output "$out/seccomp.json"
 
 printf 'FROM rust:1.88-bookworm\nRUN apt-get update && apt-get install -y --no-install-recommends clang libclang-dev cmake pkg-config && rm -rf /var/lib/apt/lists/*\n' |

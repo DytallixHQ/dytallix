@@ -16,7 +16,6 @@ def sha(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--tags', choices=('dytallix_pqc_only','dytallix_pqc_only,dytallix_pqc_ipc'), default='dytallix_pqc_only')
     parser.add_argument('--output-dir', type=Path, required=True)
     args = parser.parse_args()
     module = Path(__file__).resolve().parents[1]
@@ -36,7 +35,7 @@ def main():
     env = dict(os.environ, CGO_ENABLED='0', GOFLAGS='', GOWORK='off',
                GOTOOLCHAIN='local', GOPROXY='off', GOSUMDB='off')
     command = [go, 'build', '-mod=readonly', '-trimpath', '-buildvcs=false',
-               '-tags='+args.tags, '-p=1', '-o', str(binary),
+               '-p=1', '-o', str(binary),
                './cmd/dytallix-pqc-engine']
     record = {'schema_version': 1, 'status': 'BUILD_FAILED',
               'launch_status': 'NO_GO', 'g35_status': 'NOT_GRANTED',
@@ -53,7 +52,7 @@ def main():
             record['binary'] = {'sha256': sha(binary), 'bytes': binary.stat().st_size}
             check = [sys.executable, '-B', str(checker), '--module-dir', str(module),
                      '--binary', str(binary), '--profile', 'pqc-engine-v1',
-                     '--tags', args.tags, '--rebuild',
+                     '--rebuild',
                      '--expected-sha256', record['binary']['sha256'],
                      '--output', str(inventory)]
             with (output / 'CHECK.log').open('w') as log:

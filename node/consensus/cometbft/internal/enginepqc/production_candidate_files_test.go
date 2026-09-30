@@ -21,7 +21,7 @@ func TestProductionCandidateFilePreflightAndStagingLoader(t *testing.T) {
 		t.Fatal(err)
 	}
 	fleet := filepath.Join(root, "fleet")
-	cmd := exec.Command("go", "run", "-tags", "dytallix_pqc_only,dytallix_pqc_ipc", "./cmd/dytallix-comet-fixture", "--output", fleet, "--app-genesis", app, "--chain-id", "e01-candidate-file-check", "--genesis-time", "2026-09-25T00:00:00Z", "--base-port", "39650", "--p2p-profile", RemoteSeedProfile, "--peer-ips", "10.249.240.2,10.249.240.3,10.249.240.4,10.249.240.5")
+	cmd := exec.Command("go", "run", "./cmd/dytallix-comet-fixture", "--output", fleet, "--app-genesis", app, "--chain-id", "e01-candidate-file-check", "--genesis-time", "2026-09-25T00:00:00Z", "--base-port", "39650", "--p2p-profile", RemoteSeedProfile, "--peer-ips", "10.249.240.2,10.249.240.3,10.249.240.4,10.249.240.5")
 	cmd.Dir = filepath.Join("..", "..")
 	cmd.Env = append(os.Environ(), "GOPROXY=off", "GOSUMDB=off", "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

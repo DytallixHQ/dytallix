@@ -8,5 +8,5 @@ import (
 )
 
 func sqlIndexerForBuild(cfg *config.Config, chainID string) (txindex.TxIndexer, indexer.BlockIndexer, bool, error) {
-	return nil, nil, false, errors.New("SQL indexer excluded by dytallix_pqc_only")
+	return nil, nil, false, errors.New("SQL indexer is not built (Dytallix PQC-only fork)")
 }

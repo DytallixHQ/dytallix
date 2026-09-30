@@ -130,11 +130,8 @@ func validateIsolationForProfile(c *cfg.Config, profile string) error {
 		return errors.New("PQC engine requires the flood mempool with recheck")
 	}
 	// State sync takes the operator's light blocks, verified from the
-	// configured trusted height (Dytallix state sync v1, rule 5). Only the
-	// PQC-only build refuses RPC light-client servers in ValidateBasic below.
-	if c.StateSync.Enable && BuildProfile != "dytallix_pqc_only" {
-		return errors.New("PQC engine state sync requires the PQC-only build")
-	}
+	// configured trusted height (Dytallix state sync v1, rule 5). The fork
+	// has no HTTP light client, so ValidateBasic below refuses RPC servers.
 	if c.ABCI != "socket" || c.ProxyApp != "unix://"+filepath.Join(c.RootDir, "abci", "app.sock") || !strings.HasPrefix(c.P2P.ListenAddress, "tcp://") || !strings.HasPrefix(c.RPC.ListenAddress, "tcp://") || !loopback(strings.TrimPrefix(c.RPC.ListenAddress, "tcp://")) {
 		return errors.New("PQC engine requires explicit TCP P2P, loopback RPC and local Unix ABCI")
 	}
@@ -301,9 +298,6 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 	}
 	if !allowed || !filepath.IsAbs(home) || filepath.Clean(home) != home {
 		return nil, errors.New("supported PQC profile and clean absolute home are required")
-	}
-	if (profile == RemoteSeedProfile || candidate) && (BuildProfile != "dytallix_pqc_only" || RPCBuildProfile != "dytallix-pqc-unix-v1") {
-		return nil, errors.New("seed-backed PQC profile requires the selected PQC-only IPC build")
 	}
 	for _, path := range []string{home, filepath.Join(home, "config"), filepath.Join(home, "data"), filepath.Join(home, "abci")} {
 		stat, err := os.Lstat(path)
@@ -524,5 +518,5 @@ func (r *Runtime) PublicSummary() map[string]any {
 		ids = append(ids, string(id))
 	}
 	sort.Strings(ids)
-	return map[string]any{"build_profile": BuildProfile, "rpc_build_profile": RPCBuildProfile, "classical_executable_exclusion_complete": false, "profile": r.Transport.Profile, "suite": pqcp2p.Suite, "network": r.Transport.Network, "node_id": r.NodeKey.ID(), "peer_ids": ids, "full_key_pin_bytes": mldsa65.PubKeySize, "max_concurrent_handshakes": MaxConcurrentHandshakes, "production_qualified": false, "legacy_fallback": false}
+	return map[string]any{"rpc_build_profile": RPCBuildProfile, "classical_executable_exclusion_complete": false, "profile": r.Transport.Profile, "suite": pqcp2p.Suite, "network": r.Transport.Network, "node_id": r.NodeKey.ID(), "peer_ids": ids, "full_key_pin_bytes": mldsa65.PubKeySize, "max_concurrent_handshakes": MaxConcurrentHandshakes, "production_qualified": false, "legacy_fallback": false}
 }
