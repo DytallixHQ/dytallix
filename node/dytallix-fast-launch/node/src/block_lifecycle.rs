@@ -2,7 +2,7 @@
 use crate::storage::state::Storage;
 use anyhow::{ensure, Context, Result};
 use serde::de::DeserializeOwned;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) type Writes = BTreeMap<Vec<u8>, Vec<u8>>;
 /// Keys a block removes. A block never writes and deletes the same key.
@@ -156,10 +156,7 @@ pub(crate) fn prepare_adaptive_interval(
         let penalty_raw = storage.db.get(crate::runtime::penalty_custody::STATE_KEY)?;
         let custody = penalty_raw.is_some();
         if let Some(raw) = penalty_raw {
-            ensure!(
-                rewards.locks.is_empty(),
-                "Penalty qualification does not support vesting locks"
-            );
+            let locked: BTreeSet<String> = rewards.locks.keys().cloned().collect();
             let mut penalties = crate::runtime::penalty_custody::PenaltyState::decode(&raw)?;
             penalties.sync_lifecycle(&before, &validators)?;
             let committed_parent_time =
@@ -168,7 +165,7 @@ pub(crate) fn prepare_adaptive_interval(
                 committed_parent_time.0 == parent_time,
                 "Lifecycle and penalty parent timestamps differ"
             );
-            penalties.begin_block(next, committed_parent_time, &validators)?;
+            penalties.begin_block(next, committed_parent_time, &validators, &locked)?;
             // Unbonds released in the previous block leave custody here, with
             // their lifecycle entries below (state model step 4).
             released = penalties.prune_released()?;
@@ -179,6 +176,7 @@ pub(crate) fn prepare_adaptive_interval(
             validators.prune_history(next - 1, parent_time)?;
             penalties.consolidate(validators.history.base_height)?;
             penalties.validate(&validators)?;
+            penalties.validate_lock_relief(&locked)?;
             writes.insert(
                 crate::runtime::penalty_custody::STATE_KEY
                     .as_bytes()

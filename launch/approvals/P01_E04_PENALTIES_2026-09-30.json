@@ -1,0 +1,42 @@
+{
+  "decision_id": "P01-2026-09-30-E04-PENALTIES",
+  "approved": "2026-09-30",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E04 remaining policy questions, penalties and withdrawals"
+  },
+  "design_ref": "../node/docs/architecture/penalties-v1.md",
+  "decisions": [
+    {
+      "question": "D09-Q04",
+      "selected": "Double-sign only, with removal",
+      "rule": "A validator's first duplicate vote deducts a fixed share from all stake bonded to it at that height, self-bond and delegators alike. The validator is removed for good and its consensus key is never reused; later evidence against it adds nothing. Light-client attacks are recorded only. There is no downtime penalty."
+    },
+    {
+      "question": "D09-Q05",
+      "selected": "After maturity, from genesis",
+      "rule": "An unbond can be withdrawn once both evidence age limits plus their margins have passed and no penalty on it is unsettled, from genesis."
+    },
+    {
+      "question": "D09-Q04, D09-Q05 (locked stake)",
+      "selected": "Same as unlocked",
+      "rule": "Bonded vesting-locked DGT carries the same risk as any stake. A penalty comes off the amount still locked, and the vesting dates stay the same."
+    },
+    {
+      "question": "D09-Q04 (penalty reserve)",
+      "selected": "Permanent escrow",
+      "rule": "Penalized DGT moves to a penalty escrow that nothing can spend. The DGT total stays fixed."
+    }
+  ],
+  "unset": [
+    "Penalty rate (E05)",
+    "Evidence age limits and processing margins (D09-Q03, E05)",
+    "Parameter migration rules (D09-Q05)"
+  ],
+  "does_not_authorize": [
+    "production activation",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

@@ -19,6 +19,12 @@ relative to `dytallix-fast-launch/node/src/`.
 2. The issuance journal keeps a window of the last `max_recorded_epochs`
    epochs plus a controller checkpoint, instead of stopping.
 
+Decision 1 is superseded for duplicate votes by
+[penalties v1](penalties-v1.md) (P01, 30 September 2026): the launch
+configuration carries the penalty profile, so a first duplicate vote is
+penalized with removal and withdrawals work. Light-client attacks stay
+record-only.
+
 ## Rules
 
 **Evidence.**

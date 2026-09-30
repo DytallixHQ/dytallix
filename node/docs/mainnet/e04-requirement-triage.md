@@ -77,9 +77,15 @@ at genesis; the runtime mint path is removed and the binding review requires
 the full total), D01-Q02 (observation contract v1, no external oracle) and
 the D08-Q02 bootstrap policy (liquid genesis DRT to named accounts).
 
+Decided 30 September 2026 (`launch/approvals/P01_E04_PENALTIES_2026-09-30.json`,
+`docs/architecture/penalties-v1.md`): double-signing penalized with removal
+(D09-Q04), withdrawals from genesis (D09-Q05), vesting-locked stake
+penalized like unlocked stake, and a permanent penalty escrow. The launch
+configuration now requires the lifecycle and penalty profiles.
+
 | Decision | Question | Rows |
 | --- | --- | --- |
-| D09-Q04, D09-Q05 | Which evidence is penalized (duplicate vote; light-client attack); rates and correlated scaling; jail, tombstone and reinstatement; third-party bonder liability; how penalties apply to vesting-locked stake; whether evidence is only recorded before penalties are qualified. | CONS-002, VAL-002, VAL-004, AC-003 |
+| D09-Q04, D09-Q05 (values, E05) | The penalty rate; parameter migration. | CONS-002, VAL-002, VAL-004, AC-003 |
 | D09-Q03 | Evidence age limits (blocks, seconds) and margins; they also set the unbonding period and retention horizon. | VAL-003, AC-011 |
 | D06-Q02 | Block time, timeouts, fault assumptions; state-sync trust source, trust period, snapshot peers, interval and retention; whether operator rollback is allowed. | CONS-001, SYNC-001 |
 | D01-Q01 | The controller's parameters and first command; `E_min`. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
@@ -95,16 +101,16 @@ the D08-Q02 bootstrap policy (liquid genesis DRT to named accounts).
 | ID | Class | Finding |
 | --- | --- | --- |
 | CONS-001 | POLICY | Upstream CometBFT state machine and 2/3 quorum; timeouts are fixture values. D06-Q02. |
-| CONS-002 | POLICY + GAP 1 | Duplicate votes only; light-client attack halts the chain. D09-Q04. |
+| CONS-002 | DONE | Gap 1 closed; a first duplicate vote is penalized with removal and light-client attacks are recorded only (penalties v1). |
 | CONS-003 | DONE | H+2 activation for bonds, faults, rotations, registry. |
 | CONS-004 | NOT E04 | T04–T06. |
 | TXN-001 | PARTIAL | Node checks done for v2 and v3; client gaps closed by gap 8 (K-a to K-d); acceptance is T07's. |
 | TXN-002 | DONE | Shared reservation and meter; fees burned. |
 | TXN-003 | DONE | Paid failures, nonce replay protection across restart. |
 | TXN-004 | PARTIAL | Every transaction kind is reconciled per transaction (v2 receipts, charged recoveries, v3 governance since gap 12). Candidate-bound conservation evidence and acceptance belong to T07. |
-| VAL-002 | POLICY | One synthetic ratio; production penalties refused; no jail. D09-Q04. |
+| VAL-002 | POLICY | Penalty model approved (penalties v1); the rate is an E05 value (D09-Q04). |
 | VAL-003 | POLICY | Maturity rule done; values unset. D09-Q03, D09-Q05. |
-| VAL-004 | POLICY | Penalties refuse vesting locks, so vesting stake cannot withdraw. D09-Q05. |
+| VAL-004 | DONE | Vesting-locked stake is penalized like unlocked stake and can withdraw (penalties v1). |
 | ECON-001 | POLICY | Utilization target unchanged. D01. |
 | ECON-003 | POLICY | 40/30/30 and payouts done; `E_min` unset. D01-Q01, D03-Q01. |
 | ECON-004 | PARTIAL | Conservation checked every block, from running account totals (gap 5 closed); vesting with penalties. |
@@ -153,7 +159,7 @@ the D08-Q02 bootstrap policy (liquid genesis DRT to named accounts).
 | --- | --- | --- |
 | AC-001 | POLICY | Observation contract v1 approved (D01-Q02); controller values remain (D01-Q01). |
 | AC-002 | RESOLVED | Every fee burned (P01, 27 Sep); the minimum fee resists spam only. |
-| AC-003 | POLICY + GAP 1 | D09-Q04, D09-Q05. |
+| AC-003 | RESOLVED | Penalties v1 (D09-Q04, D09-Q05); the rate is an E05 value. |
 | AC-004 | RESOLVED | CometBFT finality; gap 1 closed, and the errata correct the papers' checkpoint and LMD-GHOST model. |
 | AC-005 | NOT E04 | Engineering part resolved (governance v1); values E05, signers P02. |
 | AC-006 | RESOLVED | Linear stake weighting; the decay and delegation claims are corrected. |

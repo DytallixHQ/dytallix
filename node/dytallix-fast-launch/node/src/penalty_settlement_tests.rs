@@ -7,7 +7,7 @@ use crate::runtime::validator_lifecycle::{
     consensus_address, proof_sign_bytes, LifecycleState, STATE_KEY,
 };
 use super::ordinary_support;
-use dytallix_protocol_types::ordinary::Action;
+use dytallix_protocol_types::ordinary::{Action, Denomination};
 use fips204::{
     ml_dsa_65,
     traits::{KeyGen, SerDes, Signer},
@@ -728,14 +728,78 @@ fn penalty_profile_rejects_existing_lifecycle_database_and_locked_genesis() {
     assert!(ConsensusApplication::open(&path, f.config.clone(), f.genesis.clone()).is_err());
     let old = ConsensusApplication::open(&path, old_config, f.genesis.clone()).unwrap();
     assert_eq!(data(&old), before);
-    let mut locked: serde_json::Value = serde_json::from_slice(&f.genesis).unwrap();
-    locked["accounts"][0]["vesting"] = serde_json::json!({"kind":"linear_after_cliff","total_amount":"1000","start_time":0,"cliff_duration":10,"vesting_duration":100,"allow_staking":true});
-    let genesis = serde_json::to_vec(&locked).unwrap();
+}
+
+/// Penalties v1: a vesting-locked delegator whose validator double-signs.
+/// The deduction settles at H+2 and lowers the lock by the same amount; the
+/// owner withdraws the net principal, cannot move locked DGT in that block
+/// or later, and a restart passes the complete check. Before penalties v1
+/// this genesis was refused; without lock relief the withdrawal block would
+/// fail the supply check.
+#[test]
+fn locked_owner_is_penalized_withdraws_net_and_keeps_the_rest_locked() {
+    let f = Fixture::new();
+    let mut value: serde_json::Value = serde_json::from_slice(&f.genesis).unwrap();
+    value["accounts"][0]["vesting"] = serde_json::json!({"kind":"linear_after_cliff",
+        "total_amount":"1000","start_time":0,"cliff_duration":100000,"vesting_duration":200000,
+        "allow_staking":true});
+    let genesis = serde_json::to_vec(&value).unwrap();
     let mut config = f.config.clone();
     config.app_state_sha256 = hex::encode(Sha256::digest(&genesis));
-    let locked_path = dir.path().join("locked");
-    assert!(ConsensusApplication::open(&locked_path, config, genesis).is_err());
-    assert!(!locked_path.exists());
+    // The recovery domain binds the genesis digest.
+    let publics: Vec<&[u8]> = f.accounts.iter().map(|a| a.public.as_slice()).collect();
+    ordinary_support::enable(&mut config, &publics);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let mut app = ConsensusApplication::open(&path, config.clone(), genesis.clone()).unwrap();
+    app.init_chain(CHAIN, 1, &genesis, &config.validators).unwrap();
+    let owner = f.accounts[0].owner.clone();
+    commit(&mut app, 1, vec![]);
+    commit_evidence(&mut app, 2, vec![evidence(&f.keys[0], 1, 100, 200)], vec![]);
+    assert!(penalties(&app).lock_relief.is_empty());
+    commit(&mut app, 3, vec![]);
+    commit(&mut app, 4, vec![]);
+    custody(&app, 100, 0, 95, 5);
+    assert_eq!(penalties(&app).lock_relief, BTreeMap::from([(owner.clone(), 5)]));
+    let id = entry_id(&app, &owner);
+    for height in 5..=8 {
+        commit(&mut app, height, vec![]);
+    }
+    let recipient = ordinary_support::account_id(CHAIN, &f.accounts[1].public);
+    let send = |app: &ConsensusApplication, ahead| {
+        ordinary_support::transaction_ahead(
+            app,
+            &f.accounts[0].secret,
+            &f.accounts[0].public,
+            vec![Action::Send {
+                recipient,
+                denomination: Denomination::Udgt,
+                amount: 1,
+            }],
+            ahead,
+        )
+    };
+    // The withdrawal and, in the same block, a transfer of one locked uDGT.
+    let txs = vec![withdrawal(&f, &app, 0, &id), send(&app, 1)];
+    let result = commit(&mut app, 9, txs);
+    assert_eq!(result.tx_results[0].code, 0, "{:?}", result.tx_results);
+    assert_ne!(result.tx_results[1].code, 0, "locked DGT moved in the withdrawal block");
+    assert_eq!(liquid(&app, &owner), 995);
+    custody(&app, 100, 0, 0, 5);
+    // After the release leaves custody the 995 stay locked.
+    let result = {
+        let tx = send(&app, 0);
+        commit(&mut app, 10, vec![tx])
+    };
+    assert_ne!(result.tx_results[0].code, 0, "locked DGT moved after the release");
+    assert_eq!(liquid(&app, &owner), 995);
+    assert_eq!(penalties(&app).lock_relief, BTreeMap::from([(owner.clone(), 5)]));
+    // The incident is past the horizon and its tranche released, so it is
+    // pruned; the complete check still accepts its recorded fact on restart.
+    assert!(penalties(&app).incidents.is_empty());
+    drop(app);
+    let reopened = ConsensusApplication::open(&path, config, genesis).unwrap();
+    assert_eq!(liquid(&reopened, &owner), 995);
 }
 
 #[test]

@@ -1034,7 +1034,7 @@ mod tests {
         state.advance(height, parent_seconds, rewards).unwrap();
         penalty.sync_lifecycle(&before, state).unwrap();
         penalty
-            .begin_block(height, (parent_seconds, 0), state)
+            .begin_block(height, (parent_seconds, 0), state, &rewards.locks.keys().cloned().collect())
             .unwrap();
         rewards.last_height = height;
         rewards.last_interval_digest = Some([3; 32]);

@@ -51,13 +51,20 @@ Dytallix security depends on:
 
 - The engine verifies duplicate-vote and light-client-attack evidence
   before a block carries it.
-- Until the penalty rules are decided, the application records each piece of
-  evidence only. It has no effect on stake or the validator set. Production
-  penalties are refused, and there is no jailing.
-- Which faults are penalized, at what rates, and how penalties apply to
-  locked stake are open (D09-Q04, D09-Q05).
+- A validator's first duplicate vote deducts a fixed share from all stake
+  bonded to it at that height, the operator's and every delegator's,
+  vesting-locked stake included, and removes the validator for good two
+  blocks later. Its consensus key is never reused, and later evidence
+  against it adds nothing (D09-Q04, P01, 30 September 2026).
+- Light-client-attack evidence is recorded only. There is no downtime
+  penalty and no jailing.
+- Penalized DGT moves to an escrow that nothing can spend.
+- An unbond can be withdrawn once both evidence age limits plus margins have
+  passed and no penalty on it is unsettled (D09-Q05). The rate, limits and
+  margins are genesis inputs.
 
-See [liveness v1](../../node/docs/architecture/liveness-v1.md).
+See [penalties v1](../../node/docs/architecture/penalties-v1.md) and
+[liveness v1](../../node/docs/architecture/liveness-v1.md).
 
 ## Bridge Boundary
 
@@ -144,8 +151,8 @@ applies instead:
 - spam and DoS: every committed transaction pays at least the minimum fee,
   and every fee is burned; the mempool refuses conflicting nonces and
   re-signed duplicates; RPC methods and limits are fixed
-- Byzantine validators: the CometBFT quorum; evidence is recorded, and
-  penalties are open (D09-Q04)
+- Byzantine validators: the CometBFT quorum; double-signing is penalized,
+  with removal (D09-Q04)
 - gateways: there is no public HTTPS gateway; remote access goes through
   channel endpoints, which cannot alter a signed transaction
 - bridge or MPC custody compromise: not applicable, since there is no bridge

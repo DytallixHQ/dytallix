@@ -1333,14 +1333,30 @@
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "recommendation": "Review the complete fault model. Do not promote the synthetic 1/20 rate or first-fault cap to production.",
-          "selected_value": null,
+          "selected_value": {
+            "penalized_faults": [
+              "DUPLICATE_VOTE"
+            ],
+            "light_client_attack": "RECORD_ONLY",
+            "downtime_penalty": false,
+            "jailing": false,
+            "penalty": "FIXED_SHARE_OF_ALL_STAKE_BONDED_TO_THE_VALIDATOR_AT_THE_FAULT_HEIGHT",
+            "penalized_stake": "SELF_BOND_AND_DELEGATORS_INCLUDING_VESTING_LOCKED",
+            "repeat_faults": "FIRST_FAULT_ONLY_LATER_EVIDENCE_ADDS_NOTHING",
+            "reinstatement": "NONE_VALIDATOR_REMOVED_FOR_GOOD",
+            "consensus_key_reuse": false,
+            "removal_height": "EVIDENCE_HEIGHT_PLUS_TWO",
+            "penalty_reserve": "PERMANENT_ESCROW_NO_SPENDING_OPERATION",
+            "dgt_burn": false,
+            "production_penalty_rate": null
+          },
           "owner_role_proposed": "Protocol and staking leads with validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "blocks_work": [
             "W09"
           ],
@@ -1349,20 +1365,32 @@
             "batch-8/implementation/APPROVAL.json",
             "batch-8/POLICY_PROPOSAL.json",
             "batch-9/SCOPE.json",
-            "batch-9/POLICY.md"
+            "batch-9/POLICY.md",
+            "approvals/P01_E04_PENALTIES_2026-09-30.json",
+            "../node/docs/architecture/penalties-v1.md"
+          ],
+          "approved_portion": "Double-sign only, with removal (P01, 30 September 2026): a validator's first duplicate vote deducts a fixed share from all stake bonded to it at that height, self-bond, delegators and vesting-locked stake alike, and removes it for good; its key is never reused and later evidence adds nothing. Light-client attacks are recorded only; no downtime penalty. Penalized DGT moves to an escrow that nothing can spend.",
+          "remaining_choices": [
+            "Penalty rate (E05)"
           ]
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "recommendation": "Keep withdrawals blocked until all required evidence and penalty settlement is complete. Preserve approved vesting locks.",
-          "selected_value": null,
+          "selected_value": {
+            "withdrawal_activation": "FROM_GENESIS",
+            "withdrawal_condition": "BOTH_EVIDENCE_AGE_LIMITS_PLUS_MARGINS_PASSED_AND_NO_UNSETTLED_PENALTY",
+            "locked_principal_liability": "SAME_AS_UNLOCKED_PENALTY_COMES_OFF_THE_AMOUNT_STILL_LOCKED_VESTING_DATES_UNCHANGED",
+            "launch_configuration": "LIFECYCLE_AND_PENALTY_PROFILES_REQUIRED",
+            "parameter_migration": null
+          },
           "owner_role_proposed": "Protocol and staking leads with validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "blocks_work": [
             "W09"
           ],
@@ -1371,14 +1399,21 @@
             "batch-8/implementation/APPROVAL.json",
             "batch-8/POLICY_PROPOSAL.json",
             "batch-9/SCOPE.json",
-            "batch-9/POLICY.md"
+            "batch-9/POLICY.md",
+            "approvals/P01_E04_PENALTIES_2026-09-30.json",
+            "../node/docs/architecture/penalties-v1.md"
           ],
           "prepared_recommendation_ids": [
             "RF06"
           ],
           "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
           "recovery_protection_boundary": "RF06 preserves incoming credits and mandatory obligations while blocking discretionary owner actions and queued payouts during protection. Existing locked-principal and custody questions remain open.",
-          "recovery_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json"
+          "recovery_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json",
+          "approved_portion": "After maturity, from genesis (P01, 30 September 2026): an unbond can be withdrawn once both evidence age limits plus margins have passed and no penalty on it is unsettled. Vesting-locked stake carries the same penalty risk; a penalty comes off the amount still locked on the same dates.",
+          "remaining_choices": [
+            "Evidence age limits and margins (D09-Q03, E05)",
+            "Parameter migration rules"
+          ]
         }
       ],
       "work": {
@@ -2800,8 +2835,8 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 11,
-    "partially_approved_policy_questions": 10,
+    "fully_open_policy_questions": 9,
+    "partially_approved_policy_questions": 12,
     "approved_policy_questions": 5,
     "required_records": 8
   },
@@ -3332,6 +3367,27 @@
         "DRT bootstrap amount and rows",
         "Controller parameters (D01-Q01)",
         "Penalty escrow destination (D09-Q04)"
+      ]
+    },
+    {
+      "id": "P01-2026-09-30-PENALTIES-V1",
+      "approved": "2026-09-30",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E04_PENALTIES_2026-09-30.json",
+      "decisions": [
+        "D09-Q04: double-sign only, with removal; light-client attacks recorded only; no downtime penalty.",
+        "D09-Q05: withdrawals after maturity and settlement, from genesis.",
+        "Vesting-locked stake: same as unlocked; the penalty comes off the amount still locked.",
+        "Penalty reserve: permanent escrow with no spender."
+      ],
+      "question_refs": [
+        "D09-Q04",
+        "D09-Q05"
+      ],
+      "unset": [
+        "Penalty rate",
+        "Evidence age limits and margins (D09-Q03)",
+        "Parameter migration rules"
       ]
     }
   ],

@@ -1660,10 +1660,11 @@ fn check_reward_validators(storage: &Storage, config: &ConsensusConfig) -> Resul
         match (&config.penalty, penalty_state(storage)?) {
             (Some(expected), Some(penalties)) => {
                 ensure!(
-                    &penalties.config == expected && reward.locks.is_empty(),
-                    "Stored penalty configuration or vesting state differs"
+                    &penalties.config == expected,
+                    "Stored penalty configuration differs"
                 );
                 penalties.validate(&lifecycle)?;
+                penalties.validate_lock_relief(&reward.locks.keys().cloned().collect())?;
             }
             (None, None) => {}
             _ => anyhow::bail!("Penalty state and consensus profile differ"),
@@ -1794,19 +1795,6 @@ fn source_binding(config: &ConsensusConfig, source: &[u8]) -> Result<()> {
             .is_some_and(|v| v.is_object()),
         "Issuance timing genesis required"
     );
-    if config.penalty.is_some() {
-        let accounts = value
-            .get("accounts")
-            .and_then(serde_json::Value::as_array)
-            .context("Penalty qualification requires explicit unlocked genesis accounts")?;
-        ensure!(
-            accounts
-                .iter()
-                .all(|account| account.get("vesting")
-                    == Some(&serde_json::json!({"kind":"unlocked"}))),
-            "Penalty qualification does not support genesis vesting locks"
-        );
-    }
     let validators = value
         .get("reward_v2")
         .and_then(|v| v.get("validators"))
@@ -7157,23 +7145,48 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                 ))
             })
             .collect::<Result<_>>()?;
+        // A settled incident leaves state once its evidence is past the
+        // horizon at a block's parent and its tranches are gone (state model
+        // step 4); tranche accounting still checks its deductions. Only such
+        // a fact may lack a receipt.
+        let horizon = &lifecycle
+            .as_ref()
+            .context("Penalty custody requires validator lifecycle")?
+            .config;
+        let parent_time = committed_parent_time(storage, height.max(1))?.0;
+        let pruned = |fact: &Vec<u8>| -> bool {
+            serde_json::from_slice::<EvidenceFact>(fact).is_ok_and(|fact| {
+                horizon.past_horizon(
+                    fact.height,
+                    fact.time_seconds,
+                    height.saturating_sub(1),
+                    parent_time,
+                )
+            })
+        };
         // A windowed replay matches the incidents its blocks admitted; older
         // incidents are checked against state only. A fact can repeat, so
         // one first seen in the window may have been admitted before it.
         ensure!(
             receipts.len() == penalties.incidents.len()
                 && if windowed {
-                    recorded_evidence
+                    recorded_evidence.iter().all(|(fact, h)| {
+                        receipts.get(fact).is_some_and(|admitted| admitted <= h) || pruned(fact)
+                    }) && receipts
                         .iter()
-                        .all(|(fact, h)| receipts.get(fact).is_some_and(|admitted| admitted <= h))
-                        && receipts
-                            .iter()
-                            .filter(|(_, h)| **h >= start)
-                            .all(|(fact, h)| recorded_evidence.get(fact) == Some(h))
+                        .filter(|(_, h)| **h >= start)
+                        .all(|(fact, h)| recorded_evidence.get(fact) == Some(h))
                 } else if from.is_none() {
-                    receipts == recorded_evidence
+                    receipts
+                        .iter()
+                        .all(|(fact, h)| recorded_evidence.get(fact) == Some(h))
+                        && recorded_evidence
+                            .keys()
+                            .all(|fact| receipts.contains_key(fact) || pruned(fact))
                 } else {
-                    recorded_evidence.keys().all(|fact| receipts.contains_key(fact))
+                    recorded_evidence
+                        .keys()
+                        .all(|fact| receipts.contains_key(fact) || pruned(fact))
                 },
             "Penalty receipts differ from committed evidence inputs"
         );

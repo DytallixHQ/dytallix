@@ -97,8 +97,9 @@ fn step(
         .advance(height, (height - 1) * 10, rewards)
         .unwrap();
     state.sync_lifecycle(&before, lifecycle).unwrap();
+    let locked: BTreeSet<String> = rewards.locks.keys().cloned().collect();
     state
-        .begin_block(height, ((height - 1) * 10, 0), lifecycle)
+        .begin_block(height, ((height - 1) * 10, 0), lifecycle, &locked)
         .unwrap();
 }
 fn operation(state: &mut PenaltyState, lifecycle: &mut LifecycleState, operation: Operation) {
@@ -146,26 +147,133 @@ fn assess(
     result
 }
 
+/// Vesting locks are accepted since penalties v1; production activation is
+/// still refused, as for every profile.
 #[test]
-fn penalty_profile_rejects_production_and_vesting_inputs() {
+fn penalty_profile_rejects_production_activation_and_accepts_vesting_locks() {
     let (state, lifecycle, mut rewards) = fixture();
     let mut config = state.config.clone();
     config.production_activation = true;
     assert!(PenaltyState::initialize(config, &lifecycle, &rewards).is_err());
-    rewards.locks.insert(
-        "alice".into(),
-        VestingLock {
-            total_amount: 100,
-            start_time: 0,
-            cliff_duration: 0,
-            vesting_duration: 100,
-            permits_staking: true,
-        },
-    );
-    assert!(PenaltyState::initialize(state.config.clone(), &lifecycle, &rewards).is_err());
+    rewards.locks.insert("alice".into(), alice_lock());
+    let locked = PenaltyState::initialize(state.config.clone(), &lifecycle, &rewards).unwrap();
+    assert!(locked.lock_relief.is_empty());
     let mut config = state.config;
     config.penalty_denominator = 0;
     assert!(config.validate().is_err());
+}
+
+/// Alice's 100 bonded DGT stay locked well past these tests.
+fn alice_lock() -> VestingLock {
+    VestingLock {
+        total_amount: 100,
+        start_time: 0,
+        cliff_duration: 1_000,
+        vesting_duration: 2_000,
+        permits_staking: true,
+    }
+}
+
+/// Penalties v1, rules 1 to 3: a locked owner's settled deduction becomes
+/// lock relief, which outlives the pruned tranche. Without the relief the
+/// lock check fails once the owner withdraws; without the custody offset the
+/// owner could spend locked DGT in the withdrawal's own block.
+#[test]
+fn a_locked_owners_deduction_becomes_lock_relief_that_survives_pruning() {
+    let (mut state, mut lifecycle, mut rewards) = fixture();
+    rewards.locks.insert("alice".into(), alice_lock());
+    let locked = BTreeSet::from(["alice".to_string()]);
+    step(&mut state, &mut lifecycle, &mut rewards, 1);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    step(&mut state, &mut lifecycle, &mut rewards, 2);
+    let evidence = fact(&lifecycle, 1);
+    assess(&mut state, &mut lifecycle, &evidence);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    assert!(state.lock_relief.is_empty(), "no relief before settlement");
+    let mut height = 3;
+    let mut withdrawn = None;
+    while withdrawn.is_none() && height < 40 {
+        step(&mut state, &mut lifecycle, &mut rewards, height);
+        state.finalize_evidence_batch(&lifecycle).unwrap();
+        if state.deducted_total().unwrap() > 0 && withdrawn.is_none() {
+            assert_eq!(state.lock_relief, BTreeMap::from([("alice".into(), 5)]));
+            assert_eq!(state.lock_terms("alice").unwrap(), (5, 5));
+            assert_eq!(state.lock_terms("bob").unwrap(), (0, 0));
+        }
+        if let Some(entry) = lifecycle.unbonding.values().find(|e| e.owner == "alice") {
+            let id = entry.id.clone();
+            let (parent, seconds) = (state.last_height - 1, state.parent_time.0);
+            if state.withdraw("alice", &id, parent, seconds, &lifecycle).is_ok() {
+                withdrawn = Some(id);
+            }
+        }
+        height += 1;
+    }
+    withdrawn.expect("alice's exit matures");
+    state.validate_lock_relief(&locked).unwrap();
+    assert!(state.validate_lock_relief(&BTreeSet::new()).is_err());
+    // The withdrawal's block: gross custody still holds the 95 released and
+    // the 5 deducted; alice now holds 95 liquid.
+    let gross = rewards.unbonding["alice"];
+    assert_eq!(gross, 100);
+    assert_eq!(state.lock_terms("alice").unwrap(), (100, 5));
+    let spendable = |offset, relief| rewards.liquid_spendable("alice", 95, 0, gross, 10, offset, relief);
+    assert_eq!(spendable(100, 5).unwrap(), 0, "95 liquid back 95 still locked");
+    assert_eq!(spendable(0, 5).unwrap(), 95, "without the offset the released 95 count twice");
+    // After the next block start the tranche is pruned and the relief stays.
+    let ids = state.prune_released().unwrap();
+    lifecycle.remove_released(&ids, &mut rewards).unwrap();
+    state.validate(&lifecycle).unwrap();
+    state.validate_lock_relief(&locked).unwrap();
+    assert_eq!(state.lock_terms("alice").unwrap(), (0, 5));
+    assert_eq!(rewards.liquid_spendable("alice", 95, 0, 0, 10, 0, 5).unwrap(), 0);
+    assert!(
+        rewards.liquid_spendable("alice", 95, 0, 0, 10, 0, 0).is_err(),
+        "without relief the 100 locked exceed the 95 alice holds"
+    );
+    assert_eq!(PenaltyState::decode(&state.encode().unwrap()).unwrap(), state);
+    // Relief is checked against the reserve and the held deductions.
+    let mut changed = state.clone();
+    changed.lock_relief.insert("alice".into(), 6);
+    assert!(changed.validate(&lifecycle).is_err());
+}
+
+#[test]
+fn held_deductions_need_their_full_lock_relief() {
+    let (mut state, mut lifecycle, mut rewards) = fixture();
+    rewards.locks.insert("alice".into(), alice_lock());
+    let locked = BTreeSet::from(["alice".to_string()]);
+    step(&mut state, &mut lifecycle, &mut rewards, 1);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    step(&mut state, &mut lifecycle, &mut rewards, 2);
+    let evidence = fact(&lifecycle, 1);
+    assess(&mut state, &mut lifecycle, &evidence);
+    state.finalize_evidence_batch(&lifecycle).unwrap();
+    for height in 3..=4 {
+        step(&mut state, &mut lifecycle, &mut rewards, height);
+        state.finalize_evidence_batch(&lifecycle).unwrap();
+    }
+    assert_eq!(state.lock_relief["alice"], 5);
+    let mut short = state.clone();
+    short.lock_relief.insert("alice".into(), 4);
+    assert!(short.validate(&lifecycle).is_err());
+    let mut missing = state.clone();
+    missing.lock_relief.clear();
+    assert!(missing.validate_lock_relief(&locked).is_err());
+}
+
+/// Penalties v1, rule 5: faulted-validator markers are permanent, so their
+/// bound is the state's item limit, not the 64 validators of one set.
+#[test]
+fn faulted_validator_markers_are_not_capped_at_sixty_four() {
+    let (mut state, lifecycle, _) = fixture();
+    for i in 0..65 {
+        state
+            .first_faults
+            .insert(format!("retired-{i:03}"), "ab".repeat(32));
+    }
+    state.validate(&lifecycle).unwrap();
+    assert_eq!(PenaltyState::decode(&state.encode().unwrap()).unwrap(), state);
 }
 
 #[test]

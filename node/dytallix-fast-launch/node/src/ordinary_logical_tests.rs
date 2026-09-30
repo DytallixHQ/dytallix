@@ -411,6 +411,7 @@ fn penalty_fixture() -> PenaltyState {
         evidence_processed_height: 7,
         pruned_deducted: 0,
         pruned_released: 0,
+        lock_relief: BTreeMap::new(),
     }
 }
 #[test]
@@ -432,6 +433,8 @@ fn penalty_vector_freezes_signed_time_and_counter_widths() {
     // Pruned deduction and release totals (state model step 4).
     b.extend(0u128.to_le_bytes());
     b.extend(0u128.to_le_bytes());
+    // Lock relief (penalties v1).
+    empty_maps(&mut b, 1);
     assert_eq!(got.canonical_bytes(), payload_record("penalty:v1:state", b));
     assert!(penalty(&state, got.byte_len() as u32 - 1).is_err());
 }

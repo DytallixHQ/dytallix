@@ -149,10 +149,10 @@ fn explicit_vesting_preserves_locked_principal_through_nonliquid_custody() {
     assert_eq!(state.locked_amount("alice", 20).unwrap(), 100);
     assert_eq!(state.locked_amount("alice", 30).unwrap(), 50);
     assert_eq!(state.locked_amount("alice", 40).unwrap(), 0);
-    assert_eq!(state.liquid_spendable("alice", 60, 30, 10, 20).unwrap(), 0);
-    assert_eq!(state.liquid_spendable("alice", 60, 30, 10, 30).unwrap(), 50);
-    assert_eq!(state.liquid_spendable("alice", 60, 0, 40, 30).unwrap(), 50);
-    assert!(state.liquid_spendable("alice", 59, 30, 10, 20).is_err());
+    assert_eq!(state.liquid_spendable("alice", 60, 30, 10, 20, 0, 0).unwrap(), 0);
+    assert_eq!(state.liquid_spendable("alice", 60, 30, 10, 30, 0, 0).unwrap(), 50);
+    assert_eq!(state.liquid_spendable("alice", 60, 0, 40, 30, 0, 0).unwrap(), 50);
+    assert!(state.liquid_spendable("alice", 59, 30, 10, 20, 0, 0).is_err());
     let lock = VestingLock {
         total_amount: u128::MAX,
         start_time: 0,
@@ -196,7 +196,7 @@ fn disallowed_locked_stake_cannot_become_backing_after_an_unlocked_bond() {
         },
     );
     // At time 20, 80 units remain locked and 20 liquid units can bond.
-    assert_eq!(state.liquid_spendable("alice", 100, 0, 0, 20).unwrap(), 20);
+    assert_eq!(state.liquid_spendable("alice", 100, 0, 0, 20, 0, 0).unwrap(), 20);
     state.bond("alice", "v1", 20).unwrap();
     let liquid_after_funded_bond = 80;
     assert_eq!(
@@ -206,16 +206,18 @@ fn disallowed_locked_stake_cannot_become_backing_after_an_unlocked_bond() {
                 liquid_after_funded_bond,
                 state.owner_bonded("alice").unwrap(),
                 0,
-                20
+                20,
+                0,
+                0
             )
             .unwrap(),
         0
     );
     // Bonding the unlocked amount must not make another 20 units transferable.
-    assert!(state.liquid_spendable("alice", 60, 20, 0, 20).is_err());
+    assert!(state.liquid_spendable("alice", 60, 20, 0, 20, 0, 0).is_err());
     state.begin_unbond("alice", "v1", 20).unwrap();
-    assert_eq!(state.liquid_spendable("alice", 80, 0, 20, 20).unwrap(), 0);
-    assert!(state.liquid_spendable("alice", 60, 0, 20, 20).is_err());
+    assert_eq!(state.liquid_spendable("alice", 80, 0, 20, 20, 0, 0).unwrap(), 0);
+    assert!(state.liquid_spendable("alice", 60, 0, 20, 20, 0, 0).is_err());
     // Only later vesting releases more of the liquid principal.
-    assert_eq!(state.liquid_spendable("alice", 80, 0, 20, 40).unwrap(), 20);
+    assert_eq!(state.liquid_spendable("alice", 80, 0, 20, 40, 0, 0).unwrap(), 20);
 }
