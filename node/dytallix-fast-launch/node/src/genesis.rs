@@ -1454,7 +1454,7 @@ mod tests {
         assert_eq!(snapshot(&storage), legacy);
     }
     #[test]
-    fn zero_and_exact_cap_allocations_preserve_existing_mint_limit() {
+    fn zero_and_exact_cap_allocations_import_the_full_total() {
         let (_dir, mut storage) = empty();
         let source = format!(
             r#"{{"chain_id":"test","accounts":[{{"address":"a","balances":{{"udgt":"{DGT_MAX_SUPPLY}","udrt":"0"}}}},{{"address":"b","balances":{{"udgt":"0"}}}}],"staking":{{"user_delegation":{{"delegator":"a","amount_udgt":"{DGT_MAX_SUPPLY}"}}}}}}"#,
@@ -1465,8 +1465,6 @@ mod tests {
         assert_eq!(state.balance_of("a", "udgt"), 0);
         assert_eq!(state.dgt_total_minted(), DGT_MAX_SUPPLY);
         assert_eq!(StakingModule::new(storage).total_stake, DGT_MAX_SUPPLY);
-        assert!(state.mint_dgt("a", 1).is_err());
-        assert_eq!(state.balance_of("a", "udgt"), 0);
     }
     #[test]
     fn empty_development_store_is_initialized_once() {

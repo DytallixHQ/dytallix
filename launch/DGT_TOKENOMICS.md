@@ -23,9 +23,9 @@ APPROVED means the user selected the rule within the recorded scope. OBSERVED me
 
 **PROPOSED — remaining EC-02 encoding rules.** Use lowercase `udgt` and `udrt` in serialized amounts. Reject fractional base units. This matches the selected accounting path. It requires conversion or rejection of other formats. Do not interpret an unlabelled legacy integer as a native amount.
 
-**PROPOSED — EC-03.** Issue the complete approved DGT total in the canonical genesis. Disable every post-genesis DGT mint path. Do not burn DGT in the initial protocol. Transfer slashed DGT into a separate penalty escrow until the approved penalty rule assigns its destination. This preserves the fixed total. Fully issued does not mean liquid, transferable, or circulating.
+**APPROVED — EC-03 (D05-Q02, P01, 29 September 2026).** Issue the complete approved DGT total in the canonical genesis. Disable every post-genesis DGT mint path. Do not burn DGT in the initial protocol. Transfer slashed DGT into a separate penalty escrow until the approved penalty rule assigns its destination. This preserves the fixed total. Fully issued does not mean liquid, transferable, or circulating.
 
-**MISSING — EC-03.** Explicit full-genesis issuance approval, mint authority removal, and the no-burn rule remain open. A cap check alone does not enforce fixed issuance. Governance must not obtain an ordinary parameter that changes the fixed total.
+**IMPLEMENTED — EC-03.** The runtime DGT mint path (`State::mint_dgt`) is removed; genesis import is the only DGT credit, capped at the fixed total. The mainnet-preparation binding review reports `full_dgt_issuance` as missing unless genesis issues the whole total. Governance has no parameter that changes it (governance v1). The penalty escrow destination waits for D09-Q04.
 
 ## Custody, vesting, and stake
 

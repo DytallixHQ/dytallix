@@ -71,19 +71,23 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 
 ## Policy questions (P01)
 
+Decided 29 September 2026 (`launch/approvals/P01_E04_POLICY_2026-09-29.json`):
+D07-Q01 launch scope (current build; the rest POST MAINNET), D05-Q02 (all DGT
+at genesis; the runtime mint path is removed and the binding review requires
+the full total), D01-Q02 (observation contract v1, no external oracle) and
+the D08-Q02 bootstrap policy (liquid genesis DRT to named accounts).
+
 | Decision | Question | Rows |
 | --- | --- | --- |
 | D09-Q04, D09-Q05 | Which evidence is penalized (duplicate vote; light-client attack); rates and correlated scaling; jail, tombstone and reinstatement; third-party bonder liability; how penalties apply to vesting-locked stake; whether evidence is only recorded before penalties are qualified. | CONS-002, VAL-002, VAL-004, AC-003 |
 | D09-Q03 | Evidence age limits (blocks, seconds) and margins; they also set the unbonding period and retention horizon. | VAL-003, AC-011 |
 | D06-Q02 | Block time, timeouts, fault assumptions; state-sync trust source, trust period, snapshot peers, interval and retention; whether operator rollback is allowed. | CONS-001, SYNC-001 |
-| D01-Q01, D01-Q02 | Approve observation contract v1 (block bytes, volatility 0) and the controller, or change the controlled variable; `E_min`; confirm no external oracle at launch. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
+| D01-Q01 | The controller's parameters and first command; `E_min`. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
 | D03-Q01 | Epoch length. | AC-011 |
-| D07-Q01 | Mark LBP, wrapped USDC, the Airlock, bridges and external oracles POST MAINNET. | BRG-001, BRG-002, AC-009 |
-| D08-Q02, D08-Q03 | How users get DRT for fees without an LBP. | BRG-001, AC-009 |
+| D08-Q02, D08-Q03 (values, E05) | The DRT bootstrap amount and recipient rows. | BRG-001, AC-009 |
 | D04-Q01, D06-Q02 | Adopt the implemented mempool rule (arrival order, no replacement or eviction, expiry, release at each head) as normative; capacity values. | MEM-002, MEM-003 |
 | D11-Q03, D14-Q02 | Upgrade authority and threshold; minimum notice; validator readiness; client compatibility window. | UPG-002 |
 | D12-Q01, D12-Q02 | Public ingress (channel endpoint addresses and keys, rate limits, methods); alert targets and routing. | API-002, OBS-002, PERF-003 |
-| D05-Q02 | All DGT issued at genesis, no later mint. | ECON-004 |
 | D11-Q02 (values, E05) | Quorum, approval and veto thresholds, deposit, periods, timelock. | GOV-001, AC-005 |
 
 ## Requirement rows
@@ -119,8 +123,8 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | MEM-002 | PARTIAL | Duplicate bypass closed and mempool rules pinned (gap 6); capacity values open (D06-Q02). |
 | MEM-003 | POLICY | Implemented rule not normative. D04-Q01, D06-Q02. |
 | MEM-004 | NOT E04 | T05. |
-| ORC-001 | POLICY | No oracle; gas price governed; utilization only. D01-Q02. |
-| ORC-002 | POLICY | No reporters; D01-Q02. |
+| ORC-001 | DONE | No oracle; gas price governed; utilization only (D01-Q02 approved). |
+| ORC-002 | DONE | No reporters (D01-Q02 approved). |
 | ORC-003 | DONE | Claim fixed: no outlier slashing (security model, errata). |
 | ORC-004 | DONE | Only bounded fee values and validator limits governable. |
 | UPG-001 | NOT E04 | E06 provenance. |
@@ -131,8 +135,8 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | API-002 | PARTIAL | Gap 10 closed (R-a): client and operator socket allowlists, pinned limits, error semantics and the gateway contract (`docs/architecture/rpc-controls-v1.md`), whose TLS gap 19 replaces with the client channel; public topology and rate values remain D12-Q01; acceptance is T07's. |
 | API-003 | GAP 8 | Gap 8 closed (K-a to K-d): SDK and CLI on the consensus chain; SDK header verification later (decision 3); acceptance is T07's. |
 | API-004 | NOT E04 | T04, T05. |
-| BRG-001 | POLICY | Bridge excluded in code; D07-Q01, D08-Q02. |
-| BRG-002 | POLICY | N/A if D07-Q01 excludes bridges. |
+| BRG-001 | DONE | Bridge excluded in code and POST MAINNET (D07-Q01); fees bootstrapped by genesis DRT (D08-Q02 policy). |
+| BRG-002 | DONE | N/A: bridges are POST MAINNET (D07-Q01). |
 | BRG-003 | DONE | Claim fixed: the security model's bridge boundary section. |
 | BRG-004 | NOT E04 | P02. |
 | OBS-002 | PARTIAL | Core metrics written as text files (gap 7 closed); thresholds and routing open (D12-Q02). |
@@ -147,7 +151,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 
 | ID | Class | Finding |
 | --- | --- | --- |
-| AC-001 | POLICY | D01: approve observation contract v1; drop the claim that issuance controls utilization. |
+| AC-001 | POLICY | Observation contract v1 approved (D01-Q02); controller values remain (D01-Q01). |
 | AC-002 | RESOLVED | Every fee burned (P01, 27 Sep); the minimum fee resists spam only. |
 | AC-003 | POLICY + GAP 1 | D09-Q04, D09-Q05. |
 | AC-004 | RESOLVED | CometBFT finality; gap 1 closed, and the errata correct the papers' checkpoint and LMD-GHOST model. |
@@ -155,8 +159,8 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 | AC-006 | RESOLVED | Linear stake weighting; the decay and delegation claims are corrected. |
 | AC-007 | RESOLVED | Algorithms change only by root-signed upgrade; the registry wording is corrected. |
 | AC-008 | NOT E04 | E05 (D08). |
-| AC-009 | POLICY | D07-Q01, D08-Q02. |
-| AC-010 | POLICY | D01-Q02, D07-Q01: no oracle at launch. |
+| AC-009 | RESOLVED | LBP, wrapped USDC, the Airlock and bridges are POST MAINNET (D07-Q01); genesis DRT bootstraps fees (D08-Q02). |
+| AC-010 | RESOLVED | No oracle at launch (D01-Q02, D07-Q01). |
 | AC-011 | POLICY | Horizon equals maturity; values D03-Q01, D09-Q03, D01-Q01. |
 | AC-012 | NOT E04 | E01 closed at source; T01, T02. |
 | AC-013 | RESOLVED | Fees move to the burn counter; withheld zero at commit. |

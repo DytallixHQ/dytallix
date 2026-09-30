@@ -67,9 +67,9 @@ See [liveness v1](../../node/docs/architecture/liveness-v1.md).
   protocol. The chain recognizes no bridge or custody key.
 - `dytallix-comet-bridge` is the adapter between the consensus engine and
   the application. It is not a cross-chain bridge.
-- Whether bridges, wrapped assets or the Airlock are added later is open
-  (D07-Q01, proposed POST MAINNET). The whitepapers' MPC Airlock does not
-  apply (BRG-001 to BRG-003, AC-009).
+- Bridges, wrapped assets and the Airlock are POST MAINNET (D07-Q01, P01,
+  29 September 2026). The whitepapers' MPC Airlock does not apply (BRG-001
+  to BRG-003, AC-009).
 
 ## Oracle Handling
 
@@ -84,8 +84,8 @@ See [liveness v1](../../node/docs/architecture/liveness-v1.md).
 - No party supplies issuance inputs, so there are no outlier reports to
   filter and no oracle slashing (ORC-003).
 - The incident runbooks record oracle failure as not applicable.
-- Approving this observation contract and confirming that no external
-  oracle is used at launch are open (D01-Q02, D07-Q01; AC-010).
+- This observation contract is approved, and no external oracle is used
+  at launch (D01-Q02, D07-Q01, P01, 29 September 2026; AC-010).
 
 See [adaptive emission v1](../../node/docs/mainnet/adaptive-emission-v1.md)
 (observation contract v1).

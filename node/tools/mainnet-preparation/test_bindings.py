@@ -96,6 +96,12 @@ class BindingTests(unittest.TestCase):
         self.a['ordinary']={};r=self.result()
         self.assertNotIn('recovery_and_ordinary_profiles',r['missing'])
         self.assertTrue(any(x['field']=='extended_application_profile' for x in r['unsupported']))
+    def test_genesis_must_issue_full_dgt_total(self):
+        self.assertNotIn('full_dgt_issuance',self.result()['missing'])
+        holder=max(self.g['accounts'],key=lambda a:int(a['balances']['udgt']));holder['balances']['udgt']=str(int(holder['balances']['udgt'])-1)
+        self.assertIn('full_dgt_issuance',self.result()['missing'])
+        self.a['recovery']={};self.a['ordinary']={}
+        self.assertIn('full_dgt_issuance',self.result()['missing'])
     def test_records_hash_mismatch(self):
         rr=c.n.canonical(self.r);self.b['source_digests']['records_sha256']='0'*64
         self.assertTrue(c.validate(self.b,self.r,rr)['errors'])

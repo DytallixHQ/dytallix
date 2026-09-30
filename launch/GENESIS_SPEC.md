@@ -31,7 +31,7 @@ The final genesis must initialize all required economics and governance at one p
 | Network identity | Approved chain ID, network domain, protocol versions, genesis time, engine parameters and canonical encoding | Missing approval |
 | Candidate identity | Exact source revisions, production binary and image digests, schema version, parameter bundle and reviewed build provenance | Missing qualified candidate |
 | DGT allocation ledger | Every beneficiary, account, bucket, integer amount, custody proof, vesting rule, approval and initial stake reference | Bucket policy exists; beneficiary rows missing |
-| DRT bootstrap | Exact initial amount, per-account distribution, source authority and fee-funding rationale | Missing decision |
+| DRT bootstrap | Exact initial amount, per-account distribution, source authority and fee-funding rationale | Policy approved (D08-Q02, P01, 29 September 2026): liquid DRT to named accounts; amount and rows missing (D08-Q03) |
 | Account authorization | Stable account ID, current authorized signing policy, sequence, origin evidence and explicit rotation/recovery policy | Proposed; not implemented |
 | Validators | Persistent validator ID, operator/control group, consensus public key, voting power, stake backing, custody and acceptance records | No approved set |
 | Economic state | Explicit `N` and `E0`, versioned controller inputs, separate issuance-split/staking-rounding/inactive reserves, disjoint custody, reward liabilities, treasury authority and fee/burn rules | Issuance timing rules approved; production values, remaining terms and qualification incomplete |

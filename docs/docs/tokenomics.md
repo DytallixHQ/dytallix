@@ -17,8 +17,8 @@ open decision, this page says so.
 - fixed total: 1,000,000,000 DGT
 - micro-denom: `udgt` (1 DGT = 1,000,000 uDGT)
 
-No fee is paid in DGT, and no DGT is burned. Whether all DGT is issued at
-genesis, with no later mint, is open (D05-Q02).
+No fee is paid in DGT, and no DGT is burned. All DGT is issued at genesis,
+and nothing mints DGT later (D05-Q02, P01, 29 September 2026).
 
 ### `DRT`
 
@@ -26,8 +26,11 @@ genesis, with no later mint, is open (D05-Q02).
 - pays validator and staking rewards
 - micro-denom: `udrt` (1 DRT = 1,000,000 uDRT)
 
-The initial DRT supply, and how users first get DRT for fees, are open
-(D08-Q02, D08-Q03).
+The first users get DRT for fees from a liquid bootstrap: genesis creates
+a fixed amount of ordinary, transferable DRT, counted in supply, and the
+genesis manifest assigns it to named accounts such as validator operators
+and custody accounts (D08-Q02, P01, 29 September 2026). The amount and
+recipients are genesis inputs (D08-Q02, D08-Q03).
 
 ## Fees
 
@@ -66,7 +69,7 @@ Defined in [fees v1](../../node/docs/architecture/fees-v1.md) and
 Issuance per epoch comes from the adaptive emission controller. Its only
 input is an observation that every validator derives from committed blocks:
 block-space utilization, with volatility 0. There is no oracle. This
-observation contract is the proposal for open decision D01-Q02. The
+observation contract is approved (D01-Q02, P01, 29 September 2026). The
 controller's parameters and first command (D01-Q01) and the epoch length
 (D03-Q01) are open.
 

@@ -2,13 +2,13 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains 15 OPEN policy questions, nine PARTIALLY_APPROVED policy questions, two APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains 11 OPEN policy questions, ten PARTIALLY_APPROVED policy questions, five APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
 Each recorded approval scope below retains its original implementation context. Read current implementation progress and remaining work in the linked gates. Exact question fields, approvals and supersession records remain in [MAINNET_DECISION_REGISTER.json](MAINNET_DECISION_REGISTER.json).
 
-## Design approvals, 26–27 September 2026
+## Design and policy approvals, 26–29 September 2026
 
 P01 approved these engineering designs. Each document records the options and the decisions; the register lists them under `design_approvals`.
 
@@ -17,6 +17,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [governance v1](../node/docs/architecture/governance-v1.md) (27 September): block order, action classes, governed parameters and fee authority, and finished-proposal retention (D09-Q01, D11-Q02, D11-Q03).
 - [validator lifecycle retention](../node/docs/architecture/validator-lifecycle-retention.md) (27 September): retention horizon from the existing evidence limits plus margins, removal of withdrawn unbonds and settled incidents, permanent consensus-key no-reuse, and staker-slot release.
 - [state root v2](../node/docs/architecture/state-root-v2.md) (27 September): the `jmt` tree if it passes G35, proof queries at launch, and state sync before launch.
+- [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json) (29 September): launch scope (D07-Q01), all DGT at genesis (D05-Q02), observation contract v1 (D01-Q02) and the genesis DRT bootstrap policy (D08-Q02).
 
 ## D01 — Adaptive issuance
 
@@ -34,9 +35,13 @@ Proposed owner role: Protocol and economics lead. Named assignment and reviewer 
 
 Evidence: [snapshots/dytallix-node/docs/mainnet/specification-decisions.md](snapshots/dytallix-node/docs/mainnet/specification-decisions.md), [batch-6/issuance-timing/APPROVAL.json](batch-6/issuance-timing/APPROVAL.json).
 
-### D01-Q02 — OPEN
+### D01-Q02 — APPROVED
 
 Which observations, sources, authentication, aggregation and missing-input or resume rules apply?
+
+Approved (observation contract v1, P01, 29 September 2026): every validator derives the epoch observation from committed blocks. Utilization is the epoch's transaction bytes, excluding its own observation, over `epoch_blocks × max_block_bytes`, in parts per million; volatility is 0. CheckTx refuses submitted observations, the proposer inserts the derived one and execution rejects a mismatch. No external oracle is used at launch.
+
+Recorded approval: [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json); contract in [adaptive emission v1](../node/docs/mainnet/adaptive-emission-v1.md).
 
 Required output: Observation contract.
 
@@ -146,9 +151,13 @@ Proposed owner role: Economics and supply accounting leads. Named assignment and
 
 Evidence: [evidence/TOKENOMICS_APPROVED_SOURCE.json](evidence/TOKENOMICS_APPROVED_SOURCE.json), [batch-2/ECONOMIC_DECISIONS.json](batch-2/ECONOMIC_DECISIONS.json), [decision-register/recovery-fee-implementation/APPROVAL.json](decision-register/recovery-fee-implementation/APPROVAL.json).
 
-### D05-Q02 — OPEN
+### D05-Q02 — APPROVED
 
 Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?
+
+Approved (P01, 29 September 2026): genesis issues the whole 1,000,000,000 DGT and nothing mints DGT later; the runtime mint path is removed, and the binding review reports `full_dgt_issuance` as missing otherwise. No DGT is burned. Penalized DGT goes to a penalty escrow until D09 sets its destination. Changing the total needs an upgrade.
+
+Recorded approval: [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json).
 
 Required output: DGT issuance and authority specification.
 
@@ -190,9 +199,13 @@ Gate references: G31, G32, G33.
 
 **Recorded approval scope and historical implementation context:** The launch brief requires the initial lifecycle, governance, wallet, PQC, RPC, monitoring, recovery and upgrade features. One permanent mainnet is required. These requirements are not optional by default. LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.
 
-### D07-Q01 — OPEN
+### D07-Q01 — APPROVED
 
 What exact enabled-module and interface matrix satisfies the required launch scope?
+
+Approved (current build only, P01, 29 September 2026): mainnet v1 launches with ordinary v2 transfers and staking, ordinary v3 governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET.
+
+Recorded approval: [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json).
 
 Required output: Launch feature matrix.
 
@@ -218,9 +231,15 @@ Preparation: [D08-Q01 packet](decision-register/parallel-tracks-20260912/track-4
 
 Evidence: [evidence/TOKENOMICS_APPROVED_SOURCE.json](evidence/TOKENOMICS_APPROVED_SOURCE.json), [batch-6/APPROVAL.json](batch-6/APPROVAL.json), [batch-6/integration-followup/APPROVAL.json](batch-6/integration-followup/APPROVAL.json), [decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json](decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json), [decision-register/ordinary-client-compatibility/RECORD_STATUS.md](decision-register/ordinary-client-compatibility/RECORD_STATUS.md).
 
-### D08-Q02 — OPEN
+### D08-Q02 — PARTIALLY_APPROVED
 
 What initial DRT supply, fee bootstrap distribution and restrictions apply?
+
+Approved portion (P01, 29 September 2026): genesis creates a fixed liquid amount of ordinary, transferable DRT, counted in genesis supply, and the genesis manifest assigns it to named accounts such as validator operators and custody accounts.
+
+Recorded approval: [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json).
+
+Remaining inputs: the bootstrap amount (E05) and the recipient rows (D08-Q03).
 
 Required output: DRT genesis policy.
 

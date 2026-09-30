@@ -102,11 +102,12 @@ Before activation, calibrate the plant, select gains within a proved domain,
 integrate atomic supply accounting, and complete independent review and release
 qualification. A successful reference test does not authorize activation.
 
-## Observation contract v1 (implemented, proposed for D01-Q02)
+## Observation contract v1 (implemented, approved for D01-Q02)
 
 Decision D01-Q02 (observation sources, authentication, aggregation and
-missing-input rules) remains open. This contract is implemented as the
-proposal for it.
+missing-input rules) selects this contract (P01, 29 September 2026). No external oracle
+is used at launch (D07-Q01). The controller's parameters and first command
+(D01-Q01) remain open.
 
 - Observations are derived by every validator from committed blocks. No
   transaction submitter or proposer supplies their values. CheckTx refuses

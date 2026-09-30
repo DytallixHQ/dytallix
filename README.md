@@ -19,8 +19,10 @@ testnet and product code in the rest of this repository.
 | [launch/](launch/) | Mainnet specification, tokenomics, genesis drafts, launch gates, decision register |
 
 The consensus build has no contract runtime and no cross-chain bridge. It
-runs ordinary, governance and recovery transactions only. Whether a contract
-runtime or bridges are added is open decision D07-Q01.
+runs ordinary, governance and recovery transactions only. Mainnet v1
+launches with the current build. A contract runtime, bridges, the Airlock, a
+liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and
+treasury spending are POST MAINNET (D07-Q01, P01, 29 September 2026).
 `dytallix-comet-bridge` in `node/consensus/cometbft` is the adapter between
 the consensus engine and the application, not a cross-chain bridge.
 

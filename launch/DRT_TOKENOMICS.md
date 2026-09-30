@@ -18,9 +18,9 @@ APPROVED means the user selected the rule within the recorded scope. OBSERVED me
 
 **APPROVED — EC-02 decimal scale.** Both tokens use six decimal places: `1 DRT = 1,000,000 udrt`. The [Batch 6 approval record](batch-6/APPROVAL.json) approves the scale. It does not approve initial DRT supply or issuance settings.
 
-**MISSING — EC-11.** Initial DRT amount, recipients, custody, total-supply limit, and authorized burn policy remain undecided. Do not infer a zero initial supply, infinite supply, or a perpetual mint floor from existing defaults.
+**MISSING — EC-11.** Initial DRT amount, recipients, custody and total-supply limit remain undecided. The burn policy is fees v1 (every fee burned). Do not infer a zero initial supply, infinite supply, or a perpetual mint floor from existing defaults.
 
-**PROPOSED — EC-11.** Fund a measured liquid DRT bootstrap at genesis. Derive the amount from the approved fee schedule, startup transactions, required operators, and recovery allowance. Allocate it through the approved custody manifest. The amount is deliberately unset. Reward pools alone cannot pay initial fees while claims reject.
+**APPROVED — EC-11 (D08-Q02, P01, 29 September 2026).** The bootstrap is ordinary, transferable DRT, counted in genesis supply, assigned to named accounts (validator operators and custody accounts) in the genesis manifest. Fund a measured liquid DRT bootstrap at genesis. Derive the amount from the approved fee schedule, startup transactions, required operators, and recovery allowance. Allocate it through the approved custody manifest. The amount is deliberately unset. Reward pools alone cannot pay the first fees: bonding and claiming are themselves paid transactions.
 
 ## Reward settlement
 
