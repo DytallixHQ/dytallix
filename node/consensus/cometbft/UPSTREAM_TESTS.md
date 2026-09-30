@@ -82,12 +82,20 @@ authenticated but unencrypted connection path to the fork's source, so it
 is left for a decision. The engine's own tests exercise the reactors over
 the real PQC transport.
 
-### 6. Vet findings and a timing flake: fix
+### 6. Vet findings and flaky tests: fix
 
 - `libs/bits`: `UnmarshalJSON` copied a `BitArray` including its mutex.
   It now assigns the fields, as its `null` branch already did.
 - `consensus`: `TestWALPeriodicSync` waited one flush interval, so it failed
   on a loaded host. It now waits for the flush.
+- `blocksync`: `TestBlockPoolBasic` hung in CI for its 10-minute timeout.
+  The pool ignores a peer until its height reaches the peer's base. When the
+  random height of the peer based at the start height equalled the start
+  height (about 1 run in 1,000), the pool made one requester, could not pop
+  it, and never counted the other peers. The test peers' heights now start
+  above every base. `pool.go` is unchanged upstream code. In a node, the same
+  state makes `IsCaughtUp` true, so the reactor would switch to consensus
+  rather than hang.
 
 ## Not restored
 
