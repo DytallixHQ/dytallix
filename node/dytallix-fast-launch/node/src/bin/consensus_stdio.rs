@@ -495,7 +495,10 @@ fn run() -> Result<()> {
     admission.verify_context(&release_context)?;
     ownership::check_cancellation()?;
     let config_bytes = std::fs::read(config_path.context("--config is required")?)?;
-    ensure!(config_bytes.len() <= 65536, "Configuration exceeds limit");
+    ensure!(
+        config_bytes.len() <= dytallix_fast_node::consensus_settlement::MAX_CONFIG_BYTES,
+        "Configuration exceeds limit"
+    );
     let config: ConsensusConfig = serde_json::from_slice(&config_bytes)?;
     let genesis = std::fs::read(genesis_path.context("--genesis is required")?)?;
     ensure!(

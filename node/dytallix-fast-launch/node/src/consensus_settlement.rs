@@ -54,6 +54,15 @@ const GENESIS_APP_HASH_KEY: &str = "consensus:v1:genesis_app_hash";
 /// Versions of the query views without a client DTO (interfaces v1).
 pub const STATUS_VIEW_VERSION: u16 = 1;
 pub const EMERGENCY_RECEIPT_VIEW_VERSION: u16 = 1;
+/// The largest consensus configuration a node accepts (E05-a). It carries
+/// the genesis recovery accounts, about 15 KB each, so it shares the
+/// application genesis pipe bound.
+pub const MAX_CONFIG_BYTES: usize = 8 * 1024 * 1024;
+/// One hex-encoded SLH-DSA signature in a root control (`ControlSignature`).
+const CONTROL_SIGNATURE_HEX_BYTES: usize = 2 * 29_792;
+/// `{"type":"ordinary_v2","envelope_base64":""}`: the transport JSON around
+/// the base64 envelope.
+const ORDINARY_TRANSPORT_OVERHEAD: u64 = 43;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -425,10 +434,96 @@ impl ConsensusConfig {
             power <= i64::MAX / 8,
             "Validator power exceeds engine bound"
         );
+        self.validate_couplings()?;
         ensure!(
-            serde_json::to_vec(self)?.len() <= 65_536,
+            serde_json::to_vec(self)?.len() <= MAX_CONFIG_BYTES,
             "Consensus configuration exceeds storage bound"
         );
+        Ok(())
+    }
+    /// E05-a: couplings between otherwise valid values that would make the
+    /// chain unusable.
+    fn validate_couplings(&self) -> Result<()> {
+        // A root control must have room for its threshold's signatures.
+        let holds = |max_control_bytes: usize, threshold: usize| {
+            threshold
+                .checked_mul(CONTROL_SIGNATURE_HEX_BYTES)
+                .is_some_and(|needed| max_control_bytes >= needed)
+        };
+        if let Some(policy) = &self.emergency {
+            let threshold = policy
+                .freeze_authority
+                .threshold
+                .max(policy.resume_authority.threshold);
+            ensure!(
+                holds(policy.max_control_bytes, threshold),
+                "Emergency control bound cannot hold its threshold signatures"
+            );
+        }
+        if let Some(policy) = &self.upgrade {
+            ensure!(
+                holds(policy.max_control_bytes, policy.authority.threshold),
+                "Upgrade control bound cannot hold its threshold signatures"
+            );
+        }
+        if let Some(policy) = &self.release_handover {
+            ensure!(
+                holds(policy.max_control_bytes, policy.authority.threshold),
+                "Handover control bound cannot hold its threshold signatures"
+            );
+        }
+        // Every fee a signer may need must fit the fee cap, at the highest
+        // gas price governance may set.
+        let covers = |cap: u128, gas: u64, price: u64| {
+            u128::from(gas)
+                .checked_mul(u128::from(price))
+                .is_some_and(|fee| cap >= fee)
+        };
+        if let Some(ordinary) = &self.ordinary {
+            let profile = &ordinary.fee_profile;
+            let envelope = u64::from(profile.limits.max_wire_bytes).div_ceil(3) * 4;
+            ensure!(
+                ordinary.max_transport_bytes >= envelope + ORDINARY_TRANSPORT_OVERHEAD,
+                "Ordinary transport bound cannot carry a full-size envelope"
+            );
+            let price = self.governance.as_ref().map_or(profile.gas_price, |governance| {
+                governance.parameter_bounds.gas_price.max.max(profile.gas_price)
+            });
+            ensure!(
+                covers(profile.max_fee_cap, profile.max_transaction_gas, price),
+                "Ordinary fee cap is below the largest signable fee"
+            );
+        }
+        if let Some(book) = &self.recovery {
+            let profile = &book.profile;
+            ensure!(
+                covers(profile.max_fee_cap, profile.max_transaction_gas, profile.gas_price),
+                "Recovery fee cap is below the largest signable fee"
+            );
+        }
+        // Genesis values sit inside the bounds governance keeps them in.
+        if let Some(governance) = &self.governance {
+            let bounds = &governance.parameter_bounds;
+            let values = crate::governance_actions::fee_values(&governance.fee_profile);
+            ensure!(
+                bounds.gas_price.contains(values.gas_price)
+                    && bounds
+                        .account_creation_fee_udrt
+                        .contains(values.account_creation_fee_udrt)
+                    && crate::governance_actions::costs(&values)
+                        .all(|cost| bounds.resource_cost.contains(cost)),
+                "Genesis fee profile is outside its governance bounds"
+            );
+            let lifecycle = self
+                .lifecycle
+                .as_ref()
+                .context("Governance requires lifecycle")?;
+            ensure!(
+                bounds.min_self_bond.contains(lifecycle.min_self_bond)
+                    && bounds.max_active.contains(lifecycle.max_active as u64),
+                "Genesis validator limits are outside their governance bounds"
+            );
+        }
         Ok(())
     }
 }
@@ -1812,6 +1907,19 @@ fn source_binding(config: &ConsensusConfig, source: &[u8]) -> Result<()> {
             .is_some_and(|v| v.is_object()),
         "Issuance timing genesis required"
     );
+    // Governance can raise max_active only as far as the reward state
+    // tracks validators (E05-a); otherwise a passed proposal fails.
+    if let Some(governance) = &config.governance {
+        let max_validators = value
+            .get("reward_v2")
+            .and_then(|v| v.get("max_validators"))
+            .and_then(serde_json::Value::as_u64)
+            .context("Reward-v2 validator capacity required")?;
+        ensure!(
+            governance.parameter_bounds.max_active.max <= max_validators,
+            "Governed max_active bound exceeds the reward validator capacity"
+        );
+    }
     let validators = value
         .get("reward_v2")
         .and_then(|v| v.get("validators"))
@@ -3880,7 +3988,7 @@ impl ConsensusApplication {
         config.validate()?;
         source_binding(&config, &genesis_bytes)?;
         ensure!(
-            !consensus_source.is_empty() && consensus_source.len() <= 65_536,
+            !consensus_source.is_empty() && consensus_source.len() <= MAX_CONFIG_BYTES,
             "Exact consensus source exceeds supported bound"
         );
         let supplied: ConsensusConfig = serde_json::from_slice(consensus_source)?;
@@ -3970,7 +4078,7 @@ impl ConsensusApplication {
         );
         source_binding(&config, &genesis_bytes)?;
         ensure!(
-            !consensus_source.is_empty() && consensus_source.len() <= 65_536,
+            !consensus_source.is_empty() && consensus_source.len() <= MAX_CONFIG_BYTES,
             "Exact consensus source exceeds supported bound"
         );
         ensure!(
@@ -4055,7 +4163,7 @@ impl ConsensusApplication {
             == authorization.release_manifest_sha512,
             "Emergency release differs from root-authorized release manifest");
         source_binding(config, genesis_bytes)?;
-        ensure!(!consensus_source.is_empty() && consensus_source.len() <= 65_536,
+        ensure!(!consensus_source.is_empty() && consensus_source.len() <= MAX_CONFIG_BYTES,
             "Exact consensus source exceeds supported bound");
         ensure!(serde_json::from_slice::<ConsensusConfig>(consensus_source)? == *config,
             "Exact consensus source differs from selected runtime configuration");

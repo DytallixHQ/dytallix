@@ -155,7 +155,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",
-          "sha256": "449ebd50f9c000be0226f6b2647f39020597d6e1942153e6927ade336a8785c5"
+          "sha256": "070474d52480ed3feb60919a0e8309102552b627493c006cfd30166c97a6be77"
         },
         {
           "path": "crates/runtime-crypto/src/pqc_verify.rs",
@@ -351,7 +351,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "f983347d2f23aabe607b9bda8d11f794288ec9e919582fcf3770804fafbe9d30"
+          "sha256": "82124d728cab7b71c1a35f9232239298923fdeb5aef47a0a9e959d87c82d61d0"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

@@ -42,9 +42,13 @@ impl BallotRules {
             self.genesis_digest != [0; 32],
             "Governance genesis digest is absent"
         );
+        // A zero threshold is never usable (E05-a): a zero veto threshold
+        // fails every proposal, and zero quorum or approval pass any vote.
         ensure!(
-            self.quorum_bps <= 10_000 && self.approval_bps <= 10_000 && self.veto_bps <= 10_000,
-            "Governance basis points exceed 10000"
+            (1..=10_000).contains(&self.quorum_bps)
+                && (1..=10_000).contains(&self.approval_bps)
+                && (1..=10_000).contains(&self.veto_bps),
+            "Governance basis points must be from 1 through 10000"
         );
         ensure!(
             self.voting_period_blocks > 0 && self.timelock_blocks > 0 && self.max_voters > 0,

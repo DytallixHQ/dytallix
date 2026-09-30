@@ -42,7 +42,7 @@ These checks implement a strict supported subset of the current Rust and Go cons
 
 This adapter permits one validator per operator record. It does not establish the production policy for operators that control several validators. The record format permits one initial operator delegation per beneficiary row. This version does not combine beneficiary rows or invent a multi-operator record. Allocation amounts must match native genesis credits exactly. D05-Q02 (P01, 29 September 2026) excludes a partial genesis mint, so the review requires the full total rather than inferring it from the one-billion-token allocation.
 
-The application check enforces the consumer's 65,536-byte limit on the exact supplied file bytes. The public transport check covers the typed manifest and peer tuples. Scoped IPv6 addresses are rejected because the Go loopback parser does not accept them. It does not inspect a full Go TOML configuration, its canonical transport file bytes, loaded private keys, private file permissions, or the complete engine genesis. It does not test a handshake or key possession.
+The application check enforces the consumer's 8 MiB limit (`MAX_CONFIG_BYTES`, E05-a) on the exact supplied file bytes; the configuration carries the genesis recovery accounts, about 15 KB each. The public transport check covers the typed manifest and peer tuples. Scoped IPv6 addresses are rejected because the Go loopback parser does not accept them. It does not inspect a full Go TOML configuration, its canonical transport file bytes, loaded private keys, private file permissions, or the complete engine genesis. It does not test a handshake or key possession.
 
 ## Unsupported fields remain open
 

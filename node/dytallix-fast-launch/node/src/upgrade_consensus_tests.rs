@@ -549,7 +549,7 @@ fn upgrade_keys_cannot_hold_an_emergency_role() {
         initial_sequence: 1,
         freeze_authority: one(key(11, "freeze")),
         resume_authority: one(key(12, "resume")),
-        max_control_bytes: 4_096,
+        max_control_bytes: 65_536,
         max_signatures: 1,
         automatic_transition_policy: emergency::AutomaticTransitionPolicy::ContinueExisting,
         v2: None,
@@ -563,7 +563,7 @@ fn upgrade_keys_cannot_hold_an_emergency_role() {
         authority_epoch: 1,
         authority: one(key),
         initial_sequence: 1,
-        max_control_bytes: 4_096,
+        max_control_bytes: 65_536,
         max_signatures: 1,
         migration_bounds: upgrade::MigrationBounds {
             max_receipts: 16,

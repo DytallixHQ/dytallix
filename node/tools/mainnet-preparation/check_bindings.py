@@ -13,6 +13,7 @@ import native_checks as n
 LIMIT = 8*1024*1024
 RUNTIME_FIELDS = 'chain_id genesis_time account_bindings validator_bindings governance_parameters issuance_parameters reward_parameters consensus_configuration network_configuration root_authorization approval_bundle'.split()
 SUPPORTED = {'chain_id','account_bindings','validator_bindings','issuance_parameters','reward_parameters','consensus_configuration','network_configuration'}
+CONFIG_LIMIT = 8*1024*1024  # consensus_settlement::MAX_CONFIG_BYTES (E05-a)
 DGT_TOTAL_UDGT = 10**15  # the fixed 1,000,000,000 DGT, in udgt (DGT_TOKENOMICS.md)
 
 
@@ -101,7 +102,7 @@ def application(config,genesis,raw):
         n.require(key not in keys and v['reward_address'] not in addresses,'duplicate_validator')
         n.require(type(v['power']) is int and 0<v['power']<=2**63-1,'validator_power_bound')
         keys.add(key);addresses.add(v['reward_address']);power+=v['power']
-    n.require(power<=(2**63-1)//8 and len(n.canonical(config))<=65536,'application_storage_bound')
+    n.require(power<=(2**63-1)//8 and len(n.canonical(config))<=CONFIG_LIMIT,'application_storage_bound')
     n.require(addresses=={v['address'] for v in genesis['reward_v2']['validators']},'reward_consensus_set_mismatch')
     return {v['reward_address']:v for v in config['validators']}
 
@@ -249,7 +250,7 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     if native_raw is None or config_raw is None:
         result['missing'].append('native_genesis_or_application_bytes');return result
     try:
-        n.require(len(config_raw)<=65536,'application_input_byte_bound')
+        n.require(len(config_raw)<=CONFIG_LIMIT,'application_input_byte_bound')
         genesis=decode(native_raw);config=decode(config_raw)
         n.require(type(genesis) is dict and type(config) is dict,'runtime_document_must_be_object')
         n.require(bindings['source_digests']['native_genesis_sha256']==digest(native_raw) and bindings['source_digests']['application_config_sha256']==digest(config_raw),'runtime_source_digest_mismatch')

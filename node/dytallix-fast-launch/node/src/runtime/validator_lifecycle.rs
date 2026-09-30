@@ -68,9 +68,15 @@ impl LifecycleConfig {
         self.evidence_max_age_blocks
             .checked_add(self.processing_margin_blocks)
             .context("Evidence block bound overflow")?;
-        self.evidence_max_age_seconds
+        let seconds = self
+            .evidence_max_age_seconds
             .checked_add(self.processing_margin_seconds)
             .context("Evidence time bound overflow")?;
+        // The engine holds evidence age as a signed nanosecond duration.
+        ensure!(
+            seconds <= (i64::MAX / 1_000_000_000) as u64,
+            "Evidence time bound exceeds the engine duration range"
+        );
         for (id, owner) in &self.approved_operators {
             valid_id(id)?;
             valid_id(owner)?;
