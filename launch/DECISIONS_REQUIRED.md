@@ -2,7 +2,7 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains four OPEN policy questions, 13 PARTIALLY_APPROVED policy questions, nine APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains four OPEN policy questions, 12 PARTIALLY_APPROVED policy questions, 10 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
@@ -33,7 +33,9 @@ Which production controller version, gains, bounds, initial state and initial co
 
 Approved portion (P01, 30 September 2026): base and ceiling 1,000 DRT a block, 17,280,000 DRT per 17,280-block epoch (about 6.31 billion DRT a year); floor 500 DRT a block; a 50% utilization target; the first epoch's command equals the base ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
 
-Remaining inputs: soft and hard gains, integral limits, the sample window and the shock threshold, calibrated to the approved level (E05).
+Calibration (P01, 30 September 2026): a one-day linear response. The window is one epoch; the proportional gain is 17,280,000,000,000 in both regimes, and the integral and derivative gains are 0. Issuance falls linearly from 1,000 DRT a block at 50% utilization to 500 at full blocks ([E05 values, third set](approvals/P01_E05_VALUES_3_2026-09-30.json)).
+
+Remaining inputs: the shock threshold and integral limits, which have no effect with these gains (proposed in [genesis/PROPOSALS.json](genesis/PROPOSALS.json)), and a rescale of the gain if the capacity tests (T05) show blocks cannot fill completely.
 
 Required output: Production controller configuration.
 
@@ -93,13 +95,13 @@ Gate references: G14, G19.
 
 **Recorded approval scope and historical implementation context:** One finalized block per reward interval, using parent finalized state. Explicit N finalized blocks per issuance epoch. Even per-bucket scheduling gives extra units to first blocks. Separate split reserve. Batch 8 makes stake and membership changes effective at H+2.
 
-### D03-Q01 — PARTIALLY_APPROVED
+### D03-Q01 — APPROVED
 
 What production epoch length N and observation sampling windows apply?
 
 Approved portion (P01, 30 September 2026): 17,280 blocks, one day at 5-second blocks, with one observation per epoch under observation contract v1 ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
 
-Remaining inputs: the controller's sample window, with D01-Q01.
+Sample window (P01, 30 September 2026): one epoch ([E05 values, third set](approvals/P01_E05_VALUES_3_2026-09-30.json)).
 
 Required output: Production issuance timing matrix.
 
@@ -119,7 +121,9 @@ Which fee denomination, metering, formula, prices, bounds and tips apply?
 
 Account creation fee: a field of the signed ordinary fee profile, committed through `fee_profile_digest` ([account model v2](../node/docs/architecture/account-model-v2.md), 26 September 2026). Governance sets new fee profile versions within genesis bounds ([governance v1](../node/docs/architecture/governance-v1.md), 27 September 2026).
 
-Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT, and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)). The gas price, per-resource costs and their bounds follow from the metering and come back for confirmation.
+Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT, and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
+
+Fee values (P01, 30 September 2026): floor pricing with free reads. Gas price 10 times minimum gas 100,000 is the 1 DRT floor, which a basic Send (about 47,600 gas) pays. Overhead 10,000, receipt metadata 1,000, wire 2 and write 1 per byte, read 0, ML-DSA-65 signature and validator proof 20,000, every action 5,000; gas price bounds 1 to 100 and cost bounds 0 to 100,000 ([E05 values, third set](approvals/P01_E05_VALUES_3_2026-09-30.json)). Capacity and limit values are proposed in [genesis/PROPOSALS.json](genesis/PROPOSALS.json) for the T05 measurements.
 
 Required output: Fee parameter specification.
 
@@ -385,7 +389,7 @@ Evidence: [batch-2/IDENTITY_DECISION.json](batch-2/IDENTITY_DECISION.json), [bat
 
 Which production timings and remaining signing, fee, custody and migration inputs complete the approved recovery contract?
 
-Account template timing (P01, 30 September 2026): recovery delay, finalization window, policy delay and policy window of 120,960 blocks (7 days) each, and a 17,280-block (1-day) submission lifetime ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
+Account template timing (P01, 30 September 2026): recovery delay, finalization window, policy delay and policy window of 120,960 blocks (7 days) each, and a 17,280-block (1-day) submission lifetime ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)). Recovery fees (P01, 30 September 2026): the ordinary scale, so each sponsored recovery action costs the sponsor at least 1 DRT ([E05 values, third set](approvals/P01_E05_VALUES_3_2026-09-30.json)).
 
 Required output: Account recovery specification.
 
@@ -449,7 +453,7 @@ Which actions, parameter bounds, treasury powers, emergency powers and upgrade o
 
 Approved portions: transaction freeze while consensus continues; separate resume; persistent upgrade hold; three signatures from five independent custodians with distinct freeze/resume keys; measured height-based validity windows; continued mandatory transitions; evidence-bound resume; separate candidate-specific upgrade clearance; and a separate full-halt procedure. Routine governance (27 September 2026): the action classes are parameter change and validator registry; the governed parameters are new ordinary fee profile versions (gas price, resource costs, account creation fee), `min_self_bond` and `max_active`, each within genesis bounds, and governance is the fee authority; everything else, including where fees go, changes only by upgrade; upgrades stay root-signed only; treasury spending is POST MAINNET. Upgrade authority (30 September 2026): a separate group of five upgrade custodians, distinct from the emergency custodians, with three SLH-DSA signatures to admit and three fresh ones to activate, and a fixed minimum notice between admission and activation; the configuration check refuses an upgrade key that holds an emergency role.
 
-Values (P01, 30 September 2026): an upgrade activates at least 120,960 blocks (7 days) after admission; genesis bounds of 4 to 32 for `max_active`, 10,000 to 1,000,000 DGT for `min_self_bond`, and 1 to 100 DRT for the account creation fee, with a basic transfer governed between 0.1 and 10 DRT.
+Values (P01, 30 September 2026): an upgrade activates at least 120,960 blocks (7 days) after admission; genesis bounds of 4 to 32 for `max_active`, 10,000 to 1,000,000 DGT for `min_self_bond`, and 1 to 100 DRT for the account creation fee, with a basic transfer governed between 0.1 and 10 DRT. Fee bounds (P01, 30 September 2026): gas price 1 to 100 and every per-resource cost 0 to 100,000; the node will refuse a fee-profile proposal that puts a reference basic Send outside 0.1 to 10 DRT, a check built with production activation ([E05 values, third set](approvals/P01_E05_VALUES_3_2026-09-30.json)).
 
 Approvals: [initial emergency rules](decision-register/emergency-transaction-freeze/policy/APPROVAL.json), [six additional recommendations](decision-register/emergency-release-staging/policy/APPROVAL.json), [governance v1](../node/docs/architecture/governance-v1.md), [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json), [E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json).
 

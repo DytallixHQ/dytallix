@@ -55,3 +55,6 @@ pub mod runtime_candidate;
 pub mod runtime_candidate_v2;
 
 pub mod release_handover;
+
+// Deterministic genesis builder (E05-d), rehearsal only.
+pub mod genesis_build;

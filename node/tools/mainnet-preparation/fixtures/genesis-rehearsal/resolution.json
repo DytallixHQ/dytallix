@@ -1,0 +1,791 @@
+{
+  "boundary": "Rehearsal only: the node accepts only local-qualification and development profiles until production activation. Production also needs every value APPROVED and every record ACCEPTED.",
+  "counts": {
+    "APPROVED": 58,
+    "MEASURE_PLACEHOLDER": 5,
+    "PROPOSED": 50,
+    "RECORD_SYNTHETIC": 8
+  },
+  "production_eligible": false,
+  "schema": "dytallix.genesis-resolution.v1",
+  "values": [
+    {
+      "name": "app_max_tx_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 262144
+    },
+    {
+      "name": "app_max_block_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1048576
+    },
+    {
+      "name": "app_max_txs",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000
+    },
+    {
+      "name": "min_self_bond",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "100000000000"
+    },
+    {
+      "name": "max_active",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 16
+    },
+    {
+      "name": "evidence_max_age_blocks",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 241920
+    },
+    {
+      "name": "evidence_max_age_seconds",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 1209600
+    },
+    {
+      "name": "processing_margin_blocks",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 720
+    },
+    {
+      "name": "processing_margin_seconds",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 3600
+    },
+    {
+      "name": "penalty_numerator",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 1
+    },
+    {
+      "name": "penalty_denominator",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 20
+    },
+    {
+      "name": "recovery_gas_price",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 10
+    },
+    {
+      "name": "recovery_minimum_gas",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 100000
+    },
+    {
+      "name": "recovery_max_transaction_gas",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 2000000
+    },
+    {
+      "name": "recovery_max_block_gas",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 20000000
+    },
+    {
+      "name": "recovery_max_block_recovery_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000000
+    },
+    {
+      "name": "recovery_max_block_recovery_signatures",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 100
+    },
+    {
+      "name": "recovery_max_pending_accounts",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 10000
+    },
+    {
+      "name": "recovery_max_due_expiry_events_per_height",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 100
+    },
+    {
+      "name": "recovery_mandatory_expiry_gas_budget",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000000
+    },
+    {
+      "name": "recovery_expiry_event_gas_cost",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 10000
+    },
+    {
+      "name": "recovery_action_costs",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": [
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000
+      ]
+    },
+    {
+      "name": "recovery_wire_byte_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 2
+    },
+    {
+      "name": "recovery_read_byte_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 0
+    },
+    {
+      "name": "recovery_write_byte_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 1
+    },
+    {
+      "name": "recovery_signature_costs",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "mldsa65": 20000
+      }
+    },
+    {
+      "name": "ordinary_gas_price",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 10
+    },
+    {
+      "name": "ordinary_minimum_gas",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 100000
+    },
+    {
+      "name": "ordinary_max_transaction_gas",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 2000000
+    },
+    {
+      "name": "ordinary_max_block_transaction_gas",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 50000000
+    },
+    {
+      "name": "ordinary_max_block_transaction_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000000
+    },
+    {
+      "name": "ordinary_max_block_signature_checks",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 200
+    },
+    {
+      "name": "ordinary_max_wire_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 65536
+    },
+    {
+      "name": "ordinary_max_actions",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 16
+    },
+    {
+      "name": "ordinary_max_identifier_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 128
+    },
+    {
+      "name": "ordinary_max_data_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 4096
+    },
+    {
+      "name": "ordinary_max_memo_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1024
+    },
+    {
+      "name": "ordinary_max_consensus_key_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 4096
+    },
+    {
+      "name": "ordinary_max_proof_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 8192
+    },
+    {
+      "name": "ordinary_max_expiry_lifetime",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 240
+    },
+    {
+      "name": "ordinary_allowed_algorithms",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": [
+        "mldsa65"
+      ]
+    },
+    {
+      "name": "ordinary_transaction_overhead",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 10000
+    },
+    {
+      "name": "ordinary_receipt_metadata_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 1000
+    },
+    {
+      "name": "ordinary_wire_byte_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 2
+    },
+    {
+      "name": "ordinary_read_byte_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 0
+    },
+    {
+      "name": "ordinary_write_byte_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 1
+    },
+    {
+      "name": "ordinary_action_costs",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": [
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000,
+        5000
+      ]
+    },
+    {
+      "name": "ordinary_signature_costs",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "mldsa65": 20000
+      }
+    },
+    {
+      "name": "ordinary_validator_proof_costs",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "mldsa65": 20000
+      }
+    },
+    {
+      "name": "account_creation_fee_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "10000000"
+    },
+    {
+      "name": "ordinary_max_state_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 64000000
+    },
+    {
+      "name": "ordinary_max_grants",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 10000
+    },
+    {
+      "name": "ordinary_max_receipts",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 65536
+    },
+    {
+      "name": "ordinary_max_retained_profiles",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 8
+    },
+    {
+      "name": "queue_max_entries",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 10000
+    },
+    {
+      "name": "queue_max_wire_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 64000000
+    },
+    {
+      "name": "queue_max_signature_work",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 10000
+    },
+    {
+      "name": "template_timing_version",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1
+    },
+    {
+      "name": "template_recovery_delay",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 120960
+    },
+    {
+      "name": "template_finalization_window",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 120960
+    },
+    {
+      "name": "template_policy_delay",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 120960
+    },
+    {
+      "name": "template_policy_window",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 120960
+    },
+    {
+      "name": "template_submission_lifetime",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 17280
+    },
+    {
+      "name": "template_algorithms",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": {
+        "mldsa65": 1952
+      }
+    },
+    {
+      "name": "governance_max_governance_action_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 16384
+    },
+    {
+      "name": "governance_action_costs",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": [
+        5000,
+        5000,
+        5000
+      ]
+    },
+    {
+      "name": "quorum_bps",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 3340
+    },
+    {
+      "name": "approval_bps",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 5000
+    },
+    {
+      "name": "veto_bps",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 3340
+    },
+    {
+      "name": "voting_period_blocks",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 120960
+    },
+    {
+      "name": "timelock_blocks",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 34560
+    },
+    {
+      "name": "max_voters",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 10000
+    },
+    {
+      "name": "deposit_period_blocks",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 120960
+    },
+    {
+      "name": "minimum_deposit_udgt",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "10000000000"
+    },
+    {
+      "name": "max_action_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 16384
+    },
+    {
+      "name": "max_depositors",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000
+    },
+    {
+      "name": "class_parameter_change_max_data_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 16384
+    },
+    {
+      "name": "class_validator_registry_max_data_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 16384
+    },
+    {
+      "name": "bounds_gas_price",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "max": 100,
+        "min": 1
+      }
+    },
+    {
+      "name": "bounds_resource_cost",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "max": 100000,
+        "min": 0
+      }
+    },
+    {
+      "name": "bounds_account_creation_fee_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "max": "100000000",
+        "min": "1000000"
+      }
+    },
+    {
+      "name": "bounds_min_self_bond",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "max": "1000000000000",
+        "min": "10000000000"
+      }
+    },
+    {
+      "name": "bounds_max_active",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "max": 32,
+        "min": 4
+      }
+    },
+    {
+      "name": "reward_max_positions",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 10000
+    },
+    {
+      "name": "epoch_blocks",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 17280
+    },
+    {
+      "name": "max_recorded_epochs",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 365
+    },
+    {
+      "name": "initial_epoch_budget_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "17280000000000"
+    },
+    {
+      "name": "controller_target_ppm",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 500000
+    },
+    {
+      "name": "controller_shock_threshold_ppm",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000000
+    },
+    {
+      "name": "controller_volatility_threshold_ppm",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000000
+    },
+    {
+      "name": "controller_window_samples",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 1
+    },
+    {
+      "name": "controller_integral_min",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 0
+    },
+    {
+      "name": "controller_integral_max",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 0
+    },
+    {
+      "name": "controller_soft_proportional",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 17280000000000
+    },
+    {
+      "name": "controller_soft_integral",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 0
+    },
+    {
+      "name": "controller_soft_derivative",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 0
+    },
+    {
+      "name": "controller_hard_proportional",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 17280000000000
+    },
+    {
+      "name": "controller_hard_integral",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 0
+    },
+    {
+      "name": "controller_hard_derivative",
+      "reference": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 0
+    },
+    {
+      "name": "controller_base_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 17280000000000
+    },
+    {
+      "name": "controller_min_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 8640000000000
+    },
+    {
+      "name": "controller_max_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": 17280000000000
+    },
+    {
+      "name": "engine_block_max_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1048576
+    },
+    {
+      "name": "engine_block_max_gas",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": -1
+    },
+    {
+      "name": "engine_evidence_max_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 65536
+    },
+    {
+      "name": "drt_bootstrap_total_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "1000000000000"
+    },
+    {
+      "name": "emergency_max_validity_blocks",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 720
+    },
+    {
+      "name": "emergency_max_anchor_age_blocks",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 720
+    },
+    {
+      "name": "migration_max_receipts",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 1000000
+    },
+    {
+      "name": "migration_max_receipt_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 67108864
+    },
+    {
+      "name": "migration_max_write_bytes",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 268435456
+    },
+    {
+      "name": "handover_authority_threshold",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 3
+    },
+    {
+      "name": "handover_max_signatures",
+      "reference": "genesis/PROPOSALS.json",
+      "source": "PROPOSED",
+      "value": 3
+    },
+    {
+      "name": "record:chain_id",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    },
+    {
+      "name": "record:genesis_time",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    },
+    {
+      "name": "record:network",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    },
+    {
+      "name": "record:accounts",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    },
+    {
+      "name": "record:validators",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    },
+    {
+      "name": "record:delegations",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    },
+    {
+      "name": "record:governance_action_classes",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    },
+    {
+      "name": "record:root",
+      "reference": "records",
+      "source": "RECORD_SYNTHETIC",
+      "value": null
+    }
+  ]
+}

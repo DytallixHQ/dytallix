@@ -31,15 +31,26 @@
             "max_udrt_per_epoch": "17280000000000",
             "target_utilization_ppm": 500000,
             "initial_command_udrt": "17280000000000",
-            "gains": null,
+            "gains": {
+              "soft": {
+                "proportional": 17280000000000,
+                "integral": 0,
+                "derivative": 0
+              },
+              "hard": {
+                "proportional": 17280000000000,
+                "integral": 0,
+                "derivative": 0
+              }
+            },
             "integral_limits": null,
-            "window_samples": null,
+            "window_samples": 1,
             "shock_threshold_ppm": null
           },
           "owner_role_proposed": "Protocol and economics lead",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "blocks_work": [
             "W01"
           ],
@@ -47,14 +58,17 @@
           "evidence_refs": [
             "snapshots/dytallix-node/docs/mainnet/specification-decisions.md",
             "batch-6/issuance-timing/APPROVAL.json",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ],
-          "approved_portion": "Issuance level (P01, 30 September 2026): base and ceiling 1,000 DRT a block (17,280,000 DRT per 17,280-block epoch, about 6.31 billion DRT a year), floor 500 DRT a block, a 50% utilization target, and a first command equal to the base.",
+          "approved_portion": "Issuance level (P01, 30 September 2026): base and ceiling 1,000 DRT a block (17,280,000 DRT per 17,280-block epoch, about 6.31 billion DRT a year), floor 500 DRT a block, a 50% utilization target, and a first command equal to the base. Calibration (P01, 30 September 2026): one-day linear response, window 1, proportional gain 17,280,000,000,000 in both regimes, integral and derivative 0; issuance falls linearly from 1,000 DRT a block at 50% utilization to 500 at full blocks. The gain is rescaled if the capacity tests show blocks cannot fill completely.",
           "remaining_choices": [
-            "Soft and hard gains, integral limits, the sample window and the shock threshold, calibrated to the approved level (E05)"
+            "Shock threshold and integral limits (no effect with equal gains and a zero integral gain; proposed in genesis/PROPOSALS.json)",
+            "Rescale of the proportional gain after the capacity tests (T05)"
           ],
           "approval_records": [
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ]
         },
         {
@@ -283,18 +297,18 @@
         {
           "id": "D03-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "What production epoch length N and observation sampling windows apply?",
           "recommendation": "Review explicit counts and units with the controller. Do not infer N from a local timer.",
           "selected_value": {
             "epoch_blocks": 17280,
             "observation": "OBSERVATION_CONTRACT_V1",
-            "sampling_window_samples": null
+            "sampling_window_samples": 1
           },
           "owner_role_proposed": "Protocol lead",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "blocks_work": [
             "W03"
           ],
@@ -303,14 +317,14 @@
             "batch-6/integration-followup/APPROVAL.json",
             "batch-6/issuance-timing/APPROVAL.json",
             "batch-8/implementation/APPROVAL.json",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ],
-          "approved_portion": "Epoch length (P01, 30 September 2026): 17,280 blocks, one day at 5-second blocks; one observation per epoch under observation contract v1.",
-          "remaining_choices": [
-            "The controller's sample window (window_samples), with D01-Q01"
-          ],
+          "approved_portion": "Epoch length (P01, 30 September 2026): 17,280 blocks, one day at 5-second blocks; one observation per epoch under observation contract v1. Sample window (P01, 30 September 2026): 1 epoch.",
+          "remaining_choices": [],
           "approval_records": [
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ]
         }
       ],
@@ -416,12 +430,36 @@
               "min": "1000000",
               "max": "100000000"
             },
-            "gas_price_and_resource_costs": "DERIVED_FROM_THE_TRANSFER_TARGET_PENDING_CONFIRMATION"
+            "gas_price_and_resource_costs": {
+              "gas_price": 10,
+              "minimum_gas": 100000,
+              "transaction_overhead": 10000,
+              "receipt_metadata_cost": 1000,
+              "wire_byte_cost": 2,
+              "read_byte_cost": 0,
+              "write_byte_cost": 1,
+              "action_costs": "5000 each",
+              "signature_costs": {
+                "mldsa65": 20000
+              },
+              "validator_proof_costs": {
+                "mldsa65": 20000
+              },
+              "governance_action_costs": "5000 each",
+              "gas_price_bounds": {
+                "min": 1,
+                "max": 100
+              },
+              "resource_cost_bounds": {
+                "min": 0,
+                "max": 100000
+              }
+            }
           },
           "owner_role_proposed": "Fee accounting lead",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "blocks_work": [
             "W04",
             "W10"
@@ -466,7 +504,8 @@
             "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
             "../node/docs/architecture/account-model-v2.md",
             "../node/docs/architecture/governance-v1.md",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ],
           "prepared_recommendation_ids": [
             "RF02"
@@ -475,14 +514,15 @@
           "approval_records": [
             "decision-register/recovery-fee-implementation/APPROVAL.json",
             "decision-register/ordinary-fee-implementation/APPROVAL.json",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ],
           "approved_fee_rule_ids": [
             "RF02"
           ],
           "approved_fee_portion": "Recovery-only fees use udrt with no tips, deterministic metering, a required versioned cost profile and measured charges. Production prices and limits remain unset.",
           "remaining_choices": [
-            "Gas prices, per-resource costs and their bounds derived from the approved transfer target; recovery prices; minimum charges and resource limits",
+            "Capacity and limit values (max transaction and block gas, bytes, signature checks, wire limits; proposed in genesis/PROPOSALS.json, measured in T05)",
             "Production profile activation and compatible role profiles",
             "Any fee model for actions outside the twelve selected ordinary actions and recovery format"
           ],
@@ -499,7 +539,7 @@
           "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
           "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
           "approved_creation_fee_portion": "The account creation fee is a field of the signed ordinary fee profile, committed through fee_profile_digest, and only Send creates accounts (P01, 26 September 2026). Governance sets new fee profile versions (gas price, resource costs, creation fee) within genesis bounds (P01, 27 September 2026). Value: 10 DRT, governed between 1 and 100 DRT (P01, 30 September 2026).",
-          "approved_portion": "Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT."
+          "approved_portion": "Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT. Values (P01, 30 September 2026): floor pricing with free reads. Gas price 10 times minimum gas 100,000 is the 1 DRT floor a basic Send (about 47,600 gas) pays; overhead 10,000, receipt 1,000, wire 2 and write 1 per byte, read 0, ML-DSA-65 signature and validator proof 20,000, every action 5,000; gas price bounds 1 to 100, cost bounds 0 to 100,000."
         },
         {
           "id": "D04-Q02",
@@ -1773,12 +1813,23 @@
               "policy_delay": 120960,
               "policy_window": 120960,
               "submission_lifetime": 17280
+            },
+            "recovery_fee_values": {
+              "gas_price": 10,
+              "minimum_gas": 100000,
+              "wire_byte_cost": 2,
+              "read_byte_cost": 0,
+              "write_byte_cost": 1,
+              "action_costs": "5000 each",
+              "signature_costs": {
+                "mldsa65": 20000
+              }
             }
           },
           "owner_role_proposed": "Protocol cryptography lead with wallet and SDK leads",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "blocks_work": [
             "W10"
           ],
@@ -1826,7 +1877,8 @@
             "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
             "decision-register/ordinary-client-compatibility/REPORT.md",
             "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ],
           "approved_requirements": [
             {
@@ -1868,7 +1920,8 @@
             "decision-register/recovery-signing/APPROVAL.json",
             "decision-register/recovery-fee-implementation/APPROVAL.json",
             "decision-register/ordinary-signing-implementation/APPROVAL.json",
-            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+            "approvals/P01_E05_VALUES_2_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ],
           "approved_detail_ids": [
             "REC-P01",
@@ -1915,7 +1968,7 @@
           "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
           "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
           "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
-          "approved_portion": "Account template timing (P01, 30 September 2026): recovery delay, finalization window, policy delay and policy window of 120,960 blocks (7 days) each; a 17,280-block (1-day) submission lifetime."
+          "approved_portion": "Account template timing (P01, 30 September 2026): recovery delay, finalization window, policy delay and policy window of 120,960 blocks (7 days) each; a 17,280-block (1-day) submission lifetime. Recovery fees (P01, 30 September 2026): the ordinary scale, so each sponsored recovery action costs the sponsor at least 1 DRT."
         },
         {
           "id": "D10-Q03",
@@ -2357,9 +2410,16 @@
                   "min": "100000",
                   "max": "10000000"
                 },
-                "gas_price": null,
-                "resource_cost": null
-              }
+                "gas_price": {
+                  "min": 1,
+                  "max": 100
+                },
+                "resource_cost": {
+                  "min": 0,
+                  "max": 100000
+                }
+              },
+              "transfer_fee_range_rule": "REFUSE_FEE_PROFILE_PROPOSALS_OUTSIDE_0_1_TO_10_DRT_FOR_A_REFERENCE_BASIC_SEND"
             },
             "upgrade_authority": {
               "custodians": 5,
@@ -2381,7 +2441,7 @@
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_CUSTODY_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "blocks_work": [
             "W11",
             "W02",
@@ -2401,7 +2461,8 @@
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "../node/docs/mainnet/upgrade-execution.md",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
-            "approvals/P01_E05_CUSTODY_2026-09-30.json"
+            "approvals/P01_E05_CUSTODY_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2425,7 +2486,7 @@
             "Actual incident, freeze receipt, restored state, candidate and recovery evidence for any production resume.",
             "Upgrade clearance authority membership and approval threshold; exact candidate, migration, sequence, activation height and activation-path qualification.",
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
-            "Genesis bounds for the gas price and per-resource costs, derived from the approved transfer fee range (E05).",
+            "The node check that refuses fee-profile proposals putting a reference basic Send outside 0.1 to 10 DRT (approved; built with production activation).",
             "Recovery authorities covered by D11-Q03.",
             "Upgrade custodian names, keys and epochs; the production upgrade policy (schema 2)."
           ],
@@ -2435,7 +2496,8 @@
             "../node/docs/architecture/governance-v1.md",
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
-            "approvals/P01_E05_CUSTODY_2026-09-30.json"
+            "approvals/P01_E05_CUSTODY_2026-09-30.json",
+            "approvals/P01_E05_VALUES_3_2026-09-30.json"
           ]
         }
       ],
@@ -3029,8 +3091,8 @@
   ],
   "question_counts": {
     "fully_open_policy_questions": 4,
-    "partially_approved_policy_questions": 13,
-    "approved_policy_questions": 9,
+    "partially_approved_policy_questions": 12,
+    "approved_policy_questions": 10,
     "required_records": 8
   },
   "supersessions": [
