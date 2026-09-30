@@ -25,3 +25,22 @@ Later emergency receipts add their index entry in the same block batch. Restart 
 The migration digest binds the retained `upgrade/v1/upgrade.rs` source. The top-level `upgrade.rs` compiles a versioned registry and checks the retained v1 source hash before use. A later edit to v1 fails that check. A future migration needs a new retained implementation and registry entry; it must preserve v1 serialization and replay semantics so existing history can reopen. The registry does not qualify a cross-binary upgrade by itself.
 
 Current tests use synthetic authority and the same running candidate. Full production authority, numeric timing, migration limits, cross-binary compatibility, installation, rollback boundaries, native engine qualification and independent release acceptance remain required. No procedure resets signing history or creates a new genesis.
+
+## Production upgrade authority (P01, 30 September 2026)
+
+- **Custodians.** Upgrades have their own group of five independent
+  custodians, distinct from the emergency freeze and resume custodians. An
+  upgrade needs three of their SLH-DSA signatures to be admitted and three
+  fresh ones to activate. Upgrades stay root-signed only; there is no
+  governance approval class (governance v1). The configuration check refuses
+  an upgrade key that also holds a freeze or resume role.
+- **Notice.** Activation must be at least a fixed number of blocks after
+  admission (an E05 value). The admitted plan is committed state, reported
+  by `/status` as `upgrade.pending`, so operators can install the named
+  release before activation. An urgent
+  problem uses the emergency freeze first.
+- **Implementation.** v1 is development-only and its source is retained
+  unchanged for replay, so the notice rule and the production threshold
+  belong to the production upgrade policy (schema 2), which production
+  activation requires. The custodians' names, keys and epochs are E05
+  records (D10-Q03, D11-Q03).

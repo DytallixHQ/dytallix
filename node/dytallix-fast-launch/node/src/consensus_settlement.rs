@@ -259,6 +259,23 @@ impl ConsensusConfig {
                 policy.max_control_bytes <= self.max_tx_bytes,
                 "Upgrade control exceeds transaction bound"
             );
+            // Upgrades have their own custodian group (P01, 30 September
+            // 2026): no upgrade key may also hold a freeze or resume role.
+            let emergency_keys: BTreeSet<&str> = emergency
+                .freeze_authority
+                .keys
+                .iter()
+                .chain(&emergency.resume_authority.keys)
+                .map(|key| key.public_key_hex.as_str())
+                .collect();
+            ensure!(
+                policy
+                    .authority
+                    .keys
+                    .iter()
+                    .all(|key| !emergency_keys.contains(key.public_key_hex.as_str())),
+                "Upgrade and emergency authorities share a key"
+            );
         }
         if let Some(policy) = &self.release_handover {
             policy.validate()?;

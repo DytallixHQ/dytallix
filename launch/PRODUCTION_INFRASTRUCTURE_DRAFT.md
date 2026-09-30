@@ -10,6 +10,8 @@ The companion [JSON record](PRODUCTION_INFRASTRUCTURE_DRAFT.json) contains the a
 
 ## Candidate architecture
 
+**Approved topology (D12-Q01, P01, 30 September 2026).** Validators are private: each peers only with its own sentries, pinned by full key. Sentries face the network. Separate endpoint nodes serve the client channel. Validator hosts run no RPC and no management port; operator access is console-only (P01, 29 September 2026). Counts, hosts, regions and failure domains are E05 records. The rest of this table remains a draft.
+
 | Component | Proposed boundary | Decision still required |
 |---|---|---|
 | Validators | Private validator hosts. Expose peer traffic only through approved sentries. Keep public RPC and unrelated services off validator hosts. | Consensus protocol, validator count, voting weights, operators, placement, capacity, and access policy. |

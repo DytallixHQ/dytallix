@@ -83,6 +83,13 @@ Decided 30 September 2026 (`launch/approvals/P01_E04_PENALTIES_2026-09-30.json`,
 penalized like unlocked stake, and a permanent penalty escrow. The launch
 configuration now requires the lifecycle and penalty profiles.
 
+Decided 30 September 2026 (`launch/approvals/P01_E04_OPERATIONS_2026-09-30.json`):
+the implemented mempool rule is normative (D06-Q02, `docs/architecture/mempool-v1.md`);
+upgrades need a separate 3-of-5 custodian group, distinct from the emergency
+custodians, with a fixed minimum notice (D11-Q03); validators are private
+behind sentries (D12-Q01). The remaining questions are E05 values and
+records, and E06 release acceptance.
+
 | Decision | Question | Rows |
 | --- | --- | --- |
 | D09-Q04, D09-Q05 (values, E05) | The penalty rate; parameter migration. | CONS-002, VAL-002, VAL-004, AC-003 |
@@ -91,9 +98,9 @@ configuration now requires the lifecycle and penalty profiles.
 | D01-Q01 | The controller's parameters and first command; `E_min`. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
 | D03-Q01 | Epoch length. | AC-011 |
 | D08-Q02, D08-Q03 (values, E05) | The DRT bootstrap amount and recipient rows. | BRG-001, AC-009 |
-| D04-Q01, D06-Q02 | Adopt the implemented mempool rule (arrival order, no replacement or eviction, expiry, release at each head) as normative; capacity values. | MEM-002, MEM-003 |
-| D11-Q03, D14-Q02 | Upgrade authority and threshold; minimum notice; validator readiness; client compatibility window. | UPG-002 |
-| D12-Q01, D12-Q02 | Public ingress (channel endpoint addresses and keys, rate limits, methods); alert targets and routing. | API-002, OBS-002, PERF-003 |
+| D06-Q02 (values, E05) | Mempool, queue and peer capacity values; block time and timeouts. | MEM-002 |
+| D11-Q03, D14-Q02 (records and values, E05, E06) | Upgrade custodians and notice length; the production upgrade policy (schema 2); client compatibility window. | UPG-002 |
+| D12-Q01, D12-Q02 (values, E05) | Endpoint addresses and keys, rate limits; counts and hosts; alert targets and routing. | API-002, OBS-002, PERF-003 |
 | D11-Q02 (values, E05) | Quorum, approval and veto thresholds, deposit, periods, timelock. | GOV-001, AC-005 |
 
 ## Requirement rows
@@ -127,14 +134,14 @@ configuration now requires the lifecycle and penalty profiles.
 | SYNC-004 | NOT E04 | T05. |
 | MEM-001 | DONE | Exact nonce, conflicts refused, reset at head. |
 | MEM-002 | PARTIAL | Duplicate bypass closed and mempool rules pinned (gap 6); capacity values open (D06-Q02). |
-| MEM-003 | POLICY | Implemented rule not normative. D04-Q01, D06-Q02. |
+| MEM-003 | DONE | The implemented rule is normative (`docs/architecture/mempool-v1.md`). |
 | MEM-004 | NOT E04 | T05. |
 | ORC-001 | DONE | No oracle; gas price governed; utilization only (D01-Q02 approved). |
 | ORC-002 | DONE | No reporters (D01-Q02 approved). |
 | ORC-003 | DONE | Claim fixed: no outlier slashing (security model, errata). |
 | ORC-004 | DONE | Only bounded fee values and validator limits governable. |
 | UPG-001 | NOT E04 | E06 provenance. |
-| UPG-002 | POLICY | Height activation built; authority open. D11-Q03, D14-Q02. |
+| UPG-002 | POLICY | Height activation built; a separate 3-of-5 upgrade custodian group and a fixed minimum notice approved; custodians, notice length and the production upgrade policy are E05 and E06. |
 | UPG-003 | PARTIAL | Gap 11 closed (M-a, M-b): the signed in-process and process tests run in CI. A baseline from an earlier release, the hardened launch and acceptance belong to T03, T06 and T07. |
 | UPG-004 | NOT E04 | T05, T06. |
 | API-001 | GAP 9 | Gap 9 closed (I-a, I-b): checked inventory `docs/architecture/interfaces-v1.json`; version fields everywhere; typed reads; no ABCI events by decision; acceptance is T07's. |
@@ -203,6 +210,32 @@ and `mainnet/docs/public-surface.json` now pins the corrected statements.
   `launch/PQC_ARCHITECTURE.md` (peer transport v2, no SecretConnection or
   remote signer); `docs/architecture/modular-node.md` (storage helpers and the
   gas crate removed).
+
+## E04 exit (30 September 2026)
+
+All 20 engineering gaps are closed, and every E04 policy question has its
+rule decided. What remains is E05 values and records, and E06 release
+acceptance; decision IDs refer to `launch/MAINNET_DECISION_REGISTER.json`.
+
+- **E05 values:** fee prices, resource costs, limits and the creation fee
+  (D04-Q01, D04-Q02, D10-Q02); the issuance controller and epoch length
+  (D01-Q01, D03-Q01); the DRT bootstrap amount (D08-Q02); the penalty rate,
+  evidence limits and margins (D09-Q03, D09-Q04); `min_self_bond`,
+  `max_active` and governed-parameter bounds (D09-Q01, D11-Q03); governance
+  thresholds, deposit, periods and timelock (D11-Q02); block time,
+  timeouts, capacity and state-sync trust inputs (D06-Q02); the upgrade
+  notice length and emergency timing windows (D11-Q03).
+- **E05 records:** beneficiaries, vesting and the DRT bootstrap rows (D08-Q01,
+  D08-Q03); the treasury recipient (D02-Q02); the initial validators and
+  operators (D09-Q02); signing custodians, including the emergency and
+  upgrade groups (D10-Q03, D11-Q03); topology, hosts and service objectives
+  (D12-Q01 to D12-Q03); chain identity and the genesis digest (D13-Q01,
+  D13-Q02); the production account and signing allowlists (D10-Q01).
+- **E05 and E06 engineering:** the production upgrade policy (schema 2) with
+  its threshold and notice; production activation of the local
+  qualification profiles; the exact engine release (D06-Q01).
+- **E06 and T:** release targets and acceptance (D14-Q01 to D14-Q03); the
+  independent protocol review (P02).
 
 ## First live CI run (27 September)
 
