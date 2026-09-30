@@ -49,18 +49,19 @@ approved. Decision IDs refer to
 
 ## Values to decide
 
-The proposals assume a 5-second block interval (`timeout_commit` 4 s); every
-block count follows from it.
+The block interval is approved at about 5 seconds (`timeout_commit` 4 s); every
+block count follows from it. Approved values are marked; the first set is
+[recorded here](approvals/P01_E05_VALUES_1_2026-09-30.json).
 
 | Area | Value | Proposal | Basis or input needed |
 | --- | --- | --- | --- |
-| Block interval | `timeout_commit` | 4 s | About 5 s blocks; each commit carries ML-DSA-65 votes (3,309 bytes each), so a longer interval keeps history and signature work modest |
-| Evidence and unbonding | `evidence_max_age_seconds`, `_blocks` | 14 days; 241,920 | Unbonded stake matures after about 14 days plus the margin |
-| | `processing_margin_seconds`, `_blocks` | 1 hour; 720 | |
-| Penalty | `penalty_numerator` / `penalty_denominator` | 1 / 20 (5%) | A common first double-sign rate on CometBFT chains |
-| Governance | `quorum_bps`, `approval_bps`, `veto_bps` | 3,340; 5,000; 3,340 | Common CometBFT-chain thresholds |
-| | `voting_period_blocks`, `deposit_period_blocks`, `timelock_blocks` | 7 days; 7 days; 2 days | |
-| | `minimum_deposit_udgt` | 10,000 DGT | 0.001% of supply, refunded at every outcome |
+| Block interval | `timeout_commit` | **Approved:** 4 s | About 5 s blocks; each commit carries ML-DSA-65 votes (3,309 bytes each), so a longer interval keeps history and signature work modest |
+| Evidence and unbonding | `evidence_max_age_seconds`, `_blocks` | **Approved:** 14 days; 241,920 | Unbonded stake matures after about 14 days plus the margin |
+| | `processing_margin_seconds`, `_blocks` | **Approved:** 1 hour; 720 | |
+| Penalty | `penalty_numerator` / `penalty_denominator` | **Approved:** 1 / 20 (5%) | A common first double-sign rate on CometBFT chains |
+| Governance | `quorum_bps`, `approval_bps`, `veto_bps` | **Approved:** 3,340; 5,000; 3,340 | Common CometBFT-chain thresholds |
+| | `voting_period_blocks`, `deposit_period_blocks`, `timelock_blocks` | **Approved:** 7 days; 7 days; 2 days | |
+| | `minimum_deposit_udgt` | **Approved:** 10,000 DGT | 0.001% of supply, refunded at every outcome |
 | Validators | `max_active` | 16 | Room above a launch set of four to seven |
 | | `bounds_max_active` | 4 to 32 | Never fewer than four validators |
 | | `min_self_bond`, `bounds_min_self_bond` | — | Input needed: expected operator count and stake |

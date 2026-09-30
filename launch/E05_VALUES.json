@@ -135,9 +135,11 @@
       "couplings": "Must equal engine consensus_params.evidence.max_age_num_blocks at InitChain (node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs:206-222; node/consensus/cometbft/cmd/dytallix-comet-bridge/application.go:132-137); the Go fixture copies it (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:274-276). Evidence expires only when both block and time ages are exceeded (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2716-2726; same rule upstream node/consensus/cometbft/upstream/evidence/pool.go:273-274). Sets unbond maturity and record retention horizon with the margins (node/dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs:100-110). Not governed (:87-96).",
       "notes": "Docs: evidence limits also set the unbonding period and retention horizon (node/docs/mainnet/e04-requirement-triage.md:96). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "241920",
-      "basis": "14 days at the proposed 5 s interval; both limits must pass for maturity."
+      "basis": "14 days at the proposed 5 s interval; both limits must pass for maturity.",
+      "approved": "241920",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "evidence_max_age_seconds",
@@ -151,9 +153,11 @@
       "couplings": "Must equal engine consensus_params.evidence.max_age_duration exactly, with zero sub-second remainder (node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs:206-222). Engine state-sync trust_period must be below this duration (node/consensus/cometbft/cmd/dytallix-pqc-engine/main.go:54-57).",
       "notes": "Values above about 9.2e9 s cannot be represented as a Go time.Duration; the InitChain equality check would then fail closed. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "1209600",
-      "basis": "14 days: evidence stays admissible for two weeks, so unbonded stake matures after about 14 days plus the margin."
+      "basis": "14 days: evidence stays admissible for two weeks, so unbonded stake matures after about 14 days plus the margin.",
+      "approved": "1209600",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "processing_margin_blocks",
@@ -167,9 +171,11 @@
       "couplings": "Added to evidence_max_age_blocks for unbond maturity and the past_horizon retention test (node/dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs:100-110).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "720",
-      "basis": "One hour at 5 s blocks."
+      "basis": "One hour at 5 s blocks.",
+      "approved": "720",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "processing_margin_seconds",
@@ -183,9 +189,11 @@
       "couplings": "Added to evidence_max_age_seconds for unbond maturity and retention (node/dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs:100-110).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "3600",
-      "basis": "One hour past the evidence age."
+      "basis": "One hour past the evidence age.",
+      "approved": "3600",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "penalty_numerator",
@@ -199,9 +207,11 @@
       "couplings": "Ratio numerator/denominator is the penalty rate applied once to all stake bonded to the validator at the evidence height (node/docs/architecture/penalties-v1.md:14-20).",
       "notes": "Ratio of exactly 1 (100%) is accepted. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "1",
-      "basis": "With a denominator of 20: a 5% penalty for a first double-sign, a common rate on CometBFT chains. The register asks that the synthetic 1/20 not be promoted without review; this is that review's proposal."
+      "basis": "With a denominator of 20: a 5% penalty for a first double-sign, a common rate on CometBFT chains. The register asks that the synthetic 1/20 not be promoted without review; this is that review's proposal.",
+      "approved": "1",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "penalty_denominator",
@@ -215,9 +225,11 @@
       "couplings": "See penalty_numerator.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "20",
-      "basis": "See penalty_numerator."
+      "basis": "See penalty_numerator.",
+      "approved": "20",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "recovery_activation_height",
@@ -1207,9 +1219,11 @@
       "couplings": "Turnout (yes+no+veto+abstain) >= ceil(total x bps / 10000) (node/dytallix-fast-launch/node/src/runtime/governance_store.rs:119-130, 170-177).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "3340",
-      "basis": "33.4% turnout, the common CometBFT-chain quorum."
+      "basis": "33.4% turnout, the common CometBFT-chain quorum.",
+      "approved": "3340",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "approval_bps",
@@ -1223,9 +1237,11 @@
       "couplings": "yes >= ceil(decisive x bps / 10000) (node/dytallix-fast-launch/node/src/runtime/governance_store.rs:170-177).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "5000",
-      "basis": "At least half of the decisive weight (yes, no and veto) votes yes."
+      "basis": "At least half of the decisive weight (yes, no and veto) votes yes.",
+      "approved": "5000",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "veto_bps",
@@ -1239,9 +1255,11 @@
       "couplings": "Passes only if no_with_veto < ceil(decisive x bps / 10000) (node/dytallix-fast-launch/node/src/runtime/governance_store.rs:175). veto_bps = 0 makes every proposal fail; validate() accepts it.",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "3340",
-      "basis": "A veto of 33.4% of the decisive weight fails the proposal."
+      "basis": "A veto of 33.4% of the decisive weight fails the proposal.",
+      "approved": "3340",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "voting_period_blocks",
@@ -1255,9 +1273,11 @@
       "couplings": "Height-range overflow check with deposit period and timelock (node/dytallix-fast-launch/node/src/runtime/governance_candidate.rs:228-234).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "120960",
-      "basis": "7 days."
+      "basis": "7 days.",
+      "approved": "120960",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "timelock_blocks",
@@ -1271,9 +1291,11 @@
       "couplings": "",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "34560",
-      "basis": "2 days between passing and execution."
+      "basis": "2 days between passing and execution.",
+      "approved": "34560",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "max_voters",
@@ -1303,9 +1325,11 @@
       "couplings": "",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "120960",
-      "basis": "7 days."
+      "basis": "7 days.",
+      "approved": "120960",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "minimum_deposit_udgt",
@@ -1319,9 +1343,11 @@
       "couplings": "Proposal below minimum at close ends BelowMinimum and is refunded (node/dytallix-fast-launch/node/src/runtime/governance_store.rs:632).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "10000000000",
-      "basis": "10,000 DGT (0.001% of supply), refunded at every outcome; enough to deter spam."
+      "basis": "10,000 DGT (0.001% of supply), refunded at every outcome; enough to deter spam.",
+      "approved": "10000000000",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "max_action_bytes",
@@ -2215,9 +2241,11 @@
       "couplings": "Block time is set by these timeouts; there is no separate block-time parameter.",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "3s",
-      "basis": "Upstream CometBFT default."
+      "basis": "Upstream CometBFT default.",
+      "approved": "3s",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "timeout_propose_delta",
@@ -2247,9 +2275,11 @@
       "couplings": "Block time is set by these timeouts; there is no separate block-time parameter.",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "1s",
-      "basis": "Upstream CometBFT default."
+      "basis": "Upstream CometBFT default.",
+      "approved": "1s",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "timeout_prevote_delta",
@@ -2279,9 +2309,11 @@
       "couplings": "Block time is set by these timeouts; there is no separate block-time parameter.",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "1s",
-      "basis": "Upstream CometBFT default."
+      "basis": "Upstream CometBFT default.",
+      "approved": "1s",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "timeout_precommit_delta",
@@ -2407,9 +2439,11 @@
       "couplings": "With the other timeouts, determines block time.",
       "notes": "Upstream default also 1000ms (node/consensus/cometbft/upstream/config/config.go:1276). No Dytallix-specific bound. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "4s",
-      "basis": "About a 5 s block interval with the upstream propose/prevote/precommit timeouts. Every block carries a commit of ML-DSA-65 votes (3,309 bytes each), so a longer interval keeps history growth and per-block signature work modest."
+      "basis": "About a 5 s block interval with the upstream propose/prevote/precommit timeouts. Every block carries a commit of ML-DSA-65 votes (3,309 bytes each), so a longer interval keeps history growth and per-block signature work modest.",
+      "approved": "4s",
+      "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json"
     },
     {
       "name": "create_empty_blocks",

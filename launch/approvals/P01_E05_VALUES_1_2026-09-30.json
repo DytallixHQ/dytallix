@@ -1,0 +1,34 @@
+{
+  "decision_id": "P01-2026-09-30-E05-VALUES-1",
+  "approved": "2026-09-30",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 values, first set: timing and security"
+  },
+  "packet_ref": "E05_INTAKE.md",
+  "decisions": [
+    {
+      "question": "D06-Q02",
+      "selected": "About 5 seconds",
+      "values": {"timeout_commit": "4s", "timeout_propose": "3s", "timeout_prevote": "1s", "timeout_precommit": "1s"},
+      "note": "Block counts below assume 17,280 blocks a day."
+    },
+    {
+      "question": "D09-Q03",
+      "selected": "14 days",
+      "values": {"evidence_max_age_seconds": "1209600", "evidence_max_age_blocks": "241920", "processing_margin_seconds": "3600", "processing_margin_blocks": "720"}
+    },
+    {
+      "question": "D09-Q04",
+      "selected": "5%",
+      "values": {"penalty_numerator": "1", "penalty_denominator": "20"}
+    },
+    {
+      "question": "D11-Q02",
+      "selected": "Standard set",
+      "values": {"quorum_bps": "3340", "approval_bps": "5000", "veto_bps": "3340", "deposit_period_blocks": "120960", "voting_period_blocks": "120960", "timelock_blocks": "34560", "minimum_deposit_udgt": "10000000000"}
+    }
+  ],
+  "does_not_authorize": ["production activation", "gate acceptance", "mainnet launch"]
+}

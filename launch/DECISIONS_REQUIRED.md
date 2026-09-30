@@ -2,7 +2,7 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains seven OPEN policy questions, 14 PARTIALLY_APPROVED policy questions, five APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains six OPEN policy questions, 12 PARTIALLY_APPROVED policy questions, eight APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
@@ -193,7 +193,9 @@ Approved portion (P01, 30 September 2026): the implemented mempool rule is norma
 
 Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
 
-Remaining inputs: block time and timeouts, mempool, queue and peer capacity values, fault assumptions, and the state-sync trust source, trust period, snapshot peers, interval and retention (E05).
+Timing (P01, 30 September 2026): about 5-second blocks, `timeout_commit` 4 s with the upstream propose (3 s), prevote (1 s) and precommit (1 s) timeouts ([E05 values, first set](approvals/P01_E05_VALUES_1_2026-09-30.json)).
+
+Remaining inputs: mempool, queue and peer capacity values, fault assumptions, and the state-sync trust source, trust period, snapshot peers, interval and retention (E05).
 
 Required output: Consensus operating specification.
 
@@ -301,9 +303,13 @@ Preparation: [D09-Q02 packet](decision-register/parallel-tracks-20260912/track-4
 
 Evidence: [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json), [batch-8/POLICY_PROPOSAL.json](batch-8/POLICY_PROPOSAL.json), [batch-9/SCOPE.json](batch-9/SCOPE.json), [batch-9/POLICY.md](batch-9/POLICY.md), [decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json](decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json), [decision-register/ordinary-client-compatibility/RECORD_STATUS.md](decision-register/ordinary-client-compatibility/RECORD_STATUS.md).
 
-### D09-Q03 — OPEN
+### D09-Q03 — APPROVED
 
 What evidence age limits in blocks and seconds, and what processing margins, apply?
+
+Approved (P01, 30 September 2026): 14 days. Evidence stays admissible for 1,209,600 seconds and 241,920 blocks, with margins of 3,600 seconds and 720 blocks; the engine's evidence parameters equal them. Unbonded stake matures after both limits plus the margins.
+
+Recorded approval: [E05 values, first set](approvals/P01_E05_VALUES_1_2026-09-30.json).
 
 Required output: Evidence retention and unbond timing configuration.
 
@@ -311,7 +317,7 @@ Proposed owner role: Protocol and staking leads with validator coordinator. Name
 
 Evidence: [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json), [batch-8/POLICY_PROPOSAL.json](batch-8/POLICY_PROPOSAL.json), [batch-9/SCOPE.json](batch-9/SCOPE.json), [batch-9/POLICY.md](batch-9/POLICY.md).
 
-### D09-Q04 — PARTIALLY_APPROVED
+### D09-Q04 — APPROVED
 
 Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?
 
@@ -319,7 +325,7 @@ Approved portion (P01, 30 September 2026): double-signing only, with removal. A 
 
 Recorded approval: [30 September penalty approvals](approvals/P01_E04_PENALTIES_2026-09-30.json). Design: [penalties v1](../node/docs/architecture/penalties-v1.md).
 
-Remaining inputs: the penalty rate (E05).
+Rate (P01, 30 September 2026): 1/20 (5%) ([E05 values, first set](approvals/P01_E05_VALUES_1_2026-09-30.json)).
 
 Required output: Production penalty specification.
 
@@ -335,7 +341,7 @@ Approved portion (P01, 30 September 2026): withdrawals work from genesis. An unb
 
 Recorded approval: [30 September penalty approvals](approvals/P01_E04_PENALTIES_2026-09-30.json). Design: [penalties v1](../node/docs/architecture/penalties-v1.md).
 
-Remaining inputs: evidence age limits and margins (D09-Q03, E05) and parameter migration rules.
+Remaining inputs: parameter migration rules.
 
 Required output: Withdrawal and locked-liability specification.
 
@@ -405,7 +411,7 @@ Proposed owner role: Governance lead with protocol and custody reviewers. Named 
 
 Evidence: [batch-5/eligibility-followup/APPROVAL.json](batch-5/eligibility-followup/APPROVAL.json).
 
-### D11-Q02 — PARTIALLY_APPROVED
+### D11-Q02 — APPROVED
 
 What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?
 
@@ -413,7 +419,7 @@ Approved portions (25 September 2026): abstain counts for quorum only; integer b
 
 Recorded approvals: [25 September governance rules](decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json), [governance v1](../node/docs/architecture/governance-v1.md).
 
-Remaining inputs: production quorum, approval and veto basis points, deposit, periods and timelock (E05).
+Values (P01, 30 September 2026): quorum 3,340, approval 5,000 and veto 3,340 basis points; 120,960-block (7-day) deposit and voting periods; a 34,560-block (2-day) timelock; a minimum deposit of 10,000 DGT ([E05 values, first set](approvals/P01_E05_VALUES_1_2026-09-30.json)).
 
 Required output: Governance parameter specification.
 

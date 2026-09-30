@@ -864,13 +864,19 @@
             "release": "EACH_COMMITTED_BLOCK",
             "per_account_cap": false,
             "capacity_values": null,
-            "timing_values": null,
+            "timing_values": {
+              "block_interval_seconds_target": 5,
+              "timeout_commit": "4s",
+              "timeout_propose": "3s",
+              "timeout_prevote": "1s",
+              "timeout_precommit": "1s"
+            },
             "fault_assumptions": null
           },
           "owner_role_proposed": "Protocol lead with cryptography and network reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "blocks_work": [
             "W06"
           ],
@@ -880,14 +886,18 @@
             "batch-9/REPORT.md",
             "batch-10/REPORT.md",
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
-            "../node/docs/architecture/mempool-v1.md"
+            "../node/docs/architecture/mempool-v1.md",
+            "approvals/P01_E05_VALUES_1_2026-09-30.json"
           ],
           "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing, capacity, fault assumptions and synchronization values remain open.",
           "remaining_choices": [
-            "Block time and timeouts",
             "Mempool, queue and peer capacity values",
             "Fault assumptions",
             "State-sync trust source, trust period, snapshot peers, interval and retention"
+          ],
+          "approval_records": [
+            "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+            "approvals/P01_E05_VALUES_1_2026-09-30.json"
           ]
         }
       ],
@@ -1331,14 +1341,20 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "recommendation": "Specify both age limits and both margins with engine evidence coverage.",
-          "selected_value": null,
+          "selected_value": {
+            "evidence_max_age_seconds": 1209600,
+            "evidence_max_age_blocks": 241920,
+            "processing_margin_seconds": 3600,
+            "processing_margin_blocks": 720,
+            "engine_evidence_params": "EQUAL_TO_LIFECYCLE"
+          },
           "owner_role_proposed": "Protocol and staking leads with validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "blocks_work": [
             "W09",
             "W03",
@@ -1349,13 +1365,15 @@
             "batch-8/implementation/APPROVAL.json",
             "batch-8/POLICY_PROPOSAL.json",
             "batch-9/SCOPE.json",
-            "batch-9/POLICY.md"
-          ]
+            "batch-9/POLICY.md",
+            "approvals/P01_E05_VALUES_1_2026-09-30.json"
+          ],
+          "approved_portion": "14 days (P01, 30 September 2026): evidence stays admissible for 1,209,600 s and 241,920 blocks, with margins of 3,600 s and 720 blocks; unbonded stake matures after both."
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "recommendation": "Review the complete fault model. Do not promote the synthetic 1/20 rate or first-fault cap to production.",
           "selected_value": {
@@ -1373,12 +1391,15 @@
             "removal_height": "EVIDENCE_HEIGHT_PLUS_TWO",
             "penalty_reserve": "PERMANENT_ESCROW_NO_SPENDING_OPERATION",
             "dgt_burn": false,
-            "production_penalty_rate": null
+            "production_penalty_rate": {
+              "numerator": 1,
+              "denominator": 20
+            }
           },
           "owner_role_proposed": "Protocol and staking leads with validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "blocks_work": [
             "W09"
           ],
@@ -1389,11 +1410,14 @@
             "batch-9/SCOPE.json",
             "batch-9/POLICY.md",
             "approvals/P01_E04_PENALTIES_2026-09-30.json",
-            "../node/docs/architecture/penalties-v1.md"
+            "../node/docs/architecture/penalties-v1.md",
+            "approvals/P01_E05_VALUES_1_2026-09-30.json"
           ],
-          "approved_portion": "Double-sign only, with removal (P01, 30 September 2026): a validator's first duplicate vote deducts a fixed share from all stake bonded to it at that height, self-bond, delegators and vesting-locked stake alike, and removes it for good; its key is never reused and later evidence adds nothing. Light-client attacks are recorded only; no downtime penalty. Penalized DGT moves to an escrow that nothing can spend.",
-          "remaining_choices": [
-            "Penalty rate (E05)"
+          "approved_portion": "Double-sign only, with removal (P01, 30 September 2026): a validator's first duplicate vote deducts a fixed share from all stake bonded to it at that height, self-bond, delegators and vesting-locked stake alike, and removes it for good; its key is never reused and later evidence adds nothing. Light-client attacks are recorded only; no downtime penalty. Penalized DGT moves to an escrow that nothing can spend. Rate: 1/20 (5%) (P01, 30 September 2026).",
+          "remaining_choices": [],
+          "approval_records": [
+            "approvals/P01_E04_PENALTIES_2026-09-30.json",
+            "approvals/P01_E05_VALUES_1_2026-09-30.json"
           ]
         },
         {
@@ -1433,7 +1457,6 @@
           "recovery_approval_ref": "decision-register/recovery-fee-implementation/APPROVAL.json",
           "approved_portion": "After maturity, from genesis (P01, 30 September 2026): an unbond can be withdrawn once both evidence age limits plus margins have passed and no penalty on it is unsettled. Vesting-locked stake carries the same penalty risk; a penalty comes off the amount still locked on the same dates.",
           "remaining_choices": [
-            "Evidence age limits and margins (D09-Q03, E05)",
             "Parameter migration rules"
           ]
         }
@@ -2077,7 +2100,7 @@
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "recommendation": "Implement exact basis-point arithmetic, refundable DGT escrow and a finalized-height execution timelock. Governance v1 has no proposal cancellation. Select production numeric values separately.",
           "selected_value": {
@@ -2087,10 +2110,15 @@
             "deposit_burn_or_sweep_authority": false,
             "execution": "EXPLICIT_FINALIZED_HEIGHT_TIMELOCK_WITH_PREVOTE_ACTION_BINDING",
             "deposit_stage": "EXPLICIT_POSITIVE_PERIOD_THEN_MINIMUM_CHECK_AND_REFUND_OR_PARENT_SNAPSHOT_VOTING",
-            "production_quorum_bps": null,
-            "production_approval_bps": null,
-            "production_veto_bps": null,
-            "production_deposit_and_period_values": null,
+            "production_quorum_bps": 3340,
+            "production_approval_bps": 5000,
+            "production_veto_bps": 3340,
+            "production_deposit_and_period_values": {
+              "deposit_period_blocks": 120960,
+              "voting_period_blocks": 120960,
+              "timelock_blocks": 34560,
+              "minimum_deposit_udgt": "10000000000"
+            },
             "proposal_cancellation": false,
             "block_order": "AUTOMATIC_TRANSITIONS_THEN_SIGNED_TRANSACTIONS",
             "finished_proposal_retention": "REMOVE_PROPOSAL_VOTES_SNAPSHOT_AND_ESCROW_AT_NEXT_BLOCK_START_AFTER_REFUND_KEEP_RUNNING_TOTALS",
@@ -2099,7 +2127,7 @@
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "blocks_work": [
             "W11",
             "W03"
@@ -2110,12 +2138,15 @@
             "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
             "decision-register/core-function-alignment/E04_GOVERNANCE_ENTRY_POLICY_APPROVAL_2026-09-25.json",
             "decision-register/core-function-alignment/E04_REMAINING_ENTRY_RULES_APPROVAL_2026-09-25.json",
-            "../node/docs/architecture/governance-v1.md"
+            "../node/docs/architecture/governance-v1.md",
+            "approvals/P01_E05_VALUES_1_2026-09-30.json"
           ],
           "approval_records": [
             "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
-            "../node/docs/architecture/governance-v1.md"
-          ]
+            "../node/docs/architecture/governance-v1.md",
+            "approvals/P01_E05_VALUES_1_2026-09-30.json"
+          ],
+          "remaining_choices": []
         },
         {
           "id": "D11-Q03",
@@ -2893,9 +2924,9 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 7,
-    "partially_approved_policy_questions": 14,
-    "approved_policy_questions": 5,
+    "fully_open_policy_questions": 6,
+    "partially_approved_policy_questions": 12,
+    "approved_policy_questions": 8,
     "required_records": 8
   },
   "supersessions": [
