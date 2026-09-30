@@ -2,7 +2,7 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains six OPEN policy questions, 12 PARTIALLY_APPROVED policy questions, eight APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains four OPEN policy questions, 13 PARTIALLY_APPROVED policy questions, nine APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
@@ -27,9 +27,13 @@ Gate references: G14, G19.
 
 **Recorded approval scope and historical implementation context:** Corrected adaptive controller selected. Atomic epoch issuance and explicit observation inputs authorized for local implementation.
 
-### D01-Q01 — OPEN
+### D01-Q01 — PARTIALLY_APPROVED
 
 Which production controller version, gains, bounds, initial state and initial command apply?
+
+Approved portion (P01, 30 September 2026): base and ceiling 1,000 DRT a block, 17,280,000 DRT per 17,280-block epoch (about 6.31 billion DRT a year); floor 500 DRT a block; a 50% utilization target; the first epoch's command equals the base ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
+
+Remaining inputs: soft and hard gains, integral limits, the sample window and the shock threshold, calibrated to the approved level (E05).
 
 Required output: Production controller configuration.
 
@@ -89,9 +93,13 @@ Gate references: G14, G19.
 
 **Recorded approval scope and historical implementation context:** One finalized block per reward interval, using parent finalized state. Explicit N finalized blocks per issuance epoch. Even per-bucket scheduling gives extra units to first blocks. Separate split reserve. Batch 8 makes stake and membership changes effective at H+2.
 
-### D03-Q01 — OPEN
+### D03-Q01 — PARTIALLY_APPROVED
 
 What production epoch length N and observation sampling windows apply?
+
+Approved portion (P01, 30 September 2026): 17,280 blocks, one day at 5-second blocks, with one observation per epoch under observation contract v1 ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
+
+Remaining inputs: the controller's sample window, with D01-Q01.
 
 Required output: Production issuance timing matrix.
 
@@ -109,7 +117,9 @@ Gate references: G10, G11, G12, G14, G20.
 
 Which fee denomination, metering, formula, prices, bounds and tips apply?
 
-Account creation fee: a field of the signed ordinary fee profile, committed through `fee_profile_digest` ([account model v2](../node/docs/architecture/account-model-v2.md), 26 September 2026). Governance sets new fee profile versions within genesis bounds ([governance v1](../node/docs/architecture/governance-v1.md), 27 September 2026). Production values and bounds remain unset.
+Account creation fee: a field of the signed ordinary fee profile, committed through `fee_profile_digest` ([account model v2](../node/docs/architecture/account-model-v2.md), 26 September 2026). Governance sets new fee profile versions within genesis bounds ([governance v1](../node/docs/architecture/governance-v1.md), 27 September 2026).
+
+Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT, and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)). The gas price, per-resource costs and their bounds follow from the metering and come back for confirmation.
 
 Required output: Fee parameter specification.
 
@@ -195,7 +205,9 @@ Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATI
 
 Timing (P01, 30 September 2026): about 5-second blocks, `timeout_commit` 4 s with the upstream propose (3 s), prevote (1 s) and precommit (1 s) timeouts ([E05 values, first set](approvals/P01_E05_VALUES_1_2026-09-30.json)).
 
-Remaining inputs: mempool, queue and peer capacity values, fault assumptions, and the state-sync trust source, trust period, snapshot peers, interval and retention (E05).
+Snapshots (P01, 30 September 2026): every 17,280 blocks (daily), keeping three ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
+
+Remaining inputs: mempool, queue and peer capacity values, fault assumptions, and the state-sync trust source, trust period and snapshot peers (E05).
 
 Required output: Consensus operating specification.
 
@@ -249,7 +261,9 @@ Approved portion (P01, 29 September 2026): genesis creates a fixed liquid amount
 
 Recorded approval: [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json).
 
-Remaining inputs: the bootstrap amount (E05) and the recipient rows (D08-Q03).
+Amount (P01, 30 September 2026): 1,000,000 DRT ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
+
+Remaining inputs: the recipient rows (D08-Q03).
 
 Required output: DRT genesis policy.
 
@@ -275,7 +289,7 @@ Gate references: G01, G02, G04, G05, G07, G08, G15, G16, G17, G18, G21, G22, G30
 
 **Recorded approval scope and historical implementation context:** All seven Batch 8 rules approved: effective bonded power; permissioned initial admission with key proof; funded self-bond and capacity checks; H+2 changes; owner-specific unbonding held through both evidence limits, margins and penalty settlement; authorized key rotation; atomic recovery. Batch 9 penalty values are synthetic.
 
-### D09-Q01 — PARTIALLY_APPROVED
+### D09-Q01 — APPROVED
 
 What minimum self-bond, maximum active set and operator-registry amendment authority apply?
 
@@ -283,7 +297,7 @@ Approved portion (P01, 27 September 2026): governance amends the operator regist
 
 Recorded approval: [governance v1](../node/docs/architecture/governance-v1.md).
 
-Remaining inputs: production `min_self_bond` and `max_active` values and their genesis bounds (E05).
+Values (P01, 30 September 2026): `max_active` 16, governed between 4 and 32; `min_self_bond` 100,000 DGT, governed between 10,000 and 1,000,000 DGT ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
 
 Required output: Validator admission configuration.
 
@@ -371,6 +385,8 @@ Evidence: [batch-2/IDENTITY_DECISION.json](batch-2/IDENTITY_DECISION.json), [bat
 
 Which production timings and remaining signing, fee, custody and migration inputs complete the approved recovery contract?
 
+Account template timing (P01, 30 September 2026): recovery delay, finalization window, policy delay and policy window of 120,960 blocks (7 days) each, and a 17,280-block (1-day) submission lifetime ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
+
 Required output: Account recovery specification.
 
 Proposed owner role: Protocol cryptography lead with wallet and SDK leads. Named assignment and reviewer remain as recorded in the structured register.
@@ -433,9 +449,11 @@ Which actions, parameter bounds, treasury powers, emergency powers and upgrade o
 
 Approved portions: transaction freeze while consensus continues; separate resume; persistent upgrade hold; three signatures from five independent custodians with distinct freeze/resume keys; measured height-based validity windows; continued mandatory transitions; evidence-bound resume; separate candidate-specific upgrade clearance; and a separate full-halt procedure. Routine governance (27 September 2026): the action classes are parameter change and validator registry; the governed parameters are new ordinary fee profile versions (gas price, resource costs, account creation fee), `min_self_bond` and `max_active`, each within genesis bounds, and governance is the fee authority; everything else, including where fees go, changes only by upgrade; upgrades stay root-signed only; treasury spending is POST MAINNET. Upgrade authority (30 September 2026): a separate group of five upgrade custodians, distinct from the emergency custodians, with three SLH-DSA signatures to admit and three fresh ones to activate, and a fixed minimum notice between admission and activation; the configuration check refuses an upgrade key that holds an emergency role.
 
-Approvals: [initial emergency rules](decision-register/emergency-transaction-freeze/policy/APPROVAL.json), [six additional recommendations](decision-register/emergency-release-staging/policy/APPROVAL.json), [governance v1](../node/docs/architecture/governance-v1.md), [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
+Values (P01, 30 September 2026): an upgrade activates at least 120,960 blocks (7 days) after admission; genesis bounds of 4 to 32 for `max_active`, 10,000 to 1,000,000 DGT for `min_self_bond`, and 1 to 100 DRT for the account creation fee, with a basic transfer governed between 0.1 and 10 DRT.
 
-Remaining inputs: custodian names, keys and epochs; numeric timing limits; acceptance of production control formats; upgrade-clearance membership and threshold; the upgrade custodians, the notice length and the production upgrade policy (schema 2); halt/restart authority; genesis bounds for each governed parameter; and recovery authorities. Version 2 emergency bindings and the first actual receipt-index upgrade executor are implemented with development-only inputs. Cross-binary and production qualification remain open. Use the [custodian intake packet](decision-register/emergency-upgrade-execution/custody/INTAKE.md) to supply public records. This implementation adds no policy approval.
+Approvals: [initial emergency rules](decision-register/emergency-transaction-freeze/policy/APPROVAL.json), [six additional recommendations](decision-register/emergency-release-staging/policy/APPROVAL.json), [governance v1](../node/docs/architecture/governance-v1.md), [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json), [E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json).
+
+Remaining inputs: custodian names, keys and epochs; numeric timing limits; acceptance of production control formats; upgrade-clearance membership and threshold; the upgrade custodians and the production upgrade policy (schema 2); halt/restart authority; genesis bounds for the gas price and per-resource costs; and recovery authorities. Version 2 emergency bindings and the first actual receipt-index upgrade executor are implemented with development-only inputs. Cross-binary and production qualification remain open. Use the [custodian intake packet](decision-register/emergency-upgrade-execution/custody/INTAKE.md) to supply public records. This implementation adds no policy approval.
 
 Required output: Governance authority matrix.
 

@@ -1,0 +1,58 @@
+{
+  "decision_id": "P01-2026-09-30-E05-VALUES-2",
+  "approved": "2026-09-30",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 values, second set: validators, recovery, upgrades, issuance, fees and bootstrap"
+  },
+  "packet_ref": "E05_INTAKE.md",
+  "decisions": [
+    {
+      "question": "D09-Q01",
+      "selected": "16 active, bounds 4 to 32; 100,000 DGT self-bond, bounds 10,000 to 1,000,000 DGT",
+      "values": {"max_active": "16", "bounds_max_active": {"min": "4", "max": "32"}, "min_self_bond": "100000000000", "bounds_min_self_bond": {"min": "10000000000", "max": "1000000000000"}},
+      "note": "Self-bond values are uDGT. The genesis builder sets reward_v2.max_validators to at least 32."
+    },
+    {
+      "question": "D10-Q02",
+      "selected": "7 days each, 1-day submissions",
+      "values": {"template_recovery_delay": "120960", "template_finalization_window": "120960", "template_policy_delay": "120960", "template_policy_window": "120960", "template_submission_lifetime": "17280"}
+    },
+    {
+      "question": "D11-Q03",
+      "selected": "7 days",
+      "values": {"upgrade_notice_blocks": "120960"},
+      "note": "Carried by the production upgrade policy (schema 2), which is not implemented yet."
+    },
+    {
+      "question": "D03-Q01",
+      "selected": "1 day",
+      "values": {"epoch_blocks": "17280"}
+    },
+    {
+      "question": "D06-Q02",
+      "selected": "Daily, keep 3",
+      "values": {"snapshot_interval_blocks": "17280", "snapshot_keep": "3"}
+    },
+    {
+      "question": "D01-Q01",
+      "selected": "1,000 DRT per block; 0.5x to 1x with base as the ceiling; 50% utilization target",
+      "values": {"controller_base_udrt": "17280000000000", "controller_min_udrt": "8640000000000", "controller_max_udrt": "17280000000000", "controller_target_ppm": "500000", "initial_epoch_budget_udrt": "17280000000000"},
+      "note": "Per 17,280-block epoch: base and ceiling 1,000 DRT a block (about 6.31 billion DRT a year), floor 500 DRT a block. Launch issuance equals the base, so the first epoch's command equals it. Gains, integral limits, the sample window and the shock threshold remain open."
+    },
+    {
+      "question": "D04-Q01",
+      "selected": "1 DRT per basic transfer, governed between 0.1 and 10 DRT; account creation 10 times a transfer",
+      "values": {"basic_transfer_fee_target_udrt": "1000000", "basic_transfer_fee_governed_range_udrt": {"min": "100000", "max": "10000000"}, "account_creation_fee_udrt": "10000000", "bounds_account_creation_fee_udrt": {"min": "1000000", "max": "100000000"}},
+      "note": "The transfer fee is a target, not a field. Engineering derives the gas price, per-resource costs and their bounds from the metering so a basic transfer costs 1 DRT and governance can move it only between 0.1 and 10 DRT, and returns them for confirmation."
+    },
+    {
+      "question": "D08-Q02",
+      "selected": "1,000,000 DRT",
+      "values": {"drt_bootstrap_total_udrt": "1000000000000"},
+      "note": "Recipient rows remain the D08-Q03 record."
+    }
+  ],
+  "does_not_authorize": ["production activation", "gate acceptance", "mainnet launch"]
+}

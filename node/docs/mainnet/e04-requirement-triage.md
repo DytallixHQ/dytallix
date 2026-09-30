@@ -95,15 +95,25 @@ E05 values, first set (30 September 2026,
 14-day evidence limits with 1-hour margins (D09-Q03); a 5% double-sign
 penalty (D09-Q04); the governance thresholds, periods and deposit (D11-Q02).
 
+E05 values, second set (30 September 2026,
+`launch/approvals/P01_E05_VALUES_2_2026-09-30.json`): 16 active validators
+within 4 to 32 and a 100,000 DGT self-bond within 10,000 to 1,000,000 DGT
+(D09-Q01); 7-day recovery template windows with 1-day submissions (D10-Q02);
+7-day upgrade notice (D11-Q03); daily epochs (D03-Q01) and snapshots keeping
+three (D06-Q02); issuance of 1,000 DRT a block as base and ceiling, 500 floor,
+50% target (D01-Q01); a 1 DRT transfer governed between 0.1 and 10 DRT and a
+10 DRT account creation fee within 1 to 100 DRT (D04-Q01); a 1,000,000 DRT
+bootstrap (D08-Q02).
+
 | Decision | Question | Rows |
 | --- | --- | --- |
 | D09-Q05 | Parameter migration. | VAL-004 |
-| D06-Q02 | Fault assumptions; state-sync trust source, trust period, snapshot peers, interval and retention; whether operator rollback is allowed. | CONS-001, SYNC-001 |
-| D01-Q01 | The controller's parameters and first command; `E_min`. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
-| D03-Q01 | Epoch length. | AC-011 |
-| D08-Q02, D08-Q03 (values, E05) | The DRT bootstrap amount and recipient rows. | BRG-001, AC-009 |
+| D06-Q02 | Fault assumptions; state-sync trust source, trust period and snapshot peers; whether operator rollback is allowed. | CONS-001, SYNC-001 |
+| D01-Q01 | The controller's gains, integral limits, sample window and shock threshold. | ECON-001, ECON-003, ORC-001, ORC-002, AC-001, AC-010 |
+| D03-Q01 | The sample window, with D01-Q01. | AC-011 |
+| D08-Q03 (records, E05) | The DRT bootstrap recipient rows. | BRG-001, AC-009 |
 | D06-Q02 (values, E05) | Mempool, queue and peer capacity values. | MEM-002 |
-| D11-Q03, D14-Q02 (records and values, E05, E06) | Upgrade custodians and notice length; the production upgrade policy (schema 2); client compatibility window. | UPG-002 |
+| D11-Q03, D14-Q02 (records and values, E05, E06) | Upgrade custodians; the production upgrade policy (schema 2); client compatibility window. | UPG-002 |
 | D12-Q01, D12-Q02 (values, E05) | Endpoint addresses and keys, rate limits; counts and hosts; alert targets and routing. | API-002, OBS-002, PERF-003 |
 
 ## Requirement rows

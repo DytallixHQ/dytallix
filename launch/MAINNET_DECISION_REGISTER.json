@@ -20,21 +20,41 @@
         {
           "id": "D01-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which production controller version, gains, bounds, initial state and initial command apply?",
           "recommendation": "Retain the selected controller. Review one versioned parameter set with units and admissible ranges.",
-          "selected_value": null,
+          "selected_value": {
+            "controller": "SELECTED_CORRECTED_ADAPTIVE_CONTROLLER",
+            "epoch_blocks": 17280,
+            "base_udrt_per_epoch": "17280000000000",
+            "min_udrt_per_epoch": "8640000000000",
+            "max_udrt_per_epoch": "17280000000000",
+            "target_utilization_ppm": 500000,
+            "initial_command_udrt": "17280000000000",
+            "gains": null,
+            "integral_limits": null,
+            "window_samples": null,
+            "shock_threshold_ppm": null
+          },
           "owner_role_proposed": "Protocol and economics lead",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W01"
           ],
           "blocking_output": "Production controller configuration",
           "evidence_refs": [
             "snapshots/dytallix-node/docs/mainnet/specification-decisions.md",
-            "batch-6/issuance-timing/APPROVAL.json"
+            "batch-6/issuance-timing/APPROVAL.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+          ],
+          "approved_portion": "Issuance level (P01, 30 September 2026): base and ceiling 1,000 DRT a block (17,280,000 DRT per 17,280-block epoch, about 6.31 billion DRT a year), floor 500 DRT a block, a 50% utilization target, and a first command equal to the base.",
+          "remaining_choices": [
+            "Soft and hard gains, integral limits, the sample window and the shock threshold, calibrated to the approved level (E05)"
+          ],
+          "approval_records": [
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ]
         },
         {
@@ -263,14 +283,18 @@
         {
           "id": "D03-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What production epoch length N and observation sampling windows apply?",
           "recommendation": "Review explicit counts and units with the controller. Do not infer N from a local timer.",
-          "selected_value": null,
+          "selected_value": {
+            "epoch_blocks": 17280,
+            "observation": "OBSERVATION_CONTRACT_V1",
+            "sampling_window_samples": null
+          },
           "owner_role_proposed": "Protocol lead",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W03"
           ],
@@ -278,7 +302,15 @@
           "evidence_refs": [
             "batch-6/integration-followup/APPROVAL.json",
             "batch-6/issuance-timing/APPROVAL.json",
-            "batch-8/implementation/APPROVAL.json"
+            "batch-8/implementation/APPROVAL.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
+          ],
+          "approved_portion": "Epoch length (P01, 30 September 2026): 17,280 blocks, one day at 5-second blocks; one observation per epoch under observation contract v1.",
+          "remaining_choices": [
+            "The controller's sample window (window_samples), with D01-Q01"
+          ],
+          "approval_records": [
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ]
         }
       ],
@@ -373,11 +405,23 @@
           "status": "PARTIALLY_APPROVED",
           "question": "Which fee denomination, metering, formula, prices, bounds and tips apply?",
           "recommendation": "Complete full OF-W06 production qualification and all limits retained by the local client report. Keep hosted wallet UI, live engine/RPC, light-client assurance, production values/roles/records and release acceptance separate.",
-          "selected_value": null,
+          "selected_value": {
+            "basic_transfer_fee_target_udrt": "1000000",
+            "basic_transfer_fee_governed_range_udrt": {
+              "min": "100000",
+              "max": "10000000"
+            },
+            "account_creation_fee_udrt": "10000000",
+            "account_creation_fee_bounds_udrt": {
+              "min": "1000000",
+              "max": "100000000"
+            },
+            "gas_price_and_resource_costs": "DERIVED_FROM_THE_TRANSFER_TARGET_PENDING_CONFIRMATION"
+          },
           "owner_role_proposed": "Fee accounting lead",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W04",
             "W10"
@@ -421,7 +465,8 @@
             "decision-register/ordinary-client-compatibility/REPORT.md",
             "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
             "../node/docs/architecture/account-model-v2.md",
-            "../node/docs/architecture/governance-v1.md"
+            "../node/docs/architecture/governance-v1.md",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
           "prepared_recommendation_ids": [
             "RF02"
@@ -429,14 +474,15 @@
           "prepared_recommendation_ref": "decision-register/recovery-fee-storage/PROPOSAL.json",
           "approval_records": [
             "decision-register/recovery-fee-implementation/APPROVAL.json",
-            "decision-register/ordinary-fee-implementation/APPROVAL.json"
+            "decision-register/ordinary-fee-implementation/APPROVAL.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
           "approved_fee_rule_ids": [
             "RF02"
           ],
           "approved_fee_portion": "Recovery-only fees use udrt with no tips, deterministic metering, a required versioned cost profile and measured charges. Production prices and limits remain unset.",
           "remaining_choices": [
-            "Production ordinary and recovery gas prices, minimum charges, costs and resource limits",
+            "Gas prices, per-resource costs and their bounds derived from the approved transfer target; recovery prices; minimum charges and resource limits",
             "Production profile activation and compatible role profiles",
             "Any fee model for actions outside the twelve selected ordinary actions and recovery format"
           ],
@@ -452,7 +498,8 @@
           "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
           "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
           "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
-          "approved_creation_fee_portion": "The account creation fee is a field of the signed ordinary fee profile, committed through fee_profile_digest, and only Send creates accounts (P01, 26 September 2026). Governance sets new fee profile versions (gas price, resource costs, creation fee) within genesis bounds (P01, 27 September 2026). Production values and bounds remain unset."
+          "approved_creation_fee_portion": "The account creation fee is a field of the signed ordinary fee profile, committed through fee_profile_digest, and only Send creates accounts (P01, 26 September 2026). Governance sets new fee profile versions (gas price, resource costs, creation fee) within genesis bounds (P01, 27 September 2026). Value: 10 DRT, governed between 1 and 100 DRT (P01, 30 September 2026).",
+          "approved_portion": "Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT."
         },
         {
           "id": "D04-Q02",
@@ -871,12 +918,16 @@
               "timeout_prevote": "1s",
               "timeout_precommit": "1s"
             },
-            "fault_assumptions": null
+            "fault_assumptions": null,
+            "snapshots": {
+              "interval_blocks": 17280,
+              "keep": 3
+            }
           },
           "owner_role_proposed": "Protocol lead with cryptography and network reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W06"
           ],
@@ -887,17 +938,19 @@
             "batch-10/REPORT.md",
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "../node/docs/architecture/mempool-v1.md",
-            "approvals/P01_E05_VALUES_1_2026-09-30.json"
+            "approvals/P01_E05_VALUES_1_2026-09-30.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
-          "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing, capacity, fault assumptions and synchronization values remain open.",
+          "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing (P01, 30 September 2026): about 5-second blocks. Snapshots (P01, 30 September 2026): every 17,280 blocks, keeping three. Capacity, fault assumptions and the remaining synchronization values remain open.",
           "remaining_choices": [
             "Mempool, queue and peer capacity values",
             "Fault assumptions",
-            "State-sync trust source, trust period, snapshot peers, interval and retention"
+            "State-sync trust source, trust period and snapshot peers"
           ],
           "approval_records": [
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
-            "approvals/P01_E05_VALUES_1_2026-09-30.json"
+            "approvals/P01_E05_VALUES_1_2026-09-30.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ]
         }
       ],
@@ -1124,13 +1177,13 @@
             "supply": "COUNTED_IN_GENESIS_SUPPLY",
             "recipients": "NAMED_ACCOUNTS_IN_THE_GENESIS_MANIFEST",
             "restrictions": "NONE_BEYOND_ORDINARY_DRT",
-            "amount_udrt": null,
+            "amount_udrt": "1000000000000",
             "per_account_distribution": null
           },
           "owner_role_proposed": "Genesis coordinator with custody and economics reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W08",
             "W04"
@@ -1141,12 +1194,16 @@
             "batch-6/APPROVAL.json",
             "batch-6/integration-followup/APPROVAL.json",
             "approvals/P01_E04_POLICY_2026-09-29.json",
-            "DRT_TOKENOMICS.md"
+            "DRT_TOKENOMICS.md",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
-          "approved_portion": "Genesis DRT to named accounts (P01, 29 September 2026): genesis creates a fixed liquid amount of ordinary, transferable DRT, counted in supply, assigned by the genesis manifest to named accounts such as validator operators and custody accounts.",
+          "approved_portion": "Genesis DRT to named accounts (P01, 29 September 2026): genesis creates a fixed liquid amount of ordinary, transferable DRT, counted in supply, assigned by the genesis manifest to named accounts such as validator operators and custody accounts. Amount (P01, 30 September 2026): 1,000,000 DRT.",
           "remaining_choices": [
-            "Bootstrap amount (E05)",
             "Recipient rows and custody records (D08-Q03)"
+          ],
+          "approval_records": [
+            "approvals/P01_E04_POLICY_2026-09-29.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ]
         },
         {
@@ -1259,7 +1316,7 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "recommendation": "Approve explicit funded limits and a separate registry amendment authority. Preserve admission and H+2 rules.",
           "selected_value": {
@@ -1269,14 +1326,23 @@
             "min_self_bond_authority": "GOVERNANCE_WITHIN_GENESIS_BOUNDS",
             "max_active_authority": "GOVERNANCE_WITHIN_GENESIS_BOUNDS",
             "admission_and_h_plus_2_rules": "UNCHANGED",
-            "production_min_self_bond": null,
-            "production_max_active": null,
-            "genesis_bounds": null
+            "production_min_self_bond": "100000000000",
+            "production_max_active": 16,
+            "genesis_bounds": {
+              "min_self_bond": {
+                "min": "10000000000",
+                "max": "1000000000000"
+              },
+              "max_active": {
+                "min": 4,
+                "max": 32
+              }
+            }
           },
           "owner_role_proposed": "Protocol and staking leads with validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "../node/docs/architecture/governance-v1.md",
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W09"
           ],
@@ -1286,14 +1352,14 @@
             "batch-8/POLICY_PROPOSAL.json",
             "batch-9/SCOPE.json",
             "batch-9/POLICY.md",
-            "../node/docs/architecture/governance-v1.md"
+            "../node/docs/architecture/governance-v1.md",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
-          "approved_portion": "Governance is the operator-registry amendment authority through the validator registry action class, and governs min_self_bond and max_active within genesis bounds (P01, 27 September 2026). Admission and H+2 rules are unchanged.",
-          "remaining_choices": [
-            "Production min_self_bond and max_active values and their genesis bounds (E05)"
-          ],
+          "approved_portion": "Governance is the operator-registry amendment authority through the validator registry action class, and governs min_self_bond and max_active within genesis bounds (P01, 27 September 2026). Admission and H+2 rules are unchanged. Values (P01, 30 September 2026): max_active 16 within 4 to 32; min_self_bond 100,000 DGT within 10,000 to 1,000,000 DGT.",
+          "remaining_choices": [],
           "approval_records": [
-            "../node/docs/architecture/governance-v1.md"
+            "../node/docs/architecture/governance-v1.md",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ]
         },
         {
@@ -1700,11 +1766,19 @@
           "status": "PARTIALLY_APPROVED",
           "question": "Which production timings and remaining signing, fee, custody and migration inputs complete the approved recovery contract?",
           "recommendation": "Complete full OF-W06 production qualification and all limits retained by the local client report. Keep hosted wallet UI, live engine/RPC, light-client assurance, production values/roles/records and release acceptance separate.",
-          "selected_value": null,
+          "selected_value": {
+            "account_template_timing_blocks": {
+              "recovery_delay": 120960,
+              "finalization_window": 120960,
+              "policy_delay": 120960,
+              "policy_window": 120960,
+              "submission_lifetime": 17280
+            }
+          },
           "owner_role_proposed": "Protocol cryptography lead with wallet and SDK leads",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W10"
           ],
@@ -1751,7 +1825,8 @@
             "decision-register/ordinary-client-compatibility/README.md",
             "decision-register/ordinary-client-compatibility/DECISION_STATUS.md",
             "decision-register/ordinary-client-compatibility/REPORT.md",
-            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+            "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
           "approved_requirements": [
             {
@@ -1782,7 +1857,7 @@
           "detailed_proposal_ref": "decision-register/recovery-design/PROPOSAL.json",
           "acceptance_plan_ref": "decision-register/recovery-design/ACCEPTANCE_PLAN.md",
           "remaining_choices": [
-            "Production finalized-block timing values",
+            "The template timing version and any genesis recovery account timing (operate tier)",
             "Production ordinary and recovery fee prices, resource limits and retention under D04",
             "Named guardian and sponsor custody records under D10-Q03",
             "Any required account or legacy-state migration plan"
@@ -1792,7 +1867,8 @@
             "decision-register/recovery-implementation/APPROVAL.json",
             "decision-register/recovery-signing/APPROVAL.json",
             "decision-register/recovery-fee-implementation/APPROVAL.json",
-            "decision-register/ordinary-signing-implementation/APPROVAL.json"
+            "decision-register/ordinary-signing-implementation/APPROVAL.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
           "approved_detail_ids": [
             "REC-P01",
@@ -1838,7 +1914,8 @@
           "ordinary_runtime_result_ref": "decision-register/ordinary-runtime-integration/TEST_RESULTS.json",
           "ordinary_client_boundary": "The current result records the locally checked OF-W06-CLIENT slice: explicit ordinary-v2 SDK, wallet CLI, committed node client views, genesis identity compatibility and documented local pipe-adapter acceptance. This is not an actual CometBFT engine or live RPC result. Full OF-W06 remains open for hosted wallet UI, live engine/RPC and light-client assurance, production values/roles/records and release qualification.",
           "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
-          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json"
+          "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
+          "approved_portion": "Account template timing (P01, 30 September 2026): recovery delay, finalization window, policy delay and policy window of 120,960 blocks (7 days) each; a 17,280-block (1-day) submission lifetime."
         },
         {
           "id": "D10-Q03",
@@ -2261,7 +2338,26 @@
               "other_parameters": "UPGRADE_ONLY",
               "upgrade_authority": "ROOT_SIGNED_ONLY_NO_GOVERNANCE_APPROVAL_CLASS",
               "treasury_spending": "POST_MAINNET",
-              "genesis_bound_values": null
+              "genesis_bound_values": {
+                "max_active": {
+                  "min": 4,
+                  "max": 32
+                },
+                "min_self_bond_udgt": {
+                  "min": "10000000000",
+                  "max": "1000000000000"
+                },
+                "account_creation_fee_udrt": {
+                  "min": "1000000",
+                  "max": "100000000"
+                },
+                "basic_transfer_fee_udrt": {
+                  "min": "100000",
+                  "max": "10000000"
+                },
+                "gas_price": null,
+                "resource_cost": null
+              }
             },
             "upgrade_authority": {
               "custodians": 5,
@@ -2271,7 +2367,7 @@
               "algorithm": "SLH_DSA",
               "governance_approval_class": false,
               "minimum_notice": "FIXED_BLOCKS_BETWEEN_ADMISSION_AND_ACTIVATION",
-              "minimum_notice_blocks": null,
+              "minimum_notice_blocks": 120960,
               "implementation": "PRODUCTION_UPGRADE_POLICY_SCHEMA_2",
               "names": null,
               "public_keys": null,
@@ -2281,7 +2377,7 @@
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "blocks_work": [
             "W11",
             "W02",
@@ -2299,7 +2395,8 @@
             "decision-register/emergency-release-staging/policy/NEXT_DECISIONS.json",
             "../node/docs/architecture/governance-v1.md",
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
-            "../node/docs/mainnet/upgrade-execution.md"
+            "../node/docs/mainnet/upgrade-execution.md",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2323,15 +2420,16 @@
             "Actual incident, freeze receipt, restored state, candidate and recovery evidence for any production resume.",
             "Upgrade clearance authority membership and approval threshold; exact candidate, migration, sequence, activation height and activation-path qualification.",
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
-            "Genesis bound values for each governed parameter (E05).",
+            "Genesis bounds for the gas price and per-resource costs, derived from the approved transfer fee range (E05).",
             "Recovery authorities covered by D11-Q03.",
-            "Upgrade custodian names, keys and epochs; the minimum notice in blocks; the production upgrade policy (schema 2)."
+            "Upgrade custodian names, keys and epochs; the production upgrade policy (schema 2)."
           ],
           "approval_records": [
             "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
             "decision-register/emergency-release-staging/policy/APPROVAL.json",
             "../node/docs/architecture/governance-v1.md",
-            "approvals/P01_E04_OPERATIONS_2026-09-30.json"
+            "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+            "approvals/P01_E05_VALUES_2_2026-09-30.json"
           ]
         }
       ],
@@ -2924,9 +3022,9 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 6,
-    "partially_approved_policy_questions": 12,
-    "approved_policy_questions": 8,
+    "fully_open_policy_questions": 4,
+    "partially_approved_policy_questions": 13,
+    "approved_policy_questions": 9,
     "required_records": 8
   },
   "supersessions": [

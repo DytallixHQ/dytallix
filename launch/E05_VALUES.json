@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "e05-production-value-intake",
   "as_of_commit": "848b7c4d",
-  "rule": "Every value is OPEN. `proposed` is a proposal for P01 review, never an approved or production value. Fixture values are test inputs, not recommendations.",
+  "rule": "A value is OPEN until P01 approves it; an approved value carries `approved` and its `approval_record`. `proposed` is a proposal for P01 review, never an approved or production value. Fixture values are test inputs, not recommendations.",
   "tiers": {
     "decide": "Economic, governance and security choices P01 makes.",
     "operate": "Operational settings with an engineering default; P01 confirms.",
@@ -103,9 +103,11 @@
       "couplings": "Genesis validators' self-bond must be >= min_self_bond (node/dytallix-fast-launch/node/src/consensus_settlement.rs:1878-1881). Governed within governance.parameter_bounds.min_self_bond (node/dytallix-fast-launch/node/src/governance_actions.rs:89-93), but the genesis value is not checked against those bounds. Excluded from the validator proof profile digest (node/dytallix-fast-launch/node/src/ordinary_state.rs:84-89).",
       "notes": "Go fixture additionally requires >= 10 uDGT self-bond (fixture-only rule, node/consensus/cometbft/cmd/dytallix-comet-fixture/lifecycle.go:88-91). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "100000000000",
+      "basis": "100,000 DGT: 0.01% of supply and 10 times the governance deposit; the 5% penalty costs at least 5,000 DGT.",
+      "approved": "100000000000",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "max_active",
@@ -119,9 +121,11 @@
       "couplings": "Must be <= reward_v2.max_validators (node/dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs:733-737; node/dytallix-fast-launch/node/src/governance_actions.rs:254-256). Engine genesis allows at most 64 validators (node/consensus/cometbft/internal/enginepqc/engine.go:332). Governed within parameter_bounds.max_active (max <= 64); genesis value not checked against the bounds.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "16",
-      "basis": "Room above a launch set of four to seven validators; governance can change it within its bounds."
+      "basis": "Room above a launch set of four to seven validators; governance can change it within its bounds.",
+      "approved": 16,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "evidence_max_age_blocks",
@@ -533,7 +537,9 @@
       "tier": "decide",
       "status": "OPEN",
       "proposed": null,
-      "basis": null
+      "basis": null,
+      "approved_target": "A basic transfer costs 1 DRT (1,000,000 uDRT); derive the price with the per-resource costs.",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "ordinary_minimum_gas",
@@ -915,9 +921,11 @@
       "couplings": "Governed: governance may change it within parameter_bounds (node/dytallix-fast-launch/node/src/ordinary_state.rs:59-75; node/dytallix-fast-launch/node/src/governance_actions.rs:78-87). Bounded by parameter_bounds.account_creation_fee_udrt on change; genesis value not checked against the bounds.",
       "notes": "Docs: node/docs/architecture/account-model-v2.md:197-199. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "10000000",
+      "basis": "10 DRT, ten times the 1 DRT basic transfer.",
+      "approved": "10000000",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "ordinary_max_state_bytes",
@@ -1075,9 +1083,11 @@
       "couplings": "Recovery activation = start + recovery_delay (node/crates/protocol-types/src/recovery.rs:391, 661).",
       "notes": "Each genesis recovery account carries its own RecoveryConfig; no code comparing it with the template was found. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "120960",
-      "basis": "7 days before a recovery completes, so the owner can see and cancel it."
+      "basis": "7 days before a recovery completes, so the owner can see and cancel it.",
+      "approved": 120960,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "template_finalization_window",
@@ -1091,9 +1101,11 @@
       "couplings": "Recovery expiry = activation + finalization_window (node/crates/protocol-types/src/recovery.rs:393, 662).",
       "notes": "Each genesis recovery account carries its own RecoveryConfig; no code comparing it with the template was found. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "120960",
-      "basis": "7 days to finalize after the delay."
+      "basis": "7 days to finalize after the delay.",
+      "approved": 120960,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "template_policy_delay",
@@ -1107,9 +1119,11 @@
       "couplings": "Policy change activation (node/crates/protocol-types/src/recovery.rs:417, 758).",
       "notes": "Each genesis recovery account carries its own RecoveryConfig; no code comparing it with the template was found. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "120960",
-      "basis": "7 days before a recovery policy change applies."
+      "basis": "7 days before a recovery policy change applies.",
+      "approved": 120960,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "template_policy_window",
@@ -1123,9 +1137,11 @@
       "couplings": "Policy change expiry (node/crates/protocol-types/src/recovery.rs:418, 759).",
       "notes": "Each genesis recovery account carries its own RecoveryConfig; no code comparing it with the template was found. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "120960",
-      "basis": "7 days to finalize a policy change."
+      "basis": "7 days to finalize a policy change.",
+      "approved": 120960,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "template_submission_lifetime",
@@ -1139,9 +1155,11 @@
       "couplings": "submission_expiry - height <= submission_lifetime (node/crates/protocol-types/src/recovery.rs:484); sponsor receipts retained until submission_expiry (node/dytallix-fast-launch/node/src/recovery_fees.rs:1480).",
       "notes": "Each genesis recovery account carries its own RecoveryConfig; no code comparing it with the template was found. Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 17280,
+      "basis": "1 day for guardians to collect signatures; sponsor receipts clear within a day.",
+      "approved": 17280,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "template_algorithms",
@@ -1427,7 +1445,9 @@
       "tier": "decide",
       "status": "OPEN",
       "proposed": null,
-      "basis": null
+      "basis": null,
+      "approved_target": "Governance can move a basic transfer only between 0.1 and 10 DRT; derive the price and cost bounds together.",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "bounds_resource_cost",
@@ -1443,7 +1463,9 @@
       "tier": "decide",
       "status": "OPEN",
       "proposed": null,
-      "basis": null
+      "basis": null,
+      "approved_target": "Governance can move a basic transfer only between 0.1 and 10 DRT; derive the price and cost bounds together.",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "bounds_account_creation_fee_udrt",
@@ -1457,9 +1479,17 @@
       "couplings": "Genesis creation fee not checked within.",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": {
+        "min": "1000000",
+        "max": "100000000"
+      },
+      "basis": "1 to 100 DRT, one to one hundred times the transfer target.",
+      "approved": {
+        "min": "1000000",
+        "max": "100000000"
+      },
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "bounds_min_self_bond",
@@ -1473,9 +1503,17 @@
       "couplings": "No config-time check against MAX_TOTAL_POWER; a changed lifecycle is re-validated at execution (node/dytallix-fast-launch/node/src/governance_actions.rs:252-262). Genesis min_self_bond not checked within.",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": {
+        "min": "10000000000",
+        "max": "1000000000000"
+      },
+      "basis": "10,000 to 1,000,000 DGT.",
+      "approved": {
+        "min": "10000000000",
+        "max": "1000000000000"
+      },
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "bounds_max_active",
@@ -1489,9 +1527,14 @@
       "couplings": "Not checked against reward_v2.max_validators; a governed max_active above it fails at execution (node/dytallix-fast-launch/node/src/governance_actions.rs:254-256). Genesis max_active not checked within.",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "{\"min\":4,\"max\":32}",
-      "basis": "Keeps at least four validators; at most 32."
+      "basis": "Keeps at least four validators; at most 32.",
+      "approved": {
+        "min": 4,
+        "max": 32
+      },
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "emergency_max_control_bytes",
@@ -1729,9 +1772,11 @@
       "couplings": "",
       "notes": "NOT LOCATED IN CODE. Docs say activation must be at least a fixed number of blocks after admission (an E05 value), to be carried by schema 2.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "120960",
-      "basis": "7 days for operators to install the release; urgent problems use the emergency freeze."
+      "basis": "7 days for operators to install the release; urgent problems use the emergency freeze.",
+      "approved": 120960,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "handover_authority_threshold",
@@ -1857,9 +1902,11 @@
       "couplings": "Epoch boundary when (height-1) % N == 0 (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2535, 3701); utilization capacity N x max_block_bytes (:2555-2557); block-record retention span >= 2N (:1008-1016); epoch budget spread evenly over N blocks (node/dytallix-fast-launch/node/src/runtime/issuance_timing.rs:155-181).",
       "notes": "Profile must be \"development\", version 1, decimals 6 (node/dytallix-fast-launch/node/src/runtime/issuance_timing.rs:94-98). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "17280",
-      "basis": "One issuance epoch per day at the proposed 5 s interval."
+      "basis": "One issuance epoch per day at the proposed 5 s interval.",
+      "approved": 17280,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "max_recorded_epochs",
@@ -1889,9 +1936,11 @@
       "couplings": "Split into validator 40% / staking 30% / treasury 30% / remainder reserve by code (node/dytallix-fast-launch/node/src/runtime/issuance_timing.rs:134-145).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "17280000000000",
+      "basis": "Launch issuance equals the base.",
+      "approved": "17280000000000",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "controller_target_ppm",
@@ -1905,9 +1954,11 @@
       "couplings": "Error measured against utilization derived from committed block bytes (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2521-2566).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 500000,
+      "basis": "50% utilization, the turning point on the public tokenomics page.",
+      "approved": 500000,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "controller_shock_threshold_ppm",
@@ -2097,9 +2148,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "17280000000000",
+      "basis": "1,000 DRT a block over a 17,280-block epoch, about 6.31 billion DRT a year.",
+      "approved": "17280000000000",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "controller_min_udrt",
@@ -2113,9 +2166,11 @@
       "couplings": "Emission is clamped to [min_udrt, max_udrt] (node/crates/adaptive-emission/src/lib.rs:229-230). The E04 triage names E_min under D01-Q01.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "8640000000000",
+      "basis": "500 DRT a block: issuance falls to half as blocks fill past the target.",
+      "approved": "8640000000000",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "controller_max_udrt",
@@ -2129,9 +2184,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "17280000000000",
+      "basis": "Equal to the base: issuance never exceeds the published base.",
+      "approved": "17280000000000",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "drt_bootstrap_total_udrt",
@@ -2145,9 +2202,11 @@
       "couplings": "Binding review reconciles D08-Q03 rows and the policy total with native DRT balances (node/tools/mainnet-preparation/README.md:29).",
       "notes": "No dedicated field: the amount is the sum of per-account rows, which are D08-Q03 records (excluded). Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "1000000000000",
+      "basis": "1,000,000 DRT: operator startup (7 x 1,000 DRT) and about 90,000 new accounts at 11 DRT.",
+      "approved": "1000000000000",
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "engine_block_max_bytes",
@@ -2809,9 +2868,11 @@
       "couplings": "Snapshot written when height % interval == 0 (node/dytallix-fast-launch/node/src/snapshot.rs:277).",
       "notes": "state-sync-v1.md:116-119: no defaults. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "17280",
-      "basis": "One snapshot a day at 5 s blocks."
+      "basis": "One snapshot a day at 5 s blocks.",
+      "approved": 17280,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "snapshot_keep",
@@ -2825,9 +2886,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "3",
-      "basis": "Three days of snapshots."
+      "basis": "Three days of snapshots.",
+      "approved": 3,
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
       "name": "block_history",
