@@ -2,8 +2,8 @@
 
 Engineering task E05 (genesis from approved inputs), step b. This packet lists
 every production value and record that genesis needs, where each goes and
-what the code enforces, with proposals for P01 review. Nothing in it is
-approved. Decision IDs refer to
+what the code enforces, with proposals for P01 review. A value stays open
+until P01 approves it; approved values are marked. Decision IDs refer to
 [MAINNET_DECISION_REGISTER.json](MAINNET_DECISION_REGISTER.json).
 
 ## How it works
@@ -50,8 +50,9 @@ approved. Decision IDs refer to
 ## Values to decide
 
 The block interval is approved at about 5 seconds (`timeout_commit` 4 s); every
-block count follows from it. Approved values are marked; the first set is
-[recorded here](approvals/P01_E05_VALUES_1_2026-09-30.json).
+block count follows from it. Approved values are marked and recorded in the
+[first](approvals/P01_E05_VALUES_1_2026-09-30.json) and
+[second](approvals/P01_E05_VALUES_2_2026-09-30.json) sets.
 
 | Area | Value | Proposal | Basis or input needed |
 | --- | --- | --- | --- |
@@ -62,16 +63,19 @@ block count follows from it. Approved values are marked; the first set is
 | Governance | `quorum_bps`, `approval_bps`, `veto_bps` | **Approved:** 3,340; 5,000; 3,340 | Common CometBFT-chain thresholds |
 | | `voting_period_blocks`, `deposit_period_blocks`, `timelock_blocks` | **Approved:** 7 days; 7 days; 2 days | |
 | | `minimum_deposit_udgt` | **Approved:** 10,000 DGT | 0.001% of supply, refunded at every outcome |
-| Validators | `max_active` | 16 | Room above a launch set of four to seven |
-| | `bounds_max_active` | 4 to 32 | Never fewer than four validators |
-| | `min_self_bond`, `bounds_min_self_bond` | — | Input needed: expected operator count and stake |
-| Issuance | `epoch_blocks` | 17,280 (1 day) | |
-| | controller base, minimum, maximum, target, gains, window; `initial_epoch_budget_udrt` | — | Input needed: target annual DRT issuance and how far it may adapt |
-| Fees | gas prices, per-resource costs, `account_creation_fee_udrt`, governance and recovery costs, their bounds | — | Input needed: target DRT cost of a basic transfer and of account creation; the costs follow from the metering model |
-| DRT bootstrap | `drt_bootstrap_total_udrt` | — | Input needed: follows from the fees and the startup transactions (registrations, bonds, first governance) |
-| Recovery template | `template_recovery_delay`, `_finalization_window`, `_policy_delay`, `_policy_window` | 7 days each | Time for an owner to see and cancel a recovery |
-| | `template_submission_lifetime` | — | Input needed: how long a signed recovery submission stays valid; sponsor receipts are kept until it expires |
-| Upgrades | `upgrade_notice_blocks` | 7 days | Time to install a release; urgent problems use the freeze |
+| Validators | `max_active` | **Approved:** 16 | Room above a launch set of four to seven |
+| | `bounds_max_active` | **Approved:** 4 to 32 | Never fewer than four validators |
+| | `min_self_bond`, `bounds_min_self_bond` | **Approved:** 100,000 DGT; 10,000 to 1,000,000 DGT | 0.01% of supply and 10 times the governance deposit; the 5% penalty costs at least 5,000 DGT |
+| Issuance | `epoch_blocks` | **Approved:** 17,280 (1 day) | |
+| | `base_udrt`, `max_udrt`, `min_udrt`, `target_ppm`, `initial_epoch_budget_udrt` | **Approved:** 1,000 DRT a block as base and ceiling (about 6.31 billion DRT a year); 500 floor; 50% target; first command equal to the base | Launch issuance equals the published base and never exceeds it; it falls toward half as blocks fill past the target |
+| | gains, integral limits, `window_samples`, `shock_threshold_ppm` | — | Engineering proposal next: calibrate to the approved level |
+| Fees | basic transfer | **Approved target:** 1 DRT, governed between 0.1 and 10 DRT | Full blocks of transfers burn about 10% of base issuance; the gas price and per-resource costs follow from the metering and come back for confirmation |
+| | `account_creation_fee_udrt`, bounds | **Approved:** 10 DRT; 1 to 100 DRT | Accounts are permanent state |
+| | governance and recovery costs, their bounds | — | Follow from the metering model |
+| DRT bootstrap | `drt_bootstrap_total_udrt` | **Approved:** 1,000,000 DRT | Operator startup (7 × 1,000 DRT) and about 90,000 new accounts at 11 DRT; validators earn from block 1. Rows are D08-Q03 |
+| Recovery template | `template_recovery_delay`, `_finalization_window`, `_policy_delay`, `_policy_window` | **Approved:** 7 days each | Time for an owner to see and cancel a recovery |
+| | `template_submission_lifetime` | **Approved:** 1 day (17,280) | Guardians have a day to collect signatures; sponsor receipts clear within a day |
+| Upgrades | `upgrade_notice_blocks` | **Approved:** 7 days | Time to install a release; urgent problems use the freeze |
 | Clients | `client_compatibility_window` | — | Input needed (E06): how long a client release must stay compatible |
 
 ## Operational settings (100)
@@ -81,9 +85,9 @@ state sync, snapshots, the HTTP adapter and client channel, and the
 supervisor's timings. The proposal is the upstream CometBFT default or the
 node's current default. Proposed now: upstream `timeout_propose` 3 s,
 `timeout_prevote` and `timeout_precommit` 1 s, a state-sync trust period of
-168 h (below the evidence age, as the engine requires), and a daily snapshot
-(17,280 blocks) keeping three. The rest stay at their defaults until the
-capacity tests (T05) set them.
+168 h (below the evidence age, as the engine requires). A daily snapshot
+(17,280 blocks) keeping three is approved. The rest stay at their defaults
+until the capacity tests (T05) set them.
 
 ## Measured values (14)
 
