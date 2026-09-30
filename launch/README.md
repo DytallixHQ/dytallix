@@ -10,6 +10,7 @@ The master records each requirement, completed work, evidence, remaining work, a
 - [Latest implementation and qualification](decision-register/emergency-upgrade-execution/REPORT.md)
 - [Current production evidence packet](decision-register/emergency-release-staging/records/REPORT.md)
 - [Public custodian intake](decision-register/emergency-upgrade-execution/custody/INTAKE.md)
+- [Upgrade custodian intake](custody/upgrade/INTAKE.md)
 - [Current emergency policy approval](decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md)
 - [Production decision input packet](decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md)
 - [Decision and required-record register](DECISIONS_REQUIRED.md)

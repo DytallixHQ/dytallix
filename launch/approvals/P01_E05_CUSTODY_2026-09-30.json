@@ -1,0 +1,19 @@
+{
+  "decision_id": "P01-2026-09-30-E05-CUSTODY",
+  "approved": "2026-09-30",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05-c: production SLH-DSA parameter set for custodian keys"
+  },
+  "packet_ref": "custody/upgrade/INTAKE.md",
+  "decisions": [
+    {
+      "question": "D11-Q03",
+      "selected": "SLH-DSA-SHAKE-256s",
+      "rule": "Production root, emergency and upgrade custodian keys use SLH-DSA-SHAKE-256s, the parameter set the node's root verifier implements: 64-byte public keys and 29,792-byte signatures. Three hex-encoded signatures take 178,752 bytes, inside the node's 262,144-byte transaction bound.",
+      "values": {"parameter_set": "SLH-DSA-SHAKE-256s"}
+    }
+  ],
+  "does_not_authorize": ["custodian appointments", "key ceremonies", "production activation", "gate acceptance", "mainnet launch"]
+}
