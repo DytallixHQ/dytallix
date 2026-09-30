@@ -411,8 +411,9 @@ pub(crate) fn initialize_consensus(
     config_bytes: &[u8],
 ) -> Result<Initialization> {
     ensure!(
-        !config_bytes.is_empty() && config_bytes.len() <= 65_536,
-        "Consensus configuration must contain 1 through 65536 bytes"
+        !config_bytes.is_empty()
+            && config_bytes.len() <= crate::consensus_settlement::MAX_CONFIG_BYTES,
+        "Consensus configuration is empty or exceeds its bound"
     );
     initialize_mode(storage, chain_id, Some(bytes), Some(config_bytes))
 }
@@ -425,7 +426,8 @@ pub(crate) fn initialize_consensus_with_root(
     root: Option<&crate::root_genesis::PreparedRootGenesis>,
 ) -> Result<Initialization> {
     ensure!(
-        !config_bytes.is_empty() && config_bytes.len() <= 65_536,
+        !config_bytes.is_empty()
+            && config_bytes.len() <= crate::consensus_settlement::MAX_CONFIG_BYTES,
         "Consensus configuration size differs"
     );
     initialize_mode_with_root(
@@ -804,7 +806,13 @@ mod tests {
             assert!(snapshot(&storage).is_empty());
         }
         let (_dir, mut storage) = empty();
-        assert!(initialize_consensus(&mut storage, "test", SOURCE, &vec![1; 65_537]).is_err());
+        assert!(initialize_consensus(
+            &mut storage,
+            "test",
+            SOURCE,
+            &vec![1; crate::consensus_settlement::MAX_CONFIG_BYTES + 1]
+        )
+        .is_err());
         assert!(snapshot(&storage).is_empty());
     }
     #[test]

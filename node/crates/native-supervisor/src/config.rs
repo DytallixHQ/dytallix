@@ -679,8 +679,14 @@ impl NativeServiceConfig {
                 }
             }
         }
+        // The consensus configuration carries the genesis recovery accounts
+        // (E05-a), so it has the application's larger bound.
+        ensure!(
+            self.consensus_config.max_bytes <= dytallix_fast_node::consensus_settlement::MAX_CONFIG_BYTES,
+            "Configuration bound exceeds protocol limit"
+        );
+        self.consensus_config.read()?;
         for input in [
-            &self.consensus_config,
             &self.root_config,
             &self.emergency_verifier_config,
             &self.candidate_config,

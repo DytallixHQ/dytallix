@@ -24,7 +24,7 @@ use sha2::{Digest, Sha512};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-const MAX_CONFIG: u64 = 65_536;
+const MAX_CONFIG: u64 = dytallix_fast_node::consensus_settlement::MAX_CONFIG_BYTES as u64;
 const MAX_GENESIS: u64 = 8 * 1024 * 1024;
 
 /// The checks that need the owned root helper, which this tool cannot run.

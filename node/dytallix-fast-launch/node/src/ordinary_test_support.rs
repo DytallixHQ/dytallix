@@ -90,7 +90,8 @@ pub(crate) fn fee_profile(config: &ConsensusConfig) -> FeeProfile {
         max_block_signature_checks: 100,
         max_fee_cap: 2000,
         limits: Limits {
-            max_wire_bytes: 65_536,
+            // Its base64 transport fits the 65,536-byte transport bound (E05-a).
+            max_wire_bytes: 48_000,
             max_actions: 16,
             max_identifier_bytes: 128,
             max_data_bytes: 1024,

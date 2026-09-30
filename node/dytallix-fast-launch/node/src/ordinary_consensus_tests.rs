@@ -426,7 +426,8 @@ fn ordinary_profile(config: &ConsensusConfig) -> OrdinaryFeeProfile {
         max_block_signature_checks: 100,
         max_fee_cap: 2000,
         limits: Limits {
-            max_wire_bytes: 65_536,
+            // Its base64 transport fits the 65,536-byte transport bound (E05-a).
+            max_wire_bytes: 48_000,
             max_actions: 16,
             max_identifier_bytes: 128,
             max_data_bytes: 1024,
@@ -573,7 +574,8 @@ pub(crate) fn local_governance_candidate(
             resource_cost: Bounds { min: 0, max: 1_000_000 },
             account_creation_fee_udrt: Bounds { min: 1, max: 1_000_000 },
             min_self_bond: Bounds { min: 1, max: 1_000_000_000 },
-            max_active: Bounds { min: 1, max: 64 },
+            // At most the genesis reward_v2.max_validators (E05-a).
+            max_active: Bounds { min: 1, max: 4 },
         },
         entry_policy: EntryPolicy {
             proposer_eligibility:
@@ -3628,6 +3630,9 @@ mod governance {
 
     fn governed() -> Fixture {
         let mut f = Fixture::new();
+        // The fee cap covers the largest fee at the governed price bound
+        // (E05-a): 1,000 gas at a gas price of up to 100.
+        f.config.ordinary.as_mut().unwrap().fee_profile.max_fee_cap = 100_000;
         let digest: [u8; 32] = Sha256::digest(&f.genesis).into();
         f.config.governance = Some(local_governance_candidate(&f, digest, 1));
         f
@@ -4440,4 +4445,162 @@ fn typed_reads_report_an_account_its_bonds_and_the_validator_set() {
     assert!(!fresh.funded && fresh.liquid_udgt == 0 && fresh.nonce == 0);
     let testnet = AccountAddress::from_account_id(AddressNetwork::Testnet, fixture.secondary.id()).encode();
     assert!(app.query_account_summary(&testnet).is_err());
+}
+
+/// E05-a: genesis capacity and the configuration couplings
+/// (`docs/mainnet/e05-genesis-checks.md`).
+mod e05_checks {
+    use super::*;
+
+    /// The fixture with `extra` more registered genesis accounts, in the
+    /// application genesis and the recovery book, bound to the new digest.
+    fn with_accounts(f: &Fixture, extra: usize) -> (ConsensusConfig, Vec<u8>) {
+        let keys: Vec<Key> = (0..extra).map(|_| Key::new()).collect();
+        let mut value: serde_json::Value = serde_json::from_slice(&f.genesis).unwrap();
+        for key in &keys {
+            value["accounts"].as_array_mut().unwrap().push(serde_json::json!({
+                "address": key.address(),
+                "balances": {"udgt": "0", "udrt": "0"},
+                "vesting": {"kind": "unlocked"}
+            }));
+        }
+        let genesis = serde_json::to_vec(&value).unwrap();
+        let digest: [u8; 32] = Sha256::digest(&genesis).into();
+        let mut config = f.config.clone();
+        config.app_state_sha256 = hex::encode(digest);
+        let book = config.recovery.take().unwrap();
+        let existing: Vec<RecoveryAccount> =
+            book.accounts.all().unwrap().values().map(|a| (**a).clone()).collect();
+        let template = existing[0].recovery.config.clone();
+        // A genesis account's key is its origin key.
+        let origins = book.origins.all().unwrap();
+        let mut members: Vec<(String, [u8; 32], KeyIdentity)> = existing
+            .iter()
+            .map(|a| {
+                let id = a.recovery.domain.account_id;
+                (a.address.clone(), id, (*origins[&hex::encode(id)]).clone())
+            })
+            .collect();
+        members.extend(keys.iter().map(|k| (k.address(), k.id(), k.identity.clone())));
+        let accounts = members
+            .iter()
+            .map(|(address, id, identity)| RecoveryAccount {
+                address: address.clone(),
+                sponsor_nonce: 0,
+                recovery: RecoveryState::new(
+                    RecoveryDomain {
+                        network: 3,
+                        chain_id: CHAIN.into(),
+                        genesis_digest: digest,
+                        account_id: *id,
+                    },
+                    template.clone(),
+                    identity.clone(),
+                    0,
+                )
+                .unwrap(),
+            })
+            .collect();
+        let mut next = RecoveryBook::new(book.profile.clone(), accounts).unwrap();
+        next.origins = members
+            .iter()
+            .map(|(_, id, identity)| (hex::encode(id), identity.clone()))
+            .collect();
+        config.recovery = Some(next);
+        (config, genesis)
+    }
+
+    #[test]
+    fn a_launch_sized_genesis_fits_the_configuration_bound() {
+        let f = Fixture::new();
+        // Twelve accounts: more than the old 65,536-byte bound could hold.
+        let (config, genesis) = with_accounts(&f, 9);
+        let bytes = serde_json::to_vec(&config).unwrap().len();
+        assert!(bytes > 65_536 && bytes < MAX_CONFIG_BYTES, "{bytes}");
+        config.validate().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let mut app =
+            ConsensusApplication::open(&dir.path().join("db"), config.clone(), genesis.clone()).unwrap();
+        app.init_chain(CHAIN, 1, &genesis, &config.validators).unwrap();
+    }
+
+    #[test]
+    fn a_transport_bound_must_carry_a_full_envelope() {
+        let mut f = Fixture::new();
+        // 65,536 bytes hold the 43-byte JSON and 65,492 base64 characters.
+        f.config.ordinary.as_mut().unwrap().fee_profile.limits.max_wire_bytes = 49_119;
+        f.config.validate().unwrap();
+        f.config.ordinary.as_mut().unwrap().fee_profile.limits.max_wire_bytes = 49_120;
+        let error = f.config.validate().unwrap_err().to_string();
+        assert!(error.contains("full-size envelope"), "{error}");
+    }
+
+    #[test]
+    fn fee_caps_must_cover_the_largest_signable_fee() {
+        let mut f = Fixture::new();
+        // 1,000 gas at a gas price of 2.
+        f.config.ordinary.as_mut().unwrap().fee_profile.max_fee_cap = 1_999;
+        let error = f.config.validate().unwrap_err().to_string();
+        assert!(error.contains("Ordinary fee cap"), "{error}");
+        let mut f = Fixture::new();
+        let book = f.config.recovery.as_mut().unwrap();
+        book.profile.max_fee_cap = u128::from(book.profile.max_transaction_gas * book.profile.gas_price) - 1;
+        let error = f.config.validate().unwrap_err().to_string();
+        assert!(error.contains("Recovery fee cap"), "{error}");
+    }
+
+    fn governed() -> Fixture {
+        let mut f = Fixture::new();
+        f.config.ordinary.as_mut().unwrap().fee_profile.max_fee_cap = 100_000;
+        let digest: [u8; 32] = Sha256::digest(&f.genesis).into();
+        f.config.governance = Some(local_governance_candidate(&f, digest, 1));
+        f
+    }
+
+    fn governance(config: &mut ConsensusConfig) -> &mut GovernanceCandidateConfig {
+        config.governance.as_mut().unwrap()
+    }
+
+    #[test]
+    fn governed_values_need_usable_thresholds_caps_and_genesis_bounds() {
+        let base = governed();
+        base.config.validate().unwrap();
+        let refused = |change: &dyn Fn(&mut ConsensusConfig), expected: &str| {
+            let mut config = base.config.clone();
+            change(&mut config);
+            let error = config.validate().unwrap_err().to_string();
+            assert!(error.contains(expected), "{expected}: {error}");
+        };
+        refused(&|c| governance(c).ballot.veto_bps = 0, "from 1 through 10000");
+        refused(&|c| governance(c).ballot.quorum_bps = 0, "from 1 through 10000");
+        refused(&|c| governance(c).ballot.approval_bps = 0, "from 1 through 10000");
+        // A governed gas price of 101 would need a larger cap.
+        refused(&|c| governance(c).parameter_bounds.gas_price.max = 101, "Ordinary fee cap");
+        refused(&|c| governance(c).parameter_bounds.gas_price.min = 3, "outside its governance bounds");
+        refused(&|c| governance(c).parameter_bounds.min_self_bond.min = 11, "Genesis validator limits");
+        refused(&|c| governance(c).parameter_bounds.max_active.max = 3, "Genesis validator limits");
+    }
+
+    #[test]
+    fn a_governed_max_active_bound_must_fit_the_reward_capacity() {
+        let mut f = governed();
+        // The fixture genesis tracks four validators.
+        f.config.governance.as_mut().unwrap().parameter_bounds.max_active.max = 5;
+        f.config.validate().unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let error = ConsensusApplication::open(&dir.path().join("db"), f.config.clone(), f.genesis.clone())
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(error.contains("reward validator capacity"), "{error}");
+    }
+
+    #[test]
+    fn evidence_seconds_must_fit_the_engine_duration() {
+        let mut f = Fixture::new();
+        let lifecycle = f.config.lifecycle.as_mut().unwrap();
+        lifecycle.evidence_max_age_seconds = (i64::MAX / 1_000_000_000) as u64;
+        let error = f.config.validate().unwrap_err().to_string();
+        assert!(error.contains("engine duration"), "{error}");
+    }
 }

@@ -45,7 +45,26 @@ fn decode<T: Serialize + for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, R
     Ok(value)
 }
 
-fn costs(values: &FeeValues) -> impl Iterator<Item = u64> + '_ {
+/// The governed values a fee profile carries now (E05-a: genesis values
+/// must sit inside their governance bounds).
+pub(crate) fn fee_values(profile: &FeeProfileV3) -> FeeValues {
+    let base = &profile.base;
+    FeeValues {
+        gas_price: base.gas_price,
+        transaction_overhead: base.transaction_overhead,
+        receipt_metadata_cost: base.receipt_metadata_cost,
+        wire_byte_cost: base.wire_byte_cost,
+        read_byte_cost: base.read_byte_cost,
+        write_byte_cost: base.write_byte_cost,
+        action_costs: base.action_costs,
+        signature_costs: base.signature_costs.clone(),
+        validator_proof_costs: base.validator_proof_costs.clone(),
+        governance_action_costs: profile.governance_action_costs,
+        account_creation_fee_udrt: base.account_creation_fee_udrt,
+    }
+}
+
+pub(crate) fn costs(values: &FeeValues) -> impl Iterator<Item = u64> + '_ {
     [
         values.transaction_overhead,
         values.receipt_metadata_cost,

@@ -62,7 +62,7 @@ class BindingTests(unittest.TestCase):
             with self.subTest(native=bad):self.assertTrue(self.malformed_runtime(bad,self.a)['errors'])
             with self.subTest(application=bad):self.assertTrue(self.malformed_runtime(self.g,bad)['errors'])
     def test_exact_application_byte_limit(self):
-        nr=c.n.canonical(self.g);self.a['app_state_sha256']=c.digest(nr);ar=c.n.canonical(self.a);ar+=b' '*(65537-len(ar));rr=c.n.canonical(self.r)
+        nr=c.n.canonical(self.g);self.a['app_state_sha256']=c.digest(nr);ar=c.n.canonical(self.a);ar+=b' '*(c.CONFIG_LIMIT+1-len(ar));rr=c.n.canonical(self.r)
         self.b['source_digests']={'records_sha256':c.digest(rr),'native_genesis_sha256':c.digest(nr),'application_config_sha256':c.digest(ar)}
         result=c.validate(self.b,self.r,rr,nr,ar)
         self.assertTrue(any(e['code']=='application_input_byte_bound' for e in result['errors']))
