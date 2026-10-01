@@ -285,6 +285,49 @@ production-profile staging chains signed with test keys:
 - **Not yet.** Production builds still refuse these controls until A4; the
   window bounds are measured values (E05).
 
+**A4 done** (production controls, production transport and binding):
+- **Root controls in production** (P01, 1 October 2026: all three are
+  required).
+  - A production configuration carries the emergency freeze (schema 2), the
+    upgrade policy (schema 2) and the release handover (schema 2).
+  - Each build accepts only its own control policies. Production emergency
+    and handover policies have `development_only: false`, and emergency
+    names its approved rule `continue_previously_approved_rules` (the
+    development name stays `continue_existing`).
+  - The status query reports each policy's actual flag and rule.
+- **Production entry with controls.**
+  - `ConsensusApplication::open_with_root_runtime` takes the verifier
+    settings, the runtime candidate and a restart, as the development
+    entry does; `consensus_stdio --root-config` takes `--verifier-config`
+    and `--candidate-config`.
+  - The bootstrap helper is the threshold root's own (`RootBootstrap`).
+  - `preflight_release_with_root` gives the supervisor (A5) the release it
+    may launch.
+  - The node refuses a genesis signer key that also holds an emergency,
+    upgrade or handover role.
+- **Production transport profile** `dytallix-pqc-production-v1`, the only
+  profile of a production engine build; a development build refuses it.
+  - Explicit IP endpoints, strict admission, distinct peer IPs, no browser
+    origin, no discovery, seed identity (`node_key.json` refused), within 64
+    pins.
+- **Production binding** (`--binding`, required with the production
+  profile): one public JSON record per host with its role, chain, the SHA-256
+  of its configuration, genesis and transport files, and of its peer and
+  validator public keys.
+  - Only a validator's key may be in the genesis validator set; a sentry or
+    endpoint carries a key outside it.
+  - The pin plan is the set of these bindings, published with the network
+    configuration; the supervisor checks the host's binding at start (A5).
+- **Tests.**
+  - The signed three-of-five test now opens with all three controls, the
+    verifier and a runtime candidate for the test executable, on development
+    and production builds.
+  - Unit tests cover build-specific policies, the required controls and
+    signer separation.
+  - Production-tagged engine tests load the production profile from a
+    disposable fleet: the binding, roles, refused digests, refused packed
+    keys and refused development profiles.
+
 ## Still required after activation
 
 Every record (operators, custodians, genesis signers, beneficiaries, chain

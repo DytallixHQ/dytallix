@@ -38,8 +38,8 @@ read the same combined file. Two different valid files (for example three
 signatures and four) start two different chains.
 
 The genesis signers are a separate group: their keys must not hold an
-emergency or upgrade role. The node checks that separation when those
-controls join the production entry (step A4).
+emergency, upgrade or handover role. The node refuses to open a chain whose
+genesis signer policy shares a key with any of them.
 
 ## Procedure
 

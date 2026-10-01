@@ -226,6 +226,47 @@ pub(crate) fn validate_helper_execution(
     bail!("Explicit immutable observed helper execution policy is required; historical snapshot launch is test-only")
 }
 
+/// The root's own helper settings: the independent helper that verified
+/// genesis, which also replays committed control history before a candidate
+/// catalog can select a live helper.
+#[derive(Clone, Debug)]
+pub struct RootHelper {
+    pub helper_path: PathBuf,
+    pub helper_scratch_path: Option<PathBuf>,
+    pub helper_execution: Option<ObservedHelperPolicy>,
+    pub helper_sha256: String,
+    pub max_helper_bytes: usize,
+    pub max_request_bytes: usize,
+    pub timeout_ms: u64,
+}
+/// A root configuration that supplies its bootstrap helper: the development
+/// single-key root or the threshold root (production activation v1, A4).
+pub trait RootBootstrap {
+    fn bootstrap_helper(&self) -> Result<RootHelper>;
+}
+impl RootBootstrap for RootHelper {
+    fn bootstrap_helper(&self) -> Result<RootHelper> {
+        Ok(self.clone())
+    }
+}
+impl RootBootstrap for DevelopmentRootGenesis {
+    fn bootstrap_helper(&self) -> Result<RootHelper> {
+        ensure!(
+            self.enabled,
+            "V2 requires independent root bootstrap configuration"
+        );
+        Ok(RootHelper {
+            helper_path: self.helper_path.clone(),
+            helper_scratch_path: self.helper_scratch_path.clone(),
+            helper_execution: self.helper_execution.clone(),
+            helper_sha256: self.helper_sha256.clone(),
+            max_helper_bytes: self.max_helper_bytes,
+            max_request_bytes: self.max_request_bytes,
+            timeout_ms: self.timeout_ms,
+        })
+    }
+}
+
 /// All fields must be supplied explicitly by the trusted development caller.
 /// Policy is independent of request bytes. No production entry point uses this.
 #[derive(Clone, Debug)]

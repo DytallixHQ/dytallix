@@ -1112,11 +1112,15 @@
           "evidence_refs": [
             "USER_LAUNCH_REQUIREMENTS.txt",
             "batch-1/REQUIREMENTS_RECONCILIATION.md",
-            "approvals/P01_E04_POLICY_2026-09-29.json"
+            "approvals/P01_E04_POLICY_2026-09-29.json",
+            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json"
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
           "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
-          "approved_portion": "Current build only (P01, 29 September 2026): mainnet v1 launches with ordinary v2 transfers and staking, ordinary v3 governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET."
+          "approved_portion": "Current build only (P01, 29 September 2026): mainnet v1 launches with ordinary v2 transfers and staking, ordinary v3 governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET.",
+          "approval_records": [
+            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json"
+          ]
         }
       ],
       "work": {
@@ -2461,7 +2465,7 @@
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "blocks_work": [
             "W11",
             "W02",
@@ -2485,7 +2489,8 @@
             "approvals/P01_E05_VALUES_3_2026-09-30.json",
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "../node/docs/architecture/production-activation-v1.md",
-            "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json"
+            "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json",
+            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2523,9 +2528,10 @@
             "approvals/P01_E05_CUSTODY_2026-09-30.json",
             "approvals/P01_E05_VALUES_3_2026-09-30.json",
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
-            "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json"
+            "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json",
+            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json"
           ],
-          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades."
+          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades. Root controls (P01, 1 October 2026): a production configuration carries the emergency freeze, upgrade and handover controls at schema 2."
         }
       ],
       "work": {
@@ -3747,6 +3753,23 @@
       "unset": [
         "Upgrade and handover window bounds and anchor ages (measured)",
         "Upgrade custodians"
+      ]
+    },
+    {
+      "id": "P01-2026-10-01-E05-ROOT-CONTROLS",
+      "approved": "2026-10-01",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
+      "decisions": [
+        "D07-Q01, D11-Q03: a production node refuses a configuration without the emergency freeze (schema 2), upgrade (schema 2) and release handover (schema 2)."
+      ],
+      "question_refs": [
+        "D07-Q01",
+        "D11-Q03"
+      ],
+      "unset": [
+        "Custodians and genesis signers",
+        "Measured control windows"
       ]
     }
   ],

@@ -458,6 +458,8 @@ fn run() -> Result<()> {
     let mut genesis_path = None;
     let mut db_path = None;
     let mut root_path: Option<String> = None;
+    let mut root_verifier_path: Option<String> = None;
+    let mut root_candidate_path: Option<String> = None;
     #[cfg_attr(feature = "production", allow(unused_mut))]
     let mut development_root_path: Option<String> = None;
     #[cfg_attr(feature = "production", allow(unused_mut))]
@@ -482,6 +484,10 @@ fn run() -> Result<()> {
             // The root genesis signed three of five (production activation
             // v1, A2): the only open path of a production build.
             "--root-config" => &mut root_path,
+            // Its root controls (A4): the verifier's local settings and the
+            // runtime candidate input.
+            "--verifier-config" => &mut root_verifier_path,
+            "--candidate-config" => &mut root_candidate_path,
             // A production build has no development entry points
             // (production activation v1, A1).
             #[cfg(not(feature = "production"))]
@@ -542,10 +548,14 @@ fn run() -> Result<()> {
             || (development_root_path.is_some() && emergency_verifier_path.is_some()),
         "Candidate verification requires root and emergency configuration"
     );
+    ensure!(
+        root_path.is_some() || (root_verifier_path.is_none() && root_candidate_path.is_none()),
+        "--verifier-config and --candidate-config go with --root-config"
+    );
     // Restart v1 (E04 gap 18): the target release runs the halted block.
     ensure!(
-        restart_path.is_none() || candidate_path.is_some(),
-        "--restart-authorization requires --development-candidate-config"
+        restart_path.is_none() || candidate_path.is_some() || root_candidate_path.is_some(),
+        "--restart-authorization requires a candidate configuration"
     );
     let restart = restart_path
         .map(|path| -> Result<Vec<u8>> {
@@ -571,12 +581,29 @@ fn run() -> Result<()> {
                 "Root authorization release differs from owner admission"
             );
             admission.check()?;
-            ConsensusApplication::open_with_root(
+            let bounded = |path: String| -> Result<Vec<u8>> {
+                let mut bytes = Vec::new();
+                std::fs::File::open(path)?
+                    .take(65_537)
+                    .read_to_end(&mut bytes)?;
+                ensure!(bytes.len() <= 65_536, "Root control configuration exceeds limit");
+                Ok(bytes)
+            };
+            let verifier = root_verifier_path
+                .map(|path| Ok::<_, anyhow::Error>(serde_json::from_slice(&bounded(path)?)?))
+                .transpose()?;
+            let candidate = root_candidate_path
+                .map(|path| Ok::<_, anyhow::Error>(serde_json::from_slice(&bounded(path)?)?))
+                .transpose()?;
+            ConsensusApplication::open_with_root_runtime(
                 std::path::Path::new(&database),
                 config.clone(),
                 genesis,
                 &config_bytes,
                 root,
+                verifier,
+                candidate,
+                restart,
             )?
         }
         (None, Some(root_path), Some(verifier_path)) => {

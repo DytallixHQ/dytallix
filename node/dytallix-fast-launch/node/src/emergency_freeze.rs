@@ -18,6 +18,19 @@ const SIGNATURE_BYTES: usize = 29_792;
 pub enum AutomaticTransitionPolicy {
     /// Development qualification only. This is not a production economic choice.
     ContinueExisting,
+    /// The approved rule under its production name (D11-Q03): mandatory
+    /// transitions approved before the freeze continue (production activation
+    /// v1, A4). Production builds only.
+    ContinuePreviouslyApprovedRules,
+}
+impl AutomaticTransitionPolicy {
+    /// The status query's name for the rule.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::ContinueExisting => "continue_existing",
+            Self::ContinuePreviouslyApprovedRules => "continue_previously_approved_rules",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -73,9 +86,21 @@ impl Policy {
             (self.schema == SCHEMA && self.v2.is_none()) || (self.schema == 2 && self.v2.is_some()),
             "Emergency policy schema"
         );
+        // Each build accepts only its own policies (production activation v1,
+        // A4): production requires schema 2 and the production rule name.
         ensure!(
-            self.development_only,
-            "Production emergency activation is not qualified"
+            self.development_only != crate::build_profile::PRODUCTION,
+            "Emergency policy development flag differs from this build"
+        );
+        let production_rule = self.automatic_transition_policy
+            == AutomaticTransitionPolicy::ContinuePreviouslyApprovedRules;
+        ensure!(
+            production_rule == crate::build_profile::PRODUCTION,
+            "Emergency automatic transition rule differs from this build"
+        );
+        ensure!(
+            !crate::build_profile::PRODUCTION || self.v2.is_some(),
+            "A production emergency policy is schema 2"
         );
         ensure!(
             !self.chain_id.is_empty()

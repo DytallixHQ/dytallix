@@ -2,7 +2,7 @@
 
 package enginepqc
 
-// ProductionBuild is true in a build with the production tag. It has no
-// development or staging transport profile; the production transport profile
-// is production activation step A4, so this build starts no chain yet.
+// ProductionBuild is true in a build with the production tag. It runs only
+// the production transport profile (production activation v1, A4) and has no
+// development or staging profile.
 const ProductionBuild = true

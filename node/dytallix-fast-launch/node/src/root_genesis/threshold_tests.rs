@@ -226,7 +226,7 @@ fn every_signature_must_verify_through_the_helper() {
 }
 
 /// The rehearsal launch configuration and native genesis for this build,
-/// without the root controls (step A4).
+/// with its root controls (production forms in a production build).
 fn launch_inputs() -> (ConsensusConfig, Vec<u8>) {
     let mut config = crate::build_profile::tests::rehearsal_config();
     let mut genesis = std::fs::read(
@@ -234,9 +234,6 @@ fn launch_inputs() -> (ConsensusConfig, Vec<u8>) {
             .join("../../tools/mainnet-preparation/fixtures/genesis-rehearsal/native-genesis.json"),
     )
     .unwrap();
-    config.emergency = None;
-    config.upgrade = None;
-    config.release_handover = None;
     if crate::build_profile::PRODUCTION {
         config = crate::build_profile::tests::production_named(config);
         let text = String::from_utf8(genesis).unwrap();
@@ -285,8 +282,13 @@ fn threshold_genesis_signed_three_of_five() {
     use std::os::unix::fs::PermissionsExt;
     let signer = PathBuf::from(std::env::var("DYT_ROOT_SIGNER").expect("built root signer"));
     let helper = PathBuf::from(std::env::var("DYT_ROOT_VERIFIER").expect("built verifier"));
-    let (config, genesis) = launch_inputs();
+    let (mut config, genesis) = launch_inputs();
     let chain = config.chain_id.clone();
+    // The root controls name the release: a manifest for this executable, so
+    // the handover's runtime candidate check passes (A4).
+    let release = release_manifest(&config);
+    let release_sha512 = hex::encode(Sha512::digest(&release));
+    rebind_release(&mut config, &release_sha512);
     let config_bytes = serde_json::to_vec(&config).unwrap();
     let work = tempfile::tempdir().unwrap();
     let path = |name: &str| work.path().join(name);
@@ -321,7 +323,7 @@ fn threshold_genesis_signed_three_of_five() {
     std::fs::write(path("native-genesis.json"), &genesis).unwrap();
     std::fs::write(path("consensus.json"), &config_bytes).unwrap();
     std::fs::write(path("engine-genesis.json"), ENGINE).unwrap();
-    std::fs::write(path("release-manifest.json"), RELEASE).unwrap();
+    std::fs::write(path("release-manifest.json"), &release).unwrap();
     let digests: serde_json::Value = serde_json::from_str(&run(&[
         "digest".into(),
         "-native-genesis".into(),
@@ -359,10 +361,31 @@ fn threshold_genesis_signed_three_of_five() {
         args.extend((0..count).map(|i| arg(&format!("sig{i}.json"))));
         run(&args);
     }
-    std::fs::create_dir(path("scratch")).unwrap();
-    std::fs::set_permissions(path("scratch"), std::fs::Permissions::from_mode(0o700)).unwrap();
+    for scratch in ["scratch", "control-scratch"] {
+        std::fs::create_dir(path(scratch)).unwrap();
+        std::fs::set_permissions(path(scratch), std::fs::Permissions::from_mode(0o700)).unwrap();
+    }
+    let helper_sha256 = hex::encode(Sha256::digest(std::fs::read(&helper).unwrap()));
+    let verifier = crate::emergency_verifier::EmergencyVerifierConfig {
+        helper_path: helper.clone(),
+        helper_scratch_path: path("control-scratch"),
+        helper_execution: None,
+        helper_sha256: helper_sha256.clone(),
+        max_helper_bytes: 32 << 20,
+        max_request_bytes: 1 << 20,
+        timeout_ms: 30_000,
+    };
+    let candidate = || {
+        crate::runtime_candidate_v2::RuntimeCandidateInput::V1(
+            crate::consensus_settlement::DevelopmentCandidateInput {
+                manifest_path: std::fs::canonicalize(path("release-manifest.json")).unwrap(),
+                max_manifest_bytes: 65_536,
+                max_executable_bytes: 1 << 30,
+            },
+        )
+    };
     let root = |signatures: &[u8]| RootGenesis {
-        helper_sha256: hex::encode(Sha256::digest(std::fs::read(&helper).unwrap())),
+        helper_sha256: helper_sha256.clone(),
         helper_path: helper.clone(),
         helper_scratch_path: Some(path("scratch")),
         helper_execution: None,
@@ -375,20 +398,25 @@ fn threshold_genesis_signed_three_of_five() {
         max_engine_genesis_bytes: 1024,
         engine_genesis_sha512: hex::encode(Sha512::digest(ENGINE)),
         release_manifest_path: path("release-manifest.json"),
-        max_release_manifest_bytes: 1024,
-        release_manifest_sha512: hex::encode(Sha512::digest(RELEASE)),
+        max_release_manifest_bytes: 65_536,
+        release_manifest_sha512: release_sha512.clone(),
     };
     let three = std::fs::read(path("three.json")).unwrap();
     let four = std::fs::read(path("four.json")).unwrap();
-    let open = |database: &Path, signatures: &[u8]| {
-        ConsensusApplication::open_with_root(
+    let open_with = |database: &Path, source: &[u8], root: RootGenesis| {
+        ConsensusApplication::open_with_root_runtime(
             database,
             config.clone(),
             genesis.clone(),
-            &config_bytes,
-            root(signatures),
+            source,
+            root,
+            Some(verifier.clone()),
+            Some(candidate()),
+            None,
         )
     };
+    let open =
+        |database: &Path, signatures: &[u8]| open_with(database, &config_bytes, root(signatures));
 
     // Open, initialize and restart from three signatures.
     let database = tempfile::tempdir().unwrap();
@@ -494,24 +522,88 @@ fn threshold_genesis_signed_three_of_five() {
     let empty = tempfile::tempdir().unwrap();
     let target = empty.path().join("not-created");
     let spaced = [b" ".as_slice(), &config_bytes].concat();
-    assert!(ConsensusApplication::open_with_root(
-        &target,
-        config.clone(),
-        genesis.clone(),
-        &spaced,
-        root(&three)
-    )
-    .is_err());
+    assert!(open_with(&target, &spaced, root(&three)).is_err());
     let mut other_engine = root(&three);
     other_engine.engine_genesis_path = path("release-manifest.json");
-    other_engine.engine_genesis_sha512 = hex::encode(Sha512::digest(RELEASE));
+    other_engine.engine_genesis_sha512 = release_sha512.clone();
+    assert!(open_with(&target, &config_bytes, other_engine).is_err());
+    // The root controls need their verifier, and a handover its candidate.
     assert!(ConsensusApplication::open_with_root(
         &target,
         config.clone(),
         genesis.clone(),
         &config_bytes,
-        other_engine
+        root(&three)
     )
     .is_err());
+    assert!(!target.exists());
+}
+
+/// A release manifest naming this executable, the chain and the registry.
+fn release_manifest(config: &ConsensusConfig) -> Vec<u8> {
+    let executable = std::fs::read(std::env::current_exe().unwrap()).unwrap();
+    serde_json::to_vec(&crate::runtime_candidate::ManifestV1 {
+        schema: 1,
+        chain_id: config.chain_id.clone(),
+        app_genesis_sha256: config.app_state_sha256.clone(),
+        target: crate::runtime_candidate::Target {
+            os: std::env::consts::OS.into(),
+            arch: std::env::consts::ARCH.into(),
+        },
+        consensus_stdio: crate::runtime_candidate::Executable {
+            bytes: executable.len() as u64,
+            sha256: hex::encode(Sha256::digest(&executable)),
+            sha512: hex::encode(Sha512::digest(&executable)),
+        },
+        migration_registry_sha256: crate::upgrade::registry_sha256(),
+    })
+    .unwrap()
+}
+
+/// Point every root control at one release.
+fn rebind_release(config: &mut ConsensusConfig, release_sha512: &str) {
+    config.emergency.as_mut().unwrap().release_sha512 = release_sha512.into();
+    match config.upgrade.as_mut().unwrap() {
+        crate::upgrade::Policy::V1(policy) => policy.source_release_sha512 = release_sha512.into(),
+        crate::upgrade::Policy::V2(policy) => policy.initial_release_sha512 = release_sha512.into(),
+    }
+    config
+        .release_handover
+        .as_mut()
+        .unwrap()
+        .initial_release_sha512 = release_sha512.into();
+}
+
+#[test]
+fn genesis_signers_hold_no_other_role() {
+    let (config, genesis) = launch_inputs();
+    let directory = tempfile::tempdir().unwrap();
+    let mut root = fixture_root(directory.path(), b"#!/bin/sh\nexit 1\n");
+    // One genesis key is also an emergency freeze key.
+    let shared = config.emergency.as_ref().unwrap().freeze_authority.keys[0].clone();
+    let mut policy = fixture_policy();
+    policy.chain_id = config.chain_id.clone();
+    policy.authority.keys[0] = GenesisKey {
+        key_id: shared.key_id,
+        public_key_hex: shared.public_key_hex,
+    };
+    policy
+        .authority
+        .keys
+        .sort_by(|a, b| a.key_id.cmp(&b.key_id));
+    root.policy_json = serde_json::to_vec(&policy).unwrap();
+    root.release_manifest_sha512 = config.emergency.as_ref().unwrap().release_sha512.clone();
+    let target = directory.path().join("not-created");
+    let error = ConsensusApplication::open_with_root(
+        &target,
+        config.clone(),
+        genesis,
+        &serde_json::to_vec(&config).unwrap(),
+        root,
+    )
+    .err()
+    .map(|e| format!("{e:#}"))
+    .unwrap();
+    assert!(error.contains("also holds"), "{error}");
     assert!(!target.exists());
 }

@@ -23,6 +23,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [penalties v1](../node/docs/architecture/penalties-v1.md), with the [30 September penalty approvals](approvals/P01_E04_PENALTIES_2026-09-30.json) (30 September): double-signing penalized with removal (D09-Q04), withdrawals from genesis (D09-Q05), vesting-locked stake penalized like unlocked stake, and a permanent penalty escrow.
 - [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json) (30 September): the implemented mempool rule is normative ([mempool v1](../node/docs/architecture/mempool-v1.md), D06-Q02), a separate 3-of-5 upgrade custodian group with a fixed minimum notice (D11-Q03), and private validators behind sentries (D12-Q01).
 - [Upgrade notice scope](approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json) (1 October): the 120,960-block notice applies to release handovers as well as state-migration upgrades (D11-Q03).
+- [Root controls](approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json) (1 October): a production node refuses a configuration without the emergency freeze, upgrade and release handover controls at schema 2 (D07-Q01, D11-Q03).
 
 ## D01 — Adaptive issuance
 
@@ -237,6 +238,8 @@ What exact enabled-module and interface matrix satisfies the required launch sco
 Approved (current build only, P01, 29 September 2026): mainnet v1 launches with ordinary v2 transfers and staking, ordinary v3 governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET.
 
 Recorded approval: [29 September policy approvals](approvals/P01_E04_POLICY_2026-09-29.json).
+
+Enforcement (P01, 1 October 2026): a production node refuses a configuration without recovery, ordinary and governance (production activation A1) or without the emergency freeze, upgrade and release handover controls at schema 2 (A4, [root controls approval](approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json)).
 
 Required output: Launch feature matrix.
 
@@ -468,7 +471,7 @@ Remaining inputs: custodian names, keys and epochs; numeric timing limits; accep
 
 Parameter set (P01, 30 September 2026): root, emergency and upgrade custodian keys use SLH-DSA-SHAKE-256s, the set the node's root verifier implements ([custody approval](approvals/P01_E05_CUSTODY_2026-09-30.json)).
 
-Production activation (P01, 30 September 2026): root genesis is signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and a bounded window, as emergency freeze v2 does; the upgrade custodians, three of five, control release handover and halt restart, which keeps its exact-height binding ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)). Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades ([approval](approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json)). Upgrade schema 2 and handover schema 2 are implemented (step A3); their window bounds and anchor ages are measured values, and production acceptance of the controls is step A4.
+Production activation (P01, 30 September 2026): root genesis is signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and a bounded window, as emergency freeze v2 does; the upgrade custodians, three of five, control release handover and halt restart, which keeps its exact-height binding ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)). Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades ([approval](approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json)). Upgrade schema 2 and handover schema 2 are implemented (step A3); their window bounds and anchor ages are measured values. Root controls (P01, 1 October 2026): a production configuration must carry all three controls at schema 2, and production builds accept only production control policies (step A4, [approval](approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json)).
 
 Required output: Governance authority matrix.
 

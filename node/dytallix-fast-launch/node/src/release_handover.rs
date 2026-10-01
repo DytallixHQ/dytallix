@@ -59,9 +59,15 @@ impl Policy {
             (self.schema == 1 && self.v2.is_none()) || (self.schema == 2 && self.v2.is_some()),
             "Handover policy schema"
         );
+        // Each build accepts only its own policies (production activation v1,
+        // A4): production requires schema 2.
         ensure!(
-            self.development_only,
-            "Production handover is not qualified"
+            self.development_only != crate::build_profile::PRODUCTION,
+            "Handover policy development flag differs from this build"
+        );
+        ensure!(
+            !crate::build_profile::PRODUCTION || self.v2.is_some(),
+            "A production handover policy is schema 2"
         );
         ensure!(
             !self.chain_id.is_empty()
