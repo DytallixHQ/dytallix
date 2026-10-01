@@ -234,9 +234,13 @@ impl ConsensusConfig {
                 self.recovery.is_some() && self.ordinary.is_some() && self.governance.is_some(),
                 "A production configuration carries recovery, ordinary and governance"
             );
+            // P01, 1 October 2026: a production chain carries all three root
+            // controls, at schema 2.
             ensure!(
-                self.emergency.is_none() && self.upgrade.is_none() && self.release_handover.is_none(),
-                "Production root controls arrive in production activation step A4"
+                self.emergency.as_ref().is_some_and(|policy| policy.v2.is_some())
+                    && matches!(self.upgrade, Some(upgrade::Policy::V2(_)))
+                    && self.release_handover.as_ref().is_some_and(|policy| policy.v2.is_some()),
+                "A production configuration carries the emergency, upgrade and handover controls at schema 2"
             );
         }
         ensure!(
@@ -715,7 +719,7 @@ pub struct DevelopmentCandidateInput {
 }
 struct PreparedRuntimeCandidateInput {
     input: crate::runtime_candidate_v2::RuntimeCandidateInput,
-    root: crate::root_genesis::DevelopmentRootGenesis,
+    root: crate::root_genesis::RootHelper,
     verifier: EmergencyVerifierConfig,
     /// A restart authorization's bytes (restart v1, E04 gap 18).
     restart: Option<Vec<u8>>,
@@ -724,8 +728,9 @@ struct PreparedRuntimeCandidateInput {
 /// This verifier is independent of every candidate/live-helper setting. The
 /// original root configuration supplies its own immutable execution policy.
 fn bootstrap_history_verifier(
-    root: &crate::root_genesis::DevelopmentRootGenesis,
+    root: &impl crate::root_genesis::RootBootstrap,
 ) -> Result<EmergencyVerifier> {
+    let root = root.bootstrap_helper()?;
     EmergencyVerifier::new(EmergencyVerifierConfig {
         helper_path: root.helper_path.clone(),
         // Observed immutable execution never reads or executes a scratch path.
@@ -736,6 +741,51 @@ fn bootstrap_history_verifier(
         max_request_bytes: root.max_request_bytes,
         timeout_ms: root.timeout_ms,
     })
+}
+
+/// The configuration and source checks of the threshold root entry, and the
+/// separation of the genesis signers (P01, 30 September 2026): no genesis key
+/// may hold an emergency, upgrade or handover role.
+fn root_checks(
+    config: &ConsensusConfig,
+    genesis_bytes: &[u8],
+    consensus_source: &[u8],
+    root: &crate::root_genesis::RootGenesis,
+) -> Result<()> {
+    config.validate()?;
+    source_binding(config, genesis_bytes)?;
+    ensure!(
+        !consensus_source.is_empty() && consensus_source.len() <= MAX_CONFIG_BYTES,
+        "Exact consensus source exceeds supported bound"
+    );
+    ensure!(
+        serde_json::from_slice::<ConsensusConfig>(consensus_source)? == *config,
+        "Exact consensus source differs from selected runtime configuration"
+    );
+    if let Some(policy) = &config.emergency {
+        ensure!(
+            policy.release_sha512 == root.release_manifest_sha512,
+            "Emergency release differs from root-authorized release manifest"
+        );
+    }
+    let mut keys = Vec::new();
+    if let Some(policy) = &config.emergency {
+        keys.extend(policy.freeze_authority.keys.iter().chain(&policy.resume_authority.keys));
+    }
+    if let Some(policy) = &config.upgrade {
+        keys.extend(&policy.authority().keys);
+    }
+    if let Some(policy) = &config.release_handover {
+        keys.extend(&policy.authority.keys);
+    }
+    let roles: BTreeSet<&str> = keys.iter().map(|key| key.public_key_hex.as_str()).collect();
+    ensure!(
+        root.policy(&config.chain_id)?
+            .public_keys()
+            .all(|key| !roles.contains(key)),
+        "A genesis signer key also holds an emergency, upgrade or handover role"
+    );
+    Ok(())
 }
 
 /// Release authority obtained from the verified root and committed signed
@@ -4147,24 +4197,77 @@ impl ConsensusApplication {
         consensus_source: &[u8],
         root: crate::root_genesis::RootGenesis,
     ) -> Result<Self> {
-        config.validate()?;
-        source_binding(&config, &genesis_bytes)?;
+        Self::open_with_root_runtime(
+            path, config, genesis_bytes, consensus_source, root, None, None, None,
+        )
+    }
+    /// As `open_with_root`, with the root controls (production activation v1,
+    /// A4): the emergency verifier's local settings, the runtime candidate
+    /// input and a restart authorization, as the development entry takes them.
+    /// The bootstrap helper is the threshold root's own.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open_with_root_runtime(
+        path: impl AsRef<Path>,
+        config: ConsensusConfig,
+        genesis_bytes: Vec<u8>,
+        consensus_source: &[u8],
+        root: crate::root_genesis::RootGenesis,
+        verifier: Option<EmergencyVerifierConfig>,
+        candidate: Option<crate::runtime_candidate_v2::RuntimeCandidateInput>,
+        restart: Option<Vec<u8>>,
+    ) -> Result<Self> {
         ensure!(
-            config.emergency.is_none()
-                && config.upgrade.is_none()
-                && config.release_handover.is_none(),
-            "Root controls on the three-of-five root path are production activation step A4"
+            restart.is_none() || (candidate.is_some() && config.release_handover.is_some()),
+            "A restart requires runtime candidate verification and a handover policy"
         );
         ensure!(
-            !consensus_source.is_empty() && consensus_source.len() <= MAX_CONFIG_BYTES,
-            "Exact consensus source exceeds supported bound"
+            candidate.is_none() || verifier.is_some(),
+            "Candidate verification requires the emergency verifier settings"
         );
-        ensure!(
-            serde_json::from_slice::<ConsensusConfig>(consensus_source)? == config,
-            "Exact consensus source differs from selected runtime configuration"
-        );
+        root_checks(&config, &genesis_bytes, consensus_source, &root)?;
+        // V2 live settings cannot select the executable used to establish
+        // the authority that will later authorize that same executable.
+        let bootstrap_verifier = if matches!(
+            candidate.as_ref(),
+            Some(crate::runtime_candidate_v2::RuntimeCandidateInput::V2(_))
+        ) {
+            Some(bootstrap_history_verifier(&root)?)
+        } else {
+            None
+        };
         let prepared = root.prepare(&config.chain_id, &genesis_bytes, consensus_source)?;
-        Self::open_inner(path, config, genesis_bytes, Some(prepared), None, None)
+        let emergency_verifier = match (bootstrap_verifier, &verifier) {
+            (Some(bootstrap), _) => Some(bootstrap),
+            (None, Some(settings)) => Some(EmergencyVerifier::new(settings.clone())?),
+            (None, None) => None,
+        };
+        let candidate = match candidate {
+            Some(input) => Some(PreparedRuntimeCandidateInput {
+                input,
+                root: crate::root_genesis::RootBootstrap::bootstrap_helper(&root)?,
+                verifier: verifier.context("Candidate verification requires the emergency verifier settings")?,
+                restart,
+            }),
+            None => None,
+        };
+        Self::open_inner(path, config, genesis_bytes, Some(prepared), emergency_verifier, candidate)
+    }
+    /// The release a supervisor may launch under the threshold root
+    /// (production activation v1, A4), read only; as
+    /// `preflight_development_release_with_restart`.
+    pub fn preflight_release_with_root(
+        path: impl AsRef<Path>,
+        config: &ConsensusConfig,
+        genesis_bytes: &[u8],
+        consensus_source: &[u8],
+        root: &crate::root_genesis::RootGenesis,
+        restart: Option<&[u8]>,
+    ) -> Result<VerifiedReleaseAuthority> {
+        root_checks(config, genesis_bytes, consensus_source, root)?;
+        config.emergency.as_ref().context("Emergency policy required")?;
+        let verifier = bootstrap_history_verifier(root)?;
+        let prepared = root.prepare(&config.chain_id, genesis_bytes, consensus_source)?;
+        preflight_prepared_release(path.as_ref(), config, genesis_bytes, &prepared, &verifier, restart)
     }
     /// Explicit development API. The ordinary open path remains unchanged.
     /// Production profiles are rejected by existing configuration validation.
@@ -4297,8 +4400,9 @@ impl ConsensusApplication {
             // Preserve the explicit legacy V1 helper configuration path.
             EmergencyVerifier::new(verifier.clone())?
         };
+        let root = crate::root_genesis::RootBootstrap::bootstrap_helper(&authorization)?;
         let candidate = candidate.map(|input| PreparedRuntimeCandidateInput {
-            input, root: authorization, verifier, restart,
+            input, root, verifier, restart,
         });
         Self::open_inner(
             path,
@@ -6792,14 +6896,17 @@ impl ConsensusApplication {
             )?;
             response["validator_lifecycle"] = serde_json::to_value(lifecycle)?;
         }
-        if let Some(state) = emergency_state(&self.storage, &self.config)? {
+        if let (Some(policy), Some(state)) = (
+            &self.config.emergency,
+            emergency_state(&self.storage, &self.config)?,
+        ) {
             response["emergency_control"] = serde_json::json!({
-                "development_only": true,
+                "development_only": policy.development_only,
                 "frozen": state.frozen(),
                 "blocks_upgrade": state.blocks_upgrade(),
                 "next_sequence": state.next_sequence(),
                 "last_receipt_sha256": state.last_receipt_sha256(),
-                "automatic_transition_policy": "continue_existing"
+                "automatic_transition_policy": policy.automatic_transition_policy.name()
             });
         }
         if let Some(state) = handover_state(&self.storage, &self.config)? {
@@ -6822,7 +6929,7 @@ impl ConsensusApplication {
                 ),
             };
             response["upgrade"] = serde_json::json!({
-                "development_only": true,
+                "development_only": !build_profile::PRODUCTION,
                 "schema": match policy { upgrade::Policy::V1(_) => 1, upgrade::Policy::V2(_) => 2 },
                 "active_schema": state.active_schema(),
                 "active_release_sha512": release,

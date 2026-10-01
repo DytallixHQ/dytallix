@@ -9,8 +9,8 @@
 //! commits a version 2 receipt listing the signing key IDs. The receipt is
 //! consensus state, so every node must read the same signatures file.
 //!
-//! This is the only open path of a production build. Emergency, upgrade and
-//! handover controls join it in step A4.
+//! This is the only open path of a production build, with the emergency,
+//! upgrade and handover controls (step A4).
 use super::*;
 
 /// Genesis signers in the policy.
@@ -209,6 +209,20 @@ struct ReceiptV2<'a> {
     artifact_sha512: &'a str,
     envelope_sha256: String,
     signatures_sha256: String,
+}
+
+impl RootBootstrap for RootGenesis {
+    fn bootstrap_helper(&self) -> Result<RootHelper> {
+        Ok(RootHelper {
+            helper_path: self.helper_path.clone(),
+            helper_scratch_path: self.helper_scratch_path.clone(),
+            helper_execution: self.helper_execution.clone(),
+            helper_sha256: self.helper_sha256.clone(),
+            max_helper_bytes: self.max_helper_bytes,
+            max_request_bytes: self.max_request_bytes,
+            timeout_ms: self.timeout_ms,
+        })
+    }
 }
 
 impl RootGenesis {

@@ -4,7 +4,7 @@ Engineering task E05, step c. This packet collects the public records for the
 approved upgrade authority. It does not appoint custodians, verify signatures
 or create production configuration. Upgrade schema 2 and handover schema 2,
 which enforce this authority, are implemented (production activation v1, step
-A3); the node accepts them in a production build from step A4.
+A3); a production build requires them (step A4).
 
 ## Approved policy
 

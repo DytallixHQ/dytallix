@@ -17,8 +17,10 @@ fn rehearsal_timing() -> TimingGenesis {
     serde_json::from_value(native["adaptive_issuance"].clone()).unwrap()
 }
 
-/// The rehearsal configuration renamed to the production profiles, without the
-/// root controls (step A4), with the validator-proof digest recomputed.
+/// The rehearsal configuration renamed to the production profiles, with the
+/// validator-proof digest recomputed and the root controls in their production
+/// forms (step A4): emergency freeze v2 under the production rule, upgrade
+/// schema 2, and handover schema 2 under the upgrade authority.
 pub(crate) fn production_named(mut config: ConsensusConfig) -> ConsensusConfig {
     config.profile = "cometbft-production-v1".into();
     let lifecycle = config.lifecycle.as_mut().unwrap();
@@ -52,9 +54,42 @@ pub(crate) fn production_named(mut config: ConsensusConfig) -> ConsensusConfig {
     let ordinary = config.ordinary.as_mut().unwrap();
     ordinary.fee_profile.validator_proof_profile_digest = digest;
     config.governance.as_mut().unwrap().fee_profile.base = ordinary.fee_profile.clone();
-    config.emergency = None;
-    config.upgrade = None;
-    config.release_handover = None;
+    let emergency = config.emergency.as_mut().unwrap();
+    emergency.development_only = false;
+    emergency.automatic_transition_policy =
+        crate::emergency_freeze::AutomaticTransitionPolicy::ContinuePreviouslyApprovedRules;
+    let Some(crate::upgrade::Policy::V1(upgrade)) = config.upgrade.take() else {
+        panic!("the rehearsal carries a schema 1 upgrade policy");
+    };
+    let handover = config.release_handover.as_mut().unwrap();
+    handover.schema = 2;
+    handover.development_only = false;
+    handover.authority = upgrade.authority.clone();
+    handover.authority_epoch = upgrade.authority_epoch;
+    handover.v2 = Some(crate::release_handover::PolicyV2 {
+        min_notice_blocks: 120_960,
+        max_validity_blocks: 720,
+        max_anchor_age_blocks: 720,
+    });
+    config.upgrade = Some(crate::upgrade::Policy::V2(crate::upgrade::v2::Policy {
+        schema: 2,
+        chain_id: upgrade.chain_id,
+        genesis_sha256: upgrade.genesis_sha256,
+        initial_release_sha512: upgrade.source_release_sha512,
+        authority_epoch: upgrade.authority_epoch,
+        authority: upgrade.authority,
+        initial_sequence: upgrade.initial_sequence,
+        max_control_bytes: upgrade.max_control_bytes,
+        max_signatures: upgrade.max_signatures,
+        migration_bounds: crate::upgrade::v2::MigrationBounds {
+            max_receipts: upgrade.migration_bounds.max_receipts,
+            max_receipt_bytes: upgrade.migration_bounds.max_receipt_bytes,
+            max_write_bytes: upgrade.migration_bounds.max_write_bytes,
+        },
+        min_notice_blocks: 120_960,
+        max_validity_blocks: 720,
+        max_anchor_age_blocks: 720,
+    }));
     config
 }
 
@@ -105,6 +140,21 @@ mod development {
         let mut timing = rehearsal_timing();
         timing.profile = "production".into();
         assert!(timing.validate().is_err());
+        // Production control policies are refused too (A4).
+        let mut config = rehearsal_config();
+        config.emergency.as_mut().unwrap().development_only = false;
+        assert!(format!("{:#}", config.validate().unwrap_err()).contains("differs from this build"));
+        let mut config = rehearsal_config();
+        config
+            .emergency
+            .as_mut()
+            .unwrap()
+            .automatic_transition_policy =
+            crate::emergency_freeze::AutomaticTransitionPolicy::ContinuePreviouslyApprovedRules;
+        assert!(format!("{:#}", config.validate().unwrap_err()).contains("differs from this build"));
+        let mut config = rehearsal_config();
+        config.release_handover.as_mut().unwrap().development_only = false;
+        assert!(format!("{:#}", config.validate().unwrap_err()).contains("differs from this build"));
     }
 
     #[test]
@@ -148,13 +198,34 @@ mod production {
     }
 
     #[test]
-    fn production_carries_the_launch_scope_and_waits_for_root_controls() {
+    fn production_carries_the_launch_scope_and_the_root_controls() {
         let mut config = production_named(rehearsal_config());
         config.governance = None;
         assert!(error(&config).contains("recovery, ordinary and governance"));
+        // P01, 1 October 2026: all three root controls, at schema 2.
+        let cases: [(&str, fn(&mut ConsensusConfig)); 5] = [
+            ("no emergency", |c| c.emergency = None),
+            ("no upgrade", |c| c.upgrade = None),
+            ("no handover", |c| c.release_handover = None),
+            ("schema 1 upgrade", |c| {
+                c.upgrade = rehearsal_config().upgrade
+            }),
+            ("emergency schema 1", |c| {
+                c.emergency.as_mut().unwrap().v2 = None
+            }),
+        ];
+        for (name, change) in cases {
+            let mut config = production_named(rehearsal_config());
+            change(&mut config);
+            assert!(config.validate().is_err(), "accepted {name}");
+        }
+        // Development control policies are refused.
         let mut config = production_named(rehearsal_config());
         config.emergency = rehearsal_config().emergency;
-        assert!(error(&config).contains("step A4"));
+        assert!(error(&config).contains("differs from this build"));
+        let mut config = production_named(rehearsal_config());
+        config.release_handover.as_mut().unwrap().development_only = true;
+        assert!(error(&config).contains("differs from this build"));
     }
 
     #[test]

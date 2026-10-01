@@ -3,7 +3,7 @@
 //! continuous loading control, bootstrap approval, or production acceptance.
 use crate::consensus_settlement::{DevelopmentCandidateInput, VerifiedReleaseAuthority};
 use crate::emergency_verifier::EmergencyVerifierConfig;
-use crate::root_genesis::DevelopmentRootGenesis;
+use crate::root_genesis::RootBootstrap;
 use anyhow::{ensure, Context, Result};
 use dytallix_release_runtime::{component_candidate as catalog, observation};
 use serde::{Deserialize, Serialize};
@@ -267,15 +267,12 @@ fn bootstrap_file(
 pub fn verify_catalog(
     input: &DevelopmentCandidateV2Input,
     authority: &VerifiedReleaseAuthority,
-    root: &DevelopmentRootGenesis,
+    root: &impl RootBootstrap,
     live: &EmergencyVerifierConfig,
 ) -> Result<catalog::VerifiedMemberFiles> {
     let policy = input.file_policy()?;
     input.observation_bounds()?;
-    ensure!(
-        root.enabled,
-        "V2 requires independent root bootstrap configuration"
-    );
+    let root = root.bootstrap_helper()?;
     ensure!(
         root.helper_path.as_os_str().len() <= input.bounds.max_path_bytes,
         "Bootstrap helper path exceeds candidate path bound"
@@ -361,7 +358,7 @@ fn verify_helper_role_bindings(
 pub fn verify_current_application(
     input: &DevelopmentCandidateV2Input,
     authority: &VerifiedReleaseAuthority,
-    root: &DevelopmentRootGenesis,
+    root: &impl RootBootstrap,
     live: &EmergencyVerifierConfig,
 ) -> Result<VerifiedCandidateV2> {
     let files = verify_catalog(input, authority, root, live)?;
@@ -376,7 +373,7 @@ pub fn verify_current_application(
 pub fn verify_runtime_candidate(
     input: &RuntimeCandidateInput,
     authority: &VerifiedReleaseAuthority,
-    root: &DevelopmentRootGenesis,
+    root: &impl RootBootstrap,
     live: &EmergencyVerifierConfig,
 ) -> Result<VerifiedRuntimeCandidate> {
     match input {

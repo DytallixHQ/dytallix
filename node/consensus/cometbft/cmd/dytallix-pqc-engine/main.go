@@ -1,5 +1,7 @@
-// This command selects explicit experimental PQC transport profiles. It does
-// not expose init, reset, remote signing, production, or legacy transport.
+// This command selects explicit PQC transport profiles: the development and
+// staging profiles in a development build, and only the production profile,
+// with its binding, in a production build. It does not expose init, reset,
+// remote signing or legacy transport.
 package main
 
 import (
@@ -96,7 +98,7 @@ func metricsOption(config *cfg.Config, dir string, interval time.Duration) (node
 
 func run() error {
 	if len(os.Args) < 2 || os.Args[1] != "start" {
-		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("usage: dytallix-pqc-engine start --home HOME --p2p-profile PROFILE [--candidate-staging] [--light-blocks DIR]...")))
+		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("usage: dytallix-pqc-engine start --home HOME --p2p-profile PROFILE [--binding FILE] [--candidate-staging] [--light-blocks DIR]...")))
 	}
 	flags := flag.NewFlagSet("start", flag.ContinueOnError)
 	home := flags.String("home", "", "existing private fixture home")
@@ -104,6 +106,7 @@ func run() error {
 	rpcProfile := flags.String("rpc-profile", "", "explicit experimental RPC profile")
 	production := flags.Bool("production", false, "production is not supported")
 	candidateStaging := flags.Bool("candidate-staging", false, "run the candidate only on a reserved E01 staging chain")
+	bindingPath := flags.String("binding", "", "this host's production binding (the production profile only)")
 	var lightBlocks exports
 	flags.Var(&lightBlocks, "light-blocks", "operator light block export for state sync; repeat for witnesses")
 	metricsDir := flags.String("metrics-dir", "", "directory for the dytallix-engine.prom metrics file")
@@ -132,6 +135,20 @@ func run() error {
 	}
 	if err != nil {
 		return startupdiag.At(2, err)
+	}
+	// The production profile starts only with this host's published binding
+	// (production activation v1, A4); no other profile takes one.
+	if (*profile == enginepqc.ProductionProfile) != (*bindingPath != "") {
+		return startupdiag.At(2, startupdiag.AsClass(startupdiag.Invalid, errors.New("--binding goes with the production profile, which requires it")))
+	}
+	if *bindingPath != "" {
+		binding, err := enginepqc.LoadProductionBinding(*bindingPath)
+		if err != nil {
+			return startupdiag.At(2, err)
+		}
+		if err := enginepqc.ValidateProductionBinding(runtime, binding); err != nil {
+			return startupdiag.At(2, err)
+		}
 	}
 	if err := enginepqc.ConfigureRPCProfile(runtime, *rpcProfile); err != nil {
 		return startupdiag.At(3, err)

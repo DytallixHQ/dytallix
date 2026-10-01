@@ -37,6 +37,12 @@ const RemoteSeedProfile = "dytallix-pqc-private-seed-v1"
 // ProductionCandidateProfile selects offline policy checks only. Load and the
 // engine command still reject this profile until production is qualified.
 const ProductionCandidateProfile = "dytallix-pqc-production-candidate-v1"
+
+// ProductionProfile is the only profile of a production build (production
+// activation v1, A4): the candidate's explicit IP endpoints and strict
+// admission, seed identity, no discovery and no browser origin, within
+// MaxPeers pins. A development build refuses it.
+const ProductionProfile = "dytallix-pqc-production-v1"
 const CandidateStagingChainPrefix = "e01-candidate-"
 const MaxConcurrentHandshakes = 8
 const MaxPeers = 64
@@ -136,7 +142,7 @@ func validateIsolationForProfile(c *cfg.Config, profile string) error {
 		return errors.New("PQC engine requires explicit TCP P2P, loopback RPC and local Unix ABCI")
 	}
 	p2pAddress := strings.TrimPrefix(c.P2P.ListenAddress, "tcp://")
-	if profile == ProductionCandidateProfile {
+	if explicitEndpoints(profile) {
 		if !explicitPeerEndpoint(p2pAddress) || c.P2P.AllowDuplicateIP || !c.P2P.AddrBookStrict || len(c.RPC.CORSAllowedOrigins) != 0 {
 			return errors.New("production candidate requires one explicit P2P endpoint, strict peer admission and no browser origin")
 		}
@@ -204,8 +210,8 @@ func validatePinsForProfile(tc TransportConfig, c *cfg.Config, key *p2p.NodeKey,
 		}
 		id := p2p.PubKeyToID(public)
 		addressAllowed := loopback(peer.Address)
-		if profile == RemoteSeedProfile || profile == ProductionCandidateProfile {
-			if profile == ProductionCandidateProfile {
+		if profile == RemoteSeedProfile || explicitEndpoints(profile) {
+			if explicitEndpoints(profile) {
 				addressAllowed = explicitPeerEndpoint(peer.Address)
 			} else {
 				addressAllowed = privateEndpoint(peer.Address)
@@ -291,11 +297,21 @@ func candidateStagingChain(chainID string) bool {
 	return strings.HasPrefix(chainID, CandidateStagingChainPrefix) && len(chainID) > len(CandidateStagingChainPrefix) && !strings.Contains(lower, "mainnet") && !strings.Contains(lower, "production")
 }
 
+// explicitEndpoints reports a profile with explicit routable IP endpoints:
+// the production candidate and the production profile.
+func explicitEndpoints(profile string) bool {
+	return profile == ProductionCandidateProfile || profile == ProductionProfile
+}
+
 func load(home, profile string, candidate bool) (*Runtime, error) {
-	if ProductionBuild {
-		return nil, errors.New("a production build has no development or staging transport profile; the production profile is production activation step A4")
+	// Each build runs only its own profiles (production activation v1).
+	if ProductionBuild && (profile != ProductionProfile || candidate) {
+		return nil, errors.New("a production build runs only the production transport profile " + ProductionProfile)
 	}
-	allowed := (profile == Profile || profile == SeedProfile || profile == RemoteSeedProfile) && !candidate
+	if !ProductionBuild && profile == ProductionProfile {
+		return nil, errors.New("a development build has no production transport profile")
+	}
+	allowed := (profile == Profile || profile == SeedProfile || profile == RemoteSeedProfile || profile == ProductionProfile) && !candidate
 	if candidate {
 		allowed = profile == ProductionCandidateProfile
 	}
@@ -370,7 +386,7 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 	}
 	var key *p2p.NodeKey
 	var identity *pqcp2p.Identity
-	if profile == SeedProfile || profile == RemoteSeedProfile || candidate {
+	if profile == SeedProfile || profile == RemoteSeedProfile || profile == ProductionProfile || candidate {
 		local, err := decodePin(tc.LocalPublicKeyBase64)
 		if err != nil {
 			return nil, err
@@ -465,10 +481,10 @@ func (r *Runtime) Upgrade(logger log.Logger) p2p.AuthenticatedConnUpgrade {
 				return nil, errors.New("outbound address has no exact full-key pin")
 			}
 		}
-		if r.Transport.Profile == RemoteSeedProfile || r.Transport.Profile == ProductionCandidateProfile {
+		if r.Transport.Profile == RemoteSeedProfile || explicitEndpoints(r.Transport.Profile) {
 			listenerAddress := strings.TrimPrefix(r.Config.P2P.ListenAddress, "tcp://")
 			endpointAllowed := privateEndpoint
-			if r.Transport.Profile == ProductionCandidateProfile {
+			if explicitEndpoints(r.Transport.Profile) {
 				endpointAllowed = explicitPeerEndpoint
 			}
 			if !endpointAllowed(raw.LocalAddr().String()) || !endpointAllowed(raw.RemoteAddr().String()) || !endpointIP(raw.LocalAddr().String()).Equal(endpointIP(listenerAddress)) || (dialed == nil && raw.LocalAddr().String() != listenerAddress) {
@@ -507,7 +523,7 @@ func (r *Runtime) Upgrade(logger log.Logger) p2p.AuthenticatedConnUpgrade {
 			connection.Close()
 			return nil, errors.New("authenticated peer differs from full-key allowlist")
 		}
-		if (r.Transport.Profile == RemoteSeedProfile || r.Transport.Profile == ProductionCandidateProfile) && !endpointIP(raw.RemoteAddr().String()).Equal(endpointIP(r.addresses[p2p.PubKeyToID(public)])) {
+		if (r.Transport.Profile == RemoteSeedProfile || explicitEndpoints(r.Transport.Profile)) && !endpointIP(raw.RemoteAddr().String()).Equal(endpointIP(r.addresses[p2p.PubKeyToID(public)])) {
 			connection.Close()
 			return nil, errors.New("authenticated peer key differs from pinned source IP")
 		}

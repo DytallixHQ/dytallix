@@ -1,0 +1,18 @@
+{
+  "decision_id": "P01-2026-10-01-E05-ROOT-CONTROLS",
+  "approved": "2026-10-01",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Production activation v1, step A4: root controls in a production configuration"
+  },
+  "design_ref": "../node/docs/architecture/production-activation-v1.md",
+  "decisions": [
+    {
+      "question": "D07-Q01, D11-Q03",
+      "selected": "Require all three",
+      "rule": "A production node refuses a configuration that lacks the emergency freeze (schema 2), the upgrade policy (schema 2) or the release handover (schema 2). A production chain can always pause in an incident and move to a new release. Development builds are unchanged."
+    }
+  ],
+  "does_not_authorize": ["production activation of any chain", "custodian appointment", "gate acceptance", "mainnet launch"]
+}

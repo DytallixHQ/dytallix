@@ -174,7 +174,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "03b4aea4f0e39753f56b37a66b0efc43d8b2cf7a3ddd30033b03686ce16f2dff"
+          "sha256": "5058bc14f78495a61ca6081620a99f74eda3ee4e7eb93be2b6d735de19251558"
         },
         {
           "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
@@ -251,7 +251,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "03b4aea4f0e39753f56b37a66b0efc43d8b2cf7a3ddd30033b03686ce16f2dff"
+          "sha256": "5058bc14f78495a61ca6081620a99f74eda3ee4e7eb93be2b6d735de19251558"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",
@@ -263,7 +263,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "b6cb7e89e64d1a0959b9068010929dd149f273d811549d56f75a5771fc661951"
+          "sha256": "6ef0d13d50857129207ee5f8668b1a3e3d049ae308cffa966e4f5dd6bed1ac94"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
@@ -317,7 +317,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/release_handover.rs",
-          "sha256": "6fb4a291c45f703f55872bbd0ed0a99cfe3d2e58df2599412434b3de25c90ab5"
+          "sha256": "2747f29cfd65d00471e083f3e41434e628e8583a5c699a21d4b0d4dc55486413"
         },
         {
           "path": "dytallix-fast-launch/node/src/release_handover/restart.rs",

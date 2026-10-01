@@ -1302,6 +1302,87 @@
           "name": "assembly_checks_every_signature_and_the_quorum"
         }
       ]
+    },
+    {
+      "id": "file-root-genesis-policy",
+      "group": "file",
+      "exposure": "external",
+      "format": "Root genesis signer policy (production activation v1, A2): {schema, chain_id, authority {keys [{key_id, public_key_hex}], threshold}}: five SLH-DSA-SHAKE-256s keys sorted by key_id (the SHA-256 of the public key), threshold 3. Canonical JSON, published with the network configuration; dytallix-root-sign policy writes it.",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold.rs",
+          "text": "const RECORD_SCHEMA: u16 = 1;"
+        }
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold.rs",
+        "symbol": "pub struct GenesisPolicy"
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold_tests.rs",
+          "name": "signer_policy_is_three_of_five_sorted_keys"
+        },
+        {
+          "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold_tests.rs",
+          "name": "public_records_and_configuration_are_exact"
+        }
+      ]
+    },
+    {
+      "id": "file-root-genesis-signatures",
+      "group": "file",
+      "exposure": "external",
+      "format": "Root genesis signatures (production activation v1, A2): {schema, chain_id, bundle_sha512, signatures [{key_id, signature_hex}]}: three to five signatures over the genesis envelope, sorted by key_id. Canonical JSON; every node reads the same file, whose SHA-256 the version 2 root receipt records. dytallix-root-sign sign and combine write it.",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold.rs",
+          "text": "const RECORD_SCHEMA: u16 = 1;"
+        }
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold.rs",
+        "symbol": "pub struct GenesisSignatures"
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold_tests.rs",
+          "name": "signatures_are_three_to_five_sorted_signer_signatures_over_the_bundle"
+        },
+        {
+          "file": "node/dytallix-fast-launch/node/src/root_genesis/threshold_tests.rs",
+          "name": "threshold_genesis_signed_three_of_five"
+        }
+      ]
+    },
+    {
+      "id": "file-production-binding",
+      "group": "file",
+      "exposure": "operator",
+      "format": "Production engine binding (production activation v1, A4): {schema, role (validator, sentry or endpoint), chain_id, config_sha256, genesis_sha256, transport_sha256, peer_public_key_sha256, validator_public_key_sha256}. Canonical compact JSON, one per host in the published pin plan; dytallix-pqc-engine --binding checks it at start. Only a validator's key is in the genesis validator set.",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/consensus/cometbft/internal/enginepqc/production_binding.go",
+          "text": "binding.Schema != 1"
+        }
+      },
+      "source": {
+        "file": "node/consensus/cometbft/internal/enginepqc/production_binding.go",
+        "symbol": "type ProductionBinding struct"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/internal/enginepqc/production_binding_test.go",
+          "name": "TestProductionBindingCodecIsCanonical"
+        },
+        {
+          "file": "node/consensus/cometbft/internal/enginepqc/production_profile_test.go",
+          "name": "TestProductionProfileLoadsOnlyWithItsBinding"
+        }
+      ]
     }
   ]
 }
