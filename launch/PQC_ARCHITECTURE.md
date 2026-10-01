@@ -2,7 +2,7 @@
 
 Status: algorithms approved for local implementation. Production qualification is open. Mainnet remains **NO GO**.
 
-The [profile](decision-register/pqc-profile/PROFILE.json) and [G35 specification](decision-register/pqc-profile/GATE_SPEC.json) supersede earlier broad prohibitions on all classical cryptography. P01 has since prohibited classical public-key cryptography everywhere in the stack (below). Preserve the [prior architecture](decision-register/pqc-profile/evidence/before/PQC_ARCHITECTURE.md) as historical evidence.
+The profile (`decision-register/pqc-profile/PROFILE.json`) and G35 specification (`decision-register/pqc-profile/GATE_SPEC.json`), held outside this repository, supersede earlier broad prohibitions on all classical cryptography. P01 has since prohibited classical public-key cryptography everywhere in the stack (below). Preserve the prior architecture (`decision-register/pqc-profile/evidence/before/PQC_ARCHITECTURE.md`, held outside this repository) as historical evidence.
 
 | Role | Selected algorithm | Implementation boundary |
 |---|---|---|

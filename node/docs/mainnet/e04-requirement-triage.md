@@ -2,7 +2,8 @@
 
 Engineering task E04, subtask 1. The 52 remaining requirement rows and 14
 tracked conflicts (`decision-register/core-function-alignment/`
-`E04_REQUIREMENT_TRIAGE_2026-09-25.csv`, `CONFLICT_REGISTER.csv`) checked
+`E04_REQUIREMENT_TRIAGE_2026-09-25.csv`, `CONFLICT_REGISTER.csv`, held
+outside this repository) checked
 against `main` at 2c76e8e9 (#259). Diagnostic engineering input only; T07 owns
 the evidence map and acceptance.
 
@@ -25,7 +26,7 @@ E06, T01–T07, P02, P03); **CLAIM** (a document needs correcting).
 
 | # | Gap | Rows | Size |
 | --- | --- | --- | --- |
-| 1 | **Evidence halts the chain.** With `penalty` unset (required today: the penalty profile refuses vesting locks and production activation), any duplicate-vote evidence fails prepare and finalize. Light-client-attack evidence fails in every configuration (the bridge refuses it; CometBFT then panics in PrepareProposal). One faulty validator can stop the chain. Accept every evidence type without halting; the penalty effect waits for D09. | CONS-002, AC-003, AC-004 | M |
+| 1 | **Evidence halts the chain.** With `penalty` unset (required then: the penalty profile refused vesting locks and production activation; penalties v1 lifted the vesting refusal and made the profile required), any duplicate-vote evidence fails prepare and finalize. Light-client-attack evidence fails in every configuration (the bridge refuses it; CometBFT then panics in PrepareProposal). One faulty validator can stop the chain. Accept every evidence type without halting; the penalty effect waited for D09, decided by penalties v1 (30 September 2026). | CONS-002, AC-003, AC-004 | M |
 | 2 | **Issuance journal limit halts the chain.** The journal is replayed every block and the block fails once `max_recorded_epochs` is reached. Checkpoint and prune it. | STATE-002 | M |
 | 3 | **Restart replays the whole chain.** The verification mark is in memory, so every restart re-checks every block and ML-DSA signature from height 1; block and emission records are never pruned. | STATE-002, SYNC-003 | L |
 | 4 | **State sync** (phase C, approved): snapshot export at a height, chunk verification against the root, restore, a complete check and epoch observation that start from the snapshot height, an engine profile that allows it. | STATE-003, SYNC-002, SYNC-003 | L |

@@ -1,6 +1,6 @@
 > Current PQC profile: use ML-DSA-65 for validator and peer authentication roles. Use ML-KEM-768 for P2P key establishment. Use separate SLH-DSA root authorization. Active upstream P2P remains unqualified. Mainnet remains NO GO. See [PQC architecture](PQC_ARCHITECTURE.md). This notice supersedes conflicting algorithm selections below.
 
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in [the prior records](decision-register/evidence/prior-launch-records/).
+> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
 
 # Validator architecture
 

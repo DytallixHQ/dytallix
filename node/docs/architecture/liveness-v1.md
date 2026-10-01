@@ -8,7 +8,7 @@ relative to `dytallix-fast-launch/node/src/`.
 
 | ID | Problem |
 | --- | --- |
-| L1 | Evidence stopped the chain. Without a penalty profile, required on mainnet today because that profile refuses vesting locks and production activation, any evidence made prepare and finalize fail. Light-client-attack evidence failed in every profile: the bridge refused it, and CometBFT panics when PrepareProposal fails. CometBFT verifies evidence before a block carries it, and the application cannot refuse it. |
+| L1 | Evidence stopped the chain. Without a penalty profile, then required on mainnet because that profile refused vesting locks and production activation, any evidence made prepare and finalize fail. Light-client-attack evidence failed in every profile: the bridge refused it, and CometBFT panics when PrepareProposal fails. CometBFT verifies evidence before a block carries it, and the application cannot refuse it. Superseded by [penalties v1](penalties-v1.md): the profile now accepts vesting locks, and the launch configuration requires it. |
 | L2 | The issuance journal stopped the chain after `max_recorded_epochs` epochs, and every block reread every epoch record and replayed the controller from genesis (in the planner and again in the supply check). |
 | L3 | A validator withdrawal stopped the chain (found 28 September 2026). Without the penalty profile, ordinary v2 admitted a `ValidatorWithdraw` from an unbond's owner, then failed it as an internal fault, so PrepareProposal and FinalizeBlock failed for any block carrying it. Any delegator who had begun unbonding could stop the chain with one transaction. |
 

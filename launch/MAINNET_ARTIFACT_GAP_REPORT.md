@@ -2,6 +2,8 @@
 
 Captured: 2026-09-10T22:42:44.476667+00:00
 
+Links into `batch-*/` name launch evidence records held outside this repository; they do not resolve here.
+
 **Decision: NO GO.** The allocation-policy reference is qualified for its stated scope. No production binary or network is qualified. A Git push would publish source. It would not create a mainnet network.
 
 The register contains **64 artifacts**: 24 required final files and 40 source, release, operator and qualification packages.
