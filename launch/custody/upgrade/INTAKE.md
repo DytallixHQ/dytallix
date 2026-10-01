@@ -2,8 +2,9 @@
 
 Engineering task E05, step c. This packet collects the public records for the
 approved upgrade authority. It does not appoint custodians, verify signatures
-or create production configuration. The node refuses production upgrade
-activation until the production upgrade policy (schema 2) exists.
+or create production configuration. Upgrade schema 2 and handover schema 2,
+which enforce this authority, are implemented (production activation v1, step
+A3); the node accepts them in a production build from step A4.
 
 ## Approved policy
 
@@ -20,10 +21,13 @@ activation until the production upgrade policy (schema 2) exists.
   SLH-DSA-SHAKE-256s, the set the node's root verifier implements: 64-byte
   public keys and 29,792-byte signatures.
 
-The node's upgrade authority (`upgrade/v1/upgrade.rs`) is one key set with one
-authority epoch, so each custodian holds one upgrade key. Admission and
-activation each need three signatures from that set. The configuration check
-refuses a key that also holds a freeze or resume role.
+The node's upgrade authority (schema 2, `upgrade/v2/upgrade.rs`) is one key
+set of exactly five keys with one authority epoch, so each custodian holds one
+upgrade key. Admission and activation each need three signatures from that
+set, each over an anchored window. Release handovers (schema 2) and halt
+restarts use the same keys, threshold and epoch. The configuration check
+refuses a key that also holds a freeze or resume role, and a handover
+authority that differs from the upgrade authority.
 
 ## What stays out of this repository
 

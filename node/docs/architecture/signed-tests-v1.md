@@ -34,9 +34,10 @@ root, derived epoch observations).
 - **Runner.** `scripts/run_signed_fixture_tests.py` builds the tools, signs
   the three public fixtures (emergency, upgrade, and a second emergency key),
   sets the `DYT_*` variables and runs the ignored node library tests. It
-  fails unless exactly 23 pass (the 21 below, the restart test of gap 18 and
-  the three-of-five root genesis test of A2), so a renamed or filtered test
-  cannot drop out silently. `--tools DIR` uses prebuilt tools on a host
+  fails unless exactly 25 pass (the 21 below, the restart test of gap 18, the
+  three-of-five root genesis test of A2 and the two schema 2 upgrade and
+  handover tests of A3), so a renamed or filtered test cannot drop out
+  silently. `--tools DIR` uses prebuilt tools on a host
   without Go. `--production` runs the three-of-five test on a production
   build.
 - **CI.** The node job runs the runner after the workspace tests, then again

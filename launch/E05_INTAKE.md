@@ -8,16 +8,16 @@ until P01 approves it; approved values are marked. Decision IDs refer to
 
 ## How it works
 
-- **Values** are in [E05_VALUES.json](E05_VALUES.json): 201 configuration and
+- **Values** are in [E05_VALUES.json](E05_VALUES.json): 206 configuration and
   genesis values, each with its path, unit, the bounds the code enforces, the
   fixture value used in tests (never a recommendation), its decision and its
   couplings. Each has a tier:
 
   | Tier | Count | Meaning |
   | --- | --- | --- |
-  | decide | 63 | Economic, governance and security choices P01 makes |
+  | decide | 64 | Economic, governance and security choices P01 makes |
   | operate | 100 | Operational settings with an engineering default; P01 confirms |
-  | measure | 14 | Set from measurements on dedicated staging hosts |
+  | measure | 18 | Set from measurements on dedicated staging hosts |
   | derived | 24 | Fixed by an approved rule or another value |
 
   `proposed` is a proposal for review, never an approved value. Approved
@@ -42,8 +42,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
    (D08-Q01), the treasury recipient (D02-Q02), the DRT bootstrap rows
    (D08-Q03).
 4. **Values:** the decide tier in batches, then the operate tier.
-5. **Measurements** on the dedicated hosts: emergency validity windows,
-   capacity values, fault assumptions (E03, T02, T05).
+5. **Measurements** on the dedicated hosts: emergency, upgrade and handover
+   validity windows and anchor ages, capacity values, fault assumptions (E03,
+   T02, T05).
 6. **Genesis build** from the frozen inputs, the binding review, then the
    genesis digest (D13-Q02) and the release signers' acceptance.
 
@@ -53,7 +54,8 @@ The block interval is approved at about 5 seconds (`timeout_commit` 4 s); every
 block count follows from it. Approved values are marked and recorded in the
 [first](approvals/P01_E05_VALUES_1_2026-09-30.json),
 [second](approvals/P01_E05_VALUES_2_2026-09-30.json) and
-[third](approvals/P01_E05_VALUES_3_2026-09-30.json) sets.
+[third](approvals/P01_E05_VALUES_3_2026-09-30.json) sets, and the
+[notice scope](approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json).
 
 | Area | Value | Proposal | Basis or input needed |
 | --- | --- | --- | --- |
@@ -78,7 +80,7 @@ block count follows from it. Approved values are marked and recorded in the
 | DRT bootstrap | `drt_bootstrap_total_udrt` | **Approved:** 1,000,000 DRT | Operator startup (7 × 1,000 DRT) and about 90,000 new accounts at 11 DRT; validators earn from block 1. Rows are D08-Q03 |
 | Recovery template | `template_recovery_delay`, `_finalization_window`, `_policy_delay`, `_policy_window` | **Approved:** 7 days each | Time for an owner to see and cancel a recovery |
 | | `template_submission_lifetime` | **Approved:** 1 day (17,280) | Guardians have a day to collect signatures; sponsor receipts clear within a day |
-| Upgrades | `upgrade_notice_blocks` | **Approved:** 7 days | Time to install a release; urgent problems use the freeze |
+| Upgrades | `upgrade_notice_blocks`, `handover_notice_blocks` | **Approved:** 7 days each (120,960 blocks) | Time to install a release; urgent problems use the freeze, and a halted chain uses restart, which has no notice |
 | Clients | `client_compatibility_window` | — | Input needed (E06): how long a client release must stay compatible |
 
 ## Operational settings (100)

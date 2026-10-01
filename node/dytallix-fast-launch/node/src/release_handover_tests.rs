@@ -64,6 +64,7 @@ fn policy() -> Policy {
         initial_sequence: 10,
         max_control_bytes: 200_000,
         max_signatures: 2,
+        v2: None,
     }
 }
 fn context(height: u64) -> BlockContext {
@@ -76,6 +77,7 @@ fn context(height: u64) -> BlockContext {
         emergency_control_present: false,
         emergency_upgrade_hold: false,
         emergency_receipt_sha256: None,
+        finalized_anchor: None,
     }
 }
 fn release_plan(migration: bool) -> ReleasePlan {
@@ -84,7 +86,7 @@ fn release_plan(migration: bool) -> ReleasePlan {
         authorization_sha256: "ee".repeat(32),
         transition: if migration {
             Transition::ReceiptIndexV1 {
-                migration_sha256: upgrade::migration_sha256(),
+                migration_sha256: upgrade::v1::migration_sha256(),
             }
         } else {
             Transition::SchemaPreserving { schema: 0 }
@@ -106,6 +108,7 @@ fn control(policy: &Policy, state: &State, context: &BlockContext, action: Actio
             parent_app_hash: context.parent_app_hash.clone(),
             target_height: context.height,
             action,
+            v2: None,
         },
         signatures: vec![
             emergency::ControlSignature {
@@ -172,7 +175,7 @@ fn activation(
 }
 fn prepared_upgrade() -> PreparedUpgradeOutcome {
     let policy = policy();
-    let p = upgrade::Policy {
+    let p = upgrade::v1::Policy {
         schema: 1,
         development_only: true,
         chain_id: policy.chain_id.clone(),
@@ -183,22 +186,22 @@ fn prepared_upgrade() -> PreparedUpgradeOutcome {
         initial_sequence: 1,
         max_control_bytes: policy.max_control_bytes,
         max_signatures: policy.max_signatures,
-        migration_bounds: upgrade::MigrationBounds {
+        migration_bounds: upgrade::v1::MigrationBounds {
             max_receipts: 10,
             max_receipt_bytes: 100_000,
             max_write_bytes: 100_000,
         },
     };
-    let plan = upgrade::MigrationPlan {
+    let plan = upgrade::v1::MigrationPlan {
         target_release_sha512: p.source_release_sha512.clone(),
         migration_id: upgrade::MIGRATION_ID.into(),
-        migration_sha256: upgrade::migration_sha256(),
+        migration_sha256: upgrade::v1::migration_sha256(),
         source_schema: 0,
         target_schema: 1,
         bounds: p.migration_bounds.clone(),
         authorization_sha256: "ff".repeat(32),
     };
-    let context = |height| upgrade::BlockContext {
+    let context = |height| upgrade::v1::BlockContext {
         height,
         parent_height: height - 1,
         parent_app_hash: "cc".repeat(32),
@@ -207,9 +210,9 @@ fn prepared_upgrade() -> PreparedUpgradeOutcome {
         emergency_upgrade_hold: false,
         emergency_receipt_sha256: None,
     };
-    let make = |sequence, height, action| upgrade::Control {
-        kind: upgrade::CONTROL_KIND.into(),
-        payload: upgrade::Payload {
+    let make = |sequence, height, action| upgrade::v1::Control {
+        kind: upgrade::v1::CONTROL_KIND.into(),
+        payload: upgrade::v1::Payload {
             schema: 1,
             chain_id: p.chain_id.clone(),
             genesis_sha256: p.genesis_sha256.clone(),
@@ -232,11 +235,11 @@ fn prepared_upgrade() -> PreparedUpgradeOutcome {
             },
         ],
     };
-    let first = make(1, 1, upgrade::Action::Admit { plan: plan.clone() });
-    let history = upgrade::VerifiedEmergencyHistory::empty();
-    let first = upgrade::plan_block(
+    let first = make(1, 1, upgrade::v1::Action::Admit { plan: plan.clone() });
+    let history = upgrade::v1::VerifiedEmergencyHistory::empty();
+    let first = upgrade::v1::plan_block(
         &p,
-        &upgrade::State::new(&p).unwrap(),
+        &upgrade::v1::State::new(&p).unwrap(),
         &context(1),
         Some(&serde_json::to_vec(&first).unwrap()),
         &history,
@@ -246,7 +249,7 @@ fn prepared_upgrade() -> PreparedUpgradeOutcome {
     let second = make(
         2,
         2,
-        upgrade::Action::Activate {
+        upgrade::v1::Action::Activate {
             plan,
             admission_receipt_sha256: first.receipt.unwrap().sha256().unwrap(),
             emergency_receipt_sha256: None,
@@ -254,7 +257,7 @@ fn prepared_upgrade() -> PreparedUpgradeOutcome {
         },
     );
     let raw = serde_json::to_vec(&second).unwrap();
-    let second = upgrade::plan_block(
+    let second = upgrade::v1::plan_block(
         &p,
         &first.state,
         &context(2),
@@ -263,7 +266,7 @@ fn prepared_upgrade() -> PreparedUpgradeOutcome {
         &TestVerifier::valid(),
     )
     .unwrap();
-    PreparedUpgradeOutcome::from_verified_upgrade(&raw, &second).unwrap()
+    PreparedUpgradeOutcome::from_verified_upgrade(&raw, &second.into()).unwrap()
 }
 #[test]
 fn handover_preserves_initial_identity_and_strict_codec() {

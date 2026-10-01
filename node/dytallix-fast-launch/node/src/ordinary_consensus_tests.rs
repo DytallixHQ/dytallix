@@ -2773,6 +2773,9 @@ mod emergency_tests;
 
 #[path = "upgrade_consensus_tests.rs"]
 mod upgrade_tests;
+#[cfg(unix)]
+#[path = "upgrade_v2_consensus_tests.rs"]
+mod upgrade_v2_tests;
 
 #[path = "release_handover_consensus_tests.rs"]
 mod release_handover_tests;

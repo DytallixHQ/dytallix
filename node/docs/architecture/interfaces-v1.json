@@ -443,12 +443,12 @@
       "id": "tx-handover-control",
       "group": "transaction",
       "exposure": "external",
-      "format": "Canonical JSON control; root-signed release handover.",
+      "format": "Canonical JSON control; release handover, root-signed (schema 1) or signed by 3 of the 5 upgrade custodians over an anchored height window (schema 2).",
       "version": {
         "field": "kind",
         "literal": {
           "file": "node/dytallix-fast-launch/node/src/release_handover.rs",
-          "text": "dytallix-release-handover-v1"
+          "text": "dytallix-release-handover-v2"
         }
       },
       "source": {
@@ -466,17 +466,17 @@
       "id": "tx-upgrade-control",
       "group": "transaction",
       "exposure": "external",
-      "format": "Canonical JSON control; root-signed chain upgrade.",
+      "format": "Canonical JSON control; chain upgrade, root-signed (schema 1) or signed by 3 of the 5 upgrade custodians over an anchored height window (schema 2).",
       "version": {
         "field": "kind",
         "literal": {
-          "file": "node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs",
-          "text": "dytallix-upgrade-control-v1"
+          "file": "node/dytallix-fast-launch/node/src/upgrade/v2/upgrade.rs",
+          "text": "dytallix-upgrade-control-v2"
         }
       },
       "source": {
         "file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs",
-        "symbol": "upgrade::decode_control(policy, raw)"
+        "symbol": "upgrade::canonical_control(policy, raw)"
       },
       "tests": [
         {

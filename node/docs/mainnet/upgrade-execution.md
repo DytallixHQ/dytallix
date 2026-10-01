@@ -40,7 +40,14 @@ Current tests use synthetic authority and the same running candidate. Full produ
   release before activation. An urgent
   problem uses the emergency freeze first.
 - **Implementation.** v1 is development-only and its source is retained
-  unchanged for replay, so the notice rule and the production threshold
-  belong to the production upgrade policy (schema 2), which production
-  activation requires. The custodians' names, keys and epochs are E05
-  records (D10-Q03, D11-Q03).
+  unchanged for replay. Upgrade schema 2 (`upgrade/v2/upgrade.rs`, production
+  activation v1, step A3) is a second retained implementation with its own
+  registry entry. It requires exactly five keys, three signatures and key IDs
+  that are the SHA-256 of the public keys; it activates no earlier than
+  `min_notice_blocks` after admission; every signature binds a finalized
+  anchor and a window within `max_validity_blocks` and
+  `max_anchor_age_blocks`; and the migration runs in the active release that
+  committed handover history selects. Release handover schema 2 uses the same
+  authority and the same notice (P01, 1 October 2026), and pairs only with a
+  schema 2 upgrade. The custodians' names, keys and epochs are E05 records
+  (D10-Q03, D11-Q03); the window bounds are measured values.

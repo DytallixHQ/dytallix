@@ -242,19 +242,18 @@ fn configure_handover(f: &mut Fixture, path: &Path) {
     policy.v2 = Some(emergency::PolicyV2 { genesis_sha256:genesis.clone(), authority_epoch:1,
         max_validity_blocks:4, max_anchor_age_blocks:4 });
     let initial_release = policy.release_sha512.clone();
-    f.config.upgrade = Some(upgrade::Policy {
+    f.config.upgrade = Some(upgrade::Policy::V1(upgrade::v1::Policy {
         schema:1, development_only:true, chain_id:CHAIN.into(), genesis_sha256:genesis.clone(),
         source_release_sha512:initial_release.clone(), authority_epoch:1,
         authority:authority(path,31,1,1,"upgrade"), initial_sequence:1,
         max_control_bytes:262_144, max_signatures:1,
-        migration_bounds:upgrade::MigrationBounds { max_receipts:16,max_receipt_bytes:4*1024*1024,max_write_bytes:64*1024 },
-    });
+        migration_bounds:upgrade::v1::MigrationBounds { max_receipts:16,max_receipt_bytes:4*1024*1024,max_write_bytes:64*1024 },
+    }));
     f.config.release_handover = Some(handover::Policy {
         schema:1, development_only:true, chain_id:CHAIN.into(), genesis_sha256:genesis,
         initial_release_sha512:initial_release, initial_schema:0, authority_epoch:1,
         authority:authority(path,41,1,1,"handover"), initial_sequence:1,
-        max_control_bytes:262_144,max_signatures:1,
-    });
+        max_control_bytes:262_144,max_signatures:1, v2: None, });
 }
 fn signature(root: &RootFixture, artifact: &[u8], action: &str, sequence: u64,
     height: u64, key: u8, purpose: &str) -> emergency::ControlSignature {
@@ -303,14 +302,14 @@ fn assert_only_emergency_release_differs(rejected: &[u8], accepted: &[u8], old_r
     rejected.payload.release_sha512=accepted.payload.release_sha512.clone();
     assert_eq!(rejected.payload,accepted.payload,"Negative fixture changed more than the active release binding");
 }
-fn upgrade_from_process(root: &RootFixture,f: &Fixture,app: &mut HandoverProcess, action: upgrade::Action) -> Vec<u8> {
+fn upgrade_from_process(root: &RootFixture,f: &Fixture,app: &mut HandoverProcess, action: upgrade::v1::Action) -> Vec<u8> {
     let (head,status)=app.snapshot();
-    let payload=upgrade::Payload { schema:1,chain_id:CHAIN.into(),genesis_sha256:f.config.app_state_sha256.clone(),
-        source_release_sha512:f.config.upgrade.as_ref().unwrap().source_release_sha512.clone(),authority_epoch:1,
+    let payload=upgrade::v1::Payload { schema:1,chain_id:CHAIN.into(),genesis_sha256:f.config.app_state_sha256.clone(),
+        source_release_sha512:f.config.upgrade.as_ref().unwrap().as_v1().unwrap().source_release_sha512.clone(),authority_epoch:1,
         sequence:status["upgrade"]["next_sequence"].as_u64().unwrap(),parent_height:head.height,
         parent_app_hash:head.app_hash,target_height:head.height+1,action };
-    let signed=signature(root,&upgrade::artifact_bytes(&payload).unwrap(),"upgrade",payload.sequence,payload.target_height,31,"upgrade");
-    serde_json::to_vec(&upgrade::Control { kind:upgrade::CONTROL_KIND.into(),payload,signatures:vec![signed] }).unwrap()
+    let signed=signature(root,&upgrade::v1::artifact_bytes(&payload).unwrap(),"upgrade",payload.sequence,payload.target_height,31,"upgrade");
+    serde_json::to_vec(&upgrade::v1::Control { kind:upgrade::v1::CONTROL_KIND.into(),payload,signatures:vec![signed] }).unwrap()
 }
 fn handover_from_process(root: &RootFixture,f: &Fixture,app: &mut HandoverProcess,action: handover::Action) -> Vec<u8> {
     let (head,status)=app.snapshot();
@@ -318,7 +317,7 @@ fn handover_from_process(root: &RootFixture,f: &Fixture,app: &mut HandoverProces
     let payload=handover::Payload { schema:1,chain_id:CHAIN.into(),genesis_sha256:f.config.app_state_sha256.clone(),
         policy_sha256:policy.sha256().unwrap(),source_release_sha512:status["release_handover"]["active_release_sha512"].as_str().unwrap().into(),
         authority_epoch:1,sequence:status["release_handover"]["next_sequence"].as_u64().unwrap(),
-        parent_height:head.height,parent_app_hash:head.app_hash,target_height:head.height+1,action };
+        parent_height:head.height,parent_app_hash:head.app_hash,target_height:head.height+1,action, v2: None, };
     let signed=signature(root,&handover::artifact_bytes(&payload).unwrap(),"upgrade",payload.sequence,payload.target_height,41,"handover");
     serde_json::to_vec(&handover::Control {kind:handover::CONTROL_KIND.into(),payload,signatures:vec![signed]}).unwrap()
 }
@@ -382,10 +381,10 @@ fn actual_signed_handover_pairs_migration_and_changes_executing_candidate() {
     let resume_receipt=last_emergency_receipt(&mut a);
     assert_eq!(a.query(&format!("/emergency/receipt/{freeze_receipt}"))["status"],"index_unavailable");
     let migration_plan=plan(&f);
-    let migration_admit=upgrade_from_process(&root,&f,&mut a,upgrade::Action::Admit {plan:migration_plan.clone()});
+    let migration_admit=upgrade_from_process(&root,&f,&mut a,upgrade::v1::Action::Admit {plan:migration_plan.clone()});
     a.commit_txs(3,&[migration_admit]);
     let release_plan=handover::ReleasePlan {target_release_sha512:target_release.clone(),
-        transition:handover::Transition::ReceiptIndexV1 {migration_sha256:upgrade::migration_sha256()},
+        transition:handover::Transition::ReceiptIndexV1 {migration_sha256:upgrade::v1::migration_sha256()},
         authorization_sha256:"77".repeat(32)};
     let release_admit=handover_from_process(&root,&f,&mut a,handover::Action::Admit {plan:release_plan.clone()});
     a.commit_txs(4,&[release_admit]);
@@ -398,7 +397,7 @@ fn actual_signed_handover_pairs_migration_and_changes_executing_candidate() {
         .assert_startup_rejected("Candidate manifest digest mismatch");
     let mut a=HandoverProcess::open_with_candidate(&source,&root,&db,"handover-source-admitted",Some(&source_settings));
     assert_eq!(a.snapshot(),admitted,"Premature target startup changed committed state");
-    let migration_activate=upgrade_from_process(&root,&f,&mut a,upgrade::Action::Activate {
+    let migration_activate=upgrade_from_process(&root,&f,&mut a,upgrade::v1::Action::Activate {
         plan:migration_plan,admission_receipt_sha256:admitted.1["upgrade"]["pending"]["admission_receipt_sha256"].as_str().unwrap().into(),
         emergency_receipt_sha256:Some(resume_receipt.clone()),evidence_sha256:"66".repeat(32)});
     let mut action=handover::Action::Activate {plan:release_plan,

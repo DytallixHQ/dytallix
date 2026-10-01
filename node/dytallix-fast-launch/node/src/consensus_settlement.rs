@@ -275,13 +275,13 @@ impl ConsensusConfig {
                 .as_ref()
                 .context("Upgrade requires emergency policy and root verifier")?;
             ensure!(
-                policy.chain_id == self.chain_id
-                    && policy.genesis_sha256 == self.app_state_sha256
-                    && policy.source_release_sha512 == emergency.release_sha512,
+                policy.chain_id() == self.chain_id
+                    && policy.genesis_sha256() == self.app_state_sha256
+                    && policy.initial_release_sha512() == emergency.release_sha512,
                 "Upgrade chain/genesis/release binding differs"
             );
             ensure!(
-                policy.max_control_bytes <= self.max_tx_bytes,
+                policy.max_control_bytes() <= self.max_tx_bytes,
                 "Upgrade control exceeds transaction bound"
             );
             // Upgrades have their own custodian group (P01, 30 September
@@ -295,7 +295,7 @@ impl ConsensusConfig {
                 .collect();
             ensure!(
                 policy
-                    .authority
+                    .authority()
                     .keys
                     .iter()
                     .all(|key| !emergency_keys.contains(key.public_key_hex.as_str())),
@@ -311,10 +311,23 @@ impl ConsensusConfig {
             ensure!(
                 policy.chain_id == self.chain_id
                     && policy.genesis_sha256 == self.app_state_sha256
-                    && policy.initial_release_sha512 == upgrade.source_release_sha512
+                    && policy.initial_release_sha512 == upgrade.initial_release_sha512()
                     && policy.initial_schema == 0,
                 "Handover genesis/root/schema binding differs"
             );
+            // Schema 2 handovers use the upgrade custodians, three of five
+            // (P01, 30 September 2026): the same keys, threshold and epoch.
+            ensure!(
+                policy.v2.is_some() == matches!(upgrade, upgrade::Policy::V2(_)),
+                "Handover and upgrade policy schemas differ"
+            );
+            if policy.v2.is_some() {
+                ensure!(
+                    policy.authority == *upgrade.authority()
+                        && policy.authority_epoch == upgrade.authority_epoch(),
+                    "Handover authority differs from the upgrade authority"
+                );
+            }
             ensure!(
                 policy.max_control_bytes <= self.max_tx_bytes,
                 "Handover wire bound exceeds transaction limit"
@@ -478,7 +491,7 @@ impl ConsensusConfig {
         }
         if let Some(policy) = &self.upgrade {
             ensure!(
-                holds(policy.max_control_bytes, policy.authority.threshold),
+                holds(policy.max_control_bytes(), policy.authority().threshold),
                 "Upgrade control bound cannot hold its threshold signatures"
             );
         }
@@ -1093,6 +1106,29 @@ fn control_anchors(storage: &Storage, config: &ConsensusConfig) -> Result<BTreeS
             }
             heights.insert(handover::restart::decode_receipt(policy, &bytes)?.halted_height());
         }
+        // The anchors recorded schema 2 handovers name (production
+        // activation v1, A3).
+        if policy.v2.is_some() {
+            for item in storage.db.prefix_iterator(handover::RECEIPT_PREFIX) {
+                let (key, bytes) = item?;
+                if !key.starts_with(handover::RECEIPT_PREFIX.as_bytes()) {
+                    break;
+                }
+                let receipt = handover::decode_receipt(policy, &bytes)?;
+                heights.extend(receipt.context.finalized_anchor.map(|a| a.height));
+            }
+        }
+    }
+    if let Some(policy) = &config.upgrade {
+        if policy.max_anchor_age_blocks().is_some() {
+            for item in storage.db.prefix_iterator(upgrade::v2::RECEIPT_PREFIX) {
+                let (key, bytes) = item?;
+                if !key.starts_with(upgrade::v2::RECEIPT_PREFIX.as_bytes()) {
+                    break;
+                }
+                heights.extend(upgrade::decode_receipt(policy, &bytes)?.anchor_height());
+            }
+        }
     }
     Ok(heights)
 }
@@ -1135,6 +1171,23 @@ fn retention_floor(storage: &Storage, config: &ConsensusConfig, height: u64) -> 
                 .checked_add(1)
                 .context("Anchor retention overflow")?,
         );
+    }
+    // Schema 2 upgrades and handovers name anchors the same way.
+    for age in [
+        config
+            .upgrade
+            .as_ref()
+            .and_then(upgrade::Policy::max_anchor_age_blocks),
+        config
+            .release_handover
+            .as_ref()
+            .and_then(|policy| policy.v2.as_ref())
+            .map(|v2| v2.max_anchor_age_blocks),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        span = span.max(age.checked_add(1).context("Anchor retention overflow")?);
     }
     if let Some(ordinary) = &config.ordinary {
         span = span.max(ordinary.fee_profile.limits.max_expiry_lifetime);
@@ -1582,11 +1635,11 @@ pub(crate) fn append_genesis_anchor(
             ensure!(
                 capture
                     .writes
-                    .insert(upgrade::STATE_KEY.as_bytes().to_vec(), bytes.clone())
+                    .insert(policy.state_key().as_bytes().to_vec(), bytes.clone())
                     .is_none(),
                 "Upgrade genesis already staged"
             );
-            batch.put(upgrade::STATE_KEY, bytes);
+            batch.put(policy.state_key(), bytes);
         }
         if let Some(policy) = &config.release_handover {
             config.validate()?;
@@ -2034,10 +2087,8 @@ fn wire(config: &ConsensusConfig, raw: &[u8]) -> Result<WireTransaction> {
         }
     }
     if let Some(policy) = &config.upgrade {
-        if let Ok(control) = upgrade::decode_control(policy, raw) {
-            return Ok(WireTransaction::UpgradeControl {
-                control: serde_json::to_vec(&control)?,
-            });
+        if let Ok(control) = upgrade::canonical_control(policy, raw) {
+            return Ok(WireTransaction::UpgradeControl { control });
         }
     }
     if let Ok(value) = serde_json::from_slice::<OrdinaryOuter>(raw) {
@@ -3216,6 +3267,7 @@ fn handover_context(
     source_schema: u16,
     state: &emergency::State,
     control_present: bool,
+    finalized_anchor: Option<emergency::FinalizedAnchor>,
 ) -> Result<handover::BlockContext> {
     Ok(handover::BlockContext {
         height,
@@ -3226,6 +3278,7 @@ fn handover_context(
         emergency_control_present: control_present,
         emergency_upgrade_hold: state.blocks_upgrade(),
         emergency_receipt_sha256: state.last_receipt_sha256().map(str::to_owned),
+        finalized_anchor,
     })
 }
 fn handover_history(
@@ -3288,17 +3341,17 @@ fn handover_history(
             schema,
             &emergency_state,
             prior_end != current_end,
+            None,
         )?;
         let outcome = upgrade_outcomes.get(&h);
         let migration = outcome
             .filter(|p| p.migration.is_some())
             .map(|p| {
-                let raw = serde_json::to_vec(
-                    &p.receipt
-                        .as_ref()
-                        .context("Migration receipt missing")?
-                        .control,
-                )?;
+                let raw = p
+                    .receipt
+                    .as_ref()
+                    .context("Migration receipt missing")?
+                    .control_bytes()?;
                 handover::PreparedUpgradeOutcome::from_verified_upgrade(&raw, p)
             })
             .transpose()?;
@@ -3358,6 +3411,14 @@ fn handover_history(
                             && record.result.tx_results.get(*index) == Some(&handover_result()),
                         "Handover receipt input/result differs"
                     );
+                    // A schema 2 control's anchor, read from the held history.
+                    let mut context = context.clone();
+                    context.finalized_anchor = named_anchor(
+                        |anchor| history.anchor(anchor, h - 1),
+                        handover::control_anchor_height(policy, raw)?,
+                        h - 1,
+                        policy.v2.as_ref().map(|v2| v2.max_anchor_age_blocks),
+                    )?;
                     let plan = handover::replay_record(
                         policy,
                         &state,
@@ -3408,22 +3469,68 @@ fn upgrade_result() -> TxResult {
     }
 }
 fn upgrade_state(storage: &Storage, config: &ConsensusConfig) -> Result<Option<upgrade::State>> {
-    match (&config.upgrade, storage.db.get(upgrade::STATE_KEY)?) {
-        (Some(policy), Some(raw)) => Ok(Some(upgrade::decode_state(policy, &raw)?)),
-        (None, None) => Ok(None),
-        _ => anyhow::bail!("Upgrade state/configuration mismatch"),
+    match &config.upgrade {
+        Some(policy) => Ok(Some(upgrade::decode_state(
+            policy,
+            &storage
+                .db
+                .get(policy.state_key())?
+                .context("Upgrade state/configuration mismatch")?,
+        )?)),
+        None => {
+            ensure!(
+                storage.db.get(upgrade::v1::STATE_KEY)?.is_none()
+                    && storage.db.get(upgrade::v2::STATE_KEY)?.is_none(),
+                "Upgrade state/configuration mismatch"
+            );
+            Ok(None)
+        }
     }
+}
+/// The release an upgrade control at `height` binds: the release committed
+/// handover history selects after its parent, as for emergency controls.
+fn upgrade_release_at(
+    history: &HistoryRead<'_>,
+    config: &ConsensusConfig,
+    policy: &upgrade::Policy,
+    height: u64,
+) -> Result<String> {
+    let parent = height.checked_sub(1).context("Upgrade genesis action")?;
+    Ok(recorded_release_at(history, config, parent)?
+        .unwrap_or_else(|| policy.initial_release_sha512().to_owned()))
+}
+/// The finalized anchor a schema 2 control names, read from committed
+/// history. An anchor outside the age bound is passed as absent, which the
+/// control check refuses deterministically; within it, a missing record is a
+/// local failure, never a refusal.
+fn named_anchor(
+    read: impl Fn(u64) -> Result<emergency::FinalizedAnchor>,
+    anchor: Option<u64>,
+    parent: u64,
+    max_age: Option<u64>,
+) -> Result<Option<emergency::FinalizedAnchor>> {
+    let (Some(anchor), Some(max_age)) = (anchor, max_age) else {
+        return Ok(None);
+    };
+    if anchor > parent || (parent + 1).saturating_sub(anchor) > max_age {
+        return Ok(None);
+    }
+    read(anchor).map(Some)
 }
 fn upgrade_context(
     height: u64,
     parent_app_hash: String,
+    active_release_sha512: String,
+    finalized_anchor: Option<emergency::FinalizedAnchor>,
     state: &emergency::State,
     control_present: bool,
-) -> Result<upgrade::BlockContext> {
-    Ok(upgrade::BlockContext {
+) -> Result<upgrade::Context> {
+    Ok(upgrade::Context {
         height,
         parent_height: height.checked_sub(1).context("Upgrade genesis action")?,
         parent_app_hash,
+        active_release_sha512,
+        finalized_anchor,
         emergency_frozen: state.frozen(),
         emergency_control_present: control_present,
         emergency_upgrade_hold: state.blocks_upgrade(),
@@ -3493,28 +3600,40 @@ fn upgrade_history(
             ensure!(controls.len() <= 1, "Multiple committed upgrade controls");
             if let Some((index, raw)) = controls.first() {
                 let emergency_state = &emergency_trace.states[prior_end];
-                let history = upgrade::VerifiedEmergencyHistory::from_records(
-                    emergency_policy,
-                    prior_records,
-                    &emergency_state,
+                let anchor = named_anchor(
+                    |anchor| history.anchor(anchor, h - 1),
+                    upgrade::control_anchor_height(policy, raw)?,
+                    h - 1,
+                    policy.max_anchor_age_blocks(),
                 )?;
                 let context = upgrade_context(
                     h,
                     record.head.anchor.prior_app_hash.clone(),
-                    &emergency_state,
+                    upgrade_release_at(history, config, policy, h)?,
+                    anchor,
+                    emergency_state,
                     false,
                 )?;
-                let control = upgrade::decode_control(policy, raw)?;
-                let key = upgrade::receipt_key(control.payload.sequence);
+                let key = policy.receipt_key(upgrade::control_sequence(policy, raw)?);
                 let bytes = storage.db.get(&key)?.context("Upgrade receipt missing")?;
                 let receipt = upgrade::decode_receipt(policy, &bytes)?;
                 ensure!(
-                    receipt.control == control
+                    receipt.control_bytes()? == *raw
                         && record.result.tx_results.get(*index) == Some(&upgrade_result()),
                     "Upgrade receipt differs from committed input/result"
                 );
-                let plan =
-                    upgrade::replay_record(policy, &state, &receipt, &context, &history, verifier)?;
+                let plan = upgrade::replay_record(
+                    policy,
+                    &state,
+                    &receipt,
+                    &context,
+                    &upgrade::EmergencyHistory {
+                        policy: emergency_policy,
+                        records: prior_records,
+                        state: emergency_state,
+                    },
+                    verifier,
+                )?;
                 ensure!(
                     expected.insert(key.into_bytes(), bytes.to_vec()).is_none(),
                     "Reused upgrade receipt"
@@ -3546,7 +3665,7 @@ fn upgrade_history(
         }
     }
     expected.insert(
-        upgrade::STATE_KEY.as_bytes().to_vec(),
+        policy.state_key().as_bytes().to_vec(),
         upgrade::encode_state(&state)?,
     );
     ensure!(
@@ -3658,23 +3777,34 @@ impl ConsensusApplication {
         let migration = upgrade_plan
             .filter(|p| p.migration.is_some())
             .map(|p| {
-                let raw = serde_json::to_vec(
-                    &p.receipt
-                        .as_ref()
-                        .context("Migration receipt missing")?
-                        .control,
-                )?;
+                let raw = p
+                    .receipt
+                    .as_ref()
+                    .context("Migration receipt missing")?
+                    .control_bytes()?;
                 handover::PreparedUpgradeOutcome::from_verified_upgrade(&raw, p)
             })
             .transpose()?;
+        let parent = current_info(&self.storage)?;
+        let anchor = controls
+            .first()
+            .map(|raw| handover::control_anchor_height(policy, raw))
+            .transpose()?
+            .flatten();
         let context = handover_context(
             height,
-            current_info(&self.storage)?.app_hash,
+            parent.app_hash,
             upgrade_state(&self.storage, &self.config)?
                 .context("Handover upgrade state missing")?
                 .active_schema(),
             &emergency_state,
             false,
+            named_anchor(
+                |anchor| finalized_anchor(&self.storage, anchor, parent.height),
+                anchor,
+                parent.height,
+                policy.v2.as_ref().map(|v2| v2.max_anchor_age_blocks),
+            )?,
         )?;
         Ok(Some(handover::plan_block(
             policy,
@@ -3787,22 +3917,36 @@ impl ConsensusApplication {
                 migration: None,
             }));
         }
-        let context = upgrade_context(height, info.app_hash, &emergency_state, false)?;
-        let records = committed_emergency_records(&self.storage, &self.config)?;
-        let history = upgrade::VerifiedEmergencyHistory::from_records(
-            self.config
-                .emergency
-                .as_ref()
-                .context("Emergency policy missing")?,
-            &records,
-            &emergency_state,
+        let raw = control.as_deref().context("Upgrade control missing")?;
+        let anchor = named_anchor(
+            |anchor| finalized_anchor(&self.storage, anchor, info.height),
+            upgrade::control_anchor_height(policy, raw)?,
+            info.height,
+            policy.max_anchor_age_blocks(),
         )?;
+        let context = upgrade_context(
+            height,
+            info.app_hash,
+            upgrade_release_at(&HistoryRead::new(&self.storage), &self.config, policy, height)?,
+            anchor,
+            &emergency_state,
+            false,
+        )?;
+        let records = committed_emergency_records(&self.storage, &self.config)?;
         Ok(Some(upgrade::plan_block(
             policy,
             &state,
             &context,
-            control.as_deref(),
-            &history,
+            Some(raw),
+            &upgrade::EmergencyHistory {
+                policy: self
+                    .config
+                    .emergency
+                    .as_ref()
+                    .context("Emergency policy missing")?,
+                records: &records,
+                state: &emergency_state,
+            },
             self.emergency_verifier
                 .as_ref()
                 .context("Upgrade verifier unavailable")?,
@@ -4432,20 +4576,29 @@ impl ConsensusApplication {
                         .context("Handover state missing")?;
                     let emergency = emergency_state(&self.storage, &self.config)?
                         .context("Handover emergency state missing")?;
+                    let policy = self
+                        .config
+                        .release_handover
+                        .as_ref()
+                        .context("Handover policy missing")?;
+                    let parent = current_info(&self.storage)?;
                     let context = handover_context(
                         height,
-                        current_info(&self.storage)?.app_hash,
+                        parent.app_hash,
                         upgrade_state(&self.storage, &self.config)?
                             .context("Upgrade state missing")?
                             .active_schema(),
                         &emergency,
                         false,
+                        named_anchor(
+                            |anchor| finalized_anchor(&self.storage, anchor, parent.height),
+                            handover::control_anchor_height(policy, raw)?,
+                            parent.height,
+                            policy.v2.as_ref().map(|v2| v2.max_anchor_age_blocks),
+                        )?,
                     )?;
                     handover::check_admission(
-                        self.config
-                            .release_handover
-                            .as_ref()
-                            .context("Handover policy missing")?,
+                        policy,
                         &state,
                         &context,
                         raw,
@@ -5567,17 +5720,22 @@ impl ConsensusApplication {
             }
         }
         if let Some(plan) = upgrade_plan {
+            let policy = self
+                .config
+                .upgrade
+                .as_ref()
+                .context("Upgrade policy missing")?;
             writes.insert(
-                upgrade::STATE_KEY.as_bytes().to_vec(),
+                policy.state_key().as_bytes().to_vec(),
                 upgrade::encode_state(&plan.state)?,
             );
             if let Some(receipt) = plan.receipt {
-                let key = upgrade::receipt_key(receipt.sequence());
+                let key = policy.receipt_key(receipt.sequence());
                 ensure!(
                     self.storage.db.get(&key)?.is_none(),
                     "Upgrade receipt already exists"
                 );
-                writes.insert(key.into_bytes(), upgrade::encode_receipt(&receipt)?);
+                writes.insert(key.into_bytes(), receipt.encode()?);
             }
             if let Some(migration) = plan.migration {
                 for (key, value) in migration.writes {
@@ -6651,16 +6809,28 @@ impl ConsensusApplication {
                 "last_receipt_sha256":state.last_receipt_sha256(), "activation_receipt_sha256":state.activation_receipt_sha256()
             });
         }
-        if let Some(state) = upgrade_state(&self.storage, &self.config)? {
+        if let (Some(policy), Some(state)) = (
+            &self.config.upgrade,
+            upgrade_state(&self.storage, &self.config)?,
+        ) {
+            // Schema 2 follows the handover state's release.
+            let release = match state.active_release_sha512() {
+                Some(release) => release.to_owned(),
+                None => handover_state(&self.storage, &self.config)?.map_or_else(
+                    || policy.initial_release_sha512().to_owned(),
+                    |handover| handover.active_release_sha512().to_owned(),
+                ),
+            };
             response["upgrade"] = serde_json::json!({
                 "development_only": true,
+                "schema": match policy { upgrade::Policy::V1(_) => 1, upgrade::Policy::V2(_) => 2 },
                 "active_schema": state.active_schema(),
-                "active_release_sha512": state.active_release_sha512(),
+                "active_release_sha512": release,
                 "next_sequence": state.next_sequence(),
-                "pending": state.pending(),
+                "pending": state.pending_json()?,
                 "last_receipt_sha256": state.last_receipt_sha256(),
                 "activation_receipt_sha256": state.activation_receipt_sha256(),
-                "migration_sha256": upgrade::migration_sha256()
+                "migration_sha256": policy.migration_sha256()
             });
         }
         if let Some(penalties) = penalty_state(&self.storage)? {

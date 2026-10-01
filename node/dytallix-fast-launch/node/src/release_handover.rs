@@ -1,5 +1,9 @@
-//! Development release handover controls. Runtime artifact checks and the
-//! post-commit source execution barrier belong to the consensus adapter.
+//! Release handover controls. Schema 1 binds one exact block (development
+//! qualification). Schema 2 (production activation v1, step A3) uses the
+//! upgrade custodians' three-of-five authority, signs over an anchored height
+//! window as emergency freeze v2 does, and activates at least the policy's
+//! notice after admission. Runtime artifact checks and the post-commit source
+//! execution barrier belong to the consensus adapter.
 use crate::{emergency_freeze as emergency, upgrade};
 use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -10,6 +14,7 @@ use std::collections::BTreeSet;
 pub mod restart;
 
 pub const CONTROL_KIND: &str = "dytallix-release-handover-v1";
+pub const CONTROL_KIND_V2: &str = "dytallix-release-handover-v2";
 pub const STATE_KEY: &str = "consensus:release-handover:v1:state";
 pub const RECEIPT_PREFIX: &str = "consensus:release-handover:v1:receipt:";
 const KEY_BYTES: usize = 64;
@@ -29,11 +34,33 @@ pub struct Policy {
     pub initial_sequence: u64,
     pub max_control_bytes: usize,
     pub max_signatures: usize,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_non_null"
+    )]
+    pub v2: Option<PolicyV2>,
+}
+/// Schema 2 bounds. The authority must equal the upgrade policy's (the
+/// adapter's configuration check).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyV2 {
+    /// Blocks from admission to the earliest activation.
+    pub min_notice_blocks: u64,
+    /// Inclusive heights a signed window may span.
+    pub max_validity_blocks: u64,
+    /// Blocks from the signed anchor to the commit height.
+    pub max_anchor_age_blocks: u64,
 }
 impl Policy {
     pub fn validate(&self) -> Result<()> {
         ensure!(
-            self.schema == 1 && self.development_only,
+            (self.schema == 1 && self.v2.is_none()) || (self.schema == 2 && self.v2.is_some()),
+            "Handover policy schema"
+        );
+        ensure!(
+            self.development_only,
             "Production handover is not qualified"
         );
         ensure!(
@@ -81,11 +108,36 @@ impl Policy {
             );
             previous = Some(&key.key_id);
         }
+        if let Some(v2) = &self.v2 {
+            ensure!(
+                self.authority.keys.len() == 5 && self.authority.threshold == 3,
+                "V2 handover authority requires three of five keys"
+            );
+            for key in &self.authority.keys {
+                ensure!(
+                    key.key_id == hash(&hex::decode(&key.public_key_hex)?),
+                    "V2 handover key ID must be the SHA-256 of its public key"
+                );
+            }
+            ensure!(
+                v2.min_notice_blocks > 0
+                    && v2.max_validity_blocks > 0
+                    && v2.max_anchor_age_blocks > 0,
+                "Explicit v2 handover notice and window bounds required"
+            );
+        }
         Ok(())
     }
     pub fn sha256(&self) -> Result<String> {
         self.validate()?;
         Ok(hash(&serde_json::to_vec(self)?))
+    }
+    fn control_kind(&self) -> &'static str {
+        if self.v2.is_some() {
+            CONTROL_KIND_V2
+        } else {
+            CONTROL_KIND
+        }
     }
 }
 
@@ -107,12 +159,19 @@ impl Transition {
             Self::SchemaPreserving { schema } => (*schema, *schema),
         }
     }
-    fn validate(&self) -> Result<()> {
+    fn validate(&self, policy: &Policy) -> Result<()> {
         match self {
             Self::ReceiptIndexV1 { migration_sha256 } => {
                 upgrade::validate_registry()?;
+                // The paired upgrade runs the migration: v1 under schema 1,
+                // v2 under schema 2.
+                let expected = if policy.v2.is_some() {
+                    upgrade::v2::migration_sha256()
+                } else {
+                    upgrade::v1::migration_sha256()
+                };
                 ensure!(
-                    *migration_sha256 == upgrade::migration_sha256(),
+                    *migration_sha256 == expected,
                     "Handover migration version differs"
                 );
             }
@@ -134,14 +193,14 @@ impl ReleasePlan {
     pub fn sha256(&self) -> Result<String> {
         Ok(hash(&serde_json::to_vec(self)?))
     }
-    fn validate(&self, state: &State) -> Result<()> {
+    fn validate(&self, policy: &Policy, state: &State) -> Result<()> {
         valid_hex(&self.target_release_sha512, 64)?;
         valid_hex(&self.authorization_sha256, 32)?;
         ensure!(
             self.target_release_sha512 != state.active_release_sha512,
             "Handover target must differ from source release"
         );
-        self.transition.validate()?;
+        self.transition.validate(policy)?;
         ensure!(
             self.transition.schemas().0 == state.active_schema,
             "Handover source schema differs"
@@ -177,10 +236,25 @@ pub struct Payload {
     pub source_release_sha512: String,
     pub authority_epoch: u64,
     pub sequence: u64,
+    /// Schema 1: the block's parent. Schema 2: the signed finalized anchor.
     pub parent_height: u64,
     pub parent_app_hash: String,
+    /// Schema 1: the block. Schema 2: the window's first height.
     pub target_height: u64,
     pub action: Action,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_non_null"
+    )]
+    pub v2: Option<PayloadV2>,
+}
+/// The signed window of a schema 2 control (emergency freeze v2's scheme).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PayloadV2 {
+    pub not_before_height: u64,
+    pub not_after_height: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -190,7 +264,12 @@ pub struct Control {
     pub signatures: Vec<emergency::ControlSignature>,
 }
 pub fn artifact_bytes(payload: &Payload) -> Result<Vec<u8>> {
-    let mut bytes = b"DYTALLIX/RELEASE-HANDOVER/v1\0".to_vec();
+    let domain: &[u8] = match (payload.schema, payload.v2.is_some()) {
+        (1, false) => b"DYTALLIX/RELEASE-HANDOVER/v1\0",
+        (2, true) => b"DYTALLIX/RELEASE-HANDOVER/v2\0",
+        _ => anyhow::bail!("Handover artifact schema"),
+    };
+    let mut bytes = domain.to_vec();
     bytes.extend_from_slice(&serde_json::to_vec(payload)?);
     Ok(bytes)
 }
@@ -207,6 +286,14 @@ pub struct BlockContext {
     pub emergency_control_present: bool,
     pub emergency_upgrade_hold: bool,
     pub emergency_receipt_sha256: Option<String>,
+    /// The anchor a schema 2 control names, read from committed history by
+    /// the adapter. Never taken from the control itself.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_non_null"
+    )]
+    pub finalized_anchor: Option<emergency::FinalizedAnchor>,
 }
 impl BlockContext {
     fn validate(&self) -> Result<()> {
@@ -215,6 +302,17 @@ impl BlockContext {
             "Handover block continuity"
         );
         valid_hex(&self.parent_app_hash, 32)?;
+        if let Some(anchor) = &self.finalized_anchor {
+            ensure!(
+                anchor.height <= self.parent_height,
+                "Handover anchor is not finalized"
+            );
+            valid_hex(&anchor.app_hash, 32)?;
+            ensure!(
+                anchor.height != self.parent_height || anchor.app_hash == self.parent_app_hash,
+                "Handover parent anchor mismatch"
+            );
+        }
         if let Some(value) = &self.emergency_receipt_sha256 {
             valid_hex(value, 32)?;
         }
@@ -305,7 +403,7 @@ impl State {
                     && Some(pending.admitted_height) <= self.last_control_height,
                 "Handover pending height invalid"
             );
-            pending.plan.validate(self)?;
+            pending.plan.validate(policy, self)?;
             valid_hex(&pending.admission_receipt_sha256, 32)?;
         }
         Ok(())
@@ -330,8 +428,9 @@ impl State {
     }
 }
 
-/// The trusted adapter constructs this only after successful signed v1 planning
-/// or verified v1 history replay. It is not a wire input or a signature verifier.
+/// The trusted adapter constructs this only after successful signed upgrade
+/// planning or verified upgrade history replay, of either upgrade version. It
+/// is not a wire input or a signature verifier.
 #[derive(Clone, Debug)]
 pub struct PreparedUpgradeOutcome {
     chain_id: String,
@@ -341,7 +440,31 @@ pub struct PreparedUpgradeOutcome {
     migration_sha256: String,
     source_schema: u16,
     target_schema: u16,
-    context: upgrade::BlockContext,
+    context: PairedContext,
+}
+/// The block facts both controls of a pair must share.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PairedContext {
+    height: u64,
+    parent_height: u64,
+    parent_app_hash: String,
+    emergency_frozen: bool,
+    emergency_control_present: bool,
+    emergency_upgrade_hold: bool,
+    emergency_receipt_sha256: Option<String>,
+}
+/// The facts of one prepared activation, whichever upgrade version made it.
+struct Activation<'a> {
+    chain_id: &'a str,
+    genesis_sha256: &'a str,
+    migration_id: &'a str,
+    migration_sha256: &'a str,
+    source_schema: u16,
+    target_schema: u16,
+    source_digest: Option<&'a String>,
+    index_digest: Option<&'a String>,
+    migrated_receipts: Option<u64>,
+    context: PairedContext,
 }
 impl PreparedUpgradeOutcome {
     pub(crate) fn from_verified_upgrade(raw: &[u8], prepared: &upgrade::BlockPlan) -> Result<Self> {
@@ -350,11 +473,68 @@ impl PreparedUpgradeOutcome {
             .as_ref()
             .context("Prepared upgrade receipt required")?;
         ensure!(
-            serde_json::to_vec(&receipt.control)? == raw,
+            receipt.control_bytes()? == raw,
             "Prepared upgrade control bytes differ"
         );
-        let upgrade::Action::Activate { plan, .. } = &receipt.control.payload.action else {
-            anyhow::bail!("Prepared upgrade is not activation");
+        let (activation, expected_migration) = match receipt {
+            upgrade::Receipt::V1(r) => {
+                let upgrade::v1::Action::Activate { plan, .. } = &r.control.payload.action else {
+                    anyhow::bail!("Prepared upgrade is not activation");
+                };
+                let c = &r.context;
+                (
+                    Activation {
+                        chain_id: &r.control.payload.chain_id,
+                        genesis_sha256: &r.control.payload.genesis_sha256,
+                        migration_id: &plan.migration_id,
+                        migration_sha256: &plan.migration_sha256,
+                        source_schema: plan.source_schema,
+                        target_schema: plan.target_schema,
+                        source_digest: r.migration_source_digest.as_ref(),
+                        index_digest: r.migration_index_digest.as_ref(),
+                        migrated_receipts: r.migrated_receipts,
+                        context: PairedContext {
+                            height: c.height,
+                            parent_height: c.parent_height,
+                            parent_app_hash: c.parent_app_hash.clone(),
+                            emergency_frozen: c.emergency_frozen,
+                            emergency_control_present: c.emergency_control_present,
+                            emergency_upgrade_hold: c.emergency_upgrade_hold,
+                            emergency_receipt_sha256: c.emergency_receipt_sha256.clone(),
+                        },
+                    },
+                    upgrade::v1::migration_sha256(),
+                )
+            }
+            upgrade::Receipt::V2(r) => {
+                let upgrade::v2::Action::Activate { plan, .. } = &r.control.payload.action else {
+                    anyhow::bail!("Prepared upgrade is not activation");
+                };
+                let c = &r.context;
+                (
+                    Activation {
+                        chain_id: &r.control.payload.chain_id,
+                        genesis_sha256: &r.control.payload.genesis_sha256,
+                        migration_id: &plan.migration_id,
+                        migration_sha256: &plan.migration_sha256,
+                        source_schema: plan.source_schema,
+                        target_schema: plan.target_schema,
+                        source_digest: r.migration_source_digest.as_ref(),
+                        index_digest: r.migration_index_digest.as_ref(),
+                        migrated_receipts: r.migrated_receipts,
+                        context: PairedContext {
+                            height: c.height,
+                            parent_height: c.parent_height,
+                            parent_app_hash: c.parent_app_hash.clone(),
+                            emergency_frozen: c.emergency_frozen,
+                            emergency_control_present: c.emergency_control_present,
+                            emergency_upgrade_hold: c.emergency_upgrade_hold,
+                            emergency_receipt_sha256: c.emergency_receipt_sha256.clone(),
+                        },
+                    },
+                    upgrade::v2::migration_sha256(),
+                )
+            }
         };
         let migration = prepared
             .migration
@@ -362,33 +542,32 @@ impl PreparedUpgradeOutcome {
             .context("Prepared actual migration required")?;
         let receipt_sha256 = receipt.sha256()?;
         ensure!(
-            plan.migration_id == upgrade::MIGRATION_ID
-                && plan.migration_sha256 == upgrade::migration_sha256()
-                && plan.source_schema == 0
-                && plan.target_schema == 1,
+            activation.migration_id == upgrade::MIGRATION_ID
+                && activation.migration_sha256 == expected_migration
+                && activation.source_schema == 0
+                && activation.target_schema == 1,
             "Prepared migration version differs"
         );
         ensure!(
-            prepared.state.active_schema() == plan.target_schema
+            prepared.state.active_schema() == activation.target_schema
                 && prepared.state.activation_receipt_sha256() == Some(receipt_sha256.as_str()),
             "Prepared upgrade state differs"
         );
         ensure!(
-            receipt.migration_source_digest.as_ref() == Some(&migration.source_digest)
-                && receipt.migration_index_digest.as_ref()
-                    == Some(&migration.resulting_index_digest)
-                && receipt.migrated_receipts == Some(migration.receipt_count),
+            activation.source_digest == Some(&migration.source_digest)
+                && activation.index_digest == Some(&migration.resulting_index_digest)
+                && activation.migrated_receipts == Some(migration.receipt_count),
             "Prepared migration receipt outcome differs"
         );
         Ok(Self {
-            chain_id: receipt.control.payload.chain_id.clone(),
-            genesis_sha256: receipt.control.payload.genesis_sha256.clone(),
+            chain_id: activation.chain_id.to_owned(),
+            genesis_sha256: activation.genesis_sha256.to_owned(),
             control_sha256: hash(raw),
             receipt_sha256,
-            migration_sha256: plan.migration_sha256.clone(),
-            source_schema: plan.source_schema,
-            target_schema: plan.target_schema,
-            context: receipt.context.clone(),
+            migration_sha256: activation.migration_sha256.to_owned(),
+            source_schema: activation.source_schema,
+            target_schema: activation.target_schema,
+            context: activation.context,
         })
     }
 }
@@ -447,7 +626,7 @@ pub fn encode_receipt(receipt: &Receipt) -> Result<Vec<u8>> {
 pub fn decode_receipt(policy: &Policy, bytes: &[u8]) -> Result<Receipt> {
     let receipt: Receipt = decode(bytes)?;
     ensure!(
-        receipt.schema == 1 && receipt.policy_sha256 == policy.sha256()?,
+        receipt.schema == policy.schema && receipt.policy_sha256 == policy.sha256()?,
         "Handover receipt policy differs"
     );
     decode_control(policy, &serde_json::to_vec(&receipt.control)?)?;
@@ -471,7 +650,7 @@ pub fn decode_control(policy: &Policy, bytes: &[u8]) -> Result<Control> {
     );
     let control: Control = decode(bytes)?;
     ensure!(
-        control.kind == CONTROL_KIND && control.signatures.len() <= policy.max_signatures,
+        control.kind == policy.control_kind() && control.signatures.len() <= policy.max_signatures,
         "Handover kind/signature bound"
     );
     Ok(control)
@@ -534,6 +713,14 @@ fn verify_signatures(
     verifier: &dyn Verifier,
 ) -> Result<()> {
     let artifact = artifact_bytes(&control.payload)?;
+    // Schema 2 signs a window; schema 1 the one block.
+    let (first, last) = control
+        .payload
+        .v2
+        .as_ref()
+        .map_or((context.height, context.height), |window| {
+            (window.not_before_height, window.not_after_height)
+        });
     for signature in &control.signatures {
         let key = policy
             .authority
@@ -546,8 +733,8 @@ fn verify_signatures(
             &hex::decode(&key.public_key_hex)?,
             control.payload.sequence,
             context.height,
-            context.height,
-            context.height,
+            first,
+            last,
             &artifact,
             &hex::decode(&signature.signature_hex)?,
         )?;
@@ -571,7 +758,8 @@ fn validate_admission(
     );
     let payload = &control.payload;
     ensure!(
-        payload.schema == 1
+        payload.schema == policy.schema
+            && payload.v2.is_some() == policy.v2.is_some()
             && payload.chain_id == policy.chain_id
             && payload.genesis_sha256 == policy.genesis_sha256
             && payload.policy_sha256 == policy.sha256()?
@@ -583,12 +771,21 @@ fn validate_admission(
         payload.sequence == state.next_sequence && payload.sequence < u64::MAX,
         "Handover sequence mismatch/exhaustion"
     );
-    ensure!(
-        payload.parent_height == context.parent_height
-            && payload.parent_app_hash == context.parent_app_hash
-            && payload.target_height == context.height,
-        "Handover finalized parent/target binding"
-    );
+    match (&policy.v2, &payload.v2) {
+        (Some(bounds), Some(window)) => validate_window(bounds, context, payload, window)?,
+        _ => {
+            ensure!(
+                context.finalized_anchor.is_none(),
+                "A v1 handover context carries no anchor"
+            );
+            ensure!(
+                payload.parent_height == context.parent_height
+                    && payload.parent_app_hash == context.parent_app_hash
+                    && payload.target_height == context.height,
+                "Handover finalized parent/target binding"
+            );
+        }
+    }
     ensure!(
         control.signatures.len() >= policy.authority.threshold,
         "Handover signature threshold"
@@ -617,7 +814,7 @@ fn validate_admission(
                 payload.sequence < u64::MAX - 1,
                 "Admission must preserve a completion sequence"
             );
-            plan.validate(state)?;
+            plan.validate(policy, state)?;
         }
         Action::Cancel {
             plan_sha256,
@@ -637,7 +834,7 @@ fn validate_admission(
             evidence_sha256,
             upgrade_activation_sha256,
         } => {
-            plan.validate(state)?;
+            plan.validate(policy, state)?;
             valid_hex(evidence_sha256, 32)?;
             let pending = state.pending.as_ref().context("No admitted handover")?;
             ensure!(
@@ -646,6 +843,17 @@ fn validate_admission(
                     && pending.admitted_height < context.height,
                 "Handover activation plan/receipt/height differs"
             );
+            // Operators install the named release before activation (D11-Q03,
+            // P01 1 October 2026: the notice applies to handovers too).
+            if let Some(bounds) = &policy.v2 {
+                ensure!(
+                    pending
+                        .admitted_height
+                        .checked_add(bounds.min_notice_blocks)
+                        .is_some_and(|earliest| context.height >= earliest),
+                    "Handover activation precedes its notice"
+                );
+            }
             ensure!(
                 emergency_receipt_sha256 == &context.emergency_receipt_sha256,
                 "Handover emergency clearance differs"
@@ -727,7 +935,7 @@ fn transition(
     migration: Option<&PreparedUpgradeOutcome>,
 ) -> Result<BlockPlan> {
     let receipt = Receipt {
-        schema: 1,
+        schema: policy.schema,
         policy_sha256: policy.sha256()?,
         control: control.clone(),
         context: context.clone(),
@@ -799,6 +1007,60 @@ pub fn replay_record(
     );
     Ok(expected)
 }
+/// The anchored window of a schema 2 control: the payload's parent is the
+/// signed finalized anchor and its target the window's first height.
+fn validate_window(
+    bounds: &PolicyV2,
+    context: &BlockContext,
+    payload: &Payload,
+    window: &PayloadV2,
+) -> Result<()> {
+    ensure!(
+        window.not_before_height > 0
+            && payload.target_height == window.not_before_height
+            && window.not_after_height >= window.not_before_height
+            && window.not_after_height - window.not_before_height < bounds.max_validity_blocks,
+        "Handover validity window bound"
+    );
+    ensure!(
+        context.height >= window.not_before_height && context.height <= window.not_after_height,
+        "Handover outside its validity window"
+    );
+    let anchor = context
+        .finalized_anchor
+        .as_ref()
+        .context("Finalized handover anchor required")?;
+    ensure!(
+        payload.parent_height == anchor.height && payload.parent_app_hash == anchor.app_hash,
+        "Handover finalized anchor binding"
+    );
+    ensure!(
+        anchor.height < window.not_before_height
+            && context
+                .height
+                .checked_sub(anchor.height)
+                .is_some_and(|age| age <= bounds.max_anchor_age_blocks),
+        "Handover anchor age bound"
+    );
+    Ok(())
+}
+/// The anchor height a control names: schema 2 only.
+pub fn control_anchor_height(policy: &Policy, raw: &[u8]) -> Result<Option<u64>> {
+    let control = decode_control(policy, raw)?;
+    Ok(control
+        .payload
+        .v2
+        .is_some()
+        .then_some(control.payload.parent_height))
+}
+fn present_non_null<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    // Missing fields use serde's default. Explicit null is not a missing field.
+    T::deserialize(deserializer).map(Some)
+}
 fn hash(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
 }
@@ -823,3 +1085,6 @@ fn decode<T: Serialize + for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T> {
 #[cfg(test)]
 #[path = "release_handover_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "release_handover_v2_tests.rs"]
+mod v2_tests;

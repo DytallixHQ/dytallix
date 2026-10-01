@@ -254,6 +254,37 @@ production-profile staging chains signed with test keys:
     in CI.
   - Unit tests cover the record rules and helper refusals.
 
+**A3 done** (upgrade schema 2 and handover v2):
+- **Upgrade schema 2** (`src/upgrade/v2/upgrade.rs`) is a second retained
+  implementation beside v1, which is unchanged byte for byte.
+  - Exactly five keys, threshold 3, key IDs the SHA-256 of the public keys,
+    disjoint from the emergency keys.
+  - Activation at least `min_notice_blocks` after admission.
+  - Every signature binds a finalized anchor (height and application hash)
+    and a window, checked against `max_validity_blocks` and
+    `max_anchor_age_blocks`. The root envelope's validity is the same window.
+  - The migration runs in the active release that committed handover history
+    selects; schema 1 bound the genesis release.
+- **Registry.** The registry lists the v2 implementation beside v1, so its
+  digest, which release manifests bind, changed before the E06 freeze.
+  `upgrade.rs` pins both sources and dispatches between them.
+- **Handover schema 2** (`src/release_handover.rs`, the emergency freeze v2
+  pattern: optional `v2` members, so schema 1 bytes are unchanged).
+  - The same anchored window and the same notice (P01, 1 October 2026: the
+    notice applies to handovers).
+  - The configuration check requires the upgrade authority's keys, threshold
+    and epoch, and pairs schema 2 handovers only with schema 2 upgrades.
+  - Restart keeps its exact-height binding.
+- **Adapter.** Planning, CheckTx and history replay read each schema 2
+  anchor from committed history; an anchor beyond its age bound is a
+  deterministic refusal. Recorded anchors are kept with the block history,
+  and the retention floor covers the largest anchor age.
+- **Tests.** Unit tests for both schemas, and signed tests through the
+  adapter: an anchored upgrade with its notice, migration and restart replay,
+  and a handover paired with the migration after its notice.
+- **Not yet.** Production builds still refuse these controls until A4; the
+  window bounds are measured values (E05).
+
 ## Still required after activation
 
 Every record (operators, custodians, genesis signers, beneficiaries, chain

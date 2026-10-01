@@ -97,7 +97,7 @@ fn setup(f: &mut Fixture) -> RootFixture {
             }],
         };
         let release = f.config.emergency.as_ref().unwrap().release_sha512.clone();
-        f.config.upgrade = Some(upgrade::Policy {
+        f.config.upgrade = Some(upgrade::Policy::V1(upgrade::v1::Policy {
             schema: 1,
             development_only: true,
             chain_id: CHAIN.into(),
@@ -108,12 +108,12 @@ fn setup(f: &mut Fixture) -> RootFixture {
             initial_sequence: 1,
             max_control_bytes: 262_144,
             max_signatures: 1,
-            migration_bounds: upgrade::MigrationBounds {
+            migration_bounds: upgrade::v1::MigrationBounds {
                 max_receipts: 16,
                 max_receipt_bytes: 4 * 1024 * 1024,
                 max_write_bytes: 65536,
             },
-        });
+        }));
         f.config.release_handover = Some(handover::Policy {
             schema: 1,
             development_only: true,
@@ -126,6 +126,7 @@ fn setup(f: &mut Fixture) -> RootFixture {
             initial_sequence: 1,
             max_control_bytes: 262_144,
             max_signatures: 1,
+            v2: None,
         });
     })
 }
@@ -210,6 +211,7 @@ fn handover_control(
         parent_app_hash: info.app_hash,
         target_height: info.height + 1,
         action,
+        v2: None,
     };
     let signatures = vec![signature(
         root,
@@ -230,12 +232,12 @@ fn handover_control(
 fn upgrade_control(
     root: &RootFixture,
     app: &ConsensusApplication,
-    action: upgrade::Action,
+    action: upgrade::v1::Action,
 ) -> Vec<u8> {
     let info = app.info().unwrap();
     let state = upgrade_state(&app.storage, &app.config).unwrap().unwrap();
-    let policy = app.config.upgrade.as_ref().unwrap();
-    let payload = upgrade::Payload {
+    let policy = app.config.upgrade.as_ref().unwrap().as_v1().unwrap();
+    let payload = upgrade::v1::Payload {
         schema: 1,
         chain_id: CHAIN.into(),
         genesis_sha256: app.config.app_state_sha256.clone(),
@@ -249,15 +251,15 @@ fn upgrade_control(
     };
     let signatures = vec![signature(
         root,
-        &upgrade::artifact_bytes(&payload).unwrap(),
+        &upgrade::v1::artifact_bytes(&payload).unwrap(),
         payload.sequence,
         payload.target_height,
         31,
         "upgrade-31",
         "upgrade",
     )];
-    serde_json::to_vec(&upgrade::Control {
-        kind: upgrade::CONTROL_KIND.into(),
+    serde_json::to_vec(&upgrade::v1::Control {
+        kind: upgrade::v1::CONTROL_KIND.into(),
         payload,
         signatures,
     })
@@ -267,17 +269,17 @@ fn release_plan() -> handover::ReleasePlan {
     handover::ReleasePlan {
         target_release_sha512: "ab".repeat(64),
         transition: handover::Transition::ReceiptIndexV1 {
-            migration_sha256: upgrade::migration_sha256(),
+            migration_sha256: upgrade::v1::migration_sha256(),
         },
         authorization_sha256: "31".repeat(32),
     }
 }
-fn upgrade_plan(app: &ConsensusApplication) -> upgrade::MigrationPlan {
-    let policy = app.config.upgrade.as_ref().unwrap();
-    upgrade::MigrationPlan {
+fn upgrade_plan(app: &ConsensusApplication) -> upgrade::v1::MigrationPlan {
+    let policy = app.config.upgrade.as_ref().unwrap().as_v1().unwrap();
+    upgrade::v1::MigrationPlan {
         target_release_sha512: policy.source_release_sha512.clone(),
         migration_id: upgrade::MIGRATION_ID.into(),
-        migration_sha256: upgrade::migration_sha256(),
+        migration_sha256: upgrade::v1::migration_sha256(),
         source_schema: 0,
         target_schema: 1,
         bounds: policy.migration_bounds.clone(),
@@ -325,7 +327,7 @@ fn handover_pair_commits_once_and_source_stops_after_acknowledgement_loss() {
     let up = upgrade_control(
         &root,
         &app,
-        upgrade::Action::Admit {
+        upgrade::v1::Action::Admit {
             plan: upgrade_plan(&app),
         },
     );
@@ -339,7 +341,7 @@ fn handover_pair_commits_once_and_source_stops_after_acknowledgement_loss() {
     assert_eq!(app.check_tx(&hand).code, 0);
     commit(&mut app, 3, vec![up, hand]);
     let upstate = upgrade_state(&app.storage, &app.config).unwrap().unwrap();
-    let pending = upstate.pending().unwrap();
+    let pending = upstate.as_v1().unwrap().pending().unwrap();
     let clearance = emergency_state(&app.storage, &app.config)
         .unwrap()
         .unwrap()
@@ -348,7 +350,7 @@ fn handover_pair_commits_once_and_source_stops_after_acknowledgement_loss() {
     let up = upgrade_control(
         &root,
         &app,
-        upgrade::Action::Activate {
+        upgrade::v1::Action::Activate {
             plan: pending.plan.clone(),
             admission_receipt_sha256: pending.admission_receipt_sha256.clone(),
             emergency_receipt_sha256: clearance.clone(),

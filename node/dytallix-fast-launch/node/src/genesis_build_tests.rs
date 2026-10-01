@@ -106,7 +106,7 @@ fn derived_values_follow_their_rules() {
         emergency.v2.as_ref().unwrap().genesis_sha256,
         c.app_state_sha256
     );
-    assert_eq!(c.upgrade.as_ref().unwrap().max_signatures, 3);
+    assert_eq!(c.upgrade.as_ref().unwrap().as_v1().unwrap().max_signatures, 3);
     // The engine's evidence limits equal the lifecycle's, in whole seconds.
     let engine: Value = serde_json::from_slice(&b.engine_genesis).unwrap();
     let lifecycle = c.lifecycle.as_ref().unwrap();

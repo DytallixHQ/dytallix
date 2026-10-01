@@ -2461,7 +2461,7 @@
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json",
           "blocks_work": [
             "W11",
             "W02",
@@ -2484,7 +2484,8 @@
             "approvals/P01_E05_CUSTODY_2026-09-30.json",
             "approvals/P01_E05_VALUES_3_2026-09-30.json",
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
-            "../node/docs/architecture/production-activation-v1.md"
+            "../node/docs/architecture/production-activation-v1.md",
+            "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2510,8 +2511,8 @@
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
             "The node check that refuses fee-profile proposals putting a reference basic Send outside 0.1 to 10 DRT (approved; built with production activation).",
             "Recovery authorities covered by D11-Q03.",
-            "Upgrade custodian names, keys and epochs; the production upgrade policy (schema 2).",
-            "Genesis signer, handover and upgrade window bounds measured on dedicated hosts; upgrade schema 2 and handover v2 implementation (production activation v1, steps A2 and A3)."
+            "Upgrade custodian names, keys and epochs.",
+            "Upgrade and handover window bounds and anchor ages measured on dedicated hosts with the emergency ones (upgrade schema 2 and handover schema 2 are implemented, production activation v1 step A3; production acceptance of the controls is step A4)."
           ],
           "approval_records": [
             "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
@@ -2521,9 +2522,10 @@
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
             "approvals/P01_E05_CUSTODY_2026-09-30.json",
             "approvals/P01_E05_VALUES_3_2026-09-30.json",
-            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json"
           ],
-          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart."
+          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades."
         }
       ],
       "work": {
@@ -3729,6 +3731,22 @@
         "Capacity values",
         "Upgrade custodians and notice length",
         "Topology counts and hosts"
+      ]
+    },
+    {
+      "id": "P01-2026-10-01-E05-UPGRADE-NOTICE",
+      "approved": "2026-10-01",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json",
+      "decisions": [
+        "D11-Q03, D14-Q02: the 120,960-block notice applies to release handovers (schema 2) as well as state-migration upgrades (schema 2); restart keeps no notice."
+      ],
+      "question_refs": [
+        "D11-Q03"
+      ],
+      "unset": [
+        "Upgrade and handover window bounds and anchor ages (measured)",
+        "Upgrade custodians"
       ]
     }
   ],
