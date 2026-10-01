@@ -1,3 +1,5 @@
+//go:build !production
+
 // Generates disposable, loopback-only qualification files. It creates no mainnet keys.
 package main
 

@@ -482,6 +482,10 @@ struct Member {
 /// Build the three genesis files from `inputs`. The node's own configuration
 /// validation runs on the result; `verify` also starts a chain from it.
 pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
+    ensure!(
+        !crate::build_profile::PRODUCTION,
+        "The rehearsal builder runs in development builds; its production mode is step A7"
+    );
     ensure!(inputs.schema == INPUTS_SCHEMA, "Unsupported inputs schema");
     ensure!(
         inputs.mode == MODE_REHEARSAL,

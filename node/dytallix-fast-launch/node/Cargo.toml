@@ -51,6 +51,9 @@ helper-qualification = []
 # It accepts the historical snapshot root verifier, marks every response so
 # the production bridge refuses it, and reports startup errors on stderr.
 test-snapshot-verifier = []
+# A production build (production activation v1): only the production
+# profiles, no development entry points. Never combined with test features.
+production = ["pqc-consensus"]
 
 [[bin]]
 name = "dytallix-state-check"

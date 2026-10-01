@@ -1,3 +1,5 @@
+//go:build !production
+
 // dytallix-pqc-peer-probe performs one staging-only, authenticated TCP exchange.
 // It does not start consensus, create keys, or authorize production operation.
 package main

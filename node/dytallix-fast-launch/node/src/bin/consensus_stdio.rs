@@ -457,9 +457,12 @@ fn run() -> Result<()> {
     let mut config_path = None;
     let mut genesis_path = None;
     let mut db_path = None;
-    let mut development_root_path = None;
-    let mut emergency_verifier_path = None;
-    let mut candidate_path = None;
+    #[cfg_attr(feature = "production", allow(unused_mut))]
+    let mut development_root_path: Option<String> = None;
+    #[cfg_attr(feature = "production", allow(unused_mut))]
+    let mut emergency_verifier_path: Option<String> = None;
+    #[cfg_attr(feature = "production", allow(unused_mut))]
+    let mut candidate_path: Option<String> = None;
     let mut release_manifest_sha512 = None;
     let mut block_history = None;
     let mut snapshot_dir = None;
@@ -475,8 +478,13 @@ fn run() -> Result<()> {
             "--config" => &mut config_path,
             "--genesis" => &mut genesis_path,
             "--db" => &mut db_path,
+            // A production build has no development entry points
+            // (production activation v1, A1).
+            #[cfg(not(feature = "production"))]
             "--development-root-config" => &mut development_root_path,
+            #[cfg(not(feature = "production"))]
             "--development-emergency-verifier-config" => &mut emergency_verifier_path,
+            #[cfg(not(feature = "production"))]
             "--development-candidate-config" => &mut candidate_path,
             "--block-history" => &mut block_history,
             "--snapshot-dir" => &mut snapshot_dir,

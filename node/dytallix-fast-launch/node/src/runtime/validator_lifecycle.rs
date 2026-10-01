@@ -42,7 +42,7 @@ impl LifecycleConfig {
             "Lifecycle requires FIPS 204 verification"
         );
         ensure!(
-            self.version == 1 && self.profile == PROFILE,
+            self.version == 1 && self.profile == crate::build_profile::LIFECYCLE_PROFILE,
             "Unsupported lifecycle profile"
         );
         valid_id(&self.chain_id)?;

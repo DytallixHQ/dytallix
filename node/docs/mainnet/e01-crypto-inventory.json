@@ -155,7 +155,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs",
-          "sha256": "070474d52480ed3feb60919a0e8309102552b627493c006cfd30166c97a6be77"
+          "sha256": "3d2d1ff9077951756d6815ea8a6a6faa1427cf0193f8f7f08ed11e018d714105"
         },
         {
           "path": "crates/runtime-crypto/src/pqc_verify.rs",
@@ -174,7 +174,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "8cddddf474c92c6c9532a862c52c2631e2521b069241147f5a7efc54640227c8"
+          "sha256": "03b4aea4f0e39753f56b37a66b0efc43d8b2cf7a3ddd30033b03686ce16f2dff"
         },
         {
           "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
@@ -251,7 +251,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "8cddddf474c92c6c9532a862c52c2631e2521b069241147f5a7efc54640227c8"
+          "sha256": "03b4aea4f0e39753f56b37a66b0efc43d8b2cf7a3ddd30033b03686ce16f2dff"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",
@@ -263,7 +263,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "ae078b9dc560c8b0e283e3bd771c185bbd7dec1ccf65f63d54c5969abe6d1230"
+          "sha256": "b6cb7e89e64d1a0959b9068010929dd149f273d811549d56f75a5771fc661951"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
@@ -403,11 +403,11 @@
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-fixture/main.go",
-      "sha256": "5d4b17ae91b7ae83269ebef30db5fedcd8a4b1222bf1fb7f03cb72ed4b4de767"
+      "sha256": "dfa0601bfc88055143f884d681a648ddbfa5ee66af6b27bb2957c6833877fbd0"
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-fixture/pqc_engine_fixture.go",
-      "sha256": "2a2bcc96b1dcb53a2e250330b82ad68e1a735711775a059ca8c44471346e76d3"
+      "sha256": "ddbea861248cb4d0c05d44280ee6104dfd5c824ccb0e8b75a78840094698b442"
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-comet-proof/main.go",
@@ -423,7 +423,7 @@
     },
     {
       "path": "consensus/cometbft/cmd/dytallix-pqc-peer-probe/main.go",
-      "sha256": "509c927d920872fcdf5ab4ab818c6db965314584828003802bddd21b7f496797"
+      "sha256": "73e79d232e839d83845e7d90fb597fdb8b3008771385a6621fa5f33e9dc25585"
     }
   ]
 }

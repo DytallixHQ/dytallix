@@ -17,6 +17,9 @@ fn main() -> std::process::ExitCode {
     }
 }
 fn run() -> Result<()> {
+    // The development service mode is not in production builds; the
+    // production mode is production activation step A5.
+    ensure!(!cfg!(feature = "production"), "This production build has no supervisor mode until production activation step A5");
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     ensure!(
         args.len() == 2 && args[0] == "--development-service-config",
