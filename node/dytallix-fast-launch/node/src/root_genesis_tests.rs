@@ -435,7 +435,7 @@ fn helper_scratch_selection_preserves_cleanup_and_default() {
     let source = tempfile::tempdir().unwrap();
     let scratch = tempfile::tempdir().unwrap();
     std::fs::set_permissions(scratch.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
-    let script = b"#!/bin/sh\nIFS= read -r request\nprintf '%s' '{\"Status\":\"VERIFIED\",\"RequestSHA256\":\"fixture\",\"ArtifactSHA512\":\"fixture\",\"ChainID\":\"fixture\",\"Action\":\"genesis\",\"Sequence\":1,\"ProductionQualified\":false}'\n";
+    let script = b"#!/bin/sh\nIFS= read -r request\nprintf '%s' '{\"Status\":\"VERIFIED\",\"RequestSHA256\":\"fixture\",\"ArtifactSHA512\":\"fixture\",\"ChainID\":\"fixture\",\"Action\":\"genesis\",\"Sequence\":1}'\n";
     let mut config = helper_process_fixture(source.path(), script);
     // This checks subprocess handling only, not cryptographic authorization.
     assert_eq!(config.run_helper().unwrap().sequence, 1);

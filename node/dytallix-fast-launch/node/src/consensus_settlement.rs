@@ -3992,6 +3992,36 @@ impl ConsensusApplication {
     ) -> Result<Self> {
         Self::open_inner(path, config, genesis_bytes, None, None, None)
     }
+    /// Open from a root genesis signed three of five by the genesis signers
+    /// (production activation v1, step A2): the only open path of a
+    /// production build, also used by development builds with test keys.
+    /// Emergency, upgrade and handover controls join this path in step A4.
+    pub fn open_with_root(
+        path: impl AsRef<Path>,
+        config: ConsensusConfig,
+        genesis_bytes: Vec<u8>,
+        consensus_source: &[u8],
+        root: crate::root_genesis::RootGenesis,
+    ) -> Result<Self> {
+        config.validate()?;
+        source_binding(&config, &genesis_bytes)?;
+        ensure!(
+            config.emergency.is_none()
+                && config.upgrade.is_none()
+                && config.release_handover.is_none(),
+            "Root controls on the three-of-five root path are production activation step A4"
+        );
+        ensure!(
+            !consensus_source.is_empty() && consensus_source.len() <= MAX_CONFIG_BYTES,
+            "Exact consensus source exceeds supported bound"
+        );
+        ensure!(
+            serde_json::from_slice::<ConsensusConfig>(consensus_source)? == config,
+            "Exact consensus source differs from selected runtime configuration"
+        );
+        let prepared = root.prepare(&config.chain_id, &genesis_bytes, consensus_source)?;
+        Self::open_inner(path, config, genesis_bytes, Some(prepared), None, None)
+    }
     /// Explicit development API. The ordinary open path remains unchanged.
     /// Production profiles are rejected by existing configuration validation.
     pub fn open_with_development_root(
@@ -4201,7 +4231,11 @@ impl ConsensusApplication {
         mut emergency_verifier: Option<EmergencyVerifier>,
         candidate: Option<PreparedRuntimeCandidateInput>,
     ) -> Result<Self> {
-        build_profile::production_open()?;
+        build_profile::production_open(
+            root_genesis
+                .as_ref()
+                .is_some_and(crate::root_genesis::PreparedRootGenesis::threshold),
+        )?;
         classify(
             config.validate().and_then(|()| source_binding(&config, &genesis_bytes)),
             FailureClass::Configuration,

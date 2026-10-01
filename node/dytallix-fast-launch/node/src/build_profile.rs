@@ -6,8 +6,9 @@
 //! The names below become permanent at genesis: the node stores the exact
 //! configuration and compares it on every start.
 //!
-//! A production build opens no chain until the root-signed production path
-//! exists (step A2), and refuses root controls until step A4.
+//! A production build opens a chain only from a root genesis signed three of
+//! five by the genesis signers (step A2), and refuses root controls until
+//! step A4.
 use anyhow::{ensure, Result};
 
 /// True in a build with the `production` feature.
@@ -72,16 +73,16 @@ pub fn development_entry() -> Result<()> {
     Ok(())
 }
 
-/// Refuse to open a chain in a production build until the root-signed
-/// production path exists (step A2).
-pub fn production_open() -> Result<()> {
+/// A production build opens a chain only from a root genesis signed three of
+/// five (production activation step A2).
+pub fn production_open(threshold_root: bool) -> Result<()> {
     ensure!(
-        !PRODUCTION,
-        "A production build opens a chain only from a root-signed genesis (production activation step A2)"
+        !PRODUCTION || threshold_root,
+        "A production build opens a chain only from a root genesis signed three of five"
     );
     Ok(())
 }
 
 #[cfg(test)]
 #[path = "build_profile_tests.rs"]
-mod tests;
+pub(crate) mod tests;

@@ -16,6 +16,17 @@ Use `SignForPolicy` in a separate trusted signer. Supply policy from independent
 
 The low-level `Sign` function remains for compatibility and is deprecated. Do not expose it through RPC or an automatic approval service. Keep private-key loading and custody outside the node and wallet processes. These functions do not generate or persist production keys. Go does not guarantee complete memory erasure.
 
+## Root genesis three of five
+
+Production activation v1, step A2 (`genesis_threshold.go`). Five genesis signers, separate from the emergency and upgrade custodians, each sign the same genesis envelope (sequence 1, heights 0 to 0) over the SHA-512 of the root bundle (`GenesisBundle`). Two public records carry the authority:
+
+- **Signer policy** (`GenesisPolicy`): schema 1, the chain ID, and five keys with threshold 3. Each key is `{key_id, public_key_hex}`, where `key_id` is the lowercase SHA-256 of the 64 public-key bytes, sorted by key ID: the node's authority shape.
+- **Signatures** (`GenesisSignatures`): schema 1, the chain ID, the bundle SHA-512 and three to five `{key_id, signature_hex}` entries sorted by key ID. One signer's output and the combined file have the same format.
+
+`SignGenesis`, `CombineGenesis` and `VerifyGenesis` serve the offline signer. The node does not call them: it checks both records itself and verifies every listed signature through the pinned `dytallix-root-verify`, one run per signature, then commits a version 2 receipt listing the signing key IDs. The receipt is consensus state, so every node must read the same combined file.
+
+`cmd/dytallix-root-sign` is the offline signer. Each signer runs it on their own device: `keygen` writes a new private key file (mode 0600) and a public key record; `policy` assembles the five public records; `digest` recomputes the bundle SHA-512 from the four genesis files; `sign` signs with one private key that must belong to the policy; `combine` and `verify` check the result. It never overwrites a file. The procedure is in [root genesis signing](../../docs/mainnet/root-genesis-signing.md).
+
 ## Atomic execution boundary
 
 `Execute` integrates signature verification with a caller-supplied application transition. It requires an `ExecutionStore` and a reviewed `ArtifactTransition`. The maintained `FileStore` adapter commits a complete local document. The Rust development genesis and emergency consumers invoke the verification-only helper and commit their own receipts and sequences in the chain RocksDB batch. They do not use `FileStore` as a second replay database. The Go `Execute` adapter remains separate from these Rust consumers. No upgrade executor or production chain adapter for `Execute` exists. See [emergency transaction freeze](../../docs/mainnet/emergency-transaction-freeze.md).

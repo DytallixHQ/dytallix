@@ -18,8 +18,8 @@ var errVerificationRejected = errors.New("root verification rejected")
 
 const (
 	executionProfile = "linux-immutable-observed-helper-v1"
-	readyToken       = "DYTALLIX-ROOT-READY-v1\n"
-	ackToken         = "DYTALLIX-ROOT-ACK-v1\n"
+	readyToken       = "DYTALLIX-ROOT-READY-v2\n"
+	ackToken         = "DYTALLIX-ROOT-ACK-v2\n"
 	maxResultBytes   = 4096
 )
 

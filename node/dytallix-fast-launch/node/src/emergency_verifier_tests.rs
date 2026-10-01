@@ -311,7 +311,6 @@ fn response_fixture(action: &str) -> crate::root_genesis::Response {
         chain_id: "development-chain".into(),
         action: action.into(),
         sequence: 1,
-        production_qualified: false,
     }
 }
 
@@ -325,7 +324,7 @@ fn upgrade_verifier_requires_exact_action_and_response_binding() {
         "chain",
         "action",
         "sequence",
-        "qualified",
+        "wire-v1",
     ] {
         let directory = tempfile::tempdir().unwrap();
         let mut response = response_fixture("upgrade");
@@ -337,10 +336,14 @@ fn upgrade_verifier_requires_exact_action_and_response_binding() {
             "chain" => response.chain_id = "other-chain".into(),
             "action" => response.action = "emergency".into(),
             "sequence" => response.sequence = 2,
-            "qualified" => response.production_qualified = true,
+            "wire-v1" => {}
             _ => unreachable!(),
         }
-        let raw = serde_json::to_string(&response).unwrap();
+        let mut raw = serde_json::to_string(&response).unwrap();
+        if field == "wire-v1" {
+            // Helper wire version 1 carried a ProductionQualified flag.
+            raw.insert_str(raw.len() - 1, ",\"ProductionQualified\":false");
+        }
         let helper = fake(
             directory.path(),
             &format!("/bin/cat >/dev/null\nprintf '%s' '{raw}'"),

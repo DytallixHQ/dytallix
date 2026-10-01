@@ -13,9 +13,14 @@ keys:
   public byte, so they must never be trusted by a real chain.
 - the root-authorization test binary, whose TestExportDevelopmentGenesis
   signs development genesis bundles.
+- dytallix-root-sign: the offline signer for the root genesis signers
+  (production activation v1, A2). The three-of-five test generates five
+  disposable keys with it, signs with three and four, and combines them.
 
-By default it runs the 22 in-process tests. With --process (Linux only) it
-runs the four process tests instead (cross_binary_compat,
+By default it runs the 23 in-process tests. With --production it runs the
+three-of-five root genesis test on a production build instead. With
+--process (Linux only) it runs the four process tests instead
+(cross_binary_compat,
 release_handover_process): it also builds the owner launcher and two
 test builds of consensus_stdio with distinct bytes (feature
 test-snapshot-verifier; the second at opt-level 1), and each application
@@ -29,7 +34,7 @@ runs as an owned child under no_new_privs and a seccomp filter:
 The long penalty test runs in release on its own.
 
     python3 scripts/run_signed_fixture_tests.py [--work NEW_DIR] [--tools DIR]
-        [--process {systemd,none}]
+        [--process {systemd,none} | --production]
 
 --tools uses prebuilt tools (named as in TOOLS) instead of building them,
 for hosts without Go.
@@ -52,6 +57,7 @@ TOOLS = {
     'fixture-sign': ['go', 'build', '-mod=readonly', '-o', '{out}', './cmd/dytallix-fixture-sign'],
     'root-verify-snapshot': ['go', 'build', '-mod=readonly', '-o', '{out}', './cmd/dytallix-root-verify-snapshot'],
     'root-test-signer': ['go', 'test', '-mod=readonly', '-c', '-o', '{out}', '.'],
+    'root-sign': ['go', 'build', '-mod=readonly', '-o', '{out}', './cmd/dytallix-root-sign'],
 }
 ARTIFACT = b'public-emergency-fixture'
 # Variable: (action, disposable key discriminator). The two emergency
@@ -64,8 +70,10 @@ FIXTURES = {
 PROCESS_TESTS = ['cross_binary_compat', 'release_handover_process']
 SKIP = PROCESS_TESTS + ['ten_thousand']
 # A test dropped by a rename or a filter must fail the run, not shrink it.
-EXPECTED_IN_PROCESS = 22
+EXPECTED_IN_PROCESS = 23
 EXPECTED_PROCESS = 4
+# The signed tests a production build runs (production activation v1, A2).
+PRODUCTION_TESTS = ['root_genesis::threshold::tests::threshold_genesis_signed_three_of_five']
 # The second application build differs only in the node crate's optimization.
 CANDIDATE_BUILD = ['--config', 'profile.dev.package.dytallix-fast-node.opt-level=1']
 
@@ -152,7 +160,11 @@ def main():
     parser.add_argument('--tools', type=Path, help='directory of prebuilt tools')
     parser.add_argument('--process', choices=['systemd', 'none'],
                         help='run the process tests, with this sandbox (Linux)')
+    parser.add_argument('--production', action='store_true',
+                        help='run the three-of-five root genesis test on a production build')
     args = parser.parse_args()
+    if args.process and args.production:
+        raise SystemExit('--process and --production are separate runs')
     if args.process and not sys.platform.startswith('linux'):
         raise SystemExit('the process tests need the Linux owner protocol')
     if args.work:
@@ -165,6 +177,7 @@ def main():
                DYT_ROOT_VERIFIER=str(built['root-verify-snapshot']),
                DYT_EMERGENCY_VERIFIER=str(built['root-verify-snapshot']),
                DYT_ROOT_TEST_SIGNER=str(built['root-test-signer']),
+               DYT_ROOT_SIGNER=str(built['root-sign']),
                DYT_EMERGENCY_TEST_SIGNER=str(built['fixture-sign']),
                DYT_UPGRADE_TEST_SIGNER=str(built['fixture-sign']),
                **{name: str(path) for name, path in fixtures(work, built['fixture-sign']).items()})
@@ -184,6 +197,10 @@ def main():
                    DYT_HANDOVER_SOURCE_APP=str(baseline), DYT_HANDOVER_TARGET_APP=str(candidate))
         command = sandboxed(args.process, [str(binary), '--ignored', *PROCESS_TESTS], env)
         cwd, expected, kind = PACKAGE, EXPECTED_PROCESS, 'process'
+    elif args.production:
+        command = ['cargo', 'test', '--locked', '-p', 'dytallix-fast-node', '--features', 'production',
+                   '--lib', '--', '--ignored', '--exact', *PRODUCTION_TESTS]
+        cwd, expected, kind = ROOT, len(PRODUCTION_TESTS), 'production'
     else:
         command = ['cargo', 'test', '--locked', '-p', 'dytallix-fast-node', '--lib', '--', '--ignored']
         for name in SKIP:

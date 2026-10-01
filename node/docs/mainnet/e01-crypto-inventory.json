@@ -309,7 +309,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/emergency_verifier.rs",
-          "sha256": "c5eed2d2be4f9312179ea44dc6fecd151cb80af6dbff8fe9e7a34161a866eb26"
+          "sha256": "2228277a93fa3d4c02fcdd830412553a0b235434462d8122c025048d11a4cffb"
         },
         {
           "path": "dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs",

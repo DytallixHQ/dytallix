@@ -164,7 +164,7 @@ static int launch(const char *mode, const char *hash) {
     printf("guard_ready=1 helper_pid=%ld\n", (long)child); fflush(stdout);
     if (!strcmp(mode, "owner-death")) _exit(0);
     if (send(sockets[0], "DYTGO001", 8, 0) != 8) return 58;
-    static const unsigned char helper_ready[] = "DYTALLIX-ROOT-READY-v1\n";
+    static const unsigned char helper_ready[] = "DYTALLIX-ROOT-READY-v2\n";
     unsigned char helper_ready_raw[sizeof(helper_ready)-1];
     if (read_exact(output[0], helper_ready_raw, sizeof(helper_ready_raw)) ||
         memcmp(helper_ready_raw, helper_ready, sizeof(helper_ready_raw))) return 59;
@@ -182,7 +182,7 @@ static int launch(const char *mode, const char *hash) {
     if (read_exact(output[0], result, result_len)) return 65;
     printf("result_status=%u result_bytes=%u\n", header[0], result_len);
     fflush(stdout);
-    static const unsigned char ack[] = "DYTALLIX-ROOT-ACK-v1\n";
+    static const unsigned char ack[] = "DYTALLIX-ROOT-ACK-v2\n";
     if (write_all(input[1], ack, sizeof(ack)-1)) return 66;
     close(input[1]);
     unsigned char trailing;

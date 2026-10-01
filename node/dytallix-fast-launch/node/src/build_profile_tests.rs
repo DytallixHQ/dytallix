@@ -4,7 +4,7 @@ use crate::runtime::issuance_timing::TimingGenesis;
 use std::path::PathBuf;
 
 /// The committed rehearsal configuration (development profiles).
-fn rehearsal_config() -> ConsensusConfig {
+pub(crate) fn rehearsal_config() -> ConsensusConfig {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tools/mainnet-preparation/fixtures/genesis-rehearsal/application-config.json");
     serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap()
@@ -19,7 +19,7 @@ fn rehearsal_timing() -> TimingGenesis {
 
 /// The rehearsal configuration renamed to the production profiles, without the
 /// root controls (step A4), with the validator-proof digest recomputed.
-fn production_named(mut config: ConsensusConfig) -> ConsensusConfig {
+pub(crate) fn production_named(mut config: ConsensusConfig) -> ConsensusConfig {
     config.profile = "cometbft-production-v1".into();
     let lifecycle = config.lifecycle.as_mut().unwrap();
     lifecycle.profile = "cometbft-lifecycle-production-v1".into();
@@ -83,7 +83,8 @@ mod development {
                 "cometbft-penalty-local-qualification"
             ]
         );
-        assert!(development_entry().is_ok() && production_open().is_ok());
+        assert!(development_entry().is_ok());
+        assert!(production_open(false).is_ok() && production_open(true).is_ok());
         assert!(rehearsal_config().validate().is_ok());
     }
 
@@ -128,7 +129,8 @@ mod production {
             consensus_profiles().collect::<Vec<_>>(),
             ["cometbft-production-v1"]
         );
-        assert!(development_entry().is_err() && production_open().is_err());
+        assert!(development_entry().is_err());
+        assert!(production_open(false).is_err() && production_open(true).is_ok());
         assert!(production_named(rehearsal_config()).validate().is_ok());
         let mut timing = rehearsal_timing();
         timing.profile = "production".into();
@@ -156,13 +158,13 @@ mod production {
     }
 
     #[test]
-    fn a_production_build_opens_no_chain_before_the_root_path() {
+    fn a_production_build_opens_no_chain_without_the_threshold_root() {
         let config = production_named(rehearsal_config());
         let dir = tempfile::tempdir().unwrap();
         let error = ConsensusApplication::open(dir.path().join("db"), config, b"{}".to_vec())
             .err()
             .map(|e| format!("{e:#}"))
             .unwrap();
-        assert!(error.contains("root-signed genesis"), "{error}");
+        assert!(error.contains("signed three of five"), "{error}");
     }
 }
