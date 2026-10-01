@@ -1,4 +1,4 @@
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in [the prior records](decision-register/evidence/prior-launch-records/).
+> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
 
 # DGT tokenomics
 
@@ -25,7 +25,7 @@ APPROVED means the user selected the rule within the recorded scope. OBSERVED me
 
 **APPROVED — EC-03 (D05-Q02, P01, 29 September 2026).** Issue the complete approved DGT total in the canonical genesis. Disable every post-genesis DGT mint path. Do not burn DGT in the initial protocol. Transfer slashed DGT into a separate penalty escrow until the approved penalty rule assigns its destination. This preserves the fixed total. Fully issued does not mean liquid, transferable, or circulating.
 
-**IMPLEMENTED — EC-03.** The runtime DGT mint path (`State::mint_dgt`) is removed; genesis import is the only DGT credit, capped at the fixed total. The mainnet-preparation binding review reports `full_dgt_issuance` as missing unless genesis issues the whole total. Governance has no parameter that changes it (governance v1). The penalty escrow destination waits for D09-Q04.
+**IMPLEMENTED — EC-03.** The runtime DGT mint path (`State::mint_dgt`) is removed; genesis import is the only DGT credit, capped at the fixed total. The mainnet-preparation binding review reports `full_dgt_issuance` as missing unless genesis issues the whole total. Governance has no parameter that changes it (governance v1). D09-Q04 (P01, 30 September 2026) keeps penalized DGT in that escrow, which nothing can spend (penalties v1).
 
 ## Custody, vesting, and stake
 

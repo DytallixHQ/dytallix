@@ -1,4 +1,4 @@
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in [the prior records](decision-register/evidence/prior-launch-records/).
+> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
 
 # DRT tokenomics
 

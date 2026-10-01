@@ -2,6 +2,8 @@
 
 Canonical data: [LAUNCH_GATES.json](LAUNCH_GATES.json). This document is generated from that file. Edit the JSON, then regenerate this view. Separate packages are evidence archives.
 
+Links into `decision-register/` and `batch-*/` name launch evidence records held outside this repository; they do not resolve here.
+
 Launch: **NO GO**. Formal acceptance: **0/35**. Production records accepted: **0/8**. Final simulations completed: **0/7**.
 
 Current counts: 0 OPEN, 35 PARTIAL, 0 READY FOR ACCEPTANCE, 0 PASS. Partial progress can consist of preparation, implementation or local tests. It is not a percentage of completed acceptance criteria.

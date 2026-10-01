@@ -116,8 +116,13 @@ Each execution record holds:
   database is set aside can rejoin only by block sync from a peer that still
   holds every block (an archive node, `block_history: archive`). State sync
   join runs only in the qualification harness.
-- **Penalties.** Evidence is recorded, never penalized, while the penalty
-  profile refuses production activation (D09-Q04).
+- **Penalties.** A validator's first duplicate vote deducts the penalty rate
+  from every stake bonded to it and removes the validator for good
+  ([penalties v1](../architecture/penalties-v1.md), D09-Q04).
+  Light-client-attack evidence is recorded only, and there is no downtime
+  penalty. The penalty profile still refuses `production_activation`;
+  [production activation v1](../architecture/production-activation-v1.md)
+  (approved design, not yet built) sets it to true.
 - **Emergency controls.** Freeze and resume are root-signed controls
   (3 of 5 SLH-DSA signatures). Signing them in production depends on the
   custody procedure (E05, P02); the only signer in the repository is

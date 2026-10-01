@@ -23,7 +23,9 @@ an operator from following a procedure:
      the same.
 3. **No production validator key proof.** `ValidatorRegister` and
    `ValidatorRotateKey` need a possession proof from the consensus key. The
-   only signer accepts fixture nodes only.
+   only signer accepts fixture nodes only. Closed by gap 17 (T-a,
+   [key tooling v1](key-tooling-v1.md)): `dytallix-validator-key` signs
+   register and rotate proofs for the engine genesis chain.
 
 ## Decisions (P01, 28 September 2026)
 

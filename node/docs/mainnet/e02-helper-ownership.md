@@ -78,7 +78,8 @@ run natively.
 ## Native evidence to date (diagnostic)
 
 Disposable runs on 25 September (Linux 6.8.0, AppArmor parser 4.0.1; raw logs
-and hashes under `decision-register/core-function-alignment/e02-native-probe-20260925/`).
+and hashes under `decision-register/core-function-alignment/e02-native-probe-20260925/`,
+held outside this repository).
 The latest records pin exactly the sources now in `mainnet/node`.
 
 - The unstacked `Px` design was rejected by the kernel under

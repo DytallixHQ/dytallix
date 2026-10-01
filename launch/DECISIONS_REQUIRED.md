@@ -2,6 +2,8 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
+Links into `decision-register/`, `batch-*/`, `evidence/` and `snapshots/` name launch evidence records held outside this repository; they do not resolve here.
+
 The current register contains two OPEN policy questions, 14 PARTIALLY_APPROVED policy questions, 10 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.

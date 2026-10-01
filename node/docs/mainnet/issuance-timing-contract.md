@@ -12,7 +12,7 @@ Each pool and the issuance reserve distribute evenly across the epoch's blocks. 
 
 Controller transitions, issuance, staking rewards, supply totals, and block settlement must commit atomically. Development processing rejects a missing or invalid boundary observation. It does not fabricate observations, skip an epoch, or issue catch-up funds.
 
-These rules do not make development block processing finalized production consensus. Production finality, authenticated observations, and activation approval remain separate requirements.
+These rules run on the CometBFT consensus path, where a block is final when committed; the development block adapter was removed (E04 gap 14). Authenticated observations and activation approval remain separate requirements.
 
 ## Explicit genesis input
 
