@@ -1,0 +1,53 @@
+{
+  "decision_id": "P01-2026-09-30-E05-ACTIVATION",
+  "approved": "2026-09-30",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05-e: production activation design"
+  },
+  "design_ref": "../node/docs/architecture/production-activation-v1.md",
+  "decisions": [
+    {
+      "question": "D14-Q01, D14-Q02",
+      "selected": "Signed genesis + production build",
+      "rule": "Release binaries are built without the development entry points. A node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release. Root signers sign only after the P02 review, E06 release acceptance and gate acceptance."
+    },
+    {
+      "question": "D11-Q03, D10-Q03",
+      "selected": "3-of-5, own group",
+      "rule": "Root genesis is signed by five genesis signers, separate from the emergency and upgrade custodians, three signatures required."
+    },
+    {
+      "question": "D11-Q03",
+      "selected": "Anchored window",
+      "rule": "Upgrade (schema 2) and handover (v2) signatures bind a finalized anchor block and a bounded height window, as emergency freeze v2 does. Window bounds are measured with the emergency ones. Restart keeps its exact-height binding while the chain is halted."
+    },
+    {
+      "question": "D11-Q03",
+      "selected": "The upgrade custodians",
+      "rule": "Release handover and halt restart are controlled by the five upgrade custodians, three of five."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "Local Unix sockets only",
+      "rule": "Validators run no network listener; the engine's owner-only Unix sockets serve only the supervisor and the console operator tool."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "Startup check + kernel limits",
+      "rule": "The supervisor verifies the engine's executable and mappings at startup, then relies on AppArmor, seccomp and no-new-privileges, with no periodic pauses of the engine. Helpers and other short processes keep paused checks."
+    },
+    {
+      "question": "D12-Q01, D06-Q01",
+      "selected": "One IP per node, 1:1 NAT",
+      "rule": "Every node listens on and sends from one address; public sentries use static 1:1 NAT without port translation. The engine's connection check is unchanged."
+    },
+    {
+      "question": "D12-Q01, D06-Q01",
+      "selected": "Published partial mesh",
+      "rule": "Each sentry pins its own validator, the endpoints it serves and a fixed set of other sentries, within 64 pins. The pin plan is a public record released with each network configuration; a change is a reviewed configuration update and a restart."
+    }
+  ],
+  "does_not_authorize": ["code without the step PRs", "production activation of any chain", "gate acceptance", "mainnet launch"]
+}

@@ -913,7 +913,7 @@
           "question": "Which exact engine version, cryptographic roles and transport authentication profile will production freeze?",
           "recommendation": "Finish source integration, then freeze exact engine provenance and production addresses with the approved role and transport policy. Require candidate-bound review before activation.",
           "selected_value": null,
-          "approved_portion": "ML-KEM-768 and ML-DSA-65 for authenticated pinned peers; ML-DSA-65 for validator signatures; distinct keys by role; exact approved IP endpoints; no classical or plaintext fallback.",
+          "approved_portion": "ML-KEM-768 and ML-DSA-65 for authenticated pinned peers; ML-DSA-65 for validator signatures; distinct keys by role; exact approved IP endpoints; no classical or plaintext fallback. Peer records (P01, 30 September 2026): one IP per node and a published pin plan, each node within 64 pins (production activation v1).",
           "remaining_choices": [
             "Exact production engine commit and executable hashes",
             "Production chain ID and approved peer address and key records",
@@ -922,7 +922,7 @@
           "owner_role_proposed": "Protocol lead with cryptography and network reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "blocks_work": [
             "W06"
           ],
@@ -931,7 +931,13 @@
             "batch-7/APPROVAL.json",
             "batch-9/REPORT.md",
             "batch-10/REPORT.md",
-            "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json"
+            "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "../node/docs/architecture/production-activation-v1.md"
+          ],
+          "approval_records": [
+            "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
           ]
         },
         {
@@ -2023,7 +2029,8 @@
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D10-Q03.json",
           "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
           "upgrade_custodian_intake_ref": "custody/upgrade/INTAKE.md",
-          "upgrade_custodian_intake_boundary": "Public template and structural checker only (E05-c). The completed packet, names and evidence stay in the custody system; no custodian, key or acceptance is recorded."
+          "upgrade_custodian_intake_boundary": "Public template and structural checker only (E05-c). The completed packet, names and evidence stay in the custody system; no custodian, key or acceptance is recorded.",
+          "production_activation_note": "The signing roles include five root genesis signers, separate from the emergency and upgrade custodians (P01, 30 September 2026, approvals/P01_E05_ACTIVATION_2026-09-30.json); the upgrade custodians also hold handover and restart."
         }
       ],
       "work": {
@@ -2434,14 +2441,27 @@
               "names": null,
               "public_keys": null,
               "key_epochs": null,
-              "intake_ref": "custody/upgrade/INTAKE.md"
+              "intake_ref": "custody/upgrade/INTAKE.md",
+              "signing_window": "FINALIZED_ANCHOR_AND_BOUNDED_WINDOW"
             },
-            "production_parameter_set": "SLH-DSA-SHAKE-256s"
+            "production_parameter_set": "SLH-DSA-SHAKE-256s",
+            "root_genesis_authority": {
+              "signers": 5,
+              "threshold": 3,
+              "distinct_from_emergency_and_upgrade": true,
+              "algorithm": "SLH_DSA_SHAKE_256S"
+            },
+            "release_handover_and_restart_authority": {
+              "members": "UPGRADE_CUSTODIANS",
+              "threshold": 3,
+              "handover_signing_window": "FINALIZED_ANCHOR_AND_BOUNDED_WINDOW",
+              "restart_signing": "EXACT_HALTED_HEIGHT"
+            }
           },
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "blocks_work": [
             "W11",
             "W02",
@@ -2462,7 +2482,9 @@
             "../node/docs/mainnet/upgrade-execution.md",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
             "approvals/P01_E05_CUSTODY_2026-09-30.json",
-            "approvals/P01_E05_VALUES_3_2026-09-30.json"
+            "approvals/P01_E05_VALUES_3_2026-09-30.json",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "../node/docs/architecture/production-activation-v1.md"
           ],
           "approved_rule_ids": [
             "EF01",
@@ -2488,7 +2510,8 @@
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
             "The node check that refuses fee-profile proposals putting a reference basic Send outside 0.1 to 10 DRT (approved; built with production activation).",
             "Recovery authorities covered by D11-Q03.",
-            "Upgrade custodian names, keys and epochs; the production upgrade policy (schema 2)."
+            "Upgrade custodian names, keys and epochs; the production upgrade policy (schema 2).",
+            "Genesis signer, handover and upgrade window bounds measured on dedicated hosts; upgrade schema 2 and handover v2 implementation (production activation v1, steps A2 and A3)."
           ],
           "approval_records": [
             "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
@@ -2497,8 +2520,10 @@
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
             "approvals/P01_E05_CUSTODY_2026-09-30.json",
-            "approvals/P01_E05_VALUES_3_2026-09-30.json"
-          ]
+            "approvals/P01_E05_VALUES_3_2026-09-30.json",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
+          ],
+          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart."
         }
       ],
       "work": {
@@ -2575,12 +2600,16 @@
             "counts": null,
             "regions": null,
             "failure_domains": null,
-            "capacity_budget": null
+            "capacity_budget": null,
+            "validator_rpc": "LOCAL_OWNER_ONLY_UNIX_SOCKETS_NO_NETWORK_LISTENER",
+            "engine_observation": "STARTUP_CHECK_THEN_KERNEL_ENFORCEMENT_NO_PERIODIC_PAUSE",
+            "addressing": "ONE_IP_PER_NODE_STATIC_1_TO_1_NAT",
+            "mesh": "PUBLISHED_PARTIAL_MESH_WITHIN_64_PINS"
           },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "blocks_work": [
             "W12",
             "W06"
@@ -2590,12 +2619,18 @@
             "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
             "batch-1/OPERATIONS_EVIDENCE.json",
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
-            "PRODUCTION_INFRASTRUCTURE_DRAFT.md"
+            "PRODUCTION_INFRASTRUCTURE_DRAFT.md",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "../node/docs/architecture/production-activation-v1.md"
           ],
-          "approved_portion": "Private validators behind sentries (P01, 30 September 2026): validators peer only with their own sentries, sentries face the network and separate endpoint nodes serve the client channel; validator hosts run no RPC or management port.",
+          "approved_portion": "Private validators behind sentries (P01, 30 September 2026): validators peer only with their own sentries, sentries face the network and separate endpoint nodes serve the client channel; validator hosts run no RPC or management port. Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets; the engine is checked at startup and then held by kernel limits without periodic pauses; one IP per node with static 1:1 NAT for public sentries; a published partial mesh within 64 pins.",
           "remaining_choices": [
             "Counts, hosts, regions, account separation and failure domains (E05)",
             "Capacity budget (E05)"
+          ],
+          "approval_records": [
+            "approvals/P01_E04_OPERATIONS_2026-09-30.json",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
           ]
         },
         {
@@ -2871,14 +2906,16 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "recommendation": "Freeze exact sources, features, toolchains, artifacts and signer roles.",
-          "selected_value": null,
+          "selected_value": {
+            "production_build": "RELEASE_BINARIES_WITHOUT_DEVELOPMENT_ENTRY_POINTS"
+          },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "blocks_work": [
             "W14",
             "W12"
@@ -2887,22 +2924,39 @@
           "evidence_refs": [
             "USER_LAUNCH_REQUIREMENTS.txt",
             "LAUNCH_GATES.json",
-            "batch-10/REPORT.md"
+            "batch-10/REPORT.md",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "../node/docs/architecture/production-activation-v1.md"
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
-          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json"
+          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1).",
+          "remaining_choices": [
+            "Release targets, build environment, registry and signing authority (E06)",
+            "Review independence criteria (P02)"
+          ],
+          "approval_records": [
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
+          ]
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "recommendation": "Set measurable acceptance criteria. Preserve all seven full simulations. No mandatory 30-day duration is inferred.",
-          "selected_value": null,
+          "selected_value": {
+            "production_switch": "ROOT_SIGNED_GENESIS_ON_A_PRODUCTION_BUILD",
+            "root_signing_precondition": [
+              "P02_REVIEW",
+              "E06_RELEASE_ACCEPTANCE",
+              "GATE_ACCEPTANCE"
+            ]
+          },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "blocks_work": [
             "W14",
             "W06",
@@ -2912,7 +2966,17 @@
           "evidence_refs": [
             "USER_LAUNCH_REQUIREMENTS.txt",
             "LAUNCH_GATES.json",
-            "batch-10/REPORT.md"
+            "batch-10/REPORT.md",
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "../node/docs/architecture/production-activation-v1.md"
+          ],
+          "approved_portion": "Launch authority (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release; root signers sign only after the P02 review, E06 release acceptance and gate acceptance.",
+          "remaining_choices": [
+            "Workload, finality, recovery and acceptance thresholds",
+            "Calendar"
+          ],
+          "approval_records": [
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
           ]
         },
         {
@@ -3090,8 +3154,8 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 4,
-    "partially_approved_policy_questions": 12,
+    "fully_open_policy_questions": 2,
+    "partially_approved_policy_questions": 14,
     "approved_policy_questions": 10,
     "required_records": 8
   },
