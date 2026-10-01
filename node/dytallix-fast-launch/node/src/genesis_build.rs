@@ -313,7 +313,7 @@ pub struct EmergencyRoot {
 pub struct UpgradeRoot {
     pub authority_epoch: u64,
     pub authority: AuthorityPolicy,
-    pub migration_bounds: upgrade::MigrationBounds,
+    pub migration_bounds: upgrade::v1::MigrationBounds,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -897,7 +897,9 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
                 }),
             };
             let u = &root.upgrade;
-            let upgrade = upgrade::Policy {
+            // The rehearsal builds the development policies; the production
+            // builder mode (production activation v1, A7) builds schema 2.
+            let upgrade = upgrade::Policy::V1(upgrade::v1::Policy {
                 schema: 1,
                 development_only: true,
                 chain_id: chain.into(),
@@ -909,7 +911,7 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
                 max_control_bytes: inputs.application.max_tx_bytes,
                 max_signatures: u.authority.threshold,
                 migration_bounds: u.migration_bounds.clone(),
-            };
+            });
             let h = &root.handover;
             let handover = handover::Policy {
                 schema: 1,
@@ -923,6 +925,7 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
                 initial_sequence: 1,
                 max_control_bytes: inputs.application.max_tx_bytes,
                 max_signatures: h.max_signatures,
+                v2: None,
             };
             (Some(emergency), Some(upgrade), Some(handover))
         }

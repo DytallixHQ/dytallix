@@ -88,7 +88,7 @@ fn root(f: &mut Fixture, enabled_upgrade: bool) -> RootFixture {
             max_anchor_age_blocks: 4,
         });
         if enabled_upgrade {
-            f.config.upgrade = Some(upgrade::Policy {
+            f.config.upgrade = Some(upgrade::Policy::V1(upgrade::v1::Policy {
                 schema: 1,
                 development_only: true,
                 chain_id: CHAIN.into(),
@@ -99,12 +99,12 @@ fn root(f: &mut Fixture, enabled_upgrade: bool) -> RootFixture {
                 initial_sequence: 1,
                 max_control_bytes: 262_144,
                 max_signatures: 1,
-                migration_bounds: upgrade::MigrationBounds {
+                migration_bounds: upgrade::v1::MigrationBounds {
                     max_receipts: 16,
                     max_receipt_bytes: 4 * 1024 * 1024,
                     max_write_bytes: 64 * 1024,
                 },
-            });
+            }));
         }
     })
 }
@@ -180,19 +180,19 @@ fn emergency_control(
     })
     .unwrap()
 }
-fn upgrade_state(app: &ConsensusApplication) -> upgrade::State {
-    upgrade::decode_state(
-        app.config.upgrade.as_ref().unwrap(),
-        &app.storage.db.get(upgrade::STATE_KEY).unwrap().unwrap(),
+fn upgrade_state(app: &ConsensusApplication) -> upgrade::v1::State {
+    upgrade::v1::decode_state(
+        app.config.upgrade.as_ref().unwrap().as_v1().unwrap(),
+        &app.storage.db.get(upgrade::v1::STATE_KEY).unwrap().unwrap(),
     )
     .unwrap()
 }
-fn plan(f: &Fixture) -> upgrade::MigrationPlan {
-    let policy = f.config.upgrade.as_ref().unwrap();
-    upgrade::MigrationPlan {
+fn plan(f: &Fixture) -> upgrade::v1::MigrationPlan {
+    let policy = f.config.upgrade.as_ref().unwrap().as_v1().unwrap();
+    upgrade::v1::MigrationPlan {
         target_release_sha512: policy.source_release_sha512.clone(),
         migration_id: upgrade::MIGRATION_ID.into(),
-        migration_sha256: upgrade::migration_sha256(),
+        migration_sha256: upgrade::v1::migration_sha256(),
         source_schema: 0,
         target_schema: 1,
         bounds: policy.migration_bounds.clone(),
@@ -203,11 +203,11 @@ fn upgrade_control(
     root: &RootFixture,
     f: &Fixture,
     app: &ConsensusApplication,
-    action: upgrade::Action,
+    action: upgrade::v1::Action,
 ) -> Vec<u8> {
     let info = app.info().unwrap();
-    let policy = f.config.upgrade.as_ref().unwrap();
-    let payload = upgrade::Payload {
+    let policy = f.config.upgrade.as_ref().unwrap().as_v1().unwrap();
+    let payload = upgrade::v1::Payload {
         schema: 1,
         chain_id: CHAIN.into(),
         genesis_sha256: f.config.app_state_sha256.clone(),
@@ -221,15 +221,15 @@ fn upgrade_control(
     };
     let signed = sign(
         root._directory.path(),
-        &upgrade::artifact_bytes(&payload).unwrap(),
+        &upgrade::v1::artifact_bytes(&payload).unwrap(),
         "upgrade",
         payload.sequence,
         payload.target_height,
         payload.target_height,
         31,
     );
-    serde_json::to_vec(&upgrade::Control {
-        kind: upgrade::CONTROL_KIND.into(),
+    serde_json::to_vec(&upgrade::v1::Control {
+        kind: upgrade::v1::CONTROL_KIND.into(),
         payload,
         signatures: vec![emergency::ControlSignature {
             key_id: "upgrade-31".into(),
@@ -248,7 +248,7 @@ fn activation(root: &RootFixture, f: &Fixture, app: &ConsensusApplication) -> Ve
         root,
         f,
         app,
-        upgrade::Action::Activate {
+        upgrade::v1::Action::Activate {
             plan: pending.plan.clone(),
             admission_receipt_sha256: pending.admission_receipt_sha256.clone(),
             emergency_receipt_sha256: emergency_state(&app.storage, &app.config)
@@ -378,7 +378,7 @@ fn actual_index_migration_is_atomic_replayable_and_used_by_queries() {
         3,
     );
     commit(&mut app, 2, vec![resume]);
-    let admit = upgrade_control(&root, &f, &app, upgrade::Action::Admit { plan: plan(&f) });
+    let admit = upgrade_control(&root, &f, &app, upgrade::v1::Action::Admit { plan: plan(&f) });
     assert_admitted(app.check_tx(&admit));
     commit(&mut app, 3, vec![admit]);
     let activate = activation(&root, &f, &app);
@@ -465,7 +465,7 @@ fn actual_same_block_freeze_wins_and_resume_does_not_clear_upgrade() {
     for freeze_first in [false, true] {
         let directory = tempfile::tempdir().unwrap();
         let mut app = root.initialized(&f, directory.path());
-        let admit = upgrade_control(&root, &f, &app, upgrade::Action::Admit { plan: plan(&f) });
+        let admit = upgrade_control(&root, &f, &app, upgrade::v1::Action::Admit { plan: plan(&f) });
         commit(&mut app, 1, vec![admit]);
         let activate = activation(&root, &f, &app);
         let freeze = emergency_control(
@@ -502,7 +502,7 @@ fn actual_same_block_freeze_wins_and_resume_does_not_clear_upgrade() {
             &root,
             &f,
             &app,
-            upgrade::Action::Activate {
+            upgrade::v1::Action::Activate {
                 plan: pending.plan.clone(),
                 admission_receipt_sha256: pending.admission_receipt_sha256.clone(),
                 emergency_receipt_sha256: None,
@@ -554,7 +554,7 @@ fn upgrade_keys_cannot_hold_an_emergency_role() {
         automatic_transition_policy: emergency::AutomaticTransitionPolicy::ContinueExisting,
         v2: None,
     });
-    let policy = |key: emergency::AuthorityKey| upgrade::Policy {
+    let policy = |key: emergency::AuthorityKey| upgrade::Policy::V1(upgrade::v1::Policy {
         schema: 1,
         development_only: true,
         chain_id: CHAIN.into(),
@@ -565,12 +565,12 @@ fn upgrade_keys_cannot_hold_an_emergency_role() {
         initial_sequence: 1,
         max_control_bytes: 65_536,
         max_signatures: 1,
-        migration_bounds: upgrade::MigrationBounds {
+        migration_bounds: upgrade::v1::MigrationBounds {
             max_receipts: 16,
             max_receipt_bytes: 4 * 1024 * 1024,
             max_write_bytes: 64 * 1024,
         },
-    };
+    });
     let mut config = f.config.clone();
     config.upgrade = Some(policy(key(31, "upgrade")));
     config.validate().unwrap();

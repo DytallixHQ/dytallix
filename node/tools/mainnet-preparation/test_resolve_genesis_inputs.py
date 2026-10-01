@@ -10,6 +10,11 @@ HERE = Path(__file__).resolve().parent
 LAUNCH = HERE.parents[2]/'launch'
 REHEARSAL = HERE/'fixtures'/'genesis-rehearsal'
 NOT_GENESIS = ('config.toml', 'service.', 'emergency verifier', 'config/pqc', '(')
+# Upgrade and handover schema 2 values (production activation v1, A3): the
+# builder's production mode (A7) places them; the rehearsal builds schema 1.
+SCHEMA_2_ONLY = {'upgrade_notice_blocks', 'handover_notice_blocks',
+                 'upgrade_max_validity_blocks', 'upgrade_max_anchor_age_blocks',
+                 'handover_max_validity_blocks', 'handover_max_anchor_age_blocks'}
 
 
 class ResolverTests(unittest.TestCase):
@@ -52,7 +57,7 @@ class ResolverTests(unittest.TestCase):
 
     def test_every_genesis_value_is_resolved_or_derived(self):
         for v in self.values['values']:
-            if v['path'].startswith(NOT_GENESIS): continue
+            if v['path'].startswith(NOT_GENESIS) or v['name'] in SCHEMA_2_ONLY: continue
             if v['tier'] == 'derived' and v['name'] not in r.VALUES: continue
             self.assertIn(v['name'], r.VALUES, f'{v["name"]} ({v["path"]}) has no place in the build inputs')
 

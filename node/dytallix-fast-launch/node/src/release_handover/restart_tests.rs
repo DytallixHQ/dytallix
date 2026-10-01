@@ -63,6 +63,7 @@ fn policy() -> Policy {
         initial_sequence: 10,
         max_control_bytes: 200_000,
         max_signatures: 3,
+        v2: None,
     }
 }
 fn checkpoint() -> Checkpoint {

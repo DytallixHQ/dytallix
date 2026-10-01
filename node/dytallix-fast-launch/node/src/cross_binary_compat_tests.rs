@@ -208,7 +208,7 @@ fn actual_distinct_processes_preserve_v1_history_and_index_across_replacement() 
     let resume = emergency_control(&root, &f, &model, emergency::Action::Resume, &model.info().unwrap(), 2, 3);
     a.commit(&mut model, 2, resume);
     let second_receipt = last_emergency(&model);
-    let admit = upgrade_control(&root, &f, &model, upgrade::Action::Admit { plan: plan(&f) });
+    let admit = upgrade_control(&root, &f, &model, upgrade::v1::Action::Admit { plan: plan(&f) });
     a.commit(&mut model, 3, admit);
     let before = a.query("/status");
     assert_eq!(before["upgrade"]["next_sequence"], 2);

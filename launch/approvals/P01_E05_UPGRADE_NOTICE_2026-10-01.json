@@ -1,0 +1,23 @@
+{
+  "decision_id": "P01-2026-10-01-E05-UPGRADE-NOTICE",
+  "approved": "2026-10-01",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Production activation v1, step A3: scope of the upgrade notice"
+  },
+  "design_ref": "../node/docs/architecture/production-activation-v1.md",
+  "decisions": [
+    {
+      "question": "D11-Q03, D14-Q02 (UPG-002)",
+      "selected": "Both",
+      "rule": "The approved notice (activation at least 120,960 blocks after admission) applies to release handovers (schema 2) as well as to state-migration upgrades (schema 2). Operators install the named release before activation. Urgent problems use the emergency freeze; a halted chain uses restart, which has no notice.",
+      "values": {
+        "upgrade_notice_blocks": "120960",
+        "handover_notice_blocks": "120960"
+      },
+      "note": "The upgrade notice value was approved on 30 September 2026 (P01_E05_VALUES_2_2026-09-30.json); this record extends it to handovers."
+    }
+  ],
+  "does_not_authorize": ["production activation of any chain", "custodian appointment", "gate acceptance", "mainnet launch"]
+}
