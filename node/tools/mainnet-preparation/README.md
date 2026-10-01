@@ -8,10 +8,10 @@ Run from the node repository:
 python3 -B tools/mainnet-preparation/check_bindings.py \
   --bindings BINDINGS.json --records PRODUCTION_INPUTS.json \
   --native NATIVE_GENESIS.json --application APPLICATION_CONFIG.json \
-  --service SERVICE_CONFIG.json
+  --service SERVICE_CONFIG.json --engine ENGINE_GENESIS.json --manifest BUILD_MANIFEST.json
 ```
 
-The native, application and service files are optional. Without them, the result lists the missing runtime bytes. Exit code 1 means the review remains BLOCKED. Exit code 2 means a supplied field or source binding failed validation. No exit code grants acceptance.
+The native, application, service, engine genesis (`--engine`) and builder manifest (`--manifest`) files are optional. Without them, the result lists the missing runtime bytes. Exit code 1 means the review remains BLOCKED. Exit code 2 means a supplied field or source binding failed validation. No exit code grants acceptance.
 
 The records argument uses the existing `PRODUCTION_INPUTS` record IDs and row arrays. Run the separate intake checker to validate the complete record schema and acceptance state. This tool checks only the records used by its supported bindings. A record reference does not establish approval.
 
@@ -22,9 +22,13 @@ The records argument uses the existing `PRODUCTION_INPUTS` record IDs and row ar
 | Exact source bytes | Match SHA-256 for the supplied records, native genesis, and application configuration. Match the application's embedded native-genesis digest. |
 | Native amounts | Require decimal strings, u128 bounds, the existing DGT cap, unique accounts, explicit vesting, and checked stake funding. Match funded delegations to reward positions. Report `full_dgt_issuance` as missing unless genesis issues the whole 1,000,000,000 DGT: all DGT is issued at genesis and nothing mints it later (D05-Q02). |
 | Native reward and issuance inputs | Check the current development versions, activation height, decimals, resource limits, validator population, controller bounds, and epoch budget. |
-| Application configuration | Check the fixed-validator local profile, chain ID, gas and byte limits, canonical ML-DSA-65 public key encoding, unique identities, positive bounded power, and reward-validator agreement. Report `recovery_and_ordinary_profiles` as missing unless both profiles are present: they are the only user-transaction paths (E04 gap 14). Report `lifecycle_and_penalty_profiles` as missing unless both are present: they penalize double-signing and allow withdrawals (penalties v1). |
+| Application configuration | Check the profile, chain ID, gas and byte limits, canonical ML-DSA-65 public key encoding, unique identities, positive bounded power, and reward-validator agreement. Report `recovery_and_ordinary_profiles` as missing unless both profiles are present: they are the only user-transaction paths (E04 gap 14). Report `lifecycle_and_penalty_profiles` as missing unless both are present: they penalize double-signing and allow withdrawals (penalties v1). |
+| Full configuration (E05-d2) | `config_checks.review` re-derives, independently of the node: lifecycle, penalty, recovery, ordinary, governance and root-control structure; every account address from its origin key (SHA3-256 and Bech32m); the validator-proof profile digest; the E05-a rules (fee caps, transport bound, governance thresholds and bounds, root control bounds, evidence seconds); validator power as bonded stake and self-bonds at the minimum; recovery accounts equal to native accounts; root policies bound to the native genesis; upgrade keys disjoint from emergency keys; and the development gates the node still requires. |
+| Engine genesis (E05-d2) | The engine genesis ends with the exact native genesis as `app_state`; chain, initial height, key profile, evidence limits equal to the lifecycle's, validator addresses and powers equal to the application's. Its digest binds through `source_digests.engine_genesis_sha256`. |
+| Builder manifest (E05-d2) | Each file's size, SHA-256 and SHA-512, and the build digest. |
 | Service configuration | Report `service_configuration` as missing unless supplied, and `metrics_output` unless it sets `metrics` (an absolute `directory` and `interval_seconds` from 1 to 3600): the incident runbooks read the metrics files (E04 gap 15). No other service field is reviewed. |
 | Chain identity | Resolve the D13-Q02 identity policy reference to a typed public document. Match its chain ID to both runtime files. |
+| Genesis time and governance | `genesis_time` equals the engine genesis's; `governance_parameters` equals the configuration's governance section exactly. |
 | Beneficiary bindings | Resolve D08-Q01 account references. Match amounts, explicit vesting documents, staking permission, and operator-specific funded delegations. Require every native account and supplied allocation row to map exactly once. |
 | DRT bootstrap | Match each D08-Q03 row to its recipient account and policy reference. Reconcile all rows and the policy total with native DRT balances. |
 | Validator bindings | Resolve D09-Q02 operator references to exact public key documents. Match keys to the application validators. Reject duplicate operator or validator mappings. |
@@ -46,7 +50,7 @@ The application check enforces the consumer's 8 MiB limit (`MAX_CONFIG_BYTES`, E
 
 ## Unsupported fields remain open
 
-Genesis time, governance parameters, SLH-DSA root authorization, and approval-bundle semantics have no typed adapter in this tool. They remain UNSUPPORTED when populated. Lifecycle, penalty, recovery, and ordinary application configurations also remain UNSUPPORTED. No populated string or object can make `runtime_complete` true.
+SLH-DSA root authorization and approval-bundle semantics have no typed adapter in this tool. They remain UNSUPPORTED when populated. No populated string or object can make `runtime_complete` true.
 
 The tool does not establish production activation, custody, signature authenticity, validator admission, stake-to-power policy, or independent review. The supported runtime profiles remain local development profiles. Mainnet remains NO GO.
 
@@ -63,7 +67,14 @@ It requires exactly five custodians, three of five, one explicit authority epoch
 
 ## Genesis inputs (E05-d)
 
-`resolve_genesis_inputs.py` writes the genesis builder's inputs from the approved values in `launch/E05_VALUES.json`, the labeled proposals in `launch/genesis/PROPOSALS.json`, and the records, with a report of each value's source. `--check` compares instead of writing. `genesis_rehearsal_records.py` writes the synthetic rehearsal records. The builder itself is the node's `dytallix-genesis-build`; see [the genesis builder](../../docs/mainnet/e05-genesis-builder.md). `fixtures/genesis-rehearsal/` holds the committed rehearsal: records, inputs, resolution and the four built files.
+`resolve_genesis_inputs.py` writes the genesis builder's inputs from the approved values in `launch/E05_VALUES.json`, the labeled proposals in `launch/genesis/PROPOSALS.json`, and the records, with a report of each value's source. `--check` compares instead of writing. `genesis_rehearsal_records.py --out fixtures/genesis-rehearsal` writes the synthetic rehearsal records and, once the rehearsal is built, its binding-review packet (`review-records.json`, `review-bindings.json`). The builder itself is the node's `dytallix-genesis-build`; see [the genesis builder](../../docs/mainnet/e05-genesis-builder.md). `fixtures/genesis-rehearsal/` holds the committed rehearsal: records, inputs, resolution, the four built files and the review packet. Review it with:
+
+```text
+F=tools/mainnet-preparation/fixtures/genesis-rehearsal
+python3 -B tools/mainnet-preparation/check_bindings.py --bindings $F/review-bindings.json \
+  --records $F/review-records.json --native $F/native-genesis.json \
+  --application $F/application-config.json --engine $F/genesis.json --manifest $F/BUILD_MANIFEST.json
+```
 
 ## Tests
 

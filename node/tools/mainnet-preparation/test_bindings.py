@@ -73,11 +73,13 @@ class BindingTests(unittest.TestCase):
     def test_populated_root_does_not_count_complete(self):
         self.b['runtime_inputs']['root_authorization']={'reference':'present'};r=self.result()
         self.assertFalse(r['runtime_complete']);self.assertTrue(any(x['field']=='root_authorization' and x['supplied'] for x in r['unsupported']))
-    def test_populated_governance_does_not_count_complete(self):
-        self.b['runtime_inputs']['governance_parameters']={'voting':'bonded'};r=self.result();self.assertTrue(any(x['field']=='governance_parameters' and x['supplied'] for x in r['unsupported']))
+    def test_populated_governance_must_equal_the_configuration(self):
+        # E05-d2: governance parameters bind exactly to the configuration's governance section.
+        self.b['runtime_inputs']['governance_parameters']={'voting':'bonded'};r=self.result()
+        self.assertTrue(any(e['scope']=='governance_parameters_exact_source_binding' for e in r['errors']));self.assertFalse(r['runtime_complete'])
     def test_missing_inputs_stay_missing(self):
         for key in self.b['runtime_inputs']:self.b['runtime_inputs'][key]=None
-        r=self.result();self.assertEqual(len(r['missing']),14);self.assertFalse(r['runtime_complete'])
+        r=self.result();self.assertEqual(len(r['missing']),15);self.assertIn('engine_genesis',r['missing']);self.assertFalse(r['runtime_complete'])
     def test_service_configuration_requires_metrics_output(self):
         nr=c.n.canonical(self.g);self.a['app_state_sha256']=c.digest(nr);ar=c.n.canonical(self.a);rr=c.n.canonical(self.r)
         self.b['source_digests']={'records_sha256':c.digest(rr),'native_genesis_sha256':c.digest(nr),'application_config_sha256':c.digest(ar)}
@@ -95,7 +97,7 @@ class BindingTests(unittest.TestCase):
         self.assertIn('recovery_and_ordinary_profiles',r['missing'])
         self.a['ordinary']={};r=self.result()
         self.assertNotIn('recovery_and_ordinary_profiles',r['missing'])
-        self.assertTrue(any(x['field']=='extended_application_profile' for x in r['unsupported']))
+        self.assertTrue(any(e['scope']=='application_configuration' for e in r['errors']))
     def test_genesis_must_issue_full_dgt_total(self):
         self.assertNotIn('full_dgt_issuance',self.result()['missing'])
         holder=max(self.g['accounts'],key=lambda a:int(a['balances']['udgt']));holder['balances']['udgt']=str(int(holder['balances']['udgt'])-1)
@@ -108,7 +110,7 @@ class BindingTests(unittest.TestCase):
         self.assertIn('lifecycle_and_penalty_profiles',r['missing'])
         self.a['penalty']={};r=self.result()
         self.assertNotIn('lifecycle_and_penalty_profiles',r['missing'])
-        self.assertTrue(any(x['field']=='extended_application_profile' for x in r['unsupported']))
+        self.assertTrue(any(e['scope']=='application_configuration' for e in r['errors']))
     def test_records_hash_mismatch(self):
         rr=c.n.canonical(self.r);self.b['source_digests']['records_sha256']='0'*64
         self.assertTrue(c.validate(self.b,self.r,rr)['errors'])
@@ -131,8 +133,10 @@ class BindingTests(unittest.TestCase):
     def test_unmatched_vesting_terms(self):
         row=self.doc('vesting_terms');row['document']['vesting']={'kind':'linear_after_cliff','total_amount':'1','start_time':0,'cliff_duration':0,'vesting_duration':1,'allow_staking':False};row['sha256']=c.digest(c.n.canonical(row['document']));self.assertTrue(self.result()['errors'])
     def test_production_consensus_profile_not_accepted(self):self.rejected(lambda:self.a.update(profile='production'))
-    def test_extended_application_profile_stays_unsupported(self):
-        self.a['ordinary']={'present':True};r=self.result();self.assertTrue(any(x['field']=='extended_application_profile' for x in r['unsupported']));self.assertFalse(r['runtime_complete'])
+    def test_an_extended_section_is_reviewed_not_skipped(self):
+        # E05-d2: the fixed local profile cannot carry extended sections, and none is skipped.
+        self.a['ordinary']={'present':True};r=self.result()
+        self.assertTrue(any(e['scope']=='application_configuration' for e in r['errors']));self.assertFalse(any(x['field']=='extended_application_profile' for x in r['unsupported']));self.assertFalse(r['runtime_complete'])
     def test_consensus_resource_bounds(self):self.rejected(lambda:self.a.update(max_tx_bytes=262145))
     def test_validator_boolean_power_rejected(self):self.rejected(lambda:self.a['validators'][0].update(power=True))
     def test_classical_key_type_rejected(self):self.rejected(lambda:self.a['validators'][0].update(pubkey_type='ed25519'))

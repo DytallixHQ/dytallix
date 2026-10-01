@@ -117,5 +117,7 @@ key pairs.
   them, because they open only with the development root helper.
 - **Not produced:** the engine `config.toml`, the PQC transport file, the
   service configuration and the signed root genesis bundle.
-- **Binding review.** `check_bindings.py` still stops at the full
-  configuration; extending it is the next step (E05-d2).
+- **Binding review (E05-d2).** `check_bindings.py` now reviews the full
+  configuration, the engine genesis and the manifest independently of the
+  node (`config_checks.py`); on the rehearsal it passes with no errors and
+  stays BLOCKED, because production activation is unsupported.

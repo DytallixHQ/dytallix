@@ -116,7 +116,9 @@ E05 values, third set (30 September 2026,
 issuance response (D01-Q01, D03-Q01); floor-priced fees with free reads, a 1 DRT
 floor from gas price 10 and minimum gas 100,000 (D04-Q01, D10-Q02); fee bounds
 and a node check keeping a basic transfer between 0.1 and 10 DRT (D11-Q03). The
-rehearsal genesis builder (E05-d) is in `docs/mainnet/e05-genesis-builder.md`.
+rehearsal genesis builder (E05-d) is in `docs/mainnet/e05-genesis-builder.md`;
+the binding review now covers the full configuration, the engine genesis and
+the build manifest (E05-d2, `tools/mainnet-preparation/config_checks.py`).
 
 | Decision | Question | Rows |
 | --- | --- | --- |

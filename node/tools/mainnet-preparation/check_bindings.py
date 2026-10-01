@@ -8,11 +8,12 @@ import json
 from pathlib import Path
 import re
 import unicodedata
+import config_checks
 import native_checks as n
 
 LIMIT = 8*1024*1024
 RUNTIME_FIELDS = 'chain_id genesis_time account_bindings validator_bindings governance_parameters issuance_parameters reward_parameters consensus_configuration network_configuration root_authorization approval_bundle'.split()
-SUPPORTED = {'chain_id','account_bindings','validator_bindings','issuance_parameters','reward_parameters','consensus_configuration','network_configuration'}
+SUPPORTED = {'chain_id','genesis_time','account_bindings','validator_bindings','governance_parameters','issuance_parameters','reward_parameters','consensus_configuration','network_configuration'}
 CONFIG_LIMIT = 8*1024*1024  # consensus_settlement::MAX_CONFIG_BYTES (E05-a)
 DGT_TOTAL_UDGT = 10**15  # the fixed 1,000,000,000 DGT, in udgt (DGT_TOKENOMICS.md)
 
@@ -31,6 +32,11 @@ def decode(raw):
 def read(path):
     with Path(path).open('rb') as stream: raw=stream.read(LIMIT+1)
     return raw,decode(raw)
+
+def read_raw(path):
+    # The engine genesis embeds the native genesis; config_checks.engine parses it.
+    with Path(path).open('rb') as stream: raw=stream.read(LIMIT+1)
+    n.require(len(raw)<=LIMIT,'input_byte_limit');return raw
 
 
 def digest(raw): return hashlib.sha256(raw).hexdigest()
@@ -88,8 +94,14 @@ def native(genesis):
 
 
 def application(config,genesis,raw):
-    n.exact(config,'profile engine chain_id app_state_sha256 gas_price max_tx_bytes max_block_bytes max_txs validators')
-    n.require(config['profile']=='cometbft-local-qualification' and config['engine']=='cometbft-v0.40.0','unsupported_consensus_profile')
+    # E05-d2: a configuration with lifecycle, penalty, recovery and ordinary
+    # sections passes these base checks, then config_checks.review.
+    if any(key in config for key in config_checks.SECTIONS):
+        n.require(set(config_checks.BASE_FIELDS)<=set(config)<=set(config_checks.BASE_FIELDS)|set(config_checks.SECTIONS),'Missing or unknown contract fields')
+        n.require(config['profile'] in (config_checks.LIFECYCLE_PROFILE,config_checks.PENALTY_PROFILE) and config['engine']=='cometbft-v0.40.0','unsupported_consensus_profile')
+    else:
+        n.exact(config,' '.join(config_checks.BASE_FIELDS))
+        n.require(config['profile']=='cometbft-local-qualification' and config['engine']=='cometbft-v0.40.0','unsupported_consensus_profile')
     n.require(config['chain_id']==genesis['chain_id'] and len(config['chain_id'].encode())<=50,'application_chain_mismatch')
     n.require(config['app_state_sha256']==digest(raw),'application_genesis_digest_mismatch')
     n.require(0<n.uint(config['gas_price'])<=2**63-1,'gas_price_bound')
@@ -227,7 +239,7 @@ def full_dgt_issuance(genesis,result):
     if total!=DGT_TOTAL_UDGT:result['missing'].append('full_dgt_issuance')
 
 
-def validate(bindings,records,records_raw,native_raw=None,config_raw=None,service_raw=None):
+def validate(bindings,records,records_raw,native_raw=None,config_raw=None,service_raw=None,engine_raw=None,manifest_raw=None):
     result={'status':'BLOCKED','production_accepted':False,'runtime_complete':False,'genesis_emitted':False,'activation_enabled':False,'checks':[],'errors':[],'missing':[],'unsupported':[]}
     def check(label,fn):
         try:value=fn();result['checks'].append(label);return value
@@ -236,7 +248,8 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
         n.require(type(records) is dict and type(records.get('records')) is dict and type(records.get('policy_inputs')) is dict,'record_packet_must_be_object')
         n.exact(bindings,'schema_version profile source_digests runtime_inputs public_documents')
         n.require(type(bindings['schema_version']) is int and bindings['schema_version']==1 and bindings['profile']=='production-runtime-review-only','unsupported_binding_version_or_profile')
-        n.exact(bindings['runtime_inputs'],' '.join(RUNTIME_FIELDS));n.exact(bindings['source_digests'],'records_sha256 native_genesis_sha256 application_config_sha256')
+        n.exact(bindings['runtime_inputs'],' '.join(RUNTIME_FIELDS))
+        n.require(set(bindings['source_digests']) in ({'records_sha256','native_genesis_sha256','application_config_sha256'},{'records_sha256','native_genesis_sha256','application_config_sha256','engine_genesis_sha256'}),'Missing or unknown contract fields')
         n.require(bindings['source_digests']['records_sha256']==digest(records_raw),'records_digest_mismatch')
     except (ValueError,TypeError,KeyError) as exc:result['errors'].append({'scope':'binding_contract','code':str(exc)});return result
     runtime=bindings['runtime_inputs']
@@ -264,11 +277,28 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     # withdrawn.
     if not all(key in config for key in ('lifecycle','penalty')):result['missing'].append('lifecycle_and_penalty_profiles')
     check('full_dgt_issuance',lambda:full_dgt_issuance(genesis,result))
-    if any(key in config for key in ('lifecycle','penalty','recovery','ordinary')):
-        result['unsupported'].append({'field':'extended_application_profile','reason':'Typed adapter not implemented for lifecycle, penalty, recovery or ordinary config'});return result
     state=check('native_monetary_reward_timing',lambda:native(genesis))
     validators=check('application_configuration',lambda:application(config,genesis,native_raw))
-    for name,expected in [('reward_parameters',genesis.get('reward_v2')),('issuance_parameters',genesis.get('adaptive_issuance')),('consensus_configuration',config)]:
+    if state is not None and validators is not None and any(key in config for key in config_checks.SECTIONS):
+        sections=check('full_application_configuration',lambda:config_checks.review(config,genesis,native_raw,state))
+        if sections is not None:result['reviewed_sections']=sections
+    engine=None
+    if engine_raw is None:result['missing'].append('engine_genesis')
+    else:
+        def engine_check():
+            expected=bindings['source_digests'].get('engine_genesis_sha256')
+            if expected is None:result['missing'].append('engine_genesis_digest_binding')
+            else:n.require(expected==digest(engine_raw),'engine_genesis_digest_mismatch')
+            return config_checks.engine(engine_raw,native_raw,config)
+        engine=check('engine_genesis_binding',engine_check)
+    if manifest_raw is not None:
+        n_files={'native-genesis.json':native_raw,'application-config.json':config_raw}
+        if engine_raw is not None:n_files['genesis.json']=engine_raw
+        check('build_manifest_binding',lambda:config_checks.manifest(decode(manifest_raw),n_files))
+    if runtime['genesis_time'] is not None:
+        if engine is None:result['missing'].append('engine_genesis_for_genesis_time')
+        else:check('genesis_time_exact_source_binding',lambda:n.require(runtime['genesis_time']==engine['genesis_time'],'genesis_time_mismatch'))
+    for name,expected in [('reward_parameters',genesis.get('reward_v2')),('issuance_parameters',genesis.get('adaptive_issuance')),('governance_parameters',config.get('governance')),('consensus_configuration',config)]:
         if runtime[name] is not None:check(name+'_exact_source_binding',lambda name=name,expected=expected:n.require(n.canonical(runtime[name])==n.canonical(expected),'runtime_parameter_source_mismatch'))
     if docs is not None and runtime['chain_id'] is not None:
         def identity_check():
@@ -280,16 +310,16 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     if state is not None and docs is not None and operators is not None and runtime['account_bindings'] is not None:check('beneficiary_amount_vesting_stake_bindings',lambda:accounts_binding(runtime['account_bindings'],records,docs,state,operators))
     if docs is not None and runtime['network_configuration'] is not None:check('public_transport_pin_bindings',lambda:transport_binding(runtime['network_configuration'],docs,genesis['chain_id']))
     result['supported_supplied_fields_valid']=not result['errors']
-    result['limits']=['Public reference and hash equality is not approval or signature verification.','Current profiles are local development only. Production startup remains disabled.','Records schema and acceptance require the separate intake checker.','Genesis issues the whole fixed DGT total (D05-Q02); allocation amounts must match native genesis credits exactly.']
+    result['limits']=['Public reference and hash equality is not approval or signature verification.','Current profiles are local development only. Production startup remains disabled.','Records schema and acceptance require the separate intake checker.','Genesis issues the whole fixed DGT total (D05-Q02); allocation amounts must match native genesis credits exactly.','The full-configuration review re-derives structure and bindings independently of the node; it does not replace the node starting the chain.']
     return result
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--bindings',type=Path,required=True);parser.add_argument('--records',type=Path,required=True);parser.add_argument('--native',type=Path);parser.add_argument('--application',type=Path);parser.add_argument('--service',type=Path);args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--bindings',type=Path,required=True);parser.add_argument('--records',type=Path,required=True);parser.add_argument('--native',type=Path);parser.add_argument('--application',type=Path);parser.add_argument('--service',type=Path);parser.add_argument('--engine',type=Path);parser.add_argument('--manifest',type=Path);args=parser.parse_args()
     try:
         _,b=read(args.bindings);rr,r=read(args.records);nr=read(args.native)[0] if args.native else None;cr=read(args.application)[0] if args.application else None
-        sr=read(args.service)[0] if args.service else None
-        result=validate(b,r,rr,nr,cr,sr)
+        sr=read(args.service)[0] if args.service else None;er=read_raw(args.engine) if args.engine else None;mr=read(args.manifest)[0] if args.manifest else None
+        result=validate(b,r,rr,nr,cr,sr,er,mr)
     except (OSError,ValueError,TypeError,KeyError):result={'status':'BLOCKED','errors':[{'scope':'input','code':'input_unreadable_or_invalid'}],'production_accepted':False,'runtime_complete':False,'genesis_emitted':False}
     print(json.dumps(result,indent=2));return 2 if result['errors'] else 1
 
