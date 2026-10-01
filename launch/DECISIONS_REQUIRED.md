@@ -2,7 +2,7 @@
 
 Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered as [the master list](MAINNET_GATE_MASTER.md). This document tracks policy questions and required records. It does not grant launch authority.
 
-The current register contains four OPEN policy questions, 12 PARTIALLY_APPROVED policy questions, 10 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains two OPEN policy questions, 14 PARTIALLY_APPROVED policy questions, 10 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
@@ -198,6 +198,8 @@ Proposed owner role: Protocol lead with cryptography and network reviewers. Name
 Evidence: [batch-7/APPROVAL.json](batch-7/APPROVAL.json), [batch-9/REPORT.md](batch-9/REPORT.md), [batch-10/REPORT.md](batch-10/REPORT.md).
 
 Approved portion: ML-KEM-768 and ML-DSA-65 authenticated pinned peers; ML-DSA-65 validators; distinct role keys; exact approved IP endpoints; no classical or plaintext fallback. The exact engine commit, production chain ID, addresses, keys, custody and candidate-bound review remain open.
+
+Peer records (P01, 30 September 2026): one IP per node, with static 1:1 NAT for public sentries, and a published pin plan keeping each node within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
 ### D06-Q02 — PARTIALLY_APPROVED
 
@@ -409,6 +411,8 @@ Proposed owner role: Protocol cryptography lead with wallet and SDK leads. Named
 
 Preparation: [D10-Q03 packet](decision-register/parallel-tracks-20260912/track-4/records/D10-Q03.json); the [upgrade custodian intake](custody/upgrade/INTAKE.md) (E05-c) collects the five upgrade custodians' public records. Acceptance is still open.
 
+Roles (P01, 30 September 2026): five root genesis signers, separate from the emergency and upgrade custodians; the upgrade custodians also hold release handover and halt restart ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
+
 Evidence: [batch-2/IDENTITY_DECISION.json](batch-2/IDENTITY_DECISION.json), [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json), [decision-register/recovery-design/APPROVAL.json](decision-register/recovery-design/APPROVAL.json), [decision-register/recovery-implementation/APPROVAL.json](decision-register/recovery-implementation/APPROVAL.json), [decision-register/recovery-signing/APPROVAL.json](decision-register/recovery-signing/APPROVAL.json), [decision-register/recovery-signing/SPEC.md](decision-register/recovery-signing/SPEC.md), [decision-register/recovery-signing/REPORT.md](decision-register/recovery-signing/REPORT.md), [decision-register/recovery-signing/TEST_RESULTS.json](decision-register/recovery-signing/TEST_RESULTS.json), [decision-register/recovery-signing/SCOPE.json](decision-register/recovery-signing/SCOPE.json), [decision-register/recovery-fee-storage/PROPOSAL.json](decision-register/recovery-fee-storage/PROPOSAL.json), [decision-register/recovery-fee-storage/AUTHORIZATION.json](decision-register/recovery-fee-storage/AUTHORIZATION.json), [decision-register/recovery-fee-storage/CONTRACT.md](decision-register/recovery-fee-storage/CONTRACT.md), [decision-register/recovery-fee-storage/FEE_REVIEW.md](decision-register/recovery-fee-storage/FEE_REVIEW.md), [decision-register/recovery-fee-storage/STORAGE_MAP.md](decision-register/recovery-fee-storage/STORAGE_MAP.md), [decision-register/recovery-fee-storage/WORK_ITEMS.json](decision-register/recovery-fee-storage/WORK_ITEMS.json), [decision-register/recovery-fee-storage/ACCEPTANCE.json](decision-register/recovery-fee-storage/ACCEPTANCE.json), [decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json](decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json), [decision-register/ordinary-client-compatibility/RECORD_STATUS.md](decision-register/ordinary-client-compatibility/RECORD_STATUS.md).
 
 ## D11 — Governance and emergency authority
@@ -461,6 +465,8 @@ Remaining inputs: custodian names, keys and epochs; numeric timing limits; accep
 
 Parameter set (P01, 30 September 2026): root, emergency and upgrade custodian keys use SLH-DSA-SHAKE-256s, the set the node's root verifier implements ([custody approval](approvals/P01_E05_CUSTODY_2026-09-30.json)).
 
+Production activation (P01, 30 September 2026): root genesis is signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and a bounded window, as emergency freeze v2 does; the upgrade custodians, three of five, control release handover and halt restart, which keeps its exact-height binding ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
+
 Required output: Governance authority matrix.
 
 Proposed owner role: Governance lead with protocol and custody reviewers. Named assignment and reviewer remain as recorded in the structured register.
@@ -480,6 +486,8 @@ What resources, regions, account separation, peer topology, access controls and 
 Approved portion (P01, 30 September 2026): validators are private and peer only with their own sentries, pinned by full key; sentries face the network; separate endpoint nodes serve the client channel. Validator hosts run no RPC and no management port, and operator access is console-only.
 
 Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
+
+Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets, no network listener; the supervisor checks the engine at startup and then relies on kernel limits, with no periodic pauses; one IP per node, with static 1:1 NAT for public sentries; a published partial mesh within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
 Remaining inputs: counts, hosts, regions, account separation, failure domains and the capacity budget (E05).
 
@@ -545,9 +553,13 @@ Gate references: G01, G02, G03, G04, G06, G07, G08, G09, G10, G11, G12, G13, G14
 
 **Recorded approval scope and historical implementation context:** Reproducible release, deterministic genesis, required features, closure of launch blockers and seven full launch simulations remain required. Local test passes do not satisfy these gates. LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.
 
-### D14-Q01 — OPEN
+### D14-Q01 — PARTIALLY_APPROVED
 
 Which release targets, build environment, registry, signing authority and review independence criteria apply?
+
+Approved portion (P01, 30 September 2026): release binaries are built without the development entry points ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
+
+Remaining inputs: release targets, build environment, registry and signing authority (E06); review independence criteria (P02).
 
 Required output: Release and review specification.
 
@@ -555,9 +567,13 @@ Proposed owner role: Release and QA leads with independent reviewers. Named assi
 
 Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_GATES.json](LAUNCH_GATES.json), [batch-10/REPORT.md](batch-10/REPORT.md).
 
-### D14-Q02 — OPEN
+### D14-Q02 — PARTIALLY_APPROVED
 
 What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?
+
+Approved portion (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release, and the root signers sign only after the P02 review, E06 release acceptance and gate acceptance ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
+
+Remaining inputs: workload, finality, recovery and acceptance thresholds, and the calendar.
 
 Required output: Qualification and launch acceptance plan.
 

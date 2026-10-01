@@ -105,7 +105,8 @@ key pairs.
 ## Limits
 
 - **Development gates.** The node, engine and supervisors refuse production
-  values today: the consensus, lifecycle and penalty profiles are
+  values today ([production activation v1](../architecture/production-activation-v1.md)
+  is the approved design to change this): the consensus, lifecycle and penalty profiles are
   local-qualification profiles; the emergency, upgrade and handover policies
   must be `development_only`; the reward and issuance profiles must be
   `development`; root genesis has only a development path; and the engine

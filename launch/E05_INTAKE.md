@@ -132,4 +132,6 @@ of 1.
   open values it needs proposed in [genesis/PROPOSALS.json](genesis/PROPOSALS.json).
 - Done (E05-d2): the binding review covers the full configuration, the
   engine genesis and the build manifest (`node/tools/mainnet-preparation/config_checks.py`).
-- Next: production activation (design for P01 first).
+- Production activation: design approved
+  ([production activation v1](../node/docs/architecture/production-activation-v1.md));
+  steps A1 to A7 implement it, one PR each.

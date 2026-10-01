@@ -120,6 +120,15 @@ rehearsal genesis builder (E05-d) is in `docs/mainnet/e05-genesis-builder.md`;
 the binding review now covers the full configuration, the engine genesis and
 the build manifest (E05-d2, `tools/mainnet-preparation/config_checks.py`).
 
+Production activation design (30 September 2026,
+`launch/approvals/P01_E05_ACTIVATION_2026-09-30.json`,
+`docs/architecture/production-activation-v1.md`): a root-signed genesis on a
+production build is the only switch; root genesis 3-of-5 by its own signers;
+anchored signing windows for upgrades and handovers; the upgrade custodians hold
+handover and restart; validators allow only local Unix sockets; the engine is
+checked at startup and then held by kernel limits; one IP per node with 1:1 NAT;
+a published partial mesh within 64 pins. Steps A1 to A7 implement it.
+
 | Decision | Question | Rows |
 | --- | --- | --- |
 | D09-Q05 | Parameter migration. | VAL-004 |
