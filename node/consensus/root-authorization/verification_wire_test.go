@@ -22,7 +22,7 @@ func TestVerificationWire(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err := VerifyRequest(p, raw)
-	if err != nil || result.Status != "VERIFIED" || result.ProductionQualified {
+	if err != nil || result.Status != "VERIFIED" {
 		t.Fatal(err)
 	}
 	for _, data := range [][]byte{append(bytes.Clone(raw), '\n'), append([]byte("{\"Extra\":1,"), raw[1:]...), append([]byte("{\"Envelope\":{},"), raw[1:]...)} {
@@ -67,7 +67,7 @@ func TestExportDevelopmentGenesis(t *testing.T) {
 	if err != nil || len(release) == 0 {
 		t.Fatal("missing or empty release manifest fixture", err)
 	}
-	artifact := genesisBundleForTest(app, config, sha512.Sum512(engine), sha512.Sum512(release))
+	artifact := GenesisBundle(app, config, sha512.Sum512(engine), sha512.Sum512(release))
 	e := Envelope{Version: Version, Profile: Profile, ChainID: metadata.ChainID, Action: Genesis, Sequence: 1, NotBeforeHeight: 0, NotAfterHeight: 0, ArtifactDigest: DigestArtifact(artifact)}
 	p := Policy{TrustedPublicKey: pub, ChainID: e.ChainID, Action: Genesis, ExpectedSequence: 1, CurrentHeight: 0, ExpectedArtifactDigest: e.ArtifactDigest}
 	sig, err := SignForPolicy(e, priv, p)

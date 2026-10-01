@@ -16,14 +16,16 @@ type VerificationRequest struct {
 	Artifact  []byte
 }
 
+// VerificationResult is helper wire version 2: version 1 also carried a
+// ProductionQualified flag that was always false. Qualification belongs to the
+// accepted release that pins the helper (E06, T03), not to one helper run.
 type VerificationResult struct {
-	Status              string
-	RequestSHA256       string
-	ArtifactSHA512      string
-	ChainID             string
-	Action              Action
-	Sequence            uint64
-	ProductionQualified bool
+	Status         string
+	RequestSHA256  string
+	ArtifactSHA512 string
+	ChainID        string
+	Action         Action
+	Sequence       uint64
 }
 
 // DecodeCanonical requires the exact JSON emitted by encoding/json for the
@@ -59,5 +61,5 @@ func VerifyRequest(policy Policy, raw []byte) (VerificationResult, error) {
 		return VerificationResult{}, err
 	}
 	hash := sha256.Sum256(raw)
-	return VerificationResult{Status: "VERIFIED", RequestSHA256: hex.EncodeToString(hash[:]), ArtifactSHA512: hex.EncodeToString(digest[:]), ChainID: policy.ChainID, Action: policy.Action, Sequence: policy.ExpectedSequence, ProductionQualified: false}, nil
+	return VerificationResult{Status: "VERIFIED", RequestSHA256: hex.EncodeToString(hash[:]), ArtifactSHA512: hex.EncodeToString(digest[:]), ChainID: policy.ChainID, Action: policy.Action, Sequence: policy.ExpectedSequence}, nil
 }

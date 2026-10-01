@@ -390,7 +390,7 @@ fn static_helper_native_ready_owned_snapshot() -> Result<()> {
         flags >= 0 && unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } == 0,
         "Fixture pipe nonblocking mode"
     );
-    let ready = b"DYTALLIX-ROOT-READY-v1\n";
+    let ready = b"DYTALLIX-ROOT-READY-v2\n";
     let mut observed = Vec::new();
     let until = Instant::now() + Duration::from_secs(10);
     while observed.len() < ready.len() {

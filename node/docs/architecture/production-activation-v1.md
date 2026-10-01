@@ -222,6 +222,38 @@ production-profile staging chains signed with test keys:
   controls until A4.
 - **CI** checks both builds.
 
+**A2 done** (root genesis 3-of-5):
+- **Threshold root** (`src/root_genesis/threshold.rs`). Two public records
+  reach every node unchanged:
+  - the signer policy: five SLH-DSA-SHAKE-256s keys, threshold 3;
+  - the combined signatures file: three to five signatures over one genesis
+    envelope, sorted by key ID.
+  - The node verifies every listed signature through the pinned helper, one
+    run per signature, on every start.
+- **Receipt v2** lists the policy SHA-256, the threshold, the signing key IDs
+  and the signatures file SHA-256. It is consensus state, so every node must
+  read the same signatures file.
+- **Production entry.** `ConsensusApplication::open_with_root` and
+  `consensus_stdio --root-config` exist in both builds.
+  - A production build opens only through them; `production_open` accepts
+    only a three-of-five receipt.
+  - Emergency, upgrade and handover controls stay refused on this path
+    until A4, which also adds the check that the genesis keys are disjoint
+    from them.
+- **Offline signer** `dytallix-root-sign` (keygen, policy, digest, sign,
+  combine, verify). The procedure is in
+  [root genesis signing](../mainnet/root-genesis-signing.md).
+- **Helper wire v2.**
+  - `VerificationResult` drops `ProductionQualified`.
+  - READY and ACK end in `v2`, so a node and helper of different versions
+    fail at READY.
+  - Qualification belongs to the accepted release that pins the helper.
+- **Tests.**
+  - A signed three-of-five test (five generated keys, three and four
+    signatures, restart, refusals) runs on development and production builds
+    in CI.
+  - Unit tests cover the record rules and helper refusals.
+
 ## Still required after activation
 
 Every record (operators, custodians, genesis signers, beneficiaries, chain

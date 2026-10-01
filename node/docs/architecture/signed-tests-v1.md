@@ -15,7 +15,8 @@ root, derived epoch observations).
 
 ## M-a: the in-process tests
 
-- **Tools.** Three test-only tools in `consensus/root-authorization`:
+- **Tools.** Three test-only tools in `consensus/root-authorization`, and
+  the offline signer:
   - `cmd/dytallix-root-verify-snapshot`: `root.VerifyRequest` over the whole
     request on stdin, without the owner guard. It serves the node's
     historical snapshot launch (`helper_execution: None`), which
@@ -27,12 +28,19 @@ root, derived epoch observations).
     (`--fixture-key`). Every key it can produce is public.
   - The root-authorization test binary, whose
     `TestExportDevelopmentGenesis` signs development genesis bundles.
+  - `cmd/dytallix-root-sign`, the root genesis signers' offline signer
+    (production activation v1, A2). The three-of-five test generates five
+    disposable keys with it and signs with three and four of them.
 - **Runner.** `scripts/run_signed_fixture_tests.py` builds the tools, signs
   the three public fixtures (emergency, upgrade, and a second emergency key),
   sets the `DYT_*` variables and runs the ignored node library tests. It
-  fails unless exactly 22 pass (the 21 below and the restart test of gap 18),
-  so a renamed or filtered test cannot drop out silently. `--tools DIR` uses prebuilt tools on a host without Go.
-- **CI.** The node job runs the runner after the workspace tests.
+  fails unless exactly 23 pass (the 21 below, the restart test of gap 18 and
+  the three-of-five root genesis test of A2), so a renamed or filtered test
+  cannot drop out silently. `--tools DIR` uses prebuilt tools on a host
+  without Go. `--production` runs the three-of-five test on a production
+  build.
+- **CI.** The node job runs the runner after the workspace tests, then again
+  with `--production`.
 - **Drift fixed on the phase B layout.**
   - Two tests built an epoch observation by hand (`utilization_ppm:
     500000`). Observations are now derived from committed block space and a

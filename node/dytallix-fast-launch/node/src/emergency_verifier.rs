@@ -188,7 +188,6 @@ impl EmergencyVerifier {
             HelperOutcome::Verified(response) => {
                 ensure!(
                     response.status == "VERIFIED"
-                        && !response.production_qualified
                         && response.request_sha256 == hex::encode(Sha256::digest(&request_json))
                         && response.artifact_sha512 == hex::encode(Sha512::digest(artifact))
                         && response.chain_id == chain_id

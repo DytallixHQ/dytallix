@@ -1,5 +1,7 @@
-//! Explicit development-only root authorization for the existing genesis batch.
-//! No signing key, upgrade route, emergency route, or second replay ledger.
+//! Root authorization for the genesis batch: the development single-key path,
+//! and the root genesis signed three of five (`threshold`, production
+//! activation v1, step A2). No signing key, upgrade route, emergency route, or
+//! second replay ledger.
 use anyhow::{bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use serde::{Deserialize, Serialize};
@@ -12,6 +14,10 @@ use std::time::{Duration, Instant};
 #[cfg(any(target_os = "linux", test))]
 #[path = "root_genesis/helper_failure.rs"]
 mod helper_failure;
+
+#[path = "root_genesis/threshold.rs"]
+mod threshold;
+pub use threshold::{GenesisPolicy, GenesisSignatures, RootGenesis, SIGNERS, THRESHOLD};
 
 pub(crate) const STATE_KEY: &[u8] = b"root:authorization:v1";
 const PROFILE: &str = "SLH-DSA-SHAKE-256s";
@@ -306,8 +312,6 @@ pub(crate) struct Response {
     pub(crate) action: String,
     #[serde(rename = "Sequence")]
     pub(crate) sequence: u64,
-    #[serde(rename = "ProductionQualified")]
-    pub(crate) production_qualified: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -330,10 +334,15 @@ struct Receipt {
 #[derive(Clone)]
 pub(crate) struct PreparedRootGenesis {
     encoded: Vec<u8>,
+    threshold: bool,
 }
 impl PreparedRootGenesis {
     pub(crate) fn bytes(&self) -> &[u8] {
         &self.encoded
+    }
+    /// Signed three of five by the genesis signers (receipt version 2).
+    pub(crate) fn threshold(&self) -> bool {
+        self.threshold
     }
 }
 
@@ -567,7 +576,6 @@ impl DevelopmentRootGenesis {
         let response = self.run_helper()?;
         ensure!(
             response.status == "VERIFIED"
-                && !response.production_qualified
                 && response.request_sha256 == expected_request
                 && response.artifact_sha512 == expected_artifact
                 && response.chain_id == chain
@@ -589,6 +597,7 @@ impl DevelopmentRootGenesis {
         };
         Ok(PreparedRootGenesis {
             encoded: serde_json::to_vec(&receipt)?,
+            threshold: false,
         })
     }
 
@@ -726,8 +735,8 @@ mod observed_execution {
     use std::os::unix::process::CommandExt;
     use std::process::{ChildStderr, ChildStdin, ChildStdout, ExitStatus};
 
-    const READY: &[u8] = b"DYTALLIX-ROOT-READY-v1\n";
-    const ACK: &[u8] = b"DYTALLIX-ROOT-ACK-v1\n";
+    const READY: &[u8] = b"DYTALLIX-ROOT-READY-v2\n";
+    const ACK: &[u8] = b"DYTALLIX-ROOT-ACK-v2\n";
     const REJECTION: &[u8] = b"root verification rejected\n";
     struct OwnedHelper {
         child: Child,

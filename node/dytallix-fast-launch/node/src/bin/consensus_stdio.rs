@@ -457,6 +457,7 @@ fn run() -> Result<()> {
     let mut config_path = None;
     let mut genesis_path = None;
     let mut db_path = None;
+    let mut root_path: Option<String> = None;
     #[cfg_attr(feature = "production", allow(unused_mut))]
     let mut development_root_path: Option<String> = None;
     #[cfg_attr(feature = "production", allow(unused_mut))]
@@ -478,6 +479,9 @@ fn run() -> Result<()> {
             "--config" => &mut config_path,
             "--genesis" => &mut genesis_path,
             "--db" => &mut db_path,
+            // The root genesis signed three of five (production activation
+            // v1, A2): the only open path of a production build.
+            "--root-config" => &mut root_path,
             // A production build has no development entry points
             // (production activation v1, A1).
             #[cfg(not(feature = "production"))]
@@ -553,8 +557,29 @@ fn run() -> Result<()> {
             Ok(bytes)
         })
         .transpose()?;
-    let mut app = match (development_root_path, emergency_verifier_path) {
-        (Some(root_path), Some(verifier_path)) => {
+    ensure!(
+        root_path.is_none() || (development_root_path.is_none() && emergency_verifier_path.is_none()),
+        "--root-config cannot be combined with development root configuration"
+    );
+    let mut app = match (root_path, development_root_path, emergency_verifier_path) {
+        (Some(path), _, _) => {
+            let root = dytallix_fast_node::root_genesis::RootGenesis::from_config(
+                std::path::Path::new(&path),
+            )?;
+            ensure!(
+                ownership::parse_context_sha512(&root.release_manifest_sha512)? == release_context,
+                "Root authorization release differs from owner admission"
+            );
+            admission.check()?;
+            ConsensusApplication::open_with_root(
+                std::path::Path::new(&database),
+                config.clone(),
+                genesis,
+                &config_bytes,
+                root,
+            )?
+        }
+        (None, Some(root_path), Some(verifier_path)) => {
             let bytes = std::fs::read(verifier_path)?;
             ensure!(
                 bytes.len() <= 65_536,
@@ -598,7 +623,7 @@ fn run() -> Result<()> {
                 restart,
             )?
         }
-        (Some(path), None) => {
+        (None, Some(path), None) => {
             let authorization =
                 dytallix_fast_node::root_genesis::DevelopmentRootGenesis::from_development_config(
                     std::path::Path::new(&path),
@@ -617,8 +642,10 @@ fn run() -> Result<()> {
                 authorization,
             )?
         }
-        (None, Some(_)) => bail!("Emergency verifier requires development root configuration"),
-        (None, None) => {
+        (None, None, Some(_)) => {
+            bail!("Emergency verifier requires development root configuration")
+        }
+        (None, None, None) => {
             ConsensusApplication::open(std::path::Path::new(&database), config.clone(), genesis)?
         }
     }

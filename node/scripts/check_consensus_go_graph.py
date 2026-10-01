@@ -24,6 +24,8 @@ COMMANDS = (
     ("consensus/cometbft", "./cmd/dytallix-validator-key"),
     ("consensus/cometbft", "./cmd/dytallix-operator-rpc"),
     ("consensus/root-authorization", "./cmd/dytallix-root-verify"),
+    # The genesis signers' offline signer (production activation v1, A2).
+    ("consensus/root-authorization", "./cmd/dytallix-root-sign"),
 )
 # The fork has one build (E04 gap 20): no source file may select itself by a
 # Dytallix build tag, which would let classical code return behind a tag.
