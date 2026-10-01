@@ -251,9 +251,11 @@ impl ProcessOwner {
         ensure!(
             matches!(
                 catalog.candidate().manifest().service_profile.as_str(),
-                "development-linux-native-service-v2" | "development-linux-native-service-http-v2"
+                "development-linux-native-service-v2"
+                    | "development-linux-native-service-http-v2"
+                    | "production-linux-native-service-v1"
             ),
-            "Native owner requires an explicit native development catalog"
+            "Native owner requires an explicit native catalog"
         );
         for role in [Role::Application, Role::Bridge, Role::Engine] {
             ensure!(
@@ -759,6 +761,29 @@ impl ProcessOwner {
     }
     pub fn check_alive(&mut self) -> Result<()> {
         let result = self.check_alive_inner();
+        self.finish(result)
+    }
+    /// Check every child's security state without pausing it: its UID,
+    /// GID, AppArmor label, no-new-privileges, seccomp and mount namespace.
+    /// The production mode's monitoring (P01, 30 September and 1 October
+    /// 2026): long-running children are observed once at startup, then held
+    /// by kernel limits.
+    pub fn check_security(&mut self) -> Result<()> {
+        let result = (|| {
+            self.active()?;
+            let security = self
+                .admission_security
+                .as_ref()
+                .context("Owned security policy absent")?;
+            for child in &self.children {
+                let identity = child
+                    .identity
+                    .as_ref()
+                    .context("Owned role has no captured identity")?;
+                security.for_role(child.role).check_owned(identity)?;
+            }
+            Ok(())
+        })();
         self.finish(result)
     }
     pub fn observe_all(&mut self) -> Result<Vec<observation::Snapshot>> {

@@ -412,7 +412,7 @@ fn unknown_and_production_profiles_and_schema_fail() {
     ] {
         let mut f = Fixture::new();
         f.manifest.service_profile = profile.into();
-        f.refusal("Unsupported development service profile");
+        f.refusal("Unsupported service profile");
     }
     let mut f = Fixture::new();
     f.manifest.schema = 1;
@@ -1040,12 +1040,27 @@ fn native_profile_preserves_independent_bootstrap_and_release_authority() {
 }
 
 #[test]
-fn native_profile_does_not_accept_a_production_profile_name() {
+fn native_profile_does_not_accept_another_production_profile_name() {
     let mut f = native_fixture(false);
     f.manifest.service_profile = "production-linux-native-service-v2".into();
     assert!(f
         .validate()
         .unwrap_err()
         .to_string()
-        .contains("production is not qualified"));
+        .contains("Unsupported service profile"));
+}
+
+#[test]
+fn production_profile_always_carries_the_adapter() {
+    // One production catalog serves validators, sentries and endpoints.
+    let mut f = native_fixture(true);
+    f.manifest.service_profile = PRODUCTION_NATIVE_PROFILE.into();
+    assert_eq!(f.check().unwrap().candidate().manifest().roles.len(), 7);
+    let mut f = native_fixture(false);
+    f.manifest.service_profile = PRODUCTION_NATIVE_PROFILE.into();
+    assert!(f
+        .validate()
+        .unwrap_err()
+        .to_string()
+        .contains("required service roles"));
 }

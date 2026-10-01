@@ -50,7 +50,7 @@ def effective_labels(components):
             'helper': a + '//&' + h + '//&' + s}
 
 
-def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only=False):
+def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only=False, transport=None):
     base.require(candidate_only is True, 'Explicit candidate-only invocation required')
     base.require(type(unit_identities) is list, 'Explicit unit identity list required')
     for row in unit_identities:
@@ -65,8 +65,8 @@ def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only
         base.identifier(unit)
         base.require(len(unit) <= 32, 'Unit identifier too long')
     units.sort()
-    normal = base.render(catalog_bytes, mapping, request)
-    catalog, members, paths, *_ = base.validate(catalog_bytes, mapping, request)
+    normal = base.render(catalog_bytes, mapping, request, transport)
+    catalog, members, paths, *_ = base.validate(catalog_bytes, mapping, request, transport)
     base.require({row['uid'] for row in unit_identities} == set(request['service_uids']),
                  'Unit UIDs must match declared service UIDs')
     base.require(request['network'].get('launch_channel') == base.LAUNCH_CHANNEL,
@@ -287,11 +287,14 @@ def main():
     for name in ('catalog', 'mapping', 'request', 'output'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--unit-identities', type=Path, required=True)
+    # The node's exact pqc_transport.json; required for a routed request.
+    parser.add_argument('--transport', type=Path)
     args = parser.parse_args()
     try:
         files = generate(args.catalog.read_bytes(), base.decode(args.mapping.read_bytes()),
                          base.decode(args.request.read_bytes()), base.decode(args.unit_identities.read_bytes()),
-                         candidate_only=args.candidate_only)
+                         candidate_only=args.candidate_only,
+                         transport=args.transport.read_bytes() if args.transport else None)
         args.output.mkdir(parents=False, exist_ok=False)
         for name, raw in files.items():
             with (args.output / name).open('xb') as stream:

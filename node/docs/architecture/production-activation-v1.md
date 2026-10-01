@@ -328,6 +328,25 @@ production-profile staging chains signed with test keys:
     disposable fleet: the binding, roles, refused digests, refused packed
     keys and refused development profiles.
 
+**A5 done** (supervisor production mode):
+- **One mode per build.** A production supervisor runs only `production-native` (`--service-config`); a development build only `disposable-loopback-native`. The production mode opens through the threshold root (`preflight_release_with_root`) and starts the application with the root, verifier and candidate configurations.
+- **Release catalog.** The production service profile `production-linux-native-service-v1` serves every role and always carries the HTTP adapter.
+- **Roles.** `validator`, `sentry` or `endpoint`.
+  - Validators and sentries run no adapter or channel listener; an endpoint runs both.
+  - Only a validator's key is in the genesis validator set.
+- **Identity.** The engine inputs pin `pqc_peer_seed.bin`, and `node_key.json` must be absent. The tool `dytallix-peer-seed` (both builds) generates the seed on the host, prints its public key, and prints a host's binding (production builds).
+- **Binding at start.** The supervisor checks the host's binding against the pinned engine files, the transport's peer key, the validator key and the role before any child starts. It passes the binding to the engine, which checks it again.
+- **Network.** The P2P listener is the node's one global unicast address, and an endpoint's channel listener shares it. The engine runs the production transport profile.
+- **State sync.** Optional light block exports, required exactly when the engine enables state sync, are passed with `--light-blocks`.
+- **Readiness** waits for catch-up up to the required per-host budget `catch_up_millis` (P01, 1 October 2026; E05 value, unset). It rechecks the children, the locks and the supervisor's security while waiting.
+- **Observation** (P01, 1 October 2026). The engine, application, bridge and adapter are observed once at startup. Later ticks check liveness, locks and each child's security state without pausing; helpers keep paused checks.
+- **Host policy.** The renderer accepts the production catalog in a `routed` network mode only. It renders `host-firewall.nft` from the node's exact transport file: only pinned peers reach the P2P listener, and the declared public listeners are open.
+- **Python supervisor retired**, with its unit and manifest templates.
+- **Not yet.**
+  - The catch-up budget and every other operating value (E05).
+  - Native qualification of the production mode on dedicated hosts (T03).
+  - A validator added after genesis holds a key outside the genesis set, so today's binding rule admits it only as a sentry or endpoint. That rule needs a decision before the first post-genesis validator.
+
 ## Still required after activation
 
 Every record (operators, custodians, genesis signers, beneficiaries, chain

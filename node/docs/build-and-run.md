@@ -73,8 +73,7 @@ go build -mod=readonly -o /absolute/bin/cometbft github.com/cometbft/cometbft/cm
 
 See [CometBFT integration](../consensus/cometbft/README.md) to generate a
 local four-validator fixture, and
-[PQC engine deployment](../deploy/pqc-engine/README.md) for Linux builds and
-service templates.
+[PQC engine deployment](../deploy/pqc-engine/README.md) for Linux build notes.
 
 ## Checks
 

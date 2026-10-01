@@ -43,8 +43,8 @@ After a successful build:
 1. Export the application executable and record its hash, architecture, dynamic dependencies, source pins, lockfile, compiler identity, and exact build options.
 2. Verify that source files stayed unchanged during compilation.
 3. Create fresh disposable validator and account keys. Keep them out of retained evidence.
-4. Supply the existing home, genesis, configuration, and pinned executable manifest required by `supervise.py`.
-5. Start the complete stack under the maintained systemd unit as the restricted service identity.
+4. Supply the existing home, genesis, configuration, and pinned inputs required by the native supervisor (`crates/native-supervisor`).
+5. Start the complete stack under a unit with the rendered properties (`tools/native-execution-policy`) as the restricted service identity.
 6. Verify the chain identity, validator identities, committed blocks, submitted transaction receipts, and graceful restart through the actual engine RPC endpoint. Test crash recovery separately and record its result.
 7. Verify that restart retains database, WAL, and signing-state continuity. Never rewind signing state after later signing.
 8. Stop all owned services and containers. Remove private fixture data. Retain public evidence and exact artifact hashes.

@@ -8,7 +8,7 @@ until P01 approves it; approved values are marked. Decision IDs refer to
 
 ## How it works
 
-- **Values** are in [E05_VALUES.json](E05_VALUES.json): 206 configuration and
+- **Values** are in [E05_VALUES.json](E05_VALUES.json): 207 configuration and
   genesis values, each with its path, unit, the bounds the code enforces, the
   fixture value used in tests (never a recommendation), its decision and its
   couplings. Each has a tier:
@@ -16,7 +16,7 @@ until P01 approves it; approved values are marked. Decision IDs refer to
   | Tier | Count | Meaning |
   | --- | --- | --- |
   | decide | 64 | Economic, governance and security choices P01 makes |
-  | operate | 100 | Operational settings with an engineering default; P01 confirms |
+  | operate | 101 | Operational settings with an engineering default; P01 confirms |
   | measure | 18 | Set from measurements on dedicated staging hosts |
   | derived | 24 | Fixed by an approved rule or another value |
 

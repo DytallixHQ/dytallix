@@ -64,6 +64,30 @@ func digestHex(data []byte) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// NewProductionBinding is the binding of a loaded production runtime in a
+// role: the record the operator publishes in the pin plan. It is checked as
+// the engine checks it at start, so a genesis validator key never binds as a
+// sentry or endpoint.
+func NewProductionBinding(runtime *Runtime, role string) (ProductionBinding, error) {
+	if runtime == nil || runtime.Transport.Profile != ProductionProfile {
+		return ProductionBinding{}, errors.New("a production binding applies only to the production transport profile")
+	}
+	binding := ProductionBinding{
+		Schema:                   1,
+		Role:                     role,
+		ChainID:                  runtime.Genesis.ChainID,
+		ConfigSHA256:             hex.EncodeToString(runtime.configSHA256[:]),
+		GenesisSHA256:            hex.EncodeToString(runtime.genesisSHA256[:]),
+		TransportSHA256:          hex.EncodeToString(runtime.transportSHA256[:]),
+		PeerPublicKeySHA256:      digestHex(runtime.NodeKey.PubKey().Bytes()),
+		ValidatorPublicKeySHA256: digestHex(runtime.Validator.Key.PubKey.Bytes()),
+	}
+	if err := ValidateProductionBinding(runtime, binding); err != nil {
+		return ProductionBinding{}, err
+	}
+	return binding, nil
+}
+
 // ValidateProductionBinding checks a loaded production runtime against its
 // binding: the same file bytes the loader parsed, the loaded peer and
 // validator keys, and the role. Only a validator's key is in the genesis

@@ -937,6 +937,34 @@
       ]
     },
     {
+      "id": "operator-peer-seed-output",
+      "group": "operator_output",
+      "exposure": "operator",
+      "format": "dytallix-peer-seed JSON on stdout (production activation v1, A5): generate and public give version, public_key_base64 (the ML-DSA-65 peer key the seed derives, for the node's transport file and its peers' pins), public_key_sha256 and peer_id; binding prints the host's production binding record (file-production-binding).",
+      "version": {
+        "field": "version",
+        "constant": {
+          "file": "node/consensus/cometbft/cmd/dytallix-peer-seed/main.go",
+          "name": "outputVersion",
+          "value": 1
+        }
+      },
+      "source": {
+        "file": "node/consensus/cometbft/cmd/dytallix-peer-seed/main.go",
+        "symbol": "func publicRecord(public []byte)"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-peer-seed/main_test.go",
+          "name": "TestGenerateWritesOneOwnerOnlySeedAndItsPublicKey"
+        },
+        {
+          "file": "node/consensus/cometbft/internal/enginepqc/production_profile_test.go",
+          "name": "TestProductionProfileBindingRecord"
+        }
+      ]
+    },
+    {
       "id": "operator-rpc-client-output",
       "group": "operator_output",
       "exposure": "operator",
@@ -1361,7 +1389,7 @@
       "id": "file-production-binding",
       "group": "file",
       "exposure": "operator",
-      "format": "Production engine binding (production activation v1, A4): {schema, role (validator, sentry or endpoint), chain_id, config_sha256, genesis_sha256, transport_sha256, peer_public_key_sha256, validator_public_key_sha256}. Canonical compact JSON, one per host in the published pin plan; dytallix-pqc-engine --binding checks it at start. Only a validator's key is in the genesis validator set.",
+      "format": "Production engine binding (production activation v1, A4): {schema, role (validator, sentry or endpoint), chain_id, config_sha256, genesis_sha256, transport_sha256, peer_public_key_sha256, validator_public_key_sha256}. Canonical compact JSON, one per host in the published pin plan; dytallix-pqc-engine --binding and the native supervisor's production mode check it at start; dytallix-peer-seed binding prints it. Only a validator's key is in the genesis validator set.",
       "version": {
         "field": "schema",
         "literal": {
@@ -1381,6 +1409,37 @@
         {
           "file": "node/consensus/cometbft/internal/enginepqc/production_profile_test.go",
           "name": "TestProductionProfileLoadsOnlyWithItsBinding"
+        }
+      ]
+    },
+    {
+      "id": "file-native-service-config",
+      "group": "file",
+      "exposure": "operator",
+      "format": "The native supervisor's service configuration (strict JSON, at most 64 KiB): pinned inputs, process limits and outputs. Mode disposable-loopback-native in a development build; production-native in a production build, which adds role (validator, sentry or endpoint), the host's pinned binding, optional state_sync light_blocks and catch_up_millis (production activation v1, A5).",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/crates/native-supervisor/src/config.rs",
+          "text": "self.schema == 1 && self.mode == MODE"
+        }
+      },
+      "source": {
+        "file": "node/crates/native-supervisor/src/config.rs",
+        "symbol": "pub struct NativeServiceConfig"
+      },
+      "tests": [
+        {
+          "file": "node/crates/native-supervisor/src/config.rs",
+          "name": "each_build_runs_only_its_own_mode"
+        },
+        {
+          "file": "node/crates/native-supervisor/src/config.rs",
+          "name": "production_settings_fix_what_each_role_runs"
+        },
+        {
+          "file": "node/crates/native-supervisor/src/config.rs",
+          "name": "binding_matches_the_pinned_engine_files_and_role"
         }
       ]
     }

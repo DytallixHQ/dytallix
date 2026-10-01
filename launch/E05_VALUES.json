@@ -3309,6 +3309,22 @@
       "basis": null
     },
     {
+      "name": "catch_up_millis",
+      "path": "service.catch_up_millis",
+      "type_unit": "u64, milliseconds",
+      "code_bounds": "process.startup_millis..=604800000 (seven days); production mode only",
+      "bounds_ref": "node/crates/native-supervisor/src/config.rs (NativeServiceConfig::validate_mode); node/crates/native-supervisor/src/readiness.rs (verify_engine)",
+      "fixture_value": "3600000",
+      "fixture_ref": "node/crates/native-supervisor/src/config.rs (production_settings_fix_what_each_role_runs)",
+      "decision": "D12-Q01, D12-Q02",
+      "couplings": "Required in production mode; at least process.startup_millis, which still bounds each round of readiness probes.",
+      "notes": "Per host: how long readiness waits for the engine to catch up by state sync and block sync before startup fails (P01, 1 October 2026, approvals/P01_E05_SUPERVISOR_2026-10-01.json). Fixture value only, not a recommendation.",
+      "tier": "operate",
+      "status": "OPEN",
+      "proposed": null,
+      "basis": null
+    },
+    {
       "name": "adapter_max_connections",
       "path": "service.adapter_limits.max_connections",
       "type_unit": "optional u64",

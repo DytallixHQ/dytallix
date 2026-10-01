@@ -1,6 +1,6 @@
 //! Root-authorized release selection followed by owned process startup.
 use crate::{
-    config::NativeServiceConfig,
+    config::{NativeServiceConfig, NodeRole},
     lease::LifecycleLease,
     processes::{with_owned_cleanup, ProcessOwner, Role},
     readiness::{self, AdapterReady, EngineReady},
@@ -9,7 +9,7 @@ use anyhow::{ensure, Context, Result};
 use dytallix_fast_node::{
     consensus_settlement::{ConsensusApplication, ConsensusConfig, VerifiedReleaseAuthority},
     emergency_verifier::EmergencyVerifierConfig,
-    root_genesis::DevelopmentRootGenesis,
+    root_genesis::{RootBootstrap, RootHelper},
     runtime_candidate_v2::{verify_catalog, DevelopmentCandidateV2Input},
 };
 use dytallix_release_runtime::{
@@ -49,39 +49,24 @@ impl NativeService {
         let lease = LifecycleLease::acquire(&service_lock, &signer_lock)?;
         // Re-read pinned settings with both lifecycle locks held.
         config.validate()?;
-        let consensus_source = config.consensus_config.read()?;
-        let consensus: ConsensusConfig = serde_json::from_slice(&consensus_source)?;
-        let genesis = config.application_genesis.read()?;
-        let root = DevelopmentRootGenesis::from_development_config(&config.root_config.path)?;
-        let emergency: EmergencyVerifierConfig =
-            serde_json::from_slice(&config.emergency_verifier_config.read()?)?;
         let candidate: DevelopmentCandidateV2Input =
             serde_json::from_slice(&config.candidate_config.read()?)?;
-        let restart = config
-            .restart_authorization
-            .as_ref()
-            .map(|pin| pin.read())
-            .transpose()?;
-        let authority = ConsensusApplication::preflight_development_release_with_restart(
-            config.database(),
-            &consensus,
-            &genesis,
-            &consensus_source,
-            &root,
-            restart.as_deref(),
-        )?;
-        let catalog = verify_catalog(&candidate, &authority, &root, &emergency)?;
+        let (authority, catalog, root) = authorize(&config, &candidate)?;
         admission.bind_catalog(&catalog)?;
         supervisor_security.check_current()?;
+        // One production catalog serves every role and carries the adapter;
+        // only endpoints start it (A5).
         let profile = &catalog.candidate().manifest().service_profile;
         ensure!(
             profile
-                == if config.adapter_listen.is_some() {
+                == if config.production() {
+                    catalog::PRODUCTION_NATIVE_PROFILE
+                } else if config.adapter_listen.is_some() {
                     catalog::DEVELOPMENT_NATIVE_HTTP_PROFILE
                 } else {
                     catalog::DEVELOPMENT_NATIVE_PROFILE
                 },
-            "Service roles differ from configured adapter selection"
+            "Service profile differs from the build and adapter selection"
         );
         let observation_bounds = candidate.observation_bounds()?;
         let self_snapshot = observation::observe_current_process(
@@ -168,6 +153,16 @@ impl NativeService {
     pub fn monitor_interval(&self) -> Duration {
         Duration::from_millis(self.config.monitor_interval_millis)
     }
+    /// The production mode observes each long-running child once, at
+    /// startup, then relies on kernel limits (P01, 30 September and 1
+    /// October 2026); the development mode pauses them at every tick.
+    fn check_children(&mut self, context: &'static str) -> Result<()> {
+        if self.config.production() {
+            self.owner.check_security().context(context)
+        } else {
+            self.owner.observe_all().map(drop).context(context)
+        }
+    }
     pub fn start(&mut self) -> Result<()> {
         ensure!(!self.started, "Native service already started");
         let result = self.start_inner().context("Native service phase=startup");
@@ -221,13 +216,28 @@ impl NativeService {
             .find(|(role, _)| *role == Role::Engine)
             .context("Owned engine handle missing")?
             .1;
+        // A production node may first catch up by state sync and block sync;
+        // readiness then waits up to its catch-up budget, rechecking the
+        // children, locks and the supervisor's own security as it waits.
+        let catch_up = self
+            .config
+            .catch_up_millis
+            .map(std::time::Duration::from_millis);
+        let (owner, lease, security) = (&mut self.owner, &self.lease, &self.supervisor_security);
         self.engine_readiness = Some(crate::startup_diagnostic::phase(readiness::verify_engine(
             &self.config.rpc_socket(),
             engine_pid,
             &self.authority.expected_candidate().chain_id,
             self.authority.committed_info(),
             &self.config.process,
-            || self.owner.check_alive(),
+            catch_up,
+            || {
+                if catch_up.is_some() {
+                    lease.recheck()?;
+                    security.check_current()?;
+                }
+                owner.check_alive()
+            },
         ), Role::Engine, crate::startup_diagnostic::Stage::EngineReadiness)?);
         if let Some(listen) = &self.config.adapter_listen {
             let mut args: Vec<std::ffi::OsString> = vec![
@@ -296,9 +306,7 @@ impl NativeService {
             &self.observation_bounds,
         )?;
         self.supervisor_security.check_current()?;
-        self.owner
-            .observe_all()
-            .context("Native observation call=startup_final_children")?;
+        self.check_children("Native observation call=startup_final_children")?;
         self.owner.check_alive()?;
         Ok(())
     }
@@ -314,9 +322,7 @@ impl NativeService {
                 &self.observation_bounds,
             )?;
             self.supervisor_security.check_current()?;
-            self.owner
-                .observe_all()
-                .context("Native observation call=monitor_children")?;
+            self.check_children("Native observation call=monitor_children")?;
             Ok(())
         })();
         if let Err(error) = result.context("Native service phase=monitor_tick") {
@@ -330,18 +336,33 @@ impl NativeService {
         self.owner.shutdown()
     }
     pub fn observation_timings(&self) -> Value { self.owner.observation_timings() }
+    /// The report's scope and mode fields. Qualification belongs to the
+    /// accepted release (E06, T03), so no report claims it.
+    fn scope(&self, kind: &str) -> Value {
+        if self.config.production() {
+            json!({"scope":format!("PRODUCTION_NATIVE_SERVICE_{kind}"),"mode":self.config.mode,
+                "role":self.config.role.map(NodeRole::as_str)})
+        } else {
+            json!({"scope":format!("DEVELOPMENT_NATIVE_SERVICE_{kind}"),"production_qualified":false})
+        }
+    }
+    fn with_scope(&self, kind: &str, mut report: Value) -> Value {
+        if let (Some(report), Some(scope)) = (report.as_object_mut(), self.scope(kind).as_object()) {
+            report.extend(scope.clone());
+        }
+        report
+    }
     pub fn final_timing_report(&self) -> Value {
-        json!({"scope":"DEVELOPMENT_NATIVE_SERVICE_FINAL_TIMINGS",
-            "production_qualified":false,
+        self.with_scope("FINAL_TIMINGS", json!({
             "supervisor_pid":std::process::id(),
             "release_manifest_sha512":self.authority.expected_candidate().manifest_sha512,
             "observation_timings":self.owner.observation_timings(),
             "first_failure_children":self.owner.first_failure_snapshot(),
             "helper_admission":dytallix_fast_node::root_genesis::helper_admission_receipt(),
-            "application_startup_helper_admission_receipt":self.application_startup_helper_admission_receipt})
+            "application_startup_helper_admission_receipt":self.application_startup_helper_admission_receipt}))
     }
     pub fn report(&self) -> Value {
-        json!({"scope":"DEVELOPMENT_NATIVE_SERVICE_SNAPSHOTS", "production_qualified":false,
+        self.with_scope("SNAPSHOTS", json!({
             "release_manifest_sha512":self.authority.expected_candidate().manifest_sha512,
             "preflight_height":self.authority.committed_info().map(|v|v.height),
             "started":self.started,"supervisor":self.self_snapshot.report(),
@@ -351,27 +372,90 @@ impl NativeService {
             "observation_timings":self.owner.observation_timings(),
             "helper_admission":dytallix_fast_node::root_genesis::helper_admission_receipt(),
             "application_startup_helper_admission_receipt":self.application_startup_helper_admission_receipt,
-            "children":self.owner.snapshots().iter().map(|v|v.report()).collect::<Vec<_>>()})
+            "children":self.owner.snapshots().iter().map(|v|v.report()).collect::<Vec<_>>()}))
     }
 }
 
+/// Verify the root authority and the release catalog it selects. A
+/// production build has only the threshold root (A2, A4): three of the five
+/// genesis signatures over the exact genesis files and release.
+#[cfg(feature = "production")]
+fn authorize(
+    config: &NativeServiceConfig,
+    candidate: &DevelopmentCandidateV2Input,
+) -> Result<(VerifiedReleaseAuthority, catalog::VerifiedMemberFiles, RootHelper)> {
+    let (consensus_source, consensus, genesis, emergency, restart) = inputs(config)?;
+    let root = dytallix_fast_node::root_genesis::RootGenesis::from_config(&config.root_config.path)?;
+    let authority = ConsensusApplication::preflight_release_with_root(
+        config.database(),
+        &consensus,
+        &genesis,
+        &consensus_source,
+        &root,
+        restart.as_deref(),
+    )?;
+    let catalog = verify_catalog(candidate, &authority, &root, &emergency)?;
+    Ok((authority, catalog, root.bootstrap_helper()?))
+}
+
+/// The development build's single-key development root.
+#[cfg(not(feature = "production"))]
+fn authorize(
+    config: &NativeServiceConfig,
+    candidate: &DevelopmentCandidateV2Input,
+) -> Result<(VerifiedReleaseAuthority, catalog::VerifiedMemberFiles, RootHelper)> {
+    let (consensus_source, consensus, genesis, emergency, restart) = inputs(config)?;
+    let root = dytallix_fast_node::root_genesis::DevelopmentRootGenesis::from_development_config(
+        &config.root_config.path,
+    )?;
+    let authority = ConsensusApplication::preflight_development_release_with_restart(
+        config.database(),
+        &consensus,
+        &genesis,
+        &consensus_source,
+        &root,
+        restart.as_deref(),
+    )?;
+    let catalog = verify_catalog(candidate, &authority, &root, &emergency)?;
+    Ok((authority, catalog, root.bootstrap_helper()?))
+}
+
+type Inputs = (Vec<u8>, ConsensusConfig, Vec<u8>, EmergencyVerifierConfig, Option<Vec<u8>>);
+
+/// The pinned application inputs, read under both lifecycle locks.
+fn inputs(config: &NativeServiceConfig) -> Result<Inputs> {
+    let consensus_source = config.consensus_config.read()?;
+    let consensus: ConsensusConfig = serde_json::from_slice(&consensus_source)?;
+    let genesis = config.application_genesis.read()?;
+    let emergency: EmergencyVerifierConfig =
+        serde_json::from_slice(&config.emergency_verifier_config.read()?)?;
+    let restart = config
+        .restart_authorization
+        .as_ref()
+        .map(|pin| pin.read())
+        .transpose()?;
+    Ok((consensus_source, consensus, genesis, emergency, restart))
+}
+
 fn application_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
+    // A production build opens only through the threshold root and its
+    // controls (A2, A4); it has no development flags.
+    let [root, verifier, candidate] = if config.production() {
+        ["--root-config", "--verifier-config", "--candidate-config"]
+    } else {
+        [
+            "--development-root-config",
+            "--development-emergency-verifier-config",
+            "--development-candidate-config",
+        ]
+    };
     let mut args: Vec<(&str, OsString)> = vec![
         ("--config", config.consensus_config.path.clone().into()),
         ("--genesis", config.application_genesis.path.clone().into()),
         ("--db", config.database().into()),
-        (
-            "--development-root-config",
-            config.root_config.path.clone().into(),
-        ),
-        (
-            "--development-emergency-verifier-config",
-            config.emergency_verifier_config.path.clone().into(),
-        ),
-        (
-            "--development-candidate-config",
-            config.candidate_config.path.clone().into(),
-        ),
+        (root, config.root_config.path.clone().into()),
+        (verifier, config.emergency_verifier_config.path.clone().into()),
+        (candidate, config.candidate_config.path.clone().into()),
         ("--block-history", config.block_history.arg().into()),
         ("--metrics-dir", config.metrics.directory.clone().into()),
         (
@@ -405,20 +489,38 @@ fn bridge_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
     }
 }
 
+/// The production transport profile (A4), the only profile of a production
+/// engine build.
+const PRODUCTION_TRANSPORT_PROFILE: &str = "dytallix-pqc-production-v1";
+
 fn engine_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
-    vec![
+    let mut args: Vec<OsString> = vec![
         "start".into(),
         "--home".into(),
         config.home.as_os_str().into(),
         "--p2p-profile".into(),
-        "dytallix-pqc-loopback-v1".into(),
+        if config.production() {
+            PRODUCTION_TRANSPORT_PROFILE
+        } else {
+            "dytallix-pqc-loopback-v1"
+        }
+        .into(),
         "--rpc-profile".into(),
         "dytallix-pqc-unix-v1".into(),
         "--metrics-dir".into(),
         config.metrics.directory.clone().into(),
         "--metrics-interval".into(),
         format!("{}s", config.metrics.interval_seconds).into(),
-    ]
+    ];
+    // The engine checks the host's binding again at start, including the
+    // seed-derived peer key.
+    if let Some(binding) = &config.binding {
+        args.extend(["--binding".into(), binding.path.clone().into()]);
+    }
+    for export in config.state_sync.iter().flat_map(|s| &s.light_blocks) {
+        args.extend(["--light-blocks".into(), export.clone().into()]);
+    }
+    args
 }
 
 fn verify_info(bytes: &[u8], authority: &VerifiedReleaseAuthority) -> Result<()> {
@@ -527,6 +629,39 @@ mod argument_tests {
             "--metrics-interval".into(),
             "15s".into()
         ]));
+    }
+    #[test]
+    fn production_mode_uses_the_root_controls_binding_and_light_blocks() {
+        let mut production = config(Value::Null);
+        production.mode = crate::config::PRODUCTION_MODE.into();
+        production.role = Some(NodeRole::Sentry);
+        production.binding = Some(
+            serde_json::from_value(json!({"path":"/b","sha256":"0".repeat(64),"max_bytes":1})).unwrap(),
+        );
+        production.state_sync = Some(
+            serde_json::from_value(json!({"light_blocks":["/lb/primary","/lb/witness"]})).unwrap(),
+        );
+        let app = strings(application_arguments(&production));
+        for pair in [["--root-config", "/r"], ["--verifier-config", "/e"], ["--candidate-config", "/k"]] {
+            assert!(app.windows(2).any(|w| w == pair), "{pair:?}");
+        }
+        assert!(!app.iter().any(|a| a.starts_with("--development")));
+        let engine = strings(engine_arguments(&production));
+        assert!(engine.windows(2).any(|w| w == ["--p2p-profile", PRODUCTION_TRANSPORT_PROFILE]));
+        assert!(engine.ends_with(&[
+            "--binding".into(),
+            "/b".into(),
+            "--light-blocks".into(),
+            "/lb/primary".into(),
+            "--light-blocks".into(),
+            "/lb/witness".into(),
+        ]));
+        // The development mode keeps its flags and passes neither.
+        let config = config(Value::Null);
+        let engine = strings(engine_arguments(&config));
+        assert!(engine.windows(2).any(|w| w == ["--p2p-profile", "dytallix-pqc-loopback-v1"]));
+        assert!(!engine.iter().any(|a| a == "--binding" || a == "--light-blocks"));
+        assert!(strings(application_arguments(&config)).iter().any(|a| a == "--development-root-config"));
     }
     #[test]
     fn snapshots_are_optional() {

@@ -26,8 +26,8 @@ before acceptance.
 | Oracle failure | Not applicable. No oracle is in the consensus path (AC-010): the epoch observation is derived from committed blocks, and a submitted one is refused. |
 
 The procedures assume the native supervisor (`crates/native-supervisor`) as
-the service owner. The Python service in `deploy/pqc-engine` predates the
-owner protocol and cannot start the current application.
+the service owner. The Python service that `deploy/pqc-engine` once held was
+retired in production activation v1, A5.
 
 ## Where to look
 

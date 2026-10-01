@@ -1,4 +1,4 @@
-//! Development-only candidate catalog and file checks. No process is launched.
+//! Release candidate catalog and file checks. No process is launched.
 //! A result does not prove role execution, mapped code, library closure or G35.
 use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,10 @@ pub const DEVELOPMENT_PROFILE: &str = "development-linux-python-service-v2";
 pub const DEVELOPMENT_HTTP_PROFILE: &str = "development-linux-python-service-http-v2";
 pub const DEVELOPMENT_NATIVE_PROFILE: &str = "development-linux-native-service-v2";
 pub const DEVELOPMENT_NATIVE_HTTP_PROFILE: &str = "development-linux-native-service-http-v2";
+/// The production release catalog (production activation v1, A5). One
+/// catalog serves every node role, so it always carries the HTTP adapter;
+/// only endpoints start it.
+pub const PRODUCTION_NATIVE_PROFILE: &str = "production-linux-native-service-v1";
 pub const OBSERVED_CODE_POLICY: &str = "linux-observed-code-v1";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -315,7 +319,8 @@ pub fn validate_manifest_bytes(
         DEVELOPMENT_HTTP_PROFILE => (true, true),
         DEVELOPMENT_NATIVE_PROFILE => (false, false),
         DEVELOPMENT_NATIVE_HTTP_PROFILE => (true, false),
-        _ => anyhow::bail!("Unsupported development service profile; production is not qualified"),
+        PRODUCTION_NATIVE_PROFILE => (true, false),
+        _ => anyhow::bail!("Unsupported service profile"),
     };
     ensure!(
         !manifest.members.is_empty() && manifest.members.len() <= bounds.max_members,

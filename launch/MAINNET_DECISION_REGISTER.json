@@ -2612,7 +2612,9 @@
             "validator_rpc": "LOCAL_OWNER_ONLY_UNIX_SOCKETS_NO_NETWORK_LISTENER",
             "engine_observation": "STARTUP_CHECK_THEN_KERNEL_ENFORCEMENT_NO_PERIODIC_PAUSE",
             "addressing": "ONE_IP_PER_NODE_STATIC_1_TO_1_NAT",
-            "mesh": "PUBLISHED_PARTIAL_MESH_WITHIN_64_PINS"
+            "mesh": "PUBLISHED_PARTIAL_MESH_WITHIN_64_PINS",
+            "long_running_child_observation": "STARTUP_CHECK_THEN_KERNEL_ENFORCEMENT_NO_PERIODIC_PAUSE",
+            "readiness_catch_up": "OPERATOR_BUDGET_E05_CATCH_UP_MILLIS"
           },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
@@ -2629,16 +2631,18 @@
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "PRODUCTION_INFRASTRUCTURE_DRAFT.md",
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
-            "../node/docs/architecture/production-activation-v1.md"
+            "../node/docs/architecture/production-activation-v1.md",
+            "approvals/P01_E05_SUPERVISOR_2026-10-01.json"
           ],
-          "approved_portion": "Private validators behind sentries (P01, 30 September 2026): validators peer only with their own sentries, sentries face the network and separate endpoint nodes serve the client channel; validator hosts run no RPC or management port. Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets; the engine is checked at startup and then held by kernel limits without periodic pauses; one IP per node with static 1:1 NAT for public sentries; a published partial mesh within 64 pins.",
+          "approved_portion": "Private validators behind sentries (P01, 30 September 2026): validators peer only with their own sentries, sentries face the network and separate endpoint nodes serve the client channel; validator hosts run no RPC or management port. Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets; the engine is checked at startup and then held by kernel limits without periodic pauses; one IP per node with static 1:1 NAT for public sentries; a published partial mesh within 64 pins. Supervisor production mode (P01, 1 October 2026): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits; readiness waits for catch-up up to a per-host budget.",
           "remaining_choices": [
             "Counts, hosts, regions, account separation and failure domains (E05)",
             "Capacity budget (E05)"
           ],
           "approval_records": [
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
-            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "approvals/P01_E05_SUPERVISOR_2026-10-01.json"
           ]
         },
         {
@@ -3770,6 +3774,23 @@
       "unset": [
         "Custodians and genesis signers",
         "Measured control windows"
+      ]
+    },
+    {
+      "id": "P01-2026-10-01-E05-SUPERVISOR",
+      "approved": "2026-10-01",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_SUPERVISOR_2026-10-01.json",
+      "decisions": [
+        "D12-Q01: in production mode the engine, application, bridge and HTTP adapter are observed once at startup, then held by kernel limits; helpers keep paused checks.",
+        "D12-Q01, D12-Q02: readiness waits for catch-up up to a required per-host budget (E05 catch_up_millis)."
+      ],
+      "question_refs": [
+        "D12-Q01",
+        "D12-Q02"
+      ],
+      "unset": [
+        "The catch-up budget value (E05 catch_up_millis)"
       ]
     }
   ],

@@ -24,6 +24,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json) (30 September): the implemented mempool rule is normative ([mempool v1](../node/docs/architecture/mempool-v1.md), D06-Q02), a separate 3-of-5 upgrade custodian group with a fixed minimum notice (D11-Q03), and private validators behind sentries (D12-Q01).
 - [Upgrade notice scope](approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json) (1 October): the 120,960-block notice applies to release handovers as well as state-migration upgrades (D11-Q03).
 - [Root controls](approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json) (1 October): a production node refuses a configuration without the emergency freeze, upgrade and release handover controls at schema 2 (D07-Q01, D11-Q03).
+- [Supervisor production mode](approvals/P01_E05_SUPERVISOR_2026-10-01.json) (1 October): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits, and readiness waits for catch-up up to a per-host budget whose value is unset (D12-Q01, D12-Q02).
 
 ## D01 — Adaptive issuance
 
@@ -494,6 +495,8 @@ Approved portion (P01, 30 September 2026): validators are private and peer only 
 Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
 
 Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets, no network listener; the supervisor checks the engine at startup and then relies on kernel limits, with no periodic pauses; one IP per node, with static 1:1 NAT for public sentries; a published partial mesh within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
+
+Supervisor production mode (P01, 1 October 2026): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits, while helpers keep paused checks; readiness waits for catch-up up to a per-host budget, the E05 value `catch_up_millis` ([supervisor approval](approvals/P01_E05_SUPERVISOR_2026-10-01.json)).
 
 Remaining inputs: counts, hosts, regions, account separation, failure domains and the capacity budget (E05).
 

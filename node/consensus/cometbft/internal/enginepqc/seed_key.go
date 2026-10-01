@@ -25,26 +25,11 @@ func seedNodeKey(home string, expectedPublic []byte) (*p2p.NodeKey, *pqcp2p.Iden
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, nil, err
 	}
-	path := filepath.Join(home, "config", SeedFileName)
-	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	seed, err := readPeerSeed(home)
 	if err != nil {
 		return nil, nil, err
 	}
-	file := os.NewFile(uintptr(fd), path)
-	defer file.Close()
-	var stat unix.Stat_t
-	if err := unix.Fstat(fd, &stat); err != nil {
-		return nil, nil, err
-	}
-	mode := stat.Mode & 0o777
-	if stat.Mode&unix.S_IFMT != unix.S_IFREG || (mode != 0o400 && mode != 0o600) || stat.Size != mldsa65.SeedSize || stat.Nlink != 1 || stat.Uid != uint32(os.Geteuid()) {
-		return nil, nil, fmt.Errorf("peer seed requires one owner-only regular file of %d bytes", mldsa65.SeedSize)
-	}
-	seed := make([]byte, mldsa65.SeedSize)
 	defer clear(seed)
-	if _, err := io.ReadFull(file, seed); err != nil {
-		return nil, nil, err
-	}
 	private, err := mldsa65.GenPrivKeyFromSeed(seed)
 	if err != nil {
 		return nil, nil, err
@@ -61,4 +46,47 @@ func seedNodeKey(home string, expectedPublic []byte) (*p2p.NodeKey, *pqcp2p.Iden
 		return nil, nil, errors.New("seed-derived peer identities disagree")
 	}
 	return key, identity, nil
+}
+
+// readPeerSeed reads the raw peer seed: one owner-only regular file of
+// exactly the seed size, opened without following a symlink. The caller
+// clears the returned bytes.
+func readPeerSeed(home string) ([]byte, error) {
+	path := filepath.Join(home, "config", SeedFileName)
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, err
+	}
+	file := os.NewFile(uintptr(fd), path)
+	defer file.Close()
+	var stat unix.Stat_t
+	if err := unix.Fstat(fd, &stat); err != nil {
+		return nil, err
+	}
+	mode := stat.Mode & 0o777
+	if stat.Mode&unix.S_IFMT != unix.S_IFREG || (mode != 0o400 && mode != 0o600) || stat.Size != mldsa65.SeedSize || stat.Nlink != 1 || stat.Uid != uint32(os.Geteuid()) {
+		return nil, fmt.Errorf("peer seed requires one owner-only regular file of %d bytes", mldsa65.SeedSize)
+	}
+	seed := make([]byte, mldsa65.SeedSize)
+	if _, err := io.ReadFull(file, seed); err != nil {
+		clear(seed)
+		return nil, err
+	}
+	return seed, nil
+}
+
+// PeerSeedPublicKey is the ML-DSA-65 peer public key the seed at
+// HOME/config/pqc_peer_seed.bin derives: the node's own transport pin and
+// the pin its peers hold (production activation v1, A5).
+func PeerSeedPublicKey(home string) ([]byte, error) {
+	seed, err := readPeerSeed(home)
+	if err != nil {
+		return nil, err
+	}
+	defer clear(seed)
+	private, err := mldsa65.GenPrivKeyFromSeed(seed)
+	if err != nil {
+		return nil, err
+	}
+	return private.PubKey().Bytes(), nil
 }
