@@ -29,13 +29,14 @@ pub struct PenaltyConfig {
 impl PenaltyConfig {
     pub fn validate(&self) -> Result<()> {
         ensure!(
-            self.version == 1 && self.profile == PROFILE,
+            self.version == 1 && self.profile == crate::build_profile::PENALTY_PROFILE,
             "Unsupported penalty profile"
         );
         valid_id(&self.chain_id)?;
+        // Penalties v1 is complete; a production build activates it (A1).
         ensure!(
-            !self.production_activation,
-            "Production penalties are not qualified"
+            self.production_activation == crate::build_profile::PRODUCTION,
+            "Penalty activation must match the build: production builds only"
         );
         ensure!(
             self.penalty_numerator > 0 && self.penalty_numerator <= self.penalty_denominator,

@@ -1,3 +1,5 @@
+//go:build !production
+
 package main
 
 // These values apply only to disposable local fixtures. They are not approved

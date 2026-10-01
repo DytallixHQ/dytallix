@@ -1,5 +1,6 @@
 //! CometBFT application execution for bounded local qualification.
 //! The engine supplies finality. This module never creates a finality certificate.
+use crate::build_profile;
 use crate::emergency_freeze::{self as emergency, ControlVerifier};
 use crate::emergency_verifier::{EmergencyVerifier, EmergencyVerifierConfig};
 use crate::failure_class::{classify, FailureClass};
@@ -176,25 +177,24 @@ fn explicit_lifecycle<'de, D: serde::Deserializer<'de>>(
 }
 impl ConsensusConfig {
     pub fn validate(&self) -> Result<()> {
+        // Production activation v1 (A1): a build runs only its own profiles.
         ensure!(
-            matches!(
-                self.profile.as_str(),
-                "cometbft-local-qualification"
-                    | "cometbft-lifecycle-local-qualification"
-                    | "cometbft-penalty-local-qualification"
-            ) && self.engine == "cometbft-v0.40.0",
-            "Production or unsupported engine profile is disabled"
+            build_profile::consensus_profiles().any(|p| p == self.profile)
+                && self.engine == "cometbft-v0.40.0",
+            "{}",
+            build_profile::PROFILE_REFUSAL
         );
-        match (&self.lifecycle, self.profile.as_str()) {
-            (None, "cometbft-local-qualification") => {}
-            (
-                Some(lifecycle),
-                "cometbft-lifecycle-local-qualification" | "cometbft-penalty-local-qualification",
-            ) => {
+        let profile = Some(self.profile.as_str());
+        match (&self.lifecycle, profile) {
+            (None, p) if p == build_profile::FIXED_PROFILE => {}
+            (Some(lifecycle), p)
+                if p == build_profile::LIFECYCLE_ONLY_PROFILE
+                    || p == Some(build_profile::PENALTY_PROFILE) =>
+            {
                 lifecycle.validate()?;
                 ensure!(
                     lifecycle.chain_id == self.chain_id
-                        && lifecycle.profile == "cometbft-lifecycle-local-qualification",
+                        && lifecycle.profile == build_profile::LIFECYCLE_PROFILE,
                     "Lifecycle configuration binding differs"
                 );
                 ensure!(
@@ -214,24 +214,40 @@ impl ConsensusConfig {
                 "Lifecycle requires its explicit qualification profile and configuration"
             ),
         }
-        match (&self.penalty, self.profile.as_str()) {
-            (Some(penalty), "cometbft-penalty-local-qualification") => {
+        match (&self.penalty, profile) {
+            (Some(penalty), p) if p == Some(build_profile::PENALTY_PROFILE) => {
                 penalty.validate()?;
                 ensure!(
                     penalty.chain_id == self.chain_id && penalty.profile == self.profile,
                     "Penalty configuration binding differs"
                 );
             }
-            (None, "cometbft-local-qualification" | "cometbft-lifecycle-local-qualification") => {}
+            (None, p) if p == build_profile::FIXED_PROFILE || p == build_profile::LIFECYCLE_ONLY_PROFILE => {}
             _ => anyhow::bail!(
                 "Penalty processing requires its explicit qualification profile and configuration"
             ),
+        }
+        if build_profile::PRODUCTION {
+            // Production carries the launch scope (D07-Q01); its root
+            // controls arrive in step A4.
+            ensure!(
+                self.recovery.is_some() && self.ordinary.is_some() && self.governance.is_some(),
+                "A production configuration carries recovery, ordinary and governance"
+            );
+            ensure!(
+                self.emergency.is_none() && self.upgrade.is_none() && self.release_handover.is_none(),
+                "Production root controls arrive in production activation step A4"
+            );
         }
         ensure!(
             !self.chain_id.is_empty()
                 && self.chain_id.len() <= 50
                 && !self.chain_id.chars().any(char::is_control),
             "Invalid consensus chain ID"
+        );
+        ensure!(
+            build_profile::chain_id_allowed(&self.chain_id),
+            "A development build refuses a chain ID naming mainnet or production"
         );
         valid_hash(&self.app_state_sha256)?;
         if let Some(policy) = &self.emergency {
@@ -3985,6 +4001,7 @@ impl ConsensusApplication {
         consensus_source: &[u8],
         authorization: crate::root_genesis::DevelopmentRootGenesis,
     ) -> Result<Self> {
+        build_profile::development_entry()?;
         config.validate()?;
         source_binding(&config, &genesis_bytes)?;
         ensure!(
@@ -4008,6 +4025,7 @@ impl ConsensusApplication {
         authorization: crate::root_genesis::DevelopmentRootGenesis,
         verifier: EmergencyVerifierConfig,
     ) -> Result<Self> {
+        build_profile::development_entry()?;
         Self::open_with_development_candidate(
             path,
             config,
@@ -4027,6 +4045,7 @@ impl ConsensusApplication {
         verifier: EmergencyVerifierConfig,
         candidate: Option<DevelopmentCandidateInput>,
     ) -> Result<Self> {
+        build_profile::development_entry()?;
         Self::open_with_development_runtime_candidate(
             path, config, genesis_bytes, consensus_source, authorization, verifier,
             candidate.map(crate::runtime_candidate_v2::RuntimeCandidateInput::V1),
@@ -4044,6 +4063,7 @@ impl ConsensusApplication {
         verifier: EmergencyVerifierConfig,
         candidate: Option<crate::runtime_candidate_v2::RuntimeCandidateInput>,
     ) -> Result<Self> {
+        build_profile::development_entry()?;
         Self::open_with_development_runtime_candidate_and_restart(
             path, config, genesis_bytes, consensus_source, authorization, verifier, candidate, None,
         )
@@ -4062,6 +4082,7 @@ impl ConsensusApplication {
         candidate: Option<crate::runtime_candidate_v2::RuntimeCandidateInput>,
         restart: Option<Vec<u8>>,
     ) -> Result<Self> {
+        build_profile::development_entry()?;
         ensure!(
             restart.is_none() || (candidate.is_some() && config.release_handover.is_some()),
             "A restart requires runtime candidate verification and a handover policy"
@@ -4158,6 +4179,7 @@ impl ConsensusApplication {
         authorization: &crate::root_genesis::DevelopmentRootGenesis,
         restart: Option<&[u8]>,
     ) -> Result<VerifiedReleaseAuthority> {
+        build_profile::development_entry()?;
         config.validate()?;
         ensure!(config.emergency.as_ref().context("Emergency policy required")?.release_sha512
             == authorization.release_manifest_sha512,
@@ -4179,6 +4201,7 @@ impl ConsensusApplication {
         mut emergency_verifier: Option<EmergencyVerifier>,
         candidate: Option<PreparedRuntimeCandidateInput>,
     ) -> Result<Self> {
+        build_profile::production_open()?;
         classify(
             config.validate().and_then(|()| source_binding(&config, &genesis_bytes)),
             FailureClass::Configuration,

@@ -93,8 +93,10 @@ impl TimingGenesis {
     }
     pub fn validate(&self) -> Result<()> {
         ensure!(
-            self.version == 1 && self.decimals == 6 && self.profile == "development",
-            "Unsupported issuance version, scale or production activation"
+            self.version == 1
+                && self.decimals == 6
+                && self.profile == crate::build_profile::MONETARY_PROFILE,
+            "Unsupported issuance version, scale or build profile"
         );
         ensure!(
             self.epoch_blocks > 0 && (1..=MAX_RECORDED_EPOCHS).contains(&self.max_recorded_epochs),

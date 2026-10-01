@@ -31,8 +31,8 @@ impl RewardConfig {
             "Unsupported reward version, activation height or token scale"
         );
         ensure!(
-            self.profile == "development",
-            "Production rewards require qualified finality and activation"
+            self.profile == crate::build_profile::MONETARY_PROFILE,
+            "Reward profile does not match this build"
         );
         valid_id(&self.chain_id)?;
         ensure!(

@@ -311,8 +311,8 @@ impl AllocationPlan {
             "Reward v2 requires version 2, six decimals and activation height 1"
         );
         ensure!(
-            input.profile == "development",
-            "Production reward activation remains disabled"
+            input.profile == crate::build_profile::MONETARY_PROFILE,
+            "Reward profile does not match this build"
         );
         let mut validators = BTreeMap::new();
         for validator in &input.validators {

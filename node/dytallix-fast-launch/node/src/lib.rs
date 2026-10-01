@@ -2,6 +2,12 @@
 // to the selected consensus application without a compile-time failure.
 
 pub mod addr; // address derivation
+// The profiles this build runs (production activation v1, A1).
+pub mod build_profile;
+
+// A production build carries no test or qualification-only code.
+#[cfg(all(feature = "production", any(feature = "test-snapshot-verifier", feature = "helper-qualification")))]
+compile_error!("A production build cannot include test or qualification-only features");
 pub mod crypto; // new crypto module
 pub mod genesis;
 pub mod emergency_freeze;

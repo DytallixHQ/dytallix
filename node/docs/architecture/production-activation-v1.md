@@ -193,6 +193,35 @@ production-profile staging chains signed with test keys:
    production-profile rehearsal on a staging chain reviewed by
    `check_bindings.py`.
 
+## Status
+
+**A1 done** (builds and profiles):
+- **Rust feature `production`** (`dytallix-fast-node`, `dytallix-native-supervisor`).
+  - `consensus_stdio` drops its `--development-*` flags.
+  - The library's development entry points refuse to run.
+  - The supervisor has no mode until A5.
+  - Test and qualification-only features fail to compile beside it.
+- **Go build tag `production`.**
+  - The engine refuses every development and staging transport profile and the
+    candidate staging mode.
+  - The fixture and peer-probe commands are excluded.
+- **Profiles** (`src/build_profile.rs`). Each build accepts only its own names:
+
+  | Profile | Production name |
+  | --- | --- |
+  | Consensus and penalty | `cometbft-production-v1` |
+  | Lifecycle | `cometbft-lifecycle-production-v1` |
+  | Reward and issuance | `production` |
+
+  - A production configuration must carry recovery, ordinary and governance,
+    with penalties activated.
+- **Chain ID.** A development build refuses a chain ID naming mainnet or
+  production, in the node as well as the engine and supervisor; a production
+  build allows it.
+- **Fail closed.** A production build opens no chain until A2 and refuses root
+  controls until A4.
+- **CI** checks both builds.
+
 ## Still required after activation
 
 Every record (operators, custodians, genesis signers, beneficiaries, chain

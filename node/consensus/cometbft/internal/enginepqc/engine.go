@@ -292,6 +292,9 @@ func candidateStagingChain(chainID string) bool {
 }
 
 func load(home, profile string, candidate bool) (*Runtime, error) {
+	if ProductionBuild {
+		return nil, errors.New("a production build has no development or staging transport profile; the production profile is production activation step A4")
+	}
 	allowed := (profile == Profile || profile == SeedProfile || profile == RemoteSeedProfile) && !candidate
 	if candidate {
 		allowed = profile == ProductionCandidateProfile
@@ -329,7 +332,8 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 		return nil, err
 	}
 	lower := strings.ToLower(genesis.ChainID)
-	if genesis.ChainID == "" || len(genesis.ChainID) > 64 || (!candidate && (strings.Contains(lower, "mainnet") || strings.Contains(lower, "production"))) || genesis.InitialHeight != 1 || len(genesis.Validators) < 1 || len(genesis.Validators) > MaxPeers {
+	// A development build refuses a chain ID naming mainnet or production.
+	if genesis.ChainID == "" || len(genesis.ChainID) > 64 || (!candidate && !ProductionBuild && (strings.Contains(lower, "mainnet") || strings.Contains(lower, "production"))) || genesis.InitialHeight != 1 || len(genesis.Validators) < 1 || len(genesis.Validators) > MaxPeers {
 		return nil, errors.New("bounded genesis with the selected profile is required")
 	}
 	// A transaction larger than a block can never be included.

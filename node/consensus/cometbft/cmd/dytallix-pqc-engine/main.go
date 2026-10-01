@@ -120,6 +120,9 @@ func run() error {
 	var runtime *enginepqc.Runtime
 	var err error
 	if *candidateStaging {
+		if enginepqc.ProductionBuild {
+			return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("a production build has no candidate staging mode")))
+		}
 		if *profile != enginepqc.ProductionCandidateProfile {
 			return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("candidate staging requires the production-candidate profile")))
 		}
