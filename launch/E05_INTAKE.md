@@ -130,5 +130,6 @@ of 1.
 - Done (E05-d, rehearsal): the deterministic
   [genesis builder](../node/docs/mainnet/e05-genesis-builder.md), with the
   open values it needs proposed in [genesis/PROPOSALS.json](genesis/PROPOSALS.json).
-- Next: the binding review of the full configuration (E05-d2), then
-  production activation.
+- Done (E05-d2): the binding review covers the full configuration, the
+  engine genesis and the build manifest (`node/tools/mainnet-preparation/config_checks.py`).
+- Next: production activation (design for P01 first).

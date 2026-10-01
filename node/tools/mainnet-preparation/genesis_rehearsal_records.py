@@ -72,16 +72,104 @@ def records():
     }
 
 
+def document(reference, body):
+    canonical = (json.dumps(body, sort_keys=True, ensure_ascii=True, separators=(',', ':')) + '\n').encode()
+    return {'reference': reference, 'sha256': hashlib.sha256(canonical).hexdigest(), 'document': body}
+
+
+def render(value): return json.dumps(value, indent=2, sort_keys=True) + '\n'
+
+
+def review_packet(built):
+    """The binding review's records and bindings for the rehearsal build in `built` (E05-d2).
+
+    Returns (records text, bindings text). The records use the PRODUCTION_INPUTS
+    row format with synthetic references; the bindings tie them to the built files.
+    """
+    source = records()
+    native_raw = (built/'native-genesis.json').read_bytes()
+    config_raw = (built/'application-config.json').read_bytes()
+    engine_raw = (built/'genesis.json').read_bytes()
+    native, config = json.loads(native_raw), json.loads(config_raw)
+    addresses = {a['label']: n['address'] for a, n in zip(source['accounts'], native['accounts'])}
+    operator_of = {v['validator_id']: f'operator-{i}' for i, v in enumerate(source['validators'], 1)}
+    stakes = {}
+    for v in source['validators']: stakes[v['operator']] = (operator_of[v['validator_id']], v['self_bond_udgt'])
+    for d in source['delegations']: stakes[d['account']] = (operator_of[d['validator_id']], d['amount_udgt'])
+    docs, allocation, bootstrap, account_bindings = [], [], [], []
+    policy = 'approvals/P01_E05_VALUES_2_2026-09-30.json'
+    for a in source['accounts']:
+        label, locked = a['label'], a['vesting']['kind'] != 'unlocked'
+        docs += [document('account:' + label, {'kind': 'account', 'address': addresses[label]}),
+                 document('vesting:' + label, {'kind': 'vesting_terms', 'vesting': a['vesting']})]
+        delegation = {'kind': 'none'}
+        if label in stakes:
+            operator, amount = stakes[label]
+            delegation = {'kind': 'delegated', 'validator_operator_id': operator, 'amount_base_units': amount}
+        allocation.append({'beneficiary_reference': 'synthetic:' + label, 'category': 'synthetic', 'recipient_account_reference': 'account:' + label,
+                           'amount_base_units': a['udgt'], 'explicit_vesting_schedule': {'kind': 'explicit_schedule' if locked else 'none', 'approved_terms_reference': 'vesting:' + label},
+                           'staking_permission': a['vesting']['allow_staking'] if locked else True, 'initial_delegation': delegation, 'custody_reference': None, 'approval_evidence': None})
+        rows = []
+        if a['udrt'] != '0':
+            rows.append(len(bootstrap))
+            bootstrap.append({'recipient_account_reference': 'account:' + label, 'amount_base_units': a['udrt'],
+                              'approved_bootstrap_policy_reference': policy, 'custody_reference': None, 'approval_evidence': None})
+        account_bindings.append({'address': addresses[label], 'allocation_row': len(allocation) - 1, 'bootstrap_rows': rows})
+    operators = []
+    for v in source['validators']:
+        docs.append(document('validator-key:' + v['validator_id'], {'kind': 'validator_key', 'algorithm': 'ML-DSA-65', 'public_key_base64': v['consensus_public_key_base64']}))
+        operators.append({'operator_id': operator_of[v['validator_id']], 'public_key_reference': 'validator-key:' + v['validator_id']})
+    docs.append(document('identity:' + source['chain_id'], {'kind': 'identity_policy', 'chain_id': source['chain_id']}))
+    packet = {
+        'schema_version': 1,
+        'approved_context': 'Synthetic rehearsal records (E05-d2). Not production inputs.',
+        'acceptance_boundary': 'No record here is accepted; the rehearsal proves the review path only.',
+        'records': {'D08-Q01': {'rows': allocation}, 'D08-Q03': {'rows': bootstrap}, 'D09-Q02': {'rows': operators},
+                    'D13-Q02': {'rows': [{'approved_identity_policy_reference': 'identity:' + source['chain_id']}]}},
+        'policy_inputs': {'dgt_initial_supply': {'amount_base_units': str(sum(int(a['udgt']) for a in source['accounts']))},
+                          'drt_bootstrap': {'amount_base_units': str(sum(int(a['udrt']) for a in source['accounts'])), 'policy_approval_reference': policy}},
+    }
+    records_text = render(packet)
+    engine = json.loads(engine_raw)
+    bindings = {
+        'schema_version': 1,
+        'profile': 'production-runtime-review-only',
+        'source_digests': {'records_sha256': hashlib.sha256(records_text.encode()).hexdigest(), 'native_genesis_sha256': hashlib.sha256(native_raw).hexdigest(),
+                           'application_config_sha256': hashlib.sha256(config_raw).hexdigest(), 'engine_genesis_sha256': hashlib.sha256(engine_raw).hexdigest()},
+        'runtime_inputs': {
+            'chain_id': {'value': source['chain_id'], 'identity_record_row': 0},
+            'genesis_time': engine['genesis_time'],
+            'account_bindings': account_bindings,
+            'validator_bindings': [{'reward_address': v['validator_id'], 'record_row': i} for i, v in enumerate(source['validators'])],
+            'governance_parameters': config['governance'],
+            'issuance_parameters': native['adaptive_issuance'],
+            'reward_parameters': native['reward_v2'],
+            # Bound by application_config_sha256; an exact copy would double the fixture.
+            'consensus_configuration': None,
+            # The rehearsal has no transport; the reviewed profile is loopback only until activation.
+            'network_configuration': None,
+            'root_authorization': None,
+            'approval_bundle': None,
+        },
+        'public_documents': docs,
+    }
+    return records_text, render(bindings)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument('--out', type=Path, required=True, help='the rehearsal fixture directory')
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
-    text = json.dumps(records(), indent=2, sort_keys=True) + '\n'
+    outputs = [(args.out/'records.json', render(records()))]
+    if (args.out/'genesis.json').is_file():
+        review_records, review_bindings = review_packet(args.out)
+        outputs += [(args.out/'review-records.json', review_records), (args.out/'review-bindings.json', review_bindings)]
     if args.check:
-        if not args.out.is_file() or args.out.read_text() != text: print('STALE'); return 1
+        stale = [str(p) for p, text in outputs if not p.is_file() or p.read_text() != text]
+        if stale: print('STALE: ' + ', '.join(stale)); return 1
     else:
-        args.out.write_text(text)
+        for path, text in outputs: path.write_text(text)
     return 0
 
 
