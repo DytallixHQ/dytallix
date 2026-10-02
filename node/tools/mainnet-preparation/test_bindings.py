@@ -12,6 +12,22 @@ import check_bindings as c
 
 FIXTURES=Path(os.environ.get('DYTX_BINDING_FIXTURES',Path(__file__).parent/'fixtures'))
 
+class EngineGenesisLimitTests(unittest.TestCase):
+    def test_the_engine_genesis_reads_up_to_the_engine_bound(self):
+        # The engine genesis carries the 8 MiB native genesis with its
+        # validators (production activation v1, A6); other inputs keep 8 MiB.
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d)/'genesis.json'
+            path.write_bytes(b' ' * c.ENGINE_GENESIS_LIMIT)
+            self.assertEqual(len(c.read_raw(path)), 9*1024*1024)
+            path.write_bytes(b' ' * (c.ENGINE_GENESIS_LIMIT + 1))
+            with self.assertRaises(ValueError):
+                c.read_raw(path)
+            path.write_bytes(b' ' * (c.LIMIT + 1))
+            with self.assertRaises(ValueError):
+                c.read(path)
+
+
 class BindingTests(unittest.TestCase):
     def setUp(self):
         self.b=c.decode((FIXTURES/'bindings.json').read_bytes());self.r=c.decode((FIXTURES/'records.json').read_bytes());self.g=c.decode((FIXTURES/'native.json').read_bytes());self.a=c.decode((FIXTURES/'application.json').read_bytes())

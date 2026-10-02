@@ -122,7 +122,9 @@ bindings. It sends child diagnostic output to stderr. Child stdout carries only
 the protocol below. An interrupted bridge must terminate before its socket is
 removed or reused.
 
-The child protocol has an 8 MiB message limit and a 120-second call timeout.
+The child protocol has a 12 MiB message limit, enough for InitChain to carry
+the 8 MiB application genesis in base64 (production activation v1, A6), and a
+120-second call timeout.
 The upstream ABCI socket decoder retains its upstream 2 GiB limit. The child
 limit is not an ABCI parser limit. The private local socket and configured engine
 block limit constrain this development arrangement.

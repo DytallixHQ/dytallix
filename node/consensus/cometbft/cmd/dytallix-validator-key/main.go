@@ -43,7 +43,9 @@ const proofDomain = "dytallix-validator-key-proof-v1\x00"
 const outputVersion = 1
 
 const maxKeyFileBytes = 16 * 1024
-const maxGenesisBytes = 8 * 1024 * 1024
+
+// maxGenesisBytes is the engine's genesis bound (production activation v1, A6).
+const maxGenesisBytes = 9 * 1024 * 1024
 
 func usage() error {
 	return errors.New("usage: dytallix-validator-key generate --key-file FILE --state-file FILE\n" +

@@ -15,6 +15,7 @@ LIMIT = 8*1024*1024
 RUNTIME_FIELDS = 'chain_id genesis_time account_bindings validator_bindings governance_parameters issuance_parameters reward_parameters consensus_configuration network_configuration root_authorization approval_bundle'.split()
 SUPPORTED = {'chain_id','genesis_time','account_bindings','validator_bindings','governance_parameters','issuance_parameters','reward_parameters','consensus_configuration','network_configuration'}
 CONFIG_LIMIT = 8*1024*1024  # consensus_settlement::MAX_CONFIG_BYTES (E05-a)
+ENGINE_GENESIS_LIMIT = 9*1024*1024  # consensus_settlement::MAX_ENGINE_GENESIS_BYTES (A6)
 DGT_TOTAL_UDGT = 10**15  # the fixed 1,000,000,000 DGT, in udgt (DGT_TOKENOMICS.md)
 
 
@@ -34,9 +35,10 @@ def read(path):
     return raw,decode(raw)
 
 def read_raw(path):
-    # The engine genesis embeds the native genesis; config_checks.engine parses it.
-    with Path(path).open('rb') as stream: raw=stream.read(LIMIT+1)
-    n.require(len(raw)<=LIMIT,'input_byte_limit');return raw
+    # The engine genesis embeds the native genesis; config_checks.engine parses
+    # it. It carries the 8 MiB native genesis with its validators (A6).
+    with Path(path).open('rb') as stream: raw=stream.read(ENGINE_GENESIS_LIMIT+1)
+    n.require(len(raw)<=ENGINE_GENESIS_LIMIT,'input_byte_limit');return raw
 
 
 def digest(raw): return hashlib.sha256(raw).hexdigest()

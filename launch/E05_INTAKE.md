@@ -8,14 +8,14 @@ until P01 approves it; approved values are marked. Decision IDs refer to
 
 ## How it works
 
-- **Values** are in [E05_VALUES.json](E05_VALUES.json): 207 configuration and
+- **Values** are in [E05_VALUES.json](E05_VALUES.json): 208 configuration and
   genesis values, each with its path, unit, the bounds the code enforces, the
   fixture value used in tests (never a recommendation), its decision and its
   couplings. Each has a tier:
 
   | Tier | Count | Meaning |
   | --- | --- | --- |
-  | decide | 64 | Economic, governance and security choices P01 makes |
+  | decide | 65 | Economic, governance and security choices P01 makes |
   | operate | 101 | Operational settings with an engineering default; P01 confirms |
   | measure | 18 | Set from measurements on dedicated staging hosts |
   | derived | 24 | Fixed by an approved rule or another value |
@@ -74,7 +74,7 @@ block count follows from it. Approved values are marked and recorded in the
 | | `window_samples`, soft and hard gains | **Approved:** 1; proportional 17,280,000,000,000, integral and derivative 0 | One-day linear response: 1,000 DRT a block at 50% utilization down to 500 at full blocks |
 | | integral limits, `shock_threshold_ppm` | Proposed: 0, 0; 1,000,000 | No effect with these gains ([proposals](genesis/PROPOSALS.json)) |
 | Fees | basic transfer | **Approved target:** 1 DRT, governed between 0.1 and 10 DRT | Full blocks of transfers burn about 10% of base issuance |
-| | gas price, minimum gas, per-resource costs, bounds | **Approved:** 10 × 100,000 = 1 DRT floor; overhead 10,000, receipt 1,000, wire 2, read 0, write 1, signature and proof 20,000, actions 5,000; price bounds 1 to 100, cost bounds 0 to 100,000 | A basic Send uses about 47,600 gas and pays the floor; free reads keep it flat as shared state grows. The node will refuse governed fee changes that put a basic Send outside 0.1 to 10 DRT |
+| | gas price, minimum gas, per-resource costs, bounds | **Approved:** 10 × 100,000 = 1 DRT floor; overhead 10,000, receipt 1,000, wire 2, read 0, write 1, signature and proof 20,000, actions 5,000; price bounds 1 to 100, cost bounds 0 to 100,000 | A basic Send uses about 47,600 gas and pays the floor; free reads keep it flat as shared state grows. The node refuses governed fee changes that put a reference basic Send outside the genesis bound `reference_send_fee_udrt`, approved at 0.1 to 10 DRT (A6) |
 | | `account_creation_fee_udrt`, bounds | **Approved:** 10 DRT; 1 to 100 DRT | Accounts are permanent state |
 | | governance and recovery costs | **Approved:** the same scale (governance actions 5,000; recovery price 10, minimum 100,000) | Each proposal, deposit, vote and sponsored recovery action costs 1 DRT |
 | DRT bootstrap | `drt_bootstrap_total_udrt` | **Approved:** 1,000,000 DRT | Operator startup (7 × 1,000 DRT) and about 90,000 new accounts at 11 DRT; validators earn from block 1. Rows are D08-Q03 |

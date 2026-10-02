@@ -13,6 +13,7 @@
 use crate::addr::{AccountAddress, AddressNetwork, OriginKeyAlgorithm};
 use crate::consensus_settlement::{
     ConsensusApplication, ConsensusConfig, ValidatorConfig, MAX_CONFIG_BYTES,
+    MAX_ENGINE_GENESIS_BYTES, MAX_GENESIS_BYTES,
 };
 use crate::emergency_freeze::{self as emergency, AuthorityPolicy, AutomaticTransitionPolicy};
 use crate::ordinary_state::{validator_profile_digest, AccountTemplate, OrdinaryConfig};
@@ -251,6 +252,7 @@ pub struct GovernanceBounds {
     pub account_creation_fee_udrt: AmountBounds,
     pub min_self_bond: AmountBounds,
     pub max_active: Bounds<u64>,
+    pub reference_send_fee_udrt: AmountBounds,
 }
 
 #[serde_as]
@@ -861,6 +863,10 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
                 max: g.bounds.min_self_bond.max,
             },
             max_active: g.bounds.max_active.clone(),
+            reference_send_fee_udrt: Bounds {
+                min: g.bounds.reference_send_fee_udrt.min,
+                max: g.bounds.reference_send_fee_udrt.max,
+            },
         },
         entry_policy: EntryPolicy {
             proposer_eligibility:
@@ -979,6 +985,7 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
     );
 
     let engine_genesis = engine_genesis(inputs, &validators, &native_genesis)?;
+    genesis_sizes(&native_genesis, &engine_genesis)?;
 
     let mut hasher = Sha256::new();
     hasher.update(BUILD_DOMAIN);
@@ -1016,6 +1023,20 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
 /// field order, 64-bit integers as strings, durations in nanoseconds) with the
 /// native genesis spliced in as `app_state`. The Go fixture test re-encodes it
 /// and requires the same bytes.
+/// Each genesis must fit the bound of the component that reads it, or the
+/// chain cannot start (production activation v1, A6).
+fn genesis_sizes(native: &[u8], engine: &[u8]) -> Result<()> {
+    ensure!(
+        native.len() <= MAX_GENESIS_BYTES,
+        "Native genesis exceeds its bound"
+    );
+    ensure!(
+        engine.len() <= MAX_ENGINE_GENESIS_BYTES,
+        "Engine genesis exceeds the engine's bound"
+    );
+    Ok(())
+}
+
 fn engine_genesis(
     inputs: &Inputs,
     validators: &[ValidatorConfig],

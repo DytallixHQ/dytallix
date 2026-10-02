@@ -215,8 +215,8 @@ def governance(config, app_digest, reward):
         n.exact(c, 'class max_data_bytes approval_digest')
         n.require(0 < n.uint(c['max_data_bytes']) <= action_bytes and any(byte_array(c['approval_digest'], 32)), 'action_class_bounds')
     n.require(g['entry_policy'] == ENTRY_POLICY, 'entry_policy_differs')
-    b = g['parameter_bounds']; n.exact(b, 'gas_price resource_cost account_creation_fee_udrt min_self_bond max_active')
-    for name, floor in (('gas_price', 1), ('resource_cost', 0), ('account_creation_fee_udrt', 1), ('min_self_bond', 1), ('max_active', 1)):
+    b = g['parameter_bounds']; n.exact(b, 'gas_price resource_cost account_creation_fee_udrt min_self_bond max_active reference_send_fee_udrt')
+    for name, floor in (('gas_price', 1), ('resource_cost', 0), ('account_creation_fee_udrt', 1), ('min_self_bond', 1), ('max_active', 1), ('reference_send_fee_udrt', 1)):
         n.exact(b[name], 'min max')
         n.require(floor <= n.uint(b[name]['min'], n.U128_MAX) <= n.uint(b[name]['max'], n.U128_MAX), 'parameter_bound_order')
     n.require(b['max_active']['max'] <= min(64, reward['max_validators']), 'max_active_bound_exceeds_reward_capacity')
@@ -226,6 +226,28 @@ def governance(config, app_digest, reward):
     life = config['lifecycle']
     n.require(inside(dec(base['gas_price']), 'gas_price') and inside(n.amount(base['account_creation_fee_udrt']), 'account_creation_fee_udrt') and all(inside(dec(c), 'resource_cost') for c in costs), 'fee_values_outside_governance_bounds')
     n.require(inside(n.amount(life['min_self_bond']), 'min_self_bond') and inside(life['max_active'], 'max_active'), 'lifecycle_values_outside_governance_bounds')
+    # The genesis profile prices the reference basic Send inside its bound
+    # (P01, 30 September and 2 October 2026).
+    fee = reference_send_fee(base)
+    n.require(fee is not None and inside(fee, 'reference_send_fee_udrt'), 'reference_send_fee_outside_governance_bounds')
+
+
+# The reference basic Send (production activation v1, A6): one ML-DSA-65
+# signature and one Send between existing accounts, at the sizes the node
+# measured from a real Send. Restated here so the review does not trust the
+# node's constants.
+REFERENCE_SEND = {'wire': 5565, 'read': 5536, 'write': 486}
+
+
+def reference_send_fee(base):
+    if 'mldsa65' not in base['signature_costs']:
+        return None
+    gas = (dec(base['transaction_overhead']) + dec(base['receipt_metadata_cost'])
+           + dec(base['signature_costs']['mldsa65']) + dec(base['action_costs'][0])
+           + REFERENCE_SEND['wire'] * dec(base['wire_byte_cost'])
+           + REFERENCE_SEND['read'] * dec(base['read_byte_cost'])
+           + REFERENCE_SEND['write'] * dec(base['write_byte_cost']))
+    return max(gas, dec(base['minimum_gas'])) * dec(base['gas_price'])
 
 
 def authority(policy, key):

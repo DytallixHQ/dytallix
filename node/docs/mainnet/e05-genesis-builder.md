@@ -98,7 +98,7 @@ unknown input field.
   resolved or derived, and the refusals above.
 
 The rehearsal in `tools/mainnet-preparation/fixtures/genesis-rehearsal/` uses
-58 approved values, 50 proposals, 5 measurement placeholders and synthetic
+59 approved values, 50 proposals, 5 measurement placeholders and synthetic
 records: invented holders, and public keys that are SHAKE-256 outputs, not
 key pairs.
 
@@ -111,8 +111,10 @@ key pairs.
   must be `development_only`; the reward and issuance profiles must be
   `development`; root genesis has only a development path; and the engine
   refuses a chain ID naming mainnet or production. Production activation
-  changes these, together with the approved node check that keeps a basic
-  transfer between 0.1 and 10 DRT under governed fee changes.
+  changes these. Its node check that keeps a basic transfer between 0.1 and
+  10 DRT under governed fee changes is built (A6): the builder emits the
+  `reference_send_fee_udrt` bound, and the rehearsal's genesis profile
+  prices the reference Send at 1 DRT.
 - **Root controls.** The emergency, upgrade and handover sections are built
   and pass configuration validation, but `--verify` starts the chain without
   them, because they open only with the development root helper.

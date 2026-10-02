@@ -1121,3 +1121,81 @@ fn first_spend_stores_the_template_record_and_charges_its_writes_before_acceptan
     assert!(result.success, "{:?}", result.error);
     assert_eq!(f.book.accounts[&key].recovery.spending_nonce, 2);
 }
+/// The reference basic Send the governed fee range prices (P01, 30
+/// September 2026) is this real Send: one ML-DSA-65 signature and one Send
+/// between existing accounts, metered from committed state as a block meters
+/// it. Each resource is isolated with a unit cost.
+#[test]
+fn the_reference_send_has_a_real_sends_sizes() {
+    use crate::governance_actions::{
+        reference_send_fee, REFERENCE_SEND_READ_BYTES, REFERENCE_SEND_WIRE_BYTES,
+        REFERENCE_SEND_WRITE_BYTES,
+    };
+    let measure = |p: &FeeProfile| {
+        let mut f = fixture_with(&[ACTOR, OWNER, OTHER]);
+        set(&mut f, ACTOR, "udrt", 3_000_000_000);
+        let storage = f.settlement.storage.clone();
+        for (key, value) in f.settlement.writes().unwrap() {
+            storage.db.put(key, value).unwrap();
+        }
+        f.settlement = Settlement::new(storage);
+        let s = signed(&f, p, vec![send(OWNER, 10)], p.max_transaction_gas, p.max_fee_cap);
+        let result = run(&mut f, p, &s, 0, &mut shared(p)).unwrap();
+        assert!(result.success);
+        result
+    };
+    let mut p = profile();
+    p.max_transaction_gas = 1_000_000;
+    p.max_block_transaction_gas = 10_000_000;
+    p.max_fee_cap = 2_000_000_000;
+    p.transaction_overhead = 0;
+    p.receipt_metadata_cost = 0;
+    p.action_costs = [0; 12];
+    p.signature_costs = BTreeMap::from([("mldsa65".into(), 0)]);
+    for (cost, expected) in [
+        ((1, 0, 0), REFERENCE_SEND_WIRE_BYTES),
+        ((0, 1, 0), REFERENCE_SEND_READ_BYTES),
+        ((0, 0, 1), REFERENCE_SEND_WRITE_BYTES),
+    ] {
+        let mut isolated = p.clone();
+        (isolated.wire_byte_cost, isolated.read_byte_cost, isolated.write_byte_cost) = cost;
+        assert_eq!(measure(&isolated).gas_used, expected, "{cost:?}");
+    }
+    // Under the approved values (P01, 30 September 2026) it uses 47,616
+    // gas and pays the 100,000-gas floor at price 10: 1 DRT. The governed
+    // range check prices it the same way.
+    let mut approved = p.clone();
+    approved.gas_price = 10;
+    approved.minimum_gas = 100_000;
+    approved.transaction_overhead = 10_000;
+    approved.receipt_metadata_cost = 1_000;
+    approved.wire_byte_cost = 2;
+    approved.read_byte_cost = 0;
+    approved.write_byte_cost = 1;
+    approved.action_costs = [5_000; 12];
+    approved.signature_costs = BTreeMap::from([("mldsa65".into(), 20_000)]);
+    let result = measure(&approved);
+    assert_eq!(result.gas_used, 47_616);
+    let values = crate::governance_actions::FeeValues {
+        gas_price: approved.gas_price,
+        transaction_overhead: approved.transaction_overhead,
+        receipt_metadata_cost: approved.receipt_metadata_cost,
+        wire_byte_cost: approved.wire_byte_cost,
+        read_byte_cost: approved.read_byte_cost,
+        write_byte_cost: approved.write_byte_cost,
+        action_costs: approved.action_costs,
+        signature_costs: approved.signature_costs.clone(),
+        validator_proof_costs: approved.validator_proof_costs.clone(),
+        governance_action_costs: [5_000; 3],
+        account_creation_fee_udrt: 10_000_000,
+    };
+    assert_eq!(
+        reference_send_fee(&values, approved.minimum_gas),
+        Some(u128::from(result.gas_used.max(approved.minimum_gas)) * 10)
+    );
+    assert_eq!(reference_send_fee(&values, approved.minimum_gas), Some(1_000_000));
+    // Above the floor, the charged fee and the reference fee still agree.
+    approved.minimum_gas = 1;
+    let result = measure(&approved);
+    assert_eq!(reference_send_fee(&values, 1), Some(u128::from(result.gas_used) * 10));
+}

@@ -145,6 +145,7 @@ VALUES = {
     'bounds_gas_price': (('governance', 'bounds', 'gas_price'), bounds(integer)),
     'bounds_resource_cost': (('governance', 'bounds', 'resource_cost'), bounds(integer)),
     'bounds_account_creation_fee_udrt': (('governance', 'bounds', 'account_creation_fee_udrt'), bounds(amount)),
+    'bounds_reference_send_fee_udrt': (('governance', 'bounds', 'reference_send_fee_udrt'), bounds(amount)),
     'bounds_min_self_bond': (('governance', 'bounds', 'min_self_bond'), bounds(amount)),
     'bounds_max_active': (('governance', 'bounds', 'max_active'), bounds(integer)),
     'reward_max_positions': (('reward', 'max_positions'), integer),
