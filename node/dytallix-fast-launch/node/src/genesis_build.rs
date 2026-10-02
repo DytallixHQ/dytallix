@@ -2,11 +2,14 @@
 //! to the three genesis files, the native genesis, the application
 //! configuration and the engine genesis, plus a manifest of their digests.
 //!
-//! Rehearsal only (P01, 30 September 2026). It emits the profiles the node
-//! accepts today, which are local-qualification and development profiles,
-//! so its output is never a production genesis; production activation is a
-//! separate step. Every value comes from the inputs file, which the E05
-//! resolver writes from approved values, labeled proposals and records.
+//! Each build has one mode (production activation v1, A7). A development
+//! build writes a rehearsal in the local-qualification and development
+//! profiles; a production build writes a production-profile genesis, which
+//! opens only from its root genesis signed three of five. Neither output is
+//! accepted by being built: approved values for every open input, accepted
+//! records, the release, the root signatures and gate acceptance remain
+//! required. Every value comes from the inputs file, which the E05 resolver
+//! writes from approved values, labeled proposals and records.
 //! Nothing is defaulted here: the builder only fixes code constants and
 //! derives values that approved rules determine. The same inputs always give
 //! the same bytes.
@@ -25,8 +28,8 @@ use crate::runtime::governance_candidate::{
     VoteDelegation, CANDIDATE_SCHEMA_VERSION,
 };
 use crate::runtime::issuance_timing::{ControllerInputs, TimingGenesis};
-use crate::runtime::penalty_custody::{self, PenaltyConfig};
-use crate::runtime::validator_lifecycle::{self, LifecycleConfig};
+use crate::runtime::penalty_custody::PenaltyConfig;
+use crate::runtime::validator_lifecycle::LifecycleConfig;
 use crate::upgrade;
 use anyhow::{bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
@@ -46,11 +49,17 @@ use std::path::Path;
 
 pub const INPUTS_SCHEMA: &str = "dytallix.genesis-build-inputs.v1";
 pub const MANIFEST_SCHEMA: &str = "dytallix.genesis-build-manifest.v1";
-/// The only mode until production activation.
+/// A development build's mode: a rehearsal in the development profiles.
 pub const MODE_REHEARSAL: &str = "rehearsal";
-/// The consensus profile with lifecycle and penalties, the fullest one the
-/// node accepts today.
-const CONSENSUS_PROFILE: &str = "cometbft-penalty-local-qualification";
+/// A production build's mode: the production profiles (production
+/// activation v1, A7).
+pub const MODE_PRODUCTION: &str = "production";
+/// The mode this build writes; neither build writes the other's.
+pub const MODE: &str = if crate::build_profile::PRODUCTION {
+    MODE_PRODUCTION
+} else {
+    MODE_REHEARSAL
+};
 const ENGINE: &str = "cometbft-v0.40.0";
 /// All DGT is issued at genesis (D05-Q02): 1,000,000,000 DGT in uDGT.
 const DGT_TOTAL_UDGT: u128 = 1_000_000_000_000_000;
@@ -310,20 +319,27 @@ pub struct EmergencyRoot {
     pub max_anchor_age_blocks: u64,
 }
 
+/// Upgrade schema 2 (A3): its authority is the upgrade custodians'.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct UpgradeRoot {
     pub authority_epoch: u64,
     pub authority: AuthorityPolicy,
-    pub migration_bounds: upgrade::v1::MigrationBounds,
+    pub migration_bounds: upgrade::v2::MigrationBounds,
+    pub min_notice_blocks: u64,
+    pub max_validity_blocks: u64,
+    pub max_anchor_age_blocks: u64,
 }
 
+/// Release handover schema 2 (A3). The upgrade custodians control it
+/// (P01, 30 September 2026), so its authority and epoch are the upgrade's.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HandoverRoot {
-    pub authority_epoch: u64,
-    pub authority: AuthorityPolicy,
     pub max_signatures: usize,
+    pub min_notice_blocks: u64,
+    pub max_validity_blocks: u64,
+    pub max_anchor_age_blocks: u64,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -484,22 +500,23 @@ struct Member {
 /// Build the three genesis files from `inputs`. The node's own configuration
 /// validation runs on the result; `verify` also starts a chain from it.
 pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
-    ensure!(
-        !crate::build_profile::PRODUCTION,
-        "The rehearsal builder runs in development builds; its production mode is step A7"
-    );
     ensure!(inputs.schema == INPUTS_SCHEMA, "Unsupported inputs schema");
     ensure!(
-        inputs.mode == MODE_REHEARSAL,
-        "Only rehearsal builds exist until production activation"
+        inputs.mode == MODE,
+        "This build writes only the {MODE} mode"
     );
     let chain = inputs.chain_id.as_str();
     identifier(chain, "chain_id")?;
     ensure!(chain.len() <= 50, "chain_id is at most 50 bytes");
-    let lower = chain.to_ascii_lowercase();
     ensure!(
-        !lower.contains("mainnet") && !lower.contains("production"),
-        "The engine refuses a chain ID naming mainnet or production until activation"
+        crate::build_profile::chain_id_allowed(chain),
+        "A development build refuses a chain ID naming mainnet or production"
+    );
+    // A production configuration carries every root control (P01, 1 October
+    // 2026).
+    ensure!(
+        !crate::build_profile::PRODUCTION || inputs.root.is_some(),
+        "A production genesis needs the root controls"
     );
     genesis_time(&inputs.genesis_time)?;
     ensure!(
@@ -642,7 +659,7 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
     // carries it unchanged as `app_state`.
     let timing = TimingGenesis {
         version: 1,
-        profile: "development".into(),
+        profile: crate::build_profile::MONETARY_PROFILE.into(),
         decimals: 6,
         epoch_blocks: inputs.issuance.epoch_blocks,
         initial_epoch_budget_udrt: u64::try_from(inputs.issuance.initial_epoch_budget_udrt)
@@ -663,7 +680,8 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
             "delegator": owner, "amount_udgt": amount.to_string(),
         })).collect::<Vec<_>>()},
         "reward_v2": {
-            "version": 2, "activation_height": 1, "decimals": 6, "profile": "development",
+            "version": 2, "activation_height": 1, "decimals": 6,
+            "profile": crate::build_profile::MONETARY_PROFILE,
             // Room for every validator governance may activate (E05-a rule 4).
             "max_validators": max_validators,
             "max_positions": inputs.reward.max_positions,
@@ -683,7 +701,7 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
     // Application configuration.
     let lifecycle = LifecycleConfig {
         version: 1,
-        profile: validator_lifecycle::PROFILE.into(),
+        profile: crate::build_profile::LIFECYCLE_PROFILE.into(),
         chain_id: chain.into(),
         approved_operators: operators.clone(),
         min_self_bond: inputs.lifecycle.min_self_bond,
@@ -884,9 +902,13 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
             // A root control carries its threshold's signatures and must fit
             // one transaction (E05-a rule 6), so each bound is the largest
             // transaction and each signature count the threshold.
+            // Each build writes its own control policies (A4): development
+            // policies are development-only and keep the development name
+            // of the approved transition rule.
+            let production = crate::build_profile::PRODUCTION;
             let emergency = emergency::Policy {
                 schema: 2,
-                development_only: true,
+                development_only: !production,
                 chain_id: chain.into(),
                 release_sha512: root.release_sha512.clone(),
                 initial_sequence: 1,
@@ -894,7 +916,11 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
                 resume_authority: e.resume.clone(),
                 max_control_bytes: inputs.application.max_tx_bytes,
                 max_signatures: e.freeze.threshold.max(e.resume.threshold),
-                automatic_transition_policy: AutomaticTransitionPolicy::ContinueExisting,
+                automatic_transition_policy: if production {
+                    AutomaticTransitionPolicy::ContinuePreviouslyApprovedRules
+                } else {
+                    AutomaticTransitionPolicy::ContinueExisting
+                },
                 v2: Some(emergency::PolicyV2 {
                     genesis_sha256: app_state_sha256.clone(),
                     authority_epoch: e.authority_epoch,
@@ -902,36 +928,42 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
                     max_anchor_age_blocks: e.max_anchor_age_blocks,
                 }),
             };
+            // Upgrade and handover schema 2 (A3) in both builds: anchored
+            // windows and the minimum notice.
             let u = &root.upgrade;
-            // The rehearsal builds the development policies; the production
-            // builder mode (production activation v1, A7) builds schema 2.
-            let upgrade = upgrade::Policy::V1(upgrade::v1::Policy {
-                schema: 1,
-                development_only: true,
+            let upgrade = upgrade::Policy::V2(upgrade::v2::Policy {
+                schema: 2,
                 chain_id: chain.into(),
                 genesis_sha256: app_state_sha256.clone(),
-                source_release_sha512: root.release_sha512.clone(),
+                initial_release_sha512: root.release_sha512.clone(),
                 authority_epoch: u.authority_epoch,
                 authority: u.authority.clone(),
                 initial_sequence: 1,
                 max_control_bytes: inputs.application.max_tx_bytes,
                 max_signatures: u.authority.threshold,
                 migration_bounds: u.migration_bounds.clone(),
+                min_notice_blocks: u.min_notice_blocks,
+                max_validity_blocks: u.max_validity_blocks,
+                max_anchor_age_blocks: u.max_anchor_age_blocks,
             });
             let h = &root.handover;
             let handover = handover::Policy {
-                schema: 1,
-                development_only: true,
+                schema: 2,
+                development_only: !production,
                 chain_id: chain.into(),
                 genesis_sha256: app_state_sha256.clone(),
                 initial_release_sha512: root.release_sha512.clone(),
                 initial_schema: 0,
-                authority_epoch: h.authority_epoch,
-                authority: h.authority.clone(),
+                authority_epoch: u.authority_epoch,
+                authority: u.authority.clone(),
                 initial_sequence: 1,
                 max_control_bytes: inputs.application.max_tx_bytes,
                 max_signatures: h.max_signatures,
-                v2: None,
+                v2: Some(handover::PolicyV2 {
+                    min_notice_blocks: h.min_notice_blocks,
+                    max_validity_blocks: h.max_validity_blocks,
+                    max_anchor_age_blocks: h.max_anchor_age_blocks,
+                }),
             };
             (Some(emergency), Some(upgrade), Some(handover))
         }
@@ -951,7 +983,7 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
         })
         .collect::<Result<Vec<_>>>()?;
     let config = ConsensusConfig {
-        profile: CONSENSUS_PROFILE.into(),
+        profile: crate::build_profile::PENALTY_PROFILE.into(),
         engine: ENGINE.into(),
         chain_id: chain.into(),
         app_state_sha256: app_state_sha256.clone(),
@@ -964,11 +996,12 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
         lifecycle: Some(lifecycle),
         penalty: Some(PenaltyConfig {
             version: 1,
-            profile: penalty_custody::PROFILE.into(),
+            profile: crate::build_profile::PENALTY_PROFILE.into(),
             chain_id: chain.into(),
             penalty_numerator: inputs.penalty.numerator,
             penalty_denominator: inputs.penalty.denominator,
-            production_activation: false,
+            // Penalties v1 is complete; production builds activate it.
+            production_activation: crate::build_profile::PRODUCTION,
         }),
         recovery: Some(book),
         ordinary: Some(ordinary),
@@ -995,9 +1028,13 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
     let file = |bytes: &[u8]| json!({"bytes": bytes.len(), "sha256": digest_hex(bytes), "sha512": hex::encode(Sha512::digest(bytes))});
     let manifest = json!({
         "schema": MANIFEST_SCHEMA,
-        "mode": MODE_REHEARSAL,
-        "production": false,
-        "boundary": "Rehearsal output in the profiles the node accepts today. Not a production genesis: production activation, approved values for every open input, accepted records, the root genesis signatures and gate acceptance remain required.",
+        "mode": MODE,
+        "production": crate::build_profile::PRODUCTION,
+        "boundary": if crate::build_profile::PRODUCTION {
+            "Production-profile output. Building accepts nothing: approved values for every open input, accepted records, the release, the root genesis signatures and gate acceptance remain required."
+        } else {
+            "Rehearsal output in the development profiles. Not a production genesis: a production build, approved values for every open input, accepted records, the root genesis signatures and gate acceptance remain required."
+        },
         "chain_id": chain,
         "genesis_time": inputs.genesis_time,
         "inputs_sha256": digest_hex(inputs_bytes),
@@ -1097,8 +1134,11 @@ fn engine_genesis(
 /// run InitChain with the engine genesis's validators. The root-signed
 /// controls open only with the development root helper, so this check runs
 /// without them; `ConsensusConfig::validate` has already checked them in
-/// `build`. Returns the genesis application hash.
+/// `build`. Returns the genesis application hash. A production genesis opens
+/// only from its root genesis signed three of five, so a production build
+/// has no unsigned start; the signed production test opens it.
 pub fn verify(built: &Built, db: &Path) -> Result<String> {
+    crate::build_profile::development_entry()?;
     ensure!(
         !db.exists(),
         "The verification database path must not exist"

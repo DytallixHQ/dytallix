@@ -9,12 +9,9 @@ import resolve_genesis_inputs as r
 HERE = Path(__file__).resolve().parent
 LAUNCH = HERE.parents[2]/'launch'
 REHEARSAL = HERE/'fixtures'/'genesis-rehearsal'
+# The production-profile rehearsal on the staging chain (A7).
+PRODUCTION = HERE/'fixtures'/'genesis-production-rehearsal'
 NOT_GENESIS = ('config.toml', 'service.', 'emergency verifier', 'config/pqc', '(')
-# Upgrade and handover schema 2 values (production activation v1, A3): the
-# builder's production mode (A7) places them; the rehearsal builds schema 1.
-SCHEMA_2_ONLY = {'upgrade_notice_blocks', 'handover_notice_blocks',
-                 'upgrade_max_validity_blocks', 'upgrade_max_anchor_age_blocks',
-                 'handover_max_validity_blocks', 'handover_max_anchor_age_blocks'}
 
 
 class ResolverTests(unittest.TestCase):
@@ -39,6 +36,37 @@ class ResolverTests(unittest.TestCase):
     def test_the_synthetic_records_are_reproducible(self):
         text = json.dumps(records_module.records(), indent=2, sort_keys=True) + '\n'
         self.assertEqual(text, (REHEARSAL/'records.json').read_text(), 'rerun genesis_rehearsal_records.py')
+        text = json.dumps(records_module.records(staging=True), indent=2, sort_keys=True) + '\n'
+        self.assertEqual(text, (PRODUCTION/'records.json').read_text(), 'rerun genesis_rehearsal_records.py --staging')
+
+    def test_the_committed_production_rehearsal_is_current(self):
+        records = json.loads((PRODUCTION/'records.json').read_text())
+        inputs, report = r.resolve(self.values, self.proposals, records, mode='production')
+        self.assertEqual(r.render(inputs), (PRODUCTION/'inputs.json').read_text(), 'rerun resolve_genesis_inputs.py --mode production')
+        self.assertEqual(r.render(report), (PRODUCTION/'resolution.json').read_text())
+        self.assertEqual((inputs['mode'], inputs['chain_id'], inputs['network']), ('production', 'dytallix-staging-1', 'testnet'))
+        # Labeled proposals and synthetic records keep it ineligible.
+        self.assertFalse(report['production_eligible'])
+
+    def test_eligibility_needs_the_production_mode_approved_values_and_accepted_records(self):
+        self.records['status'] = 'ACCEPTED'
+        for name, proposal in self.proposals['values'].items():
+            entry = self.entry(name)
+            entry.update(status='APPROVED', approved=proposal['value'], approval_record='approvals/test.json')
+        self.proposals['values'] = {}
+        self.assertTrue(r.resolve(self.values, self.proposals, self.records, mode='production')[1]['production_eligible'])
+        self.assertFalse(r.resolve(self.values, self.proposals, self.records, mode='rehearsal')[1]['production_eligible'])
+        with self.assertRaises(ValueError):
+            r.resolve(self.values, self.proposals, self.records, mode='staging')
+
+    def test_the_handover_authority_is_the_upgrade_custodians(self):
+        inputs, _ = self.resolve()
+        self.assertEqual(set(inputs['root']['handover']), {'max_signatures', 'min_notice_blocks', 'max_validity_blocks', 'max_anchor_age_blocks'})
+        self.assertEqual(inputs['root']['upgrade']['min_notice_blocks'], 120960)
+        self.assertEqual(inputs['root']['handover']['min_notice_blocks'], 120960)
+        # A separate handover record is refused.
+        self.records['root']['handover'] = {'authority_epoch': 1, 'keys': []}
+        self.refused('records.root')
 
     def test_a_rehearsal_is_never_production_eligible(self):
         _, report = self.resolve()
@@ -57,7 +85,7 @@ class ResolverTests(unittest.TestCase):
 
     def test_every_genesis_value_is_resolved_or_derived(self):
         for v in self.values['values']:
-            if v['path'].startswith(NOT_GENESIS) or v['name'] in SCHEMA_2_ONLY: continue
+            if v['path'].startswith(NOT_GENESIS): continue
             if v['tier'] == 'derived' and v['name'] not in r.VALUES: continue
             self.assertIn(v['name'], r.VALUES, f'{v["name"]} ({v["path"]}) has no place in the build inputs')
 

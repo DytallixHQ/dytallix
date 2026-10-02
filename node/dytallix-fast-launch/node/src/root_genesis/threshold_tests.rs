@@ -225,55 +225,23 @@ fn every_signature_must_verify_through_the_helper() {
     assert!(prepare_error(&changed).contains("Release manifest"));
 }
 
-/// The rehearsal launch configuration and native genesis for this build,
-/// with its root controls (production forms in a production build).
+/// The committed rehearsal this build's genesis builder writes: the
+/// development rehearsal, or in a production build the production-profile
+/// rehearsal on the staging chain (A7), opened unchanged.
 fn launch_inputs() -> (ConsensusConfig, Vec<u8>) {
-    let mut config = crate::build_profile::tests::rehearsal_config();
-    let mut genesis = std::fs::read(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../tools/mainnet-preparation/fixtures/genesis-rehearsal/native-genesis.json"),
-    )
-    .unwrap();
-    if crate::build_profile::PRODUCTION {
-        config = crate::build_profile::tests::production_named(config);
-        let text = String::from_utf8(genesis).unwrap();
-        assert_eq!(text.matches("\"profile\":\"development\"").count(), 2);
-        genesis = text
-            .replace("\"profile\":\"development\"", "\"profile\":\"production\"")
-            .into_bytes();
-        // The configuration binds the genesis digest in several places (the
-        // recovery domains, governance, the source binding), as the builder
-        // writes it: rebind every one.
-        let (before, after) = (
-            hex::decode(&config.app_state_sha256).unwrap(),
-            Sha256::digest(&genesis).to_vec(),
-        );
-        let mut value = serde_json::to_value(&config).unwrap();
-        rebind(&mut value, &before, &after);
-        config = serde_json::from_value(value).unwrap();
-        assert_eq!(config.app_state_sha256, hex::encode(&after));
-    }
-    (config, genesis)
-}
-
-/// Replace a digest wherever it appears, as hex or as a byte array.
-fn rebind(value: &mut serde_json::Value, before: &[u8], after: &[u8]) {
-    use serde_json::Value;
-    let bytes = |values: &Vec<Value>| -> Option<Vec<u8>> {
-        values
-            .iter()
-            .map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok()))
-            .collect()
+    let fixture = if crate::build_profile::PRODUCTION {
+        "genesis-production-rehearsal"
+    } else {
+        "genesis-rehearsal"
     };
-    match value {
-        Value::String(text) if *text == hex::encode(before) => *text = hex::encode(after),
-        Value::Array(values) if bytes(values).as_deref() == Some(before) => {
-            *values = after.iter().map(|b| Value::from(*b)).collect();
-        }
-        Value::Array(values) => values.iter_mut().for_each(|v| rebind(v, before, after)),
-        Value::Object(map) => map.values_mut().for_each(|v| rebind(v, before, after)),
-        _ => {}
-    }
+    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tools/mainnet-preparation/fixtures")
+        .join(fixture);
+    let config =
+        serde_json::from_slice(&std::fs::read(directory.join("application-config.json")).unwrap())
+            .unwrap();
+    let genesis = std::fs::read(directory.join("native-genesis.json")).unwrap();
+    (config, genesis)
 }
 
 #[test]

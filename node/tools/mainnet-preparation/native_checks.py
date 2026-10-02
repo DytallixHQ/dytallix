@@ -53,11 +53,15 @@ def vesting(value, allocation):
     else:
         raise ValueError('Unsupported vesting kind')
 
+# A development build's monetary profile and a production build's
+# (production activation v1, A1); the configuration's mode selects one.
+MONETARY_PROFILES = ('development', 'production')
+
 def validate_timing(timing):
     exact(timing, 'version profile decimals epoch_blocks initial_epoch_budget_udrt controller max_recorded_epochs')
     require(type(timing['version']) is int and timing['version'] == 1 and
             type(timing['decimals']) is int and timing['decimals'] == 6 and
-            timing['profile'] == 'development', 'Explicit development issuance input required')
+            timing['profile'] in MONETARY_PROFILES, 'Explicit development or production issuance input required')
     require(uint(timing['epoch_blocks']) > 0 and 1 <= uint(timing['max_recorded_epochs']) <= 1000000,
             'Invalid epoch or journal bound')
     initial = amount(timing['initial_epoch_budget_udrt'])

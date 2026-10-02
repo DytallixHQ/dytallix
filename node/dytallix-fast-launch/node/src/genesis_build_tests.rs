@@ -2,11 +2,18 @@ use super::*;
 use serde_json::Value;
 use std::path::PathBuf;
 
-/// The committed rehearsal: synthetic records resolved with the approved
-/// values and labeled proposals (tools/mainnet-preparation).
+/// The committed rehearsal this build writes: synthetic records resolved with
+/// the approved values and labeled proposals (tools/mainnet-preparation). A
+/// production build writes the production-profile rehearsal on the staging
+/// chain (A7).
 fn rehearsal() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tools/mainnet-preparation/fixtures/genesis-rehearsal")
+        .join("../../tools/mainnet-preparation/fixtures")
+        .join(if crate::build_profile::PRODUCTION {
+            "genesis-production-rehearsal"
+        } else {
+            "genesis-rehearsal"
+        })
 }
 
 fn inputs_bytes() -> Vec<u8> {
@@ -46,6 +53,7 @@ fn the_rehearsal_rebuilds_byte_for_byte() {
     }
 }
 
+#[cfg(not(feature = "production"))]
 #[test]
 fn the_rehearsal_starts_a_chain() {
     let b = built();
@@ -106,7 +114,23 @@ fn derived_values_follow_their_rules() {
         emergency.v2.as_ref().unwrap().genesis_sha256,
         c.app_state_sha256
     );
-    assert_eq!(c.upgrade.as_ref().unwrap().as_v1().unwrap().max_signatures, 3);
+    // Upgrade and handover schema 2 in both builds (A3, A7); the upgrade
+    // custodians hold the handover authority (P01, 30 September 2026).
+    let upgrade = c.upgrade.as_ref().unwrap().as_v2().unwrap();
+    assert_eq!((upgrade.max_signatures, upgrade.min_notice_blocks), (3, 120_960));
+    let handover = c.release_handover.as_ref().unwrap();
+    assert_eq!(handover.schema, 2);
+    assert_eq!(
+        (&handover.authority, handover.authority_epoch),
+        (&upgrade.authority, upgrade.authority_epoch)
+    );
+    assert_eq!(handover.v2.as_ref().unwrap().min_notice_blocks, 120_960);
+    // Each build writes its own names and control flags.
+    let production = crate::build_profile::PRODUCTION;
+    assert_eq!(c.profile, crate::build_profile::PENALTY_PROFILE);
+    assert_eq!(c.lifecycle.as_ref().unwrap().profile, crate::build_profile::LIFECYCLE_PROFILE);
+    assert_eq!(c.penalty.as_ref().unwrap().production_activation, production);
+    assert_eq!((emergency.development_only, handover.development_only), (!production, !production));
     // The engine's evidence limits equal the lifecycle's, in whole seconds.
     let engine: Value = serde_json::from_slice(&b.engine_genesis).unwrap();
     let lifecycle = c.lifecycle.as_ref().unwrap();
@@ -120,6 +144,11 @@ fn derived_values_follow_their_rules() {
     );
     let native: Value = serde_json::from_slice(&b.native_genesis).unwrap();
     assert_eq!(native["reward_v2"]["max_validators"], 32);
+    for section in ["reward_v2", "adaptive_issuance"] {
+        assert_eq!(native[section]["profile"], crate::build_profile::MONETARY_PROFILE);
+    }
+    let manifest: Value = serde_json::from_slice(&b.manifest).unwrap();
+    assert_eq!((&manifest["mode"], &manifest["production"]), (&Value::from(MODE), &Value::from(production)));
     assert_eq!(engine["app_state"], native);
 }
 
@@ -135,16 +164,52 @@ fn account_drt_equals_the_approved_bootstrap() {
     assert!(error.contains("bootstrap"), "{error}");
 }
 
+#[cfg(not(feature = "production"))]
 #[test]
-fn a_chain_id_naming_mainnet_is_refused_until_activation() {
+fn a_development_build_refuses_a_chain_id_naming_mainnet() {
     let error = refused(|v| v["chain_id"] = "dytallix-mainnet-1".into());
     assert!(error.contains("mainnet or production"), "{error}");
 }
 
+#[cfg(feature = "production")]
 #[test]
-fn only_rehearsals_exist() {
-    let error = refused(|v| v["mode"] = "production".into());
-    assert!(error.contains("rehearsal"), "{error}");
+fn a_production_build_may_name_mainnet() {
+    let mut value: Value = serde_json::from_slice(&inputs_bytes()).unwrap();
+    value["chain_id"] = "dytallix-mainnet-1".into();
+    let bytes = serde_json::to_vec(&value).unwrap();
+    let b = build(&read_inputs(&bytes).unwrap(), &bytes).unwrap();
+    assert_eq!(b.config.chain_id, "dytallix-mainnet-1");
+}
+
+#[test]
+fn each_build_writes_only_its_own_mode() {
+    let other = if crate::build_profile::PRODUCTION {
+        MODE_REHEARSAL
+    } else {
+        MODE_PRODUCTION
+    };
+    let error = refused(|v| v["mode"] = other.into());
+    assert!(error.contains(&format!("only the {MODE} mode")), "{error}");
+}
+
+#[test]
+fn the_root_controls_take_the_handover_authority_from_the_upgrade() {
+    // The inputs carry no separate handover authority.
+    let error = refused(|v| v["root"]["handover"]["authority"] = serde_json::json!({"keys": [], "threshold": 3}));
+    assert!(error.contains("unknown field"), "{error}");
+    // A production genesis carries every root control (P01, 1 October 2026).
+    if crate::build_profile::PRODUCTION {
+        let error = refused(|v| v["root"] = Value::Null);
+        assert!(error.contains("needs the root controls"), "{error}");
+    }
+}
+
+#[cfg(feature = "production")]
+#[test]
+fn a_production_genesis_has_no_unsigned_start() {
+    let dir = tempfile::tempdir().unwrap();
+    let error = verify(&built(), &dir.path().join("db")).unwrap_err();
+    assert!(format!("{error:#}").contains("no development entry points"), "{error:#}");
 }
 
 #[test]

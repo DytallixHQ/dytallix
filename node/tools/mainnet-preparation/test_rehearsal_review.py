@@ -112,7 +112,7 @@ class RehearsalReviewTests(unittest.TestCase):
 
     def test_development_gates_are_reported(self):
         self.config['emergency']['development_only'] = False
-        self.refused('emergency_development_gate', self.config)
+        self.refused('emergency_build_gate', self.config)
 
     def test_engine_genesis_carries_the_exact_native_genesis(self):
         self.refused('engine_app_state_not_the_exact_native_genesis', engine_raw=self.engine_raw.replace(b'"udrt":"0"', b'"udrt":"1"', 1))
@@ -137,3 +137,71 @@ class RehearsalReviewTests(unittest.TestCase):
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)
+
+
+PRODUCTION = FIXTURE.parent/'genesis-production-rehearsal'
+
+
+class ProductionRehearsalReviewTests(unittest.TestCase):
+    """The production-profile rehearsal on the staging chain (A7): the production builder's output."""
+    def setUp(self):
+        read = lambda name: (PRODUCTION/name).read_bytes()
+        self.read = read
+        self.bindings = json.loads(read('review-bindings.json'))
+        self.records_raw = read('review-records.json')
+        self.native_raw, self.config_raw, self.engine_raw = read('native-genesis.json'), read('application-config.json'), read('genesis.json')
+        self.config = json.loads(self.config_raw)
+
+    def review(self, config=None, manifest_raw=None):
+        config_raw = self.config_raw if config is None else json.dumps(config, separators=(',', ':')).encode()
+        bindings = copy.deepcopy(self.bindings)
+        bindings['source_digests'].update(application_config_sha256=c.digest(config_raw))
+        return c.validate(bindings, json.loads(self.records_raw), self.records_raw, self.native_raw, config_raw, None, self.engine_raw,
+                          self.read('BUILD_MANIFEST.json') if manifest_raw is None else manifest_raw)
+
+    def refused(self, code, config=None, manifest_raw=None):
+        errors = self.review(config, manifest_raw)['errors']
+        self.assertTrue(any(code in e['code'] for e in errors), errors)
+
+    def test_the_review_packet_is_current(self):
+        records_text, bindings_text = rehearsal.review_packet(PRODUCTION, staging=True)
+        self.assertEqual(records_text.encode(), self.records_raw, 'rerun genesis_rehearsal_records.py --staging --out fixtures/genesis-production-rehearsal')
+        self.assertEqual(bindings_text.encode(), self.read('review-bindings.json'))
+
+    def test_the_production_rehearsal_passes_every_supported_review(self):
+        r = self.review()
+        self.assertEqual(r['errors'], [])
+        self.assertEqual(r['status'], 'BLOCKED')
+        self.assertFalse(r['production_accepted'])
+        self.assertEqual(r['reviewed_sections'], list(config_checks.SECTIONS) + ['root_controls'])
+        self.assertIn('build_manifest_binding', r['checks'])
+        self.assertEqual((self.config['profile'], self.config['chain_id']), ('cometbft-production-v1', 'dytallix-staging-1'))
+
+    def test_a_production_configuration_is_wholly_production(self):
+        for change, code in [
+            (lambda c: c['lifecycle'].update(profile=config_checks.LIFECYCLE_PROFILE), 'lifecycle_identity_mismatch'),
+            (lambda c: c['penalty'].update(production_activation=False), 'penalty_production_activation'),
+            (lambda c: c['emergency'].update(development_only=True), 'emergency_build_gate'),
+            (lambda c: c['emergency'].update(automatic_transition_policy='continue_existing'), 'emergency_identity'),
+            (lambda c: c['release_handover'].update(development_only=True), 'handover_build_gate'),
+            (lambda c: c.pop('release_handover'), 'production_needs_every_root_control'),
+            (lambda c: c['release_handover'].update(authority_epoch=2), 'handover_authority_differs_from_upgrade'),
+            (lambda c: c['upgrade'].update(min_notice_blocks=0), 'Positive value required'),
+        ]:
+            config = copy.deepcopy(self.config)
+            change(config)
+            self.refused(code, config)
+
+    def test_the_native_monetary_profiles_follow_the_build(self):
+        genesis = json.loads(self.native_raw)
+        state = c.native(genesis)
+        genesis['reward_v2']['profile'] = genesis['adaptive_issuance']['profile'] = 'development'
+        with self.assertRaises(ValueError) as caught:
+            config_checks.review(self.config, genesis, self.native_raw, state)
+        self.assertIn('monetary_profile_differs_from_build', str(caught.exception))
+
+    def test_the_manifest_names_the_production_build(self):
+        manifest = json.loads(self.read('BUILD_MANIFEST.json'))
+        self.assertEqual((manifest['mode'], manifest['production']), ('production', True))
+        manifest['production'] = False
+        self.refused('manifest_schema_or_production_flag', manifest_raw=json.dumps(manifest).encode())

@@ -6,7 +6,7 @@
     "PROPOSED": 49,
     "RECORD_SYNTHETIC": 8
   },
-  "mode": "rehearsal",
+  "mode": "production",
   "production_eligible": false,
   "schema": "dytallix.genesis-resolution.v1",
   "values": [

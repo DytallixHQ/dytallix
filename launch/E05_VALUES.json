@@ -1898,7 +1898,7 @@
     },
     {
       "name": "upgrade_notice_blocks",
-      "path": "upgrade.min_notice_blocks (schema 2)",
+      "path": "upgrade.min_notice_blocks",
       "type_unit": "u64, blocks between admission and activation",
       "code_bounds": "> 0; no upper bound",
       "bounds_ref": "node/dytallix-fast-launch/node/src/upgrade/v2/upgrade.rs (Policy::validate, validate_control)",
@@ -1916,7 +1916,7 @@
     },
     {
       "name": "upgrade_max_validity_blocks",
-      "path": "upgrade.max_validity_blocks (schema 2)",
+      "path": "upgrade.max_validity_blocks",
       "type_unit": "u64, blocks (inclusive eligible heights)",
       "code_bounds": "> 0; no upper bound",
       "bounds_ref": "node/dytallix-fast-launch/node/src/upgrade/v2/upgrade.rs (Policy::validate, validate_control)",
@@ -1932,7 +1932,7 @@
     },
     {
       "name": "upgrade_max_anchor_age_blocks",
-      "path": "upgrade.max_anchor_age_blocks (schema 2)",
+      "path": "upgrade.max_anchor_age_blocks",
       "type_unit": "u64, blocks",
       "code_bounds": "> 0; no upper bound",
       "bounds_ref": "node/dytallix-fast-launch/node/src/upgrade/v2/upgrade.rs (Policy::validate, validate_control)",
@@ -1956,8 +1956,8 @@
       "fixture_ref": "node/dytallix-fast-launch/node/src/release_handover_tests.rs:52",
       "decision": "D11-Q03 (inferred: halt/restart and release authority)",
       "couplings": "Requires the upgrade policy; initial_schema must be 0 and initial release must equal the upgrade source release (node/dytallix-fast-launch/node/src/consensus_settlement.rs:281-297).",
-      "notes": "Schema 1 is development-only; a production build requires schema 2 with development_only false (node/dytallix-fast-launch/node/src/release_handover.rs, Policy::validate; A4). Fixture value only, not a recommendation. Schema 2: the handover authority and epoch must equal the upgrade authority (the five upgrade custodians, three of five; P01, 30 September 2026), checked by the consensus configuration.",
-      "tier": "operate",
+      "notes": "Derived (production activation v1, A7): handover schema 2 uses the upgrade authority, so its threshold is upgrade_authority_threshold (P01, 30 September 2026: the upgrade custodians control release handover).",
+      "tier": "derived",
       "status": "OPEN",
       "proposed": null,
       "basis": null

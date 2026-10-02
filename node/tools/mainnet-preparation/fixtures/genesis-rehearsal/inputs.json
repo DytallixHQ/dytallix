@@ -357,33 +357,10 @@
       }
     },
     "handover": {
-      "authority": {
-        "keys": [
-          {
-            "key_id": "2b8787dc9184880ed9017c3544c4937ad37ed134b2d3e534647f8ef124e20ce7",
-            "public_key_hex": "15bd1ecd64fa92119eaa5a180f53d3d79e4af9dc8db98493b54e82a37c29c4479254a6590f49f838ff15f33269ed481e53094e9364060c1bdc12cf8b5b9ce441"
-          },
-          {
-            "key_id": "35c382bb2e93320afedda0913089387adcfc8ee3a16cfc90630447ac1f2afb2f",
-            "public_key_hex": "a404b69d340b98586d38c2d963e80ed3586137c24a50cade82847be11eb17c29e2528d54490f6c913e6471ee6e20fda6df1d1d58a13a669bfc8d2fae920cb771"
-          },
-          {
-            "key_id": "8b859880b302ec51c4ba1e6ae129a9e0dd0e9dd3bab963aa721a6beaada1c97c",
-            "public_key_hex": "a90c01ad2061fce3a0d26573747107ebfe52d3fa3a9e1af9086ca4454563e2362c90a79dbb74f64afbf74f48997242d57a58390e4e5ff7fe1b3def7931ce0b99"
-          },
-          {
-            "key_id": "b97685c757ef6a689b5dea7e0dd16009da6b36310a76ab26fd784a5e3883ebd1",
-            "public_key_hex": "0cc6843353e8f7ce5428b6a9d6be9e2840dcccf3e2889bf5f4d9d505f0abbd252d74e27ae1a8ca458aa7bf0e910fec8386e3012077939884f04107b08451eb7d"
-          },
-          {
-            "key_id": "f1a713c863c174324a304904ce73318c81eba2610b0820f55130b21a45a81d55",
-            "public_key_hex": "73d97a1ac46ec54cc94b8519022fd6ce96816f5d2e87fc91f771c28a3ea7dee389bf536bb421c0db433d4dd6341686f16dc287783307fe66f63c28c23b8b6223"
-          }
-        ],
-        "threshold": 3
-      },
-      "authority_epoch": 1,
-      "max_signatures": 3
+      "max_anchor_age_blocks": 720,
+      "max_signatures": 3,
+      "max_validity_blocks": 720,
+      "min_notice_blocks": 120960
     },
     "release_sha512": "6dd7c1322eb5b28949fd9805cf582897444fd2342438aee56100548401b09fa0bc2baee22b8c6699f1e9e0672f40fa391468f8450a76c4a9bf08a720f5dc7646",
     "upgrade": {
@@ -413,11 +390,14 @@
         "threshold": 3
       },
       "authority_epoch": 1,
+      "max_anchor_age_blocks": 720,
+      "max_validity_blocks": 720,
       "migration_bounds": {
         "max_receipt_bytes": 67108864,
         "max_receipts": 1000000,
         "max_write_bytes": 268435456
-      }
+      },
+      "min_notice_blocks": 120960
     }
   },
   "schema": "dytallix.genesis-build-inputs.v1",

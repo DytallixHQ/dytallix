@@ -1,0 +1,240 @@
+{
+  "acceptance_boundary": "No record here is accepted; the rehearsal proves the review path only.",
+  "approved_context": "Synthetic rehearsal records (E05-d2). Not production inputs.",
+  "policy_inputs": {
+    "dgt_initial_supply": {
+      "amount_base_units": "1000000000000000"
+    },
+    "drt_bootstrap": {
+      "amount_base_units": "1000000000000",
+      "policy_approval_reference": "approvals/P01_E05_VALUES_2_2026-09-30.json"
+    }
+  },
+  "records": {
+    "D08-Q01": {
+      "rows": [
+        {
+          "amount_base_units": "300000000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:ecosystem-growth",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:ecosystem-growth",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "amount_base_units": "1000000000000",
+            "kind": "delegated",
+            "validator_operator_id": "operator-1"
+          },
+          "recipient_account_reference": "account:ecosystem-growth",
+          "staking_permission": true
+        },
+        {
+          "amount_base_units": "200000000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:team-and-advisors",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:team-and-advisors",
+            "kind": "explicit_schedule"
+          },
+          "initial_delegation": {
+            "kind": "none"
+          },
+          "recipient_account_reference": "account:team-and-advisors",
+          "staking_permission": false
+        },
+        {
+          "amount_base_units": "150000000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:public-sale",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:public-sale",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "kind": "none"
+          },
+          "recipient_account_reference": "account:public-sale",
+          "staking_permission": true
+        },
+        {
+          "amount_base_units": "150000000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:private-sale",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:private-sale",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "kind": "none"
+          },
+          "recipient_account_reference": "account:private-sale",
+          "staking_permission": true
+        },
+        {
+          "amount_base_units": "199600000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:reserve",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:reserve",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "kind": "none"
+          },
+          "recipient_account_reference": "account:reserve",
+          "staking_permission": true
+        },
+        {
+          "amount_base_units": "100000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:operator-1",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:operator-1",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "amount_base_units": "100000000000",
+            "kind": "delegated",
+            "validator_operator_id": "operator-1"
+          },
+          "recipient_account_reference": "account:operator-1",
+          "staking_permission": true
+        },
+        {
+          "amount_base_units": "100000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:operator-2",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:operator-2",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "amount_base_units": "100000000000",
+            "kind": "delegated",
+            "validator_operator_id": "operator-2"
+          },
+          "recipient_account_reference": "account:operator-2",
+          "staking_permission": true
+        },
+        {
+          "amount_base_units": "100000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:operator-3",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:operator-3",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "amount_base_units": "100000000000",
+            "kind": "delegated",
+            "validator_operator_id": "operator-3"
+          },
+          "recipient_account_reference": "account:operator-3",
+          "staking_permission": true
+        },
+        {
+          "amount_base_units": "100000000000",
+          "approval_evidence": null,
+          "beneficiary_reference": "synthetic:operator-4",
+          "category": "synthetic",
+          "custody_reference": null,
+          "explicit_vesting_schedule": {
+            "approved_terms_reference": "vesting:operator-4",
+            "kind": "none"
+          },
+          "initial_delegation": {
+            "amount_base_units": "100000000000",
+            "kind": "delegated",
+            "validator_operator_id": "operator-4"
+          },
+          "recipient_account_reference": "account:operator-4",
+          "staking_permission": true
+        }
+      ]
+    },
+    "D08-Q03": {
+      "rows": [
+        {
+          "amount_base_units": "996000000000",
+          "approval_evidence": null,
+          "approved_bootstrap_policy_reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "custody_reference": null,
+          "recipient_account_reference": "account:ecosystem-growth"
+        },
+        {
+          "amount_base_units": "1000000000",
+          "approval_evidence": null,
+          "approved_bootstrap_policy_reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "custody_reference": null,
+          "recipient_account_reference": "account:operator-1"
+        },
+        {
+          "amount_base_units": "1000000000",
+          "approval_evidence": null,
+          "approved_bootstrap_policy_reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "custody_reference": null,
+          "recipient_account_reference": "account:operator-2"
+        },
+        {
+          "amount_base_units": "1000000000",
+          "approval_evidence": null,
+          "approved_bootstrap_policy_reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "custody_reference": null,
+          "recipient_account_reference": "account:operator-3"
+        },
+        {
+          "amount_base_units": "1000000000",
+          "approval_evidence": null,
+          "approved_bootstrap_policy_reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+          "custody_reference": null,
+          "recipient_account_reference": "account:operator-4"
+        }
+      ]
+    },
+    "D09-Q02": {
+      "rows": [
+        {
+          "operator_id": "operator-1",
+          "public_key_reference": "validator-key:validator-1"
+        },
+        {
+          "operator_id": "operator-2",
+          "public_key_reference": "validator-key:validator-2"
+        },
+        {
+          "operator_id": "operator-3",
+          "public_key_reference": "validator-key:validator-3"
+        },
+        {
+          "operator_id": "operator-4",
+          "public_key_reference": "validator-key:validator-4"
+        }
+      ]
+    },
+    "D13-Q02": {
+      "rows": [
+        {
+          "approved_identity_policy_reference": "identity:dytallix-staging-1"
+        }
+      ]
+    }
+  },
+  "schema_version": 1
+}

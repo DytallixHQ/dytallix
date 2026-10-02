@@ -5,8 +5,8 @@ Each value the builder needs comes from exactly one source: an APPROVED entry
 in E05_VALUES.json, or a labeled entry in the proposals file for a value that
 is still open. A proposal for an approved value, a missing value, or an
 unknown name is refused. The resolution report lists every value's source, so
-the build is production-eligible only when every value is approved and every
-record accepted; this version builds rehearsals only.
+the build is production-eligible only in the production mode, with every
+value approved and every record accepted (production activation v1, A7).
 """
 import argparse
 import json
@@ -18,6 +18,9 @@ PROPOSALS_SCHEMA = 'dytallix.genesis-proposals.v1'
 RECORDS_SCHEMA = 'dytallix.genesis-records.v1'
 RESOLUTION_SCHEMA = 'dytallix.genesis-resolution.v1'
 PROPOSAL_STATUSES = {'PROPOSED', 'MEASURE_PLACEHOLDER'}
+# A development build writes the rehearsal mode, a production build the
+# production mode (A7).
+MODES = ('rehearsal', 'production')
 
 
 def integer(value):
@@ -176,8 +179,13 @@ VALUES = {
     'migration_max_receipts': (('root', 'upgrade', 'migration_bounds', 'max_receipts'), integer),
     'migration_max_receipt_bytes': (('root', 'upgrade', 'migration_bounds', 'max_receipt_bytes'), integer),
     'migration_max_write_bytes': (('root', 'upgrade', 'migration_bounds', 'max_write_bytes'), integer),
-    'handover_authority_threshold': (('root', 'handover', 'authority', 'threshold'), integer),
+    'upgrade_notice_blocks': (('root', 'upgrade', 'min_notice_blocks'), integer),
+    'upgrade_max_validity_blocks': (('root', 'upgrade', 'max_validity_blocks'), integer),
+    'upgrade_max_anchor_age_blocks': (('root', 'upgrade', 'max_anchor_age_blocks'), integer),
     'handover_max_signatures': (('root', 'handover', 'max_signatures'), integer),
+    'handover_notice_blocks': (('root', 'handover', 'min_notice_blocks'), integer),
+    'handover_max_validity_blocks': (('root', 'handover', 'max_validity_blocks'), integer),
+    'handover_max_anchor_age_blocks': (('root', 'handover', 'max_anchor_age_blocks'), integer),
 }
 
 
@@ -190,8 +198,9 @@ def exact(obj, keys, where):
     if not isinstance(obj, dict) or set(obj) != set(keys): raise ValueError(f'{where}: exact fields {sorted(keys)} required')
 
 
-def resolve(values, proposals, records):
+def resolve(values, proposals, records, mode='rehearsal'):
     """Return (inputs, resolution). Raises ValueError on any unresolved or conflicting value."""
+    if mode not in MODES: raise ValueError(f'mode must be one of {list(MODES)}')
     if proposals.get('schema') != PROPOSALS_SCHEMA: raise ValueError('proposals schema mismatch')
     if records.get('schema') != RECORDS_SCHEMA: raise ValueError('records schema mismatch')
     entries = {v['name']: v for v in values['values']}
@@ -230,7 +239,9 @@ def resolve(values, proposals, records):
         {'class': 2, 'max_data_bytes': governance.pop('@class2'), 'approval_digest': classes[2]},
     ]
     root = records['root']
-    exact(root, {'release_sha512', 'emergency', 'upgrade', 'handover'}, 'records.root')
+    # The upgrade custodians also control release handover (P01, 30 September
+    # 2026), so the builder takes the handover authority from the upgrade's.
+    exact(root, {'release_sha512', 'emergency', 'upgrade'}, 'records.root')
     built_root = inputs['root']
     built_root['release_sha512'] = root['release_sha512']
     exact(root['emergency'], {'authority_epoch', 'freeze', 'resume'}, 'records.root.emergency')
@@ -239,20 +250,19 @@ def resolve(values, proposals, records):
     if root['upgrade']['parameter_set'] != 'SLH-DSA-SHAKE-256s': raise ValueError('upgrade authority must use SLH-DSA-SHAKE-256s')
     built_root['upgrade']['authority_epoch'] = root['upgrade']['authority_epoch']
     built_root['upgrade']['authority'] = root['upgrade']['authority']
-    exact(root['handover'], {'authority_epoch', 'keys'}, 'records.root.handover')
-    built_root['handover']['authority_epoch'] = root['handover']['authority_epoch']
-    built_root['handover']['authority']['keys'] = root['handover']['keys']
     for field in ('chain_id', 'genesis_time', 'network', 'accounts', 'validators', 'delegations'):
         inputs[field] = records[field]
-    inputs.update({'schema': INPUTS_SCHEMA, 'mode': 'rehearsal'})
+    inputs.update({'schema': INPUTS_SCHEMA, 'mode': mode})
     for field in ('chain_id', 'genesis_time', 'network', 'accounts', 'validators', 'delegations', 'governance_action_classes', 'root'):
         resolution.append({'name': 'record:' + field, 'source': 'RECORD_' + records['status'], 'reference': 'records', 'value': None})
     counts = {}
     for item in resolution: counts[item['source']] = counts.get(item['source'], 0) + 1
+    eligible = mode == 'production' and set(counts) <= {'APPROVED', 'RECORD_ACCEPTED'}
     report = {
         'schema': RESOLUTION_SCHEMA,
-        'production_eligible': False,
-        'boundary': 'Rehearsal only: the node accepts only local-qualification and development profiles until production activation. Production also needs every value APPROVED and every record ACCEPTED.',
+        'mode': mode,
+        'production_eligible': eligible,
+        'boundary': 'Production eligibility needs the production mode, every value APPROVED and every record ACCEPTED. Eligibility accepts nothing: the release, the root genesis signatures and gate acceptance remain required.',
         'counts': dict(sorted(counts.items())),
         'values': resolution,
     }
@@ -269,10 +279,11 @@ def main():
     parser.add_argument('--records', type=Path, required=True)
     parser.add_argument('--inputs', type=Path, required=True, help='the genesis build inputs to write or check')
     parser.add_argument('--resolution', type=Path, required=True, help='the resolution report to write or check')
+    parser.add_argument('--mode', choices=MODES, required=True, help='the builder mode: rehearsal (development build) or production')
     parser.add_argument('--check', action='store_true', help='compare with the existing files instead of writing')
     args = parser.parse_args()
     try:
-        inputs, report = resolve(*(json.loads(p.read_text()) for p in (args.values, args.proposals, args.records)))
+        inputs, report = resolve(*(json.loads(p.read_text()) for p in (args.values, args.proposals, args.records)), mode=args.mode)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f'UNRESOLVED: {exc}', file=sys.stderr); return 2
     outputs = [(args.inputs, render(inputs)), (args.resolution, render(report))]
@@ -281,7 +292,7 @@ def main():
         if stale: print('STALE: ' + ', '.join(stale), file=sys.stderr); return 1
     else:
         for path, text in outputs: path.write_text(text)
-    print(json.dumps({'status': 'RESOLVED', 'production_eligible': False, 'counts': report['counts']}))
+    print(json.dumps({'status': 'RESOLVED', 'mode': report['mode'], 'production_eligible': report['production_eligible'], 'counts': report['counts']}))
     return 0
 
 

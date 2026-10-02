@@ -16,9 +16,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
   | Tier | Count | Meaning |
   | --- | --- | --- |
   | decide | 65 | Economic, governance and security choices P01 makes |
-  | operate | 101 | Operational settings with an engineering default; P01 confirms |
+  | operate | 100 | Operational settings with an engineering default; P01 confirms |
   | measure | 18 | Set from measurements on dedicated staging hosts |
-  | derived | 24 | Fixed by an approved rule or another value |
+  | derived | 25 | Fixed by an approved rule or another value |
 
   `proposed` is a proposal for review, never an approved value. Approved
   values are recorded under [approvals/](approvals/) and marked in the file.
