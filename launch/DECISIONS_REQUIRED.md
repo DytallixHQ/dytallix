@@ -429,7 +429,7 @@ Required output: Signing custody register.
 
 Proposed owner role: Protocol cryptography lead with wallet and SDK leads. Named assignment and reviewer remain as recorded in the structured register.
 
-Preparation: [D10-Q03 packet](decision-register/parallel-tracks-20260912/track-4/records/D10-Q03.json); the [upgrade custodian intake](custody/upgrade/INTAKE.md) (E05-c) collects the five upgrade custodians' public records. Acceptance is still open.
+Preparation: [D10-Q03 packet](decision-register/parallel-tracks-20260912/track-4/records/D10-Q03.json); the [upgrade custodian intake](custody/upgrade/INTAKE.md) (E05-c) collects the five upgrade custodians' public records, and the [genesis signer intake](custody/genesis/INTAKE.md) the five genesis signers', separate from both other groups. Its checker emits the public signer policy the offline signer and the node read. Acceptance is still open.
 
 Roles (P01, 30 September 2026): five root genesis signers, separate from the emergency and upgrade custodians; the upgrade custodians also hold release handover and halt restart ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 

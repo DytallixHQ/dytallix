@@ -57,7 +57,10 @@ enter this repository, the custody packet or a ticket.
    procedure. Hand over only `signer.json`.
 
 2. **Policy.** The custody lead assembles the five public records for the
-   chain, and every signer checks that their own key ID is listed:
+   chain, and every signer checks that their own key ID is listed. The
+   [genesis signer intake](../../../launch/custody/genesis/INTAKE.md) checker
+   emits the same policy, byte for byte, once the signers' records are
+   complete and separate from the emergency and upgrade custodians:
 
    ```text
    dytallix-root-sign policy -chain-id CHAIN -out policy.json a.json b.json c.json d.json e.json
