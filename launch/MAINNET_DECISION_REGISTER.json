@@ -2020,7 +2020,9 @@
             "decision-register/recovery-fee-storage/WORK_ITEMS.json",
             "decision-register/recovery-fee-storage/ACCEPTANCE.json",
             "decision-register/ordinary-client-compatibility/RECORD_DISCOVERY.json",
-            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md"
+            "decision-register/ordinary-client-compatibility/RECORD_STATUS.md",
+            "custody/upgrade/INTAKE.md",
+            "custody/genesis/INTAKE.md"
           ],
           "collection_status": "SCOPED_RECORD_SEARCH_COMPLETE_INPUTS_STILL_OPEN",
           "collection_evidence_ref": "decision-register/work-pack-1/RECORDS_REVIEW.md",

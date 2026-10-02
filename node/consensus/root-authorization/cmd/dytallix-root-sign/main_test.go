@@ -93,3 +93,29 @@ func TestOfflineSignerRefusesIncompleteArguments(t *testing.T) {
 		}
 	}
 }
+
+// The genesis signer intake (tools/mainnet-preparation) emits the policy
+// this command writes; both must keep producing the committed bytes from the
+// committed public key records.
+func TestPolicyMatchesTheGenesisSignerIntakeFixture(t *testing.T) {
+	fixture := filepath.Join("..", "..", "..", "..", "tools", "mainnet-preparation", "fixtures", "genesis-signer-policy")
+	var records []string
+	for i := 1; i <= 5; i++ {
+		records = append(records, filepath.Join(fixture, fmt.Sprintf("signer-%d.json", i)))
+	}
+	output := filepath.Join(t.TempDir(), "policy.json")
+	if err := policy("dytallix-staging-1", records, output, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	written, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected, err := os.ReadFile(filepath.Join(fixture, "policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(written, expected) {
+		t.Fatalf("the signer policy differs from the intake fixture:\n%s\n%s", written, expected)
+	}
+}

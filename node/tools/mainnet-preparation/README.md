@@ -65,6 +65,29 @@ python3 -B tools/mainnet-preparation/upgrade_custodian_intake.py \
 
 It requires exactly five custodians, three of five, one explicit authority epoch, and SLH-DSA-SHAKE-256s keys (P01, 30 September 2026). It checks distinct controllers, control groups and keys, SHA-256 key IDs, purpose- and epoch-bound public evidence, reviewer separation, and that no controller, control group or key also appears in the complete emergency intake. On success it emits `authority_fragment`, the node's upgrade authority shape with keys sorted by key ID. It does not verify signatures, identity or independence, and it never reports production acceptance. Exit code 0 means structurally complete; 2 means incomplete or invalid.
 
+## Genesis signer intake
+
+`genesis_signer_intake.py` checks a completed genesis signer packet. The packet format and collection steps are in [the genesis signer intake](../../../launch/custody/genesis/INTAKE.md).
+
+```text
+python3 -B tools/mainnet-preparation/genesis_signer_intake.py GENESIS_INTAKE.working.json \
+  --emergency EMERGENCY_INTAKE.working.json --upgrade UPGRADE_INTAKE.working.json \
+  --policy-out root-genesis-policy.json
+```
+
+**What it checks:**
+- The approved shape (P01, 30 September 2026): exactly five signers, three of five, the chain ID, and SLH-DSA-SHAKE-256s keys as `dytallix-root-sign keygen` writes them (`key_id`, `public_key_hex`).
+- Distinct controllers, control groups and keys, with SHA-256 key IDs.
+- Public evidence bound to the purpose `genesis`, with no epoch.
+- Reviewer separation.
+- That no controller, control group or key appears in the complete emergency or upgrade intake.
+
+**On success:** it emits `signer_policy`, the public signer policy record. It is byte for byte what `dytallix-root-sign policy` writes from the same records, which `fixtures/genesis-signer-policy` and the signer's own test check. `--policy-out` writes it to a new file.
+
+**What it doesn't do:** verify signatures, identity or independence. It never reports production acceptance.
+
+Exit code 0 means structurally complete; 2 means incomplete or invalid.
+
 ## Genesis inputs (E05-d)
 
 `resolve_genesis_inputs.py --mode rehearsal|production` writes the genesis builder's inputs from the approved values in `launch/E05_VALUES.json`, the labeled proposals in `launch/genesis/PROPOSALS.json`, and the records, with a report of each value's source. `--check` compares instead of writing. The mode must match the builder's build (production activation v1, A7). `genesis_rehearsal_records.py --out fixtures/genesis-rehearsal` writes the synthetic rehearsal records and, once the rehearsal is built, its binding-review packet (`review-records.json`, `review-bindings.json`); add `--staging` for the production-profile rehearsal on the staging chain. The builder itself is the node's `dytallix-genesis-build`; see [the genesis builder](../../docs/mainnet/e05-genesis-builder.md). `fixtures/genesis-rehearsal/` holds the development build's committed rehearsal and `fixtures/genesis-production-rehearsal/` the production build's: records, inputs, resolution, the four built files and the review packet. Review either with:
