@@ -162,6 +162,11 @@ func validateIsolationForProfile(c *cfg.Config, profile string) error {
 	} else {
 		return errors.New("unsupported PQC transport profile")
 	}
+	// A production node redials its pinned peers forever, at most this far
+	// apart (P01, 2 October 2026), so the cap must be explicit.
+	if profile == ProductionProfile && (c.P2P.PersistentPeersMaxDialPeriod < time.Second || c.P2P.PersistentPeersMaxDialPeriod > time.Hour) {
+		return errors.New("the production profile requires persistent_peers_max_dial_period from 1s to 1h")
+	}
 	if len(c.RPC.CORSAllowedOrigins) > 1 || (len(c.RPC.CORSAllowedOrigins) == 1 && c.RPC.CORSAllowedOrigins[0] != "http://127.0.0.1:4173") {
 		return errors.New("only the explicit local browser origin http://127.0.0.1:4173 is allowed")
 	}

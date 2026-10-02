@@ -40,6 +40,9 @@ func productionFleet(t *testing.T) string {
 		t.Fatalf("disposable private fixture failed: %v: %s", err, output)
 	}
 	for i := 0; i < 4; i++ {
+		// The production profile needs an explicit redial cap (P01, 2 October
+		// 2026: 60 s).
+		setRedialCap(t, filepath.Join(fleet, "node"+string(rune('0'+i))), "1m0s")
 		transport := filepath.Join(fleet, "node"+string(rune('0'+i)), "config", "pqc_transport.json")
 		raw, err := os.ReadFile(transport)
 		if err != nil {
@@ -59,6 +62,47 @@ func productionFleet(t *testing.T) string {
 		}
 	}
 	return fleet
+}
+
+// setRedialCap rewrites a fixture home's persistent_peers_max_dial_period.
+func setRedialCap(t *testing.T, home, value string) {
+	t.Helper()
+	path := filepath.Join(home, "config", "config.toml")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(raw), "\n")
+	found := 0
+	for i, line := range lines {
+		if strings.HasPrefix(line, "persistent_peers_max_dial_period = ") {
+			lines[i] = `persistent_peers_max_dial_period = "` + value + `"`
+			found++
+		}
+	}
+	if found != 1 {
+		t.Fatalf("config.toml has %d redial cap lines", found)
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProductionProfileRequiresARedialCap(t *testing.T) {
+	fleet := productionFleet(t)
+	home := filepath.Join(fleet, "node0")
+	for _, value := range []string{"0s", "999ms", "1h0m1s"} {
+		setRedialCap(t, home, value)
+		if _, err := Load(home, ProductionProfile); err == nil || !strings.Contains(err.Error(), "persistent_peers_max_dial_period") {
+			t.Fatalf("redial cap %s accepted: %v", value, err)
+		}
+	}
+	for _, value := range []string{"1s", "1m0s", "1h0m0s"} {
+		setRedialCap(t, home, value)
+		if _, err := Load(home, ProductionProfile); err != nil {
+			t.Fatalf("redial cap %s refused: %v", value, err)
+		}
+	}
 }
 
 func bindingOf(runtime *Runtime, role string) ProductionBinding {

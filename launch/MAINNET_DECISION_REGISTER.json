@@ -989,9 +989,10 @@
             "../node/docs/architecture/mempool-v1.md",
             "approvals/P01_E05_VALUES_1_2026-09-30.json",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
-            "approvals/P01_E05_VALUES_4_2026-10-02.json"
+            "approvals/P01_E05_VALUES_4_2026-10-02.json",
+            "approvals/P01_E05_PINNED_REDIAL_2026-10-02.json"
           ],
-          "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing (P01, 30 September 2026): about 5-second blocks. Snapshots (P01, 30 September 2026): every 17,280 blocks, keeping three. Capacity, fault assumptions and the remaining synchronization values remain open. Operating values (P01, 2 October 2026): the genesis capacity, transaction format, state and retention limits (about 180 basic Sends a 5 s block; T05 tests these values and can return one for a new approval), the engine consensus deltas with empty blocks every 5 s, a double-sign startup check of 10 blocks on validators, and the networking, mempool and state-sync settings (peers to the 64-pin bound, state-sync trust period 168h).",
+          "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing (P01, 30 September 2026): about 5-second blocks. Snapshots (P01, 30 September 2026): every 17,280 blocks, keeping three. Capacity, fault assumptions and the remaining synchronization values remain open. Operating values (P01, 2 October 2026): the genesis capacity, transaction format, state and retention limits (about 180 basic Sends a 5 s block; T05 tests these values and can return one for a new approval), the engine consensus deltas with empty blocks every 5 s, a double-sign startup check of 10 blocks on validators, and the networking, mempool and state-sync settings (peers to the 64-pin bound, state-sync trust period 168h). Pinned peers (P01, 2 October 2026): the engine redials a persistent peer for as long as it runs, at most 60 s apart (persistent_peers_max_dial_period).",
           "remaining_choices": [
             "Measured mempool size and bytes, send and receive rates, and the ordinary admission queue (T05)",
             "Fault assumptions",
@@ -1001,7 +1002,8 @@
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "approvals/P01_E05_VALUES_1_2026-09-30.json",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
-            "approvals/P01_E05_VALUES_4_2026-10-02.json"
+            "approvals/P01_E05_VALUES_4_2026-10-02.json",
+            "approvals/P01_E05_PINNED_REDIAL_2026-10-02.json"
           ]
         }
       ],

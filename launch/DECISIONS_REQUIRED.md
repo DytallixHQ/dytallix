@@ -229,6 +229,7 @@ Operating values (P01, 2 October 2026, [E05 values, fourth set](approvals/P01_E0
 - **Engine timing:** 500 ms deltas, and an empty block every 5 s.
 - **Double-sign startup check:** 10 blocks on validators.
 - **Networking, mempool and state sync:** peers up to the 64-pin bound, a 5 s PQC handshake, and a 168h state-sync trust period.
+- **Pinned peers:** redialed for as long as the engine runs, at most 60 s apart ([pinned redial approval](approvals/P01_E05_PINNED_REDIAL_2026-10-02.json)).
 
 Remaining inputs: measured mempool size and bytes, send and receive rates and the admission queue (T05), fault assumptions, and the state-sync trust source and snapshot peers (records).
 
