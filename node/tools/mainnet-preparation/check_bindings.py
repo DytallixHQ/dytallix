@@ -76,7 +76,7 @@ def native(genesis):
         n.require(owner in accounts and owner not in stakes,'invalid_or_duplicate_delegator')
         n.require(value<=n.amount(accounts[owner]['balances']['udgt']),'unfunded_stake');stakes[owner]=value
     reward=genesis['reward_v2'];n.exact(reward,'version activation_height decimals profile max_validators max_positions validators positions')
-    n.require(type(reward['version']) is int and reward['version']==2 and type(reward['decimals']) is int and reward['decimals']==6 and type(reward['activation_height']) is int and reward['activation_height']==1 and reward['profile']=='development','unsupported_reward_profile')
+    n.require(type(reward['version']) is int and reward['version']==2 and type(reward['decimals']) is int and reward['decimals']==6 and type(reward['activation_height']) is int and reward['activation_height']==1 and reward['profile'] in n.MONETARY_PROFILES and reward['profile']==genesis['adaptive_issuance']['profile'],'unsupported_reward_profile')
     n.require(1<=n.uint(reward['max_validators'])<=10000 and 1<=n.uint(reward['max_positions'])<=10000,'reward_resource_bound')
     validators=set()
     for v in reward['validators']:
@@ -100,7 +100,7 @@ def application(config,genesis,raw):
     # sections passes these base checks, then config_checks.review.
     if any(key in config for key in config_checks.SECTIONS):
         n.require(set(config_checks.BASE_FIELDS)<=set(config)<=set(config_checks.BASE_FIELDS)|set(config_checks.SECTIONS),'Missing or unknown contract fields')
-        n.require(config['profile'] in (config_checks.LIFECYCLE_PROFILE,config_checks.PENALTY_PROFILE) and config['engine']=='cometbft-v0.40.0','unsupported_consensus_profile')
+        config_checks.mode(config)
     else:
         n.exact(config,' '.join(config_checks.BASE_FIELDS))
         n.require(config['profile']=='cometbft-local-qualification' and config['engine']=='cometbft-v0.40.0','unsupported_consensus_profile')
@@ -296,7 +296,7 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     if manifest_raw is not None:
         n_files={'native-genesis.json':native_raw,'application-config.json':config_raw}
         if engine_raw is not None:n_files['genesis.json']=engine_raw
-        check('build_manifest_binding',lambda:config_checks.manifest(decode(manifest_raw),n_files))
+        check('build_manifest_binding',lambda:config_checks.manifest(decode(manifest_raw),n_files,config))
     if runtime['genesis_time'] is not None:
         if engine is None:result['missing'].append('engine_genesis_for_genesis_time')
         else:check('genesis_time_exact_source_binding',lambda:n.require(runtime['genesis_time']==engine['genesis_time'],'genesis_time_mismatch'))
@@ -312,7 +312,7 @@ def validate(bindings,records,records_raw,native_raw=None,config_raw=None,servic
     if state is not None and docs is not None and operators is not None and runtime['account_bindings'] is not None:check('beneficiary_amount_vesting_stake_bindings',lambda:accounts_binding(runtime['account_bindings'],records,docs,state,operators))
     if docs is not None and runtime['network_configuration'] is not None:check('public_transport_pin_bindings',lambda:transport_binding(runtime['network_configuration'],docs,genesis['chain_id']))
     result['supported_supplied_fields_valid']=not result['errors']
-    result['limits']=['Public reference and hash equality is not approval or signature verification.','Current profiles are local development only. Production startup remains disabled.','Records schema and acceptance require the separate intake checker.','Genesis issues the whole fixed DGT total (D05-Q02); allocation amounts must match native genesis credits exactly.','The full-configuration review re-derives structure and bindings independently of the node; it does not replace the node starting the chain.']
+    result['limits']=['Public reference and hash equality is not approval or signature verification.','A production-profile configuration opens only from its root genesis signed three of five; this review does not see the signatures.','Records schema and acceptance require the separate intake checker.','Genesis issues the whole fixed DGT total (D05-Q02); allocation amounts must match native genesis credits exactly.','The full-configuration review re-derives structure and bindings independently of the node; it does not replace the node starting the chain.']
     return result
 
 

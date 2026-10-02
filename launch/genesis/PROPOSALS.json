@@ -78,15 +78,20 @@
       "status": "PROPOSED",
       "basis": "Equal to the deposit bound, as the node requires."
     },
-    "handover_authority_threshold": {
-      "value": 3,
-      "status": "PROPOSED",
-      "basis": "Three of five, like the other root groups."
+    "handover_max_anchor_age_blocks": {
+      "value": 720,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "One hour, like the emergency anchor age; set from measured propagation on staging."
     },
     "handover_max_signatures": {
       "value": 3,
       "status": "PROPOSED",
       "basis": "The threshold; three hex signatures fit a transaction."
+    },
+    "handover_max_validity_blocks": {
+      "value": 720,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "One hour, like the emergency window; set from measured multi-party signing on staging (E03, T02)."
     },
     "max_action_bytes": {
       "value": 16384,
@@ -281,6 +286,16 @@
       "value": 1,
       "status": "PROPOSED",
       "basis": "The first timing version."
+    },
+    "upgrade_max_anchor_age_blocks": {
+      "value": 720,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "One hour, like the emergency anchor age; set from measured propagation on staging."
+    },
+    "upgrade_max_validity_blocks": {
+      "value": 720,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "One hour, like the emergency window; set from measured multi-party signing on staging (E03, T02)."
     }
   }
 }

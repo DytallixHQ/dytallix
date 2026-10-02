@@ -361,6 +361,38 @@ production-profile staging chains signed with test keys:
   - The bridge-to-application frame rises from 8 MiB to 12 MiB. InitChain sends the application genesis in base64, so the old frame could not carry more than about 6 MiB of it.
   - The validator key tool and the binding review read the engine genesis at the same 9 MiB. The genesis builder refuses files beyond either bound.
 
+**A7 done** (builder and review):
+- **Builder.** `dytallix-genesis-build` writes one mode per build.
+  - **Development builds** write the `rehearsal` mode.
+  - **Production builds** write the `production` mode:
+    - the production profile names, with penalties activated;
+    - `development_only` false and the production name of the emergency transition rule;
+    - all three root controls are required.
+  - **Both modes** emit emergency freeze v2, upgrade schema 2 and handover schema 2.
+    - The handover's authority and epoch are the upgrade custodians', as approved, so the identical-authority check holds by construction.
+    - The schema 2 notice and window values come from E05. The windows are measured values with labeled placeholders until T02/T03.
+- **Resolver.**
+  - `--mode rehearsal|production`.
+  - Records no longer carry separate handover keys.
+  - The report is `production_eligible` only in the production mode with every value approved and every record accepted.
+- **Production rehearsal.** `tools/mainnet-preparation/fixtures/genesis-production-rehearsal/` is the production builder's output on the staging chain `dytallix-staging-1` (testnet addresses, synthetic records).
+  - It rebuilds byte for byte in the production build.
+  - The engine re-encodes its genesis exactly.
+  - The signed three-of-five production test opens it unchanged, with its controls, the emergency verifier, a runtime candidate and a restart.
+- **Review.** `check_bindings.py` reviews either build's configuration.
+  - A configuration must be wholly development or wholly production.
+  - A production one carries all three controls at schema 2, with the handover under the upgrade authority.
+  - Both rehearsals pass with no errors and stay BLOCKED: their records are synthetic, and the review does not see the root signatures.
+- **Not yet.**
+  - A live multi-host staging run of the production profile. It needs dedicated hosts and an approved host run (E03, T02).
+  - Every production value and record.
+
+All seven activation steps are built. A production chain still starts only after:
+- the records, values and measurements;
+- T03, the E06 release freeze and the P02 review by a person;
+- the T-suites and gate acceptance;
+- the root genesis signatures.
+
 ## Still required after activation
 
 Every record (operators, custodians, genesis signers, beneficiaries, chain

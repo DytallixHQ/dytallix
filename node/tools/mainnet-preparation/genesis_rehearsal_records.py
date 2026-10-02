@@ -39,7 +39,12 @@ def account(label, dgt, drt, vesting=None):
             'udgt': str(dgt * DGT), 'udrt': str(drt * DRT), 'vesting': vesting or {'kind': 'unlocked'}}
 
 
-def records():
+# The production-profile rehearsal (production activation v1, A7) runs on a
+# staging chain identity, never a mainnet one.
+STAGING = {'chain_id': 'dytallix-staging-1', 'network': 'testnet'}
+
+
+def records(staging=False):
     operators = [f'operator-{i}' for i in range(1, 5)]
     team_vesting = {'kind': 'linear_after_cliff', 'total_amount': str(200_000_000 * DGT), 'start_time': GENESIS_UNIX,
                     'cliff_duration': 365 * 86400, 'vesting_duration': 4 * 365 * 86400, 'allow_staking': False}
@@ -54,9 +59,9 @@ def records():
         'schema': 'dytallix.genesis-records.v1',
         'status': 'SYNTHETIC',
         'boundary': 'Invented rehearsal records. Not beneficiaries, operators, custodians, keys or a chain identity. Replace every row with accepted records before any production build.',
-        'chain_id': 'dytallix-rehearsal-1',
+        'chain_id': STAGING['chain_id'] if staging else 'dytallix-rehearsal-1',
         'genesis_time': '2027-01-01T00:00:00Z',
-        'network': 'mainnet',
+        'network': STAGING['network'] if staging else 'mainnet',
         'accounts': accounts,
         'validators': [{'validator_id': f'validator-{i}', 'operator': o, 'consensus_public_key_base64': mldsa65(f'validator-{i}'),
                         'self_bond_udgt': str(100_000 * DGT)} for i, o in enumerate(operators, 1)],
@@ -67,7 +72,6 @@ def records():
             'emergency': {'authority_epoch': 1, 'freeze': authority('emergency-freeze'), 'resume': authority('emergency-resume')},
             # The shape of the upgrade custodian intake's authority_fragment (E05-c).
             'upgrade': {'parameter_set': 'SLH-DSA-SHAKE-256s', 'authority_epoch': 1, 'authority': authority('upgrade')},
-            'handover': {'authority_epoch': 1, 'keys': authority('handover', threshold=None)},
         },
     }
 
@@ -80,13 +84,13 @@ def document(reference, body):
 def render(value): return json.dumps(value, indent=2, sort_keys=True) + '\n'
 
 
-def review_packet(built):
+def review_packet(built, staging=False):
     """The binding review's records and bindings for the rehearsal build in `built` (E05-d2).
 
     Returns (records text, bindings text). The records use the PRODUCTION_INPUTS
     row format with synthetic references; the bindings tie them to the built files.
     """
-    source = records()
+    source = records(staging)
     native_raw = (built/'native-genesis.json').read_bytes()
     config_raw = (built/'application-config.json').read_bytes()
     engine_raw = (built/'genesis.json').read_bytes()
@@ -159,11 +163,12 @@ def review_packet(built):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--out', type=Path, required=True, help='the rehearsal fixture directory')
+    parser.add_argument('--staging', action='store_true', help='the production-profile rehearsal on the staging chain (A7)')
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
-    outputs = [(args.out/'records.json', render(records()))]
+    outputs = [(args.out/'records.json', render(records(args.staging)))]
     if (args.out/'genesis.json').is_file():
-        review_records, review_bindings = review_packet(args.out)
+        review_records, review_bindings = review_packet(args.out, args.staging)
         outputs += [(args.out/'review-records.json', review_records), (args.out/'review-bindings.json', review_bindings)]
     if args.check:
         stale = [str(p) for p, text in outputs if not p.is_file() or p.read_text() != text]

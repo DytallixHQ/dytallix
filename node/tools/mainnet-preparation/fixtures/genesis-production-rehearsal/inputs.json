@@ -1,4 +1,15 @@
 {
+  "account_template": {
+    "algorithms": {
+      "mldsa65": 1952
+    },
+    "finalization_window": 120960,
+    "policy_delay": 120960,
+    "policy_window": 120960,
+    "recovery_delay": 120960,
+    "submission_lifetime": 17280,
+    "timing_version": 1
+  },
   "accounts": [
     {
       "label": "ecosystem-growth",
@@ -87,8 +98,12 @@
       }
     }
   ],
-  "boundary": "Invented rehearsal records. Not beneficiaries, operators, custodians, keys or a chain identity. Replace every row with accepted records before any production build.",
-  "chain_id": "dytallix-rehearsal-1",
+  "application": {
+    "max_block_bytes": 1048576,
+    "max_tx_bytes": 262144,
+    "max_txs": 1000
+  },
+  "chain_id": "dytallix-staging-1",
   "delegations": [
     {
       "account": "ecosystem-growth",
@@ -96,18 +111,195 @@
       "validator_id": "validator-1"
     }
   ],
+  "drt_bootstrap_total_udrt": "1000000000000",
+  "engine": {
+    "block_max_bytes": 1048576,
+    "block_max_gas": -1,
+    "evidence_max_bytes": 65536
+  },
   "genesis_time": "2027-01-01T00:00:00Z",
-  "governance_action_classes": [
-    {
-      "approval_digest": "e2dfdcf781a84cd2cab85a507ff646041da14105b0d714ec04fb34e3a5049f7e",
-      "class": 1
+  "governance": {
+    "action_classes": [
+      {
+        "approval_digest": "e2dfdcf781a84cd2cab85a507ff646041da14105b0d714ec04fb34e3a5049f7e",
+        "class": 1,
+        "max_data_bytes": 16384
+      },
+      {
+        "approval_digest": "c79b71c3adf064a1a5e47746fda51d5caca7c0fdf05b09e151799b913f72c3c8",
+        "class": 2,
+        "max_data_bytes": 16384
+      }
+    ],
+    "approval_bps": 5000,
+    "bounds": {
+      "account_creation_fee_udrt": {
+        "max": "100000000",
+        "min": "1000000"
+      },
+      "gas_price": {
+        "max": 100,
+        "min": 1
+      },
+      "max_active": {
+        "max": 32,
+        "min": 4
+      },
+      "min_self_bond": {
+        "max": "1000000000000",
+        "min": "10000000000"
+      },
+      "reference_send_fee_udrt": {
+        "max": "10000000",
+        "min": "100000"
+      },
+      "resource_cost": {
+        "max": 100000,
+        "min": 0
+      }
     },
-    {
-      "approval_digest": "c79b71c3adf064a1a5e47746fda51d5caca7c0fdf05b09e151799b913f72c3c8",
-      "class": 2
-    }
-  ],
-  "network": "mainnet",
+    "deposit_period_blocks": 120960,
+    "governance_action_costs": [
+      5000,
+      5000,
+      5000
+    ],
+    "max_action_bytes": 16384,
+    "max_depositors": 1000,
+    "max_governance_action_bytes": 16384,
+    "max_voters": 10000,
+    "minimum_deposit_udgt": "10000000000",
+    "quorum_bps": 3340,
+    "timelock_blocks": 34560,
+    "veto_bps": 3340,
+    "voting_period_blocks": 120960
+  },
+  "issuance": {
+    "controller": {
+      "base_udrt": 17280000000000,
+      "hard": {
+        "derivative": 0,
+        "integral": 0,
+        "proportional": 17280000000000
+      },
+      "integral_max": 0,
+      "integral_min": 0,
+      "max_udrt": 17280000000000,
+      "min_udrt": 8640000000000,
+      "shock_threshold_ppm": 1000000,
+      "soft": {
+        "derivative": 0,
+        "integral": 0,
+        "proportional": 17280000000000
+      },
+      "target_ppm": 500000,
+      "volatility_threshold_ppm": 1000000,
+      "window_samples": 1
+    },
+    "epoch_blocks": 17280,
+    "initial_epoch_budget_udrt": "17280000000000",
+    "max_recorded_epochs": 365
+  },
+  "lifecycle": {
+    "evidence_max_age_blocks": 241920,
+    "evidence_max_age_seconds": 1209600,
+    "max_active": 16,
+    "min_self_bond": "100000000000",
+    "processing_margin_blocks": 720,
+    "processing_margin_seconds": 3600
+  },
+  "mode": "production",
+  "network": "testnet",
+  "ordinary": {
+    "account_creation_fee_udrt": "10000000",
+    "action_costs": [
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000
+    ],
+    "gas_price": 10,
+    "limits": {
+      "allowed_algorithms": [
+        "mldsa65"
+      ],
+      "max_actions": 16,
+      "max_consensus_key_bytes": 4096,
+      "max_data_bytes": 4096,
+      "max_expiry_lifetime": 240,
+      "max_identifier_bytes": 128,
+      "max_memo_bytes": 1024,
+      "max_proof_bytes": 8192,
+      "max_wire_bytes": 65536
+    },
+    "max_block_signature_checks": 200,
+    "max_block_transaction_bytes": 1000000,
+    "max_block_transaction_gas": 50000000,
+    "max_grants": 10000,
+    "max_receipts": 65536,
+    "max_retained_profiles": 8,
+    "max_state_bytes": 64000000,
+    "max_transaction_gas": 2000000,
+    "minimum_gas": 100000,
+    "queue_max_entries": 10000,
+    "queue_max_signature_work": 10000,
+    "queue_max_wire_bytes": 64000000,
+    "read_byte_cost": 0,
+    "receipt_metadata_cost": 1000,
+    "signature_costs": {
+      "mldsa65": 20000
+    },
+    "transaction_overhead": 10000,
+    "validator_proof_costs": {
+      "mldsa65": 20000
+    },
+    "wire_byte_cost": 2,
+    "write_byte_cost": 1
+  },
+  "penalty": {
+    "denominator": 20,
+    "numerator": 1
+  },
+  "recovery_profile": {
+    "action_costs": [
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000,
+      5000
+    ],
+    "expiry_event_gas_cost": 10000,
+    "gas_price": 10,
+    "mandatory_expiry_gas_budget": 1000000,
+    "max_block_gas": 20000000,
+    "max_block_recovery_bytes": 1000000,
+    "max_block_recovery_signatures": 100,
+    "max_due_expiry_events_per_height": 100,
+    "max_pending_accounts": 10000,
+    "max_transaction_gas": 2000000,
+    "minimum_gas": 100000,
+    "read_byte_cost": 0,
+    "signature_costs": {
+      "mldsa65": 20000
+    },
+    "wire_byte_cost": 2,
+    "write_byte_cost": 1
+  },
+  "reward": {
+    "max_positions": 10000
+  },
   "root": {
     "emergency": {
       "authority_epoch": 1,
@@ -136,6 +328,8 @@
         ],
         "threshold": 3
       },
+      "max_anchor_age_blocks": 720,
+      "max_validity_blocks": 720,
       "resume": {
         "keys": [
           {
@@ -161,6 +355,12 @@
         ],
         "threshold": 3
       }
+    },
+    "handover": {
+      "max_anchor_age_blocks": 720,
+      "max_signatures": 3,
+      "max_validity_blocks": 720,
+      "min_notice_blocks": 120960
     },
     "release_sha512": "6dd7c1322eb5b28949fd9805cf582897444fd2342438aee56100548401b09fa0bc2baee22b8c6699f1e9e0672f40fa391468f8450a76c4a9bf08a720f5dc7646",
     "upgrade": {
@@ -190,11 +390,17 @@
         "threshold": 3
       },
       "authority_epoch": 1,
-      "parameter_set": "SLH-DSA-SHAKE-256s"
+      "max_anchor_age_blocks": 720,
+      "max_validity_blocks": 720,
+      "migration_bounds": {
+        "max_receipt_bytes": 67108864,
+        "max_receipts": 1000000,
+        "max_write_bytes": 268435456
+      },
+      "min_notice_blocks": 120960
     }
   },
-  "schema": "dytallix.genesis-records.v1",
-  "status": "SYNTHETIC",
+  "schema": "dytallix.genesis-build-inputs.v1",
   "validators": [
     {
       "consensus_public_key_base64": "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",

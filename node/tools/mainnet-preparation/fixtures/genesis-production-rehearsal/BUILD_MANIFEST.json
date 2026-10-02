@@ -1,0 +1,27 @@
+{
+  "boundary": "Production-profile output. Building accepts nothing: approved values for every open input, accepted records, the release, the root genesis signatures and gate acceptance remain required.",
+  "build_digest": "0df4aeda0c742b3abd4180e02d669624ce4b55ceec729fb45c46408924259ed0",
+  "chain_id": "dytallix-staging-1",
+  "files": {
+    "application-config.json": {
+      "bytes": 157736,
+      "sha256": "2a2ed174aa7e8dcd9286264be55a2c1e8c872f18994b55e077d515aff5d4c663",
+      "sha512": "bc0e5ff298681bf4e4c2571a31b6fcdc97feb093865a67f24df3a77110265016cd8404c28cedfd9462822c60f4a88c785091425dce82c9fdd824a986d27fcb45"
+    },
+    "genesis.json": {
+      "bytes": 15398,
+      "sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+      "sha512": "fef9f5a7c373284a191d85677b6a9a88005a2b4f34c25d7809ea708ff50bac694fa8b2e0ad3181a8d60181ef23e3e252b75655099c6751580c04eb9c940bfd00"
+    },
+    "native-genesis.json": {
+      "bytes": 3922,
+      "sha256": "ac192e9c0ff3c8b8a50a53f2b406390611b687ca2d2a2532fdea170598853b2d",
+      "sha512": "a98faf40973c6a376c53342dd6541a9455b5f3c603621caf22e26c23ab310cca653e6af20d14bf72e6f0dc0692a49a4ec2918c5751d1ad3ec450c2b358bfa215"
+    }
+  },
+  "genesis_time": "2027-01-01T00:00:00Z",
+  "inputs_sha256": "9270a37523b4ab674cf2cc2900a7374672739a369761b3ca2b58417f3837e795",
+  "mode": "production",
+  "production": true,
+  "schema": "dytallix.genesis-build-manifest.v1"
+}

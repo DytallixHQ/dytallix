@@ -1442,6 +1442,33 @@
           "name": "binding_matches_the_pinned_engine_files_and_role"
         }
       ]
+    },
+    {
+      "id": "file-genesis-build-manifest",
+      "group": "file",
+      "exposure": "operator",
+      "format": "BUILD_MANIFEST.json from dytallix-genesis-build (E05-d; production mode A7): {schema, mode (rehearsal in a development build, production in a production build), production, boundary, chain_id, genesis_time, inputs_sha256, files {native-genesis.json, application-config.json, genesis.json: bytes, sha256, sha512}, build_digest}. Published with the genesis files; the binding review checks it against the files and the configuration's build mode.",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/dytallix-fast-launch/node/src/genesis_build.rs",
+          "text": "pub const MANIFEST_SCHEMA: &str = \"dytallix.genesis-build-manifest.v1\";"
+        }
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/genesis_build.rs",
+        "symbol": "let manifest = json!({"
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/genesis_build_tests.rs",
+          "name": "the_rehearsal_rebuilds_byte_for_byte"
+        },
+        {
+          "file": "node/dytallix-fast-launch/node/src/genesis_build_tests.rs",
+          "name": "derived_values_follow_their_rules"
+        }
+      ]
     }
   ]
 }

@@ -1,15 +1,19 @@
-# E05-d: deterministic genesis builder (rehearsal)
+# E05-d: deterministic genesis builder
 
 Engineering task E05 (genesis from approved inputs), step d. The builder
 turns the approved values and records into the three genesis files, the
 native genesis, the application configuration and the engine genesis, plus a
 manifest of their digests. The same inputs always give the same bytes.
 
-**Rehearsal only** (P01, 30 September 2026,
-`launch/approvals/P01_E05_VALUES_3_2026-09-30.json`). The node accepts only
-local-qualification and development profiles today, so the builder emits
-those and marks its output not production. Production activation, which
-lifts the development gates listed below, is a separate design step.
+**One mode per build** (production activation v1, A7). A development build
+writes the `rehearsal` mode in the local-qualification and development
+profiles, and `--verify` starts a chain from it. A production build (cargo
+feature `production`) writes the `production` mode in the production profiles
+with all three root controls. That genesis opens only from its root genesis
+signed three of five, so `--verify` refuses it, and the signed production
+test opens it instead. Building accepts nothing: approved values for every
+open input, accepted records, the release, the root signatures and gate
+acceptance remain required.
 
 ## Pipeline
 
@@ -35,12 +39,18 @@ inputs ─ dytallix-genesis-build ─> native-genesis.json, application-config.j
    database and runs InitChain.
 
 ```text
-python3 -B tools/mainnet-preparation/resolve_genesis_inputs.py \
+python3 -B tools/mainnet-preparation/resolve_genesis_inputs.py --mode rehearsal \
   --values ../launch/E05_VALUES.json --proposals ../launch/genesis/PROPOSALS.json \
   --records RECORDS.json --inputs GENESIS_INPUTS.json --resolution RESOLUTION.json
 cargo run -p dytallix-fast-node --bin dytallix-genesis-build -- \
   --inputs GENESIS_INPUTS.json --out BUILD_DIR --verify
 ```
+
+For the production mode, resolve with `--mode production` and build with
+`cargo run -p dytallix-fast-node --features production --bin
+dytallix-genesis-build -- --inputs GENESIS_INPUTS.json --out BUILD_DIR`. The
+resolution report is `production_eligible` only in the production mode with
+every value approved and every record accepted.
 
 ## What the builder fixes and derives
 
@@ -63,12 +73,16 @@ profile names, the ML-DSA-65 algorithm, activation heights and sequences of
 | Root control bounds and signature counts | The largest transaction, and each authority's threshold (E05-a rule 6) |
 | Engine evidence limits | The lifecycle's, in whole seconds |
 | Top-level `gas_price` | The ordinary gas price |
+| Profile names, `development_only`, the emergency transition rule's name, penalty activation | The build (`build_profile`): development or production |
+| Root controls | Emergency freeze v2, upgrade schema 2 and release handover schema 2, in both modes |
+| Handover authority and epoch | The upgrade custodians' (P01, 30 September 2026), so the configuration check's identical-authority rule holds |
 
 It refuses a DGT total other than the whole 1,000,000,000 DGT (D05-Q02), an
 account DRT total other than the approved bootstrap, a self-bond below
 `min_self_bond`, vesting that does not cover the whole DGT balance, a shared
-origin or consensus key, a chain ID naming mainnet or production, and any
-unknown input field.
+origin or consensus key, the other build's mode, a chain ID naming mainnet or
+production in a development build, a production genesis without its root
+controls, a genesis beyond its reader's bound, and any unknown input field.
 
 ## Byte formats
 
@@ -87,40 +101,47 @@ unknown input field.
 
 ## Checks
 
-- `genesis_build_tests.rs`: the committed rehearsal rebuilds byte for byte; it
-  starts a chain; derived values follow their rules (a basic transfer pays the
-  1 DRT floor); and the refusals above.
-- `rehearsal_genesis_test.go` (engine fixture): the engine decodes the engine
-  genesis and re-encodes exactly the same bytes, and it passes the engine's
-  genesis checks.
+- `genesis_build_tests.rs`, in both builds: each build's committed rehearsal
+  rebuilds byte for byte; derived values follow their rules (a basic transfer
+  pays the 1 DRT floor; the build's names; schema 2 controls under the upgrade
+  authority); and the refusals above. A development build also starts a chain
+  from its rehearsal; a production build refuses an unsigned start.
+- `threshold_genesis_signed_three_of_five` (`run_signed_fixture_tests.py
+  --production`): the production rehearsal, unchanged, opens on a production
+  build from a root genesis signed three of five, with its controls, the
+  emergency verifier and a runtime candidate, through InitChain and restart.
+- `rehearsal_genesis_test.go` (engine fixture): the engine decodes both
+  rehearsals' engine genesis and re-encodes exactly the same bytes, and they
+  pass the engine's genesis checks.
 - `test_resolve_genesis_inputs.py`: the committed inputs, resolution and
   synthetic records are current, every genesis-affecting E05 value is either
   resolved or derived, and the refusals above.
 
-The rehearsal in `tools/mainnet-preparation/fixtures/genesis-rehearsal/` uses
-59 approved values, 50 proposals, 5 measurement placeholders and synthetic
-records: invented holders, and public keys that are SHAKE-256 outputs, not
-key pairs.
+Two rehearsals are committed under `tools/mainnet-preparation/fixtures/`.
+Both use 61 approved values, 49 proposals, 9 measurement placeholders and
+synthetic records: invented holders, and public keys that are SHAKE-256
+outputs, not key pairs.
+
+- `genesis-rehearsal/`: the development build's, on `dytallix-rehearsal-1`.
+- `genesis-production-rehearsal/`: the production build's, on the staging
+  chain `dytallix-staging-1` (testnet addresses).
 
 ## Limits
 
-- **Development gates.** The node, engine and supervisors refuse production
-  values today ([production activation v1](../architecture/production-activation-v1.md)
-  is the approved design to change this): the consensus, lifecycle and penalty profiles are
-  local-qualification profiles; the emergency, upgrade and handover policies
-  must be `development_only`; the reward and issuance profiles must be
-  `development`; root genesis has only a development path; and the engine
-  refuses a chain ID naming mainnet or production. Production activation
-  changes these. Its node check that keeps a basic transfer between 0.1 and
-  10 DRT under governed fee changes is built (A6): the builder emits the
-  `reference_send_fee_udrt` bound, and the rehearsal's genesis profile
-  prices the reference Send at 1 DRT.
-- **Root controls.** The emergency, upgrade and handover sections are built
-  and pass configuration validation, but `--verify` starts the chain without
-  them, because they open only with the development root helper.
+- **Production values.** A production genesis also needs every open value
+  approved (the operating values, the measured windows and capacities) and
+  every record accepted (operators, custodians, genesis signers,
+  beneficiaries, chain identity).
+- **Root controls.** Development `--verify` starts the chain without the
+  emergency, upgrade and handover sections, because they open only with the
+  development root helper; configuration validation checks them. The signed
+  production test opens the production rehearsal with all three.
 - **Not produced:** the engine `config.toml`, the PQC transport file, the
   service configuration and the signed root genesis bundle.
-- **Binding review (E05-d2).** `check_bindings.py` now reviews the full
+- **Binding review (E05-d2, A7).** `check_bindings.py` reviews the full
   configuration, the engine genesis and the manifest independently of the
-  node (`config_checks.py`); on the rehearsal it passes with no errors and
-  stays BLOCKED, because production activation is unsupported.
+  node (`config_checks.py`), in either build's profiles: a configuration must
+  be wholly development or wholly production, and a production one must carry
+  all three root controls at schema 2. Both rehearsals pass with no errors
+  and stay BLOCKED, because their records are synthetic and the review does
+  not see the root signatures.

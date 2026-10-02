@@ -14,6 +14,16 @@ import native_checks as n
 I64_MAX = 2**63 - 1
 LIFECYCLE_PROFILE = 'cometbft-lifecycle-local-qualification'
 PENALTY_PROFILE = 'cometbft-penalty-local-qualification'
+# Each build's names (production activation v1, A1, A4): a configuration is
+# wholly development or wholly production, selected by its consensus profile.
+MODES = {
+    'development': {'consensus': (LIFECYCLE_PROFILE, PENALTY_PROFILE), 'lifecycle': LIFECYCLE_PROFILE,
+                    'penalty': PENALTY_PROFILE, 'monetary': 'development', 'production': False,
+                    'transition': 'continue_existing'},
+    'production': {'consensus': ('cometbft-production-v1',), 'lifecycle': 'cometbft-lifecycle-production-v1',
+                   'penalty': 'cometbft-production-v1', 'monetary': 'production', 'production': True,
+                   'transition': 'continue_previously_approved_rules'},
+}
 SECTIONS = ('lifecycle', 'penalty', 'recovery', 'ordinary', 'governance', 'emergency', 'upgrade', 'release_handover')
 BASE_FIELDS = 'profile engine chain_id app_state_sha256 gas_price max_tx_bytes max_block_bytes max_txs validators'.split()
 CONTROL_SIGNATURE_HEX = 2 * 29_792  # one hex SLH-DSA-SHAKE-256s signature
@@ -88,10 +98,17 @@ def validator_profile_digest(lifecycle):
     return hashlib.sha3_256(data).digest()
 
 
+def mode(config):
+    """The build mode a configuration's consensus profile names."""
+    found = [m for m in MODES.values() if config['profile'] in m['consensus']]
+    n.require(len(found) == 1 and config['engine'] == 'cometbft-v0.40.0', 'unsupported_consensus_profile')
+    return found[0]
+
+
 def lifecycle(config):
     life = config['lifecycle']
     n.exact(life, 'version profile chain_id approved_operators min_self_bond max_active evidence_max_age_blocks evidence_max_age_seconds processing_margin_blocks processing_margin_seconds')
-    n.require(life['version'] == 1 and life['profile'] == LIFECYCLE_PROFILE and life['chain_id'] == config['chain_id'], 'lifecycle_identity_mismatch')
+    n.require(life['version'] == 1 and life['profile'] == mode(config)['lifecycle'] and life['chain_id'] == config['chain_id'], 'lifecycle_identity_mismatch')
     operators = life['approved_operators']
     n.require(type(operators) is dict and 1 <= len(operators) <= 64, 'lifecycle_operator_bound')
     for validator, owner in operators.items(): n.identity(validator); n.identity(owner)
@@ -104,13 +121,15 @@ def lifecycle(config):
 
 
 def penalty(config):
-    if config['profile'] != PENALTY_PROFILE:
+    m = mode(config)
+    if config['profile'] != m['penalty']:
         n.require('penalty' not in config, 'penalty_without_penalty_profile'); return
     p = config['penalty']
     n.exact(p, 'version profile chain_id penalty_numerator penalty_denominator production_activation')
-    n.require(p['version'] == 1 and p['profile'] == PENALTY_PROFILE and p['chain_id'] == config['chain_id'], 'penalty_identity_mismatch')
+    n.require(p['version'] == 1 and p['profile'] == m['penalty'] and p['chain_id'] == config['chain_id'], 'penalty_identity_mismatch')
     n.require(0 < n.uint(p['penalty_numerator']) <= n.uint(p['penalty_denominator']), 'penalty_rate_bound')
-    n.require(p['production_activation'] is False, 'penalty_production_activation')
+    # Penalties v1 is complete; only a production build activates it.
+    n.require(p['production_activation'] is m['production'], 'penalty_production_activation')
 
 
 def recovery(config, app_digest):
@@ -266,12 +285,19 @@ def control_bound(config, policy, threshold):
 
 
 def root(config, app_digest):
+    m = mode(config)
+    # A production configuration carries all three root controls (P01, 1
+    # October 2026).
+    if m['production']:
+        n.require(all(k in config for k in ('emergency', 'upgrade', 'release_handover')), 'production_needs_every_root_control')
     if not any(k in config for k in ('emergency', 'upgrade', 'release_handover')): return False
     n.require('emergency' in config and ('release_handover' not in config or 'upgrade' in config), 'root_section_dependencies')
     e = config['emergency']
     n.require(set(e) in ({'schema', 'development_only', 'chain_id', 'release_sha512', 'initial_sequence', 'freeze_authority', 'resume_authority', 'max_control_bytes', 'max_signatures', 'automatic_transition_policy'}, {'schema', 'development_only', 'chain_id', 'release_sha512', 'initial_sequence', 'freeze_authority', 'resume_authority', 'max_control_bytes', 'max_signatures', 'automatic_transition_policy', 'v2'}), 'emergency_fields')
-    n.require(e['schema'] == (2 if 'v2' in e else 1) and e['chain_id'] == config['chain_id'] and HEX128.fullmatch(e['release_sha512']) is not None and e['automatic_transition_policy'] == 'continue_existing' and n.uint(e['initial_sequence']) >= 1, 'emergency_identity')
-    n.require(e['development_only'] is True, 'emergency_development_gate')
+    n.require(e['schema'] == (2 if 'v2' in e else 1) and e['chain_id'] == config['chain_id'] and HEX128.fullmatch(e['release_sha512']) is not None and e['automatic_transition_policy'] == m['transition'] and n.uint(e['initial_sequence']) >= 1, 'emergency_identity')
+    # Each build accepts only its own control policies (A4); production
+    # needs schema 2.
+    n.require(e['development_only'] is (not m['production']) and (not m['production'] or 'v2' in e), 'emergency_build_gate')
     freeze, t1 = authority(e, 'freeze_authority'); resume, t2 = authority(e, 'resume_authority')
     if 'v2' in e:
         v2 = e['v2']; n.exact(v2, 'genesis_sha256 authority_epoch max_validity_blocks max_anchor_age_blocks')
@@ -279,22 +305,40 @@ def root(config, app_digest):
         n.require(len(freeze) == len(resume) == 5 and t1 == t2 == 3 and not freeze & resume, 'emergency_v2_three_of_five')
     control_bound(config, e, max(t1, t2))
     emergency_keys = freeze | resume
+    upgrade_authority = None
     if 'upgrade' in config:
         u = config['upgrade']
-        n.exact(u, 'schema development_only chain_id genesis_sha256 source_release_sha512 authority_epoch authority initial_sequence max_control_bytes max_signatures migration_bounds')
-        n.require(u['schema'] == 1 and u['chain_id'] == config['chain_id'] and u['genesis_sha256'] == app_digest and u['source_release_sha512'] == e['release_sha512'] and positive(u['authority_epoch']) and n.uint(u['initial_sequence']) >= 1, 'upgrade_binding')
-        n.require(u['development_only'] is True, 'upgrade_development_gate')
+        if u.get('schema') == 2:
+            # Upgrade schema 2 (A3): five keys, three of five, a minimum
+            # notice and anchored windows; the build decides development use.
+            n.exact(u, 'schema chain_id genesis_sha256 initial_release_sha512 authority_epoch authority initial_sequence max_control_bytes max_signatures migration_bounds min_notice_blocks max_validity_blocks max_anchor_age_blocks')
+            n.require(u['chain_id'] == config['chain_id'] and u['genesis_sha256'] == app_digest and u['initial_release_sha512'] == e['release_sha512'] and positive(u['authority_epoch']) and n.uint(u['initial_sequence']) >= 1, 'upgrade_binding')
+            n.require(all(positive(u[k]) for k in ('min_notice_blocks', 'max_validity_blocks', 'max_anchor_age_blocks')), 'upgrade_v2_windows')
+        else:
+            n.exact(u, 'schema development_only chain_id genesis_sha256 source_release_sha512 authority_epoch authority initial_sequence max_control_bytes max_signatures migration_bounds')
+            n.require(u['schema'] == 1 and u['chain_id'] == config['chain_id'] and u['genesis_sha256'] == app_digest and u['source_release_sha512'] == e['release_sha512'] and positive(u['authority_epoch']) and n.uint(u['initial_sequence']) >= 1, 'upgrade_binding')
+            n.require(u['development_only'] is True and not m['production'], 'upgrade_build_gate')
         keys, threshold = authority(u, 'authority')
+        if u['schema'] == 2: n.require(len(keys) == 5 and threshold == 3, 'upgrade_v2_three_of_five')
         # Upgrade custodians are a separate group (D11-Q03, P01, 30 September 2026).
         n.require(not keys & emergency_keys, 'upgrade_key_holds_emergency_role')
         control_bound(config, u, threshold)
-        m = u['migration_bounds']; n.exact(m, 'max_receipts max_receipt_bytes max_write_bytes')
-        for value in m.values(): positive(value)
+        mb = u['migration_bounds']; n.exact(mb, 'max_receipts max_receipt_bytes max_write_bytes')
+        for value in mb.values(): positive(value)
+        upgrade_authority = (u['authority'], u['authority_epoch'])
+        release = u['initial_release_sha512'] if u['schema'] == 2 else u['source_release_sha512']
     if 'release_handover' in config:
         h = config['release_handover']
-        n.exact(h, 'schema development_only chain_id genesis_sha256 initial_release_sha512 initial_schema authority_epoch authority initial_sequence max_control_bytes max_signatures')
-        n.require(h['schema'] == 1 and h['chain_id'] == config['chain_id'] and h['genesis_sha256'] == app_digest and h['initial_release_sha512'] == config['upgrade']['source_release_sha512'] and h['initial_schema'] == 0 and positive(h['authority_epoch']) and n.uint(h['initial_sequence']) >= 1, 'handover_binding')
-        n.require(h['development_only'] is True, 'handover_development_gate')
+        fields = 'schema development_only chain_id genesis_sha256 initial_release_sha512 initial_schema authority_epoch authority initial_sequence max_control_bytes max_signatures'
+        n.exact(h, fields + (' v2' if h.get('schema') == 2 else ''))
+        n.require(h['schema'] in (1, 2) and h['chain_id'] == config['chain_id'] and h['genesis_sha256'] == app_digest and h['initial_release_sha512'] == release and h['initial_schema'] == 0 and positive(h['authority_epoch']) and n.uint(h['initial_sequence']) >= 1, 'handover_binding')
+        n.require(h['development_only'] is (not m['production']) and (not m['production'] or h['schema'] == 2), 'handover_build_gate')
+        if h['schema'] == 2:
+            v2 = h['v2']; n.exact(v2, 'min_notice_blocks max_validity_blocks max_anchor_age_blocks')
+            n.require(all(positive(v2[k]) for k in v2), 'handover_v2_windows')
+            # The upgrade custodians control handover (P01, 30 September 2026):
+            # schema 2 pairs with upgrade schema 2 under the same authority.
+            n.require(config['upgrade']['schema'] == 2 and (h['authority'], h['authority_epoch']) == upgrade_authority, 'handover_authority_differs_from_upgrade')
         _, threshold = authority(h, 'authority')
         control_bound(config, h, threshold)
     return True
@@ -316,8 +360,10 @@ def stake(config, genesis, state, recovery_addresses):
 
 def review(config, genesis, native_raw, state):
     """Review a configuration with lifecycle, penalties, recovery and ordinary v2. Returns the sections reviewed."""
-    n.require(config['profile'] in (LIFECYCLE_PROFILE, PENALTY_PROFILE) and config['engine'] == 'cometbft-v0.40.0', 'unsupported_consensus_profile')
+    m = mode(config)
     n.require(set(config) <= set(BASE_FIELDS) | set(SECTIONS) and set(BASE_FIELDS) <= set(config), 'application_fields')
+    # The native genesis carries the same build's monetary profiles.
+    n.require(genesis['reward_v2']['profile'] == genesis['adaptive_issuance']['profile'] == m['monetary'], 'monetary_profile_differs_from_build')
     n.require(all(k in config for k in ('lifecycle', 'recovery', 'ordinary')), 'extended_profile_needs_lifecycle_recovery_and_ordinary')
     app_digest = hashlib.sha256(native_raw).hexdigest()
     lifecycle(config)
@@ -355,9 +401,12 @@ def engine(raw, native_raw, config):
     return doc
 
 
-def manifest(document, files):
-    """Check a builder manifest against the supplied file bytes."""
-    n.require(document.get('schema') == 'dytallix.genesis-build-manifest.v1' and document.get('production') is False, 'manifest_schema_or_production_flag')
+def manifest(document, files, config=None):
+    """Check a builder manifest against the supplied file bytes and, when
+    given, the configuration's build mode."""
+    production = mode(config)['production'] if config is not None else document.get('production')
+    n.require(document.get('schema') == 'dytallix.genesis-build-manifest.v1' and document.get('production') is production
+              and document.get('mode') == ('production' if production else 'rehearsal'), 'manifest_schema_or_production_flag')
     listed = document['files']
     n.require(set(listed) == set(files), 'manifest_file_set')
     build = hashlib.sha256(b'DYTALLIX/GENESIS-BUILD/v1\0')

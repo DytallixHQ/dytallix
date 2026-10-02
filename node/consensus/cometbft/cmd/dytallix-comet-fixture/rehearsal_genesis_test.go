@@ -18,9 +18,20 @@ import (
 // engine must decode it and re-encode exactly the same bytes, with the native
 // genesis carried unchanged as app_state, and it must pass the engine's own
 // genesis checks.
-const rehearsalDir = "../../../../tools/mainnet-preparation/fixtures/genesis-rehearsal"
+// The production-profile rehearsal on the staging chain (production
+// activation v1, A7) is checked the same way.
+var rehearsalDirs = []string{
+	"../../../../tools/mainnet-preparation/fixtures/genesis-rehearsal",
+	"../../../../tools/mainnet-preparation/fixtures/genesis-production-rehearsal",
+}
 
 func TestRehearsalGenesisIsTheEngineEncoding(t *testing.T) {
+	for _, dir := range rehearsalDirs {
+		t.Run(filepath.Base(dir), func(t *testing.T) { checkRehearsalGenesis(t, dir) })
+	}
+}
+
+func checkRehearsalGenesis(t *testing.T, rehearsalDir string) {
 	raw, err := os.ReadFile(filepath.Join(rehearsalDir, "genesis.json"))
 	if err != nil {
 		t.Fatal(err)

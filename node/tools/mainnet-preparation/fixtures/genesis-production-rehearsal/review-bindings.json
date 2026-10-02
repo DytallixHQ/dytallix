@@ -3,11 +3,11 @@
   "public_documents": [
     {
       "document": {
-        "address": "dytallix1qyq6f28jtm96wmdcht9037y2327dq76kd0hjemgwz8xm2zk7alqp34cwpkcst",
+        "address": "tdytallix1qyq50zx3zvme0ceayh82lal0734ulv5p94jr0kfj9v22akp6qv3uapgk59w7d",
         "kind": "account"
       },
       "reference": "account:ecosystem-growth",
-      "sha256": "fe7e2a1d1b5065c9f1dc766651a104700dba61169577203fd71be53d2e6bfec6"
+      "sha256": "92e9a03f3eebd02eba489ed55177dd1dd960f4602ad4363c9fc50bbc1274388c"
     },
     {
       "document": {
@@ -21,11 +21,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyqc7gj762kwzphgnhd6dlfc42aa4709rk8sqhyqs86yn680lr5gyzcdk04f2",
+        "address": "tdytallix1qyqkrj8gyyyfywx86jd33u9tfhmkcf8mfsnkq0xdqf8xgtssmxvv32qmqn24s",
         "kind": "account"
       },
       "reference": "account:team-and-advisors",
-      "sha256": "8b72bd9cb72e683457d5f5fe2e32a165596ba76c8ecf329530d1824874ed8e71"
+      "sha256": "abc203b9a9b16c3c10e3664fb2bed133b7025b4975956dd0e58edb919587c064"
     },
     {
       "document": {
@@ -44,11 +44,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyqmyv3mw37pzsu04m4na7kucefflhz08cp20jmd0e5qqnunjjt3s5gec2meu",
+        "address": "tdytallix1qyqe0pauvlkakd0xylyyekq45kp9p9vkw5rwlq882unhjvkzuklm9cc6rjxcc",
         "kind": "account"
       },
       "reference": "account:public-sale",
-      "sha256": "94cb4dfc2048c39c52a8c0d5f79ca0e9310f51eb97ff51e81ade23050c55f861"
+      "sha256": "fd297762d32d063281e3d6395c4adb5a044516df34e1506c9023e5ce1ce6e8e4"
     },
     {
       "document": {
@@ -62,11 +62,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyqla8pp7ce3y4v0p7pahg52vydhh37n5yzy698cqprzmg2e2h36p8shsvj85",
+        "address": "tdytallix1qyqa8ep4haqyrhz4r28hsp6ujj3dt7u3p6xmthsnpt4svmye2t298ush772nl",
         "kind": "account"
       },
       "reference": "account:private-sale",
-      "sha256": "bdaaa722c5bc9331e820e7830a7973d67a37706f32b939346a3dbf8691bb207d"
+      "sha256": "1c9650ed5daf7ff7c4edb70e1bbdd5c8d30507e1f5b96161b67f989fa9555047"
     },
     {
       "document": {
@@ -80,11 +80,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyq5kcdl75d7hdu2dqq6mqsvhultxpdsvk28m55ct0qq9nznze7g8ks5qcaf6",
+        "address": "tdytallix1qyqu8vafqrxl4glz7fwqyje8yden320xy9fnh73nn2d7kspwj6amghsv5hz0a",
         "kind": "account"
       },
       "reference": "account:reserve",
-      "sha256": "59c83de6f17b8b1596690437cbfe3a10d1c3dbc831d9c1a87c75a983307d4a88"
+      "sha256": "38ff32ef7736bf3da8290e7fca96fe147b9ae2b7f30c82268f2eecabec0417c6"
     },
     {
       "document": {
@@ -98,11 +98,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyqa7zq0m6hwn5auxydmwgq7vmu29hujepj7zwr7p08ggnpnklrkf9cj9sqqg",
+        "address": "tdytallix1qyqag8m2cp2h0mlc2zyrh78aszgrce9xan8c4klcf7u0phyefwej5sgd8y9el",
         "kind": "account"
       },
       "reference": "account:operator-1",
-      "sha256": "cca2b1e28c3ac15f063c08c03e01fc1a9facf5d3bfd7e24f6a11976a28ba3809"
+      "sha256": "551e08f73f0576bdbaca4ce5a19f92e27e8882f9817d8726b59b1346a204c936"
     },
     {
       "document": {
@@ -116,11 +116,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyqn88g24z9hy3va7v2093ateqrfzu8mzhrxdeef8f62aeya7z7z73qtq7x99",
+        "address": "tdytallix1qyqjsj88vkdfmtlmq7klyfdknepqhlc4l8jtz5grvy2wwkl9zprz5hsu6nxg9",
         "kind": "account"
       },
       "reference": "account:operator-2",
-      "sha256": "0fe59040332e342065079a13ef502fa35c362ae75ac7a84ecb6bf1c754aa96bb"
+      "sha256": "84133c14b6be8ea72a1e0ea63887886b6f2ed93fe96da32c6eb06f0d09ac6a06"
     },
     {
       "document": {
@@ -134,11 +134,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyqlu6xtpjuuqqk4nxkc562dgfctfuuu6sqkm0x2mzwkqdnmgkd3wmqren34h",
+        "address": "tdytallix1qyq4efvj9544z2mxfj787s854e5lwk462kqrfau9h65te8eet46c7es4u9zf8",
         "kind": "account"
       },
       "reference": "account:operator-3",
-      "sha256": "33215a001c3923855e5100c1a182d71dfedb7725384c8ed4fd22eff7e3244b2a"
+      "sha256": "0aaedd5a2a78ddfcf31bceaa75492e14dec91162d7c6d1b20588bd261a2d4b1a"
     },
     {
       "document": {
@@ -152,11 +152,11 @@
     },
     {
       "document": {
-        "address": "dytallix1qyqkdus53y4euuv4vf37ns6m05q4k086elr4d9njprwzx8ldrv2cmwggyr7ne",
+        "address": "tdytallix1qyqk5wp5xa9zwzpt0yhv2hwqurvgzl0q7kee2saymx22vujfpn82g5gqq8k5g",
         "kind": "account"
       },
       "reference": "account:operator-4",
-      "sha256": "56e7f2093befb9b0ca041bab15909c5bc89cc1b36ae629aa33fc4ec2adfe13d0"
+      "sha256": "4947d9be519cff392a4dbd7cf9bb3eb4ea24789403ad6fa4ad9b65f65cf76525"
     },
     {
       "document": {
@@ -206,65 +206,65 @@
     },
     {
       "document": {
-        "chain_id": "dytallix-rehearsal-1",
+        "chain_id": "dytallix-staging-1",
         "kind": "identity_policy"
       },
-      "reference": "identity:dytallix-rehearsal-1",
-      "sha256": "12303b7abb48135154edd907a59f42c7402ae36413134e44f59e73f8a6b96830"
+      "reference": "identity:dytallix-staging-1",
+      "sha256": "57e7764c54ee9cbfebb0e5e349eb8ed55996cf9f6d46f8eea3bb90859d804b1a"
     }
   ],
   "runtime_inputs": {
     "account_bindings": [
       {
-        "address": "dytallix1qyq6f28jtm96wmdcht9037y2327dq76kd0hjemgwz8xm2zk7alqp34cwpkcst",
+        "address": "tdytallix1qyq50zx3zvme0ceayh82lal0734ulv5p94jr0kfj9v22akp6qv3uapgk59w7d",
         "allocation_row": 0,
         "bootstrap_rows": [
           0
         ]
       },
       {
-        "address": "dytallix1qyqc7gj762kwzphgnhd6dlfc42aa4709rk8sqhyqs86yn680lr5gyzcdk04f2",
+        "address": "tdytallix1qyqkrj8gyyyfywx86jd33u9tfhmkcf8mfsnkq0xdqf8xgtssmxvv32qmqn24s",
         "allocation_row": 1,
         "bootstrap_rows": []
       },
       {
-        "address": "dytallix1qyqmyv3mw37pzsu04m4na7kucefflhz08cp20jmd0e5qqnunjjt3s5gec2meu",
+        "address": "tdytallix1qyqe0pauvlkakd0xylyyekq45kp9p9vkw5rwlq882unhjvkzuklm9cc6rjxcc",
         "allocation_row": 2,
         "bootstrap_rows": []
       },
       {
-        "address": "dytallix1qyqla8pp7ce3y4v0p7pahg52vydhh37n5yzy698cqprzmg2e2h36p8shsvj85",
+        "address": "tdytallix1qyqa8ep4haqyrhz4r28hsp6ujj3dt7u3p6xmthsnpt4svmye2t298ush772nl",
         "allocation_row": 3,
         "bootstrap_rows": []
       },
       {
-        "address": "dytallix1qyq5kcdl75d7hdu2dqq6mqsvhultxpdsvk28m55ct0qq9nznze7g8ks5qcaf6",
+        "address": "tdytallix1qyqu8vafqrxl4glz7fwqyje8yden320xy9fnh73nn2d7kspwj6amghsv5hz0a",
         "allocation_row": 4,
         "bootstrap_rows": []
       },
       {
-        "address": "dytallix1qyqa7zq0m6hwn5auxydmwgq7vmu29hujepj7zwr7p08ggnpnklrkf9cj9sqqg",
+        "address": "tdytallix1qyqag8m2cp2h0mlc2zyrh78aszgrce9xan8c4klcf7u0phyefwej5sgd8y9el",
         "allocation_row": 5,
         "bootstrap_rows": [
           1
         ]
       },
       {
-        "address": "dytallix1qyqn88g24z9hy3va7v2093ateqrfzu8mzhrxdeef8f62aeya7z7z73qtq7x99",
+        "address": "tdytallix1qyqjsj88vkdfmtlmq7klyfdknepqhlc4l8jtz5grvy2wwkl9zprz5hsu6nxg9",
         "allocation_row": 6,
         "bootstrap_rows": [
           2
         ]
       },
       {
-        "address": "dytallix1qyqlu6xtpjuuqqk4nxkc562dgfctfuuu6sqkm0x2mzwkqdnmgkd3wmqren34h",
+        "address": "tdytallix1qyq4efvj9544z2mxfj787s854e5lwk462kqrfau9h65te8eet46c7es4u9zf8",
         "allocation_row": 7,
         "bootstrap_rows": [
           3
         ]
       },
       {
-        "address": "dytallix1qyqkdus53y4euuv4vf37ns6m05q4k086elr4d9njprwzx8ldrv2cmwggyr7ne",
+        "address": "tdytallix1qyqk5wp5xa9zwzpt0yhv2hwqurvgzl0q7kee2saymx22vujfpn82g5gqq8k5g",
         "allocation_row": 8,
         "bootstrap_rows": [
           4
@@ -274,7 +274,7 @@
     "approval_bundle": null,
     "chain_id": {
       "identity_record_row": 0,
-      "value": "dytallix-rehearsal-1"
+      "value": "dytallix-staging-1"
     },
     "consensus_configuration": null,
     "genesis_time": "2027-01-01T00:00:00Z",
@@ -360,40 +360,40 @@
       "activation_height": 1,
       "ballot": {
         "approval_bps": 5000,
-        "chain_id": "dytallix-rehearsal-1",
+        "chain_id": "dytallix-staging-1",
         "genesis_digest": [
-          124,
-          210,
-          205,
-          219,
-          242,
-          153,
-          71,
-          86,
-          38,
-          165,
-          13,
-          183,
-          145,
-          234,
-          177,
-          91,
-          54,
-          208,
-          16,
-          233,
-          115,
-          101,
-          117,
-          39,
-          35,
-          135,
-          81,
-          196,
+          172,
+          25,
+          46,
           156,
-          28,
-          78,
-          209
+          15,
+          243,
+          200,
+          184,
+          165,
+          10,
+          83,
+          242,
+          180,
+          6,
+          57,
+          6,
+          17,
+          182,
+          135,
+          202,
+          45,
+          42,
+          37,
+          50,
+          253,
+          234,
+          23,
+          5,
+          152,
+          133,
+          59,
+          45
         ],
         "max_voters": 10000,
         "quorum_bps": 3340,
@@ -402,7 +402,7 @@
         "veto_bps": 3340,
         "voting_period_blocks": 120960
       },
-      "chain_id": "dytallix-rehearsal-1",
+      "chain_id": "dytallix-staging-1",
       "deposit": {
         "deposit_period_blocks": 120960,
         "max_action_bytes": 16384,
@@ -466,38 +466,38 @@
             "mldsa65": "20000"
           },
           "validator_proof_profile_digest": [
-            146,
-            158,
-            137,
-            175,
-            252,
-            202,
-            217,
-            106,
-            88,
-            186,
-            10,
-            219,
-            194,
-            185,
+            0,
+            242,
+            20,
+            224,
+            183,
+            161,
+            233,
+            141,
+            196,
+            3,
+            69,
+            177,
+            85,
+            150,
+            85,
+            176,
+            67,
+            229,
+            254,
+            96,
+            105,
+            247,
+            124,
+            132,
+            160,
+            187,
             205,
-            65,
-            129,
-            210,
-            175,
-            215,
-            95,
-            153,
-            216,
-            230,
-            216,
-            126,
-            135,
-            198,
-            111,
-            63,
-            190,
-            42
+            172,
+            239,
+            55,
+            67,
+            45
           ],
           "version": "1",
           "wire_byte_cost": "2",
@@ -512,38 +512,38 @@
         "version": "1"
       },
       "genesis_digest": [
-        124,
-        210,
-        205,
-        219,
-        242,
-        153,
-        71,
-        86,
-        38,
-        165,
-        13,
-        183,
-        145,
-        234,
-        177,
-        91,
-        54,
-        208,
-        16,
-        233,
-        115,
-        101,
-        117,
-        39,
-        35,
-        135,
-        81,
-        196,
+        172,
+        25,
+        46,
         156,
-        28,
-        78,
-        209
+        15,
+        243,
+        200,
+        184,
+        165,
+        10,
+        83,
+        242,
+        180,
+        6,
+        57,
+        6,
+        17,
+        182,
+        135,
+        202,
+        45,
+        42,
+        37,
+        50,
+        253,
+        234,
+        23,
+        5,
+        152,
+        133,
+        59,
+        45
       ],
       "parameter_bounds": {
         "account_creation_fee_udrt": {
@@ -599,7 +599,7 @@
       "epoch_blocks": 17280,
       "initial_epoch_budget_udrt": "17280000000000",
       "max_recorded_epochs": 365,
-      "profile": "development",
+      "profile": "production",
       "version": 1
     },
     "network_configuration": null,
@@ -610,32 +610,32 @@
       "max_validators": 32,
       "positions": [
         {
-          "amount_udgt": "1000000000000",
-          "owner": "dytallix1qyq6f28jtm96wmdcht9037y2327dq76kd0hjemgwz8xm2zk7alqp34cwpkcst",
-          "validator": "validator-1"
-        },
-        {
           "amount_udgt": "100000000000",
-          "owner": "dytallix1qyqa7zq0m6hwn5auxydmwgq7vmu29hujepj7zwr7p08ggnpnklrkf9cj9sqqg",
-          "validator": "validator-1"
-        },
-        {
-          "amount_udgt": "100000000000",
-          "owner": "dytallix1qyqkdus53y4euuv4vf37ns6m05q4k086elr4d9njprwzx8ldrv2cmwggyr7ne",
-          "validator": "validator-4"
-        },
-        {
-          "amount_udgt": "100000000000",
-          "owner": "dytallix1qyqlu6xtpjuuqqk4nxkc562dgfctfuuu6sqkm0x2mzwkqdnmgkd3wmqren34h",
+          "owner": "tdytallix1qyq4efvj9544z2mxfj787s854e5lwk462kqrfau9h65te8eet46c7es4u9zf8",
           "validator": "validator-3"
         },
         {
+          "amount_udgt": "1000000000000",
+          "owner": "tdytallix1qyq50zx3zvme0ceayh82lal0734ulv5p94jr0kfj9v22akp6qv3uapgk59w7d",
+          "validator": "validator-1"
+        },
+        {
           "amount_udgt": "100000000000",
-          "owner": "dytallix1qyqn88g24z9hy3va7v2093ateqrfzu8mzhrxdeef8f62aeya7z7z73qtq7x99",
+          "owner": "tdytallix1qyqag8m2cp2h0mlc2zyrh78aszgrce9xan8c4klcf7u0phyefwej5sgd8y9el",
+          "validator": "validator-1"
+        },
+        {
+          "amount_udgt": "100000000000",
+          "owner": "tdytallix1qyqjsj88vkdfmtlmq7klyfdknepqhlc4l8jtz5grvy2wwkl9zprz5hsu6nxg9",
           "validator": "validator-2"
+        },
+        {
+          "amount_udgt": "100000000000",
+          "owner": "tdytallix1qyqk5wp5xa9zwzpt0yhv2hwqurvgzl0q7kee2saymx22vujfpn82g5gqq8k5g",
+          "validator": "validator-4"
         }
       ],
-      "profile": "development",
+      "profile": "production",
       "validators": [
         {
           "active": true,
@@ -682,9 +682,9 @@
   },
   "schema_version": 1,
   "source_digests": {
-    "application_config_sha256": "efa75926a72572db4b9bc36a3e5a7bfc85008ba4c40bb6edd273bd38691322f2",
-    "engine_genesis_sha256": "53937d46de27d8387d6b23347b70df6363b8bdeb03d4f872e9ef00092bd96b39",
-    "native_genesis_sha256": "7cd2cddbf299475626a50db791eab15b36d010e973657527238751c49c1c4ed1",
-    "records_sha256": "cb10ca85bdef4d7e0f749c045c5c9114ba6b24a7d49a3b28ea0374d253333bb4"
+    "application_config_sha256": "2a2ed174aa7e8dcd9286264be55a2c1e8c872f18994b55e077d515aff5d4c663",
+    "engine_genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+    "native_genesis_sha256": "ac192e9c0ff3c8b8a50a53f2b406390611b687ca2d2a2532fdea170598853b2d",
+    "records_sha256": "48e3fdff4035a55bcb752d81a327017371d25fc00ca5a9504064f8d55738d9f6"
   }
 }

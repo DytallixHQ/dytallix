@@ -88,7 +88,7 @@
     }
   ],
   "boundary": "Invented rehearsal records. Not beneficiaries, operators, custodians, keys or a chain identity. Replace every row with accepted records before any production build.",
-  "chain_id": "dytallix-rehearsal-1",
+  "chain_id": "dytallix-staging-1",
   "delegations": [
     {
       "account": "ecosystem-growth",
@@ -107,7 +107,7 @@
       "class": 2
     }
   ],
-  "network": "mainnet",
+  "network": "testnet",
   "root": {
     "emergency": {
       "authority_epoch": 1,

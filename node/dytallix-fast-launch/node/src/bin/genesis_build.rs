@@ -1,12 +1,14 @@
-//! Deterministic genesis builder (E05-d), rehearsal only.
+//! Deterministic genesis builder (E05-d; production mode A7).
 //!
 //! `dytallix-genesis-build --inputs GENESIS_INPUTS.json --out DIR [--verify]`
 //!
 //! Writes `native-genesis.json`, `application-config.json`, `genesis.json`
 //! (the engine genesis) and `BUILD_MANIFEST.json` into DIR, which must not
-//! exist. The same inputs always give the same bytes. `--verify` also starts
-//! a chain from the build on a temporary database and prints its genesis
-//! application hash. The output is never a production genesis.
+//! exist. The same inputs always give the same bytes. A development build
+//! writes the rehearsal mode and a production build the production mode.
+//! `--verify` (development builds) also starts a chain from the build on a
+//! temporary database and prints its genesis application hash; a production
+//! genesis opens only from its signed root genesis. Building accepts nothing.
 use anyhow::{bail, ensure, Context, Result};
 use dytallix_fast_node::genesis_build::{build, read_inputs, verify};
 use serde_json::json;
@@ -66,7 +68,8 @@ fn run() -> Result<serde_json::Value> {
     let manifest: serde_json::Value = serde_json::from_slice(&built.manifest)?;
     Ok(json!({
         "status": "BUILT",
-        "production": false,
+        "mode": manifest["mode"],
+        "production": manifest["production"],
         "build_digest": manifest["build_digest"],
         "verified_app_hash": app_hash,
     }))
