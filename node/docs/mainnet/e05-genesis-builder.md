@@ -118,8 +118,8 @@ controls, a genesis beyond its reader's bound, and any unknown input field.
   resolved or derived, and the refusals above.
 
 Two rehearsals are committed under `tools/mainnet-preparation/fixtures/`.
-Both use 61 approved values, 49 proposals, 9 measurement placeholders and
-synthetic records: invented holders, and public keys that are SHAKE-256
+Both use 110 approved values, 9 measurement placeholders and synthetic
+records: invented holders, and public keys that are SHAKE-256
 outputs, not key pairs.
 
 - `genesis-rehearsal/`: the development build's, on `dytallix-rehearsal-1`.

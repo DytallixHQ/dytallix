@@ -23,9 +23,11 @@
       "couplings": "emergency/upgrade/handover max_control_bytes <= max_tx_bytes (node/dytallix-fast-launch/node/src/consensus_settlement.rs:239-243, 257-261, 292-296); ordinary.max_transport_bytes <= max_tx_bytes (:345-349). The Go fixture sets engine mempool.max_tx_bytes to the same constant (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:37-38,232) but no code compares the engine and application values.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 262144,
+      "basis": "The code maximum; a root control needs three hex SLH-DSA signatures (178,752 bytes) plus its payload.",
+      "approved": 262144,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "app_max_block_bytes",
@@ -39,9 +41,11 @@
       "couplings": "Block byte check (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2608); proposal limit is min(engine max tx bytes, max_block_bytes) (:3704-3706); issuance utilization capacity = epoch_blocks x max_block_bytes (:2555-2557). Not compared with engine consensus_params.block.max_bytes.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1048576,
+      "basis": "The code maximum; the engine block bound is the same.",
+      "approved": 1048576,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "app_max_txs",
@@ -55,9 +59,11 @@
       "couplings": "Block transaction count check (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2595).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000,
+      "basis": "The code maximum.",
+      "approved": 1000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "app_pinned_gas_price",
@@ -299,9 +305,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 2000000,
+      "basis": "Twenty times the 100,000 floor.",
+      "approved": 2000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_max_block_gas",
@@ -315,9 +323,11 @@
       "couplings": "Recovery ceiling in the shared block meter (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2053-2069).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 20000000,
+      "basis": "Ten maximal recovery transactions a block.",
+      "approved": 20000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_max_block_recovery_bytes",
@@ -331,9 +341,11 @@
       "couplings": "Shared meter recovery ceiling (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2060-2065).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000000,
+      "basis": "Under the 1 MiB block.",
+      "approved": 1000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_max_block_recovery_signatures",
@@ -347,9 +359,11 @@
       "couplings": "Shared meter recovery ceiling.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 100,
+      "basis": "Recovery is rare; bounds signature work a block.",
+      "approved": 100,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_max_fee_cap",
@@ -379,9 +393,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": "Accounts with a recovery in progress at once.",
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_max_due_expiry_events_per_height",
@@ -395,9 +411,11 @@
       "couplings": "Runtime requires events x expiry_event_gas_cost <= mandatory_expiry_gas_budget per height (node/dytallix-fast-launch/node/src/recovery_fees.rs:574-579); not checked when the profile is loaded.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 100,
+      "basis": "Equals the expiry budget divided by the event cost.",
+      "approved": 100,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_mandatory_expiry_gas_budget",
@@ -411,9 +429,11 @@
       "couplings": "Shared meter mandatory_expiry_gas (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2060-2066).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000000,
+      "basis": "One hundred expiry events a block at 10,000 gas each.",
+      "approved": 1000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_expiry_event_gas_cost",
@@ -427,9 +447,11 @@
       "couplings": "See max_due_expiry_events_per_height.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": "Charged to the shared expiry counter, not to users.",
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "recovery_action_costs",
@@ -609,9 +631,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 2000000,
+      "basis": "Room above the 100,000 floor for staking and validator transactions that write shared state; the fee cap follows at the highest governed price.",
+      "approved": 2000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_block_transaction_gas",
@@ -625,9 +649,11 @@
       "couplings": "Shared block meter limit (node/dytallix-fast-launch/node/src/ordinary_meter.rs:185-190). Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 50000000,
+      "basis": "About a thousand basic Sends by gas; bytes and signature checks bind first.",
+      "approved": 50000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_block_transaction_bytes",
@@ -641,9 +667,11 @@
       "couplings": "Shared meter byte limit. Not compared with app max_block_bytes. Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000000,
+      "basis": "Under the 1 MiB block; about 180 basic Sends.",
+      "approved": 1000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_block_signature_checks",
@@ -657,9 +685,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 200,
+      "basis": "Bounds signature work a block.",
+      "approved": 200,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_fee_cap",
@@ -689,9 +719,11 @@
       "couplings": "Transport carries the envelope as base64 inside JSON, limited to max_transport_bytes (node/dytallix-fast-launch/node/src/ordinary_transport.rs:24-35); no check that ceil(max_wire_bytes/3)*4 plus the JSON wrapper fits max_transport_bytes. Governance max_governance_action_bytes <= max_wire_bytes (node/crates/protocol-types/src/ordinary_v3.rs:52-58). queue_max_wire_bytes not checked >= it. Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 65536,
+      "basis": "Its base64 transport (87,427 bytes) fits a transaction.",
+      "approved": 65536,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_actions",
@@ -705,9 +737,11 @@
       "couplings": "Queue reserves 2 x max_actions debits per entry (node/dytallix-fast-launch/node/src/ordinary_state.rs:292-294). Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 16,
+      "basis": "Actions in one transaction.",
+      "approved": 16,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_identifier_bytes",
@@ -721,9 +755,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 128,
+      "basis": "Identifiers such as validator IDs.",
+      "approved": 128,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_data_bytes",
@@ -737,9 +773,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 4096,
+      "basis": "Data actions.",
+      "approved": 4096,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_memo_bytes",
@@ -753,9 +791,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1024,
+      "basis": "Memos.",
+      "approved": 1024,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_consensus_key_bytes",
@@ -769,9 +809,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 4096,
+      "basis": "Above the 1,952-byte ML-DSA-65 key.",
+      "approved": 4096,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_proof_bytes",
@@ -785,9 +827,11 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 8192,
+      "basis": "Above the 3,309-byte ML-DSA-65 proof.",
+      "approved": 8192,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_expiry_lifetime",
@@ -801,9 +845,11 @@
       "couplings": "Block-record retention span >= max_expiry_lifetime (node/dytallix-fast-launch/node/src/consensus_settlement.rs:1028-1030); mempool expiry rule (node/docs/architecture/mempool-v1.md rule 6). Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 240,
+      "basis": "20 minutes; 240 blocks of 200 signature checks stay within 65,536 retained receipts.",
+      "approved": 240,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_allowed_algorithms",
@@ -817,9 +863,15 @@
       "couplings": "Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Named value (algorithm set), not numeric. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": [
+        "mldsa65"
+      ],
+      "basis": "Mainnet accepts ML-DSA-65 only.",
+      "approved": [
+        "mldsa65"
+      ],
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_transaction_overhead",
@@ -1029,9 +1081,11 @@
       "couplings": "Enforced on encode and parse (node/dytallix-fast-launch/node/src/ordinary_state.rs:529-533, 567-571).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 64000000,
+      "basis": "Receipts, grants and fee profiles.",
+      "approved": 64000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_grants",
@@ -1045,9 +1099,11 @@
       "couplings": "Enforced on state (node/dytallix-fast-launch/node/src/ordinary_state.rs:523).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": "Discretionary grants.",
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_receipts",
@@ -1061,9 +1117,11 @@
       "couplings": "Enforced on state (node/dytallix-fast-launch/node/src/ordinary_state.rs:510).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 65536,
+      "basis": "The code maximum.",
+      "approved": 65536,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_retained_profiles",
@@ -1077,9 +1135,11 @@
       "couplings": "Governance needs room for the old and new profile.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 8,
+      "basis": "Governance needs at least two.",
+      "approved": 8,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "ordinary_max_transport_bytes",
@@ -1157,9 +1217,11 @@
       "couplings": "",
       "notes": "Each genesis recovery account carries its own RecoveryConfig; no code comparing it with the template was found. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1,
+      "basis": "The first timing version.",
+      "approved": 1,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "template_recovery_delay",
@@ -1263,9 +1325,15 @@
       "couplings": "Named value.",
       "notes": "Each genesis recovery account carries its own RecoveryConfig; no code comparing it with the template was found. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": {
+        "mldsa65": 1952
+      },
+      "basis": "Mainnet accounts use ML-DSA-65 only.",
+      "approved": {
+        "mldsa65": 1952
+      },
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "governance_activation_height",
@@ -1295,9 +1363,11 @@
       "couplings": "fee_profile.base must equal ordinary.fee_profile (node/dytallix-fast-launch/node/src/consensus_settlement.rs:361-367).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 16384,
+      "basis": "Equal to the deposit bound, as the node requires.",
+      "approved": 16384,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "governance_action_costs",
@@ -1427,9 +1497,11 @@
       "couplings": "Snapshot bound (node/dytallix-fast-launch/node/src/runtime/governance_store.rs:733, 1126).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": "At least the reward position bound.",
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "deposit_period_blocks",
@@ -1479,9 +1551,11 @@
       "couplings": "",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 16384,
+      "basis": "Parameter changes and validator registry actions are small.",
+      "approved": 16384,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "max_depositors",
@@ -1495,9 +1569,11 @@
       "couplings": "Enforced in governance_store.rs:260, 827.",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000,
+      "basis": "Depositors on one proposal.",
+      "approved": 1000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "class_parameter_change_max_data_bytes",
@@ -1511,9 +1587,11 @@
       "couplings": "approval_digest for the class is a record (excluded).",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 16384,
+      "basis": "Up to the action bound.",
+      "approved": 16384,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "class_validator_registry_max_data_bytes",
@@ -1527,9 +1605,11 @@
       "couplings": "",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 16384,
+      "basis": "Up to the action bound.",
+      "approved": 16384,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "bounds_gas_price",
@@ -1860,9 +1940,11 @@
       "couplings": "",
       "notes": "Schema 1 is development-only (node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs:62-65); production needs schema 2 (not implemented). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000000,
+      "basis": "Bounds one state migration.",
+      "approved": 1000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "migration_max_receipt_bytes",
@@ -1876,9 +1958,11 @@
       "couplings": "",
       "notes": "Schema 1 is development-only (node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs:62-65); production needs schema 2 (not implemented). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 67108864,
+      "basis": "64 MiB.",
+      "approved": 67108864,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "migration_max_write_bytes",
@@ -1892,9 +1976,11 @@
       "couplings": "",
       "notes": "Schema 1 is development-only (node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs:62-65); production needs schema 2 (not implemented). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 268435456,
+      "basis": "256 MiB.",
+      "approved": 268435456,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "upgrade_notice_blocks",
@@ -2022,9 +2108,11 @@
       "couplings": "Requires the upgrade policy; initial_schema must be 0 and initial release must equal the upgrade source release (node/dytallix-fast-launch/node/src/consensus_settlement.rs:281-297).",
       "notes": "Schema 1 is development-only; a production build requires schema 2 with development_only false (node/dytallix-fast-launch/node/src/release_handover.rs, Policy::validate; A4). Fixture value only, not a recommendation. Schema 2: the handover authority and epoch must equal the upgrade authority (the five upgrade custodians, three of five; P01, 30 September 2026), checked by the consensus configuration.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 3,
+      "basis": "The threshold; three hex signatures fit a transaction.",
+      "approved": 3,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "handover_notice_blocks",
@@ -2104,9 +2192,11 @@
       "couplings": "Lifecycle max_positions is copied from it (node/dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs:756, 914); governance.ballot.max_voters >= max_positions (node/dytallix-fast-launch/node/src/consensus_settlement.rs:1606-1611); owner reservation bound (node/dytallix-fast-launch/node/src/ordinary_validator.rs:701-703).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": "At least the genesis staking owners, with room for later stakers."
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": "The code maximum: concurrent staking owners.",
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "epoch_blocks",
@@ -2138,9 +2228,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 365,
+      "basis": "One year of issuance journal (176 bytes an epoch).",
+      "approved": 365,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "initial_epoch_budget_udrt",
@@ -2190,9 +2282,11 @@
       "couplings": "|error| < threshold selects soft gains, else hard (node/crates/adaptive-emission/src/lib.rs:201-205).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000000,
+      "basis": "Soft and hard gains are equal, so the threshold has no effect; this keeps every error in one regime.",
+      "approved": 1000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "controller_volatility_threshold_ppm",
@@ -2206,9 +2300,11 @@
       "couplings": "Gains are damped when volatility > threshold (node/crates/adaptive-emission/src/lib.rs:210-217), but derived observations always carry volatility_ppm = 0 (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2564), so this value is currently inert.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000000,
+      "basis": "Volatility is always 0 under observation contract v1, so damping never applies.",
+      "approved": 1000000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "controller_window_samples",
@@ -2240,9 +2336,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": "The integral gain is 0.",
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "controller_integral_max",
@@ -2256,9 +2354,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "decide",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 0,
+      "basis": "The integral gain is 0.",
+      "approved": 0,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "controller_soft_proportional",
@@ -2452,9 +2552,11 @@
       "couplings": "Must cover header, evidence and the worst-case ML-DSA-65 commit (node/consensus/cometbft/upstream/types/params.go:36-43). App proposal limit is min(engine-provided bytes, app max_block_bytes) (node/dytallix-fast-launch/node/src/consensus_settlement.rs:3704-3706). No equality check with app max_block_bytes.",
       "notes": "Upstream default is 22020096 + MaxCommitBytes(MaxVotesCount) (node/consensus/cometbft/upstream/types/params.go:110-115). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1048576,
+      "basis": "Equal to the application bound.",
+      "approved": 1048576,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "engine_block_max_gas",
@@ -2468,9 +2570,11 @@
       "couplings": "No Dytallix check; the application meters gas itself.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": -1,
+      "basis": "The application meters gas itself.",
+      "approved": -1,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "engine_evidence_max_age_num_blocks",
@@ -2516,9 +2620,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 65536,
+      "basis": "With 64 validators, about 767 KB of each block remains for transactions.",
+      "approved": 65536,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "timeout_propose",
@@ -2550,9 +2656,11 @@
       "couplings": "Block time is set by these timeouts; there is no separate block-time parameter.",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "500ms",
+      "basis": "Upstream default; added per extra round, so a slow round waits longer.",
+      "approved": "500ms",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "timeout_prevote",
@@ -2584,9 +2692,11 @@
       "couplings": "Block time is set by these timeouts; there is no separate block-time parameter.",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "500ms",
+      "basis": "Upstream default; added per extra round.",
+      "approved": "500ms",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "timeout_precommit",
@@ -2618,9 +2728,11 @@
       "couplings": "Block time is set by these timeouts; there is no separate block-time parameter.",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "500ms",
+      "basis": "Upstream default; added per extra round.",
+      "approved": "500ms",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "skip_timeout_commit",
@@ -2634,9 +2746,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": false,
+      "basis": "Keeps the approved 5 s block interval.",
+      "approved": false,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "create_empty_blocks_interval",
@@ -2650,9 +2764,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "0s",
+      "basis": "No extra wait for an empty block beyond the commit timeout.",
+      "approved": "0s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "peer_gossip_sleep_duration",
@@ -2666,9 +2782,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "100ms",
+      "basis": "Upstream default.",
+      "approved": "100ms",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "peer_query_maj23_sleep_duration",
@@ -2682,9 +2800,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "2s",
+      "basis": "Upstream default.",
+      "approved": "2s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "double_sign_check_height",
@@ -2698,9 +2818,19 @@
       "couplings": "Validator safety check at startup (upstream semantics).",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": {
+        "validator": 10,
+        "sentry": 0,
+        "endpoint": 0
+      },
+      "basis": "A validator refuses to sign if its key signed any of the last 10 blocks, so a second copy of the key stops instead of double-signing; a restart needs about 50 s offline. Sentries and endpoints hold no validator-set key.",
+      "approved": {
+        "validator": 10,
+        "sentry": 0,
+        "endpoint": 0
+      },
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "block_time_tolerance",
@@ -2714,9 +2844,11 @@
       "couplings": "Fork-specific: maximum difference between proposed block time and wall clock (node/consensus/cometbft/upstream/config/config.go:1262-1263; node/consensus/cometbft/upstream/node/node.go:442; node/consensus/cometbft/upstream/state/execution.go:237-279).",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. No Dytallix-specific bound (node/consensus/cometbft/internal/enginepqc/engine.go:119-164). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "60s",
+      "basis": "Fork default: largest gap between a proposed block time and the wall clock.",
+      "approved": "60s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "timeout_commit",
@@ -2748,9 +2880,11 @@
       "couplings": "Epoch boundaries and issuance are height-based (node/dytallix-fast-launch/node/src/consensus_settlement.rs:2535).",
       "notes": "Not enforced by the Dytallix loader. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": true,
+      "basis": "Epochs, issuance and the evidence window count blocks, so blocks come every 5 s with or without transactions.",
+      "approved": true,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "mempool_size",
@@ -2796,9 +2930,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Mempool type flood with recheck is code-fixed (node/consensus/cometbft/internal/enginepqc/engine.go:126-131). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": "Upstream default.",
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "mempool_recheck_timeout",
@@ -2812,9 +2948,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Mempool type flood with recheck is code-fixed (node/consensus/cometbft/internal/enginepqc/engine.go:126-131). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "1s",
+      "basis": "Upstream default.",
+      "approved": "1s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "mempool_max_tx_bytes",
@@ -2828,9 +2966,11 @@
       "couplings": "Fixture keeps it equal to app max_tx_bytes; no code compares them.",
       "notes": "Upstream default 4 MiB (node/consensus/cometbft/upstream/config/config.go:1032). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 262144,
+      "basis": "Equal to the application max_tx_bytes.",
+      "approved": 262144,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "p2p_max_num_inbound_peers",
@@ -2844,9 +2984,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 64,
+      "basis": "The 64-pin bound: every pinned peer can connect; the transport and firewall refuse unpinned peers.",
+      "approved": 64,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "p2p_max_num_outbound_peers",
@@ -2860,9 +3002,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 64,
+      "basis": "The 64-pin bound.",
+      "approved": 64,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "p2p_send_rate",
@@ -2908,9 +3052,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1024,
+      "basis": "Upstream default.",
+      "approved": 1024,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "p2p_flush_throttle_timeout",
@@ -2924,9 +3070,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "10ms",
+      "basis": "Fork default.",
+      "approved": "10ms",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "p2p_handshake_timeout",
@@ -2940,9 +3088,11 @@
       "couplings": "Distinct from pqc_transport.json handshake_timeout_ms.",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "20s",
+      "basis": "Upstream default.",
+      "approved": "20s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "p2p_dial_timeout",
@@ -2956,9 +3106,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "3s",
+      "basis": "Upstream default.",
+      "approved": "3s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "p2p_persistent_peers_max_dial_period",
@@ -2972,9 +3124,11 @@
       "couplings": "",
       "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "0s",
+      "basis": "Upstream default; only the peer-exchange reactor reads it, and peer exchange is off.",
+      "approved": "0s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "pqc_handshake_timeout_ms",
@@ -2988,9 +3142,11 @@
       "couplings": "Binding review applies the same bound (node/tools/mainnet-preparation/check_bindings.py:196).",
       "notes": "MaxConcurrentHandshakes = 8 is code-fixed (node/consensus/cometbft/internal/enginepqc/engine.go:41). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 5000,
+      "basis": "Within the 100 to 10,000 ms bound; an ML-DSA-65 and ML-KEM-768 handshake over a wide-area link takes well under it.",
+      "approved": 5000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "statesync_discovery_time",
@@ -3004,9 +3160,11 @@
       "couplings": "",
       "notes": "State sync is disabled in the fixture (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:235). Trust height and hash are records. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "15s",
+      "basis": "Upstream default.",
+      "approved": "15s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "statesync_chunk_request_timeout",
@@ -3020,9 +3178,11 @@
       "couplings": "",
       "notes": "State sync is disabled in the fixture (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:235). Trust height and hash are records. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "10s",
+      "basis": "Upstream default.",
+      "approved": "10s",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "statesync_chunk_fetchers",
@@ -3036,9 +3196,11 @@
       "couplings": "",
       "notes": "State sync is disabled in the fixture (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:235). Trust height and hash are records. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 4,
+      "basis": "Upstream default.",
+      "approved": 4,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "statesync_max_snapshot_chunks",
@@ -3052,9 +3214,11 @@
       "couplings": "",
       "notes": "State sync is disabled in the fixture (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:235). Trust height and hash are records. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 100000,
+      "basis": "Upstream default.",
+      "approved": 100000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "statesync_trust_period",
@@ -3068,9 +3232,11 @@
       "couplings": "Doc: trust period below the unbonding and evidence horizon (node/docs/architecture/state-sync-v1.md:54-57); code compares only with the evidence duration, not the block age or margins.",
       "notes": "The upstream default 168h exceeds the upstream evidence default 48h, so defaults would be refused. State sync disabled in fixture (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:235). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": "168h",
-      "basis": "Upstream default (7 days), below the proposed 14-day evidence age as the engine requires."
+      "basis": "Upstream default (7 days), below the approved 14-day evidence age as the engine requires.",
+      "approved": "168h",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "metrics_interval_seconds",
@@ -3084,9 +3250,11 @@
       "couplings": "Passed to the engine as --metrics-interval (engine accepts 1s..1h, node/consensus/cometbft/cmd/dytallix-pqc-engine/main.go:74) and to the application (1..=3600, node/dytallix-fast-launch/node/src/bin/consensus_stdio.rs:624-628).",
       "notes": "incident-response-v1.md:36-40 names the metrics values as E05 inputs without a decision ID. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 15,
+      "basis": "A common scrape interval for the operator agent.",
+      "approved": 15,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "snapshot_interval_blocks",
@@ -3136,9 +3304,11 @@
       "couplings": "window keeps the retained window derived from evidence horizon, 2 epochs, anchor age and expiry lifetime (node/dytallix-fast-launch/node/src/consensus_settlement.rs:1005-1036).",
       "notes": "Per-node setting; changes no consensus state. Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "window",
+      "basis": "The retained window on validators, sentries and endpoints; archive only on designated archive nodes (a topology record).",
+      "approved": "window",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "monitor_interval_millis",
@@ -3152,9 +3322,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000,
+      "basis": "A pause-free check each second in production.",
+      "approved": 1000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "max_state_entries",
@@ -3168,9 +3340,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 100000,
+      "basis": "Bounds the state-tree walk at start with ample room for database files.",
+      "approved": 100000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_startup_millis",
@@ -3184,9 +3358,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 60000,
+      "basis": "The code maximum for one startup step; catch-up has its own budget.",
+      "approved": 60000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_stop_millis",
@@ -3200,9 +3376,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 30000,
+      "basis": "Time for a graceful stop before the kill.",
+      "approved": 30000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_kill_millis",
@@ -3216,9 +3394,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 10000,
+      "basis": "Time to reap after the kill.",
+      "approved": 10000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_poll_millis",
@@ -3232,9 +3412,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 100,
+      "basis": "Within every deadline.",
+      "approved": 100,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_max_argument_bytes",
@@ -3248,9 +3430,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 65536,
+      "basis": "Arguments are absolute paths and flags.",
+      "approved": 65536,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_max_environment_bytes",
@@ -3264,9 +3448,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 16384,
+      "basis": "The explicit environment allowlist is small.",
+      "approved": 16384,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_max_probe_request_bytes",
@@ -3280,9 +3466,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 4096,
+      "basis": "Probe requests are fixed small JSON.",
+      "approved": 4096,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "process_max_probe_response_bytes",
@@ -3296,9 +3484,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 65536,
+      "basis": "Info and status responses, with the 4 KiB helper admission receipt.",
+      "approved": 65536,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "observation_pause_total_millis",
@@ -3312,9 +3502,11 @@
       "couplings": "Required (node/crates/native-supervisor/src/config.rs:643-646).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 1000,
+      "basis": "One paused observation per child at startup in production.",
+      "approved": 1000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "observation_pause_cleanup_reserve_millis",
@@ -3328,9 +3520,11 @@
       "couplings": "",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 200,
+      "basis": "Within the total.",
+      "approved": 200,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "catch_up_millis",
@@ -3344,9 +3538,11 @@
       "couplings": "Required in production mode; at least process.startup_millis, which still bounds each round of readiness probes.",
       "notes": "Per host: how long readiness waits for the engine to catch up by state sync and block sync before startup fails (P01, 1 October 2026, approvals/P01_E05_SUPERVISOR_2026-10-01.json). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 21600000,
+      "basis": "Six hours: a daily snapshot plus a day of blocks by block sync.",
+      "approved": 21600000,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "adapter_max_connections",
@@ -3374,11 +3570,13 @@
       "fixture_ref": null,
       "decision": "D12-Q01 (rate limits)",
       "couplings": "Compiled ceilings: 32 connections, 1 MiB request, 1.5 MB response, 64 headers / 64 KiB, 10 s deadline; max_header_bytes >= 8192 (rpc-controls-v1.md:62-77).",
-      "notes": "No fixture value found.",
+      "notes": "Approved unset: the service configuration omits adapter_limits, so the adapter keeps its compiled ceilings (rpc-controls-v1.md). No fixture value found.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "unset",
+      "basis": "adapter_limits omitted: the loopback-only adapter keeps its compiled ceiling (1 MiB).",
+      "approved": "unset",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "adapter_max_response_body_bytes",
@@ -3390,11 +3588,13 @@
       "fixture_ref": null,
       "decision": "D12-Q01 (rate limits)",
       "couplings": "Compiled ceilings: 32 connections, 1 MiB request, 1.5 MB response, 64 headers / 64 KiB, 10 s deadline; max_header_bytes >= 8192 (rpc-controls-v1.md:62-77).",
-      "notes": "No fixture value found.",
+      "notes": "Approved unset: the service configuration omits adapter_limits, so the adapter keeps its compiled ceilings (rpc-controls-v1.md). No fixture value found.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "unset",
+      "basis": "adapter_limits omitted: compiled ceiling (1.5 MB).",
+      "approved": "unset",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "adapter_max_headers",
@@ -3406,11 +3606,13 @@
       "fixture_ref": null,
       "decision": "D12-Q01 (rate limits)",
       "couplings": "Compiled ceilings: 32 connections, 1 MiB request, 1.5 MB response, 64 headers / 64 KiB, 10 s deadline; max_header_bytes >= 8192 (rpc-controls-v1.md:62-77).",
-      "notes": "No fixture value found.",
+      "notes": "Approved unset: the service configuration omits adapter_limits, so the adapter keeps its compiled ceilings (rpc-controls-v1.md). No fixture value found.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "unset",
+      "basis": "adapter_limits omitted: compiled ceiling (64).",
+      "approved": "unset",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "adapter_max_header_bytes",
@@ -3422,11 +3624,13 @@
       "fixture_ref": null,
       "decision": "D12-Q01 (rate limits)",
       "couplings": "Compiled ceilings: 32 connections, 1 MiB request, 1.5 MB response, 64 headers / 64 KiB, 10 s deadline; max_header_bytes >= 8192 (rpc-controls-v1.md:62-77).",
-      "notes": "No fixture value found.",
+      "notes": "Approved unset: the service configuration omits adapter_limits, so the adapter keeps its compiled ceilings (rpc-controls-v1.md). No fixture value found.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "unset",
+      "basis": "adapter_limits omitted: compiled ceiling (64 KiB).",
+      "approved": "unset",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "adapter_deadline_ms",
@@ -3438,11 +3642,13 @@
       "fixture_ref": "node/crates/native-supervisor/src/config.rs:961",
       "decision": "D12-Q01 (rate limits)",
       "couplings": "Compiled ceilings: 32 connections, 1 MiB request, 1.5 MB response, 64 headers / 64 KiB, 10 s deadline; max_header_bytes >= 8192 (rpc-controls-v1.md:62-77).",
-      "notes": "Fixture value only, not a recommendation.",
+      "notes": "Approved unset: the service configuration omits adapter_limits, so the adapter keeps its compiled ceilings (rpc-controls-v1.md). Fixture value only, not a recommendation.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "unset",
+      "basis": "adapter_limits omitted: compiled ceiling (10 s).",
+      "approved": "unset",
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "channel_max_connections",
@@ -3504,9 +3710,11 @@
       "couplings": "Requests larger than it are refused (node/dytallix-fast-launch/node/src/emergency_verifier.rs:143, 170).",
       "notes": "Node-local. No fixture value located.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 262144,
+      "basis": "A request is one signature and the control artifact, within the transaction bound.",
+      "approved": 262144,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "emergency_verifier_max_helper_bytes",
@@ -3520,9 +3728,11 @@
       "couplings": "",
       "notes": "Node-local. No fixture value located.",
       "tier": "operate",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": 16777216,
+      "basis": "Above the 4 MB root helper the release catalog pins.",
+      "approved": 16777216,
+      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
     },
     {
       "name": "max_open_proposals",

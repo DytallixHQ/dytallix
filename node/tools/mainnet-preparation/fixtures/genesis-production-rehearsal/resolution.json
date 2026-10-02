@@ -1,9 +1,8 @@
 {
   "boundary": "Production eligibility needs the production mode, every value APPROVED and every record ACCEPTED. Eligibility accepts nothing: the release, the root genesis signatures and gate acceptance remain required.",
   "counts": {
-    "APPROVED": 61,
+    "APPROVED": 110,
     "MEASURE_PLACEHOLDER": 9,
-    "PROPOSED": 49,
     "RECORD_SYNTHETIC": 8
   },
   "mode": "production",
@@ -12,20 +11,20 @@
   "values": [
     {
       "name": "app_max_tx_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 262144
     },
     {
       "name": "app_max_block_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1048576
     },
     {
       "name": "app_max_txs",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000
     },
     {
@@ -90,50 +89,50 @@
     },
     {
       "name": "recovery_max_transaction_gas",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 2000000
     },
     {
       "name": "recovery_max_block_gas",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 20000000
     },
     {
       "name": "recovery_max_block_recovery_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000000
     },
     {
       "name": "recovery_max_block_recovery_signatures",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 100
     },
     {
       "name": "recovery_max_pending_accounts",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 10000
     },
     {
       "name": "recovery_max_due_expiry_events_per_height",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 100
     },
     {
       "name": "recovery_mandatory_expiry_gas_budget",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000000
     },
     {
       "name": "recovery_expiry_event_gas_cost",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 10000
     },
     {
@@ -192,80 +191,80 @@
     },
     {
       "name": "ordinary_max_transaction_gas",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 2000000
     },
     {
       "name": "ordinary_max_block_transaction_gas",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 50000000
     },
     {
       "name": "ordinary_max_block_transaction_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000000
     },
     {
       "name": "ordinary_max_block_signature_checks",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 200
     },
     {
       "name": "ordinary_max_wire_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 65536
     },
     {
       "name": "ordinary_max_actions",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 16
     },
     {
       "name": "ordinary_max_identifier_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 128
     },
     {
       "name": "ordinary_max_data_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 4096
     },
     {
       "name": "ordinary_max_memo_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1024
     },
     {
       "name": "ordinary_max_consensus_key_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 4096
     },
     {
       "name": "ordinary_max_proof_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 8192
     },
     {
       "name": "ordinary_max_expiry_lifetime",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 240
     },
     {
       "name": "ordinary_allowed_algorithms",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": [
         "mldsa65"
       ]
@@ -343,26 +342,26 @@
     },
     {
       "name": "ordinary_max_state_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 64000000
     },
     {
       "name": "ordinary_max_grants",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 10000
     },
     {
       "name": "ordinary_max_receipts",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 65536
     },
     {
       "name": "ordinary_max_retained_profiles",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 8
     },
     {
@@ -385,8 +384,8 @@
     },
     {
       "name": "template_timing_version",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1
     },
     {
@@ -421,16 +420,16 @@
     },
     {
       "name": "template_algorithms",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": {
         "mldsa65": 1952
       }
     },
     {
       "name": "governance_max_governance_action_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 16384
     },
     {
@@ -475,8 +474,8 @@
     },
     {
       "name": "max_voters",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 10000
     },
     {
@@ -493,26 +492,26 @@
     },
     {
       "name": "max_action_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 16384
     },
     {
       "name": "max_depositors",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000
     },
     {
       "name": "class_parameter_change_max_data_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 16384
     },
     {
       "name": "class_validator_registry_max_data_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 16384
     },
     {
@@ -571,8 +570,8 @@
     },
     {
       "name": "reward_max_positions",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 10000
     },
     {
@@ -583,8 +582,8 @@
     },
     {
       "name": "max_recorded_epochs",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 365
     },
     {
@@ -601,14 +600,14 @@
     },
     {
       "name": "controller_shock_threshold_ppm",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000000
     },
     {
       "name": "controller_volatility_threshold_ppm",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000000
     },
     {
@@ -619,14 +618,14 @@
     },
     {
       "name": "controller_integral_min",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 0
     },
     {
       "name": "controller_integral_max",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 0
     },
     {
@@ -685,20 +684,20 @@
     },
     {
       "name": "engine_block_max_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1048576
     },
     {
       "name": "engine_block_max_gas",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": -1
     },
     {
       "name": "engine_evidence_max_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 65536
     },
     {
@@ -721,20 +720,20 @@
     },
     {
       "name": "migration_max_receipts",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 1000000
     },
     {
       "name": "migration_max_receipt_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 67108864
     },
     {
       "name": "migration_max_write_bytes",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 268435456
     },
     {
@@ -757,8 +756,8 @@
     },
     {
       "name": "handover_max_signatures",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "PROPOSED",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
       "value": 3
     },
     {

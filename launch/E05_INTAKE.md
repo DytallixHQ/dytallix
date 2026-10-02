@@ -53,9 +53,11 @@ until P01 approves it; approved values are marked. Decision IDs refer to
 The block interval is approved at about 5 seconds (`timeout_commit` 4 s); every
 block count follows from it. Approved values are marked and recorded in the
 [first](approvals/P01_E05_VALUES_1_2026-09-30.json),
-[second](approvals/P01_E05_VALUES_2_2026-09-30.json) and
-[third](approvals/P01_E05_VALUES_3_2026-09-30.json) sets, and the
-[notice scope](approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json).
+[second](approvals/P01_E05_VALUES_2_2026-09-30.json),
+[third](approvals/P01_E05_VALUES_3_2026-09-30.json) and
+[fourth](approvals/P01_E05_VALUES_4_2026-10-02.json) sets, the
+[notice scope](approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json) and the
+[fee range placement](approvals/P01_E05_FEE_RANGE_2026-10-02.json).
 
 | Area | Value | Proposal | Basis or input needed |
 | --- | --- | --- | --- |
@@ -72,7 +74,9 @@ block count follows from it. Approved values are marked and recorded in the
 | Issuance | `epoch_blocks` | **Approved:** 17,280 (1 day) | |
 | | `base_udrt`, `max_udrt`, `min_udrt`, `target_ppm`, `initial_epoch_budget_udrt` | **Approved:** 1,000 DRT a block as base and ceiling (about 6.31 billion DRT a year); 500 floor; 50% target; first command equal to the base | Launch issuance equals the published base and never exceeds it; it falls toward half as blocks fill past the target |
 | | `window_samples`, soft and hard gains | **Approved:** 1; proportional 17,280,000,000,000, integral and derivative 0 | One-day linear response: 1,000 DRT a block at 50% utilization down to 500 at full blocks |
-| | integral limits, `shock_threshold_ppm` | Proposed: 0, 0; 1,000,000 | No effect with these gains ([proposals](genesis/PROPOSALS.json)) |
+| | integral limits, `shock_threshold_ppm`, `volatility_threshold_ppm` | **Approved:** 0, 0; 1,000,000; 1,000,000 | Forced by the calibration: no effect with these gains |
+| Capacity | block, transaction and signature bounds | **Approved:** 1 MiB blocks, 1,000,000 transaction bytes, 200 signature checks, 1,000 transactions a block | About 180 basic Sends a 5 s block (about 36 a second); T05 tests these values |
+| Limits | transaction format, state, retention, governance and migration bounds | **Approved** (fourth set) | 20-minute transaction expiry; at most 10,000 concurrent staking owners |
 | Fees | basic transfer | **Approved target:** 1 DRT, governed between 0.1 and 10 DRT | Full blocks of transfers burn about 10% of base issuance |
 | | gas price, minimum gas, per-resource costs, bounds | **Approved:** 10 × 100,000 = 1 DRT floor; overhead 10,000, receipt 1,000, wire 2, read 0, write 1, signature and proof 20,000, actions 5,000; price bounds 1 to 100, cost bounds 0 to 100,000 | A basic Send uses about 47,600 gas and pays the floor; free reads keep it flat as shared state grows. The node refuses governed fee changes that put a reference basic Send outside the genesis bound `reference_send_fee_udrt`, approved at 0.1 to 10 DRT (A6) |
 | | `account_creation_fee_udrt`, bounds | **Approved:** 10 DRT; 1 to 100 DRT | Accounts are permanent state |
@@ -85,23 +89,28 @@ block count follows from it. Approved values are marked and recorded in the
 
 ## Operational settings (100)
 
-Consensus timeouts other than `timeout_commit`, mempool and peer settings,
-state sync, snapshots, the HTTP adapter and client channel, and the
-supervisor's timings. The proposal is the upstream CometBFT default or the
-node's current default. Proposed now: upstream `timeout_propose` 3 s,
-`timeout_prevote` and `timeout_precommit` 1 s, a state-sync trust period of
-168 h (below the evidence age, as the engine requires). A daily snapshot
-(17,280 blocks) keeping three is approved. The rest stay at their defaults
-until the capacity tests (T05) set them.
+Consensus timeouts, mempool and peer settings, state sync, snapshots, the
+HTTP adapter and client channel, and the supervisor's timings.
 
-## Measured values (14)
+Approved in the [fourth set](approvals/P01_E05_VALUES_4_2026-10-02.json)
+(P01, 2 October 2026):
+- **Consensus:** the consensus deltas (500 ms), and empty blocks every 5 s.
+- **Validator safety:** a 10-block double-sign startup check on validators.
+- **Network:** peers up to the 64-pin bound, a 5 s PQC handshake, and the upstream mempool and state-sync settings, with a 168 h trust period.
+- **Supervisor:** process limits, a 1 s monitor, and a six-hour catch-up budget.
+- **History and helpers:** the retained block window, the adapter at its compiled ceilings, and the emergency verifier bounds.
 
-The emergency validity window and maximum anchor age (from measured
-multi-party signing and propagation), mempool, queue and peer capacity,
+Earlier sets cover `timeout_propose` 3 s, `timeout_prevote` and `timeout_precommit` 1 s, and a daily snapshot (17,280 blocks) keeping three. The only operate-tier value still open is `max_open_proposals`, which has no field: governance uses a due index instead.
+
+## Measured values (18)
+
+The emergency, upgrade and handover validity windows and maximum anchor ages
+(from measured multi-party signing and propagation; labeled 720-block
+placeholders in the rehearsals), mempool, queue and peer capacity,
 adapter and channel connection limits, the emergency verifier timeout, and
 the fault assumptions. They need the dedicated hosts first.
 
-## Derived values (24)
+## Derived values (25)
 
 Set by the genesis builder from approved rules: fee caps (at least the
 largest signable fee, at the governed price bound), the transport bound (a
