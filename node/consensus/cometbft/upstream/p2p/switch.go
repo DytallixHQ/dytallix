@@ -447,7 +447,10 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason any) {
 // with a fixed interval (approximately 2 minutes), then with
 // exponential backoff (approximately close to 24 hours).
 // If no success after all that, it stops trying, and leaves it
-// to the PEX/Addrbook to find the peer with the addr again
+// to the PEX/Addrbook to find the peer with the addr again.
+// Dytallix: a persistent (pinned) peer is redialed for as long as the
+// switch runs, because the pinned mesh has no peer exchange to find it
+// again; see redialWait.
 // NOTE: this will keep trying even if the handshake or auth fails.
 // TODO: be more explicit with error types so we only retry on certain failures
 //   - ie. if we're getting ErrDuplicatePeer we can stop
@@ -482,14 +485,18 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 
 	sw.Logger.Error("Failed to reconnect to peer. Beginning exponential backoff",
 		"addr", addr, "elapsed", time.Since(start))
-	for i := 1; i <= reconnectBackOffAttempts; i++ {
+	persistent := sw.IsPeerPersistent(addr)
+	for i := 1; ; i++ {
 		if !sw.IsRunning() {
 			return
 		}
+		wait, ok := sw.redialWait(persistent, i)
+		if !ok {
+			break
+		}
 
 		// sleep an exponentially increasing amount
-		sleepIntervalSeconds := math.Pow(reconnectBackOffBaseSeconds, float64(i))
-		sw.randomSleep(time.Duration(sleepIntervalSeconds) * time.Second)
+		sw.randomSleep(wait)
 
 		err := sw.DialPeerWithAddress(addr)
 		if err == nil {
@@ -500,6 +507,24 @@ func (sw *Switch) reconnectToPeer(addr *NetAddress) {
 		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
 	}
 	sw.Logger.Error("Failed to reconnect to peer. Giving up", "addr", addr, "elapsed", time.Since(start))
+}
+
+// redialWait is the wait before backoff redial attempt (from 1) and whether
+// to make it. The wait grows as reconnectBackOffBaseSeconds^attempt. Any
+// peer but a persistent one gives up after reconnectBackOffAttempts, as
+// upstream does. Dytallix (P01, 2 October 2026): a persistent peer is
+// redialed forever, each wait at most PersistentPeersMaxDialPeriod, or the
+// last upstream step when that is zero.
+func (sw *Switch) redialWait(persistent bool, attempt int) (time.Duration, bool) {
+	if !persistent && attempt > reconnectBackOffAttempts {
+		return 0, false
+	}
+	step := min(attempt, reconnectBackOffAttempts)
+	wait := time.Duration(math.Pow(reconnectBackOffBaseSeconds, float64(step))) * time.Second
+	if limit := sw.config.PersistentPeersMaxDialPeriod; persistent && limit > 0 && wait > limit {
+		wait = limit
+	}
+	return wait, true
 }
 
 // SetAddrBook allows to set address book on Switch.

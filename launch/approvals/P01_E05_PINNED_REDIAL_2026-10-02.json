@@ -1,0 +1,26 @@
+{
+  "decision_id": "P01-2026-10-02-E05-PINNED-REDIAL",
+  "approved": "2026-10-02",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Engine: redialing pinned peers"
+  },
+  "design_ref": "../node/consensus/cometbft/PQC_ENGINE_INTEGRATION.md",
+  "decisions": [
+    {
+      "question": "D06-Q02, D12-Q01",
+      "selected": "60 s",
+      "rule": "The engine redials a persistent (pinned) peer for as long as it runs, instead of giving up after about 24.6 hours. Each backoff wait is at most persistent_peers_max_dial_period, which the production profile requires from 1 s to 1 h.",
+      "values": {
+        "p2p_persistent_peers_max_dial_period": "60s"
+      },
+      "supersedes": "The 0s approved in approvals/P01_E05_VALUES_4_2026-10-02.json, when the value had no effect."
+    }
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

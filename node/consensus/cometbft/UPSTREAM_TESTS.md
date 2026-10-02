@@ -68,6 +68,12 @@ had no importer and needed `golang.org/x/crypto`.
 | `crypto/encoding` | the codec tests were deleted | rewritten for ML-DSA-65; other key types are rejected |
 | `node` | `node_test.go` was deleted | the proposal-block tests, which need no running node, are in `proposal_block_test.go` |
 
+### 4a. Dytallix changes to upstream behavior
+
+| Package | Change | Test |
+| --- | --- | --- |
+| `p2p` | A persistent (pinned) peer is redialed for as long as the switch runs, each backoff wait at most `persistent_peers_max_dial_period` (P01, 2 October 2026). Upstream gave up after about 24.6 hours and left the peer to peer exchange, which the pinned mesh disables. | `switch_redial_test.go` |
+
 ### 5. Reactor tests that connect switches: skip
 
 43 tests connect switches through the p2p test helpers (`MakeSwitch`,

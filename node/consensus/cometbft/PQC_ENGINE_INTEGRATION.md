@@ -42,7 +42,7 @@ version, profile, network, local_public_key_base64,
 peers [{id, public_key_base64, address}], handshake_timeout_ms
 ```
 
-The network is the exact genesis chain ID. Each configured peer must also appear once in `persistent_peers` with the same address. Restart retains the existing key, signer state and databases.
+The network is the exact genesis chain ID. Each configured peer must also appear once in `persistent_peers` with the same address. Every peer is therefore persistent: the engine redials a lost peer for as long as it runs, each wait at most `persistent_peers_max_dial_period`, which the production profile requires from 1 s to 1 h (approved 60 s). Restart retains the existing key, signer state and databases.
 
 The command rejects remote signing, classical peer identities, non-ML-DSA-65 validator keys, libp2p, discovery, unsafe RPC, TLS listeners and nonlocal P2P/RPC addresses. State sync runs only in the PQC-only build, from operator light blocks passed with `--light-blocks`. Its only optional browser origin is `http://127.0.0.1:4173`.
 
