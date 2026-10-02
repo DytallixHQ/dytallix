@@ -94,24 +94,24 @@ class ResolverTests(unittest.TestCase):
         self.refused('proposals for approved values')
 
     def test_an_open_value_needs_a_proposal(self):
-        del self.proposals['values']['app_max_txs']
-        self.refused('app_max_txs: open with no proposal')
+        del self.proposals['values']['queue_max_entries']
+        self.refused('queue_max_entries: open with no proposal')
 
     def test_unknown_and_unused_names_are_refused(self):
         self.proposals['values']['no_such_value'] = {'value': 1, 'status': 'PROPOSED', 'basis': 'x'}
         self.refused('unknown values')
         del self.proposals['values']['no_such_value']
-        self.proposals['values']['statesync_max_snapshot_chunks'] = {'value': 1, 'status': 'PROPOSED', 'basis': 'x'}
+        self.proposals['values']['mempool_size'] = {'value': 1, 'status': 'PROPOSED', 'basis': 'x'}
         self.refused('does not use')
 
     def test_a_proposal_carries_a_label(self):
-        self.proposals['values']['app_max_txs']['status'] = 'APPROVED'
+        self.proposals['values']['queue_max_entries']['status'] = 'APPROVED'
         self.refused('proposal status')
 
     def test_values_keep_their_types(self):
-        self.proposals['values']['ordinary_max_actions']['value'] = 'sixteen'
-        self.refused('ordinary_max_actions')
-        self.proposals['values']['ordinary_max_actions']['value'] = 16
+        self.proposals['values']['queue_max_entries']['value'] = 'ten thousand'
+        self.refused('queue_max_entries')
+        self.proposals['values']['queue_max_entries']['value'] = 10000
         self.entry('ordinary_action_costs')['approved'] = [5000] * 11
         self.refused('ordinary_action_costs')
 

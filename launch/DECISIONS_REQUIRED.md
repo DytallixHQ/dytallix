@@ -41,7 +41,9 @@ Approved portion (P01, 30 September 2026): base and ceiling 1,000 DRT a block, 1
 
 Calibration (P01, 30 September 2026): a one-day linear response. The window is one epoch; the proportional gain is 17,280,000,000,000 in both regimes, and the integral and derivative gains are 0. Issuance falls linearly from 1,000 DRT a block at 50% utilization to 500 at full blocks ([E05 values, third set](approvals/P01_E05_VALUES_3_2026-09-30.json)).
 
-Remaining inputs: the shock threshold and integral limits, which have no effect with these gains (proposed in [genesis/PROPOSALS.json](genesis/PROPOSALS.json)), and a rescale of the gain if the capacity tests (T05) show blocks cannot fill completely.
+Controller constants (P01, 2 October 2026): integral limits 0 and 0, shock and volatility thresholds 1,000,000 ppm, as the calibration requires ([E05 values, fourth set](approvals/P01_E05_VALUES_4_2026-10-02.json)).
+
+Remaining input: a rescale of the gain if the capacity tests (T05) show blocks cannot fill completely.
 
 Required output: Production controller configuration.
 
@@ -221,7 +223,14 @@ Timing (P01, 30 September 2026): about 5-second blocks, `timeout_commit` 4 s wit
 
 Snapshots (P01, 30 September 2026): every 17,280 blocks (daily), keeping three ([E05 values, second set](approvals/P01_E05_VALUES_2_2026-09-30.json)).
 
-Remaining inputs: mempool, queue and peer capacity values, fault assumptions, and the state-sync trust source, trust period and snapshot peers (E05).
+Operating values (P01, 2 October 2026, [E05 values, fourth set](approvals/P01_E05_VALUES_4_2026-10-02.json)):
+- **Capacity:** about 180 basic Sends per 5 s block (1 MiB blocks, 1,000,000 transaction bytes, 200 signature checks). T05 tests these values and can return one for a new approval.
+- **Transaction format, state and retention limits:** at most 10,000 concurrent staking owners and a 20-minute transaction expiry.
+- **Engine timing:** 500 ms deltas, and an empty block every 5 s.
+- **Double-sign startup check:** 10 blocks on validators.
+- **Networking, mempool and state sync:** peers up to the 64-pin bound, a 5 s PQC handshake, and a 168h state-sync trust period.
+
+Remaining inputs: measured mempool size and bytes, send and receive rates and the admission queue (T05), fault assumptions, and the state-sync trust source and snapshot peers (records).
 
 Required output: Consensus operating specification.
 
@@ -500,6 +509,12 @@ Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATI
 Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets, no network listener; the supervisor checks the engine at startup and then relies on kernel limits, with no periodic pauses; one IP per node, with static 1:1 NAT for public sentries; a published partial mesh within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
 Supervisor production mode (P01, 1 October 2026): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits, while helpers keep paused checks; readiness waits for catch-up up to a per-host budget, the E05 value `catch_up_millis` ([supervisor approval](approvals/P01_E05_SUPERVISOR_2026-10-01.json)).
+
+Host settings (P01, 2 October 2026), from the [E05 values, fourth set](approvals/P01_E05_VALUES_4_2026-10-02.json):
+- **Supervisor:** process limits, a 1 s pause-free monitor, and a six-hour catch-up budget.
+- **Block history:** the retained window everywhere, with archive only on designated archive nodes.
+- **Adapter:** its compiled ceilings.
+- **Emergency verifier:** its byte bounds.
 
 Remaining inputs: counts, hosts, regions, account separation, failure domains and the capacity budget (E05).
 

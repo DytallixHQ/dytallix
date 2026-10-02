@@ -1,0 +1,183 @@
+{
+  "decision_id": "P01-2026-10-02-E05-VALUES-4",
+  "approved": "2026-10-02",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 operating-values batch: the genesis builder proposals and the per-host engine and supervisor settings"
+  },
+  "packet_ref": "E05_INTAKE.md",
+  "decisions": [
+    {
+      "question": "D06-Q02",
+      "selected": "Approve as proposed",
+      "scope": "Capacity limits fixed at genesis; T05 tests these values and can send one back for a new approval before genesis.",
+      "values": {
+        "app_max_tx_bytes": 262144,
+        "app_max_block_bytes": 1048576,
+        "app_max_txs": 1000,
+        "engine_block_max_bytes": 1048576,
+        "engine_block_max_gas": -1,
+        "engine_evidence_max_bytes": 65536,
+        "ordinary_max_transaction_gas": 2000000,
+        "ordinary_max_block_transaction_gas": 50000000,
+        "ordinary_max_block_transaction_bytes": 1000000,
+        "ordinary_max_block_signature_checks": 200,
+        "recovery_max_transaction_gas": 2000000,
+        "recovery_max_block_gas": 20000000,
+        "recovery_max_block_recovery_bytes": 1000000,
+        "recovery_max_block_recovery_signatures": 100
+      }
+    },
+    {
+      "question": "D06-Q02",
+      "selected": "Approve as proposed",
+      "scope": "Transaction format limits.",
+      "values": {
+        "ordinary_max_wire_bytes": 65536,
+        "ordinary_max_actions": 16,
+        "ordinary_max_identifier_bytes": 128,
+        "ordinary_max_data_bytes": 4096,
+        "ordinary_max_memo_bytes": 1024,
+        "ordinary_max_consensus_key_bytes": 4096,
+        "ordinary_max_proof_bytes": 8192,
+        "ordinary_max_expiry_lifetime": 240,
+        "ordinary_allowed_algorithms": [
+          "mldsa65"
+        ],
+        "template_algorithms": {
+          "mldsa65": 1952
+        },
+        "template_timing_version": 1
+      }
+    },
+    {
+      "question": "D06-Q02, D01-Q01, D02-Q01",
+      "selected": "Approve as proposed",
+      "scope": "State, retention and issuance bounds; the controller constants follow from the approved one-day linear calibration; at most 10,000 concurrent staking owners.",
+      "values": {
+        "ordinary_max_state_bytes": 64000000,
+        "ordinary_max_grants": 10000,
+        "ordinary_max_receipts": 65536,
+        "ordinary_max_retained_profiles": 8,
+        "recovery_max_pending_accounts": 10000,
+        "recovery_max_due_expiry_events_per_height": 100,
+        "recovery_mandatory_expiry_gas_budget": 1000000,
+        "recovery_expiry_event_gas_cost": 10000,
+        "max_recorded_epochs": 365,
+        "reward_max_positions": 10000,
+        "controller_integral_min": 0,
+        "controller_integral_max": 0,
+        "controller_shock_threshold_ppm": 1000000,
+        "controller_volatility_threshold_ppm": 1000000
+      }
+    },
+    {
+      "question": "D11-Q02, D11-Q03",
+      "selected": "Approve as proposed",
+      "scope": "Governance and root-control bounds.",
+      "values": {
+        "governance_max_governance_action_bytes": 16384,
+        "max_action_bytes": 16384,
+        "max_depositors": 1000,
+        "max_voters": 10000,
+        "class_parameter_change_max_data_bytes": 16384,
+        "class_validator_registry_max_data_bytes": 16384,
+        "migration_max_receipts": 1000000,
+        "migration_max_receipt_bytes": 67108864,
+        "migration_max_write_bytes": 268435456,
+        "handover_max_signatures": 3
+      }
+    },
+    {
+      "question": "D06-Q02",
+      "selected": "Approve as proposed",
+      "scope": "Engine consensus timing on every validator, with the approved timeouts (propose 3s, prevote 1s, precommit 1s, commit 4s).",
+      "values": {
+        "timeout_propose_delta": "500ms",
+        "timeout_prevote_delta": "500ms",
+        "timeout_precommit_delta": "500ms",
+        "skip_timeout_commit": false,
+        "create_empty_blocks": true,
+        "create_empty_blocks_interval": "0s",
+        "peer_gossip_sleep_duration": "100ms",
+        "peer_query_maj23_sleep_duration": "2s",
+        "block_time_tolerance": "60s"
+      }
+    },
+    {
+      "question": "D06-Q02",
+      "selected": "10 blocks",
+      "scope": "The double-sign startup check on validators; 0 on sentries and endpoints.",
+      "values": {
+        "double_sign_check_height": {
+          "validator": 10,
+          "sentry": 0,
+          "endpoint": 0
+        }
+      }
+    },
+    {
+      "question": "D06-Q02, D12-Q01",
+      "selected": "Approve as proposed",
+      "scope": "Engine networking, mempool and state sync on every node. Mempool size and bytes and the send and receive rates stay measured values (T05).",
+      "values": {
+        "p2p_max_num_inbound_peers": 64,
+        "p2p_max_num_outbound_peers": 64,
+        "p2p_max_packet_msg_payload_size": 1024,
+        "p2p_flush_throttle_timeout": "10ms",
+        "p2p_handshake_timeout": "20s",
+        "p2p_dial_timeout": "3s",
+        "p2p_persistent_peers_max_dial_period": "0s",
+        "pqc_handshake_timeout_ms": 5000,
+        "mempool_cache_size": 10000,
+        "mempool_recheck_timeout": "1s",
+        "mempool_max_tx_bytes": 262144,
+        "statesync_discovery_time": "15s",
+        "statesync_chunk_request_timeout": "10s",
+        "statesync_chunk_fetchers": 4,
+        "statesync_max_snapshot_chunks": 100000,
+        "statesync_trust_period": "168h"
+      }
+    },
+    {
+      "question": "D12-Q01, D11-Q03",
+      "selected": "Approve as proposed",
+      "scope": "Supervisor, adapter and emergency verifier settings per host (22 values; the question said 19, the preview listed all 22). Adapter and channel connection counts and the verifier timeout stay measured values.",
+      "values": {
+        "process_startup_millis": 60000,
+        "process_stop_millis": 30000,
+        "process_kill_millis": 10000,
+        "process_poll_millis": 100,
+        "process_max_argument_bytes": 65536,
+        "process_max_environment_bytes": 16384,
+        "process_max_probe_request_bytes": 4096,
+        "process_max_probe_response_bytes": 65536,
+        "monitor_interval_millis": 1000,
+        "max_state_entries": 100000,
+        "observation_pause_total_millis": 1000,
+        "observation_pause_cleanup_reserve_millis": 200,
+        "catch_up_millis": 21600000,
+        "metrics_interval_seconds": 15,
+        "block_history": "window",
+        "adapter_max_request_body_bytes": "unset",
+        "adapter_max_response_body_bytes": "unset",
+        "adapter_max_headers": "unset",
+        "adapter_max_header_bytes": "unset",
+        "adapter_deadline_ms": "unset",
+        "emergency_verifier_max_request_bytes": 262144,
+        "emergency_verifier_max_helper_bytes": 16777216
+      }
+    }
+  ],
+  "remaining_open": [
+    "The 9 measured window and queue placeholders in genesis/PROPOSALS.json",
+    "Measured host values (mempool size and bytes, send and receive rates, adapter and channel connections, verifier timeout)",
+    "Every record: operators, custodians, genesis signers, beneficiaries, chain identity, hosts and the pin plan"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

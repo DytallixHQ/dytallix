@@ -1,53 +1,8 @@
 {
   "schema": "dytallix.genesis-proposals.v1",
   "rule": "Rehearsal inputs only. Every entry is an engineering PROPOSAL or a MEASURE_PLACEHOLDER awaiting measurement; none is approved or a production value. The resolver refuses an entry for a value that is already approved.",
-  "as_of": "2026-09-30",
+  "as_of": "2026-10-02",
   "values": {
-    "app_max_block_bytes": {
-      "value": 1048576,
-      "status": "PROPOSED",
-      "basis": "The code maximum; the engine block bound is the same."
-    },
-    "app_max_tx_bytes": {
-      "value": 262144,
-      "status": "PROPOSED",
-      "basis": "The code maximum; a root control needs three hex SLH-DSA signatures (178,752 bytes) plus its payload."
-    },
-    "app_max_txs": {
-      "value": 1000,
-      "status": "PROPOSED",
-      "basis": "The code maximum."
-    },
-    "class_parameter_change_max_data_bytes": {
-      "value": 16384,
-      "status": "PROPOSED",
-      "basis": "Up to the action bound."
-    },
-    "class_validator_registry_max_data_bytes": {
-      "value": 16384,
-      "status": "PROPOSED",
-      "basis": "Up to the action bound."
-    },
-    "controller_integral_max": {
-      "value": 0,
-      "status": "PROPOSED",
-      "basis": "The integral gain is 0."
-    },
-    "controller_integral_min": {
-      "value": 0,
-      "status": "PROPOSED",
-      "basis": "The integral gain is 0."
-    },
-    "controller_shock_threshold_ppm": {
-      "value": 1000000,
-      "status": "PROPOSED",
-      "basis": "Soft and hard gains are equal, so the threshold has no effect; this keeps every error in one regime."
-    },
-    "controller_volatility_threshold_ppm": {
-      "value": 1000000,
-      "status": "PROPOSED",
-      "basis": "Volatility is always 0 under observation contract v1, so damping never applies."
-    },
     "emergency_max_anchor_age_blocks": {
       "value": 720,
       "status": "MEASURE_PLACEHOLDER",
@@ -58,162 +13,15 @@
       "status": "MEASURE_PLACEHOLDER",
       "basis": "One hour; set from measured multi-party signing on staging (E03, T02)."
     },
-    "engine_block_max_bytes": {
-      "value": 1048576,
-      "status": "PROPOSED",
-      "basis": "Equal to the application bound."
-    },
-    "engine_block_max_gas": {
-      "value": -1,
-      "status": "PROPOSED",
-      "basis": "The application meters gas itself."
-    },
-    "engine_evidence_max_bytes": {
-      "value": 65536,
-      "status": "PROPOSED",
-      "basis": "With 64 validators, about 767 KB of each block remains for transactions."
-    },
-    "governance_max_governance_action_bytes": {
-      "value": 16384,
-      "status": "PROPOSED",
-      "basis": "Equal to the deposit bound, as the node requires."
-    },
     "handover_max_anchor_age_blocks": {
       "value": 720,
       "status": "MEASURE_PLACEHOLDER",
       "basis": "One hour, like the emergency anchor age; set from measured propagation on staging."
     },
-    "handover_max_signatures": {
-      "value": 3,
-      "status": "PROPOSED",
-      "basis": "The threshold; three hex signatures fit a transaction."
-    },
     "handover_max_validity_blocks": {
       "value": 720,
       "status": "MEASURE_PLACEHOLDER",
       "basis": "One hour, like the emergency window; set from measured multi-party signing on staging (E03, T02)."
-    },
-    "max_action_bytes": {
-      "value": 16384,
-      "status": "PROPOSED",
-      "basis": "Parameter changes and validator registry actions are small."
-    },
-    "max_depositors": {
-      "value": 1000,
-      "status": "PROPOSED",
-      "basis": "Depositors on one proposal."
-    },
-    "max_recorded_epochs": {
-      "value": 365,
-      "status": "PROPOSED",
-      "basis": "One year of issuance journal (176 bytes an epoch)."
-    },
-    "max_voters": {
-      "value": 10000,
-      "status": "PROPOSED",
-      "basis": "At least the reward position bound."
-    },
-    "migration_max_receipt_bytes": {
-      "value": 67108864,
-      "status": "PROPOSED",
-      "basis": "64 MiB."
-    },
-    "migration_max_receipts": {
-      "value": 1000000,
-      "status": "PROPOSED",
-      "basis": "Bounds one state migration."
-    },
-    "migration_max_write_bytes": {
-      "value": 268435456,
-      "status": "PROPOSED",
-      "basis": "256 MiB."
-    },
-    "ordinary_allowed_algorithms": {
-      "value": [
-        "mldsa65"
-      ],
-      "status": "PROPOSED",
-      "basis": "Mainnet accepts ML-DSA-65 only."
-    },
-    "ordinary_max_actions": {
-      "value": 16,
-      "status": "PROPOSED",
-      "basis": "Actions in one transaction."
-    },
-    "ordinary_max_block_signature_checks": {
-      "value": 200,
-      "status": "PROPOSED",
-      "basis": "Bounds signature work a block."
-    },
-    "ordinary_max_block_transaction_bytes": {
-      "value": 1000000,
-      "status": "PROPOSED",
-      "basis": "Under the 1 MiB block; about 180 basic Sends."
-    },
-    "ordinary_max_block_transaction_gas": {
-      "value": 50000000,
-      "status": "PROPOSED",
-      "basis": "About a thousand basic Sends by gas; bytes and signature checks bind first."
-    },
-    "ordinary_max_consensus_key_bytes": {
-      "value": 4096,
-      "status": "PROPOSED",
-      "basis": "Above the 1,952-byte ML-DSA-65 key."
-    },
-    "ordinary_max_data_bytes": {
-      "value": 4096,
-      "status": "PROPOSED",
-      "basis": "Data actions."
-    },
-    "ordinary_max_expiry_lifetime": {
-      "value": 240,
-      "status": "PROPOSED",
-      "basis": "20 minutes; 240 blocks of 200 signature checks stay within 65,536 retained receipts."
-    },
-    "ordinary_max_grants": {
-      "value": 10000,
-      "status": "PROPOSED",
-      "basis": "Discretionary grants."
-    },
-    "ordinary_max_identifier_bytes": {
-      "value": 128,
-      "status": "PROPOSED",
-      "basis": "Identifiers such as validator IDs."
-    },
-    "ordinary_max_memo_bytes": {
-      "value": 1024,
-      "status": "PROPOSED",
-      "basis": "Memos."
-    },
-    "ordinary_max_proof_bytes": {
-      "value": 8192,
-      "status": "PROPOSED",
-      "basis": "Above the 3,309-byte ML-DSA-65 proof."
-    },
-    "ordinary_max_receipts": {
-      "value": 65536,
-      "status": "PROPOSED",
-      "basis": "The code maximum."
-    },
-    "ordinary_max_retained_profiles": {
-      "value": 8,
-      "status": "PROPOSED",
-      "basis": "Governance needs at least two."
-    },
-    "ordinary_max_state_bytes": {
-      "value": 64000000,
-      "status": "PROPOSED",
-      "basis": "Receipts, grants and fee profiles."
-    },
-    "ordinary_max_transaction_gas": {
-      "value": 2000000,
-      "status": "PROPOSED",
-      "basis": "Room above the 100,000 floor for staking and validator transactions that write shared state; the fee cap follows at the highest governed price."
-    },
-    "ordinary_max_wire_bytes": {
-      "value": 65536,
-      "status": "PROPOSED",
-      "basis": "Its base64 transport (87,427 bytes) fits a transaction."
     },
     "queue_max_entries": {
       "value": 10000,
@@ -229,63 +37,6 @@
       "value": 64000000,
       "status": "MEASURE_PLACEHOLDER",
       "basis": "Set by the capacity tests (T05)."
-    },
-    "recovery_expiry_event_gas_cost": {
-      "value": 10000,
-      "status": "PROPOSED",
-      "basis": "Charged to the shared expiry counter, not to users."
-    },
-    "recovery_mandatory_expiry_gas_budget": {
-      "value": 1000000,
-      "status": "PROPOSED",
-      "basis": "One hundred expiry events a block at 10,000 gas each."
-    },
-    "recovery_max_block_gas": {
-      "value": 20000000,
-      "status": "PROPOSED",
-      "basis": "Ten maximal recovery transactions a block."
-    },
-    "recovery_max_block_recovery_bytes": {
-      "value": 1000000,
-      "status": "PROPOSED",
-      "basis": "Under the 1 MiB block."
-    },
-    "recovery_max_block_recovery_signatures": {
-      "value": 100,
-      "status": "PROPOSED",
-      "basis": "Recovery is rare; bounds signature work a block."
-    },
-    "recovery_max_due_expiry_events_per_height": {
-      "value": 100,
-      "status": "PROPOSED",
-      "basis": "Equals the expiry budget divided by the event cost."
-    },
-    "recovery_max_pending_accounts": {
-      "value": 10000,
-      "status": "PROPOSED",
-      "basis": "Accounts with a recovery in progress at once."
-    },
-    "recovery_max_transaction_gas": {
-      "value": 2000000,
-      "status": "PROPOSED",
-      "basis": "Twenty times the 100,000 floor."
-    },
-    "reward_max_positions": {
-      "value": 10000,
-      "status": "PROPOSED",
-      "basis": "The code maximum: concurrent staking owners."
-    },
-    "template_algorithms": {
-      "value": {
-        "mldsa65": 1952
-      },
-      "status": "PROPOSED",
-      "basis": "Mainnet accounts use ML-DSA-65 only."
-    },
-    "template_timing_version": {
-      "value": 1,
-      "status": "PROPOSED",
-      "basis": "The first timing version."
     },
     "upgrade_max_anchor_age_blocks": {
       "value": 720,
