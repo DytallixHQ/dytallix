@@ -1,4 +1,6 @@
-//! Explicit disposable service settings. Paths and limits do not grant release authority.
+//! Explicit service settings: the disposable development mode, or the
+//! production mode of a production build (production activation v1, A5).
+//! Paths and limits do not grant release authority.
 use crate::processes::ProcessBounds;
 use anyhow::{ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -11,6 +13,25 @@ use std::net::SocketAddr;
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+/// The development build's only service mode.
+pub const DEVELOPMENT_MODE: &str = "disposable-loopback-native";
+/// The production build's only service mode (production activation v1, A5).
+pub const PRODUCTION_MODE: &str = "production-native";
+/// The mode this build runs; neither build accepts the other's.
+pub const MODE: &str = if cfg!(feature = "production") {
+    PRODUCTION_MODE
+} else {
+    DEVELOPMENT_MODE
+};
+/// The engine reads a binding of at most 4 KiB.
+pub const MAX_BINDING_BYTES: usize = 4096;
+/// The longest catch-up budget: seven days.
+pub const MAX_CATCH_UP_MILLIS: u64 = 7 * 24 * 60 * 60 * 1000;
+/// Light block exports: one primary and its witnesses.
+pub const MAX_LIGHT_BLOCK_EXPORTS: usize = 16;
+/// The production engine's seed-backed peer identity file.
+pub const PEER_SEED_FILE: &str = "pqc_peer_seed.bin";
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -109,6 +130,159 @@ pub struct NativeServiceConfig {
     /// 18). The preflight selects its target release; the application runs
     /// the halted block on it.
     pub restart_authorization: Option<PinnedInput>,
+    /// Production mode: the node's role (production activation v1, A5).
+    pub role: Option<NodeRole>,
+    /// Production mode: this host's published binding (A4), checked here
+    /// against the pinned engine files and passed to the engine.
+    pub binding: Option<PinnedInput>,
+    /// Production mode: the operator's light block exports, when the engine
+    /// configuration enables state sync (state sync v1).
+    pub state_sync: Option<StateSyncInput>,
+    /// Production mode: how long readiness waits for the engine to catch up
+    /// (P01, 1 October 2026). Required; an E05 operating value.
+    pub catch_up_millis: Option<u64>,
+}
+
+/// A production node's role (production activation v1, design F).
+/// Validators hold a genesis validator key and run no listener but P2P;
+/// endpoints run the HTTP adapter and its client channel; sentries run
+/// neither. Sentries and endpoints carry a key outside the genesis set.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum NodeRole {
+    Validator,
+    Sentry,
+    Endpoint,
+}
+impl NodeRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Validator => "validator",
+            Self::Sentry => "sentry",
+            Self::Endpoint => "endpoint",
+        }
+    }
+}
+
+/// State sync from operator-supplied light blocks (state sync v1, rule 5):
+/// the first export is the primary, the others its witnesses. The engine
+/// verifies every light block from the configured trusted height.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StateSyncInput {
+    pub light_blocks: Vec<PathBuf>,
+}
+impl StateSyncInput {
+    pub fn validate(&self, home: &Path) -> Result<()> {
+        ensure!(
+            !self.light_blocks.is_empty() && self.light_blocks.len() <= MAX_LIGHT_BLOCK_EXPORTS,
+            "State sync needs one to {MAX_LIGHT_BLOCK_EXPORTS} light block exports"
+        );
+        let unique: BTreeSet<&PathBuf> = self.light_blocks.iter().collect();
+        ensure!(
+            unique.len() == self.light_blocks.len(),
+            "Light block exports must differ"
+        );
+        for path in &self.light_blocks {
+            ensure!(
+                path.is_absolute() && std::fs::canonicalize(path)? == *path,
+                "Light block export path alias"
+            );
+            ensure!(
+                !path.starts_with(home),
+                "Light block export inside the node home"
+            );
+            let metadata = std::fs::symlink_metadata(path)?;
+            ensure!(
+                metadata.is_dir()
+                    && [0, unsafe { libc::geteuid() }].contains(&metadata.uid())
+                    && metadata.mode() & 0o022 == 0,
+                "Light block export must be a root or current-user directory without group or other write"
+            );
+        }
+        Ok(())
+    }
+}
+
+/// A host binding (production activation v1, A4), as the engine decodes it.
+#[derive(Debug, Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+struct ProductionBinding {
+    schema: u16,
+    role: String,
+    chain_id: String,
+    config_sha256: String,
+    genesis_sha256: String,
+    transport_sha256: String,
+    peer_public_key_sha256: String,
+    validator_public_key_sha256: String,
+}
+
+/// The pinned engine files a binding names.
+pub struct EngineFiles<'a> {
+    pub config: &'a [u8],
+    pub genesis: &'a [u8],
+    pub transport: &'a [u8],
+    pub validator_public_key: &'a [u8],
+}
+
+/// Check a host's binding against its pinned engine files before any child
+/// starts: the engine's own start checks, so a host whose files or keys
+/// differ from the published pin plan never runs. Only a validator's key is
+/// in the genesis validator set.
+pub fn check_binding(raw: &[u8], role: NodeRole, files: &EngineFiles) -> Result<()> {
+    let binding: ProductionBinding =
+        serde_json::from_slice(raw).context("Production binding is malformed")?;
+    ensure!(
+        serde_json::to_vec(&binding)?.as_slice() == raw.trim_ascii(),
+        "Production binding must use canonical compact JSON"
+    );
+    ensure!(
+        binding.schema == 1 && binding.role == role.as_str(),
+        "Production binding schema or role differs from this node"
+    );
+    let digest = |bytes: &[u8]| hex::encode(Sha256::digest(bytes));
+    let genesis: serde_json::Value = serde_json::from_slice(files.genesis)?;
+    let transport: serde_json::Value = serde_json::from_slice(files.transport)?;
+    ensure!(
+        genesis.get("chain_id").and_then(|v| v.as_str()) == Some(binding.chain_id.as_str())
+            && binding.config_sha256 == digest(files.config)
+            && binding.genesis_sha256 == digest(files.genesis)
+            && binding.transport_sha256 == digest(files.transport),
+        "Engine files differ from the production binding"
+    );
+    let peer = STANDARD.decode(
+        transport
+            .get("local_public_key_base64")
+            .and_then(|v| v.as_str())
+            .context("Transport local public key missing")?,
+    )?;
+    ensure!(
+        binding.peer_public_key_sha256 == digest(&peer),
+        "Peer key differs from the production binding"
+    );
+    ensure!(
+        binding.validator_public_key_sha256 == digest(files.validator_public_key),
+        "Validator key differs from the production binding"
+    );
+    let validators = genesis
+        .get("validators")
+        .and_then(|v| v.as_array())
+        .context("Engine genesis validators missing")?;
+    let mut in_genesis = false;
+    for validator in validators {
+        let value = validator
+            .get("pub_key")
+            .and_then(|v| v.get("value"))
+            .and_then(|v| v.as_str())
+            .context("Genesis validator key missing")?;
+        in_genesis |= STANDARD.decode(value)? == files.validator_public_key;
+    }
+    ensure!(
+        in_genesis == (role == NodeRole::Validator),
+        "Only a validator's key may be in the genesis validator set"
+    );
+    Ok(())
 }
 
 /// The node's metrics files (metrics v1): the engine writes
@@ -627,15 +801,16 @@ impl NativeServiceConfig {
                 .join(format!("signer-{}.lock", self.validator_public_key_sha256)),
         )
     }
+    /// The production mode of a production build (production activation v1).
+    pub fn production(&self) -> bool {
+        self.mode == PRODUCTION_MODE
+    }
     pub fn validate(&self) -> Result<()> {
         ensure!(
             unsafe { libc::geteuid() } != 0,
-            "Development service must run as a non-root user"
+            "The service must run as a non-root user"
         );
-        ensure!(
-            self.schema == 1 && self.mode == "disposable-loopback-native",
-            "Only disposable native mode is implemented; production remains disabled"
-        );
+        self.validate_mode()?;
         ensure!(
             (1..=60_000).contains(&self.monitor_interval_millis) && self.max_state_entries > 0,
             "Monitoring and state inventory bounds required"
@@ -738,15 +913,73 @@ impl NativeServiceConfig {
         }
         Ok(())
     }
+    /// Each build runs only its own mode. Production settings appear only
+    /// in production mode, and there they fix what each role runs (design F).
+    fn validate_mode(&self) -> Result<()> {
+        ensure!(
+            self.schema == 1 && self.mode == MODE,
+            "This build runs only the {MODE} service mode"
+        );
+        self.validate_settings()
+    }
+    fn validate_settings(&self) -> Result<()> {
+        if !self.production() {
+            ensure!(
+                self.role.is_none()
+                    && self.binding.is_none()
+                    && self.state_sync.is_none()
+                    && self.catch_up_millis.is_none(),
+                "Roles, bindings, state sync and catch-up budgets are production mode settings"
+            );
+            return Ok(());
+        }
+        let role = self.role.context("Production mode requires a node role")?;
+        let binding = self
+            .binding
+            .as_ref()
+            .context("Production mode requires this host's binding")?;
+        ensure!(
+            binding.max_bytes <= MAX_BINDING_BYTES,
+            "Binding bound exceeds the engine limit"
+        );
+        let catch_up = self
+            .catch_up_millis
+            .context("Production mode requires a catch-up budget")?;
+        ensure!(
+            (self.process.startup_millis..=MAX_CATCH_UP_MILLIS).contains(&catch_up),
+            "Catch-up budget must be from the startup bound to seven days"
+        );
+        let serves = self.adapter_listen.is_some()
+            || self.adapter_limits.is_some()
+            || self.adapter_channel.is_some();
+        match role {
+            NodeRole::Endpoint => ensure!(
+                self.adapter_listen.is_some() && self.adapter_channel.is_some(),
+                "An endpoint runs the HTTP adapter and its client channel"
+            ),
+            NodeRole::Validator | NodeRole::Sentry => ensure!(
+                !serves,
+                "Validators and sentries run no adapter or channel listener"
+            ),
+        }
+        Ok(())
+    }
     fn validate_root_inputs(&self) -> Result<()> {
         let root: serde_json::Value = serde_json::from_slice(&self.root_config.read()?)?;
-        let expected: BTreeSet<PathBuf> = ["policy_path", "request_path"]
+        // The development root names a signed request; the threshold root
+        // (A2) its combined signatures file.
+        let records = if self.production() {
+            ["policy_path", "signatures_path"]
+        } else {
+            ["policy_path", "request_path"]
+        };
+        let expected: BTreeSet<PathBuf> = records
             .iter()
             .map(|key| {
                 root.get(key)
                     .and_then(|v| v.as_str())
                     .map(PathBuf::from)
-                    .context("Root policy/request path missing")
+                    .context("Root public input path missing")
             })
             .collect::<Result<_>>()?;
         ensure!(
@@ -758,7 +991,7 @@ impl NativeServiceConfig {
                     .map(|p| p.path.clone())
                     .collect::<BTreeSet<_>>()
                     == expected,
-            "Pin both exact root policy and request inputs"
+            "Pin both exact root public inputs"
         );
         for input in &self.root_public_inputs {
             input.read()?;
@@ -771,10 +1004,24 @@ impl NativeServiceConfig {
         Ok(())
     }
     fn validate_engine(&self) -> Result<()> {
+        // The production transport takes its peer identity from the seed
+        // file and refuses a packed node key (A4).
+        let peer_secret = if self.production() {
+            PEER_SEED_FILE
+        } else {
+            "node_key.json"
+        };
+        if self.production() {
+            ensure!(
+                matches!(std::fs::symlink_metadata(self.home.join("config/node_key.json")),
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound),
+                "The production transport refuses a packed peer key"
+            );
+        }
         let expected: BTreeSet<PathBuf> = [
             "config.toml",
             "genesis.json",
-            "node_key.json",
+            peer_secret,
             "pqc_transport.json",
             "priv_validator_key.json",
         ]
@@ -795,7 +1042,7 @@ impl NativeServiceConfig {
         for input in &self.engine_inputs {
             inputs.insert(input.path.clone(), input.read()?);
         }
-        for name in ["node_key.json", "priv_validator_key.json"] {
+        for name in [peer_secret, "priv_validator_key.json"] {
             let metadata = std::fs::symlink_metadata(self.home.join("config").join(name))?;
             ensure!(
                 metadata.mode() & 0o077 == 0,
@@ -831,14 +1078,33 @@ impl NativeServiceConfig {
                 == Some("data/cs.wal/wal"),
             "Consensus WAL path differs"
         );
-        for section in ["p2p", "rpc"] {
-            loopback(
-                cfg.get(section)
-                    .and_then(|v| v.get("laddr"))
-                    .and_then(toml::Value::as_str)
-                    .context("Engine loopback listener absent")?,
-                "tcp://127.0.0.1:",
+        let laddr = |section: &str| {
+            cfg.get(section)
+                .and_then(|v| v.get("laddr"))
+                .and_then(toml::Value::as_str)
+                .context("Engine listener absent")
+        };
+        // The engine serves RPC on its owner-only Unix sockets (rpc profile
+        // dytallix-pqc-unix-v1); its configuration names a loopback address.
+        loopback(laddr("rpc")?, "tcp://127.0.0.1:")?;
+        if self.production() {
+            // One IP per node (P01, 30 September 2026): the P2P listener is
+            // the node's single address, and an endpoint's channel listener
+            // shares it.
+            let p2p = explicit_endpoint(
+                laddr("p2p")?
+                    .strip_prefix("tcp://")
+                    .context("Engine P2P listener must be TCP")?,
             )?;
+            if let Some(channel) = &self.adapter_channel {
+                let channel = channel.address()?;
+                ensure!(
+                    channel.ip() == p2p.ip() && channel.port() != p2p.port(),
+                    "The channel listener must use the node's P2P address on another port"
+                );
+            }
+        } else {
+            loopback(laddr("p2p")?, "tcp://127.0.0.1:")?;
         }
         for (section, key) in [
             ("p2p", "external_address"),
@@ -856,20 +1122,37 @@ impl NativeServiceConfig {
                 "Unsupported engine external route: {section}.{key}"
             );
         }
+        let flag = |section: &str, key: &str| {
+            cfg.get(section)
+                .and_then(|v| v.get(key))
+                .and_then(toml::Value::as_bool)
+        };
         for (section, key) in [
             ("p2p", "pex"),
             ("p2p", "seed_mode"),
             ("rpc", "unsafe"),
-            ("statesync", "enable"),
             ("instrumentation", "prometheus"),
         ] {
             ensure!(
-                cfg.get(section)
-                    .and_then(|v| v.get(key))
-                    .and_then(toml::Value::as_bool)
-                    == Some(false),
+                flag(section, key) == Some(false),
                 "Unsupported engine behavior: {section}.{key}"
             );
+        }
+        // A production node may join by state sync from the operator's light
+        // blocks (state sync v1); the development mode never does.
+        let state_sync = flag("statesync", "enable").context("Engine state sync setting absent")?;
+        match &self.state_sync {
+            Some(input) => {
+                ensure!(
+                    state_sync,
+                    "Light block exports require the engine's state sync"
+                );
+                input.validate(&self.home)?;
+            }
+            None => ensure!(
+                !state_sync,
+                "Engine state sync requires the operator's light block exports"
+            ),
         }
         let genesis: serde_json::Value =
             serde_json::from_slice(&inputs[&self.home.join("config/genesis.json")])?;
@@ -878,8 +1161,10 @@ impl NativeServiceConfig {
             .and_then(|v| v.as_str())
             .context("Engine chain ID required")?
             .to_lowercase();
+        // Only a production build may name mainnet (production activation v1).
         ensure!(
-            !chain.is_empty() && !chain.contains("mainnet") && !chain.contains("production"),
+            !chain.is_empty()
+                && (self.production() || (!chain.contains("mainnet") && !chain.contains("production"))),
             "Production chain identity forbidden"
         );
         let validator: serde_json::Value =
@@ -902,8 +1187,49 @@ impl NativeServiceConfig {
                 && hex::encode(Sha256::digest(&bytes)) == self.validator_public_key_sha256,
             "Validator public identity pin mismatch"
         );
+        if self.production() {
+            let binding = self
+                .binding
+                .as_ref()
+                .context("Production mode requires this host's binding")?;
+            let file = |name: &str| inputs[&self.home.join("config").join(name)].as_slice();
+            check_binding(
+                &binding.read()?,
+                self.role.context("Production mode requires a node role")?,
+                &EngineFiles {
+                    config: file("config.toml"),
+                    genesis: file("genesis.json"),
+                    transport: file("pqc_transport.json"),
+                    validator_public_key: &bytes,
+                },
+            )?;
+        }
         Ok(())
     }
+}
+
+/// A canonical `IP:port` the production engine accepts as its P2P listener:
+/// a global unicast address (private ranges included, as Go defines it) and
+/// a port from 1024.
+fn explicit_endpoint(value: &str) -> Result<SocketAddr> {
+    let address: SocketAddr = value
+        .parse()
+        .context("Engine P2P listener must be a numeric IP:port")?;
+    let ip = address.ip();
+    let link_local = match ip {
+        std::net::IpAddr::V4(v4) => v4.is_link_local() || v4.is_broadcast(),
+        std::net::IpAddr::V6(v6) => (v6.segments()[0] & 0xffc0) == 0xfe80,
+    };
+    ensure!(
+        address.to_string() == value
+            && !ip.is_loopback()
+            && !ip.is_unspecified()
+            && !ip.is_multicast()
+            && !link_local
+            && address.port() >= 1024,
+        "Engine P2P listener must be the node's canonical explicit address"
+    );
+    Ok(address)
 }
 
 #[cfg(test)]
@@ -1162,6 +1488,200 @@ mod tests {
             serde_json::json!({"directory":"/s","interval_blocks":1,"keep":1,"format":1})
         )
         .is_err());
+    }
+    fn service(mode: &str) -> NativeServiceConfig {
+        let pin = |path: &str| serde_json::json!({"path":path,"sha256":"0".repeat(64),"max_bytes":1});
+        serde_json::from_value(serde_json::json!({
+            "schema":1,"mode":mode,"home":"/n","lock_directory":"/l",
+            "consensus_config":pin("/c"),"application_genesis":pin("/g"),"root_config":pin("/r"),
+            "root_public_inputs":[],"emergency_verifier_config":pin("/e"),
+            "candidate_config":pin("/k"),"process_admission":pin("/a"),"engine_inputs":[],
+            "validator_public_key_sha256":"0".repeat(64),
+            "process":{"startup_millis":1000,"stop_millis":1,"kill_millis":1,"poll_millis":1,
+                "max_argument_bytes":1,"max_environment_bytes":1,"max_probe_request_bytes":1,
+                "max_probe_response_bytes":1},
+            "environment":{},"monitor_interval_millis":1,"max_state_entries":1,
+            "metrics":{"directory":"/m","interval_seconds":15},"block_history":"window"}))
+        .unwrap()
+    }
+    #[test]
+    fn each_build_runs_only_its_own_mode() {
+        let other = if cfg!(feature = "production") { DEVELOPMENT_MODE } else { PRODUCTION_MODE };
+        let error = service(other).validate_mode().unwrap_err().to_string();
+        assert!(error.contains(&format!("runs only the {MODE} service mode")), "{error}");
+        assert_eq!(service(PRODUCTION_MODE).production(), true);
+        assert_eq!(service(DEVELOPMENT_MODE).production(), false);
+    }
+    #[test]
+    fn production_settings_fix_what_each_role_runs() {
+        let pin = PinnedInput { path: "/b".into(), sha256: "0".repeat(64), max_bytes: 4096 };
+        let production = |role| {
+            let mut config = service(PRODUCTION_MODE);
+            config.role = Some(role);
+            config.binding = Some(pin.clone());
+            config.catch_up_millis = Some(3_600_000);
+            config
+        };
+        for role in [NodeRole::Validator, NodeRole::Sentry] {
+            production(role).validate_settings().unwrap();
+            let mut serving = production(role);
+            serving.adapter_listen = Some("127.0.0.1:8545".into());
+            assert!(serving.validate_settings().is_err(), "{role:?} with an adapter");
+        }
+        let mut endpoint = production(NodeRole::Endpoint);
+        assert!(endpoint.validate_settings().is_err(), "endpoint without its listeners");
+        endpoint.adapter_listen = Some("127.0.0.1:8545".into());
+        assert!(endpoint.validate_settings().is_err(), "endpoint without its channel");
+        endpoint.adapter_channel = Some(serde_json::from_value(serde_json::json!({
+            "listen":"203.0.113.9:26670","pin":{"path":"/p","sha256":"0".repeat(64),"max_bytes":1}})).unwrap());
+        endpoint.validate_settings().unwrap();
+        // Every production setting is required, and bounded.
+        for change in [
+            (|c: &mut NativeServiceConfig| c.role = None) as fn(&mut NativeServiceConfig),
+            |c| c.binding = None,
+            |c| c.catch_up_millis = None,
+            |c| c.catch_up_millis = Some(999),
+            |c| c.catch_up_millis = Some(MAX_CATCH_UP_MILLIS + 1),
+            |c| c.binding.as_mut().unwrap().max_bytes = MAX_BINDING_BYTES + 1,
+        ] {
+            let mut config = production(NodeRole::Sentry);
+            change(&mut config);
+            assert!(config.validate_settings().is_err());
+        }
+        let mut config = production(NodeRole::Sentry);
+        config.catch_up_millis = Some(MAX_CATCH_UP_MILLIS);
+        config.validate_settings().unwrap();
+        // The development mode has none of them.
+        for change in [
+            (|c: &mut NativeServiceConfig| c.role = Some(NodeRole::Validator)) as fn(&mut NativeServiceConfig),
+            |c| c.catch_up_millis = Some(1000),
+            |c| c.state_sync = Some(StateSyncInput { light_blocks: vec!["/lb".into()] }),
+        ] {
+            let mut config = service(DEVELOPMENT_MODE);
+            change(&mut config);
+            assert!(config.validate_settings().is_err());
+        }
+        assert!(serde_json::from_value::<NodeRole>(serde_json::json!("observer")).is_err());
+    }
+    /// An engine configuration, a genesis with one validator and a
+    /// transport file.
+    fn engine_files() -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+        let genesis = serde_json::to_vec(&serde_json::json!({"chain_id":"dytallix-mainnet-1",
+            "validators":[{"pub_key":{"type":"cometbft/PubKeyMlDsa65","value":STANDARD.encode([7u8; 1952])}}]})).unwrap();
+        let transport = serde_json::to_vec(&serde_json::json!({"version":1,"profile":"dytallix-pqc-production-v1",
+            "local_public_key_base64":STANDARD.encode([9u8; 1952])})).unwrap();
+        (b"config".to_vec(), genesis, transport)
+    }
+    fn binding_for(role: &str, files: &(Vec<u8>, Vec<u8>, Vec<u8>), validator: &[u8]) -> serde_json::Value {
+        let digest = |bytes: &[u8]| hex::encode(Sha256::digest(bytes));
+        serde_json::json!({"schema":1,"role":role,"chain_id":"dytallix-mainnet-1",
+            "config_sha256":digest(&files.0),"genesis_sha256":digest(&files.1),
+            "transport_sha256":digest(&files.2),"peer_public_key_sha256":digest(&[9u8; 1952]),
+            "validator_public_key_sha256":digest(validator)})
+    }
+    fn raw(binding: &serde_json::Value) -> Vec<u8> {
+        let decoded: ProductionBinding = serde_json::from_value(binding.clone()).unwrap();
+        serde_json::to_vec(&decoded).unwrap()
+    }
+    #[test]
+    fn binding_matches_the_pinned_engine_files_and_role() {
+        let genesis_key = [7u8; 1952];
+        let other_key = [8u8; 1952];
+        let files = engine_files();
+        let check = |raw: &[u8], role, key: &[u8]| {
+            check_binding(raw, role, &EngineFiles {
+                config: &files.0, genesis: &files.1, transport: &files.2, validator_public_key: key })
+        };
+        let validator = raw(&binding_for("validator", &files, &genesis_key));
+        check(&validator, NodeRole::Validator, &genesis_key).unwrap();
+        // A trailing newline is allowed, as the engine allows it.
+        check(&[validator.as_slice(), b"\n"].concat(), NodeRole::Validator, &genesis_key).unwrap();
+        // A genesis key never runs as a sentry or endpoint; a key outside the
+        // genesis set never runs as a validator.
+        for role in [NodeRole::Sentry, NodeRole::Endpoint] {
+            let binding = raw(&binding_for(role.as_str(), &files, &genesis_key));
+            assert!(check(&binding, role, &genesis_key).is_err(), "{role:?}");
+            let binding = raw(&binding_for(role.as_str(), &files, &other_key));
+            check(&binding, role, &other_key).unwrap();
+        }
+        let binding = raw(&binding_for("validator", &files, &other_key));
+        assert!(check(&binding, NodeRole::Validator, &other_key).is_err());
+        // The binding is for this node's role.
+        assert!(check(&validator, NodeRole::Sentry, &genesis_key).is_err());
+        // Each changed field is refused.
+        for (key, value) in [
+            ("schema", serde_json::json!(2)),
+            ("chain_id", serde_json::json!("another-chain")),
+            ("config_sha256", serde_json::json!("00".repeat(32))),
+            ("genesis_sha256", serde_json::json!("00".repeat(32))),
+            ("transport_sha256", serde_json::json!("00".repeat(32))),
+            ("peer_public_key_sha256", serde_json::json!("00".repeat(32))),
+            ("validator_public_key_sha256", serde_json::json!("00".repeat(32))),
+        ] {
+            let mut changed = binding_for("validator", &files, &genesis_key);
+            changed[key] = value;
+            assert!(check(&raw(&changed), NodeRole::Validator, &genesis_key).is_err(), "{key}");
+        }
+        // Only canonical compact JSON in the engine's field order.
+        let text = String::from_utf8(validator.clone()).unwrap();
+        for changed in [
+            text.replacen("\"schema\":1", "\"schema\": 1", 1),
+            text.replacen("{\"schema\":1,\"role\":\"validator\"", "{\"role\":\"validator\",\"schema\":1", 1),
+            text.replacen("{\"schema\":1", "{\"schema\":1,\"note\":\"x\"", 1),
+        ] {
+            assert!(check(changed.as_bytes(), NodeRole::Validator, &genesis_key).is_err(), "{changed}");
+        }
+    }
+    #[test]
+    fn state_sync_exports_are_distinct_protected_directories() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let home = root.join("home");
+        for dir in ["home/config", "primary", "witness"] {
+            std::fs::create_dir_all(root.join(dir)).unwrap();
+            std::fs::set_permissions(root.join(dir), std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let exports = |dirs: &[&str]| StateSyncInput {
+            light_blocks: dirs.iter().map(|d| root.join(d)).collect(),
+        };
+        exports(&["primary", "witness"]).validate(&home).unwrap();
+        assert!(exports(&[]).validate(&home).is_err());
+        assert!(exports(&["primary", "primary"]).validate(&home).is_err());
+        assert!(exports(&["home/config"]).validate(&home).is_err());
+        assert!(exports(&["absent"]).validate(&home).is_err());
+        symlink(root.join("primary"), root.join("alias")).unwrap();
+        assert!(exports(&["alias"]).validate(&home).is_err());
+        std::fs::set_permissions(root.join("witness"), std::fs::Permissions::from_mode(0o775)).unwrap();
+        assert!(exports(&["witness"]).validate(&home).is_err());
+        let many: Vec<String> = (0..=MAX_LIGHT_BLOCK_EXPORTS).map(|i| format!("e{i}")).collect();
+        for dir in &many {
+            std::fs::create_dir(root.join(dir)).unwrap();
+            std::fs::set_permissions(root.join(dir), std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let names: Vec<&str> = many.iter().map(String::as_str).collect();
+        assert!(exports(&names).validate(&home).is_err());
+        exports(&names[..MAX_LIGHT_BLOCK_EXPORTS]).validate(&home).unwrap();
+    }
+    #[test]
+    fn production_p2p_listener_is_one_explicit_address() {
+        for good in ["203.0.113.9:26656", "[2001:db8::9]:26656", "10.0.0.2:1024"] {
+            explicit_endpoint(good).unwrap();
+        }
+        for bad in [
+            "127.0.0.1:26656",
+            "0.0.0.0:26656",
+            "[::]:26656",
+            "[::1]:26656",
+            "224.0.0.1:26656",
+            "169.254.1.1:26656",
+            "255.255.255.255:26656",
+            "[fe80::1]:26656",
+            "203.0.113.9:1023",
+            "203.0.113.9:026656",
+            "node.example:26656",
+        ] {
+            assert!(explicit_endpoint(bad).is_err(), "{bad}");
+        }
     }
     #[test]
     fn listener_requires_canonical_numeric_loopback() {

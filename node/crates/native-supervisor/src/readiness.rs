@@ -91,6 +91,18 @@ impl<'a> Deadline<'a> {
             health,
         })
     }
+    /// A deadline at `end`, polling at the process interval.
+    fn until(
+        end: Instant,
+        limits: &ProcessLimits,
+        health: &'a mut dyn FnMut() -> Result<()>,
+    ) -> Result<Self> {
+        Ok(Self {
+            end,
+            poll: limits.bounds()?.poll_interval,
+            health,
+        })
+    }
     fn check(&mut self) -> Result<()> {
         (self.health)()?;
         ensure!(Instant::now() < self.end, ReadinessExpired);
@@ -557,20 +569,35 @@ fn check_application(info: &Info, preflight: Option<&Info>) -> Result<bool> {
     Ok(true)
 }
 
+/// Wait until the engine reports it has caught up. Without a catch-up
+/// budget the whole wait has the startup bound (the development mode). A
+/// production node waits up to its catch-up budget (P01, 1 October 2026),
+/// while each round of probes keeps the startup bound; `health` runs at
+/// every poll.
 pub fn verify_engine(
     socket: &Path,
     expected_engine_pid: u32,
     expected_chain: &str,
     preflight: Option<&Info>,
     limits: &ProcessLimits,
+    catch_up: Option<Duration>,
     mut health: impl FnMut() -> Result<()>,
 ) -> Result<EngineReady> {
     ensure!(
         !expected_chain.is_empty() && expected_chain.len() <= 128,
         "Expected chain identifier invalid"
     );
-    let mut deadline = Deadline::new(limits, &mut health)?;
+    let startup = limits.bounds()?.startup_timeout;
+    let started = Instant::now();
+    let end = started
+        .checked_add(catch_up.unwrap_or(startup))
+        .context("Readiness deadline overflow")?;
     loop {
+        let round = Instant::now()
+            .checked_add(startup)
+            .context("Readiness deadline overflow")?
+            .min(end);
+        let mut deadline = Deadline::until(round, limits, &mut health)?;
         let status_raw = phase(ipc_probe(socket, expected_engine_pid, "/status", limits, &mut deadline), Role::Engine, Stage::StatusRpc)?;
         let (height, catching_up) = phase(status(&status_raw, expected_chain), Role::Engine, Stage::StatusValidation)?;
         let application_raw = phase(ipc_probe(socket, expected_engine_pid, "/abci_info", limits, &mut deadline), Role::Engine, Stage::ApplicationRpc)?;
@@ -589,7 +616,9 @@ pub fn verify_engine(
                 engine_pid: expected_engine_pid,
             });
         }
-        phase(deadline.wait(None, 0), Role::Engine, Stage::EngineReadiness)?;
+        drop(deadline);
+        let mut waiting = Deadline::until(end, limits, &mut health)?;
+        phase(waiting.wait(None, 0), Role::Engine, Stage::EngineReadiness)?;
     }
 }
 
@@ -1383,12 +1412,99 @@ mod tests {
             "chain",
             Some(&prior),
             &limits(),
+            None,
             || Ok(()),
         )
         .unwrap();
         assert_eq!(ready.block_height(), 10);
         assert_eq!(ready.application_info().height, 11);
         task.join().unwrap();
+    }
+    /// An engine that reports it is catching up for `rounds` status probes,
+    /// then the caught-up chain at height 10.
+    #[cfg(target_os = "linux")]
+    fn catching_up_engine(rounds: usize) -> (tempfile::TempDir, std::path::PathBuf, JoinHandle<()>) {
+        use std::os::unix::fs::PermissionsExt;
+        use std::os::unix::net::UnixListener;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().canonicalize().unwrap().join("rpc.sock");
+        let listener = UnixListener::bind(&path).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let task = thread::spawn(move || {
+            let mut statuses = 0;
+            loop {
+                let end = Instant::now() + Duration::from_secs(2);
+                let mut stream = loop {
+                    match listener.accept() {
+                        Ok((s, _)) => break s,
+                        Err(e)
+                            if e.kind() == std::io::ErrorKind::WouldBlock
+                                && Instant::now() < end =>
+                        {
+                            thread::sleep(Duration::from_millis(1))
+                        }
+                        _ => return,
+                    }
+                };
+                stream.set_nonblocking(false).unwrap();
+                stream.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
+                let mut prefix = [0; 4];
+                if std::io::Read::read_exact(&mut stream, &mut prefix).is_err() {
+                    return;
+                }
+                let mut request = vec![0; u32::from_be_bytes(prefix) as usize];
+                std::io::Read::read_exact(&mut stream, &mut request).unwrap();
+                let body = if String::from_utf8_lossy(&request).contains("/status") {
+                    statuses += 1;
+                    let mut status: Value = serde_json::from_slice(&status_body("chain", 10)).unwrap();
+                    status["result"]["sync_info"]["catching_up"] = (statuses <= rounds).into();
+                    serde_json::to_vec(&status).unwrap()
+                } else {
+                    app_body(10, &[8; 32])
+                };
+                let raw=serde_json::to_vec(&serde_json::json!({"version":1,"status":200,"headers":{"Content-Type":"application/json"},"body_base64":STANDARD.encode(body)})).unwrap();
+                stream.write_all(&(raw.len() as u32).to_be_bytes()).unwrap();
+                stream.write_all(&raw).unwrap();
+            }
+        });
+        (dir, path, task)
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn readiness_waits_for_catch_up_within_the_budget_only() {
+        // Each status probe takes a poll interval, so 150 rounds outlast the
+        // 200 ms startup bound.
+        let mut limits = limits();
+        limits.poll_millis = 4;
+        let (_dir, path, task) = catching_up_engine(150);
+        let error = verify_engine(&path, std::process::id(), "chain", None, &limits, None, || Ok(()))
+            .unwrap_err();
+        assert!(error.chain().any(|cause| cause.is::<ReadinessExpired>()));
+        task.join().unwrap();
+        let (_ready_dir, path, task) = catching_up_engine(150);
+        let mut checks = 0;
+        let ready = verify_engine(&path, std::process::id(), "chain", None, &limits,
+            Some(Duration::from_secs(30)), || {
+                checks += 1;
+                Ok(())
+            })
+        .unwrap();
+        assert_eq!(ready.block_height(), 10);
+        assert!(checks > 150);
+        drop(task);
+        // A health failure ends the wait.
+        let (_stalled_dir, path, task) = catching_up_engine(usize::MAX);
+        let mut calls = 0;
+        let error = verify_engine(&path, std::process::id(), "chain", None, &limits,
+            Some(Duration::from_secs(30)), || {
+                calls += 1;
+                ensure!(calls < 50, "Owned child exited");
+                Ok(())
+            })
+        .unwrap_err();
+        assert!(format!("{error:#}").contains("Owned child exited"));
+        drop(task);
     }
     #[cfg(target_os = "linux")]
     #[test]

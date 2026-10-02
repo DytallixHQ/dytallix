@@ -23,6 +23,8 @@ COMMANDS = (
     # Operator tools on the validator host (E04 gap 17).
     ("consensus/cometbft", "./cmd/dytallix-validator-key"),
     ("consensus/cometbft", "./cmd/dytallix-operator-rpc"),
+    # The production peer seed and host binding (production activation v1, A5).
+    ("consensus/cometbft", "./cmd/dytallix-peer-seed"),
     ("consensus/root-authorization", "./cmd/dytallix-root-verify"),
     # The genesis signers' offline signer (production activation v1, A2).
     ("consensus/root-authorization", "./cmd/dytallix-root-sign"),

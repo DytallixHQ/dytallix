@@ -174,7 +174,7 @@ ROUTES = [
             "consensus/cometbft/cmd/dytallix-comet-bridge/application.go",
             "consensus/cometbft/cmd/dytallix-comet-bridge/snapshots.go",
             "consensus/pqc-http-adapter/src/main.rs",
-            "deploy/pqc-engine/supervise.py",
+            "crates/native-supervisor/src/service.rs",
         ],
     },
 ]

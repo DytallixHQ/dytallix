@@ -17,7 +17,7 @@ tree.
 | [`consensus/owner-guard`](consensus/owner-guard), [`consensus/root-authorization`](consensus/root-authorization) | Go process-ownership and root-authorization helpers |
 | [`consensus/pqc-http-adapter`](consensus/pqc-http-adapter) | Local HTTP adapter (separate Cargo workspace) |
 | [`crates/`](crates) | Shared crates: adaptive emission, gas, native supervisor, protocol types, release runtime, runtime crypto (FIPS 204 ML-DSA-65), signature policy, storage |
-| [`deploy/pqc-engine`](deploy/pqc-engine) | Engine service templates and Linux build notes |
+| [`deploy/pqc-engine`](deploy/pqc-engine) | Linux build notes for the engine and application |
 | [`deploy/genesis*.json`](deploy) | Development genesis fixtures used by tests |
 | [`tools/`](tools), [`scripts/`](scripts) | Preparation, boundary and dependency-profile checks |
 

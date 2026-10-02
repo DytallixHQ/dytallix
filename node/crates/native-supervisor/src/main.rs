@@ -16,14 +16,19 @@ fn main() -> std::process::ExitCode {
         Err(_) => std::process::ExitCode::FAILURE,
     }
 }
+/// Each build has one service mode (production activation v1, A5): a
+/// production build runs only the production mode, a development build only
+/// the disposable development mode.
+const CONFIG_FLAG: &str = if cfg!(feature = "production") {
+    "--service-config"
+} else {
+    "--development-service-config"
+};
 fn run() -> Result<()> {
-    // The development service mode is not in production builds; the
-    // production mode is production activation step A5.
-    ensure!(!cfg!(feature = "production"), "This production build has no supervisor mode until production activation step A5");
     let args: Vec<_> = std::env::args_os().skip(1).collect();
     ensure!(
-        args.len() == 2 && args[0] == "--development-service-config",
-        "Usage: dytallix-native-supervisor --development-service-config /absolute/config.json"
+        args.len() == 2 && args[0] == CONFIG_FLAG,
+        "Usage: dytallix-native-supervisor {CONFIG_FLAG} /absolute/config.json"
     );
     dytallix_release_runtime::ownership::install_cancellation()?;
     let sink = ReportSink::stdout()?;

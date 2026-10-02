@@ -25,6 +25,112 @@ def fixture():
        'resources':{'memory_max_bytes':8*2**30,'tasks_max':4096,'nofile':65536}}
     return raw,m,r
 
+def production_fixture(peers=('10.20.0.3:26656','10.20.0.4:26656'),listen='10.20.0.2:26656',public=('10.20.0.2:26670',)):
+    """A production catalog in routed mode with the node's transport file."""
+    raw,m,r=fixture();c=json.loads(raw)
+    c['chain_id']='dytallix-mainnet-1';c['service_profile']=render.PRODUCTION_PROFILE
+    raw=json.dumps(c,separators=(',',':')).encode()
+    transport=json.dumps({'version':1,'profile':render.PRODUCTION_TRANSPORT,'network':'dytallix-mainnet-1',
+        'local_public_key_base64':'AA==','peers':[{'id':'%040x'%i,'public_key_base64':'AA==','address':a}
+        for i,a in enumerate(peers)],'handshake_timeout_ms':5000},separators=(',',':')).encode()
+    r['catalog_sha512']=hashlib.sha512(raw).hexdigest()
+    r['network']={'mode':'routed','namespace_path':None,
+        'sockets':[{'family':'unix','type':'stream'},{'family':'inet','type':'stream'}],
+        'firewall':{'transport_sha256':hashlib.sha256(transport).hexdigest(),'p2p_listen':listen,
+                    'public_listeners':list(public)}}
+    return raw,m,r,transport
+
+class ProductionRenderingTests(unittest.TestCase):
+    def test_production_catalog_renders_routed_with_its_firewall(self):
+        raw,m,r,transport=production_fixture()
+        out=render.render(raw,m,r,transport)
+        properties=json.loads(out['unit-properties.json'])['properties']
+        self.assertFalse(properties['PrivateNetwork'])
+        self.assertNotIn('NetworkNamespacePath',properties)
+        self.assertTrue(json.loads(out['unit-properties.json'])['profile_name'].startswith('dyt-native-production-'))
+        rules=out['host-firewall.nft'].decode()
+        self.assertIn('type filter hook input priority filter; policy drop;',rules)
+        self.assertIn('ip saddr { 10.20.0.3, 10.20.0.4 } ip daddr 10.20.0.2 tcp dport 26656 accept',rules)
+        self.assertIn('ip daddr 10.20.0.2 tcp dport 26670 accept',rules)
+        # Nothing else is admitted: one pinned-source rule and one public listener.
+        self.assertEqual(sum(' accept' in line and 'dport' in line for line in rules.splitlines()),2)
+        self.assertIn('host-firewall.nft',json.loads(out['FILE_HASHES.json']))
+        requirements=json.loads(out['live-verification-requirements.json'])['mandatory']
+        self.assertTrue(set(render.ROUTED_REQUIREMENTS)<=set(requirements))
+        self.assertFalse(json.loads(out['validation.json'])['production_qualified'])
+
+    def test_validator_and_ipv6_nodes_admit_only_their_pins(self):
+        raw,m,r,transport=production_fixture(public=())
+        rules=render.render(raw,m,r,transport)['host-firewall.nft'].decode()
+        self.assertEqual(sum('dport' in line for line in rules.splitlines()),1)
+        raw,m,r,transport=production_fixture(peers=('[2001:db8::3]:26656',),listen='[2001:db8::2]:26656',public=())
+        r['network']['sockets']=[{'family':'inet6','type':'stream'}]
+        rules=render.render(raw,m,r,transport)['host-firewall.nft'].decode()
+        self.assertIn('ip6 saddr { 2001:db8::3 } ip6 daddr 2001:db8::2 tcp dport 26656 accept',rules)
+
+    def test_pin_changes_rerender_rules_but_keep_the_profile(self):
+        first=render.render(*production_fixture())
+        second=render.render(*production_fixture(peers=('10.20.0.3:26656','10.20.0.5:26656')))
+        self.assertEqual(first['apparmor.profile'],second['apparmor.profile'])
+        self.assertNotEqual(first['host-firewall.nft'],second['host-firewall.nft'])
+        self.assertNotEqual(first['FILE_HASHES.json'],second['FILE_HASHES.json'])
+
+    def test_routed_mode_and_production_catalog_go_together(self):
+        raw,m,r,transport=production_fixture()
+        staging=copy.deepcopy(r);staging['network']={'mode':'shared-private','namespace_path':'/run/netns/x',
+            'sockets':r['network']['sockets']}
+        with self.assertRaises(render.Invalid):render.render(raw,m,staging,transport)
+        sraw,sm,sr=fixture();sr['network']=copy.deepcopy(r['network'])
+        with self.assertRaises(render.Invalid):render.render(sraw,sm,sr,transport)
+        with self.assertRaises(render.Invalid):render.render(raw,m,r,None)
+        # The production catalog carries the adapter for endpoints.
+        c=json.loads(raw);c['roles']=[x for x in c['roles'] if x['role']!='http_adapter']
+        c['members']=[x for x in c['members'] if x['id']!='http_adapter']
+        bad=json.dumps(c,separators=(',',':')).encode();br=copy.deepcopy(r);br['catalog_sha512']=hashlib.sha512(bad).hexdigest()
+        bm={'schema':1,'members':[x for x in m['members'] if x['id']!='http_adapter']}
+        with self.assertRaises(render.Invalid):render.render(bad,bm,br,transport)
+
+    def test_firewall_inputs_are_exact(self):
+        cases=[
+            lambda r,t:(r['network']['firewall'].update(transport_sha256='0'*64),t),
+            lambda r,t:(r,t+b' '),
+            lambda r,t:(r['network']['firewall'].update(p2p_listen='127.0.0.1:26656'),t),
+            lambda r,t:(r['network']['firewall'].update(p2p_listen='10.20.0.2:80'),t),
+            lambda r,t:(r['network']['firewall'].update(p2p_listen='10.20.0.02:26656'),t),
+            lambda r,t:(r['network']['firewall'].update(public_listeners=['10.20.0.9:26670']),t),
+            lambda r,t:(r['network']['firewall'].update(public_listeners=['10.20.0.2:26656']),t),
+            lambda r,t:(r['network']['firewall'].update(extra=1),t),
+            lambda r,t:(r['network'].update(namespace_path='/run/netns/x'),t),
+            lambda r,t:(r['network'].update(sockets=[{'family':'unix','type':'stream'}]),t),
+        ]
+        for index,change in enumerate(cases):
+            raw,m,r,t=production_fixture()
+            r,t=change(r,t)
+            with self.assertRaises(render.Invalid,msg=str(index)):render.render(raw,m,r,t)
+        for peers in [('10.20.0.2:26656',),('10.20.0.3:26656','10.20.0.3:26657'),('[2001:db8::3]:26656',),
+                      ('169.254.0.3:26656',),tuple(f'10.21.{i//200}.{i%200+1}:26656' for i in range(65))]:
+            with self.assertRaises(render.Invalid,msg=str(peers)):render.render(*production_fixture(peers=peers))
+        raw,m,r,_=production_fixture()
+        for transport in [{'profile':'dytallix-pqc-private-seed-v1'},{'network':'another-chain'},{'version':2}]:
+            t=json.loads(production_fixture()[3]);t.update(transport)
+            tb=json.dumps(t,separators=(',',':')).encode();rr=copy.deepcopy(r)
+            rr['network']['firewall']['transport_sha256']=hashlib.sha256(tb).hexdigest()
+            with self.assertRaises(render.Invalid,msg=str(transport)):render.render(raw,m,rr,tb)
+
+    def test_cli_takes_the_transport_file(self):
+        raw,m,r,transport=production_fixture()
+        with tempfile.TemporaryDirectory() as d:
+            d=Path(d)
+            for name,data in [('catalog.json',raw),('mapping.json',json.dumps(m).encode()),
+                              ('request.json',json.dumps(r).encode()),('transport.json',transport)]:
+                (d/name).write_bytes(data)
+            base=[sys.executable,str(Path(render.__file__)),'--catalog',str(d/'catalog.json'),
+                  '--mapping',str(d/'mapping.json'),'--request',str(d/'request.json')]
+            self.assertNotEqual(subprocess.run(base+['--output',str(d/'missing')],capture_output=True).returncode,0)
+            done=subprocess.run(base+['--output',str(d/'out'),'--transport',str(d/'transport.json')],capture_output=True)
+            self.assertEqual(done.returncode,0,done.stderr)
+            self.assertTrue((d/'out'/'host-firewall.nft').is_file())
+
 class RenderingTests(unittest.TestCase):
     def test_saved_service_reproduces_native_abi4_candidate(self):
         saved=Path(__file__).parent/'testdata/abi4-service'

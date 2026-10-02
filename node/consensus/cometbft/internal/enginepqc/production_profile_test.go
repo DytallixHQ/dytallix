@@ -3,6 +3,7 @@
 package enginepqc
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"os"
@@ -126,6 +127,27 @@ func TestProductionProfileLoadsOnlyWithItsBinding(t *testing.T) {
 	}
 	if _, err := LoadCandidateForStaging(home); err == nil {
 		t.Fatal("candidate staging loaded in a production build")
+	}
+}
+
+func TestProductionProfileBindingRecord(t *testing.T) {
+	fleet := productionFleet(t)
+	runtime, err := Load(filepath.Join(fleet, "node3"), ProductionProfile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding, err := NewProductionBinding(runtime, RoleValidator)
+	if err != nil || binding != bindingOf(runtime, RoleValidator) {
+		t.Fatalf("binding record: %v", err)
+	}
+	for _, role := range []string{RoleSentry, RoleEndpoint, "observer"} {
+		if _, err := NewProductionBinding(runtime, role); err == nil {
+			t.Fatalf("a genesis validator bound as %s", role)
+		}
+	}
+	public, err := PeerSeedPublicKey(filepath.Join(fleet, "node3"))
+	if err != nil || !bytes.Equal(public, runtime.NodeKey.PubKey().Bytes()) {
+		t.Fatalf("seed public key differs from the loaded peer key: %v", err)
 	}
 }
 

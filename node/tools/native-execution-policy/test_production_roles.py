@@ -20,6 +20,20 @@ class ProductionRoleTests(unittest.TestCase):
     def output(self):
         return policy.generate(*self.inputs(), candidate_only=True)
 
+    def test_production_catalog_carries_its_firewall(self):
+        from test_render import production_fixture
+        raw, mapping, request, transport = production_fixture()
+        request['network']['launch_channel'] = render.LAUNCH_CHANNEL
+        units = [{'unit': 'node' + str(index), 'uid': uid, 'gid': uid}
+                 for index, uid in enumerate(request['service_uids'])]
+        files = policy.generate(raw, mapping, request, units, candidate_only=True, transport=transport)
+        self.assertIn('base-host-firewall.nft', files)
+        self.assertIn('base-host-firewall.nft', json.loads(files['FILE_HASHES.json']))
+        admission = json.loads(files['admission-node0.json'])
+        self.assertIn('http_adapter', {row['role'] for row in admission['roles']})
+        with self.assertRaises(render.Invalid):
+            policy.generate(raw, mapping, request, units, candidate_only=True)
+
     def test_explicit_inputs_and_determinism(self):
         raw, mapping, request, units = self.inputs()
         with self.assertRaises(render.Invalid):

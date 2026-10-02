@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Render staging policy only. This program never verifies or activates host policy."""
+"""Render staging and production service policy. This program never verifies or activates host policy."""
 import argparse
 import hashlib
+import ipaddress
 import json
 import re
 from pathlib import Path, PurePosixPath
@@ -15,6 +16,19 @@ LAUNCH_CHANNEL_REQUIREMENTS = [
 ]
 ROLES = {'consensus_stdio', 'consensus_bridge', 'consensus_engine',
          'genesis_bootstrap_verifier', 'control_verifier', 'service_supervisor'}
+STAGING_PROFILES = ('development-linux-native-service-v2', 'development-linux-native-service-http-v2')
+# One production catalog serves every node role and carries the adapter
+# (production activation v1, A5). It runs only in the routed network mode.
+PRODUCTION_PROFILE = 'production-linux-native-service-v1'
+PRODUCTION_TRANSPORT = 'dytallix-pqc-production-v1'
+TRANSPORT_KEYS = ['version', 'profile', 'network', 'local_public_key_base64', 'peers', 'handshake_timeout_ms']
+MAX_PINS = 64
+MAX_PUBLIC_LISTENERS = 4
+ROUTED_REQUIREMENTS = [
+    'Load host-firewall.nft before the unit starts. Verify the effective input policy drops every source except the pinned peers at the P2P listener, the declared public listeners, established replies, loopback and the listed ICMP types.',
+    'Verify the node listens on and sends from its single address; a public sentry uses static 1:1 NAT without port translation (P01, 30 September 2026).',
+    'Render and load the rules again with each reviewed pin change, before the restart that applies it.',
+]
 MAX_INPUT = 4 * 1024 * 1024
 MAX_RECORDS = 256
 LIVE_REQUIREMENTS = [
@@ -100,7 +114,70 @@ def decode(raw):
     except (UnicodeError, json.JSONDecodeError) as error:
         raise Invalid('Invalid JSON') from error
 
-def validate(catalog_bytes, mapping, request):
+def endpoint(value):
+    """A canonical IP:port the production engine accepts: global unicast
+    (private ranges included, as Go defines it) and a port from 1024."""
+    require(type(value) is str and re.fullmatch(r'[0-9a-f.:\[\]]{1,64}:[0-9]{1,5}', value), 'Invalid endpoint')
+    host, port = value.rsplit(':', 1)
+    if host.startswith('['):
+        require(host.endswith(']'), 'Invalid endpoint')
+        host = host[1:-1]
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError as error:
+        raise Invalid('Invalid endpoint') from error
+    text = f'[{ip.compressed}]:{int(port)}' if ip.version == 6 else f'{ip.compressed}:{int(port)}'
+    require(text == value and 1024 <= int(port) <= 65535, 'Noncanonical endpoint')
+    require(not (ip.is_loopback or ip.is_unspecified or ip.is_multicast or ip.is_link_local or
+                 (ip.version == 4 and ip == ipaddress.IPv4Address('255.255.255.255'))),
+            'Endpoint must be a global unicast address')
+    return ip, int(port)
+
+def firewall_sources(spec, transport, chain_id):
+    """The pinned peer addresses from the node's exact transport file, the
+    P2P listener and the public listeners (production activation v1, A5)."""
+    keys(spec, ['transport_sha256', 'p2p_listen', 'public_listeners'], 'firewall')
+    require(type(transport) is bytes and hashlib.sha256(transport).hexdigest() == digest(spec['transport_sha256'], 64),
+            'Transport file digest mismatch')
+    tc = decode(transport)
+    keys(tc, TRANSPORT_KEYS, 'transport')
+    require(json.dumps(tc, separators=(',', ':')).encode() == transport.strip(), 'Transport must be canonical compact JSON')
+    require(tc['version'] == 1 and tc['profile'] == PRODUCTION_TRANSPORT and tc['network'] == chain_id,
+            'Production transport for this chain required')
+    listen = endpoint(spec['p2p_listen'])
+    public = [endpoint(p) for p in array(spec['public_listeners'], 'public listeners', True)]
+    require(len(public) <= MAX_PUBLIC_LISTENERS, 'Public listener bound')
+    unique([p[1] for p in public] + [listen[1]], 'Listener ports')
+    require(all(ip == listen[0] for ip, _ in public), 'Public listeners use the node address')
+    peers = []
+    for peer in array(tc['peers'], 'peers'):
+        keys(peer, ['id', 'public_key_base64', 'address'], 'peer')
+        peers.append(endpoint(peer['address'])[0])
+    require(len(peers) <= MAX_PINS, 'At most 64 pinned peers')
+    unique(peers, 'Pinned peer addresses')
+    require(listen[0] not in peers, 'A pinned peer uses the node address')
+    require(all(ip.version == listen[0].version for ip in peers), 'Pinned peers use the node address family')
+    return listen, public, sorted(peers)
+
+def firewall_rules(listen, public, peers):
+    """Inbound rules for nft: only pinned peers reach the P2P listener, so an
+    unpinned source is dropped before the handshake. Outbound is unchanged."""
+    family = 'ip' if listen[0].version == 4 else 'ip6'
+    lines = ['#!/usr/sbin/nft -f',
+             '# Dytallix host firewall (production activation v1). Rendering does not load it.',
+             'table inet dytallix_node', 'delete table inet dytallix_node',
+             'table inet dytallix_node {', '  chain input {',
+             '    type filter hook input priority filter; policy drop;',
+             '    ct state invalid drop', '    ct state established,related accept', '    iif "lo" accept',
+             '    icmp type { destination-unreachable, time-exceeded, parameter-problem } accept',
+             '    icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem, '
+             'nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert, mld-listener-query } accept',
+             f'    {family} saddr {{ {", ".join(ip.compressed for ip in peers)} }} {family} daddr '
+             f'{listen[0].compressed} tcp dport {listen[1]} accept']
+    lines += [f'    {family} daddr {ip.compressed} tcp dport {port} accept' for ip, port in sorted(public, key=lambda x: x[1])]
+    return '\n'.join(lines + ['  }', '}', '']).encode()
+
+def validate(catalog_bytes, mapping, request, transport=None):
     catalog = decode(catalog_bytes)
     request_keys = ['schema','policy_version','catalog_sha512','service_uids','writable_roots',
                     'readonly_files','code_aliases','devices','network','resources']
@@ -115,8 +192,9 @@ def validate(catalog_bytes, mapping, request):
     require(type(catalog['schema']) is int and catalog['schema'] == 2, 'Unsupported catalog schema')
     identifier(catalog['chain_id']); digest(catalog['app_genesis_sha256'],64); digest(catalog['migration_registry_sha256'],64)
     require(catalog['target'] == {'os':'linux','arch':'x86_64','abi':'gnu'}, 'Unsupported target')
-    require(catalog['service_profile'] in ('development-linux-native-service-v2',
-                'development-linux-native-service-http-v2'), 'Only native staging service profiles are supported')
+    require(catalog['service_profile'] in STAGING_PROFILES + (PRODUCTION_PROFILE,),
+            'Only native staging and production service profiles are supported')
+    production = catalog['service_profile'] == PRODUCTION_PROFILE
     members = {}
     for member in array(catalog['members'], 'members'):
         keys(member,['id','kind','bytes','sha256','sha512'],'member'); mid=identifier(member['id'])
@@ -135,7 +213,7 @@ def validate(catalog_bytes, mapping, request):
         require(all(mid in members for mid in mids),'Unknown profile member')
         require(all(members[mid]['kind']=='shared_library' for mid in mids),'Runtime profiles contain shared libraries only')
         profiles[pid]=set(mids)
-    required=ROLES | ({'http_adapter'} if '-http-' in catalog['service_profile'] else set())
+    required=ROLES | ({'http_adapter'} if '-http-' in catalog['service_profile'] or production else set())
     roles={};used_profiles=set()
     for role in array(catalog['roles'],'roles'):
         keys(role,['role','member_id','runtime_profile_id'],'role');name=identifier(role['role'])
@@ -181,22 +259,33 @@ def validate(catalog_bytes, mapping, request):
         net_keys.append('launch_channel')
         require(type(net['launch_channel']) is str and net['launch_channel']==LAUNCH_CHANNEL,
                 'Unsupported process launch channel')
+    if type(net) is dict and net.get('mode')=='routed':net_keys.append('firewall')
     keys(net,net_keys,'network')
-    require(net['mode'] in ('private','shared-private'),'Only private staging networks are supported')
+    require(net['mode'] in ('private','shared-private','routed'),'Unsupported network mode')
+    # A production node routes on the host network behind its rendered
+    # firewall; staging catalogs stay in private namespaces.
+    require((net['mode']=='routed')==production,'Only the production catalog runs routed, and it runs only routed')
+    sources=None
     if net['mode']=='private':require(net['namespace_path'] is None,'Private mode must not name a namespace')
+    elif net['mode']=='routed':
+        require(net['namespace_path'] is None,'Routed mode must not name a namespace')
+        sources=firewall_sources(net['firewall'],transport,catalog['chain_id'])
     else:path(net['namespace_path'])
     sockets=[]
     for item in array(net['sockets'],'sockets',True):
         keys(item,['family','type'],'socket');require(item['family'] in ('unix','inet','inet6') and item['type'] in ('stream','dgram'),'Unsupported socket policy')
         sockets.append((item['family'],item['type']))
     unique(sockets,'Socket policy')
+    if sources:
+        require(('inet' if sources[0][0].version==4 else 'inet6','stream') in sockets,
+                'Routed mode needs a stream socket of the node address family')
     resources=request['resources'];keys(resources,sorted(RESOURCE_BOUNDS),'resources')
     for name,bound in RESOURCE_BOUNDS.items():
         require(type(resources[name]) is int and 0<resources[name]<=bound,'Explicit positive bounded resource limits required')
-    return catalog,members,paths,sorted(writable),sorted(readonly),sorted(uids),sorted(devices),sorted(sockets),resources
+    return catalog,members,paths,sorted(writable),sorted(readonly),sorted(uids),sorted(devices),sorted(sockets),resources,sources
 
-def render(catalog_bytes, mapping, request):
-    catalog,members,paths,writable,readonly,uids,devices,sockets,resources=validate(catalog_bytes,mapping,request)
+def render(catalog_bytes, mapping, request, transport=None):
+    catalog,members,paths,writable,readonly,uids,devices,sockets,resources,sources=validate(catalog_bytes,mapping,request,transport)
     binding={'catalog_sha512':request['catalog_sha512'],'mapping':mapping,'request':request}
     # Canonicalize semantically unordered local lists before deriving ownership identity.
     binding['mapping']={'schema':1,'members':sorted(mapping['members'],key=lambda x:x['id'])}
@@ -205,11 +294,16 @@ def render(catalog_bytes, mapping, request):
     if 'readonly_directories' in request:normalized['readonly_directories']=sorted(request['readonly_directories'])
     normalized['code_aliases']=sorted(request['code_aliases'],key=lambda x:(x['member_id'],x['path']))
     normalized['network']=dict(request['network']);normalized['network']['sockets']=sorted(request['network']['sockets'],key=lambda x:(x['family'],x['type']))
+    if sources:
+        normalized['network']['firewall']=dict(request['network']['firewall'],public_listeners=sorted(request['network']['firewall']['public_listeners']))
     # The profile identity binds what the AppArmor profile enforces. Resource
-    # limits are unit properties: FILE_HASHES.json and the four-role identity
-    # bind them, and a limit change does not rename this profile.
+    # limits are unit properties and the firewall is a host rule set:
+    # FILE_HASHES.json and the four-role identity bind them, and a change to
+    # either does not rename this profile.
     binding['request']={k:v for k,v in normalized.items() if k!='resources'}
-    policy_id=hashlib.sha256(canonical(binding)).hexdigest();name='dyt-native-staging-'+policy_id[:24]
+    if sources:binding['request']['network']={k:v for k,v in normalized['network'].items() if k!='firewall'}
+    policy_id=hashlib.sha256(canonical(binding)).hexdigest()
+    name=('dyt-native-production-' if sources else 'dyt-native-staging-')+policy_id[:24]
     launch_channel='launch_channel' in request['network']
     socket_families={'AF_'+f.upper() for f,t in sockets}
     if launch_channel:socket_families.add('AF_UNIX')
@@ -234,8 +328,10 @@ def render(catalog_bytes, mapping, request):
         properties.pop('RestrictAddressFamilies')
         properties['SystemCallFilter'] += ' ' + NO_SOCKET_DENY
     if request['network']['mode']=='private':properties['PrivateNetwork']=True
+    elif sources:properties['PrivateNetwork']=False
     else:properties.update({'PrivateNetwork':False,'NetworkNamespacePath':request['network']['namespace_path']})
     lines=['abi <abi/4.0>,',
+           '# PRODUCTION CATALOG. Rendering does not load or qualify this profile.' if sources else
            '# STAGING ONLY. Rendering does not load or qualify this profile.',
            '# No external policy abstractions or profile fallback rules.',f'profile {name} {{']
     for mid in sorted(paths):
@@ -276,8 +372,9 @@ def render(catalog_bytes, mapping, request):
         'members':[dict(members[mid],paths=sorted(paths[mid])) for mid in sorted(members)],
         'host_files_verified':False,'authority_verified':False,'kernel_policy_qualified':False,
         'continuous_enforcement':False,'production_qualified':False,'g35_accepted':False})
-    put('live-verification-requirements.json',{'schema':1,'mandatory':LIVE_REQUIREMENTS+(LAUNCH_CHANNEL_REQUIREMENTS if launch_channel else []),'verified':False,
+    put('live-verification-requirements.json',{'schema':1,'mandatory':LIVE_REQUIREMENTS+(LAUNCH_CHANNEL_REQUIREMENTS if launch_channel else [])+(ROUTED_REQUIREMENTS if sources else []),'verified':False,
         'scope':'Every item requires separate live evidence; local rendering is not authority.'})
+    if sources:files['host-firewall.nft']=firewall_rules(*sources)
     put('normalized-request.json',normalized)
     put('FILE_HASHES.json',{n:{'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)} for n,data in sorted(files.items())})
     return files
@@ -285,9 +382,12 @@ def render(catalog_bytes, mapping, request):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for arg in ['catalog','mapping','request','output']:parser.add_argument('--'+arg,type=Path,required=True)
+    # The node's exact pqc_transport.json; required in routed mode.
+    parser.add_argument('--transport',type=Path)
     args=parser.parse_args()
     try:
-        files=render(args.catalog.read_bytes(),decode(args.mapping.read_bytes()),decode(args.request.read_bytes()))
+        files=render(args.catalog.read_bytes(),decode(args.mapping.read_bytes()),decode(args.request.read_bytes()),
+                     args.transport.read_bytes() if args.transport else None)
         args.output.mkdir(parents=False,exist_ok=False)
         for name,data in files.items():
             with (args.output/name).open('xb') as output:output.write(data)

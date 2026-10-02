@@ -1,0 +1,23 @@
+{
+  "decision_id": "P01-2026-10-01-E05-SUPERVISOR",
+  "approved": "2026-10-01",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Production activation v1, step A5: supervisor production mode"
+  },
+  "design_ref": "../node/docs/architecture/production-activation-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q01",
+      "selected": "All long-running",
+      "rule": "In production mode the supervisor observes the engine, application, bridge and HTTP adapter once at startup, then relies on AppArmor, seccomp and no-new-privileges, with no periodic pauses. Each monitoring tick still checks liveness, the lifecycle locks and every child's security state without pausing it. Helpers keep their paused checks."
+    },
+    {
+      "question": "D12-Q01, D12-Q02",
+      "selected": "Operator budget",
+      "rule": "Readiness waits for the engine to catch up (state sync, then block sync) up to a required per-host catch-up budget, rechecking the children, the locks and the supervisor's own security while it waits. The budget is the E05 operating value catch_up_millis, with no default."
+    }
+  ],
+  "does_not_authorize": ["the catch-up budget value", "production activation of any chain", "gate acceptance", "mainnet launch"]
+}

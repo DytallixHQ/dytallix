@@ -213,7 +213,7 @@
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/seed_key.go",
-          "sha256": "3e6ec0e29b874c3b0d8364e19666ef52fe1f20bc4528b6a6911b1d61216bb643"
+          "sha256": "de27d3722f134c03f497df262b7a9e201a440818562edfebebc935650472265c"
         }
       ],
       "policy": "Authenticated pinned peers; no classical or plaintext fallback. The E03 negative-peer probe carries a copy of these files with an additive staging-only rejection observer; a change here requires refreshing that copy and its method review",
@@ -347,11 +347,11 @@
       "files": [
         {
           "path": "crates/native-supervisor/src/processes.rs",
-          "sha256": "6fccce2815c84412a032a591a241d0a0bad2ec819d2f7838f45ec78545a87795"
+          "sha256": "782cc0bad6f6dd9c622b138dc958c51d5250c3de5de2f059ce796162e820dfa1"
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "82124d728cab7b71c1a35f9232239298923fdeb5aef47a0a9e959d87c82d61d0"
+          "sha256": "39fdb8c36089501e8865d400f5664d00d2a29d0a941cfa14a8996ba060d077bf"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",
@@ -377,8 +377,8 @@
           "sha256": "551f4bf98ce767b911e1d82dcade5c5372e8fbf911a7cffd8842de174fd60297"
         },
         {
-          "path": "deploy/pqc-engine/supervise.py",
-          "sha256": "e386e21c7716c8c14f3b108360e3d0ea30f376a91f7bc89dbed3da08946ba1a1"
+          "path": "crates/native-supervisor/src/service.rs",
+          "sha256": "efe5e1fb9ca5b46025441d9475ef2644fc1cd9144abb79de53899fbfa4c7a897"
         }
       ],
       "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",

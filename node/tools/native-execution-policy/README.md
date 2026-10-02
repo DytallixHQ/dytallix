@@ -1,6 +1,6 @@
 # Native execution policy renderer
 
-This tool renders staging files. It does not verify host files, establish release authority, load AppArmor, start a service, or accept G35.
+This tool renders staging files, and the policy files of a production release catalog. It does not verify host files, establish release authority, load AppArmor or firewall rules, start a service, or accept G35.
 
 Run Python 3.10 or later:
 
@@ -13,7 +13,7 @@ The output directory must not exist. Validation failure creates no output direct
 
 ## Inputs
 
-`catalog.json` uses the existing release-runtime `ManifestV2` structure (schema 2). Its exact input bytes must match `request.catalog_sha512`. Supported service profiles are `development-linux-native-service-v2` and `development-linux-native-service-http-v2`. The target must be Linux x86_64 GNU. Members must be executable files or shared libraries. The renderer rejects script and interpreted members. Runtime-profile `member_ids` contain shared-library IDs only. Empty lists are valid for static executables. Each role selects its executable through `role.member_id`; that executable is not listed as a runtime provider. Combined role and provider references must cover every catalog member, and every runtime profile must be used.
+`catalog.json` uses the existing release-runtime `ManifestV2` structure (schema 2). Its exact input bytes must match `request.catalog_sha512`. Supported service profiles are `development-linux-native-service-v2`, `development-linux-native-service-http-v2` and the production `production-linux-native-service-v1`, which always carries the HTTP adapter role (see [Production catalogs](#production-catalogs)). The target must be Linux x86_64 GNU. Members must be executable files or shared libraries. The renderer rejects script and interpreted members. Runtime-profile `member_ids` contain shared-library IDs only. Empty lists are valid for static executables. Each role selects its executable through `role.member_id`; that executable is not listed as a runtime provider. Combined role and provider references must cover every catalog member, and every runtime profile must be used.
 
 `mapping.json` uses the existing `LocalMapping` structure (schema 1):
 
@@ -60,11 +60,12 @@ The displayed fields are required. Optional `readonly_directories` accepts exact
 ## Stable output contract
 
 - `unit-properties.json`: schema 1, profile name, policy ID, permitted numeric UIDs, and systemd property values.
-- `apparmor.profile`: one owned profile named `dyt-native-staging-` plus the first 24 hexadecimal characters of the policy ID.
+- `apparmor.profile`: one owned profile named `dyt-native-staging-` (`dyt-native-production-` for a production catalog) plus the first 24 hexadecimal characters of the policy ID.
 - `validation.json`: member/path/digest bindings and explicit false authority, host verification, enforcement qualification, and G35 fields.
 - `live-verification-requirements.json`: mandatory host and workload checks. This file is not an attestation.
 - `normalized-request.json`: deterministic request record.
-- `FILE_HASHES.json`: exact SHA256 and size for the other five output files.
+- `host-firewall.nft` (routed mode only): the host firewall rules.
+- `FILE_HASHES.json`: exact SHA256 and size for the other output files.
 
 The policy ID binds the exact catalog digest and normalized local inputs other than `resources`. List ordering does not change rendering. Changing catalog bytes changes the identity. Verify the output hash manifest before integration.
 
@@ -75,6 +76,27 @@ The wrapper selects one numeric `User` value from `service_uids` per unit. It ma
 The paired policy permits executable mappings only for exact catalog paths. Workload executables inherit the profile. Data permissions do not grant executable mappings. Default denial excludes profile changes and unlisted execution. Proc-memory writes and modifying ptrace operations have explicit denials. Read-only owned-process observation remains permitted, including the exact current-profile attribute and tcp/tcp6 listener metadata. The tcp/tcp6 entries are root-owned even for non-root processes on the selected host, so their exact read rules have no owner qualifier. This grants read-only numeric-PID network table access. Readiness code must still bind the selected PID to its owned child and the expected namespace; the file rule itself does not enforce that relationship. No proc-memory write permission is granted. The AppArmor text has no broad library abstraction or unconfined/fallback transition.
 
 Descriptor import through recvmsg, recvmmsg, and pidfd_getfd is denied. io_uring is denied so that asynchronous message receive cannot bypass that syscall selection. pidfd_open remains available for owned-process observation. These restrictions can reject legitimate socket behavior. Qualify exact Go/Rust paths before use; do not silently relax them. The launcher must also close undeclared inherited descriptors.
+
+## Production catalogs
+
+A production catalog (production activation v1, A5) renders only in the `routed` network mode, and only a production catalog renders routed. The node runs on the host network (`PrivateNetwork=no`, no namespace) behind rendered host firewall rules:
+
+```json
+"network": {
+  "mode": "routed",
+  "namespace_path": null,
+  "sockets": [{"family": "unix", "type": "stream"}, {"family": "inet", "type": "stream"}],
+  "firewall": {
+    "transport_sha256": "SHA256 of the node's exact pqc_transport.json",
+    "p2p_listen": "203.0.113.2:26656",
+    "public_listeners": ["203.0.113.2:26670"]
+  }
+}
+```
+
+Pass the node's exact transport file with `--transport` (also to `production_roles.py`); its SHA256 must match. It must be canonical compact JSON with the production transport profile and the catalog's chain. The P2P listener and every pinned peer address must be a canonical global unicast IP and a port from 1024, in one address family. Pinned peers are distinct, at most 64, and never the node's own address. `public_listeners` (at most four; an endpoint's client channel) share the node's address on other ports. The sockets must include a stream socket of that family.
+
+`host-firewall.nft` replaces the table `inet dytallix_node`. Its input chain drops by default and accepts only established replies, loopback, the listed ICMP and ICMPv6 types, the pinned peers at the P2P listener and the public listeners. An unpinned source is therefore dropped before it reaches the handshake. Outbound traffic is unchanged. The profile identity excludes `firewall`, so a pin change keeps the AppArmor profile name; `FILE_HASHES.json` and the four-role identity bind the rules. Render and load the rules again with every reviewed pin change, before the restart that applies it. The addresses above are illustrative, not records.
 
 ## Required live work
 

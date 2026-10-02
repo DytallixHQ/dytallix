@@ -23,6 +23,8 @@ go build -mod=readonly -o /absolute/bin/dytallix-comet-verify ./cmd/dytallix-com
 go build -mod=readonly -o /absolute/bin/dytallix-comet-proof ./cmd/dytallix-comet-proof
 # Operator tools (E04 gap 17): validator keys and proofs; operator diagnostics.
 go build -mod=readonly -o /absolute/bin/ ./cmd/dytallix-validator-key ./cmd/dytallix-operator-rpc
+# The production peer seed and host binding (production activation v1, A5).
+go build -mod=readonly -o /absolute/bin/ ./cmd/dytallix-peer-seed
 go build -mod=readonly -o /absolute/bin/cometbft github.com/cometbft/cometbft/cmd/cometbft
 go test -mod=readonly ./...
 # The upstream copy (see UPSTREAM_TESTS.md).

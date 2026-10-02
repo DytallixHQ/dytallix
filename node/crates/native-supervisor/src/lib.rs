@@ -1,4 +1,6 @@
-//! Native development service ownership. No production launch authorization.
+//! Native service ownership: the disposable development mode, or the
+//! production mode of a production build. Running grants no launch
+//! authorization; the root-signed genesis does.
 pub mod config;
 pub mod lease;
 pub mod processes;
