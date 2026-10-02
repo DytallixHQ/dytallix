@@ -14,7 +14,9 @@ use std::io::{BufRead, Read, Write};
 use std::os::fd::AsRawFd;
 use std::sync::atomic::{AtomicU8, Ordering};
 
-const MAX_FRAME: u64 = 8 * 1024 * 1024;
+/// One pipe frame. InitChain carries the application genesis in base64 with
+/// its validators (production activation v1, A6), so a frame holds 12 MiB.
+const MAX_FRAME: u64 = 12 * 1024 * 1024;
 fn string<'a>(v: &'a Value, key: &str) -> Result<&'a str> {
     v.get(key)
         .and_then(Value::as_str)
@@ -520,8 +522,8 @@ fn run() -> Result<()> {
     let config: ConsensusConfig = serde_json::from_slice(&config_bytes)?;
     let genesis = std::fs::read(genesis_path.context("--genesis is required")?)?;
     ensure!(
-        genesis.len() <= MAX_FRAME as usize,
-        "Genesis exceeds local fixture limit"
+        genesis.len() <= dytallix_fast_node::consensus_settlement::MAX_GENESIS_BYTES,
+        "Genesis exceeds its bound"
     );
     let database = db_path.context("--db is required")?;
     // A local setting: the retained window (default) or every block record.
@@ -823,6 +825,24 @@ mod tests {
         let mut oversized = vec![b'x'; MAX_FRAME as usize];
         oversized.push(b'\n');
         assert!(read_frame(&mut std::io::Cursor::new(oversized), || Ok(()), || Ok(())).is_err());
+    }
+    /// The largest InitChain line the bridge sends, an 8 MiB application
+    /// genesis in base64 with 64 validators, is one frame (production
+    /// activation v1, A6).
+    #[test]
+    fn one_frame_carries_the_largest_init_chain() {
+        let validator = json!({"pubkey_type":"cometbft/PubKeyMlDsa65",
+            "pubkey_base64":STANDARD.encode([0u8; 1952]),"power":i64::MAX / 64});
+        let request = json!({"method":"init_chain","payload":{"chain_id":"c".repeat(64),
+            "initial_height":1,
+            "app_state_bytes":STANDARD.encode(vec![0u8; dytallix_fast_node::consensus_settlement::MAX_GENESIS_BYTES]),
+            "validators":vec![validator; 64],"evidence_max_age_blocks":i64::MAX,
+            "evidence_max_age_seconds":i64::MAX,"evidence_max_age_nanos":999_999_999}});
+        let mut line = serde_json::to_vec(&request).unwrap();
+        line.push(b'\n');
+        assert!(line.len() > 8 * 1024 * 1024 && line.len() as u64 <= MAX_FRAME, "{}", line.len());
+        let frame = read_frame(&mut std::io::Cursor::new(line.clone()), || Ok(()), || Ok(())).unwrap();
+        assert_eq!(frame, Some(line));
     }
     #[test]
     fn cancellable_frames_check_before_read_and_after_partial_input() {

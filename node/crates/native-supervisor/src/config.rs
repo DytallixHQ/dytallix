@@ -873,8 +873,9 @@ impl NativeServiceConfig {
             input.read()?;
         }
         ensure!(
-            self.application_genesis.max_bytes <= 8 * 1024 * 1024,
-            "Genesis bound exceeds pipe limit"
+            self.application_genesis.max_bytes
+                <= dytallix_fast_node::consensus_settlement::MAX_GENESIS_BYTES,
+            "Genesis bound exceeds the application limit"
         );
         self.application_genesis.read()?;
         self.validate_root_inputs()?;

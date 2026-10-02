@@ -64,6 +64,48 @@ pub(crate) fn fee_values(profile: &FeeProfileV3) -> FeeValues {
     }
 }
 
+/// The reference basic Send whose fee the governed range bounds (P01, 30
+/// September 2026): one ML-DSA-65 signature and one Send between existing
+/// accounts, at fixed sizes measured from a real Send
+/// (`the_reference_send_has_a_real_sends_sizes`). A chain ID of another
+/// length moves a real Send by a few wire bytes; the reference stays fixed.
+pub(crate) const REFERENCE_SEND_WIRE_BYTES: u64 = 5_565;
+pub(crate) const REFERENCE_SEND_READ_BYTES: u64 = 5_536;
+pub(crate) const REFERENCE_SEND_WRITE_BYTES: u64 = 486;
+const REFERENCE_SEND_ALGORITHM: &str = "mldsa65";
+/// The Send action's cost slot (`ordinary_meter::action_tag`).
+const SEND_ACTION: usize = 0;
+
+/// What the reference basic Send pays under `values`, in uDRT: its gas, at
+/// least the chain's minimum gas, times the gas price, as the ordinary fee
+/// settlement charges. None when the values price no ML-DSA-65 signature or
+/// overflow.
+pub(crate) fn reference_send_fee(values: &FeeValues, minimum_gas: u64) -> Option<u128> {
+    let gas = [
+        values.transaction_overhead,
+        values.receipt_metadata_cost,
+        *values.signature_costs.get(REFERENCE_SEND_ALGORITHM)?,
+        values.action_costs[SEND_ACTION],
+        REFERENCE_SEND_WIRE_BYTES.checked_mul(values.wire_byte_cost)?,
+        REFERENCE_SEND_READ_BYTES.checked_mul(values.read_byte_cost)?,
+        REFERENCE_SEND_WRITE_BYTES.checked_mul(values.write_byte_cost)?,
+    ]
+    .into_iter()
+    .try_fold(0u64, u64::checked_add)?;
+    u128::from(gas.max(minimum_gas)).checked_mul(u128::from(values.gas_price))
+}
+
+/// True when the reference basic Send's fee under `values` sits inside the
+/// genesis bound (P01, 30 September and 2 October 2026).
+pub(crate) fn reference_send_in_bounds(
+    bounds: &crate::runtime::governance_candidate::ParameterBounds,
+    values: &FeeValues,
+    minimum_gas: u64,
+) -> bool {
+    reference_send_fee(values, minimum_gas)
+        .is_some_and(|fee| bounds.reference_send_fee_udrt.contains(fee))
+}
+
 pub(crate) fn costs(values: &FeeValues) -> impl Iterator<Item = u64> + '_ {
     [
         values.transaction_overhead,
@@ -80,7 +122,7 @@ pub(crate) fn costs(values: &FeeValues) -> impl Iterator<Item = u64> + '_ {
 }
 
 /// Checks that need no chain state: enabled class, byte bound, canonical
-/// encoding and genesis bounds.
+/// encoding and genesis bounds, including the reference basic Send's fee.
 pub(crate) fn validate_proposal(
     candidate: &GovernanceCandidateConfig,
     class: u16,
@@ -103,6 +145,11 @@ pub(crate) fn validate_proposal(
                     || !costs(&values).all(|cost| bounds.resource_cost.contains(cost))
                 {
                     return Err(Rule("GOVERNANCE_PARAMETER_OUT_OF_BOUNDS"));
+                }
+                // The chain's minimum gas is not governed, so the genesis
+                // value prices every proposal.
+                if !reference_send_in_bounds(bounds, &values, candidate.fee_profile.base.minimum_gas) {
+                    return Err(Rule("GOVERNANCE_REFERENCE_SEND_FEE_OUT_OF_BOUNDS"));
                 }
             }
             ParameterChange::MinSelfBond(value) => {

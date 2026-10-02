@@ -47,6 +47,11 @@ const CandidateStagingChainPrefix = "e01-candidate-"
 const MaxConcurrentHandshakes = 8
 const MaxPeers = 64
 
+// MaxGenesisBytes bounds the engine genesis (production activation v1, A6):
+// the 8 MiB application genesis it carries as app_state, with at most 64
+// validators and the consensus parameters.
+const MaxGenesisBytes = 9 << 20
+
 type PeerPin struct {
 	ID              string `json:"id"`
 	PublicKeyBase64 string `json:"public_key_base64"`
@@ -339,7 +344,7 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 	if err = validateIsolationForProfile(c, profile); err != nil {
 		return nil, err
 	}
-	genesisRaw, err := privateFile(c.GenesisFile(), 2<<20)
+	genesisRaw, err := privateFile(c.GenesisFile(), MaxGenesisBytes)
 	if err != nil {
 		return nil, err
 	}

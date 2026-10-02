@@ -562,6 +562,10 @@
           "max": 1000000000000,
           "min": 10000000000
         },
+        "reference_send_fee_udrt": {
+          "max": 10000000,
+          "min": 100000
+        },
         "resource_cost": {
           "max": 100000,
           "min": 0
@@ -678,7 +682,7 @@
   },
   "schema_version": 1,
   "source_digests": {
-    "application_config_sha256": "a55623b2827dac286d5d87c604e59648b0382c927050a072c2b737ef13629973",
+    "application_config_sha256": "5383e9eb6e7f5336000200fb36c34b3d663b4396bbf4ecdc368ca8486472d5b5",
     "engine_genesis_sha256": "53937d46de27d8387d6b23347b70df6363b8bdeb03d4f872e9ef00092bd96b39",
     "native_genesis_sha256": "7cd2cddbf299475626a50db791eab15b36d010e973657527238751c49c1c4ed1",
     "records_sha256": "cb10ca85bdef4d7e0f749c045c5c9114ba6b24a7d49a3b28ea0374d253333bb4"

@@ -1,0 +1,21 @@
+{
+  "decision_id": "P01-2026-10-02-E05-FEE-RANGE",
+  "approved": "2026-10-02",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Production activation v1, step A6: where the governed basic transfer range lives"
+  },
+  "design_ref": "../node/docs/architecture/production-activation-v1.md",
+  "decisions": [
+    {
+      "question": "D04-Q01, D11-Q03",
+      "selected": "Genesis bound",
+      "rule": "The approved range of the basic transfer (0.1 to 10 DRT) is the genesis governance bound parameter_bounds.reference_send_fee_udrt. A fee-profile proposal is refused unless a reference basic Send (one ML-DSA-65 signature and one Send between existing accounts, at fixed sizes measured from a real Send) costs a fee inside it under the proposed values, at the genesis minimum gas; the genesis fee profile must also sit inside it. Test chains set their own bound."
+    }
+  ],
+  "values": {
+    "bounds_reference_send_fee_udrt": {"min": "100000", "max": "10000000"}
+  },
+  "does_not_authorize": ["production activation of any chain", "gate acceptance", "mainnet launch"]
+}

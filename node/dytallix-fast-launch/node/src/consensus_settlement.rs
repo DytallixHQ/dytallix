@@ -59,6 +59,13 @@ pub const EMERGENCY_RECEIPT_VIEW_VERSION: u16 = 1;
 /// the genesis recovery accounts, about 15 KB each, so it shares the
 /// application genesis pipe bound.
 pub const MAX_CONFIG_BYTES: usize = 8 * 1024 * 1024;
+/// The application genesis bound (production activation v1, A6). The
+/// supervisor, consensus_stdio and the genesis builder keep to it.
+pub const MAX_GENESIS_BYTES: usize = 8 * 1024 * 1024;
+/// The engine genesis bound (dytallix-pqc-engine `MaxGenesisBytes`): the
+/// application genesis as app_state, with at most 64 validators and the
+/// consensus parameters.
+pub const MAX_ENGINE_GENESIS_BYTES: usize = 9 * 1024 * 1024;
 /// One hex-encoded SLH-DSA signature in a root control (`ControlSignature`).
 const CONTROL_SIGNATURE_HEX_BYTES: usize = 2 * 29_792;
 /// `{"type":"ordinary_v2","envelope_base64":""}`: the transport JSON around
@@ -544,7 +551,12 @@ impl ConsensusConfig {
                         .account_creation_fee_udrt
                         .contains(values.account_creation_fee_udrt)
                     && crate::governance_actions::costs(&values)
-                        .all(|cost| bounds.resource_cost.contains(cost)),
+                        .all(|cost| bounds.resource_cost.contains(cost))
+                    && crate::governance_actions::reference_send_in_bounds(
+                        bounds,
+                        &values,
+                        governance.fee_profile.base.minimum_gas,
+                    ),
                 "Genesis fee profile is outside its governance bounds"
             );
             let lifecycle = self

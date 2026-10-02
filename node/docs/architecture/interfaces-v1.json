@@ -991,7 +991,7 @@
       "id": "internal-stdio-bridge",
       "group": "internal",
       "exposure": "internal",
-      "format": "Newline-delimited JSON {method, payload} and {ok, result|error} between the Go bridge and the Rust application, at most 8 MiB per frame.",
+      "format": "Newline-delimited JSON {method, payload} and {ok, result|error} between the Go bridge and the Rust application, at most 12 MiB per frame, so InitChain carries the 8 MiB application genesis in base64 (production activation v1, A6).",
       "version": {
         "none": "Both sides ship in one release and are pinned by its manifest; the channel mode is inherited-pipes-v1."
       },

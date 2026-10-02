@@ -1,5 +1,5 @@
 use super::*;
-use crate::runtime::governance_candidate::tests::example;
+use crate::runtime::governance_candidate::{tests::example, Bounds};
 
 fn fees(candidate: &GovernanceCandidateConfig) -> FeeValues {
     let base = &candidate.fee_profile.base;
@@ -77,6 +77,68 @@ fn proposals_need_an_enabled_class_canonical_bytes_and_genesis_bounds() {
         check(&small, &ParameterChange::MaxActive(3)),
         Err(Rule("GOVERNANCE_ACTION_TOO_LARGE"))
     );
+}
+
+/// The approved profile shape (P01, 30 September 2026) at `gas_price`:
+/// floor pricing, so the reference basic Send pays the minimum gas.
+fn approved(candidate: &mut GovernanceCandidateConfig, gas_price: u64) -> FeeValues {
+    candidate.action_classes[0].max_data_bytes = 1_000;
+    candidate.fee_profile.base.minimum_gas = 100_000;
+    candidate.parameter_bounds.gas_price = Bounds { min: 1, max: 1_000 };
+    candidate.parameter_bounds.resource_cost = Bounds { min: 0, max: 100_000 };
+    candidate.parameter_bounds.reference_send_fee_udrt = Bounds {
+        min: 100_000,
+        max: 10_000_000,
+    };
+    let mut values = fees(candidate);
+    values.gas_price = gas_price;
+    values.transaction_overhead = 10_000;
+    values.receipt_metadata_cost = 1_000;
+    values.wire_byte_cost = 2;
+    values.read_byte_cost = 0;
+    values.write_byte_cost = 1;
+    values.action_costs = [5_000; 12];
+    values.signature_costs.insert("mldsa65".into(), 20_000);
+    values
+}
+
+#[test]
+fn a_fee_change_keeps_the_reference_send_inside_its_genesis_bound() {
+    let mut candidate = example();
+    // 47,616 gas pays the 100,000 floor: 1 DRT at price 10, the approved
+    // range's ends at prices 1 and 100.
+    for (price, fee) in [(1, 100_000), (10, 1_000_000), (100, 10_000_000)] {
+        let values = approved(&mut candidate, price);
+        assert_eq!(reference_send_fee(&values, 100_000), Some(fee));
+        assert_eq!(check(&candidate, &ParameterChange::Fees(values)), Ok(()), "{price}");
+    }
+    let out = Err(Rule("GOVERNANCE_REFERENCE_SEND_FEE_OUT_OF_BOUNDS"));
+    let above = approved(&mut candidate, 101);
+    assert_eq!(check(&candidate, &ParameterChange::Fees(above)), out);
+    // Per-byte costs move it too, though each stays inside its own bound:
+    // reads at 1,000 a byte add 5,536,000 gas, about 55.8 DRT at price 10;
+    // at 100 a byte the Send costs about 6.01 DRT.
+    let mut values = approved(&mut candidate, 10);
+    values.read_byte_cost = 1_000;
+    assert_eq!(reference_send_fee(&values, 100_000), Some((5_536_000 + 47_616) * 10));
+    assert_eq!(check(&candidate, &ParameterChange::Fees(values.clone())), out);
+    values.read_byte_cost = 100;
+    assert_eq!(reference_send_fee(&values, 100_000), Some((553_600 + 47_616) * 10));
+    assert_eq!(check(&candidate, &ParameterChange::Fees(values)), Ok(()));
+    // Under the floor, the minimum gas sets the fee; a profile without the
+    // ML-DSA-65 price cannot be priced and is refused.
+    let mut values = approved(&mut candidate, 10);
+    values.wire_byte_cost = 0;
+    assert_eq!(reference_send_fee(&values, 100_000), Some(1_000_000));
+    values.signature_costs.clear();
+    values.signature_costs.insert("mldsa87".into(), 20_000);
+    assert_eq!(reference_send_fee(&values, 100_000), None);
+    assert_eq!(check(&candidate, &ParameterChange::Fees(values)), out);
+    // The bound itself is a genesis value with a floor of 1 uDRT.
+    candidate.parameter_bounds.reference_send_fee_udrt = Bounds { min: 0, max: 1 };
+    assert!(candidate.parameter_bounds.validate().is_err());
+    candidate.parameter_bounds.reference_send_fee_udrt = Bounds { min: 5, max: 4 };
+    assert!(candidate.parameter_bounds.validate().is_err());
 }
 
 #[test]

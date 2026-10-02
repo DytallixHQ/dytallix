@@ -149,6 +149,10 @@
         "max": "1000000000000",
         "min": "10000000000"
       },
+      "reference_send_fee_udrt": {
+        "max": "10000000",
+        "min": "100000"
+      },
       "resource_cost": {
         "max": 100000,
         "min": 0

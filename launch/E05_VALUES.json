@@ -1604,6 +1604,30 @@
       "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
     },
     {
+      "name": "bounds_reference_send_fee_udrt",
+      "path": "governance.parameter_bounds.reference_send_fee_udrt{min,max}",
+      "type_unit": "Bounds<u128>, uDRT",
+      "code_bounds": "1 <= min <= max",
+      "bounds_ref": "node/dytallix-fast-launch/node/src/runtime/governance_candidate.rs (ParameterBounds); node/dytallix-fast-launch/node/src/governance_actions.rs (reference_send_fee)",
+      "fixture_value": "{1, 1000000000}",
+      "fixture_ref": "node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs (local_governance_candidate)",
+      "decision": "D04-Q01; D11-Q03",
+      "couplings": "A governed fee change and the genesis fee profile must price the reference basic Send (one ML-DSA-65 signature and one Send between existing accounts: 5,565 wire, 5,536 read and 486 write bytes) inside it, at the genesis minimum gas.",
+      "notes": "The governed range of the basic transfer (P01, 30 September 2026), placed as a genesis bound (P01, 2 October 2026, approvals/P01_E05_FEE_RANGE_2026-10-02.json).",
+      "tier": "decide",
+      "status": "APPROVED",
+      "proposed": {
+        "min": "100000",
+        "max": "10000000"
+      },
+      "basis": "0.1 to 10 DRT: the basic transfer's governed range.",
+      "approved": {
+        "min": "100000",
+        "max": "10000000"
+      },
+      "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json"
+    },
+    {
       "name": "bounds_min_self_bond",
       "path": "governance.parameter_bounds.min_self_bond{min,max}",
       "type_unit": "Bounds<u128>, uDGT",

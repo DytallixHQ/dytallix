@@ -74,6 +74,23 @@ class RehearsalReviewTests(unittest.TestCase):
         self.config['governance']['parameter_bounds']['resource_cost']['max'] = 10000
         self.refused('fee_values_outside_governance_bounds', self.config)
 
+    def test_the_reference_send_lies_within_its_bound(self):
+        # The rehearsal's approved profile prices the reference basic Send at
+        # 1 DRT; the node's own check refuses the same profiles.
+        base = self.config['governance']['fee_profile']['base']
+        self.assertEqual(config_checks.reference_send_fee(base), 1_000_000)
+        bound = self.config['governance']['parameter_bounds']['reference_send_fee_udrt']
+        self.assertEqual(bound, {'min': 100_000, 'max': 10_000_000})
+        bound['max'] = 999_999
+        self.refused('reference_send_fee_outside_governance_bounds', self.config)
+        bound['max'] = 10_000_000
+        bound['min'] = 1_000_001
+        self.refused('reference_send_fee_outside_governance_bounds', self.config)
+        del self.config['governance']['parameter_bounds']['reference_send_fee_udrt']
+        self.refused('Missing or unknown contract fields', self.config)
+        # Above the floor, every per-byte cost counts: 5,565 wire bytes at 2.
+        self.assertEqual(config_checks.reference_send_fee(dict(base, minimum_gas='1')), 476_160)
+
     def test_validator_proof_profile_digest_is_recomputed(self):
         self.config['ordinary']['fee_profile']['validator_proof_profile_digest'][0] ^= 1
         self.config['governance']['fee_profile']['base'] = copy.deepcopy(self.config['ordinary']['fee_profile'])

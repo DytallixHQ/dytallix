@@ -505,7 +505,8 @@
             "../node/docs/architecture/account-model-v2.md",
             "../node/docs/architecture/governance-v1.md",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
-            "approvals/P01_E05_VALUES_3_2026-09-30.json"
+            "approvals/P01_E05_VALUES_3_2026-09-30.json",
+            "approvals/P01_E05_FEE_RANGE_2026-10-02.json"
           ],
           "prepared_recommendation_ids": [
             "RF02"
@@ -515,7 +516,8 @@
             "decision-register/recovery-fee-implementation/APPROVAL.json",
             "decision-register/ordinary-fee-implementation/APPROVAL.json",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
-            "approvals/P01_E05_VALUES_3_2026-09-30.json"
+            "approvals/P01_E05_VALUES_3_2026-09-30.json",
+            "approvals/P01_E05_FEE_RANGE_2026-10-02.json"
           ],
           "approved_fee_rule_ids": [
             "RF02"
@@ -539,7 +541,7 @@
           "ordinary_client_approval_ref": "decision-register/ordinary-client-compatibility/APPROVAL.json",
           "ordinary_client_result_ref": "decision-register/ordinary-client-compatibility/TEST_RESULTS.json",
           "approved_creation_fee_portion": "The account creation fee is a field of the signed ordinary fee profile, committed through fee_profile_digest, and only Send creates accounts (P01, 26 September 2026). Governance sets new fee profile versions (gas price, resource costs, creation fee) within genesis bounds (P01, 27 September 2026). Value: 10 DRT, governed between 1 and 100 DRT (P01, 30 September 2026).",
-          "approved_portion": "Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT. Values (P01, 30 September 2026): floor pricing with free reads. Gas price 10 times minimum gas 100,000 is the 1 DRT floor a basic Send (about 47,600 gas) pays; overhead 10,000, receipt 1,000, wire 2 and write 1 per byte, read 0, ML-DSA-65 signature and validator proof 20,000, every action 5,000; gas price bounds 1 to 100, cost bounds 0 to 100,000."
+          "approved_portion": "Fee levels (P01, 30 September 2026): a basic transfer costs 1 DRT and governance can move it only between 0.1 and 10 DRT; account creation costs 10 DRT, governed between 1 and 100 DRT. Values (P01, 30 September 2026): floor pricing with free reads. Gas price 10 times minimum gas 100,000 is the 1 DRT floor a basic Send (about 47,600 gas) pays; overhead 10,000, receipt 1,000, wire 2 and write 1 per byte, read 0, ML-DSA-65 signature and validator proof 20,000, every action 5,000; gas price bounds 1 to 100, cost bounds 0 to 100,000. Fee range placement (P01, 2 October 2026): the governed range is the genesis bound parameter_bounds.reference_send_fee_udrt; the node refuses a fee change, or a genesis fee profile, that prices the reference basic Send outside it (production activation v1, A6)."
         },
         {
           "id": "D04-Q02",
@@ -2514,7 +2516,6 @@
             "Actual incident, freeze receipt, restored state, candidate and recovery evidence for any production resume.",
             "Upgrade clearance authority membership and approval threshold; exact candidate, migration, sequence, activation height and activation-path qualification.",
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
-            "The node check that refuses fee-profile proposals putting a reference basic Send outside 0.1 to 10 DRT (approved; built with production activation).",
             "Recovery authorities covered by D11-Q03.",
             "Upgrade custodian names, keys and epochs.",
             "Upgrade and handover window bounds and anchor ages measured on dedicated hosts with the emergency ones (upgrade schema 2 and handover schema 2 are implemented, production activation v1 step A3; production acceptance of the controls is step A4)."
@@ -3792,6 +3793,20 @@
       "unset": [
         "The catch-up budget value (E05 catch_up_millis)"
       ]
+    },
+    {
+      "id": "P01-2026-10-02-E05-FEE-RANGE",
+      "approved": "2026-10-02",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_FEE_RANGE_2026-10-02.json",
+      "decisions": [
+        "D04-Q01, D11-Q03: the basic transfer's governed range (0.1 to 10 DRT) is the genesis bound parameter_bounds.reference_send_fee_udrt; governed fee changes and the genesis fee profile must price the reference basic Send inside it."
+      ],
+      "question_refs": [
+        "D04-Q01",
+        "D11-Q03"
+      ],
+      "unset": []
     }
   ],
   "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset."

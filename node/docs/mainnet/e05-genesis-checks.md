@@ -25,7 +25,7 @@ review input for the E05 intake packet, not a record.
 ## Rules
 
 1. **Capacity.** The consensus configuration bound is 8 MiB
-   (`consensus_settlement::MAX_CONFIG_BYTES`), the application genesis pipe
+   (`consensus_settlement::MAX_CONFIG_BYTES`), the application genesis
    bound, in every consumer: configuration validation, genesis
    initialization, the release preflight, `consensus_stdio`,
    `dytallix-state-check`, the supervisor's pinned input and the
@@ -40,7 +40,9 @@ review input for the E05 intake packet, not a record.
 4. **Genesis within bounds.** The genesis gas price, creation fee and every
    governed cost lie within `parameter_bounds`, as do the lifecycle
    `min_self_bond` and `max_active`. The `max_active` bound is at most the
-   reward state's `max_validators`.
+   reward state's `max_validators`. The genesis profile prices the reference
+   basic Send inside `reference_send_fee_udrt` (production activation v1,
+   A6), the bound every governed fee change must also keep.
 5. **Transport.** `ordinary.max_transport_bytes` is at least the transport
    JSON (43 bytes) plus the base64 size of `limits.max_wire_bytes`.
 6. **Controls.** Each root control bound holds its threshold's hex
@@ -48,6 +50,13 @@ review input for the E05 intake packet, not a record.
    thresholds).
 7. **Evidence seconds.** The lifecycle evidence age plus margin, in seconds,
    fits a signed nanosecond duration.
+
+8. **Genesis sizes** (production activation v1, A6). The application genesis
+   is at most 8 MiB (`MAX_GENESIS_BYTES`) and the engine genesis, which
+   carries it as `app_state` with at most 64 validators, at most 9 MiB
+   (`MAX_ENGINE_GENESIS_BYTES`, the engine's `MaxGenesisBytes`). The
+   bridge-to-application frame is 12 MiB, so InitChain carries the largest
+   application genesis in base64. The genesis builder refuses larger files.
 
 ## Not changed
 

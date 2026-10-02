@@ -576,6 +576,7 @@ pub(crate) fn local_governance_candidate(
             min_self_bond: Bounds { min: 1, max: 1_000_000_000 },
             // At most the genesis reward_v2.max_validators (E05-a).
             max_active: Bounds { min: 1, max: 4 },
+            reference_send_fee_udrt: Bounds { min: 1, max: 1_000_000_000 },
         },
         entry_policy: EntryPolicy {
             proposer_eligibility:
@@ -4580,6 +4581,18 @@ mod e05_checks {
         // A governed gas price of 101 would need a larger cap.
         refused(&|c| governance(c).parameter_bounds.gas_price.max = 101, "Ordinary fee cap");
         refused(&|c| governance(c).parameter_bounds.gas_price.min = 3, "outside its governance bounds");
+        // The genesis profile's reference basic Send must sit inside its
+        // bound too (P01, 2 October 2026).
+        let fee = {
+            let g = base.config.governance.as_ref().unwrap();
+            crate::governance_actions::reference_send_fee(
+                &crate::governance_actions::fee_values(&g.fee_profile),
+                g.fee_profile.base.minimum_gas,
+            )
+            .unwrap()
+        };
+        refused(&move |c| governance(c).parameter_bounds.reference_send_fee_udrt.min = fee + 1, "outside its governance bounds");
+        refused(&move |c| governance(c).parameter_bounds.reference_send_fee_udrt.max = fee - 1, "outside its governance bounds");
         refused(&|c| governance(c).parameter_bounds.min_self_bond.min = 11, "Genesis validator limits");
         refused(&|c| governance(c).parameter_bounds.max_active.max = 3, "Genesis validator limits");
     }

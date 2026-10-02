@@ -207,3 +207,24 @@ fn the_node_refuses_a_genesis_outside_its_governance_bounds() {
     });
     assert!(error.to_lowercase().contains("bound"), "{error}");
 }
+
+#[test]
+fn the_reference_send_fee_bound_holds_at_genesis() {
+    // The rehearsal's approved profile prices the reference basic Send at
+    // 1 DRT (P01, 30 September 2026); a bound that excludes it is refused.
+    for (end, value) in [("max", "999999"), ("min", "1000001")] {
+        let error = refused(|v| v["governance"]["bounds"]["reference_send_fee_udrt"][end] = value.into());
+        assert!(error.contains("governance bounds"), "{end}: {error}");
+    }
+    let error = refused(|v| {
+        v["governance"]["bounds"].as_object_mut().unwrap().remove("reference_send_fee_udrt");
+    });
+    assert!(error.contains("reference_send_fee_udrt"), "{error}");
+}
+
+#[test]
+fn each_genesis_fits_the_bound_of_its_reader() {
+    genesis_sizes(&vec![b' '; MAX_GENESIS_BYTES], &vec![b' '; MAX_ENGINE_GENESIS_BYTES]).unwrap();
+    assert!(genesis_sizes(&vec![b' '; MAX_GENESIS_BYTES + 1], b"{}").is_err());
+    assert!(genesis_sizes(b"{}", &vec![b' '; MAX_ENGINE_GENESIS_BYTES + 1]).is_err());
+}

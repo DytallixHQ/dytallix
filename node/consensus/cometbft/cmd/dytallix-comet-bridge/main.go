@@ -25,7 +25,10 @@ import (
 	"github.com/cometbft/cometbft/libs/log"
 )
 
-const maxJSONBytes = 8 << 20
+// maxJSONBytes bounds one line to or from the application. InitChain
+// carries the 8 MiB application genesis in base64 with its validators
+// (production activation v1, A6), so a line holds 12 MiB.
+const maxJSONBytes = 12 << 20
 const callTimeout = 120 * time.Second
 
 type responseEnvelope struct {

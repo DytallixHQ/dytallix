@@ -163,7 +163,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-validator-key/main.go",
-          "sha256": "df5c1002f03ef4d2691ce58124eb325b37bc20928e5e8cb6d63185aef8621a0c"
+          "sha256": "528d52d1fada4818a67c383fcc9ab80d7a70d0ad46124c7c46059ff60b80e06c"
         }
       ],
       "policy": "Proof of possession for registered and rotated consensus keys; the operator tool generates keys and signs only proofs it builds for the engine genesis chain",
@@ -174,7 +174,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "5058bc14f78495a61ca6081620a99f74eda3ee4e7eb93be2b6d735de19251558"
+          "sha256": "d32ef146118ac2924611bc9d342e47246ac6bdf7a02c7829e68d49851198ae22"
         },
         {
           "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
@@ -251,7 +251,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "5058bc14f78495a61ca6081620a99f74eda3ee4e7eb93be2b6d735de19251558"
+          "sha256": "d32ef146118ac2924611bc9d342e47246ac6bdf7a02c7829e68d49851198ae22"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",
@@ -351,7 +351,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "39fdb8c36089501e8865d400f5664d00d2a29d0a941cfa14a8996ba060d077bf"
+          "sha256": "52f991a168d6acc7f486be99786d07fde7d384fc6496b82b30f0c8aca1b48848"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

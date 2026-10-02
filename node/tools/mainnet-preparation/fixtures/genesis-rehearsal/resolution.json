@@ -1,7 +1,7 @@
 {
   "boundary": "Rehearsal only: the node accepts only local-qualification and development profiles until production activation. Production also needs every value APPROVED and every record ACCEPTED.",
   "counts": {
-    "APPROVED": 58,
+    "APPROVED": 59,
     "MEASURE_PLACEHOLDER": 5,
     "PROPOSED": 50,
     "RECORD_SYNTHETIC": 8
@@ -539,6 +539,15 @@
       "value": {
         "max": "100000000",
         "min": "1000000"
+      }
+    },
+    {
+      "name": "bounds_reference_send_fee_udrt",
+      "reference": "approvals/P01_E05_VALUES_2_2026-09-30.json",
+      "source": "APPROVED",
+      "value": {
+        "max": "10000000",
+        "min": "100000"
       }
     },
     {

@@ -347,6 +347,20 @@ production-profile staging chains signed with test keys:
   - Native qualification of the production mode on dedicated hosts (T03).
   - A validator added after genesis holds a key outside the genesis set, so today's binding rule admits it only as a sentry or endpoint. That rule needs a decision before the first post-genesis validator.
 
+**A6 done** (fee range and genesis size):
+- **Fee range** (P01, 2 October 2026: a genesis bound).
+  - The approved 0.1 to 10 DRT range is the governance bound `parameter_bounds.reference_send_fee_udrt` (100,000 to 10,000,000 uDRT).
+  - A fee-profile proposal is refused (`GOVERNANCE_REFERENCE_SEND_FEE_OUT_OF_BOUNDS`) unless the reference basic Send costs a fee inside it under the proposed values, at the genesis minimum gas. The proposal is checked when made and again when it executes.
+  - The genesis fee profile must also sit inside it (E05-a rule 4).
+  - **Reference Send:** one ML-DSA-65 signature and one Send between existing accounts. Its 5,565 wire, 5,536 read and 486 write bytes were measured from a real Send, and a test keeps them equal to one.
+  - Under the approved values it uses 47,616 gas and pays the 100,000-gas floor at price 10, so 1 DRT.
+  - The genesis builder, the resolver and the independent binding review carry the bound. The review recomputes the reference fee itself.
+- **Genesis size.**
+  - The application genesis stays at 8 MiB (`MAX_GENESIS_BYTES`).
+  - The engine genesis, which carries it as `app_state` with at most 64 validators, rises from 2 MiB to 9 MiB (the engine's `MaxGenesisBytes`).
+  - The bridge-to-application frame rises from 8 MiB to 12 MiB. InitChain sends the application genesis in base64, so the old frame could not carry more than about 6 MiB of it.
+  - The validator key tool and the binding review read the engine genesis at the same 9 MiB. The genesis builder refuses files beyond either bound.
+
 ## Still required after activation
 
 Every record (operators, custodians, genesis signers, beneficiaries, chain

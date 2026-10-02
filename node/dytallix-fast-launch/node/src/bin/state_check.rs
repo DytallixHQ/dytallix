@@ -25,7 +25,7 @@ use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 const MAX_CONFIG: u64 = dytallix_fast_node::consensus_settlement::MAX_CONFIG_BYTES as u64;
-const MAX_GENESIS: u64 = 8 * 1024 * 1024;
+const MAX_GENESIS: u64 = dytallix_fast_node::consensus_settlement::MAX_GENESIS_BYTES as u64;
 
 /// The checks that need the owned root helper, which this tool cannot run.
 const NOT_CHECKED: [&str; 2] = [

@@ -126,6 +126,9 @@ pub struct ParameterBounds {
     pub account_creation_fee_udrt: Bounds<u128>,
     pub min_self_bond: Bounds<u128>,
     pub max_active: Bounds<u64>,
+    /// What a reference basic Send may cost, in uDRT, under a governed fee
+    /// profile and at genesis (P01, 30 September and 2 October 2026).
+    pub reference_send_fee_udrt: Bounds<u128>,
 }
 impl ParameterBounds {
     pub fn validate(&self) -> Result<()> {
@@ -133,6 +136,7 @@ impl ParameterBounds {
         // A resource may be free, as in a genesis profile.
         self.resource_cost.validate(0)?;
         self.account_creation_fee_udrt.validate(1)?;
+        self.reference_send_fee_udrt.validate(1)?;
         self.min_self_bond.validate(1)?;
         self.max_active.validate(1)?;
         ensure!(
@@ -374,6 +378,10 @@ pub(crate) mod tests {
                 },
                 min_self_bond: Bounds { min: 1, max: 1_000 },
                 max_active: Bounds { min: 1, max: 64 },
+                reference_send_fee_udrt: Bounds {
+                    min: 1,
+                    max: 1_000_000_000,
+                },
             },
             entry_policy: EntryPolicy {
                 proposer_eligibility:
