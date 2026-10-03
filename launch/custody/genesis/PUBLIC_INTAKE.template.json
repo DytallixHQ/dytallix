@@ -1,6 +1,7 @@
 {
   "schema": "dytallix.genesis-signer-intake.v1",
   "production_accepted": false,
+  "custody_model": null,
   "threshold": 3,
   "authority_size": 5,
   "chain_id": null,

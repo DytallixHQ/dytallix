@@ -17,11 +17,23 @@ kits can act, and two can be lost or stolen safely. Keys stay distinct per
 role, as the node requires, and the thresholds and parameter set are
 unchanged.
 
-Under this profile the five slots belong to one controller, each kit is its
-own control group, and the independence review is replaced by the public
-disclosure. The checker gains a solo-kit mode for this in the next E05 step;
-until then it reports a solo packet's shared controller as a separation
-error.
+Fill a solo packet with `"custody_model": "solo_kits"`:
+
+- **Controller.** The same `controller_id`, name and organization in all five
+  slots.
+- **Kits.** Each slot's `control_group`, and its key's signer and backup
+  groups, is that slot's kit identifier (for example `kit-1` to `kit-5`). The
+  five kits must be distinct, and the emergency, upgrade and genesis packets
+  must use the same five.
+- **Review.** `independence_review` is null in every slot; the public
+  disclosure ([TRUST_MODEL.md](../../TRUST_MODEL.md)) replaces it. The
+  appointment, key records, proof of possession and drill evidence are still
+  required.
+
+The checker refuses a second controller, a repeated kit, a review reference,
+or another controller or kit set in the other intakes. Keys stay distinct
+across every role. A packet with `"custody_model": "independent"` keeps the
+original rules.
 
 ## Approved policy
 

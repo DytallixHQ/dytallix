@@ -65,6 +65,8 @@ python3 -B tools/mainnet-preparation/upgrade_custodian_intake.py \
 
 It requires exactly five custodians, three of five, one explicit authority epoch, and SLH-DSA-SHAKE-256s keys (P01, 30 September 2026). It checks distinct controllers, control groups and keys, SHA-256 key IDs, purpose- and epoch-bound public evidence, reviewer separation, and that no controller, control group or key also appears in the complete emergency intake. On success it emits `authority_fragment`, the node's upgrade authority shape with keys sorted by key ID. It does not verify signatures, identity or independence, and it never reports production acceptance. Exit code 0 means structurally complete; 2 means incomplete or invalid.
 
+Both custody checkers take the packet's `custody_model`. `independent` applies the rules above. `solo_kits` is the solo launch profile (P01, 3 October 2026): one controller in all five slots, five distinct kits as the control groups, no independence review, and the same controller and kits in the emergency, upgrade and genesis packets. Keys stay distinct across every role in both models.
+
 ## Genesis signer intake
 
 `genesis_signer_intake.py` checks a completed genesis signer packet. The packet format and collection steps are in [the genesis signer intake](../../../launch/custody/genesis/INTAKE.md).

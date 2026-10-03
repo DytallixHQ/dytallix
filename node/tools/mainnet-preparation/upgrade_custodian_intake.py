@@ -17,7 +17,11 @@ PARAMETER_SET = 'SLH-DSA-SHAKE-256s'
 KEY_BYTES = 64  # upgrade/v1/upgrade.rs KEY_BYTES
 PURPOSE = 'upgrade'
 EVIDENCE_LIMIT = 1024*1024
-TOP = {'schema', 'production_accepted', 'threshold', 'authority_size', 'authority_epoch', 'profile', 'custodians', 'evidence'}
+TOP = {'schema', 'production_accepted', 'custody_model', 'threshold', 'authority_size', 'authority_epoch', 'profile', 'custodians', 'evidence'}
+# `independent`: five custodians in separate control groups (P01, 30 September
+# 2026). `solo_kits`: the solo launch profile (P01, 3 October 2026), in which the
+# founder holds all five slots in five key kits, each kit its own control group.
+MODELS = ('independent', 'solo_kits')
 PERSON = {'slot', 'controller_id', 'name', 'organization', 'control_group', 'appointment', 'independence_review', 'key'}
 KEY = {'key_id', 'public_key_base64', 'signer_control_group', 'backup_control_group', 'signer_record', 'backup_record', 'proof_of_possession', 'drill_record'}
 ITEM = {'kind', 'controller_id', 'purpose', 'key_id', 'parameter_set', 'epoch', 'reviewer_control_group', 'public_statement'}
@@ -77,6 +81,8 @@ def validate(data, root, emergency=None):
     require(data['production_accepted'] is False, 'production acceptance must remain false')
     for key, value in (('threshold', THRESHOLD), ('authority_size', SIZE)):
         require(type(data[key]) is int and data[key] == value, key + ': approved value mismatch')
+    solo = data['custody_model'] == 'solo_kits'
+    require(data['custody_model'] in MODELS, 'custody_model must be independent or solo_kits')
     epoch = data['authority_epoch']
     require(type(epoch) is int and epoch >= 1, 'explicit positive authority epoch required')
     profile = data['profile']
@@ -133,12 +139,17 @@ def validate(data, root, emergency=None):
         controller, group = person['controller_id'], person['control_group']
         for field in ('controller_id', 'name', 'organization', 'control_group'):
             require(text(person[field]), f'slot {slot}: {field} missing')
-        require(text(controller) and controller not in controllers, f'slot {slot}: duplicate or missing controller')
+        # Solo kits: one controller in every slot, each slot its own kit.
+        require(text(controller) and (solo or controller not in controllers), f'slot {slot}: duplicate or missing controller')
         require(text(group) and group not in groups, f'slot {slot}: duplicate or missing control group')
         if text(controller): controllers.add(controller)
         if text(group): groups.add(group)
         binding(person['appointment'], 'appointment', controller)
-        binding(person['independence_review'], 'independence_review', controller, group=group)
+        if solo:
+            # The public disclosure (TRUST_MODEL.md) replaces the independence review.
+            require(person['independence_review'] is None, f'slot {slot}: solo_kits has no independence review')
+        else:
+            binding(person['independence_review'], 'independence_review', controller, group=group)
         key = person['key']
         if not fields(key, KEY, f'slot {slot}.key'): continue
         raw = public_key(key['public_key_base64'])
@@ -152,15 +163,22 @@ def validate(data, root, emergency=None):
             binding(key[kind], kind, controller, fingerprint)
         if held is not None:
             e_controllers, e_groups, e_keys = held
-            require(controller not in e_controllers, f'slot {slot}: controller is also an emergency custodian')
-            require(group not in e_groups and key['signer_control_group'] not in e_groups and key['backup_control_group'] not in e_groups, f'slot {slot}: control group is shared with an emergency custodian')
+            if not solo:
+                require(controller not in e_controllers, f'slot {slot}: controller is also an emergency custodian')
+                require(group not in e_groups and key['signer_control_group'] not in e_groups and key['backup_control_group'] not in e_groups, f'slot {slot}: control group is shared with an emergency custodian')
             require(raw not in e_keys, f'slot {slot}: key also holds a freeze or resume role')
         if raw is not None: authority.append({'key_id': fingerprint, 'public_key_hex': raw.hex()})
+    if solo:
+        require(len(controllers) == 1, 'solo_kits: one controller holds every slot')
+        if held is not None:
+            require(held[0] == controllers, 'solo_kits: the emergency intake names another controller')
+            require(held[1] == groups, 'solo_kits: the emergency keys use other kits')
     for ref, item in parsed.items():
         if item['kind'] == 'independence_review':
             require(text(item['reviewer_control_group']) and item['reviewer_control_group'] not in groups, ref + ': reviewer shares a custodian control group')
     require(set(parsed) == used, 'unreferenced evidence is not permitted')
     out = result(errors)
+    out['custody_model'] = data['custody_model'] if data['custody_model'] in MODELS else None
     if not errors:
         # The shape of the node's upgrade policy authority (upgrade/v1/upgrade.rs): keys strictly sorted by key_id.
         out['authority_fragment'] = {'parameter_set': PARAMETER_SET, 'authority_epoch': epoch,
@@ -171,7 +189,7 @@ def validate(data, root, emergency=None):
 def result(errors):
     return {'status': 'STRUCTURALLY_COMPLETE' if not errors else 'INCOMPLETE_OR_INVALID', 'errors': errors,
             'signature_verification_performed': False, 'identity_or_independence_verified': False, 'production_accepted': False,
-            'boundary': 'Checks syntax, emergency separation and local public evidence bindings only. Independent review, cryptographic verification and formal acceptance remain required.'}
+            'boundary': 'Checks syntax, emergency separation (or, for solo kits, one controller with the same five kits) and local public evidence bindings only. Cryptographic verification and formal acceptance remain required.'}
 
 
 def main():

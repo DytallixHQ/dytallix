@@ -19,7 +19,8 @@ PURPOSE = 'genesis'
 # The signer policy record (root_genesis/threshold.rs, genesis_threshold.go).
 POLICY_SCHEMA = 1
 CHAIN_ID = re.compile(r'^[A-Za-z0-9._-]{1,128}$')
-TOP = {'schema', 'production_accepted', 'threshold', 'authority_size', 'chain_id', 'profile', 'signers', 'evidence'}
+TOP = {'schema', 'production_accepted', 'custody_model', 'threshold', 'authority_size', 'chain_id', 'profile', 'signers', 'evidence'}
+MODELS = u.MODELS
 PERSON = u.PERSON
 KEY = {'key_id', 'public_key_hex', 'signer_control_group', 'backup_control_group', 'signer_record', 'backup_record', 'proof_of_possession', 'drill_record'}
 HEX_KEY = re.compile(r'^[a-f0-9]{128}$')
@@ -79,6 +80,8 @@ def validate(data, root, emergency=None, upgrade=None):
     require(data['production_accepted'] is False, 'production acceptance must remain false')
     for key, value in (('threshold', THRESHOLD), ('authority_size', SIZE)):
         require(type(data[key]) is int and data[key] == value, key + ': approved value mismatch')
+    solo = data['custody_model'] == 'solo_kits'
+    require(data['custody_model'] in MODELS, 'custody_model must be independent or solo_kits')
     chain = data['chain_id']
     require(isinstance(chain, str) and CHAIN_ID.fullmatch(chain) is not None, 'chain_id: the chain identity record (D13-Q01) is required')
     profile = data['profile']
@@ -140,12 +143,17 @@ def validate(data, root, emergency=None, upgrade=None):
         controller, group = person['controller_id'], person['control_group']
         for field in ('controller_id', 'name', 'organization', 'control_group'):
             require(text(person[field]), f'slot {slot}: {field} missing')
-        require(text(controller) and controller not in controllers, f'slot {slot}: duplicate or missing controller')
+        # Solo kits: one controller in every slot, each slot its own kit.
+        require(text(controller) and (solo or controller not in controllers), f'slot {slot}: duplicate or missing controller')
         require(text(group) and group not in groups, f'slot {slot}: duplicate or missing control group')
         if text(controller): controllers.add(controller)
         if text(group): groups.add(group)
         binding(person['appointment'], 'appointment', controller)
-        binding(person['independence_review'], 'independence_review', controller, group=group)
+        if solo:
+            # The public disclosure (TRUST_MODEL.md) replaces the independence review.
+            require(person['independence_review'] is None, f'slot {slot}: solo_kits has no independence review')
+        else:
+            binding(person['independence_review'], 'independence_review', controller, group=group)
         key = person['key']
         if not fields(key, KEY, f'slot {slot}.key'): continue
         raw = public_key(key['public_key_hex'])
@@ -160,15 +168,22 @@ def validate(data, root, emergency=None, upgrade=None):
         # Genesis signers are their own group (P01, 30 September 2026); the
         # node also refuses a genesis key with another root role.
         for name, (o_controllers, o_groups, o_keys) in others:
-            require(controller not in o_controllers, f'slot {slot}: controller is also an {name} custodian')
-            require(group not in o_groups and key['signer_control_group'] not in o_groups and key['backup_control_group'] not in o_groups, f'slot {slot}: control group is shared with an {name} custodian')
+            if not solo:
+                require(controller not in o_controllers, f'slot {slot}: controller is also an {name} custodian')
+                require(group not in o_groups and key['signer_control_group'] not in o_groups and key['backup_control_group'] not in o_groups, f'slot {slot}: control group is shared with an {name} custodian')
             require(raw not in o_keys, f'slot {slot}: key also holds an {name} role')
         if raw is not None: authority.append({'key_id': fingerprint, 'public_key_hex': raw.hex()})
+    if solo:
+        require(len(controllers) == 1, 'solo_kits: one controller holds every slot')
+        for name, (o_controllers, o_groups, _) in others:
+            require(o_controllers == controllers, f'solo_kits: the {name} intake names another controller')
+            require(o_groups == groups, f'solo_kits: the {name} keys use other kits')
     for ref, item in parsed.items():
         if item['kind'] == 'independence_review':
             require(text(item['reviewer_control_group']) and item['reviewer_control_group'] not in groups, ref + ': reviewer shares a signer control group')
     require(set(parsed) == used, 'unreferenced evidence is not permitted')
     out = result(errors)
+    out['custody_model'] = data['custody_model'] if data['custody_model'] in MODELS else None
     if not errors:
         policy = signer_policy(chain, authority)
         out['signer_policy'] = policy
@@ -179,7 +194,7 @@ def validate(data, root, emergency=None, upgrade=None):
 def result(errors):
     return {'status': 'STRUCTURALLY_COMPLETE' if not errors else 'INCOMPLETE_OR_INVALID', 'errors': errors,
             'signature_verification_performed': False, 'identity_or_independence_verified': False, 'production_accepted': False,
-            'boundary': 'Checks syntax, separation from the emergency and upgrade custodians and local public evidence bindings only. Independent review, cryptographic verification and formal acceptance remain required.'}
+            'boundary': 'Checks syntax, separation from the emergency and upgrade custodians (or, for solo kits, one controller with the same five kits in all three) and local public evidence bindings only. Cryptographic verification and formal acceptance remain required.'}
 
 
 def main():
