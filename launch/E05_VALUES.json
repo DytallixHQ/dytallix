@@ -2,7 +2,7 @@
   "schema_version": 1,
   "kind": "e05-production-value-intake",
   "as_of_commit": "848b7c4d",
-  "rule": "A value is OPEN until P01 approves it; an approved value carries `approved` and its `approval_record`. `proposed` is a proposal for P01 review, never an approved or production value. Fixture values are test inputs, not recommendations.",
+  "rule": "A value is OPEN until P01 approves it; an approved value carries `approved` and its `approval_record`. `proposed` is a proposal for P01 review, never an approved or production value. Fixture values are test inputs, not recommendations. A DERIVED value is computed by the genesis builder from approved values by the rule in its basis (node/docs/mainnet/e05-genesis-builder.md). A DROPPED value was planned but P01 decided not to build it.",
   "tiers": {
     "decide": "Economic, governance and security choices P01 makes.",
     "operate": "Operational settings with an engineering default; P01 confirms.",
@@ -77,9 +77,10 @@
       "couplings": "",
       "notes": "No reader outside validate() was found in node/dytallix-fast-launch/node/src (grep for gas_price). Charged prices come from the ordinary and recovery fee profiles. Possibly vestigial; confirm before choosing a value. Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "Equals the ordinary gas price."
+      "basis": "Equals the ordinary gas price.",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "app_validator_power",
@@ -93,9 +94,10 @@
       "couplings": "Derived from reward_v2 positions; engine genesis validator power must match (bridge passes req.Validators).",
       "notes": "Not an independent choice: listed for completeness because allocations determine it. Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "Equals each genesis validator's bonded stake under the lifecycle profile."
+      "basis": "Equals each genesis validator's bonded stake under the lifecycle profile.",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "min_self_bond",
@@ -253,9 +255,10 @@
       "couplings": "Profile version (recovery.profile.version) is a counter and is not listed separately.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (genesis profile)."
+      "basis": "1 (genesis profile).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "recovery_gas_price",
@@ -377,9 +380,10 @@
       "couplings": "Not checked >= gas_price x max_transaction_gas; the fixture sets exactly 2 x 1000000.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least max_transaction_gas x gas_price (E05-a rule 3)."
+      "basis": "At least max_transaction_gas x gas_price (E05-a rule 3).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "recovery_max_pending_accounts",
@@ -579,9 +583,10 @@
       "couplings": "Governance v3 profile requires base.activation_height <= its own (node/crates/protocol-types/src/ordinary_fees_v3.rs:48-53).",
       "notes": "Profile version is a counter and is not listed separately. Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (genesis profile)."
+      "basis": "1 (genesis profile).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "ordinary_gas_price",
@@ -703,9 +708,10 @@
       "couplings": "Not checked >= gas_price x max_transaction_gas (fixture sets exactly 2 x 1000). Not governed: must stay equal across fee-profile versions (node/dytallix-fast-launch/node/src/ordinary_state.rs:62-75).",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least max_transaction_gas x the governed gas-price bound maximum (E05-a rule 3)."
+      "basis": "At least max_transaction_gas x the governed gas-price bound maximum (E05-a rule 3).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "ordinary_max_wire_bytes",
@@ -1153,9 +1159,10 @@
       "couplings": "Base64 of a max_wire_bytes envelope (plus JSON) must fit (node/dytallix-fast-launch/node/src/ordinary_transport.rs:24-35); not checked. With the fixture values (both 65536) a full-size envelope (87384 base64 chars) cannot be carried.",
       "notes": "Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least 43 + the base64 size of max_wire_bytes (E05-a rule 5)."
+      "basis": "At least 43 + the base64 size of max_wire_bytes (E05-a rule 5).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "queue_max_entries",
@@ -1347,9 +1354,10 @@
       "couplings": "",
       "notes": "Consensus fixture values are synthetic (node/dytallix-fast-launch/node/src/ordinary_consensus_tests.rs:529). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1: governance runs from genesis (governance v1)."
+      "basis": "1: governance runs from genesis (governance v1).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "governance_max_governance_action_bytes",
@@ -1764,9 +1772,10 @@
       "couplings": "Each SLH-DSA signature is 29792 bytes (node/dytallix-fast-launch/node/src/emergency_freeze.rs:14); a control with the required 3 signatures needs roughly 3 x 29792 bytes plus payload. No config-time check that max_control_bytes can hold threshold signatures (inferred from the constant).",
       "notes": "A production build requires development_only false, schema 2 and the continue_previously_approved_rules transition rule; a development build requires development_only true (node/dytallix-fast-launch/node/src/emergency_freeze.rs, Policy::validate; production activation v1, A4). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least 3 x 59,584 bytes of hex signatures plus the payload (E05-a rule 6)."
+      "basis": "At least 3 x 59,584 bytes of hex signatures plus the payload (E05-a rule 6).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "emergency_max_signatures",
@@ -1780,9 +1789,10 @@
       "couplings": "Schema 2 fixes both authorities at 3 of 5 (node/dytallix-fast-launch/node/src/emergency_freeze.rs:128-135), so max_signatures must be >= 3. The thresholds themselves are code-fixed under schema 2.",
       "notes": "A production build requires development_only false, schema 2 and the continue_previously_approved_rules transition rule; a development build requires development_only true (node/dytallix-fast-launch/node/src/emergency_freeze.rs, Policy::validate; production activation v1, A4). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least the 3-of-5 threshold (D11-Q03)."
+      "basis": "At least the 3-of-5 threshold (D11-Q03).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "emergency_initial_sequence",
@@ -1796,9 +1806,10 @@
       "couplings": "Counter start.",
       "notes": "A production build requires development_only false, schema 2 and the continue_previously_approved_rules transition rule; a development build requires development_only true (node/dytallix-fast-launch/node/src/emergency_freeze.rs, Policy::validate; production activation v1, A4). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (fresh genesis)."
+      "basis": "1 (fresh genesis).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "emergency_authority_epoch",
@@ -1812,9 +1823,10 @@
       "couplings": "D11-Q03 lists epochs with the custodian records; may be treated as a record.",
       "notes": "A production build requires development_only false, schema 2 and the continue_previously_approved_rules transition rule; a development build requires development_only true (node/dytallix-fast-launch/node/src/emergency_freeze.rs, Policy::validate; production activation v1, A4). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (first key epoch)."
+      "basis": "1 (first key epoch).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "emergency_max_validity_blocks",
@@ -1860,9 +1872,10 @@
       "couplings": "P01 (30 Sep 2026) approved a separate 3-of-5 upgrade group (node/docs/mainnet/upgrade-execution.md). Upgrade keys must not overlap emergency keys (consensus configuration check).",
       "notes": "Schema 2 requires exactly five keys and threshold 3, with key IDs the SHA-256 of the public keys (node/dytallix-fast-launch/node/src/upgrade/v2/upgrade.rs). Schema 1 is development-only. E05-c: the genesis builder takes it from the upgrade custodian intake's authority_fragment (launch/custody/upgrade/INTAKE.md).",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "3 of 5 upgrade custodians (P01, 30 September 2026)."
+      "basis": "3 of 5 upgrade custodians (P01, 30 September 2026).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "upgrade_authority_epoch",
@@ -1876,9 +1889,10 @@
       "couplings": "Epochs are listed with custodian records in D11-Q03.",
       "notes": "Schema 1 is development-only (node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs:62-65); production needs schema 2 (not implemented). Fixture value only, not a recommendation. E05-c: the genesis builder takes it from the upgrade custodian intake's authority_fragment (launch/custody/upgrade/INTAKE.md).",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (first key epoch)."
+      "basis": "1 (first key epoch).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "upgrade_initial_sequence",
@@ -1892,9 +1906,10 @@
       "couplings": "Counter start.",
       "notes": "Schema 1 is development-only (node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs:62-65); production needs schema 2 (not implemented). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (fresh genesis)."
+      "basis": "1 (fresh genesis).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "upgrade_max_control_bytes",
@@ -1908,9 +1923,10 @@
       "couplings": "Same SLH-DSA size concern as emergency_max_control_bytes.",
       "notes": "Schema 1 is development-only (node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs:62-65); production needs schema 2 (not implemented). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least 3 x 59,584 bytes of hex signatures plus the payload (E05-a rule 6)."
+      "basis": "At least 3 x 59,584 bytes of hex signatures plus the payload (E05-a rule 6).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "upgrade_max_signatures",
@@ -1924,9 +1940,10 @@
       "couplings": "",
       "notes": "Schema 1 is development-only (node/dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs:62-65); production needs schema 2 (not implemented). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least the 3-of-5 threshold (P01, 30 September 2026)."
+      "basis": "At least the 3-of-5 threshold (P01, 30 September 2026).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "migration_max_receipts",
@@ -2044,9 +2061,10 @@
       "couplings": "Requires the upgrade policy; initial_schema must be 0 and initial release must equal the upgrade source release (node/dytallix-fast-launch/node/src/consensus_settlement.rs:281-297).",
       "notes": "Derived (production activation v1, A7): handover schema 2 uses the upgrade authority, so its threshold is upgrade_authority_threshold (P01, 30 September 2026: the upgrade custodians control release handover).",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": null
+      "basis": null,
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "handover_authority_epoch",
@@ -2060,9 +2078,10 @@
       "couplings": "Requires the upgrade policy; initial_schema must be 0 and initial release must equal the upgrade source release (node/dytallix-fast-launch/node/src/consensus_settlement.rs:281-297).",
       "notes": "Schema 1 is development-only; a production build requires schema 2 with development_only false (node/dytallix-fast-launch/node/src/release_handover.rs, Policy::validate; A4). Fixture value only, not a recommendation. Schema 2: the handover authority and epoch must equal the upgrade authority (the five upgrade custodians, three of five; P01, 30 September 2026), checked by the consensus configuration.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (first key epoch)."
+      "basis": "1 (first key epoch).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "handover_initial_sequence",
@@ -2076,9 +2095,10 @@
       "couplings": "Requires the upgrade policy; initial_schema must be 0 and initial release must equal the upgrade source release (node/dytallix-fast-launch/node/src/consensus_settlement.rs:281-297).",
       "notes": "Schema 1 is development-only; a production build requires schema 2 with development_only false (node/dytallix-fast-launch/node/src/release_handover.rs, Policy::validate; A4). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "1 (fresh genesis)."
+      "basis": "1 (fresh genesis).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "handover_max_control_bytes",
@@ -2092,9 +2112,10 @@
       "couplings": "Requires the upgrade policy; initial_schema must be 0 and initial release must equal the upgrade source release (node/dytallix-fast-launch/node/src/consensus_settlement.rs:281-297).",
       "notes": "Schema 1 is development-only; a production build requires schema 2 with development_only false (node/dytallix-fast-launch/node/src/release_handover.rs, Policy::validate; A4). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least its threshold x 59,584 bytes plus the payload (E05-a rule 6)."
+      "basis": "At least its threshold x 59,584 bytes plus the payload (E05-a rule 6).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "handover_max_signatures",
@@ -2176,9 +2197,10 @@
       "couplings": "lifecycle.max_active <= max_validators (node/dytallix-fast-launch/node/src/runtime/validator_lifecycle.rs:733-737).",
       "notes": "version 2, decimals 6, activation_height 1 and profile \"development\" are code-fixed (node/dytallix-fast-launch/node/src/runtime/reward_runtime.rs:29-36). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "At least the governed max_active bound (E05-a rule 4)."
+      "basis": "At least the governed max_active bound (E05-a rule 4).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "reward_max_positions",
@@ -2588,9 +2610,10 @@
       "couplings": "See evidence_max_age_blocks.",
       "notes": "Upstream default 100000 (node/consensus/cometbft/upstream/types/params.go:121). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "Equals lifecycle.evidence_max_age_blocks (checked at start)."
+      "basis": "Equals lifecycle.evidence_max_age_blocks (checked at start).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "engine_evidence_max_age_duration",
@@ -2604,9 +2627,10 @@
       "couplings": "",
       "notes": "Upstream default 48h (node/consensus/cometbft/upstream/types/params.go:122). Fixture value only, not a recommendation.",
       "tier": "derived",
-      "status": "OPEN",
+      "status": "DERIVED",
       "proposed": null,
-      "basis": "Equals lifecycle.evidence_max_age_seconds (checked at start)."
+      "basis": "Equals lifecycle.evidence_max_age_seconds (checked at start).",
+      "derivation_ref": "../node/docs/mainnet/e05-genesis-builder.md#what-the-builder-fixes-and-derives"
     },
     {
       "name": "engine_evidence_max_bytes",
@@ -3746,9 +3770,10 @@
       "couplings": "",
       "notes": "NOT LOCATED IN CODE. governance-v1.md names it as an E05 value; GovernanceCandidateConfig has no such field (grep).",
       "tier": "operate",
-      "status": "OPEN",
+      "status": "DROPPED",
       "proposed": null,
-      "basis": null
+      "basis": "The 10,000 DGT minimum deposit and the due-time index already bound open proposals.",
+      "approval_record": "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
     },
     {
       "name": "client_compatibility_window",
@@ -3762,9 +3787,10 @@
       "couplings": "",
       "notes": "NOT LOCATED IN CODE.",
       "tier": "decide",
-      "status": "OPEN",
+      "status": "DROPPED",
       "proposed": null,
-      "basis": null
+      "basis": "Upgrades already give 120,960 blocks (about 7 days) of notice; clients upgrade within it.",
+      "approval_record": "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
     },
     {
       "name": "fault_assumptions",
@@ -3778,9 +3804,11 @@
       "couplings": "",
       "notes": "NOT LOCATED IN CODE: a D06-Q02 remaining input with no configuration field.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "Less than one third of voting power is faulty at any time. With one validator at launch, no fault is tolerated: its failure halts the chain until restored, and its compromise controls the chain.",
+      "basis": "A record, not a setting (P01, 3 October 2026).",
+      "approved": "Less than one third of voting power is faulty at any time. With one validator at launch, no fault is tolerated: its failure halts the chain until restored, and its compromise controls the chain.",
+      "approval_record": "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
     }
   ]
 }
