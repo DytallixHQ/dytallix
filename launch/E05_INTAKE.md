@@ -32,8 +32,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
 
 ## Order of work
 
-1. **Chain identity** (D13-Q01): display name, an unused chain ID, and the
-   genesis time procedure.
+1. **Chain identity** (D13-Q01): approved 3 October 2026. Chain ID
+   `dytallix-mainnet-1`, display name Dytallix, and the genesis time set at
+   the final freeze ([identity](genesis/IDENTITY.json)).
 2. **People and hosts in parallel:** operators and validators (D09-Q02),
    dedicated hosts and topology (D12-Q01, D12-Q03), and custodians (D10-Q03):
    the root genesis signers, five emergency custodians with freeze and
@@ -127,7 +128,7 @@ of 1.
 
 | Record | What | Status |
 | --- | --- | --- |
-| D13-Q01 | Display name, unused chain ID, genesis time procedure | Policy open |
+| D13-Q01 | Display name, unused chain ID, genesis time procedure | Approved (P01, 3 October 2026): `dytallix-mainnet-1`, Dytallix, a weekday 14:00:00 UTC at least 72 h after the final build ([approval](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json), [identity](genesis/IDENTITY.json)); the time itself is set at the freeze |
 | D09-Q02 | Initial operators, control groups, validator keys and possession proofs, self-bond funding, fault domains, signed acceptances | Open |
 | D12-Q03 | Dedicated hosts: assets, providers, regions, account control groups, funded commitments | Open; hosts must run nothing but Dytallix |
 | D12-Q01 | Pin plan: each host's label, operator, role, address, peer and validator public keys and pins | Open; released with the network configuration, outside this repository; the [host configuration generator](../node/docs/mainnet/host-configuration.md) checks it against the approved mesh rules |

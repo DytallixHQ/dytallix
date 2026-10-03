@@ -31,7 +31,7 @@ inputs ─ dytallix-genesis-build ─> native-genesis.json, application-config.j
    in the proposals file for a value still open. A proposal for an approved
    value, an open value with no proposal, an unknown name, or a wrongly typed
    value is refused. The resolution report lists each value's source and
-   always says `production_eligible: false` in this version.
+   how the records differ from the approved network identity.
 2. **Build** (`dytallix-genesis-build`, `src/genesis_build.rs` in the node). It
    uses the node's own types, so it serializes exactly what the node parses,
    and it runs the node's own configuration validation (every E05-a coupling)
@@ -50,7 +50,36 @@ For the production mode, resolve with `--mode production` and build with
 `cargo run -p dytallix-fast-node --features production --bin
 dytallix-genesis-build -- --inputs GENESIS_INPUTS.json --out BUILD_DIR`. The
 resolution report is `production_eligible` only in the production mode with
-every value approved and every record accepted.
+every value approved, every record accepted and the records naming the
+approved network identity.
+
+## Network identity and genesis time
+
+The approved identity (D13-Q01, P01, 3 October 2026) is
+`launch/genesis/IDENTITY.json`: chain ID `dytallix-mainnet-1`, network
+`mainnet` (address code 1, prefix `dytallix`) and display name Dytallix. A
+development build refuses the chain ID because it names mainnet.
+
+The genesis time is part of the genesis digest, so it is set at the final
+input freeze: whole seconds UTC, 14:00:00 on a weekday, at least 72 hours
+after the final build. In that window operators reproduce the digest, three
+of five genesis signers sign, and hosts install the files and start early;
+nodes wait for the genesis time. If the signatures or the T−6h go/no-go are
+not complete, set a new time and rebuild: a new digest and new signatures,
+never reused.
+
+```text
+python3 -B tools/mainnet-preparation/network_identity.py earliest --built-at BUILD_TIME
+python3 -B tools/mainnet-preparation/network_identity.py check \
+  --genesis-time GENESIS_TIME --built-at BUILD_TIME
+```
+
+`earliest` prints the first allowed genesis time after a build; `check` exits
+2 with the reasons when a time breaks the procedure. The resolver's
+`identity.differences` lists a records file's chain, network or genesis time
+form that differs from the identity; the lead after the build is checked at
+the freeze with `check`. The rehearsals name their own chains, so they always
+list differences.
 
 ## What the builder fixes and derives
 

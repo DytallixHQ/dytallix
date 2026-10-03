@@ -28,7 +28,7 @@ The final genesis must initialize all required economics and governance at one p
 
 | Record | Required contents | Current state |
 |---|---|---|
-| Network identity | Approved chain ID, network domain, protocol versions, genesis time, engine parameters and canonical encoding | Missing approval |
+| Network identity | Approved chain ID, network domain, protocol versions, genesis time, engine parameters and canonical encoding | Chain ID `dytallix-mainnet-1`, display name and genesis time procedure approved (D13-Q01, 3 October 2026; `genesis/IDENTITY.json`); the genesis time is set at the final freeze |
 | Candidate identity | Exact source revisions, production binary and image digests, schema version, parameter bundle and reviewed build provenance | Missing qualified candidate |
 | DGT allocation ledger | Every beneficiary, account, bucket, integer amount, custody proof, vesting rule, approval and initial stake reference | Bucket policy exists; beneficiary rows missing |
 | DRT bootstrap | Exact initial amount, per-account distribution, source authority and fee-funding rationale | Policy approved (D08-Q02, P01, 29 September 2026): liquid DRT to named accounts; amount and rows missing (D08-Q03) |

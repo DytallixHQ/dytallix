@@ -1,9 +1,16 @@
 {
-  "boundary": "Production eligibility needs the production mode, every value APPROVED and every record ACCEPTED. Eligibility accepts nothing: the release, the root genesis signatures and gate acceptance remain required.",
+  "boundary": "Production eligibility needs the production mode, every value APPROVED, every record ACCEPTED and the approved network identity. Eligibility accepts nothing: the genesis time lead check at the freeze, the release, the root genesis signatures and gate acceptance remain required.",
   "counts": {
     "APPROVED": 110,
     "MEASURE_PLACEHOLDER": 9,
     "RECORD_SYNTHETIC": 8
+  },
+  "identity": {
+    "approved": "genesis/IDENTITY.json",
+    "differences": [
+      "chain_id is not the approved dytallix-mainnet-1",
+      "genesis_time must be at 14:00:00 UTC"
+    ]
   },
   "mode": "rehearsal",
   "production_eligible": false,

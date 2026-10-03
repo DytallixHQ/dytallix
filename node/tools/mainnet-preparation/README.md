@@ -99,6 +99,8 @@ python3 -B tools/mainnet-preparation/check_bindings.py --bindings $F/review-bind
   --application $F/application-config.json --engine $F/genesis.json --manifest $F/BUILD_MANIFEST.json
 ```
 
+`network_identity.py` holds the approved network identity check (D13-Q01, `launch/genesis/IDENTITY.json`): the resolver uses it for production eligibility, `earliest --built-at T` prints the first genesis time the procedure allows after a build, and `check --genesis-time T --built-at B` checks one. See [the genesis builder](../../docs/mainnet/e05-genesis-builder.md#network-identity-and-genesis-time).
+
 ## Host values (E05)
 
 `resolve_host_values.py` writes the host configuration generator's values from the approved per-host settings in `launch/E05_VALUES.json` and the labeled proposals in `launch/hosts/PROPOSALS.json`, with a report of each value's source; `--check` compares instead of writing. The generator itself is the engine's `dytallix-host-config`, which writes each host's engine files and binding from the public pin plan; see [host configuration](../../docs/mainnet/host-configuration.md). `fixtures/host-config-rehearsal/` holds a synthetic plan for the staging rehearsal, its resolved values and its generated bindings.

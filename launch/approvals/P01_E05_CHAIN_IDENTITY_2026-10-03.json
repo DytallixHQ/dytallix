@@ -1,0 +1,36 @@
+{
+  "decision_id": "P01-2026-10-03-E05-CHAIN-IDENTITY",
+  "approved": "2026-10-03",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Network identity (D13-Q01)"
+  },
+  "design_ref": "../genesis/IDENTITY.json",
+  "decisions": [
+    {
+      "question": "D13-Q01",
+      "selected": "dytallix-mainnet-1",
+      "rule": "The production chain ID is dytallix-mainnet-1. It names mainnet, so every development build of the node and the engine refuses it, and no development or staging chain can carry it. The -1 is the revision number for a later chain-ID change. Transactions bind the genesis digest as well as the chain ID, so earlier configurations that used the same string cannot replay into the chain."
+    },
+    {
+      "question": "D13-Q01",
+      "selected": "Dytallix",
+      "rule": "Wallets, explorers and documentation show mainnet as Dytallix. Other networks carry a suffix: Dytallix Testnet and Dytallix Devnet, matching the approved address prefixes dytallix, tdytallix and ddytallix."
+    },
+    {
+      "question": "D13-Q01",
+      "selected": "At freeze, at least 72 h ahead",
+      "rule": "The genesis time is part of the signed genesis digest, so it is set at the final input freeze: whole seconds UTC, 14:00:00 on a weekday (Monday to Friday), at least 72 hours after the final build. In that window operators reproduce the digest, three of five genesis signers sign, and hosts install the files and start early; nodes wait for the genesis time. If the signatures or the T-6h go/no-go are not complete, a new genesis time is set: a new build, a new digest and new signatures. A digest or signature is never reused for another genesis time."
+    }
+  ],
+  "unset": [
+    "The genesis time itself (set at the final input freeze)",
+    "The genesis digest (D13-Q02)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

@@ -4,7 +4,7 @@ Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered 
 
 Links into `decision-register/`, `batch-*/`, `evidence/` and `snapshots/` name launch evidence records held outside this repository; they do not resolve here.
 
-The current register contains two OPEN policy questions, 14 PARTIALLY_APPROVED policy questions, 10 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains one OPEN policy question, 14 PARTIALLY_APPROVED policy questions, 11 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
@@ -551,13 +551,21 @@ Evidence: [PRODUCTION_INFRASTRUCTURE_DRAFT.json](PRODUCTION_INFRASTRUCTURE_DRAFT
 
 Gate references: G04, G05.
 
-**Recorded approval scope and historical implementation context:** One permanent mainnet genesis is required. AS01 selects address network codes and Bech32m prefixes: 1/dytallix, 2/tdytallix, 3/ddytallix. The exact display name, unused production chain ID and genesis timestamp procedure remain open. AS03 bounds the combined profile chain ID to 1 through 128 UTF-8 bytes.
+**Recorded approval scope and historical implementation context:** One permanent mainnet genesis is required. AS01 selects address network codes and Bech32m prefixes: 1/dytallix, 2/tdytallix, 3/ddytallix. AS03 bounds the combined profile chain ID to 1 through 128 UTF-8 bytes. The network identity is approved (D13-Q01, 3 October 2026); the genesis time itself and the final digest (D13-Q02) remain open.
 
-### D13-Q01 — OPEN
+### D13-Q01 — APPROVED
 
 What display name, unused chain ID and genesis timestamp procedure apply?
 
-Required output: Network identity specification.
+Approved (P01, 3 October 2026, [network identity approval](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json)):
+
+- **Chain ID** `dytallix-mainnet-1`. It names mainnet, so every development build of the node and the engine refuses it. The `-1` is the revision for a later chain-ID change. Transactions bind the genesis digest as well as the chain ID, so earlier configurations that used the same string cannot replay into the chain.
+- **Display name** Dytallix; the other networks are Dytallix Testnet and Dytallix Devnet, matching the address prefixes.
+- **Genesis time procedure.** Set at the final input freeze, in whole seconds UTC, at 14:00:00 on a weekday and at least 72 hours after the final build. In that window operators reproduce the digest, three of five genesis signers sign, and hosts install the files and start early. If the signatures or the T−6h go/no-go are not complete, a new time is set: a new build, digest and signatures, never reused.
+
+The machine-readable record is [genesis/IDENTITY.json](genesis/IDENTITY.json). The genesis input resolver makes a build production-eligible only when its records name this identity, and `network_identity.py` checks a genesis time against the procedure ([genesis builder](../node/docs/mainnet/e05-genesis-builder.md)).
+
+Required output: Network identity specification ([genesis/IDENTITY.json](genesis/IDENTITY.json)).
 
 Proposed owner role: Genesis and release leads. Named assignment and reviewer remain as recorded in the structured register.
 

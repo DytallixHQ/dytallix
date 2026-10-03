@@ -48,7 +48,15 @@ class ResolverTests(unittest.TestCase):
         # Labeled proposals and synthetic records keep it ineligible.
         self.assertFalse(report['production_eligible'])
 
+    def accept(self):
+        """Accepted records naming the approved identity (D13-Q01), with every proposal approved."""
+        self.records.update(status='ACCEPTED', chain_id='dytallix-mainnet-1', network='mainnet', genesis_time='2027-01-07T14:00:00Z')
+        for name, proposal in self.proposals['values'].items():
+            self.entry(name).update(status='APPROVED', approved=proposal['value'], approval_record='approvals/test.json')
+        self.proposals['values'] = {}
+
     def test_eligibility_needs_the_production_mode_approved_values_and_accepted_records(self):
+        self.records.update(chain_id='dytallix-mainnet-1', genesis_time='2027-01-07T14:00:00Z')
         self.records['status'] = 'ACCEPTED'
         for name, proposal in self.proposals['values'].items():
             entry = self.entry(name)
@@ -58,6 +66,18 @@ class ResolverTests(unittest.TestCase):
         self.assertFalse(r.resolve(self.values, self.proposals, self.records, mode='rehearsal')[1]['production_eligible'])
         with self.assertRaises(ValueError):
             r.resolve(self.values, self.proposals, self.records, mode='staging')
+
+    def test_eligibility_needs_the_approved_network_identity(self):
+        self.accept()
+        _, report = r.resolve(self.values, self.proposals, self.records, mode='production')
+        self.assertTrue(report['production_eligible'])
+        self.assertEqual(report['identity'], {'approved': 'genesis/IDENTITY.json', 'differences': []})
+        for field, value, reason in (('chain_id', 'dytallix-1', 'chain_id'), ('network', 'testnet', 'network'),
+                                     ('genesis_time', '2027-01-07T15:00:00Z', '14:00:00'), ('genesis_time', '2027-01-09T14:00:00Z', 'Friday')):
+            self.setUp(); self.accept(); self.records[field] = value
+            _, report = r.resolve(self.values, self.proposals, self.records, mode='production')
+            self.assertFalse(report['production_eligible'], field)
+            self.assertTrue(any(reason in d for d in report['identity']['differences']), report['identity'])
 
     def test_the_handover_authority_is_the_upgrade_custodians(self):
         inputs, _ = self.resolve()
