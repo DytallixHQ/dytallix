@@ -42,7 +42,8 @@ A production build runs the mode `production-native` (production activation v1, 
 - **Catalog.** The release catalog has the service profile `production-linux-native-service-v1`. One catalog serves every role, so it always carries the HTTP adapter.
 - **Role** (required): `validator`, `sentry` or `endpoint`.
   - Validators and sentries run no adapter and no channel listener.
-  - An endpoint runs the HTTP adapter on loopback and its client channel on the node's address.
+  - An endpoint runs the HTTP adapter on loopback and its client channel on the node's address. It may also serve the read-only status page for an uptime checker (`adapter_status_listen`, P01, 3 October 2026) on the node's address, on a port of its own.
+  - The supervisor passes the adapter its own build's profile: `dytallix-pqc-http-production-v1` in a production build.
   - A sentry or endpoint key may not be in the genesis validator set, and the engine gives a sentry or endpoint a signer that refuses every signature. A validator's key may be outside the set: a validator registered after genesis starts before its key is active (P01, 3 October 2026).
 - **Identity.** The engine inputs pin `config/pqc_peer_seed.bin` in place of `node_key.json`, which must be absent. Create the seed on the host with `dytallix-peer-seed generate --home HOME`; it prints the public key for the node's transport file and its peers' pins.
 - **Binding** (required): `binding` pins the host's published binding (at most 4 KiB). Before any child starts, the supervisor checks it against the pinned configuration, genesis and transport files, the transport's peer key, the validator key and the role. The engine checks it again with `--binding`. Print a host's binding with `dytallix-peer-seed binding --home HOME --role ROLE`; it must equal the binding `dytallix-host-config` generated for the host from the published pin plan ([host configuration](../../docs/mainnet/host-configuration.md)).

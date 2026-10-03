@@ -66,6 +66,7 @@ public keys and addresses only.
     "home": "/absolute/node/home",
     "p2p": "IP:port",
     "channel": "IP:port on an endpoint, else null",
+    "status": "IP:port of an endpoint's status page, or null",
     "peer_public_key_base64": "from dytallix-peer-seed generate",
     "validator_public_key_base64": "from dytallix-validator-key generate",
     "pins": ["labels of the hosts it peers with"],
@@ -79,7 +80,9 @@ The generator refuses:
 - **Addresses.** A P2P or channel address that is not a canonical global
   unicast IP and a port from 1024, two hosts on one IP (one IP per node, P01,
   30 September 2026), a channel on a sentry or validator or missing on an
-  endpoint, a channel off the node's IP or on its P2P port, and pins across
+  endpoint, a channel off the node's IP or on its P2P port, a status page on
+  a sentry or validator, off the node's IP or on the P2P or channel port, and
+  pins across
   address families (the host firewall admits one family).
 - **Keys.** A key that is not canonical base64 of an ML-DSA-65 public key,
   and any key used twice in the plan, as a peer key or a validator key.

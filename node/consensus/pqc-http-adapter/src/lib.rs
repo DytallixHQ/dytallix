@@ -1,10 +1,14 @@
-//! Experimental loopback HTTP/1 adapter. No production authority or TLS provider.
+//! Loopback HTTP/1 adapter, with no TLS provider. A development build serves
+//! the local profile; a production build (feature `production`, production
+//! activation v1) serves only the production profile.
 //! Hyper owns the HTTP parser. The Go engine owns JSON-RPC interpretation.
 //! An optional client channel listener (E04 gap 19) serves the same requests
-//! to remote clients over the post-quantum channel.
+//! to remote clients over the post-quantum channel, and an optional status
+//! listener serves a read-only status page for an uptime checker.
 #![forbid(unsafe_op_in_unsafe_fn)]
 
 pub mod channel;
+pub mod status;
 
 use base64::{engine::general_purpose::STANDARD, Engine};
 use bytes::Bytes;
@@ -27,7 +31,11 @@ use tokio::{
     time::{timeout, Instant},
 };
 
+/// Each build serves only its own profile.
+#[cfg(not(feature = "production"))]
 pub const PROFILE: &str = "dytallix-pqc-http-local-v1";
+#[cfg(feature = "production")]
+pub const PROFILE: &str = "dytallix-pqc-http-production-v1";
 pub const ALLOWED_ORIGIN: &str = "http://127.0.0.1:4173";
 pub const MAX_FRAME: usize = 2_097_152;
 pub const MAX_REQUEST_BODY: usize = 1_048_576;
@@ -103,12 +111,15 @@ pub struct Config {
     pub socket: PathBuf,
     pub limits: Limits,
     pub channel: Option<channel::ChannelConfig>,
+    /// The public status page's address, if served (P01, 3 October 2026).
+    pub status: Option<SocketAddr>,
 }
 
 impl Config {
     pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Self, String> {
         let mut home = None;
         let mut listen = None;
+        let mut status = None;
         let mut profile = None;
         let mut limits = Limits::CEILING;
         let mut channel = channel::ChannelArgs::default();
@@ -131,6 +142,14 @@ impl Config {
                             .map_err(|_| "Use a numeric IP:port")?,
                     );
                 }
+                "--status-listen" if status.is_none() => {
+                    status = Some(
+                        args.next()
+                            .ok_or("Missing status listen address")?
+                            .parse::<SocketAddr>()
+                            .map_err(|_| "Use a numeric IP:port")?,
+                    );
+                }
                 "--profile" if profile.is_none() => profile = args.next(),
                 flag if (flag.starts_with("--max-") || flag == "--deadline-ms")
                     && set.insert(flag.to_owned()) =>
@@ -141,7 +160,7 @@ impl Config {
             }
         }
         if profile.as_deref() != Some(PROFILE) {
-            return Err("Explicit supported experimental profile required".into());
+            return Err("This build's adapter profile is required".into());
         }
         let home = home.ok_or("Explicit private home required")?;
         let listen = listen.ok_or("Explicit numeric loopback address required")?;
@@ -156,12 +175,19 @@ impl Config {
         let socket = home.join("data/rpc.sock");
         validate_socket(&socket)?;
         let channel = channel.finish(&home)?;
+        if let Some(address) = status {
+            status::check_listen(address, listen)?;
+            if channel.as_ref().is_some_and(|c| c.listen == address) {
+                return Err("The status and channel listeners need their own ports".into());
+            }
+        }
         Ok(Self {
             home,
             listen,
             socket,
             limits,
             channel,
+            status,
         })
     }
 }
@@ -559,7 +585,25 @@ pub async fn serve(config: Config) -> Result<(), String> {
         }
         None => None,
     };
-    let mut ready = serde_json::json!({"status":"EXPERIMENTAL_LOCAL_ONLY","profile":PROFILE,"listen":actual.to_string(),"production_authorized":false,"launch_status":"NO_GO"});
+    let status = match config.status {
+        Some(address) => Some(
+            TcpListener::bind(address)
+                .await
+                .map_err(|_| "Cannot bind status listener")?,
+        ),
+        None => None,
+    };
+    let mut ready = if cfg!(feature = "production") {
+        serde_json::json!({"status":"READY","profile":PROFILE,"listen":actual.to_string(),"build":"production"})
+    } else {
+        serde_json::json!({"status":"EXPERIMENTAL_LOCAL_ONLY","profile":PROFILE,"listen":actual.to_string(),"production_authorized":false,"launch_status":"NO_GO"})
+    };
+    if let Some(listener) = &status {
+        let bound = listener
+            .local_addr()
+            .map_err(|_| "Cannot inspect status listener")?;
+        ready["status_listen"] = bound.to_string().into();
+    }
     if let Some((listener, channel)) = &channel {
         let bound = listener
             .local_addr()
@@ -570,12 +614,27 @@ pub async fn serve(config: Config) -> Result<(), String> {
     println!("{ready}");
     let limits = config.limits;
     let socket = Arc::new(config.socket);
-    match channel {
-        Some((channel_listener, channel)) => tokio::select! {
-            result = serve_http(listener, socket.clone(), limits) => result,
-            result = channel::serve(channel_listener, channel, socket, limits) => result,
-        },
-        None => serve_http(listener, socket, limits).await,
+    // An absent optional listener never finishes.
+    let channel_socket = socket.clone();
+    let channel_task = async move {
+        match channel {
+            Some((listener, channel)) => {
+                channel::serve(listener, channel, channel_socket, limits).await
+            }
+            None => std::future::pending().await,
+        }
+    };
+    let status_socket = socket.clone();
+    let status_task = async move {
+        match status {
+            Some(listener) => status::serve(listener, status_socket).await,
+            None => std::future::pending().await,
+        }
+    };
+    tokio::select! {
+        result = serve_http(listener, socket, limits) => result,
+        result = channel_task => result,
+        result = status_task => result,
     }
 }
 
@@ -699,6 +758,32 @@ mod tests {
             "localhost:1".to_owned()
         ])
         .is_err());
+    }
+    #[test]
+    fn each_build_serves_only_its_own_profile() {
+        let other = if cfg!(feature = "production") {
+            "dytallix-pqc-http-local-v1"
+        } else {
+            "dytallix-pqc-http-production-v1"
+        };
+        assert_ne!(other, PROFILE);
+        assert!(Config::parse(["--profile", other].map(String::from))
+            .unwrap_err()
+            .contains("adapter profile"));
+        let status = [
+            "--status-listen",
+            "203.0.113.1:80",
+            "--status-listen",
+            "203.0.113.1:81",
+        ];
+        assert!(Config::parse(status.map(String::from))
+            .unwrap_err()
+            .contains("duplicate"));
+        assert!(
+            Config::parse(["--status-listen", "status.example:80"].map(String::from))
+                .unwrap_err()
+                .contains("numeric")
+        );
     }
     #[test]
     fn canonical_rpc_paths() {

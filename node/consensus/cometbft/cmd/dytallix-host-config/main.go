@@ -73,6 +73,7 @@ type host struct {
 	Home               string     `json:"home"`
 	P2P                string     `json:"p2p"`
 	Channel            *string    `json:"channel"`
+	Status             *string    `json:"status"`
 	PeerPublicKey      string     `json:"peer_public_key_base64"`
 	ValidatorPublicKey string     `json:"validator_public_key_base64"`
 	Pins               []string   `json:"pins"`
@@ -324,6 +325,21 @@ func checkPlan(p plan, genesis *types.GenesisDoc) (map[string]*host, int, error)
 			}
 			if !channelIP.Equal(ip) || channelPort == port {
 				return nil, 0, fmt.Errorf("%s: the channel listener uses the node's P2P address on another port", h.Label)
+			}
+		}
+		// An endpoint may serve the public status page (P01, 3 October 2026)
+		// on the node's address, on a port of its own.
+		if h.Status != nil {
+			if h.Role != enginepqc.RoleEndpoint {
+				return nil, 0, fmt.Errorf("%s: only an endpoint serves the status page", h.Label)
+			}
+			statusIP, statusPort, err := endpoint(h.Label+".status", *h.Status)
+			if err != nil {
+				return nil, 0, err
+			}
+			_, channelPort, _ := endpoint("", *h.Channel)
+			if !statusIP.Equal(ip) || statusPort == port || statusPort == channelPort {
+				return nil, 0, fmt.Errorf("%s: the status page uses the node's P2P address on its own port", h.Label)
 			}
 		}
 		// Every peer and validator key in the plan is distinct.
@@ -604,6 +620,9 @@ func generate(planRaw, valuesRaw, genesisRaw []byte, scratch string) ([]output, 
 		listeners := []string{}
 		if h.Channel != nil {
 			listeners = append(listeners, *h.Channel)
+		}
+		if h.Status != nil {
+			listeners = append(listeners, *h.Status)
 		}
 		summary.Hosts = append(summary.Hosts, hostBinding{Label: label, Operator: h.Operator, Role: h.Role,
 			Pins: append([]string(nil), h.Pins...), Firewall: firewall{binding.TransportSHA256, h.P2P, listeners},

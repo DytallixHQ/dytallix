@@ -48,7 +48,7 @@ func fixturePlan(t *testing.T) plan {
 	if err != nil {
 		t.Fatal(err)
 	}
-	channel := "203.0.113.11:9443"
+	channel, status := "203.0.113.11:9443", "203.0.113.11:8080"
 	hosts := []host{
 		{Label: "validator-1", Operator: "operator-1", Role: "validator", P2P: "192.0.2.11:26656", Pins: []string{"sentry-1a", "sentry-1b"}},
 		{Label: "validator-2", Operator: "operator-2", Role: "validator", P2P: "192.0.2.12:26656", Pins: []string{"sentry-2"}},
@@ -59,7 +59,7 @@ func fixturePlan(t *testing.T) plan {
 		{Label: "sentry-2", Operator: "operator-2", Role: "sentry", P2P: "198.51.100.21:26656", Pins: []string{"validator-2", "sentry-1a", "sentry-1b", "sentry-3", "sentry-4", "endpoint-1"}},
 		{Label: "sentry-3", Operator: "operator-3", Role: "sentry", P2P: "198.51.100.31:26656", Pins: []string{"validator-3", "sentry-1a", "sentry-1b", "sentry-2", "sentry-4", "endpoint-1"}},
 		{Label: "sentry-4", Operator: "operator-4", Role: "sentry", P2P: "198.51.100.41:26656", Pins: []string{"validator-4", "sentry-1a", "sentry-1b", "sentry-2", "sentry-3", "endpoint-1"}},
-		{Label: "endpoint-1", Operator: "operator-1", Role: "endpoint", P2P: "203.0.113.11:26656", Channel: &channel, Pins: []string{"sentry-1a", "sentry-2", "sentry-3", "sentry-4"}},
+		{Label: "endpoint-1", Operator: "operator-1", Role: "endpoint", P2P: "203.0.113.11:26656", Channel: &channel, Status: &status, Pins: []string{"sentry-1a", "sentry-2", "sentry-3", "sentry-4"}},
 	}
 	for i := range hosts {
 		h := &hosts[i]
@@ -126,7 +126,7 @@ func TestTheCommittedRehearsalIsCurrent(t *testing.T) {
 		if h.BindingSHA256 != digest(raw) || h.Firewall.TransportSHA256 != h.Binding.TransportSHA256 {
 			t.Fatalf("%s: summary digests differ from its binding", h.Label)
 		}
-		if (h.Role == enginepqc.RoleEndpoint) != (len(h.Firewall.PublicListeners) == 1) {
+		if (h.Role == enginepqc.RoleEndpoint) != (len(h.Firewall.PublicListeners) == 2) {
 			t.Fatalf("%s: public listeners", h.Label)
 		}
 	}
@@ -298,6 +298,11 @@ func TestThePlanFollowsTheApprovedMeshRules(t *testing.T) {
 		"endpoint no channel": {func(p *plan) { label(p, "endpoint-1").Channel = nil }, "channel listener"},
 		"channel elsewhere":   {func(p *plan) { c := "203.0.113.12:9443"; label(p, "endpoint-1").Channel = &c }, "P2P address on another port"},
 		"channel same port":   {func(p *plan) { c := "203.0.113.11:26656"; label(p, "endpoint-1").Channel = &c }, "P2P address on another port"},
+		"sentry status":       {func(p *plan) { st := "198.51.100.21:8080"; label(p, "sentry-2").Status = &st }, "only an endpoint serves the status page"},
+		"status elsewhere":    {func(p *plan) { st := "203.0.113.12:8080"; label(p, "endpoint-1").Status = &st }, "status page uses the node's P2P address"},
+		"status on channel":   {func(p *plan) { st := "203.0.113.11:9443"; label(p, "endpoint-1").Status = &st }, "status page uses the node's P2P address"},
+		"status on p2p":       {func(p *plan) { st := "203.0.113.11:26656"; label(p, "endpoint-1").Status = &st }, "status page uses the node's P2P address"},
+		"status low port":     {func(p *plan) { st := "203.0.113.11:80"; label(p, "endpoint-1").Status = &st }, "global unicast"},
 		"state sync hash": {func(p *plan) {
 			label(p, "sentry-4").StateSync = &stateSync{TrustHeight: 10, TrustHash: "abc"}
 		}, "trust hash"},

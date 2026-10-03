@@ -123,6 +123,9 @@ pub struct NativeServiceConfig {
     /// The adapter's client channel listener (client channel v1, E04 gap
     /// 19); requires `adapter_listen`.
     pub adapter_channel: Option<AdapterChannel>,
+    /// The adapter's public status page (P01, 3 October 2026): a read-only
+    /// plain-HTTP listener for an uptime checker; requires `adapter_listen`.
+    pub adapter_status_listen: Option<String>,
     pub metrics: MetricsOutput,
     pub snapshots: Option<SnapshotOutput>,
     pub block_history: BlockHistory,
@@ -900,6 +903,22 @@ impl NativeServiceConfig {
             );
             channel.validate()?;
         }
+        if let Some(status) = &self.adapter_status_listen {
+            ensure!(
+                self.adapter_listen.is_some(),
+                "The status listener requires a configured adapter"
+            );
+            let address: SocketAddr = status
+                .parse()
+                .context("The status listener must be a numeric IP:port")?;
+            ensure!(
+                address.to_string() == *status
+                    && address.port() != 0
+                    && !address.ip().is_unspecified()
+                    && Some(status) != self.adapter_listen.as_ref(),
+                "The status listener needs its own explicit address and port"
+            );
+        }
         self.metrics.validate(&self.home)?;
         if let Some(restart) = &self.restart_authorization {
             ensure!(
@@ -955,7 +974,8 @@ impl NativeServiceConfig {
         );
         let serves = self.adapter_listen.is_some()
             || self.adapter_limits.is_some()
-            || self.adapter_channel.is_some();
+            || self.adapter_channel.is_some()
+            || self.adapter_status_listen.is_some();
         match role {
             NodeRole::Endpoint => ensure!(
                 self.adapter_listen.is_some() && self.adapter_channel.is_some(),
@@ -1100,13 +1120,15 @@ impl NativeServiceConfig {
                     .strip_prefix("tcp://")
                     .context("Engine P2P listener must be TCP")?,
             )?;
-            if let Some(channel) = &self.adapter_channel {
-                let channel = channel.address()?;
-                ensure!(
-                    channel.ip() == p2p.ip() && channel.port() != p2p.port(),
-                    "The channel listener must use the node's P2P address on another port"
-                );
-            }
+            let channel = match &self.adapter_channel {
+                Some(channel) => Some(channel.address()?),
+                None => None,
+            };
+            let status = match &self.adapter_status_listen {
+                Some(status) => Some(status.parse()?),
+                None => None,
+            };
+            public_listeners(p2p, channel, status)?;
         } else {
             loopback(laddr("p2p")?, "tcp://127.0.0.1:")?;
         }
@@ -1215,6 +1237,31 @@ impl NativeServiceConfig {
 /// A canonical `IP:port` the production engine accepts as its P2P listener:
 /// a global unicast address (private ranges included, as Go defines it) and
 /// a port from 1024.
+/// An endpoint's public listeners share the node's one P2P address (P01, 30
+/// September 2026), each on a port of its own: the client channel and the
+/// status page (P01, 3 October 2026).
+fn public_listeners(
+    p2p: SocketAddr,
+    channel: Option<SocketAddr>,
+    status: Option<SocketAddr>,
+) -> Result<()> {
+    if let Some(channel) = channel {
+        ensure!(
+            channel.ip() == p2p.ip() && channel.port() != p2p.port(),
+            "The channel listener must use the node's P2P address on another port"
+        );
+    }
+    if let Some(status) = status {
+        ensure!(
+            status.ip() == p2p.ip()
+                && status.port() != p2p.port()
+                && Some(status.port()) != channel.map(|c| c.port()),
+            "The status listener must use the node's P2P address on its own port"
+        );
+    }
+    Ok(())
+}
+
 fn explicit_endpoint(value: &str) -> Result<SocketAddr> {
     let address: SocketAddr = value
         .parse()
@@ -1517,6 +1564,30 @@ mod tests {
         assert_eq!(service(DEVELOPMENT_MODE).production(), false);
     }
     #[test]
+    fn public_listeners_share_the_node_address_on_their_own_ports() {
+        let at = |value: &str| value.parse::<SocketAddr>().unwrap();
+        let p2p = at("203.0.113.9:26656");
+        public_listeners(p2p, None, None).unwrap();
+        public_listeners(
+            p2p,
+            Some(at("203.0.113.9:26670")),
+            Some(at("203.0.113.9:8080")),
+        )
+        .unwrap();
+        for (channel, status) in [
+            (Some("203.0.113.8:26670"), None),
+            (Some("203.0.113.9:26656"), None),
+            (None, Some("203.0.113.8:8080")),
+            (None, Some("203.0.113.9:26656")),
+            (Some("203.0.113.9:26670"), Some("203.0.113.9:26670")),
+        ] {
+            assert!(
+                public_listeners(p2p, channel.map(at), status.map(at)).is_err(),
+                "{channel:?} {status:?}"
+            );
+        }
+    }
+    #[test]
     fn production_settings_fix_what_each_role_runs() {
         let pin = PinnedInput { path: "/b".into(), sha256: "0".repeat(64), max_bytes: 4096 };
         let production = |role| {
@@ -1539,6 +1610,17 @@ mod tests {
         endpoint.adapter_channel = Some(serde_json::from_value(serde_json::json!({
             "listen":"203.0.113.9:26670","pin":{"path":"/p","sha256":"0".repeat(64),"max_bytes":1}})).unwrap());
         endpoint.validate_settings().unwrap();
+        // The status page is optional on an endpoint and absent elsewhere.
+        endpoint.adapter_status_listen = Some("203.0.113.9:8080".into());
+        endpoint.validate_settings().unwrap();
+        for role in [NodeRole::Validator, NodeRole::Sentry] {
+            let mut serving = production(role);
+            serving.adapter_status_listen = Some("203.0.113.9:8080".into());
+            assert!(
+                serving.validate_settings().is_err(),
+                "{role:?} with a status page"
+            );
+        }
         // Every production setting is required, and bounded.
         for change in [
             (|c: &mut NativeServiceConfig| c.role = None) as fn(&mut NativeServiceConfig),
