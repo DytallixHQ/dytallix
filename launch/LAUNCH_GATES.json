@@ -30,8 +30,9 @@
   "required_production_records": 8,
   "launch_acceptance_requirement": "All 35 gates and eight production records must be accepted for the final compatible candidate set. Complete seven valid simulations under MAINNET_EXECUTION_PLAN.md and obtain explicit launch authorization. No gate status alone authorizes deployment.",
   "decision_counts": {
-    "fully_open_policy_questions": 20,
-    "partially_approved_policy_questions": 6,
+    "fully_open_policy_questions": 1,
+    "partially_approved_policy_questions": 14,
+    "approved_policy_questions": 11,
     "required_records": 8
   },
   "evidence_rules": [
@@ -293,29 +294,29 @@
           "blocking_output": "Production consensus profile",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "blocking_output": "Consensus operating specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -332,45 +333,45 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -398,23 +399,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -639,29 +640,29 @@
           "blocking_output": "Production consensus profile",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "blocking_output": "Consensus operating specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -678,56 +679,56 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1218,7 +1219,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1235,23 +1236,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1473,12 +1474,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1495,12 +1496,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1517,34 +1518,34 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1566,7 +1567,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1583,12 +1584,12 @@
         {
           "id": "D13-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What display name, unused chain ID and genesis timestamp procedure apply?",
           "blocking_output": "Network identity specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1605,23 +1606,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1808,23 +1809,23 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "blocking_output": "DRT burn specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "blocking_output": "DGT issuance and authority specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1841,12 +1842,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1863,12 +1864,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1885,45 +1886,45 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D13-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What display name, unused chain ID and genesis timestamp procedure apply?",
           "blocking_output": "Network identity specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -2348,23 +2349,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -2733,12 +2734,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -2755,45 +2756,45 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -2821,23 +2822,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3122,12 +3123,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3144,34 +3145,34 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3193,7 +3194,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3210,12 +3211,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3243,23 +3244,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3445,29 +3446,29 @@
           "blocking_output": "Production consensus profile",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "blocking_output": "Consensus operating specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3495,23 +3496,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3964,7 +3965,7 @@
           "blocking_output": "Fee parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3997,7 +3998,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4014,23 +4015,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4257,7 +4258,7 @@
           "blocking_output": "Fee parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4290,7 +4291,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4307,23 +4308,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4527,7 +4528,7 @@
           "blocking_output": "Fee parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4544,23 +4545,23 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "blocking_output": "DRT burn specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "blocking_output": "DGT issuance and authority specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4577,12 +4578,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4615,7 +4616,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4632,23 +4633,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4805,23 +4806,23 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "blocking_output": "DRT burn specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "blocking_output": "DGT issuance and authority specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4838,12 +4839,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4876,7 +4877,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4893,23 +4894,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5095,34 +5096,34 @@
         {
           "id": "D01-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which production controller version, gains, bounds, initial state and initial command apply?",
           "blocking_output": "Production controller configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D01-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which observations, sources, authentication, aggregation and missing-input or resume rules apply?",
           "blocking_output": "Observation contract",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D02-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What eligibility and allocation rules apply to the separate validator reward pool?",
           "blocking_output": "Validator reward specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5139,12 +5140,12 @@
         {
           "id": "D03-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What production epoch length N and observation sampling windows apply?",
           "blocking_output": "Production issuance timing matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5155,7 +5156,7 @@
           "blocking_output": "Fee parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5172,23 +5173,23 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "blocking_output": "DRT burn specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "blocking_output": "DGT issuance and authority specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5205,12 +5206,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5227,23 +5228,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5417,23 +5418,23 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "blocking_output": "DRT burn specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "blocking_output": "DGT issuance and authority specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5450,12 +5451,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5472,12 +5473,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5494,56 +5495,56 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5717,12 +5718,12 @@
         {
           "id": "D02-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What eligibility and allocation rules apply to the separate validator reward pool?",
           "blocking_output": "Validator reward specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5750,12 +5751,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5772,12 +5773,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5794,56 +5795,56 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6011,12 +6012,12 @@
         {
           "id": "D02-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What eligibility and allocation rules apply to the separate validator reward pool?",
           "blocking_output": "Validator reward specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6044,12 +6045,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6066,12 +6067,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6088,56 +6089,56 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
           "blocking_output": "Governance electorate specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "blocking_output": "Governance parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6148,29 +6149,29 @@
           "blocking_output": "Governance authority matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6389,12 +6390,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6411,12 +6412,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6433,56 +6434,56 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6712,34 +6713,34 @@
         {
           "id": "D01-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which production controller version, gains, bounds, initial state and initial command apply?",
           "blocking_output": "Production controller configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D01-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which observations, sources, authentication, aggregation and missing-input or resume rules apply?",
           "blocking_output": "Observation contract",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D02-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What eligibility and allocation rules apply to the separate validator reward pool?",
           "blocking_output": "Validator reward specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6756,34 +6757,34 @@
         {
           "id": "D03-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What production epoch length N and observation sampling windows apply?",
           "blocking_output": "Production issuance timing matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
           "blocking_output": "Governance electorate specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "blocking_output": "Governance parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6794,29 +6795,29 @@
           "blocking_output": "Governance authority matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7062,7 +7063,7 @@
           "blocking_output": "Fee parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-fee-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7079,23 +7080,23 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "blocking_output": "DRT burn specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "blocking_output": "DGT issuance and authority specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7112,12 +7113,12 @@
         {
           "id": "D08-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What initial DRT supply, fee bootstrap distribution and restrictions apply?",
           "blocking_output": "DRT genesis policy",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7150,7 +7151,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7167,23 +7168,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7359,12 +7360,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7381,56 +7382,56 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
           "blocking_output": "Governance electorate specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "blocking_output": "Governance parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7441,29 +7442,29 @@
           "blocking_output": "Governance authority matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7707,12 +7708,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7729,56 +7730,56 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
           "blocking_output": "Governance electorate specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "blocking_output": "Governance parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7789,29 +7790,29 @@
           "blocking_output": "Governance authority matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7982,12 +7983,12 @@
         {
           "id": "D02-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What eligibility and allocation rules apply to the separate validator reward pool?",
           "blocking_output": "Validator reward specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8004,23 +8005,23 @@
         {
           "id": "D05-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which DRT fee components burn, and what custody debit and supply change occur on success or failure?",
           "blocking_output": "DRT burn specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "../node/docs/architecture/fees-v1.md",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D05-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Will all DGT issue at genesis, with no later mint authority and no initial DGT burn?",
           "blocking_output": "DGT issuance and authority specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8042,7 +8043,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8059,23 +8060,23 @@
         {
           "id": "D11-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
           "blocking_output": "Governance electorate specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "blocking_output": "Governance parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8086,29 +8087,29 @@
           "blocking_output": "Governance authority matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8479,7 +8480,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8496,23 +8497,23 @@
         {
           "id": "D11-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
           "blocking_output": "Governance electorate specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "blocking_output": "Governance parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8523,18 +8524,18 @@
           "blocking_output": "Governance authority matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8562,23 +8563,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8973,18 +8974,18 @@
           "blocking_output": "Production consensus profile",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "blocking_output": "Consensus operating specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9006,7 +9007,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9023,12 +9024,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9056,23 +9057,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9220,29 +9221,29 @@
           "blocking_output": "Production consensus profile",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "blocking_output": "Consensus operating specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9270,23 +9271,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9461,12 +9462,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9494,23 +9495,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9641,12 +9642,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9674,23 +9675,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9862,7 +9863,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9879,12 +9880,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9912,23 +9913,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10076,29 +10077,29 @@
           "blocking_output": "Production consensus profile",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "blocking_output": "Consensus operating specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10115,34 +10116,34 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10164,7 +10165,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10181,12 +10182,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10214,23 +10215,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10664,12 +10665,12 @@
         {
           "id": "D07-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What exact enabled-module and interface matrix satisfies the required launch scope?",
           "blocking_output": "Launch feature matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10691,7 +10692,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10708,23 +10709,23 @@
         {
           "id": "D11-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What governance snapshot, validator eligibility and delegated vote ownership rules apply?",
           "blocking_output": "Governance electorate specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D11-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What quorum, approval, veto, abstention, deposit, voting-period and timelock rules apply?",
           "blocking_output": "Governance parameter specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10735,18 +10736,18 @@
           "blocking_output": "Governance authority matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/emergency-release-staging/policy/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10774,23 +10775,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11191,23 +11192,23 @@
         {
           "id": "D07-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What exact enabled-module and interface matrix satisfies the required launch scope?",
           "blocking_output": "Launch feature matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11235,23 +11236,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11576,12 +11577,12 @@
         {
           "id": "D07-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What exact enabled-module and interface matrix satisfies the required launch scope?",
           "blocking_output": "Launch feature matrix",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_POLICY_2026-09-29.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11603,7 +11604,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11620,23 +11621,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11929,12 +11930,12 @@
         {
           "id": "D09-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What minimum self-bond, maximum active set and operator-registry amendment authority apply?",
           "blocking_output": "Validator admission configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11951,34 +11952,34 @@
         {
           "id": "D09-Q03",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What evidence age limits in blocks and seconds, and what processing margins, apply?",
           "blocking_output": "Evidence retention and unbond timing configuration",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q04",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Which faults, penalty rates, repeat-fault treatment, reinstatement rules and penalty-reserve rules apply?",
           "blocking_output": "Production penalty specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_1_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D09-Q05",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "How do locked-principal liability, completed settlement, withdrawal activation and parameter migration work?",
           "blocking_output": "Withdrawal and locked-liability specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E04_PENALTIES_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12000,7 +12001,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12017,12 +12018,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12050,23 +12051,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12707,18 +12708,18 @@
           "blocking_output": "Production consensus profile",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/core-function-alignment/E01_PRODUCTION_PROFILE_APPROVAL_2026-09-25.json",
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D06-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What timing, capacity, fault assumptions, synchronization and history requirements apply?",
           "blocking_output": "Consensus operating specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_VALUES_2_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12740,7 +12741,7 @@
           "blocking_output": "Account recovery specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "approval_record": "approvals/P01_E05_VALUES_3_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12757,12 +12758,12 @@
         {
           "id": "D12-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What resources, regions, account separation, peer topology, access controls and capacity budget apply?",
           "blocking_output": "Production topology and budget",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12790,23 +12791,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
           "id": "D14-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "PARTIALLY_APPROVED",
           "question": "What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?",
           "blocking_output": "Qualification and launch acceptance plan",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
