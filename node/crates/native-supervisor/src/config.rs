@@ -228,8 +228,11 @@ pub struct EngineFiles<'a> {
 
 /// Check a host's binding against its pinned engine files before any child
 /// starts: the engine's own start checks, so a host whose files or keys
-/// differ from the published pin plan never runs. Only a validator's key is
-/// in the genesis validator set.
+/// differ from the published pin plan never runs. A sentry or endpoint key
+/// may not be in the genesis validator set; a validator's may be outside it,
+/// since a validator registered after genesis starts before its key is active
+/// (P01, 3 October 2026). The engine runs a sentry or endpoint with a signer
+/// that refuses every signature.
 pub fn check_binding(raw: &[u8], role: NodeRole, files: &EngineFiles) -> Result<()> {
     let binding: ProductionBinding =
         serde_json::from_slice(raw).context("Production binding is malformed")?;
@@ -279,8 +282,8 @@ pub fn check_binding(raw: &[u8], role: NodeRole, files: &EngineFiles) -> Result<
         in_genesis |= STANDARD.decode(value)? == files.validator_public_key;
     }
     ensure!(
-        in_genesis == (role == NodeRole::Validator),
-        "Only a validator's key may be in the genesis validator set"
+        role == NodeRole::Validator || !in_genesis,
+        "A sentry or endpoint key may not be in the genesis validator set"
     );
     Ok(())
 }
@@ -1597,8 +1600,9 @@ mod tests {
         check(&validator, NodeRole::Validator, &genesis_key).unwrap();
         // A trailing newline is allowed, as the engine allows it.
         check(&[validator.as_slice(), b"\n"].concat(), NodeRole::Validator, &genesis_key).unwrap();
-        // A genesis key never runs as a sentry or endpoint; a key outside the
-        // genesis set never runs as a validator.
+        // A genesis key never runs as a sentry or endpoint. A key outside the
+        // genesis set runs in every role: a validator registered after genesis
+        // starts before its key is active (P01, 3 October 2026).
         for role in [NodeRole::Sentry, NodeRole::Endpoint] {
             let binding = raw(&binding_for(role.as_str(), &files, &genesis_key));
             assert!(check(&binding, role, &genesis_key).is_err(), "{role:?}");
@@ -1606,7 +1610,7 @@ mod tests {
             check(&binding, role, &other_key).unwrap();
         }
         let binding = raw(&binding_for("validator", &files, &other_key));
-        assert!(check(&binding, NodeRole::Validator, &other_key).is_err());
+        check(&binding, NodeRole::Validator, &other_key).unwrap();
         // The binding is for this node's role.
         assert!(check(&validator, NodeRole::Sentry, &genesis_key).is_err());
         // Each changed field is refused.

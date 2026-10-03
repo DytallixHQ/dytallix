@@ -14,6 +14,7 @@ import (
 	"github.com/cometbft/cometbft/crypto/mldsa65"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	"github.com/cometbft/cometbft/privval"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 )
 
@@ -54,8 +55,10 @@ func TestPublishedBindingsMatchTheEngineAtStart(t *testing.T) {
 	hosts := []host{
 		{Label: "validator-1", Operator: "operator-1", Role: "validator", P2P: "192.0.2.31:26656", Pins: []string{"sentry-1"}},
 		{Label: "validator-2", Operator: "operator-2", Role: "validator", P2P: "192.0.2.32:26656", Pins: []string{"sentry-2"}},
+		// Registered after genesis: its key is outside the genesis set.
+		{Label: "validator-3", Operator: "operator-2", Role: "validator", P2P: "192.0.2.33:26656", Pins: []string{"sentry-2"}},
 		{Label: "sentry-1", Operator: "operator-1", Role: "sentry", P2P: "198.51.100.31:26656", Pins: []string{"validator-1", "sentry-2", "endpoint-1"}},
-		{Label: "sentry-2", Operator: "operator-2", Role: "sentry", P2P: "198.51.100.32:26656", Pins: []string{"validator-2", "sentry-1", "endpoint-1"}},
+		{Label: "sentry-2", Operator: "operator-2", Role: "sentry", P2P: "198.51.100.32:26656", Pins: []string{"validator-2", "validator-3", "sentry-1", "endpoint-1"}},
 		{Label: "endpoint-1", Operator: "operator-1", Role: "endpoint", P2P: "203.0.113.31:26656", Channel: &channel, Pins: []string{"sentry-1", "sentry-2"}},
 	}
 	seeds := map[string][]byte{}
@@ -106,6 +109,11 @@ func TestPublishedBindingsMatchTheEngineAtStart(t *testing.T) {
 		computed, err := enginepqc.NewProductionBinding(runtime, h.Role)
 		if err != nil || computed != published {
 			t.Fatalf("%s: the engine's binding differs from the published one: %v", h.Label, err)
+		}
+		// Only a validator signs.
+		signer := enginepqc.SignerForRole(runtime, h.Role)
+		if err := signer.SignVote(genesis.ChainID, &cmtproto.Vote{Type: cmtproto.PrevoteType, Height: 1}); (err == nil) != (h.Role == enginepqc.RoleValidator) {
+			t.Fatalf("%s: signing as %s: %v", h.Label, h.Role, err)
 		}
 	}
 }

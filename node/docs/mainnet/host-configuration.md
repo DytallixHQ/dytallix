@@ -83,9 +83,11 @@ The generator refuses:
   address families (the host firewall admits one family).
 - **Keys.** A key that is not canonical base64 of an ML-DSA-65 public key,
   and any key used twice in the plan, as a peer key or a validator key.
-- **Roles.** A validator whose key is not in the genesis validator set, a
-  sentry or endpoint whose key is, and a genesis validator with no
-  validator host.
+- **Roles.** A sentry or endpoint whose key is in the genesis validator
+  set. A validator's key may be outside it: a validator registered after
+  genesis (P01, 3 October 2026). `PIN_PLAN_BINDINGS.json` counts the genesis
+  validators the plan gives no host (`genesis_validators_without_host`); a
+  launch plan should have none.
 - **Pins** (the published partial mesh, P01, 30 September 2026). One to 64
   pins per host; an unknown, repeated or self pin; a pin the other host does
   not return; a validator pinning anything but its own operator's sentries;

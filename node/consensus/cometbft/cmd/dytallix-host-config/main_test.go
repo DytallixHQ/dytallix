@@ -274,7 +274,6 @@ func TestThePlanFollowsTheApprovedMeshRules(t *testing.T) {
 		"one key twice":        {func(p *plan) { label(p, "sentry-2").ValidatorPublicKey = label(p, "sentry-2").PeerPublicKey }, "reuses a key of sentry-2"},
 		"short key":            {func(p *plan) { label(p, "sentry-2").PeerPublicKey = "AAAA" }, "canonical base64"},
 		"sentry signs":         {func(p *plan) { label(p, "sentry-2").ValidatorPublicKey = label(p, "validator-2").ValidatorPublicKey }, "reuses a key of validator-2"},
-		"unbacked validator":   {func(p *plan) { label(p, "validator-2").ValidatorPublicKey = syntheticKey("validator", "x") }, "genesis validator set"},
 		"genesis host missing": {func(p *plan) { label(p, "validator-4").Role = "sentry" }, "genesis validator set"},
 		"other sentry":         {func(p *plan) { both(p, "validator-1", "sentry-2") }, "own operator's sentries"},
 		"validator pair":       {func(p *plan) { both(p, "validator-1", "validator-2") }, "own operator's sentries"},
@@ -317,6 +316,42 @@ func TestThePlanFollowsTheApprovedMeshRules(t *testing.T) {
 	raw = bytes.Replace(encodePlan(t, fixturePlan(t)), []byte(`"channel": null,`), nil, 1)
 	if _, err := generateFixture(t, raw); err == nil || !strings.Contains(err.Error(), "missing fields") {
 		t.Errorf("missing field: %v", err)
+	}
+}
+
+// A validator registered after genesis has a key outside the genesis set
+// (P01, 3 October 2026); a genesis validator that left the set has no host.
+func TestValidatorsMayJoinAfterGenesis(t *testing.T) {
+	summary := func(p plan) bindings {
+		t.Helper()
+		files, err := generateFixture(t, encodePlan(t, p))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out bindings
+		if err := strict(filesByPath(files)["PIN_PLAN_BINDINGS.json"], &out); err != nil {
+			t.Fatal(err)
+		}
+		return out
+	}
+	if got := summary(fixturePlan(t)).GenesisValidatorsWithoutHost; got != 0 {
+		t.Fatalf("the launch plan leaves %d genesis validators without a host", got)
+	}
+	joined := fixturePlan(t)
+	joined.Hosts[1].ValidatorPublicKey = syntheticKey("validator", "joined-later")
+	if got := summary(joined).GenesisValidatorsWithoutHost; got != 1 {
+		t.Fatalf("%d genesis validators without a host", got)
+	}
+	left := fixturePlan(t)
+	left.Hosts = left.Hosts[:3]
+	left.Hosts = append(left.Hosts, fixturePlan(t).Hosts[4:]...)
+	for i := range left.Hosts {
+		if left.Hosts[i].Label == "sentry-4" {
+			left.Hosts[i].Pins = left.Hosts[i].Pins[1:]
+		}
+	}
+	if got := summary(left).GenesisValidatorsWithoutHost; got != 1 {
+		t.Fatalf("%d genesis validators without a host", got)
 	}
 }
 

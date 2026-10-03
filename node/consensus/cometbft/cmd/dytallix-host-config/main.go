@@ -14,9 +14,11 @@
 //
 // It refuses a plan that breaks the approved mesh rules (P01, 30 September
 // 2026): one IP per node, validators pinned only by their own sentries,
-// endpoints pinned only by sentries, symmetric pins within 64, and only a
-// validator's key in the genesis validator set. Each host's files must pass
-// the engine's own start checks for the production profile.
+// endpoints pinned only by sentries, symmetric pins within 64, and no sentry
+// or endpoint key in the genesis validator set. A validator's key may be
+// outside it: a validator registered after genesis (P01, 3 October 2026).
+// Each host's files must pass the engine's own start checks for the
+// production profile.
 package main
 
 import (
@@ -151,12 +153,15 @@ type hostBinding struct {
 }
 
 type bindings struct {
-	Schema        string        `json:"schema"`
-	ChainID       string        `json:"chain_id"`
-	PlanSHA256    string        `json:"plan_sha256"`
-	ValuesSHA256  string        `json:"values_sha256"`
-	GenesisSHA256 string        `json:"genesis_sha256"`
-	Hosts         []hostBinding `json:"hosts"`
+	Schema        string `json:"schema"`
+	ChainID       string `json:"chain_id"`
+	PlanSHA256    string `json:"plan_sha256"`
+	ValuesSHA256  string `json:"values_sha256"`
+	GenesisSHA256 string `json:"genesis_sha256"`
+	// Genesis validators the plan gives no validator host, such as one that
+	// has since left the set; a launch plan should have none.
+	GenesisValidatorsWithoutHost int           `json:"genesis_validators_without_host"`
+	Hosts                        []hostBinding `json:"hosts"`
 }
 
 // output is one generated file.
@@ -272,12 +277,12 @@ func endpoint(name, text string) (net.IP, int, error) {
 }
 
 // checkPlan applies the approved mesh rules to the whole plan.
-func checkPlan(p plan, genesis *types.GenesisDoc) (map[string]*host, error) {
+func checkPlan(p plan, genesis *types.GenesisDoc) (map[string]*host, int, error) {
 	if p.Schema != planSchema || p.ChainID != genesis.ChainID {
-		return nil, errors.New("plan schema or chain differs from the engine genesis")
+		return nil, 0, errors.New("plan schema or chain differs from the engine genesis")
 	}
 	if len(p.Hosts) == 0 {
-		return nil, errors.New("the plan has no hosts")
+		return nil, 0, errors.New("the plan has no hosts")
 	}
 	byLabel := map[string]*host{}
 	ips, keys := map[string]string{}, map[string]string{}
@@ -288,100 +293,102 @@ func checkPlan(p plan, genesis *types.GenesisDoc) (map[string]*host, error) {
 	for i := range p.Hosts {
 		h := &p.Hosts[i]
 		if !identifier.MatchString(h.Label) || !identifier.MatchString(h.Operator) {
-			return nil, fmt.Errorf("host %d: label and operator must be identifiers", i)
+			return nil, 0, fmt.Errorf("host %d: label and operator must be identifiers", i)
 		}
 		if byLabel[h.Label] != nil {
-			return nil, fmt.Errorf("%s: duplicate label", h.Label)
+			return nil, 0, fmt.Errorf("%s: duplicate label", h.Label)
 		}
 		byLabel[h.Label] = h
 		if h.Role != enginepqc.RoleValidator && h.Role != enginepqc.RoleSentry && h.Role != enginepqc.RoleEndpoint {
-			return nil, fmt.Errorf("%s: role must be validator, sentry or endpoint", h.Label)
+			return nil, 0, fmt.Errorf("%s: role must be validator, sentry or endpoint", h.Label)
 		}
 		if !filepath.IsAbs(h.Home) || filepath.Clean(h.Home) != h.Home {
-			return nil, fmt.Errorf("%s: home must be a clean absolute path", h.Label)
+			return nil, 0, fmt.Errorf("%s: home must be a clean absolute path", h.Label)
 		}
 		ip, port, err := endpoint(h.Label+".p2p", h.P2P)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		// One IP per node (P01, 30 September 2026).
 		if other, ok := ips[ip.String()]; ok {
-			return nil, fmt.Errorf("%s: shares an IP with %s", h.Label, other)
+			return nil, 0, fmt.Errorf("%s: shares an IP with %s", h.Label, other)
 		}
 		ips[ip.String()] = h.Label
 		if (h.Role == enginepqc.RoleEndpoint) != (h.Channel != nil) {
-			return nil, fmt.Errorf("%s: only an endpoint, and every endpoint, has a channel listener", h.Label)
+			return nil, 0, fmt.Errorf("%s: only an endpoint, and every endpoint, has a channel listener", h.Label)
 		}
 		if h.Channel != nil {
 			channelIP, channelPort, err := endpoint(h.Label+".channel", *h.Channel)
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			if !channelIP.Equal(ip) || channelPort == port {
-				return nil, fmt.Errorf("%s: the channel listener uses the node's P2P address on another port", h.Label)
+				return nil, 0, fmt.Errorf("%s: the channel listener uses the node's P2P address on another port", h.Label)
 			}
 		}
 		// Every peer and validator key in the plan is distinct.
 		for _, key := range []string{h.PeerPublicKey, h.ValidatorPublicKey} {
 			if _, err := publicKey(h.Label, key); err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			if other, ok := keys[key]; ok {
-				return nil, fmt.Errorf("%s: reuses a key of %s", h.Label, other)
+				return nil, 0, fmt.Errorf("%s: reuses a key of %s", h.Label, other)
 			}
 			keys[key] = h.Label
 		}
-		// Only a validator's key is in the genesis validator set (A4).
+		// No sentry or endpoint key is in the genesis validator set; a
+		// validator's may be outside it (P01, 3 October 2026).
 		_, member := inGenesis[h.ValidatorPublicKey]
-		if member != (h.Role == enginepqc.RoleValidator) {
-			return nil, fmt.Errorf("%s: only a validator's key may be in the genesis validator set", h.Label)
+		if member && h.Role != enginepqc.RoleValidator {
+			return nil, 0, fmt.Errorf("%s: a sentry or endpoint key may not be in the genesis validator set", h.Label)
 		}
 		if member {
 			inGenesis[h.ValidatorPublicKey] = true
 		}
 		if h.StateSync != nil && (h.StateSync.TrustHeight < 1 || !trustHash.MatchString(h.StateSync.TrustHash)) {
-			return nil, fmt.Errorf("%s: state sync needs a positive trust height and a 32-byte hex trust hash", h.Label)
+			return nil, 0, fmt.Errorf("%s: state sync needs a positive trust height and a 32-byte hex trust hash", h.Label)
 		}
 	}
-	for key, placed := range inGenesis {
+	unhosted := 0
+	for _, placed := range inGenesis {
 		if !placed {
-			return nil, fmt.Errorf("genesis validator %s… has no validator host", key[:12])
+			unhosted++
 		}
 	}
 	for i := range p.Hosts {
 		h := &p.Hosts[i]
 		if len(h.Pins) == 0 || len(h.Pins) > enginepqc.MaxPeers {
-			return nil, fmt.Errorf("%s: 1 to %d pins required", h.Label, enginepqc.MaxPeers)
+			return nil, 0, fmt.Errorf("%s: 1 to %d pins required", h.Label, enginepqc.MaxPeers)
 		}
 		seen := map[string]bool{}
 		for _, label := range h.Pins {
 			peer := byLabel[label]
 			if peer == nil || label == h.Label || seen[label] {
-				return nil, fmt.Errorf("%s: unknown, self or repeated pin %s", h.Label, label)
+				return nil, 0, fmt.Errorf("%s: unknown, self or repeated pin %s", h.Label, label)
 			}
 			seen[label] = true
 			// The host firewall admits one address family (render.py).
 			if (endpointIP(peer.P2P).To4() == nil) != (endpointIP(h.P2P).To4() == nil) {
-				return nil, fmt.Errorf("%s: pins %s across address families", h.Label, label)
+				return nil, 0, fmt.Errorf("%s: pins %s across address families", h.Label, label)
 			}
 			if !contains(peer.Pins, h.Label) {
-				return nil, fmt.Errorf("%s pins %s, which does not pin it back", h.Label, label)
+				return nil, 0, fmt.Errorf("%s pins %s, which does not pin it back", h.Label, label)
 			}
 			// Validators peer only with their own sentries; endpoints only
 			// with sentries (P01, 30 September 2026).
 			switch h.Role {
 			case enginepqc.RoleValidator:
 				if peer.Role != enginepqc.RoleSentry || peer.Operator != h.Operator {
-					return nil, fmt.Errorf("%s: a validator pins only its own operator's sentries", h.Label)
+					return nil, 0, fmt.Errorf("%s: a validator pins only its own operator's sentries", h.Label)
 				}
 			case enginepqc.RoleEndpoint:
 				if peer.Role != enginepqc.RoleSentry {
-					return nil, fmt.Errorf("%s: an endpoint pins only sentries", h.Label)
+					return nil, 0, fmt.Errorf("%s: an endpoint pins only sentries", h.Label)
 				}
 			}
 		}
 	}
-	return byLabel, nil
+	return byLabel, unhosted, nil
 }
 
 func endpointIP(address string) net.IP {
@@ -548,7 +555,7 @@ func generate(planRaw, valuesRaw, genesisRaw []byte, scratch string) ([]output, 
 	if err != nil {
 		return nil, fmt.Errorf("engine genesis: %w", err)
 	}
-	byLabel, err := checkPlan(p, genesis)
+	byLabel, unhosted, err := checkPlan(p, genesis)
 	if err != nil {
 		return nil, err
 	}
@@ -559,7 +566,7 @@ func generate(planRaw, valuesRaw, genesisRaw []byte, scratch string) ([]output, 
 	sort.Strings(labels)
 	var files []output
 	summary := bindings{Schema: bindingsSchema, ChainID: p.ChainID, PlanSHA256: digest(planRaw),
-		ValuesSHA256: digest(valuesRaw), GenesisSHA256: digest(genesisRaw)}
+		ValuesSHA256: digest(valuesRaw), GenesisSHA256: digest(genesisRaw), GenesisValidatorsWithoutHost: unhosted}
 	for _, label := range labels {
 		h := byLabel[label]
 		c, err := engineConfig(h, byLabel, v, genesis)
