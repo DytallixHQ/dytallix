@@ -6,6 +6,23 @@ or create production configuration. Upgrade schema 2 and handover schema 2,
 which enforce this authority, are implemented (production activation v1, step
 A3); a production build requires them (step A4).
 
+## Solo launch profile
+
+P01 replaced the separate groups of independent people on 3 October 2026
+([solo launch](../../approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json),
+[trust model](../../TRUST_MODEL.md)). The founder holds every root key in five
+key kits: kit N holds key N of each role (genesis, upgrade, freeze and
+resume), on encrypted drives kept in up to five separate places. Any three
+kits can act, and two can be lost or stolen safely. Keys stay distinct per
+role, as the node requires, and the thresholds and parameter set are
+unchanged.
+
+Under this profile the five slots belong to one controller, each kit is its
+own control group, and the independence review is replaced by the public
+disclosure. The checker gains a solo-kit mode for this in the next E05 step;
+until then it reports a solo packet's shared controller as a separation
+error.
+
 ## Approved policy
 
 - **Custodians** (D11-Q03, P01, 30 September 2026,

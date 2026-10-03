@@ -35,15 +35,16 @@ until P01 approves it; approved values are marked. Decision IDs refer to
 1. **Chain identity** (D13-Q01): approved 3 October 2026. Chain ID
    `dytallix-mainnet-1`, display name Dytallix, and the genesis time set at
    the final freeze ([identity](genesis/IDENTITY.json)).
-2. **People and hosts in parallel:** operators and validators (D09-Q02),
-   dedicated hosts and topology (D12-Q01, D12-Q03), and custodians (D10-Q03):
-   the root genesis signers, five emergency custodians with freeze and
-   resume keys, and five upgrade custodians.
-3. **Allocations:** beneficiaries and vesting in the five approved buckets
-   (D08-Q01), the treasury recipient (D02-Q02), the DRT bootstrap rows
+2. **Keys and hosts** (solo launch profile, P01, 3 October 2026,
+   [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder is
+   the only operator (D09-Q02) with one validator, one sentry and one endpoint
+   (D12-Q01, D12-Q03), and holds every root key in five key kits (D10-Q03):
+   five genesis keys, five upgrade keys and five freeze and five resume keys.
+3. **Allocations:** one founder account per approved bucket (D08-Q01) and a
+   founder treasury account (D02-Q02), publicly listed; the DRT bootstrap rows
    (D08-Q03).
 4. **Values:** the decide tier in batches, then the operate tier.
-5. **Measurements** on the dedicated hosts: emergency, upgrade and handover
+5. **Measurements** on the production hosts before genesis: emergency, upgrade and handover
    validity windows and anchor ages, capacity values, fault assumptions (E03,
    T02, T05).
 6. **Genesis build** from the frozen inputs, the binding review, then the
@@ -129,15 +130,15 @@ of 1.
 | Record | What | Status |
 | --- | --- | --- |
 | D13-Q01 | Display name, unused chain ID, genesis time procedure | Approved (P01, 3 October 2026): `dytallix-mainnet-1`, Dytallix, a weekday 14:00:00 UTC at least 72 h after the final build ([approval](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json), [identity](genesis/IDENTITY.json)); the time itself is set at the freeze |
-| D09-Q02 | Initial operators, control groups, validator keys and possession proofs, self-bond funding, fault domains, signed acceptances | Open |
-| D12-Q03 | Dedicated hosts: assets, providers, regions, account control groups, funded commitments | Open; hosts must run nothing but Dytallix |
+| D09-Q02 | Initial operators, control groups, validator keys and possession proofs, self-bond funding, fault domains, signed acceptances | Open; solo launch: the founder is the only operator, with one validator ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
+| D12-Q03 | Dedicated hosts: assets, providers, regions, account control groups, funded commitments | Open; solo launch: three hosts, which are also the staging environment before genesis; hosts must run nothing but Dytallix ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
 | D12-Q01 | Pin plan: each host's label, operator, role, address, peer and validator public keys and pins | Open; released with the network configuration, outside this repository; the [host configuration generator](../node/docs/mainnet/host-configuration.md) checks it against the approved mesh rules |
-| D10-Q03 | Signing roles: root genesis signers, 5 emergency custodians (10 keys), 5 upgrade custodians, validator and peer keys; custody, backup and drill records | Open; the emergency intake is outside the repository; the [upgrade intake](custody/upgrade/INTAKE.md) and its checker are public, and completed packets stay in the custody system. Keys use SLH-DSA-SHAKE-256s ([approval](approvals/P01_E05_CUSTODY_2026-09-30.json)) |
-| D08-Q01 | Beneficiaries, accounts, amounts, vesting and initial delegations in the five buckets (Ecosystem growth 30%, Team and advisors 20%, Public sale 15%, Private sale 15%, Reserve 20%) | Open |
-| D02-Q02 | Treasury recipient account and custody | Open |
+| D10-Q03 | Signing roles: root genesis signers, 5 emergency custodians (10 keys), 5 upgrade custodians, validator and peer keys; custody, backup and drill records | Open; solo launch: the founder holds every root key in five key kits stored in separate places, any three acting ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)). The emergency intake is outside the repository; the [upgrade intake](custody/upgrade/INTAKE.md) and its checker are public, and completed packets stay in the custody system. Keys use SLH-DSA-SHAKE-256s ([approval](approvals/P01_E05_CUSTODY_2026-09-30.json)) |
+| D08-Q01 | Beneficiaries, accounts, amounts, vesting and initial delegations in the five buckets (Ecosystem growth 30%, Team and advisors 20%, Public sale 15%, Private sale 15%, Reserve 20%) | Open; solo launch: one founder account per bucket, publicly listed; the validator self-bond from Ecosystem ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
+| D02-Q02 | Treasury recipient account and custody | Open; solo launch: a founder treasury account ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
 | D08-Q03 | DRT bootstrap recipients and amounts | Open; after the bootstrap amount |
 | D13-Q02 | Final identity manifest and genesis digest | After the build |
-| D14-Q03 | Release roles and the independent reviewer (P02) | Open |
+| D14-Q03 | Release roles and the independent reviewer (P02) | Open; solo launch: the founder holds every role; the review is a 30-day public review with a DGT bug bounty and a labeled AI review, and the launch is labeled unaudited ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
 
 ## Next engineering
 

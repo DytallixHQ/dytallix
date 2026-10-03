@@ -11,7 +11,7 @@
     "OPEN": "No credited implementation or preparation evidence for the requirement.",
     "PARTIAL": "Credited implementation, tests or preparation exist; required implementation, qualification or acceptance is incomplete.",
     "READY FOR ACCEPTANCE": "All implementation and candidate qualification evidence is complete; only authorized formal acceptance remains.",
-    "PASS": "Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance."
+    "PASS": "Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance. Under the solo launch profile, independent acceptance has the meaning in acceptance_profile."
   },
   "score_definition": "Passed gates divided by 35 measures formal acceptance only. PARTIAL does not imply a measured percentage or an equal amount of completed work.",
   "passed_count": 0,
@@ -29,10 +29,26 @@
   "accepted_production_records": 0,
   "required_production_records": 8,
   "launch_acceptance_requirement": "All 35 gates and eight production records must be accepted for the final compatible candidate set. Complete seven valid simulations under MAINNET_EXECUTION_PLAN.md and obtain explicit launch authorization. No gate status alone authorizes deployment.",
+  "acceptance_profile": {
+    "id": "SOLO_LAUNCH_V1",
+    "approved": "2026-10-03",
+    "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+    "disclosure_ref": "TRUST_MODEL.md",
+    "rule": "The founder launches alone. Where a gate asks for independent, named, operator, reviewer or custodian acceptance, these terms apply. Gate requirements are otherwise unchanged, and each concentration of control is disclosed in TRUST_MODEL.md.",
+    "terms": {
+      "independent review or acceptance": "A 30-day public review of the frozen candidate (GitHub issues, with a bug bounty paid in DGT), every finding fixed or answered on the record, a separate adversarial AI review labeled as AI, and the founder's sign-off. The launch is labeled unaudited until a human audit is funded.",
+      "independent reproduction": "A clean GitHub Actions runner and a fresh container on the founder's machine each reproduce the release and the genesis files byte for byte.",
+      "operator acceptance and genesis hash verification": "The founder, the only operator, records acceptance and verifies the genesis hash on every host.",
+      "custodians and signers": "The founder holds every genesis, upgrade and emergency key in five key kits stored in separate places; any three act.",
+      "independent monitoring": "A free hosted uptime checker, separate from the hosts, with phone push alerts.",
+      "on-call coverage": "The founder, paged 24/7, best effort, against the published goals in operations/OBJECTIVES.json.",
+      "staging and simulations": "The production hosts before genesis, with rehearsal chain IDs and throwaway keys, then wiped and re-provisioned."
+    }
+  },
   "decision_counts": {
-    "fully_open_policy_questions": 1,
+    "fully_open_policy_questions": 0,
     "partially_approved_policy_questions": 14,
-    "approved_policy_questions": 11,
+    "approved_policy_questions": 12,
     "required_records": 8
   },
   "evidence_rules": [
@@ -377,12 +393,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -2800,12 +2816,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3222,12 +3238,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3474,12 +3490,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8541,12 +8557,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9035,12 +9051,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9249,12 +9265,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9473,12 +9489,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9653,12 +9669,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9891,12 +9907,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10193,12 +10209,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10753,12 +10769,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11214,12 +11230,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12029,12 +12045,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12769,12 +12785,12 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "blocking_output": "Operations acceptance specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {

@@ -20,8 +20,12 @@ class OperationsObjectivesTests(unittest.TestCase):
 
     def test_the_record_is_the_approved_one(self):
         self.assertEqual(self.objectives['schema'], 'dytallix.operations-objectives.v1')
-        approval = json.loads((LAUNCH/self.objectives['approval_record']).read_text())
-        self.assertEqual([d['question'] for d in approval['decisions']], ['D12-Q02'] * 4)
+        first, solo = (json.loads((LAUNCH/ref).read_text()) for ref in self.objectives['approval_records'])
+        self.assertEqual([d['question'] for d in first['decisions']], ['D12-Q02'] * 4)
+        # The solo launch profile replaced the staffing parts the same day.
+        self.assertEqual(self.objectives['approval_record'], self.objectives['approval_records'][1])
+        self.assertIn('D12-Q02', [d['question'] for d in solo['decisions']])
+        self.assertEqual(self.objectives['on_call']['operators'], 1)
 
     def test_the_validator_rto_covers_provisioning_and_the_approved_catch_up(self):
         recovery = self.objectives['recovery']
@@ -35,18 +39,22 @@ class OperationsObjectivesTests(unittest.TestCase):
         self.assertEqual(self.approved('snapshot_keep'), 3)
         self.assertEqual(self.objectives['backup']['encryption'], 'AES-256')
 
-    def test_archive_nodes_keep_full_history_beside_the_retained_window(self):
+    def test_an_archive_node_keeps_full_history_beside_the_retained_window(self):
         self.assertEqual(self.approved('block_history'), 'window')
         history = self.objectives['retention']['chain_history']
-        self.assertGreaterEqual(history['archive_nodes_min'], 2)
-        self.assertTrue(history['archive_nodes_distinct_operators'] and history['archive_nodes_distinct_providers'])
+        self.assertEqual((history['archive_nodes_min'], history['archive_node']), (1, 'the sentry'))
+        self.assertTrue(history['offline_export'].startswith('monthly'))
 
-    def test_the_monthly_budgets(self):
+    def test_the_monthly_goals(self):
         targets = self.objectives['service_targets']
         minutes = 30 * 24 * 60
-        self.assertAlmostEqual(minutes * (100 - targets['chain']['target_percent']) / 100, 43.2)
-        self.assertAlmostEqual(minutes * (100 - targets['endpoints']['target_percent']) / 100, 216)
-        self.assertEqual(self.objectives['on_call']['severities'][0]['acknowledge_minutes'], 15)
+        self.assertEqual(targets['kind'], 'published goals, not commitments')
+        self.assertAlmostEqual(minutes * (100 - targets['chain']['target_percent']) / 100, 216)
+        self.assertAlmostEqual(minutes * (100 - targets['endpoints']['target_percent']) / 100, 432)
+
+    def test_one_endpoint_recovers_like_a_sentry(self):
+        rto = self.objectives['recovery']['rto_minutes']
+        self.assertEqual(rto['endpoint_service'], rto['sentry'])
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

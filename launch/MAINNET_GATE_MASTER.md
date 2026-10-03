@@ -6,6 +6,16 @@ Links into `decision-register/` and `batch-*/` name launch evidence records held
 
 Launch: **NO GO**. Formal acceptance: **0/35**. Production records accepted: **0/8**. Final simulations completed: **0/7**.
 
+**Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)). The founder launches alone. Where a gate asks for independent, named, operator, reviewer or custodian acceptance, `acceptance_profile` in the JSON defines it:
+
+- **Independent review or acceptance:** a 30-day public review of the frozen candidate with a DGT bug bounty, every finding fixed or answered on the record, a separate AI review labeled as AI, and the founder's sign-off. The launch is labeled unaudited until a human audit is funded.
+- **Independent reproduction:** a clean GitHub Actions runner and a fresh local container reproduce the release and the genesis files byte for byte.
+- **Operator acceptance and genesis hash verification:** the founder, the only operator, on every host.
+- **Custodians and signers:** the founder's five key kits, stored in separate places; any three act.
+- **Independent monitoring:** a free hosted uptime checker, separate from the hosts.
+- **On-call:** the founder, paged 24/7, best effort, against the published goals in [operations objectives](operations/OBJECTIVES.md).
+- **Staging and simulations:** the production hosts before genesis, with rehearsal chain IDs and throwaway keys, then wiped.
+
 Current counts: 0 OPEN, 35 PARTIAL, 0 READY FOR ACCEPTANCE, 0 PASS. Partial progress can consist of preparation, implementation or local tests. It is not a percentage of completed acceptance criteria.
 
 The gate IDs retain their original repository meanings. The [conversation crosswalk](decision-register/gate-consolidation-20260912/CONVERSATION_CROSSWALK.json) maps the proposed work list without renumbering gates.
@@ -55,7 +65,7 @@ Use the [reconciliation report](decision-register/gate-consolidation-20260912/RE
 - **OPEN:** No credited implementation or preparation evidence for the requirement.
 - **PARTIAL:** Credited implementation, tests or preparation exist; required implementation, qualification or acceptance is incomplete.
 - **READY FOR ACCEPTANCE:** All implementation and candidate qualification evidence is complete; only authorized formal acceptance remains.
-- **PASS:** Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance.
+- **PASS:** Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance. Under the solo launch profile, independent acceptance has the meaning above.
 
 All 35 gates and eight production records must be accepted for the final compatible candidate set. Complete seven valid simulations under MAINNET_EXECUTION_PLAN.md and obtain explicit launch authorization. No gate status alone authorizes deployment.
 

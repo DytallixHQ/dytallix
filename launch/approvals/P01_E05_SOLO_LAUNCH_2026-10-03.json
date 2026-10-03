@@ -1,0 +1,87 @@
+{
+  "decision_id": "P01-2026-10-03-E05-SOLO-LAUNCH",
+  "approved": "2026-10-03",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Solo launch profile"
+  },
+  "reason": "The founder launches alone, with no budget or connections to pay or recruit custodians, reviewers, operators or on-call staff. The launch rules are changed to what one person can carry out, and every resulting concentration of control is disclosed publicly.",
+  "design_ref": "../TRUST_MODEL.md",
+  "decisions": [
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "5 key kits, all yours",
+      "rule": "The founder generates every root key: five genesis keys, five upgrade keys (which also control release handover) and five freeze and five resume keys. Kit N holds key N of each role, on five encrypted drives kept in up to five separate places the founder controls. Any three kits can act; two can be lost or stolen safely. Every key stays distinct per role, as the node requires, and the 3-of-5 thresholds are unchanged. This protects against device loss and theft, not against the founder or coercion of the founder. It is disclosed publicly, and seats move to other holders later through a signed upgrade.",
+      "supersedes": "The separate groups of independent people: five genesis signers (approvals/P01_E05_ACTIVATION_2026-09-30.json), five independent upgrade custodians (approvals/P01_E04_OPERATIONS_2026-09-30.json) and five emergency custodians. Keys, thresholds and the parameter set are unchanged."
+    },
+    {
+      "question": "D09-Q02, D12-Q01, D12-Q03",
+      "selected": "1 validator, 3 hosts",
+      "rule": "At launch the founder runs one validator on a private host, one sentry (also the archive node) and one endpoint, within the approved topology: a private validator, pinned peers and host firewalls. With one validator there is no fault tolerance: if its host fails, the chain pauses until it is restored, and no committed block is lost. More validators join later through on-chain registration.",
+      "supersedes": "A launch set of several independent operators (the four-to-seven-validator basis of max_active)."
+    },
+    {
+      "question": "D14-Q01, D14-Q02, D14-Q03",
+      "selected": "Public review, launch 'unaudited'",
+      "rule": "The frozen candidate's specification and code are published for a 30-day public review (GitHub issues), with a bug bounty paid in DGT from the Ecosystem bucket. Every finding is fixed or answered on the record. A separate adversarial AI review is added and labeled as AI. The founder signs off, and the launch is labeled unaudited until a human audit is funded.",
+      "supersedes": "The independent human P02 review and the two independent engineer reviews of the specification (MAINNET_EXECUTION_PLAN.md)."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Solo best effort",
+      "rule": "Pages reach the founder 24/7 with no fixed response time. Service targets become published goals, not commitments: a block in 99.5% of minutes and an endpoint within 3 blocks of the head in 99.0% of minutes each month. One archive node (on the sentry) plus a monthly offline export to the founder's own drive. The backup rules and the 8-hour validator recovery time stay.",
+      "supersedes": "In approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json: the 99.9% and 99.5% targets, the 15-minute acknowledgement and 30-minute console times, the two-person rotation and escalation contact, and the two archive nodes on different operators and providers."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "4 h, rebuilt like a sentry",
+      "rule": "With one endpoint there is no failover: the endpoint service is rebuilt from the published files and state sync, like a sentry, within 4 hours. The chain keeps running meanwhile.",
+      "supersedes": "The 15-minute endpoint service recovery time by failover."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Free uptime checker + phone push",
+      "rule": "The independent monitor is a free hosted uptime service, separate from the hosts. It checks the public endpoint every few minutes and that the block height advances, and pushes alerts to the founder's phone through a free notification service. Its checks are minutes apart, so the per-minute goals are estimates."
+    },
+    {
+      "question": "D14-Q01, D14-Q02",
+      "selected": "30 days",
+      "rule": "The public review window lasts 30 days and starts when the release candidate is frozen (E06). Findings are fixed and re-reviewed before genesis."
+    },
+    {
+      "question": "D14-Q01, D08-Q01",
+      "selected": "DGT bug bounty, sizes set later",
+      "rule": "Valid security findings in the public review are rewarded in DGT from the Ecosystem bucket after genesis. The tiers and amounts are a later P01 decision."
+    },
+    {
+      "question": "D08-Q01, D02-Q02",
+      "selected": "One account per bucket, yours",
+      "rule": "Genesis holds one account per bucket (Ecosystem growth, Team and advisors, Public sale, Private sale, Reserve) plus a treasury account, all the founder's, with keys kept in the key kits. Each is publicly listed with its purpose, and tokens leave only by visible on-chain transfers. The validator self-bond comes from the Ecosystem bucket. The founder holding 100% at genesis is disclosed."
+    },
+    {
+      "question": "D12-Q03, T02, T05, T06",
+      "selected": "On the production hosts",
+      "rule": "Before genesis the three production hosts are the staging environment: the E03 runs, the measurements (T02, T05) and all seven simulations, with rehearsal chain IDs and throwaway keys. They are then wiped and re-provisioned for genesis.",
+      "supersedes": "Separate dedicated staging hosts."
+    },
+    {
+      "question": "D14-Q02, E06, P03",
+      "selected": "CI plus a clean local container",
+      "rule": "The independent reproducible build is a clean GitHub Actions runner and a fresh container on the founder's machine; both must reproduce the founder's build byte for byte. The same applies to the genesis files.",
+      "supersedes": "A separately controlled dedicated Linux builder (P03)."
+    }
+  ],
+  "unset": [
+    "Bug bounty tiers and amounts",
+    "Hosting provider and host records (D12-Q03)",
+    "Bucket, treasury and validator account keys and addresses (D08-Q01, D02-Q02, D09-Q02)",
+    "DRT bootstrap amount and rows (D08-Q03)",
+    "The uptime and notification services and their check settings (A22)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
