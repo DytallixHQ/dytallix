@@ -17,15 +17,18 @@ TEMPLATE = Path(__file__).resolve().parents[3]/'launch'/'custody'/'upgrade'/'PUB
 def key_bytes(seed): return bytes([seed])*u.KEY_BYTES
 
 
-def emergency_packet():
+FOUNDER = 'synthetic-founder'
+
+
+def emergency_packet(solo=False):
     people = []
     for i in range(5):
-        g = f'synthetic-emergency-group-{i}'
+        g = f'synthetic-kit-{i}' if solo else f'synthetic-emergency-group-{i}'
         keys = {}
         for n, purpose in enumerate(('freeze', 'resume')):
             raw = key_bytes(100+i*2+n)
             keys[purpose] = {'key_id': hashlib.sha256(raw).hexdigest(), 'public_key_base64': base64.b64encode(raw).decode(), 'epoch': 1, 'signer_control_group': g, 'backup_control_group': g}
-        people.append({'slot': i+1, 'controller_id': f'synthetic-emergency-{i}', 'control_group': g, 'keys': keys})
+        people.append({'slot': i+1, 'controller_id': FOUNDER if solo else f'synthetic-emergency-{i}', 'control_group': g, 'keys': keys})
     return {'schema': u.EMERGENCY_SCHEMA, 'custodians': people}
 
 
@@ -35,7 +38,7 @@ class UpgradeIntakeTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name).resolve()
         self.emergency = emergency_packet()
-        self.data = {'schema': u.SCHEMA, 'production_accepted': False, 'threshold': 3, 'authority_size': 5, 'authority_epoch': 1,
+        self.data = {'schema': u.SCHEMA, 'production_accepted': False, 'custody_model': 'independent', 'threshold': 3, 'authority_size': 5, 'authority_epoch': 1,
                      'profile': {'parameter_set': u.PARAMETER_SET, 'approval': 'profile'}, 'custodians': [], 'evidence': {}}
         self.evidence('profile', 'profile_approval')
         for i in range(5):
@@ -205,6 +208,48 @@ class UpgradeIntakeTests(unittest.TestCase):
         # The node's configuration check refuses this too (consensus_settlement.rs).
         self.emergency['custodians'][1]['keys']['freeze']['public_key_base64'] = self.key()['public_key_base64']
         self.check_bad('freeze or resume role')
+
+    def make_solo(self):
+        """The solo launch profile: the founder holds every slot, kit N in slot N."""
+        self.data['custody_model'] = 'solo_kits'
+        self.emergency = emergency_packet(solo=True)
+        for i, person in enumerate(self.data['custodians']):
+            kit = f'synthetic-kit-{i}'
+            person.update(controller_id=FOUNDER, name=FOUNDER, organization=FOUNDER, control_group=kit, independence_review=None)
+            del self.data['evidence'][f'i{i}']
+            (self.root/f'i{i}.json').unlink()
+            self.evidence(f'a{i}', 'appointment', FOUNDER)
+            key = person['key']
+            key.update(signer_control_group=kit, backup_control_group=kit)
+            for kind in u.KEY_EVIDENCE:
+                self.evidence(key[kind], kind, FOUNDER, u.PURPOSE, key['key_id'], 1)
+
+    def test_solo_kits_complete(self):
+        self.make_solo()
+        result = self.validate()
+        self.assertEqual(result['errors'], [])
+        self.assertEqual((result['status'], result['custody_model']), ('STRUCTURALLY_COMPLETE', 'solo_kits'))
+        self.assertEqual(len(result['authority_fragment']['authority']['keys']), 5)
+
+    def test_solo_kits_rules(self):
+        for change, message in (
+            (lambda: self.person(2).update(controller_id='someone-else'), 'one controller holds every slot'),
+            (lambda: self.person(1).update(control_group='synthetic-kit-0'), 'duplicate or missing control group'),
+            (lambda: self.person(0).update(independence_review='i0'), 'has no independence review'),
+            (lambda: self.emergency['custodians'][0].update(controller_id='someone-else'), 'emergency intake names another controller'),
+            (lambda: self.emergency['custodians'][3].update(control_group='synthetic-kit-9'), 'emergency keys use other kits'),
+            (lambda: self.emergency['custodians'][1]['keys']['freeze'].update(public_key_base64=self.key()['public_key_base64']), 'freeze or resume role'),
+        ):
+            self.setUp(); self.make_solo(); change()
+            self.check_bad(message)
+
+    def test_custody_model_is_required(self):
+        for model in (None, 'shared'):
+            self.setUp(); self.data['custody_model'] = model
+            self.check_bad('custody_model must be independent or solo_kits')
+        # An independent packet still refuses one controller in two slots.
+        self.setUp(); self.person(1).update(controller_id=self.person(0)['controller_id'])
+        self.check_bad('duplicate or missing controller')
 
     def test_template_is_incomplete(self):
         template = json.loads(TEMPLATE.read_text())

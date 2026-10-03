@@ -9,7 +9,7 @@ import tempfile
 import unittest
 import genesis_signer_intake as g
 import upgrade_custodian_intake as u
-from test_upgrade_custodian_intake import emergency_packet
+from test_upgrade_custodian_intake import FOUNDER, emergency_packet
 
 STATEMENT = 'Synthetic structural test only. No real key, signature, appointment or approval.'
 TEMPLATE = Path(__file__).resolve().parents[3]/'launch'/'custody'/'genesis'/'PUBLIC_INTAKE.template.json'
@@ -19,12 +19,12 @@ CHAIN = 'dytallix-staging-1'
 def key_bytes(seed): return bytes([seed])*g.KEY_BYTES
 
 
-def upgrade_packet():
+def upgrade_packet(solo=False):
     people = []
     for i in range(5):
-        group = f'synthetic-upgrade-group-{i}'
+        group = f'synthetic-kit-{i}' if solo else f'synthetic-upgrade-group-{i}'
         raw = key_bytes(150+i)
-        people.append({'slot': i+1, 'controller_id': f'synthetic-upgrade-{i}', 'control_group': group,
+        people.append({'slot': i+1, 'controller_id': FOUNDER if solo else f'synthetic-upgrade-{i}', 'control_group': group,
                        'key': {'key_id': hashlib.sha256(raw).hexdigest(), 'public_key_base64': base64.b64encode(raw).decode(),
                                'signer_control_group': group, 'backup_control_group': group}})
     return {'schema': u.SCHEMA, 'custodians': people}
@@ -36,7 +36,7 @@ class GenesisSignerIntakeTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name).resolve()
         self.emergency, self.upgrade = emergency_packet(), upgrade_packet()
-        self.data = {'schema': g.SCHEMA, 'production_accepted': False, 'threshold': 3, 'authority_size': 5, 'chain_id': CHAIN,
+        self.data = {'schema': g.SCHEMA, 'production_accepted': False, 'custody_model': 'independent', 'threshold': 3, 'authority_size': 5, 'chain_id': CHAIN,
                      'profile': {'parameter_set': g.PARAMETER_SET, 'approval': 'profile'}, 'signers': [], 'evidence': {}}
         self.evidence('profile', 'profile_approval')
         for i in range(5):
@@ -160,6 +160,48 @@ class GenesisSignerIntakeTests(unittest.TestCase):
         self.setUp()
         self.evidence('i0', 'independence_review', self.person()['controller_id'], reviewer=self.person()['control_group'])
         self.check_bad('self-review')
+
+    def make_solo(self):
+        """The solo launch profile: the founder holds every slot, kit N in slot N, in all three intakes."""
+        self.data['custody_model'] = 'solo_kits'
+        self.emergency, self.upgrade = emergency_packet(solo=True), upgrade_packet(solo=True)
+        for i, person in enumerate(self.data['signers']):
+            kit = f'synthetic-kit-{i}'
+            person.update(controller_id=FOUNDER, name=FOUNDER, organization=FOUNDER, control_group=kit, independence_review=None)
+            del self.data['evidence'][f'i{i}']
+            (self.root/f'i{i}.json').unlink()
+            self.evidence(f'a{i}', 'appointment', FOUNDER)
+            key = person['key']
+            key.update(signer_control_group=kit, backup_control_group=kit)
+            for kind in u.KEY_EVIDENCE:
+                self.evidence(key[kind], kind, FOUNDER, g.PURPOSE, key['key_id'])
+
+    def test_solo_kits_emit_the_same_policy(self):
+        independent = self.validate()['signer_policy']
+        self.make_solo()
+        result = self.validate()
+        self.assertEqual(result['errors'], [])
+        self.assertEqual(result['custody_model'], 'solo_kits')
+        # The public policy holds only keys, the chain and the threshold.
+        self.assertEqual(result['signer_policy'], independent)
+
+    def test_solo_kits_rules(self):
+        for change, message in (
+            (lambda: self.person(3).update(controller_id='someone-else'), 'one controller holds every slot'),
+            (lambda: self.person(0).update(independence_review='i0'), 'has no independence review'),
+            (lambda: self.upgrade['custodians'][0].update(controller_id='someone-else'), 'upgrade intake names another controller'),
+            (lambda: self.emergency['custodians'][2].update(control_group='synthetic-kit-7'), 'emergency keys use other kits'),
+            (lambda: self.upgrade.update(custodians=upgrade_packet()['custodians']), 'upgrade intake names another controller'),
+        ):
+            self.setUp(); self.make_solo(); change()
+            self.check_bad(message)
+        # Keys stay distinct across roles, as the node requires.
+        self.setUp(); self.make_solo()
+        raw = base64.b64decode(self.upgrade['custodians'][0]['key']['public_key_base64'])
+        self.key().update(public_key_hex=raw.hex(), key_id=hashlib.sha256(raw).hexdigest())
+        for kind in u.KEY_EVIDENCE:
+            self.evidence(self.key()[kind], kind, FOUNDER, g.PURPOSE, self.key()['key_id'])
+        self.check_bad('key also holds an upgrade role')
 
     def test_the_policy_matches_the_offline_signer(self):
         # Real SLH-DSA public key records and what `dytallix-root-sign policy`
