@@ -99,39 +99,51 @@
   "recovery_objectives": [
     {
       "service": "validator",
-      "rto_seconds": null,
-      "rpo_seconds": null,
+      "rto_seconds": 28800,
+      "rpo_seconds": 0,
       "state_consistency_requirement": "Resume only from verified authoritative state with safe persisted signing state and active-signer fencing.",
-      "approved_by": null,
-      "approval_record_ref": null,
+      "approved_by": "P01",
+      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+      "evidence_ref": null
+    },
+    {
+      "service": "sentry",
+      "rto_seconds": 14400,
+      "rpo_seconds": 0,
+      "state_consistency_requirement": "Rejoin from verified state (state sync from operator light blocks or a verified snapshot) and the published pin plan.",
+      "approved_by": "P01",
+      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
       "evidence_ref": null
     },
     {
       "service": "rpc",
-      "rto_seconds": null,
-      "rpo_seconds": null,
+      "rto_seconds": 900,
+      "rpo_seconds": 0,
       "state_consistency_requirement": "Serve only verified state under the approved freshness policy.",
-      "approved_by": null,
-      "approval_record_ref": null,
-      "evidence_ref": null
+      "approved_by": "P01",
+      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+      "evidence_ref": null,
+      "note": "The endpoint service: failover to another client endpoint."
     },
     {
       "service": "observability",
-      "rto_seconds": null,
+      "rto_seconds": 3600,
       "rpo_seconds": null,
       "state_consistency_requirement": "Restore collection and delivery within approved data-loss and outage limits.",
-      "approved_by": null,
-      "approval_record_ref": null,
-      "evidence_ref": null
+      "approved_by": "P01",
+      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+      "evidence_ref": null,
+      "note": "No metrics loss objective was set; metrics are kept 13 months."
     },
     {
       "service": "backup_restore",
-      "rto_seconds": null,
-      "rpo_seconds": null,
+      "rto_seconds": 28800,
+      "rpo_seconds": 0,
       "state_consistency_requirement": "Recover committed state without unexplained state or supply discrepancies.",
-      "approved_by": null,
-      "approval_record_ref": null,
-      "evidence_ref": null
+      "approved_by": "P01",
+      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+      "evidence_ref": null,
+      "note": "Restoring a validator from the daily snapshot is the validator objective: 2 hours to provision plus the approved 6-hour catch-up. RPO 0: committed blocks are replayed from peers or the archives."
     }
   ],
   "missing_decisions": [
@@ -200,20 +212,20 @@
       "title": "Recovery objectives",
       "owner_role": "SRE lead and protocol lead",
       "assigned_owner": null,
-      "status": "UNDECIDED",
+      "status": "APPROVED",
       "decision_required": "Set RTO and RPO per service; define authoritative-state recovery, signer fencing, and snapshot trust.",
-      "selected_value": null,
-      "approval_record_ref": null
+      "selected_value": "RPO 0 committed blocks; RTO validator 8 h, sentry 4 h, endpoint service 15 min, monitoring 1 h; signing state never restored; quarterly drills (operations/OBJECTIVES.json).",
+      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json"
     },
     {
       "id": "INF-08",
       "title": "Observability and incident response",
       "owner_role": "SRE lead",
       "assigned_owner": null,
-      "status": "UNDECIDED",
+      "status": "PARTIALLY_APPROVED",
       "decision_required": "Approve SLOs, metrics, thresholds, alert routing, on-call coverage, escalation, retention, and redaction.",
-      "selected_value": null,
-      "approval_record_ref": null
+      "selected_value": "Targets 99.9% chain and 99.5% endpoints a month; 24/7 paging, severity 1 acknowledged in 15 min; logs 90 days redacted, metrics 13 months, incident records permanent (operations/OBJECTIVES.json). Metrics, thresholds and alert routing remain open.",
+      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json"
     },
     {
       "id": "INF-09",

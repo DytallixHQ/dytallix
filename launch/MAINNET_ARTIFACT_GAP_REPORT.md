@@ -154,7 +154,7 @@ Each row has a separate acceptance test, owner role, dependency list and evidenc
 | F16 | `VALIDATOR_RUNBOOK.md` | MISSING | Write startup, health, halt, incident and maintenance actions for the selected service. |
 | F17 | `VALIDATOR_RECOVERY.md` | MISSING | Specify signer fencing and state verification before a replacement starts. |
 | F18 | `WALLET_TEST_REPORT.md` | MISSING | Map the user-required wallet lifecycle to exact node and client versions. |
-| F19 | `DISASTER_RECOVERY.md` | MISSING | Approve recovery objectives and identify backup contents and trust anchors. |
+| F19 | `DISASTER_RECOVERY.md` | MISSING | Objectives and backup contents approved (D12-Q02, [operations objectives](operations/OBJECTIVES.md)); write the procedures and the snapshot trust anchors. |
 | F20 | `FAILURE_TEST_REPORT.md` | MISSING | Prepare a requirement matrix for state, server and network failures in isolated staging. |
 | F21 | `ECONOMIC_SECURITY_REPORT.md` | MISSING | Translate approved supply and lifecycle rules into reviewable invariant scenarios. |
 | F22 | `GOVERNANCE_SECURITY_REPORT.md` | MISSING | Freeze electorate, snapshots, quorum, treasury and upgrade authority boundaries. |
@@ -366,7 +366,7 @@ All owner roles below remain unassigned. The JSON register gives the exact path,
 
 ### A23 — Backup, snapshot and restore package
 
-**Next action:** Define consistent backup contents, trust anchors, retention and recovery objectives.
+**Next action:** Backup contents, retention and recovery objectives are approved (D12-Q02, [operations objectives](operations/OBJECTIVES.md)); define the snapshot trust anchors and the restore procedure.
 **Owner role:** Storage and SRE lead. **Dependencies:** A06, A11, A13, A14.
 **Acceptance:** Verified restore recovers finalized state and supply, preserves signer safety, and meets approved recovery limits.
 **Destination:** Protected backup store; public format and hash verification instructions.
