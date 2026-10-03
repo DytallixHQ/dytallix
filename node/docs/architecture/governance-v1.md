@@ -83,9 +83,12 @@ by the consensus build, which rejects `gov:` keys; E04 gap 14 removed it.
 4. **Storage (fixes G5).** One small header (next ID, height, held total,
    open list, due index) plus entries per proposal, per voter vote and per
    snapshot owner. Ballots that start at the same height share one snapshot.
-   A vote reads one weight and updates a running tally. Open proposals are
-   bounded by a new `max_open_proposals` (E05 value); admission beyond it is
-   a paid capacity failure. IDs stay unique by the counter.
+   A vote reads one weight and updates a running tally. The header keeps
+   counts only, and each due transition is its own keyed entry. The planned
+   `max_open_proposals` cap was dropped (P01, 3 October 2026): the 10,000 DGT
+   minimum deposit and the block gas limit already bound open proposals and
+   the work each block's due transitions cause. IDs stay unique by the
+   counter.
 5. **Retention.** A terminal proposal (refunded after `Rejected`, `Executed`
    or `FailedExecution`) is removed at the next block start with its votes,
    snapshot entries and escrow record, keeping running totals. Ballot votes

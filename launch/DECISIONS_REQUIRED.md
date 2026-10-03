@@ -29,6 +29,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [Network identity](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json) (3 October): chain ID `dytallix-mainnet-1`, display name Dytallix, and a genesis time set at the final freeze at 14:00:00 UTC on a weekday, at least 72 hours after the final build (D13-Q01; [identity](genesis/IDENTITY.json)).
 - [Operations objectives](approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json) (3 October): monthly targets of 99.9% (chain) and 99.5% (endpoints), 24/7 paging, archive and log retention, RPO zero committed blocks and RTOs per role (D12-Q02; [operations objectives](operations/OBJECTIVES.md)).
 - [Solo launch profile](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json) (3 October): the founder launches alone. Every root key in five key kits; one validator on three hosts; a 30-day public review with a DGT bug bounty and a labeled AI review instead of an independent human audit, with the launch labeled unaudited; best-effort operations; one founder account per token bucket; staging on the production hosts; reproducible builds on a clean CI runner and a local container ([trust model](TRUST_MODEL.md)).
+- [Engineering close-out](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json) (3 October): sentries and endpoints can never sign and validators may start before registration; a plain-HTTP status page with no cryptography for the uptime checker; `client_compatibility_window` and `max_open_proposals` dropped; fault assumptions recorded; the CLI is the launch wallet.
 
 ## D01 — Adaptive issuance
 
@@ -236,7 +237,9 @@ Operating values (P01, 2 October 2026, [E05 values, fourth set](approvals/P01_E0
 - **Networking, mempool and state sync:** peers up to the 64-pin bound, a 5 s PQC handshake, and a 168h state-sync trust period.
 - **Pinned peers:** redialed for as long as the engine runs, at most 60 s apart ([pinned redial approval](approvals/P01_E05_PINNED_REDIAL_2026-10-02.json)).
 
-Remaining inputs: measured mempool size and bytes, send and receive rates and the admission queue (T05), fault assumptions, and the state-sync trust source and snapshot peers (records).
+Fault assumptions ([P01, 3 October 2026](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json)): less than one third of voting power is faulty at any time; with one validator at launch, no fault is tolerated.
+
+Remaining inputs: measured mempool size and bytes, send and receive rates and the admission queue (T05), and the state-sync trust source and snapshot peers (records).
 
 Required output: Consensus operating specification.
 

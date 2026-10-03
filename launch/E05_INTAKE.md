@@ -20,6 +20,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
   | measure | 18 | Set from measurements on dedicated staging hosts |
   | derived | 25 | Fixed by an approved rule or another value |
 
+  Status (3 October 2026): 165 approved, 24 derived by the genesis builder
+  (`DERIVED`), 2 dropped (`DROPPED`) and 17 still to measure on the hosts.
+
   `proposed` is a proposal for review, never an approved value. Approved
   values are recorded under [approvals/](approvals/) and marked in the file.
 - **Records** use the binding review's `PRODUCTION_INPUTS` format
@@ -45,8 +48,7 @@ until P01 approves it; approved values are marked. Decision IDs refer to
    (D08-Q03).
 4. **Values:** the decide tier in batches, then the operate tier.
 5. **Measurements** on the production hosts before genesis: emergency, upgrade and handover
-   validity windows and anchor ages, capacity values, fault assumptions (E03,
-   T02, T05).
+   validity windows and anchor ages, and capacity values (E03, T02, T05).
 6. **Genesis build** from the frozen inputs, the binding review, then the
    genesis digest (D13-Q02) and the release signers' acceptance.
 7. **Host files** from the accepted pin plan (D12-Q01), the per-host values
@@ -90,7 +92,7 @@ block count follows from it. Approved values are marked and recorded in the
 | Recovery template | `template_recovery_delay`, `_finalization_window`, `_policy_delay`, `_policy_window` | **Approved:** 7 days each | Time for an owner to see and cancel a recovery |
 | | `template_submission_lifetime` | **Approved:** 1 day (17,280) | Guardians have a day to collect signatures; sponsor receipts clear within a day |
 | Upgrades | `upgrade_notice_blocks`, `handover_notice_blocks` | **Approved:** 7 days each (120,960 blocks) | Time to install a release; urgent problems use the freeze, and a halted chain uses restart, which has no notice |
-| Clients | `client_compatibility_window` | — | Input needed (E06): how long a client release must stay compatible |
+| Clients | `client_compatibility_window` | **Dropped** ([P01, 3 October 2026](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json)) | Upgrades already give 7 days' notice, and clients upgrade within it |
 
 ## Operational settings (100)
 
@@ -107,13 +109,15 @@ Approved in the [fourth set](approvals/P01_E05_VALUES_4_2026-10-02.json)
 
 Earlier sets cover `timeout_propose` 3 s, `timeout_prevote` and `timeout_precommit` 1 s, and a daily snapshot (17,280 blocks) keeping three. The only operate-tier value still open is `max_open_proposals`, which has no field: governance uses a due index instead.
 
-## Measured values (18)
+## Measured values (17)
 
 The emergency, upgrade and handover validity windows and maximum anchor ages
 (from measured multi-party signing and propagation; labeled 720-block
 placeholders in the rehearsals), mempool, queue and peer capacity,
-adapter and channel connection limits, the emergency verifier timeout, and
-the fault assumptions. They need the dedicated hosts first.
+adapter and channel connection limits and the emergency verifier timeout.
+They need the hosts first. The fault assumptions are a recorded statement
+instead ([P01, 3 October 2026](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json)): less than one third of voting power is
+faulty, and with one validator no fault is tolerated.
 
 ## Derived values (25)
 

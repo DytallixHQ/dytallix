@@ -969,7 +969,7 @@
               "timeout_prevote": "1s",
               "timeout_precommit": "1s"
             },
-            "fault_assumptions": null,
+            "fault_assumptions": "LESS_THAN_ONE_THIRD_VOTING_POWER_FAULTY_NONE_TOLERATED_WITH_ONE_VALIDATOR",
             "snapshots": {
               "interval_blocks": 17280,
               "keep": 3
@@ -997,7 +997,6 @@
           "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing (P01, 30 September 2026): about 5-second blocks. Snapshots (P01, 30 September 2026): every 17,280 blocks, keeping three. Capacity, fault assumptions and the remaining synchronization values remain open. Operating values (P01, 2 October 2026): the genesis capacity, transaction format, state and retention limits (about 180 basic Sends a 5 s block; T05 tests these values and can return one for a new approval), the engine consensus deltas with empty blocks every 5 s, a double-sign startup check of 10 blocks on validators, and the networking, mempool and state-sync settings (peers to the 64-pin bound, state-sync trust period 168h). Pinned peers (P01, 2 October 2026): the engine redials a persistent peer for as long as it runs, at most 60 s apart (persistent_peers_max_dial_period).",
           "remaining_choices": [
             "Measured mempool size and bytes, send and receive rates, and the ordinary admission queue (T05)",
-            "Fault assumptions",
             "State-sync trust source and snapshot peers (records)"
           ],
           "approval_records": [
@@ -1005,7 +1004,8 @@
             "approvals/P01_E05_VALUES_1_2026-09-30.json",
             "approvals/P01_E05_VALUES_2_2026-09-30.json",
             "approvals/P01_E05_VALUES_4_2026-10-02.json",
-            "approvals/P01_E05_PINNED_REDIAL_2026-10-02.json"
+            "approvals/P01_E05_PINNED_REDIAL_2026-10-02.json",
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
           ]
         }
       ],
@@ -1107,7 +1107,8 @@
               "TREASURY_SPENDING"
             ],
             "client_interfaces": "CLIENT_SOCKET_ALLOWLIST_OVER_THE_CLIENT_CHANNEL_AND_LOOPBACK",
-            "grpc": false
+            "grpc": false,
+            "launch_wallet": "COMMAND_LINE_WALLET_GRAPHICAL_WALLET_POST_MAINNET"
           },
           "owner_role_proposed": "Product and protocol leads",
           "assignee": null,
@@ -1128,7 +1129,8 @@
           "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
           "approved_portion": "Current build only (P01, 29 September 2026): mainnet v1 launches with ordinary v2 transfers and staking, ordinary v3 governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET.",
           "approval_records": [
-            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json"
+            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
           ]
         }
       ],
@@ -1465,7 +1467,13 @@
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D09-Q02.json",
           "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
           "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder is the only operator at launch, running one validator; more validators join later through on-chain registration.",
-          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+          "engineering_close_out": {
+            "post_genesis_validators": "VALIDATORS_MAY_START_BEFORE_REGISTRATION_SENTRIES_AND_ENDPOINTS_NEVER_SIGN"
+          },
+          "approval_records": [
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
+          ]
         },
         {
           "id": "D09-Q03",
@@ -2282,7 +2290,8 @@
             "proposal_cancellation": false,
             "block_order": "AUTOMATIC_TRANSITIONS_THEN_SIGNED_TRANSACTIONS",
             "finished_proposal_retention": "REMOVE_PROPOSAL_VOTES_SNAPSHOT_AND_ESCROW_AT_NEXT_BLOCK_START_AFTER_REFUND_KEEP_RUNNING_TOTALS",
-            "failed_execution": "REFUND_AND_CONTINUE"
+            "failed_execution": "REFUND_AND_CONTINUE",
+            "max_open_proposals": "DROPPED_DEPOSIT_AND_DUE_INDEX_BOUND_OPEN_PROPOSALS"
           },
           "owner_role_proposed": "Governance lead with protocol and custody reviewers",
           "assignee": null,
@@ -2304,7 +2313,8 @@
           "approval_records": [
             "decision-register/core-function-alignment/E04_GOVERNANCE_RULE_APPROVAL_2026-09-25.json",
             "../node/docs/architecture/governance-v1.md",
-            "approvals/P01_E05_VALUES_1_2026-09-30.json"
+            "approvals/P01_E05_VALUES_1_2026-09-30.json",
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
           ],
           "remaining_choices": []
         },
@@ -2638,7 +2648,8 @@
             "mesh": "PUBLISHED_PARTIAL_MESH_WITHIN_64_PINS",
             "long_running_child_observation": "STARTUP_CHECK_THEN_KERNEL_ENFORCEMENT_NO_PERIODIC_PAUSE",
             "readiness_catch_up": "OPERATOR_BUDGET_E05_CATCH_UP_MILLIS",
-            "operators": 1
+            "operators": 1,
+            "validator_role_rule": "SENTRIES_AND_ENDPOINTS_REFUSE_EVERY_SIGNATURE_VALIDATOR_KEY_MAY_JOIN_AFTER_GENESIS"
           },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
@@ -2669,7 +2680,8 @@
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "approvals/P01_E05_SUPERVISOR_2026-10-01.json",
             "approvals/P01_E05_VALUES_4_2026-10-02.json",
-            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
           ]
         },
         {
@@ -2698,7 +2710,8 @@
             "restore_drills": "QUARTERLY_ON_STAGING_PRODUCTION_HOSTS_BEFORE_GENESIS",
             "targets_kind": "PUBLISHED_GOALS_NOT_COMMITMENTS",
             "independent_monitor": "FREE_HOSTED_UPTIME_CHECKER_WITH_PHONE_PUSH",
-            "archive_node": "SENTRY"
+            "archive_node": "SENTRY",
+            "independent_monitor_signal": "PLAIN_HTTP_STATUS_PAGE_CHAIN_ID_HEIGHT_TIME_NO_CRYPTOGRAPHY"
           },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
@@ -2718,7 +2731,8 @@
           "specification_record": "operations/OBJECTIVES.json",
           "approval_records": [
             "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
-            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
           ]
         },
         {
@@ -3046,7 +3060,8 @@
               "E06_RELEASE_ACCEPTANCE",
               "GATE_ACCEPTANCE"
             ],
-            "staging": "PRODUCTION_HOSTS_BEFORE_GENESIS_REHEARSAL_CHAIN_IDS_THROWAWAY_KEYS_THEN_WIPED"
+            "staging": "PRODUCTION_HOSTS_BEFORE_GENESIS_REHEARSAL_CHAIN_IDS_THROWAWAY_KEYS_THEN_WIPED",
+            "client_compatibility_window": "DROPPED_UPGRADE_NOTICE_OF_120960_BLOCKS_COVERS_CLIENTS"
           },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
           "assignee": null,
@@ -3072,7 +3087,8 @@
           ],
           "approval_records": [
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
-            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
           ]
         },
         {
@@ -3965,6 +3981,28 @@
         "DRT bootstrap amount and rows (D08-Q03)",
         "Uptime and notification services and settings (A22)"
       ]
+    },
+    {
+      "id": "P01-2026-10-03-E05-ENGINEERING-CLOSE",
+      "approved": "2026-10-03",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json",
+      "decisions": [
+        "Sentries and endpoints run a signer that refuses every signature; a validator may start before its key is registered (D09-Q02, D12-Q01).",
+        "A read-only plain-HTTP status page (chain ID, height, time; no cryptography) on the endpoint for the free uptime checker (D12-Q02).",
+        "client_compatibility_window and max_open_proposals dropped; fault assumptions recorded as a statement (D14-Q02, D11-Q02, D06-Q02).",
+        "The command-line wallet is the launch wallet; a graphical wallet is post-mainnet (D07-Q01)."
+      ],
+      "question_refs": [
+        "D06-Q02",
+        "D07-Q01",
+        "D09-Q02",
+        "D11-Q02",
+        "D12-Q01",
+        "D12-Q02",
+        "D14-Q02"
+      ],
+      "unset": []
     }
   ],
   "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset.",

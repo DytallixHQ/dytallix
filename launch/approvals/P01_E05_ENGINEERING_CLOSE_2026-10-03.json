@@ -1,0 +1,47 @@
+{
+  "decision_id": "P01-2026-10-03-E05-ENGINEERING-CLOSE",
+  "approved": "2026-10-03",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Engineering close-out decisions"
+  },
+  "decisions": [
+    {
+      "question": "D09-Q02, D12-Q01",
+      "selected": "Sentries can't sign; validators any key",
+      "rule": "Sentries and endpoints run with a signer that refuses every signature, so they can never sign, even if their validator key were registered on-chain. A validator host may start with a key not yet in the validator set: it syncs, its operator registers the key, and it signs from activation. A sentry or endpoint whose key is in the genesis validator set is still refused.",
+      "supersedes": "The genesis-only validator role rule of production activation v1 (A4), under which a validator registered after genesis could not start in production mode."
+    },
+    {
+      "question": "D12-Q02, G35",
+      "selected": "Public status page, no crypto",
+      "rule": "The endpoint serves a read-only plain-HTTP status page with only the chain ID, block height and block time, read from the engine's local socket, for the free uptime checker. It uses no cryptography, so it adds nothing to the PQC-only boundary (G35), and it is unauthenticated: a liveness hint, never a source of chain state."
+    },
+    {
+      "question": "D14-Q02, D11-Q03",
+      "selected": "client_compatibility_window: dropped",
+      "rule": "No separate client compatibility window. Upgrades already give 120,960 blocks (about 7 days) of notice, and clients upgrade within it."
+    },
+    {
+      "question": "D11-Q02",
+      "selected": "max_open_proposals: dropped",
+      "rule": "No cap on open proposals. The 10,000 DGT minimum deposit and the due-time index already bound open proposals and the work they cause each block."
+    },
+    {
+      "question": "D06-Q02",
+      "selected": "fault_assumptions: documented",
+      "rule": "The network assumes that less than one third of voting power is faulty at any time. With one validator at launch, no fault is tolerated: the validator's failure halts the chain until it is restored, and its compromise controls the chain. The statement is a record, not a setting."
+    },
+    {
+      "question": "D07-Q01",
+      "selected": "Command-line wallet at launch",
+      "rule": "The Dytallix CLI (sdk/crates/dytallix-cli) is the launch wallet: key creation, encrypted keystore, recovery, signing, fees and receipts. A graphical wallet is post-mainnet work. The browser codec stays a helper with no keys."
+    }
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
