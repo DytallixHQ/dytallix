@@ -3,6 +3,10 @@ package enginepqc
 import (
 	"strings"
 	"testing"
+
+	"github.com/cometbft/cometbft/privval"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/types"
 )
 
 func TestProductionBindingCodecIsCanonical(t *testing.T) {
@@ -34,5 +38,44 @@ func TestDevelopmentBuildRefusesTheProductionProfile(t *testing.T) {
 	}
 	if _, err := Load("/nonexistent", ProductionProfile); err == nil || !strings.Contains(err.Error(), "no production transport profile") {
 		t.Fatalf("production profile in a development build: %v", err)
+	}
+}
+
+func TestASentryOrEndpointSignerRefusesEverySignature(t *testing.T) {
+	validator := privval.GenFilePV("", "")
+	runtime := &Runtime{Validator: validator}
+	for _, role := range []string{RoleSentry, RoleEndpoint} {
+		signer := SignerForRole(runtime, role)
+		public, err := signer.GetPubKey()
+		if err != nil || !public.Equals(validator.Key.PubKey) {
+			t.Fatalf("%s identity: %v", role, err)
+		}
+		vote := &cmtproto.Vote{Type: cmtproto.PrevoteType, Height: 1}
+		proposal := &cmtproto.Proposal{Type: cmtproto.ProposalType, Height: 1}
+		if err := signer.SignVote("c", vote); err == nil || len(vote.Signature) != 0 {
+			t.Fatalf("a %s signed a vote", role)
+		}
+		if err := signer.SignProposal("c", proposal); err == nil || len(proposal.Signature) != 0 {
+			t.Fatalf("a %s signed a proposal", role)
+		}
+	}
+	if SignerForRole(runtime, RoleValidator) != types.PrivValidator(validator) {
+		t.Fatal("a validator does not sign with its key")
+	}
+}
+
+func TestOnlyASentryOrEndpointKeyIsRefusedInGenesis(t *testing.T) {
+	key := privval.GenFilePV("", "").Key.PubKey
+	genesis := &types.GenesisDoc{Validators: []types.GenesisValidator{{PubKey: key, Power: 1}}}
+	other := privval.GenFilePV("", "").Key.PubKey
+	for role, cases := range map[string][2]bool{
+		// {genesis key allowed, outside key allowed}
+		RoleValidator: {true, true},
+		RoleSentry:    {false, true},
+		RoleEndpoint:  {false, true},
+	} {
+		if (roleMatchesGenesis(genesis, key.Bytes(), role) == nil) != cases[0] || (roleMatchesGenesis(genesis, other.Bytes(), role) == nil) != cases[1] {
+			t.Fatalf("%s role rule", role)
+		}
 	}
 }

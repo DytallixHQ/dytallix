@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/cometbft/cometbft/privval"
+	"github.com/cometbft/cometbft/types"
 )
 
 // productionFleet writes a disposable private-seed fleet with the
@@ -195,21 +196,33 @@ func TestProductionProfileBindingRecord(t *testing.T) {
 	}
 }
 
-func TestProductionProfileSentryKeyIsOutsideGenesis(t *testing.T) {
+func TestProductionProfileKeyOutsideGenesis(t *testing.T) {
 	fleet := productionFleet(t)
 	home := filepath.Join(fleet, "node1")
-	// A sentry carries a validator key the genesis set lacks.
+	// A key the genesis set lacks: a sentry's, or a validator's registered
+	// after genesis (P01, 3 October 2026).
 	privval.GenFilePV(filepath.Join(home, "config", "priv_validator_key.json"),
 		filepath.Join(home, "data", "priv_validator_state.json")).Save()
 	runtime, err := Load(home, ProductionProfile)
 	if err != nil {
-		t.Fatalf("sentry home refused: %v", err)
+		t.Fatalf("home refused: %v", err)
 	}
-	if err := ValidateProductionBinding(runtime, bindingOf(runtime, RoleSentry)); err != nil {
-		t.Fatalf("sentry binding refused: %v", err)
+	for _, role := range []string{RoleSentry, RoleEndpoint, RoleValidator} {
+		if err := ValidateProductionBinding(runtime, bindingOf(runtime, role)); err != nil {
+			t.Fatalf("%s binding refused: %v", role, err)
+		}
+		if binding, err := NewProductionBinding(runtime, role); err != nil || binding != bindingOf(runtime, role) {
+			t.Fatalf("%s binding record: %v", role, err)
+		}
 	}
-	if err := ValidateProductionBinding(runtime, bindingOf(runtime, RoleValidator)); err == nil {
-		t.Fatal("a key outside genesis ran as a validator")
+	// Only the validator signs.
+	if SignerForRole(runtime, RoleValidator) != types.PrivValidator(runtime.Validator) {
+		t.Fatal("a validator does not sign with its key")
+	}
+	for _, role := range []string{RoleSentry, RoleEndpoint} {
+		if SignerForRole(runtime, role) == types.PrivValidator(runtime.Validator) {
+			t.Fatalf("a %s signs", role)
+		}
 	}
 }
 

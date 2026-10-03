@@ -4,6 +4,7 @@
   "plan_sha256": "4c9e27c289fbff1b5744c91c7690fafdf54a4ed6a0e21c39af36ce1b97bad9d2",
   "values_sha256": "98309a3c48a97a01a6e08359e78eea701d41795912e271a663aed64bafe82176",
   "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+  "genesis_validators_without_host": 0,
   "hosts": [
     {
       "label": "endpoint-1",

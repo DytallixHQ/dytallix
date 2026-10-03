@@ -141,6 +141,7 @@ func run() error {
 	if (*profile == enginepqc.ProductionProfile) != (*bindingPath != "") {
 		return startupdiag.At(2, startupdiag.AsClass(startupdiag.Invalid, errors.New("--binding goes with the production profile, which requires it")))
 	}
+	var signer types.PrivValidator = runtime.Validator
 	if *bindingPath != "" {
 		binding, err := enginepqc.LoadProductionBinding(*bindingPath)
 		if err != nil {
@@ -149,6 +150,8 @@ func run() error {
 		if err := enginepqc.ValidateProductionBinding(runtime, binding); err != nil {
 			return startupdiag.At(2, err)
 		}
+		// A sentry or endpoint never signs (P01, 3 October 2026).
+		signer = enginepqc.SignerForRole(runtime, binding.Role)
 	}
 	if err := enginepqc.ConfigureRPCProfile(runtime, *rpcProfile); err != nil {
 		return startupdiag.At(3, err)
@@ -165,7 +168,7 @@ func run() error {
 		return startupdiag.At(3, err)
 	}
 	options = append(options, node.WithAuthenticatedTransport(runtime.Upgrade(logger)))
-	engine, err := node.NewNodeWithContext(ctx, runtime.Config, runtime.Validator, runtime.NodeKey,
+	engine, err := node.NewNodeWithContext(ctx, runtime.Config, signer, runtime.NodeKey,
 		proxy.DefaultClientCreator(runtime.Config.ProxyApp, runtime.Config.ABCI, runtime.Config.DBDir()),
 		func() (*types.GenesisDoc, error) { return runtime.Genesis, nil }, cfg.DefaultDBProvider,
 		metrics, logger, options...)

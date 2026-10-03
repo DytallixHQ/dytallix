@@ -263,7 +263,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "6ef0d13d50857129207ee5f8668b1a3e3d049ae308cffa966e4f5dd6bed1ac94"
+          "sha256": "aafe182784c7ddb81b11db05ec9c5778a26e7b1b0892c42a6ad132de8bd847e2"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
@@ -351,7 +351,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "52f991a168d6acc7f486be99786d07fde7d384fc6496b82b30f0c8aca1b48848"
+          "sha256": "4d6d5f09026c0f5c0ee86aa7647dceb6ac332fe08a5f3154dc17740b8f25ab02"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",

@@ -8,6 +8,8 @@ import (
 	"errors"
 	"io"
 
+	"github.com/cometbft/cometbft/crypto"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 )
 
@@ -92,9 +94,9 @@ func NewProductionBinding(runtime *Runtime, role string) (ProductionBinding, err
 
 // ValidateProductionBinding checks a loaded production runtime against its
 // binding: the same file bytes the loader parsed, the loaded peer and
-// validator keys, and the role. Only a validator's key is in the genesis
-// validator set; a sentry or endpoint carries a key the genesis set lacks,
-// so it can never sign for the chain.
+// validator keys, and the role. A sentry or endpoint key may not be in the
+// genesis validator set, and such a host runs a signer that refuses every
+// signature (SignerForRole).
 func ValidateProductionBinding(runtime *Runtime, binding ProductionBinding) error {
 	if runtime == nil || runtime.Transport.Profile != ProductionProfile {
 		return errors.New("a production binding applies only to the production transport profile")
@@ -128,16 +130,41 @@ func ValidateProductionBinding(runtime *Runtime, binding ProductionBinding) erro
 }
 
 // roleMatchesGenesis refuses a sentry or endpoint whose validator key is in
-// the genesis validator set, and a validator whose key is not.
+// the genesis validator set. A validator's key may be outside it: a validator
+// registered after genesis starts, syncs and signs once its key is active
+// (P01, 3 October 2026). A sentry or endpoint never signs (SignerForRole).
 func roleMatchesGenesis(genesis *types.GenesisDoc, validator []byte, role string) error {
-	inGenesis := false
+	if role == RoleValidator {
+		return nil
+	}
 	for _, member := range genesis.Validators {
 		if bytes.Equal(member.PubKey.Bytes(), validator) {
-			inGenesis = true
+			return errors.New("a sentry or endpoint key may not be in the genesis validator set")
 		}
 	}
-	if inGenesis != (role == RoleValidator) {
-		return errors.New("only a validator's key may be in the genesis validator set")
-	}
 	return nil
+}
+
+// errNoSigning is every signature request on a sentry or endpoint.
+var errNoSigning = errors.New("a sentry or endpoint never signs")
+
+// refusingSigner keeps a sentry's or endpoint's validator key as its identity
+// but refuses every signature, so the host can never sign, even if its key
+// were registered on-chain (P01, 3 October 2026).
+type refusingSigner struct{ public crypto.PubKey }
+
+func (s refusingSigner) GetPubKey() (crypto.PubKey, error) { return s.public, nil }
+
+func (refusingSigner) SignVote(string, *cmtproto.Vote) error { return errNoSigning }
+
+func (refusingSigner) SignProposal(string, *cmtproto.Proposal) error { return errNoSigning }
+
+// SignerForRole is the signer the engine runs with for a production
+// binding's role: the loaded validator key on a validator, and a signer that
+// refuses every signature on a sentry or endpoint.
+func SignerForRole(runtime *Runtime, role string) types.PrivValidator {
+	if role == RoleValidator {
+		return runtime.Validator
+	}
+	return refusingSigner{public: runtime.Validator.Key.PubKey}
 }

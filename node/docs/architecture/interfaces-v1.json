@@ -1389,7 +1389,7 @@
       "id": "file-production-binding",
       "group": "file",
       "exposure": "operator",
-      "format": "Production engine binding (production activation v1, A4): {schema, role (validator, sentry or endpoint), chain_id, config_sha256, genesis_sha256, transport_sha256, peer_public_key_sha256, validator_public_key_sha256}. Canonical compact JSON, one per host in the published pin plan; dytallix-pqc-engine --binding and the native supervisor's production mode check it at start; dytallix-peer-seed binding prints it. Only a validator's key is in the genesis validator set.",
+      "format": "Production engine binding (production activation v1, A4): {schema, role (validator, sentry or endpoint), chain_id, config_sha256, genesis_sha256, transport_sha256, peer_public_key_sha256, validator_public_key_sha256}. Canonical compact JSON, one per host in the published pin plan; dytallix-pqc-engine --binding and the native supervisor's production mode check it at start; dytallix-peer-seed binding prints it. A sentry or endpoint key may not be in the genesis validator set, and the engine runs a sentry or endpoint with a signer that refuses every signature; a validator's key may be outside the set (a validator registered after genesis).",
       "version": {
         "field": "schema",
         "literal": {
@@ -1443,7 +1443,7 @@
       "id": "file-pin-plan-bindings",
       "group": "file",
       "exposure": "operator",
-      "format": "PIN_PLAN_BINDINGS.json from dytallix-host-config (E05): {schema, chain_id, plan_sha256, values_sha256, genesis_sha256, hosts [{label, operator, role, pins, firewall {transport_sha256, p2p_listen, public_listeners} (the host policy renderer's routed-mode firewall input), binding (file-production-binding), binding_sha256}]}. Published with the pin plan; each host's engine computes the same binding from its installed files and keys.",
+      "format": "PIN_PLAN_BINDINGS.json from dytallix-host-config (E05): {schema, chain_id, plan_sha256, values_sha256, genesis_sha256, genesis_validators_without_host (a launch plan has none), hosts [{label, operator, role, pins, firewall {transport_sha256, p2p_listen, public_listeners} (the host policy renderer's routed-mode firewall input), binding (file-production-binding), binding_sha256}]}. Published with the pin plan; each host's engine computes the same binding from its installed files and keys.",
       "version": {
         "field": "schema",
         "literal": {
