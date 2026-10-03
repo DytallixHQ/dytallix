@@ -124,7 +124,7 @@ The validity window and anchor age come from measurements on dedicated hosts
 - **Roles.** A production mode with a node role: validator, sentry or
   endpoint.
   - Validators run no adapter or channel listener.
-  - Endpoints run the HTTP adapter and client channel.
+  - Endpoints run the HTTP adapter and client channel, and may serve a read-only plain-HTTP status page (chain ID, height, time) for an uptime checker (P01, 3 October 2026).
   - Sentries run neither.
   - Only validators load a validator signing key; sentries and endpoints use
     a key the engine refuses to find in the genesis set.
@@ -335,7 +335,7 @@ production-profile staging chains signed with test keys:
 - **One mode per build.** A production supervisor runs only `production-native` (`--service-config`); a development build only `disposable-loopback-native`. The production mode opens through the threshold root (`preflight_release_with_root`) and starts the application with the root, verifier and candidate configurations.
 - **Release catalog.** The production service profile `production-linux-native-service-v1` serves every role and always carries the HTTP adapter.
 - **Roles.** `validator`, `sentry` or `endpoint`.
-  - Validators and sentries run no adapter or channel listener; an endpoint runs both.
+  - Validators and sentries run no adapter, channel or status listener; an endpoint runs the adapter and channel, and may serve the status page. A production adapter build serves only `dytallix-pqc-http-production-v1`.
   - A sentry or endpoint never signs: its key may not be in the genesis set, and the engine gives it a signer that refuses every signature. A validator may start with a key registered after genesis (P01, 3 October 2026).
 - **Identity.** The engine inputs pin `pqc_peer_seed.bin`, and `node_key.json` must be absent. The tool `dytallix-peer-seed` (both builds) generates the seed on the host, prints its public key, and prints a host's binding (production builds).
 - **Binding at start.** The supervisor checks the host's binding against the pinned engine files, the transport's peer key, the validator key and the role before any child starts. It passes the binding to the engine, which checks it again.

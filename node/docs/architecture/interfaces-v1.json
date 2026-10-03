@@ -685,6 +685,29 @@
       ]
     },
     {
+      "id": "engine-rpc-status-page",
+      "group": "engine_rpc",
+      "exposure": "external",
+      "format": "The endpoint's public status page (P01, 3 October 2026): plain HTTP GET /status on the adapter's --status-listen address answers {chain_id, height, time} from the engine's local /status route, with Cache-Control no-store; any other path or method gets a fixed 404 or 405, and an unavailable engine a 503. No cryptography and no input; unauthenticated, a liveness hint for an uptime checker, never a source of chain state.",
+      "version": {
+        "none": "A fixed three-field JSON object; a change is a new route."
+      },
+      "source": {
+        "file": "node/consensus/pqc-http-adapter/src/status.rs",
+        "symbol": "pub async fn serve"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/pqc-http-adapter/src/status.rs",
+          "name": "the_page_answers_only_get_status"
+        },
+        {
+          "file": "node/consensus/pqc-http-adapter/src/status.rs",
+          "name": "the_page_keeps_three_public_fields"
+        }
+      ]
+    },
+    {
       "id": "p2p-pqc",
       "group": "p2p",
       "exposure": "external",
@@ -1416,7 +1439,7 @@
       "id": "file-pin-plan",
       "group": "file",
       "exposure": "operator",
-      "format": "The public pin plan (E05; production activation v1, design F and G): {schema, chain_id, hosts [{label, operator, role (validator, sentry or endpoint), home, p2p (the node's one IP and port), channel (an endpoint's client listener on the same IP, else null), peer_public_key_base64, validator_public_key_base64, pins (host labels), state_sync (null or {trust_height, trust_hash})}]}. Public keys and addresses only. dytallix-host-config refuses a plan that breaks the approved mesh rules and writes each host's engine files from it.",
+      "format": "The public pin plan (E05; production activation v1, design F and G): {schema, chain_id, hosts [{label, operator, role (validator, sentry or endpoint), home, p2p (the node's one IP and port), channel (an endpoint's client listener on the same IP, else null), status (an endpoint's optional status page on the same IP, else null), peer_public_key_base64, validator_public_key_base64, pins (host labels), state_sync (null or {trust_height, trust_hash})}]}. Public keys and addresses only. dytallix-host-config refuses a plan that breaks the approved mesh rules and writes each host's engine files from it.",
       "version": {
         "field": "schema",
         "literal": {
@@ -1470,7 +1493,7 @@
       "id": "file-native-service-config",
       "group": "file",
       "exposure": "operator",
-      "format": "The native supervisor's service configuration (strict JSON, at most 64 KiB): pinned inputs, process limits and outputs. Mode disposable-loopback-native in a development build; production-native in a production build, which adds role (validator, sentry or endpoint), the host's pinned binding, optional state_sync light_blocks and catch_up_millis (production activation v1, A5).",
+      "format": "The native supervisor's service configuration (strict JSON, at most 64 KiB): pinned inputs, process limits and outputs. Mode disposable-loopback-native in a development build; production-native in a production build, which adds role (validator, sentry or endpoint), the host's pinned binding, optional state_sync light_blocks and catch_up_millis (production activation v1, A5). An endpoint may add adapter_status_listen, the public status page on the node's address (P01, 3 October 2026).",
       "version": {
         "field": "schema",
         "literal": {

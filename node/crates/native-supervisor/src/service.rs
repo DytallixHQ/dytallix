@@ -242,7 +242,7 @@ impl NativeService {
         if let Some(listen) = &self.config.adapter_listen {
             let mut args: Vec<std::ffi::OsString> = vec![
                 "--profile".into(),
-                "dytallix-pqc-http-local-v1".into(),
+                ADAPTER_PROFILE.into(),
                 "--home".into(),
                 self.config.home.as_os_str().into(),
                 "--listen".into(),
@@ -250,6 +250,9 @@ impl NativeService {
             ];
             if let Some(limits) = &self.config.adapter_limits {
                 args.extend(limits.args());
+            }
+            if let Some(status) = &self.config.adapter_status_listen {
+                args.extend(["--status-listen".into(), status.into()]);
             }
             let chain_id = self.authority.expected_candidate().chain_id.clone();
             let channel = match &self.config.adapter_channel {
@@ -492,6 +495,13 @@ fn bridge_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
 /// The production transport profile (A4), the only profile of a production
 /// engine build.
 const PRODUCTION_TRANSPORT_PROFILE: &str = "dytallix-pqc-production-v1";
+
+/// The HTTP adapter profile of this build: an adapter build serves only its
+/// own profile (production activation v1).
+#[cfg(not(feature = "production"))]
+const ADAPTER_PROFILE: &str = "dytallix-pqc-http-local-v1";
+#[cfg(feature = "production")]
+const ADAPTER_PROFILE: &str = "dytallix-pqc-http-production-v1";
 
 fn engine_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
     let mut args: Vec<OsString> = vec![

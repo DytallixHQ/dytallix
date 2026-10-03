@@ -1,6 +1,8 @@
-# Experimental PQC HTTP adapter
+# PQC HTTP adapter
 
-This standalone Rust workspace provides a loopback HTTP/1 adapter for the experimental Go Unix RPC profile. Hyper 1.9.0 parses HTTP. The Go engine interprets JSON-RPC and owns chain state. This prototype cannot authorize production. The command rejects `--production` and requires an explicit experimental profile.
+This standalone Rust workspace provides a loopback HTTP/1 adapter for the engine's Unix RPC profile. Hyper 1.9.0 parses HTTP. The Go engine interprets JSON-RPC and owns chain state. The adapter authorizes nothing; a chain's production start rests on its signed root genesis.
+
+**One profile per build** (production activation v1). A development build serves only `dytallix-pqc-http-local-v1` and reports `EXPERIMENTAL_LOCAL_ONLY` on its ready line. A production build (`--features production`) serves only `dytallix-pqc-http-production-v1` and reports `READY`. The native supervisor passes its own build's profile. Both builds reject a `--production` flag: the build selects production, never a flag.
 
 The adapter contains no TLS implementation dependency. Its selected executable and operating-system providers still require inventory review. A plain loopback listener does not provide secure hosted-wallet ingress; remote clients use the optional client channel listener below. No independent acceptance is supplied here.
 
@@ -14,7 +16,7 @@ The adapter contains no TLS implementation dependency. Its selected executable a
 dytallix-pqc-http-adapter --profile dytallix-pqc-http-local-v1 --home /absolute/private/home --listen 127.0.0.1:26657
 ```
 
-Use an explicit numeric loopback address. Port zero is permitted for disposable tests. One JSON line on standard output reports the bound address and experimental status. Readiness means the adapter bound its socket and checked the local IPC path. It does not prove that consensus is healthy. The adapter neither creates nor removes the engine socket.
+Use an explicit numeric loopback address, and the profile of the build. Port zero is permitted for disposable tests. One JSON line on standard output reports the bound address and the build's status. Readiness means the adapter bound its socket and checked the local IPC path. It does not prove that consensus is healthy. The adapter neither creates nor removes the engine socket.
 
 The adapter has no durable state. Stopping it closes its connections. The Go engine retains transaction and consensus state. Restart and commitment qualification must use the actual engine, not only the synthetic fixture below.
 
@@ -55,6 +57,16 @@ dytallix-channel-key pin --seed-file HOME/config/client_channel_seed.bin --netwo
 
 `generate` never replaces a file, and neither command prints the seed. The supervisor pins `pin.json` (`adapter_channel`) and probes the listener with its key before readiness.
 
+## Status page
+
+An endpoint can serve a read-only status page for a free uptime checker (P01, 3 October 2026). Add `--status-listen IP:PORT`:
+
+- **Address.** An explicit address and port of its own, not the loopback listener's or the channel's. A production build refuses loopback and link-local addresses; the supervisor requires the node's P2P IP.
+- **What it serves.** `GET /status` only, answering `{"chain_id","height","time"}` from the engine's local `/status` route, with `Cache-Control: no-store`. Every other path or method gets a fixed 404 or 405, and an unavailable engine a 503.
+- **What it is not.** It uses no cryptography and takes no input, so it adds nothing to the PQC-only boundary (G35). It is unauthenticated: a liveness hint for monitoring, never a source of chain state for clients.
+- **Bounds.** At most 8 connections, one request each, a 2 s deadline, 16 headers and an 8 KiB header buffer.
+- **Readiness line.** It adds `status_listen`.
+
 ## Build and local tests
 
 The package has an independent `[workspace]` and lockfile. It does not join or modify the node workspace. Dependencies use the existing pinned versions. Use one Cargo job and keep at least 2 GiB free disk.
@@ -62,10 +74,11 @@ The package has an independent `[workspace]` and lockfile. It does not join or m
 ```text
 CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 cargo build --locked --offline --release
 CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 cargo test --locked --offline --release
+CARGO_BUILD_JOBS=1 CARGO_INCREMENTAL=0 cargo test --locked --offline --release --features production
 python3 -B tools/test_loopback.py --binary target/release/dytallix-pqc-http-adapter --output /new/absolute/loopback-result.json
 ```
 
-`tools/test_loopback.py` starts the adapter without the owner guard's descriptors. The adapter now admits itself through that guard (Linux only), so the script no longer runs as is. The Rust tests cover both listeners.
+`tools/test_loopback.py` starts the adapter without the owner guard's descriptors. The adapter now admits itself through that guard (Linux only), so the script no longer runs as is. The Rust tests cover all three listeners in both builds.
 
 The loopback tests start the actual adapter and a private synthetic IPC fixture. They verify POST, chunked bodies, GET queries, CORS, unsupported interfaces, response-header policy, restart, and path permissions. They do not simulate consensus or prove transaction commitment. The fixture creates no private signing keys and removes its temporary directory.
 

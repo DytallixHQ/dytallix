@@ -7,6 +7,11 @@ publish = false
 # Deliberately separate from the node workspace and its feature unification.
 [workspace]
 
+[features]
+# The production build (production activation v1): only the production
+# adapter profile.
+production = []
+
 [dependencies]
 dytallix-release-runtime = { path = "../../crates/release-runtime" }
 dytallix-client-channel = { path = "../../crates/client-channel" }
