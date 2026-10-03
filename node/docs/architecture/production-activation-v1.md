@@ -389,7 +389,7 @@ production-profile staging chains signed with test keys:
 
 All seven activation steps are built. A production chain still starts only after:
 - the records, values and measurements;
-- T03, the E06 release freeze and the P02 review by a person;
+- T03, the E06 release freeze and the P02 review (under the solo launch profile, P01, 3 October 2026: a 30-day public review, a review labeled as AI and the founder's sign-off);
 - the T-suites and gate acceptance;
 - the root genesis signatures.
 
@@ -398,5 +398,6 @@ All seven activation steps are built. A production chain still starts only after
 Every record (operators, custodians, genesis signers, beneficiaries, chain
 identity, hosts, the pin plan), the operating-value batch, the measured
 windows and budgets, T03 native qualification, the E06 release freeze, the P02
-independent review by a person, the T-suites and gate acceptance. The root
+review (a 30-day public review and the founder's sign-off under the solo launch
+profile, `launch/TRUST_MODEL.md`), the T-suites and gate acceptance. The root
 signers sign last.

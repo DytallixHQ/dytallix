@@ -28,6 +28,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [Supervisor production mode](approvals/P01_E05_SUPERVISOR_2026-10-01.json) (1 October): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits, and readiness waits for catch-up up to a per-host budget whose value is unset (D12-Q01, D12-Q02).
 - [Network identity](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json) (3 October): chain ID `dytallix-mainnet-1`, display name Dytallix, and a genesis time set at the final freeze at 14:00:00 UTC on a weekday, at least 72 hours after the final build (D13-Q01; [identity](genesis/IDENTITY.json)).
 - [Operations objectives](approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json) (3 October): monthly targets of 99.9% (chain) and 99.5% (endpoints), 24/7 paging, archive and log retention, RPO zero committed blocks and RTOs per role (D12-Q02; [operations objectives](operations/OBJECTIVES.md)).
+- [Solo launch profile](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json) (3 October): the founder launches alone. Every root key in five key kits; one validator on three hosts; a 30-day public review with a DGT bug bounty and a labeled AI review instead of an independent human audit, with the launch labeled unaudited; best-effort operations; one founder account per token bucket; staging on the production hosts; reproducible builds on a clean CI runner and a local container ([trust model](TRUST_MODEL.md)).
 
 ## D01 — Adaptive issuance
 
@@ -90,6 +91,8 @@ Evidence: [evidence/TOKENOMICS_APPROVED_SOURCE.json](evidence/TOKENOMICS_APPROVE
 ### D02-Q02 — OPEN
 
 Who receives treasury rewards, and which custody records authorize receipt?
+
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the treasury account is the founder's, publicly listed, with its key in the founder's key kits.
 
 Required output: Treasury reward configuration.
 
@@ -273,6 +276,8 @@ Gate references: G04, G05, G12, G13, G14, G15, G16, G17, G18, G20.
 
 Which beneficiaries, recipients, custody approvals, exact vesting schedules and initial delegations apply?
 
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): one genesis account per bucket (Ecosystem growth, Team and advisors, Public sale, Private sale, Reserve), all the founder's, publicly listed with their purpose; tokens leave only by visible on-chain transfers; the validator self-bond comes from the Ecosystem bucket. A DGT bug bounty for the public review is paid from the Ecosystem bucket (tiers set later).
+
 Required output: Signed allocation and vesting input set.
 
 Proposed owner role: Genesis coordinator with custody and economics reviewers. Named assignment and reviewer remain as recorded in the structured register.
@@ -336,6 +341,8 @@ Evidence: [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL
 ### D09-Q02 — OPEN
 
 Which operators, control groups, keys, custody arrangements and signed acceptances form the initial set?
+
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder is the only operator at launch, running one validator; more validators join later through on-chain registration.
 
 Required output: Initial validator register.
 
@@ -427,6 +434,8 @@ Evidence: [batch-2/IDENTITY_DECISION.json](batch-2/IDENTITY_DECISION.json), [bat
 
 Who controls each signing role, and what custody, backup and recovery arrangements will they accept?
 
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder holds every root key in five key kits (kit N holds key N of each role: genesis, upgrade, freeze, resume) stored in up to five separate places; any three act. Keys stay distinct per role and the 3-of-5 thresholds are unchanged. Disclosed in TRUST_MODEL.md.
+
 Required output: Signing custody register.
 
 Proposed owner role: Protocol cryptography lead with wallet and SDK leads. Named assignment and reviewer remain as recorded in the structured register.
@@ -477,6 +486,8 @@ Evidence: [batch-5/eligibility-followup/APPROVAL.json](batch-5/eligibility-follo
 
 Which actions, parameter bounds, treasury powers, emergency powers and upgrade or recovery authorities apply?
 
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder holds all five upgrade keys and all ten emergency keys in five key kits, replacing the separate groups of independent custodians; thresholds and keys per role are unchanged.
+
 Approved portions: transaction freeze while consensus continues; separate resume; persistent upgrade hold; three signatures from five independent custodians with distinct freeze/resume keys; measured height-based validity windows; continued mandatory transitions; evidence-bound resume; separate candidate-specific upgrade clearance; and a separate full-halt procedure. Routine governance (27 September 2026): the action classes are parameter change and validator registry; the governed parameters are new ordinary fee profile versions (gas price, resource costs, account creation fee), `min_self_bond` and `max_active`, each within genesis bounds, and governance is the fee authority; everything else, including where fees go, changes only by upgrade; upgrades stay root-signed only; treasury spending is POST MAINNET. Upgrade authority (30 September 2026): a separate group of five upgrade custodians, distinct from the emergency custodians, with three SLH-DSA signatures to admit and three fresh ones to activate, and a fixed minimum notice between admission and activation; the configuration check refuses an upgrade key that holds an emergency role.
 
 Values (P01, 30 September 2026): an upgrade activates at least 120,960 blocks (7 days) after admission; genesis bounds of 4 to 32 for `max_active`, 10,000 to 1,000,000 DGT for `min_self_bond`, and 1 to 100 DRT for the account creation fee, with a basic transfer governed between 0.1 and 10 DRT. Fee bounds (P01, 30 September 2026): gas price 1 to 100 and every per-resource cost 0 to 100,000; the node refuses a fee-profile proposal that puts a reference basic Send outside 0.1 to 10 DRT, a check built in production activation step A6 as the genesis bound `reference_send_fee_udrt` ([E05 values, third set](approvals/P01_E05_VALUES_3_2026-09-30.json), [fee range approval](approvals/P01_E05_FEE_RANGE_2026-10-02.json)).
@@ -504,6 +515,8 @@ Gate references: G01, G07, G08, G09, G24, G25, G26, G27, G28, G29, G30, G31, G32
 ### D12-Q01 — PARTIALLY_APPROVED
 
 What resources, regions, account separation, peer topology, access controls and capacity budget apply?
+
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): one operator, the founder, with one validator, one sentry (also the archive node) and one endpoint.
 
 Approved portion (P01, 30 September 2026): validators are private and peer only with their own sentries, pinned by full key; sentries face the network; separate endpoint nodes serve the client channel. Validator hosts run no RPC and no management port, and operator access is console-only.
 
@@ -538,7 +551,9 @@ Approved (P01, 3 October 2026, [operations objectives approval](approvals/P01_E0
 - **Retention:** full history on at least two archive nodes run by different operators on different providers, plus a monthly offline export; logs 90 days, redacted; metrics 13 months; incident, alert and audit records permanently.
 - **Backups and recovery:** RPO zero committed blocks. The approved daily snapshots are copied, encrypted with AES-256, to a second provider; keys move only through custody; a validator's signing state is never restored from a backup, and a replacement signs only after the old host is fenced off. RTO: validator 8 hours (2 hours to provision plus the approved 6-hour catch-up), sentry 4 hours, endpoint service 15 minutes by failover, monitoring 1 hour. Restore drills quarterly on staging.
 
-Alert signals and routes (A22), named on-call people (D14-Q03), providers (D12-Q03) and the written recovery procedures (F17, F19) remain open.
+**Replaced the same day by the solo launch profile** ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the targets become published goals of 99.5% (chain) and 99.0% (endpoints); the founder is paged 24/7, best effort, with no fixed response time, by a free hosted uptime checker; one archive node (the sentry) plus a monthly offline export to the founder's drive; the endpoint service recovers in 4 hours. The backup rules, the RPO and the validator, sentry and monitoring recovery times stand ([operations objectives](operations/OBJECTIVES.md)).
+
+Alert signals and routes (A22), providers (D12-Q03) and the written recovery procedures (F17, F19) remain open.
 
 Required output: Operations acceptance specification ([operations/OBJECTIVES.md](operations/OBJECTIVES.md), [OBJECTIVES.json](operations/OBJECTIVES.json)).
 
@@ -549,6 +564,8 @@ Evidence: [PRODUCTION_INFRASTRUCTURE_DRAFT.json](PRODUCTION_INFRASTRUCTURE_DRAFT
 ### D12-Q03 — OPEN
 
 Which exact assets, operators, account owners and funded commitments implement the topology?
+
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): three hosts (validator, sentry that is also the archive node, endpoint); before genesis they are the staging environment for E03, the measurements and the seven simulations, then wiped and re-provisioned.
 
 Required output: Approved infrastructure inventory.
 
@@ -604,6 +621,8 @@ Gate references: G01, G02, G03, G04, G06, G07, G08, G09, G10, G11, G12, G13, G14
 
 Which release targets, build environment, registry, signing authority and review independence criteria apply?
 
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded. A clean GitHub Actions runner and a fresh local container reproduce the release byte for byte.
+
 Approved portion (P01, 30 September 2026): release binaries are built without the development entry points ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
 Remaining inputs: release targets, build environment, registry and signing authority (E06); review independence criteria (P02).
@@ -618,6 +637,8 @@ Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_
 
 What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?
 
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the P02 precondition for root signing becomes the 30-day public review and the founder's sign-off; the E03 runs, measurements and seven simulations run on the production hosts before genesis.
+
 Approved portion (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release, and the root signers sign only after the P02 review, E06 release acceptance and gate acceptance ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
 Remaining inputs: workload, finality, recovery and acceptance thresholds, and the calendar.
@@ -631,6 +652,8 @@ Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_
 ### D14-Q03 — OPEN
 
 Who accepts each engineering, operations, signing and independent review role?
+
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder holds every engineering, operations and signing role. The independent review is a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded.
 
 Required output: Release responsibility register.
 

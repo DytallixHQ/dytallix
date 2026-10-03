@@ -31,10 +31,10 @@
   "candidate_architecture": {
     "validators": {
       "placement": "Private network; no public RPC; peer traffic through approved sentries",
-      "count": null,
+      "count": 1,
       "voting_weights": null,
-      "independent_control_groups": null,
-      "status": "PROPOSED"
+      "independent_control_groups": 1,
+      "status": "APPROVED_SOLO_LAUNCH"
     },
     "conditional_bft_model": {
       "selected": false,
@@ -45,28 +45,32 @@
       "qualification": "Four validators do not establish decentralization, independence, implementation correctness, or production readiness."
     },
     "sentries": {
-      "status": "PROPOSED",
-      "count_per_validator": null,
-      "proposal": "At least two reachable sentry paths per validator with approved independent failure domains; exact count and routing require approval."
+      "status": "APPROVED_SOLO_LAUNCH",
+      "count_per_validator": 1,
+      "proposal": "At least two reachable sentry paths per validator with approved independent failure domains; exact count and routing require approval.",
+      "solo_launch": "One sentry, also the archive node. The earlier proposal of two sentry paths per validator gives way to the three-host budget."
     },
     "rpc": {
       "status": "PROPOSED",
-      "minimum_independent_backends_proposed": 2,
+      "minimum_independent_backends_proposed": 1,
       "gateway": "Redundant ingress with finalized-state and version-aware health policy; no validator signing keys",
       "interface_scope": {
         "http": "REQUIRED_SPECIFICATION",
         "rest": "REQUIRED_SPECIFICATION",
         "websocket": "REQUIRES_SPECIFICATION",
         "grpc": "UNRESOLVED_SCOPE_DECISION"
-      }
+      },
+      "solo_launch": "One endpoint, rebuilt within 4 hours; no failover."
     },
     "observability": {
       "status": "PROPOSED",
-      "proposal": "Independent collection and alert delivery; monitor collector failure; restricted metrics access; centralized redacted logs with approved retention."
+      "proposal": "Independent collection and alert delivery; monitor collector failure; restricted metrics access; centralized redacted logs with approved retention.",
+      "solo_launch": "A free hosted uptime checker, separate from the hosts, with phone push alerts to the founder; retention per operations/OBJECTIVES.json."
     },
     "backups": {
       "status": "PROPOSED",
-      "proposal": "Consistent state snapshots, encrypted off-host copies, separate custody for key backups, immutable retention where approved, and verified restore records."
+      "proposal": "Consistent state snapshots, encrypted off-host copies, separate custody for key backups, immutable retention where approved, and verified restore records.",
+      "solo_launch": "Daily snapshots encrypted (AES-256) to a second provider; one archive node plus a monthly offline export to the founder's drive; keys only in the founder's key kits."
     },
     "release": {
       "status": "PROPOSED",
@@ -93,7 +97,16 @@
       "public_production_routing_allowed": false,
       "chain_identity": "Distinct approved rehearsal identifier per run; preserve protocol semantics and record permitted genesis substitutions.",
       "production_genesis_created": false,
-      "approved_differences": []
+      "approved_differences": [],
+      "solo_launch": "The three production hosts before genesis, rebuilt clean for each run with rehearsal chain IDs and throwaway keys, then wiped and re-provisioned for genesis."
+    },
+    "launch_profile": {
+      "id": "SOLO_LAUNCH_V1",
+      "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+      "disclosure_ref": "TRUST_MODEL.md",
+      "hosts": 3,
+      "operators": 1,
+      "note": "One operator, the founder: one validator, one sentry (also the archive node) and one endpoint. Before genesis the same hosts are the staging environment."
     }
   },
   "recovery_objectives": [
@@ -117,13 +130,13 @@
     },
     {
       "service": "rpc",
-      "rto_seconds": 900,
+      "rto_seconds": 14400,
       "rpo_seconds": 0,
       "state_consistency_requirement": "Serve only verified state under the approved freshness policy.",
       "approved_by": "P01",
-      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+      "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
       "evidence_ref": null,
-      "note": "The endpoint service: failover to another client endpoint."
+      "note": "One endpoint (solo launch): rebuilt from the published files and state sync like a sentry, within 4 hours."
     },
     {
       "service": "observability",
@@ -162,10 +175,10 @@
       "title": "Validator set and control",
       "owner_role": "Protocol lead and validator coordinator",
       "assigned_owner": null,
-      "status": "UNDECIDED",
+      "status": "APPROVED_SOLO_LAUNCH",
       "decision_required": "Select minimum and target count, operators, voting weights, ownership groups, and domain limits.",
-      "selected_value": null,
-      "approval_record_ref": null
+      "selected_value": "One validator run by the founder at launch; more join later through on-chain registration.",
+      "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
     },
     {
       "id": "INF-03",
@@ -202,10 +215,10 @@
       "title": "Key custody",
       "owner_role": "Cryptography lead and validator operators",
       "assigned_owner": null,
-      "status": "UNDECIDED",
+      "status": "PARTIALLY_APPROVED",
       "decision_required": "Select verified PQC signer interface, key generation, storage, backup, authorization, rotation, and compromise response.",
-      "selected_value": null,
-      "approval_record_ref": null
+      "selected_value": "The founder holds every root key in five key kits, any three acting (solo launch). The validator key backend and its signing-state handling remain to qualify.",
+      "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
     },
     {
       "id": "INF-07",
@@ -224,8 +237,8 @@
       "assigned_owner": null,
       "status": "PARTIALLY_APPROVED",
       "decision_required": "Approve SLOs, metrics, thresholds, alert routing, on-call coverage, escalation, retention, and redaction.",
-      "selected_value": "Targets 99.9% chain and 99.5% endpoints a month; 24/7 paging, severity 1 acknowledged in 15 min; logs 90 days redacted, metrics 13 months, incident records permanent (operations/OBJECTIVES.json). Metrics, thresholds and alert routing remain open.",
-      "approval_record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json"
+      "selected_value": "Published goals of 99.5% (chain) and 99.0% (endpoints) a month; the founder paged 24/7, best effort, by a free hosted uptime checker; logs 90 days redacted, metrics 13 months, incident records permanent (operations/OBJECTIVES.json). Alert checks and settings remain open.",
+      "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
     },
     {
       "id": "INF-09",
@@ -252,10 +265,10 @@
       "title": "Rehearsal environment",
       "owner_role": "QA lead and SRE lead",
       "assigned_owner": null,
-      "status": "UNDECIDED",
+      "status": "APPROVED_SOLO_LAUNCH",
       "decision_required": "Approve isolated production-equivalent layout, seven-run schedule, access, resource budget, and differences register.",
-      "selected_value": null,
-      "approval_record_ref": null
+      "selected_value": "The production hosts before genesis; sequential runs.",
+      "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
     },
     {
       "id": "INF-12",

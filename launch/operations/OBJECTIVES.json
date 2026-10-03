@@ -1,54 +1,39 @@
 {
   "schema": "dytallix.operations-objectives.v1",
-  "approval_record": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+  "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
   "service_targets": {
     "period": "calendar month",
-    "measured_by": "the independent monitor",
+    "measured_by": "the independent monitor: a free hosted uptime checker, separate from the hosts, checking every few minutes",
     "excluded": "planned upgrades",
     "chain": {
       "rule": "a block committed in the minute",
-      "target_percent": 99.9
+      "target_percent": 99.5
     },
     "endpoints": {
       "rule": "at least one client endpoint serves state within max_head_lag_blocks of the head",
       "max_head_lag_blocks": 3,
-      "target_percent": 99.5
-    }
+      "target_percent": 99.0
+    },
+    "kind": "published goals, not commitments"
   },
   "on_call": {
-    "coverage": "24/7",
-    "min_rotation_people": 2,
-    "escalation_contact_required": true,
-    "severities": [
-      {
-        "severity": 1,
-        "examples": [
-          "chain halted",
-          "a validator at double-sign risk",
-          "a key compromise",
-          "monitoring down"
-        ],
-        "pages": "24/7",
-        "acknowledge_minutes": 15,
-        "console_minutes": 30
-      },
-      {
-        "severity": 2,
-        "respond_hours": 4
-      },
-      {
-        "severity": 3,
-        "respond": "next business day"
-      }
+    "coverage": "24/7 paging to the founder",
+    "response": "best effort, no fixed response time",
+    "operators": 1,
+    "alerts": "the independent monitor pushes alerts to the founder's phone through a free notification service",
+    "severity_1_examples": [
+      "chain halted",
+      "a validator at double-sign risk",
+      "a key compromise",
+      "monitoring down"
     ]
   },
   "retention": {
     "chain_history": {
-      "archive_nodes_min": 2,
-      "archive_nodes_distinct_operators": true,
-      "archive_nodes_distinct_providers": true,
-      "offline_export": "monthly",
-      "other_nodes": "the approved retained window (E05 block_history)"
+      "archive_nodes_min": 1,
+      "offline_export": "monthly, to the founder's own drive",
+      "other_nodes": "the approved retained window (E05 block_history)",
+      "archive_node": "the sentry"
     },
     "logs_days": 90,
     "logs_redacted": true,
@@ -59,7 +44,7 @@
     "snapshots": "the approved daily snapshots (E05 snapshot_interval_blocks, snapshot_keep)",
     "off_host_copy": "a second provider",
     "encryption": "AES-256",
-    "keys": "custody only, never in routine backups",
+    "keys": "only in the founder's key kits, never in routine backups",
     "signing_state": "never restored from a backup; a replacement signs only after the old host is fenced off"
   },
   "recovery": {
@@ -67,13 +52,18 @@
     "rto_minutes": {
       "validator": 480,
       "sentry": 240,
-      "endpoint_service": 15,
+      "endpoint_service": 240,
       "monitoring": 60
     },
     "validator_rto_basis": {
       "provision_minutes": 120,
       "catch_up": "the approved catch_up_millis (6 hours)"
     },
-    "restore_drills": "quarterly, on staging"
-  }
+    "restore_drills": "quarterly, on staging",
+    "endpoint_rto_basis": "one endpoint, rebuilt from the published files and state sync like a sentry"
+  },
+  "approval_records": [
+    "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+    "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+  ]
 }

@@ -33,12 +33,14 @@ class DecisionCopiesTests(unittest.TestCase):
             self.assertEqual(d.render(json.loads(raw)), raw, path.name)
 
     def test_an_approval_in_the_register_must_reach_every_copy(self):
-        self.question('D12-Q02').update(status='APPROVED', approval_record='approvals/test.json')
+        # A question still partly approved, so the change reaches status and the counts.
+        self.assertEqual(self.question('D12-Q01')['status'], 'PARTIALLY_APPROVED')
+        self.question('D12-Q01').update(status='APPROVED', approval_record='approvals/test.json')
         found = d.differences(self.gates, self.register)
-        holders = [g['id'] for g in self.gates['gates'] if any(c['id'] == 'D12-Q02' for c in g['decision_dependencies'])]
+        holders = [g['id'] for g in self.gates['gates'] if any(c['id'] == 'D12-Q01' for c in g['decision_dependencies'])]
         self.assertTrue(holders)
         for field in ('status', 'approval_record'):
-            self.assertEqual(sorted(line.split('.')[0] for line in found if f'D12-Q02 {field} ' in line),
+            self.assertEqual(sorted(line.split('.')[0] for line in found if f'D12-Q01 {field} ' in line),
                              sorted(f'gates[{g}]' for g in holders), field)
         # The counts no longer count the register's questions either.
         self.assertTrue(any('do not count its questions' in line for line in found))

@@ -24,7 +24,7 @@ The companion [JSON record](PRODUCTION_INFRASTRUCTURE_DRAFT.json) contains the a
 | Release services | Build from frozen inputs. Distribute checksummed binaries and the required container image. Verify the release manifest before installation. | Build environment, registry, provenance verification, access, retention, and approval process. |
 | Administration | Use a restricted management path with named operators and recorded access approval. | Access mechanism, emergency access, account separation, and session records. |
 
-These components are proposals. The existing host is recorded separately in [Batch 1 operations evidence](batch-1/OPERATIONS_EVIDENCE.md). The node uses PM2 as root. Provider-wide inventory, named operators, custody, backup acceptance, monitoring acceptance, and source-to-binary provenance remain open.
+**Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)): one operator, the founder, runs three hosts: one validator, one sentry (also the archive node) and one endpoint. Before genesis the same hosts are the staging environment. A free hosted uptime checker is the independent monitor. These components are proposals. The existing host is recorded separately in [Batch 1 operations evidence](batch-1/OPERATIONS_EVIDENCE.md). The node uses PM2 as root. Provider-wide inventory, named operators, custody, backup acceptance, monitoring acceptance, and source-to-binary provenance remain open.
 
 ## Validator count and failure domains
 
@@ -58,7 +58,7 @@ The static assessment found missing validator and oracle alert inputs. Draft rec
 
 ## Recovery and upgrades
 
-Recovery time objective (RTO) is the maximum approved service recovery time. Recovery point objective (RPO) is the maximum approved age of recoverable data. Approved (D12-Q02, P01, 3 October 2026; [operations objectives](operations/OBJECTIVES.md)): RPO zero committed blocks; RTO validator 8 hours, sentry 4 hours, endpoint service 15 minutes, monitoring 1 hour; quarterly restore drills.
+Recovery time objective (RTO) is the maximum approved service recovery time. Recovery point objective (RPO) is the maximum approved age of recoverable data. Approved (D12-Q02, P01, 3 October 2026, with the solo launch profile; [operations objectives](operations/OBJECTIVES.md)): RPO zero committed blocks; RTO validator 8 hours, sentry 4 hours, endpoint service 4 hours (one endpoint), monitoring 1 hour; quarterly restore drills.
 
 A backup interval does not authorize loss of committed chain state. Recovery must reconstruct verified authoritative state. Validate chain identity, genesis, committed state, transaction receipts, staking, rewards, governance, and both token supplies. Validate signing continuity separately.
 

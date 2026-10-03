@@ -6,7 +6,10 @@ a root genesis signed by three of the five genesis signers (P01, 30 September
 the signers' procedure with the offline signer,
 `consensus/root-authorization/cmd/dytallix-root-sign`. It does not appoint
 signers or authorize a launch. Root signers sign only after the P02 review,
-E06 release acceptance and gate acceptance.
+E06 release acceptance and gate acceptance. Under the solo launch profile
+(P01, 3 October 2026) the founder holds all five genesis keys in separate key
+kits, and the P02 review is the 30-day public review and the founder's
+sign-off (`launch/TRUST_MODEL.md`).
 
 ## What is signed
 

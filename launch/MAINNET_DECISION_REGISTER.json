@@ -237,7 +237,9 @@
             "governance_authority_reference"
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D02-Q02.json",
-          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026): the treasury account is the founder's, publicly listed, with its key in the founder's key kits.",
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
         }
       ],
       "work": {
@@ -1221,7 +1223,9 @@
             "approval_evidence"
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D08-Q01.json",
-          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026): one genesis account per bucket (Ecosystem growth, Team and advisors, Public sale, Private sale, Reserve), all the founder's, publicly listed with their purpose; tokens leave only by visible on-chain transfers; the validator self-bond comes from the Ecosystem bucket. A DGT bug bounty for the public review is paid from the Ecosystem bucket (tiers set later).",
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
         },
         {
           "id": "D08-Q02",
@@ -1459,7 +1463,9 @@
             "review_evidence"
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D09-Q02.json",
-          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder is the only operator at launch, running one validator; more validators join later through on-chain registration.",
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
         },
         {
           "id": "D09-Q03",
@@ -2043,7 +2049,9 @@
           "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
           "upgrade_custodian_intake_ref": "custody/upgrade/INTAKE.md",
           "upgrade_custodian_intake_boundary": "Public template and structural checker only (E05-c). The completed packet, names and evidence stay in the custody system; no custodian, key or acceptance is recorded.",
-          "production_activation_note": "The signing roles include five root genesis signers, separate from the emergency and upgrade custodians (P01, 30 September 2026, approvals/P01_E05_ACTIVATION_2026-09-30.json); the upgrade custodians also hold handover and restart."
+          "production_activation_note": "The signing roles include five root genesis signers, separate from the emergency and upgrade custodians (P01, 30 September 2026, approvals/P01_E05_ACTIVATION_2026-09-30.json); the upgrade custodians also hold handover and restart.",
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder holds every root key in five key kits (kit N holds key N of each role: genesis, upgrade, freeze, resume) stored in up to five separate places; any three act. Keys stay distinct per role and the 3-of-5 thresholds are unchanged. Disclosed in TRUST_MODEL.md.",
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
         }
       ],
       "work": {
@@ -2537,9 +2545,10 @@
             "approvals/P01_E05_VALUES_3_2026-09-30.json",
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json",
-            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json"
+            "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
           ],
-          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades. Root controls (P01, 1 October 2026): a production configuration carries the emergency freeze, upgrade and handover controls at schema 2."
+          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades. Root controls (P01, 1 October 2026): a production configuration carries the emergency freeze, upgrade and handover controls at schema 2. Solo launch (P01, 3 October 2026): the founder holds all five upgrade keys and all ten emergency keys in five key kits, replacing the separate groups of independent custodians; thresholds and keys per role are unchanged."
         }
       ],
       "work": {
@@ -2589,7 +2598,7 @@
     {
       "id": "D12",
       "title": "Infrastructure and service objectives",
-      "approved_portion": "Existing servers are on Hetzner. The observed host is not an approved production topology. Operations objectives (P01, 3 October 2026, D12-Q02): monthly targets of 99.9% of minutes with a committed block and 99.5% with an endpoint within 3 blocks of the head; 24/7 paging with severity 1 acknowledged in 15 minutes; full history on at least two archive nodes on different operators and providers plus a monthly offline export, logs 90 days, metrics 13 months, incident records permanent; RPO zero committed blocks, RTO validator 8 h, sentry 4 h, endpoint service 15 min, monitoring 1 h, quarterly restore drills.",
+      "approved_portion": "Existing servers are on Hetzner. The observed host is not an approved production topology. Operations objectives (P01, 3 October 2026, D12-Q02): monthly targets of 99.9% of minutes with a committed block and 99.5% with an endpoint within 3 blocks of the head; 24/7 paging with severity 1 acknowledged in 15 minutes; full history on at least two archive nodes on different operators and providers plus a monthly offline export, logs 90 days, metrics 13 months, incident records permanent; RPO zero committed blocks, RTO validator 8 h, sentry 4 h, endpoint service 15 min, monitoring 1 h, quarterly restore drills. Solo launch (P01, 3 October 2026): one operator, the founder, with one validator, one sentry (also the archive node) and one endpoint; service targets become published goals of 99.5% (chain) and 99.0% (endpoints); 24/7 paging to the founder, best effort; one archive node plus a monthly offline export; endpoint recovery 4 h; a free hosted uptime checker as the independent monitor.",
       "evidence_refs": [
         "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
         "batch-1/OPERATIONS_EVIDENCE.json",
@@ -2613,7 +2622,13 @@
             "validator_host_rpc": false,
             "validator_host_management_port": false,
             "operator_access": "CONSOLE_ONLY",
-            "counts": null,
+            "counts": {
+              "validators": 1,
+              "sentries": 1,
+              "endpoints": 1,
+              "archive_nodes": 1,
+              "archive_role": "the sentry"
+            },
             "regions": null,
             "failure_domains": null,
             "capacity_budget": null,
@@ -2622,7 +2637,8 @@
             "addressing": "ONE_IP_PER_NODE_STATIC_1_TO_1_NAT",
             "mesh": "PUBLISHED_PARTIAL_MESH_WITHIN_64_PINS",
             "long_running_child_observation": "STARTUP_CHECK_THEN_KERNEL_ENFORCEMENT_NO_PERIODIC_PAUSE",
-            "readiness_catch_up": "OPERATOR_BUDGET_E05_CATCH_UP_MILLIS"
+            "readiness_catch_up": "OPERATOR_BUDGET_E05_CATCH_UP_MILLIS",
+            "operators": 1
           },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
@@ -2645,14 +2661,15 @@
           ],
           "approved_portion": "Private validators behind sentries (P01, 30 September 2026): validators peer only with their own sentries, sentries face the network and separate endpoint nodes serve the client channel; validator hosts run no RPC or management port. Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets; the engine is checked at startup and then held by kernel limits without periodic pauses; one IP per node with static 1:1 NAT for public sentries; a published partial mesh within 64 pins. Supervisor production mode (P01, 1 October 2026): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits; readiness waits for catch-up up to a per-host budget. Host settings (P01, 2 October 2026): supervisor process limits, a 1 s pause-free monitor, a six-hour catch-up budget, the retained block window everywhere with archive only on designated archive nodes, the adapter at its compiled ceilings, and the emergency verifier bounds.",
           "remaining_choices": [
-            "Counts, hosts, regions, account separation and failure domains (E05)",
+            "Hosting provider, regions and host records (D12-Q03, E05)",
             "Capacity budget (E05)"
           ],
           "approval_records": [
             "approvals/P01_E04_OPERATIONS_2026-09-30.json",
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "approvals/P01_E05_SUPERVISOR_2026-10-01.json",
-            "approvals/P01_E05_VALUES_4_2026-10-02.json"
+            "approvals/P01_E05_VALUES_4_2026-10-02.json",
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
           ]
         },
         {
@@ -2662,12 +2679,11 @@
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "recommendation": "Set measurable availability and recovery targets. Recovery must preserve committed chain history.",
           "selected_value": {
-            "chain_target_percent_minutes_with_block": 99.9,
-            "endpoint_target_percent_minutes_within_3_blocks": 99.5,
-            "on_call": "24_7_PAGING_SEV1_ACK_15_MIN_CONSOLE_30_MIN_SEV2_4_H_SEV3_NEXT_BUSINESS_DAY_MIN_2_PEOPLE_PLUS_ESCALATION",
-            "archive_nodes_min": 2,
-            "archive_nodes_distinct_operators_and_providers": true,
-            "offline_history_export": "MONTHLY",
+            "chain_target_percent_minutes_with_block": 99.5,
+            "endpoint_target_percent_minutes_within_3_blocks": 99.0,
+            "on_call": "FOUNDER_24_7_PAGING_BEST_EFFORT_NO_FIXED_RESPONSE_TIME",
+            "archive_nodes_min": 1,
+            "offline_history_export": "MONTHLY_TO_FOUNDER_DRIVE",
             "logs_days": 90,
             "metrics_months": 13,
             "incident_alert_audit_records": "PERMANENT",
@@ -2676,15 +2692,18 @@
             "rto_minutes": {
               "validator": 480,
               "sentry": 240,
-              "endpoint_service": 15,
+              "endpoint_service": 240,
               "monitoring": 60
             },
-            "restore_drills": "QUARTERLY_ON_STAGING"
+            "restore_drills": "QUARTERLY_ON_STAGING_PRODUCTION_HOSTS_BEFORE_GENESIS",
+            "targets_kind": "PUBLISHED_GOALS_NOT_COMMITMENTS",
+            "independent_monitor": "FREE_HOSTED_UPTIME_CHECKER_WITH_PHONE_PUSH",
+            "archive_node": "SENTRY"
           },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+          "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "blocks_work": [
             "W12",
             "W10"
@@ -2696,7 +2715,11 @@
             "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
             "operations/OBJECTIVES.json"
           ],
-          "specification_record": "operations/OBJECTIVES.json"
+          "specification_record": "operations/OBJECTIVES.json",
+          "approval_records": [
+            "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+          ]
         },
         {
           "id": "D12-Q03",
@@ -2731,7 +2754,9 @@
             "topology_reference"
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D12-Q03.json",
-          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026): three hosts (validator, sentry that is also the archive node, endpoint); before genesis they are the staging environment for E03, the measurements and the seven simulations, then wiped and re-provisioned.",
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
         }
       ],
       "work": {
@@ -2976,7 +3001,9 @@
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "recommendation": "Freeze exact sources, features, toolchains, artifacts and signer roles.",
           "selected_value": {
-            "production_build": "RELEASE_BINARIES_WITHOUT_DEVELOPMENT_ENTRY_POINTS"
+            "production_build": "RELEASE_BINARIES_WITHOUT_DEVELOPMENT_ENTRY_POINTS",
+            "review_independence": "PUBLIC_30_DAY_REVIEW_DGT_BUG_BOUNTY_LABELED_AI_REVIEW_FOUNDER_SIGN_OFF_LAUNCH_LABELED_UNAUDITED",
+            "build_reproduction": "CLEAN_GITHUB_ACTIONS_RUNNER_AND_FRESH_LOCAL_CONTAINER_BYTE_IDENTICAL"
           },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
           "assignee": null,
@@ -2996,13 +3023,14 @@
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
           "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
-          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1).",
+          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte.",
           "remaining_choices": [
             "Release targets, build environment, registry and signing authority (E06)",
             "Review independence criteria (P02)"
           ],
           "approval_records": [
-            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
           ]
         },
         {
@@ -3014,10 +3042,11 @@
           "selected_value": {
             "production_switch": "ROOT_SIGNED_GENESIS_ON_A_PRODUCTION_BUILD",
             "root_signing_precondition": [
-              "P02_REVIEW",
+              "PUBLIC_REVIEW_30_DAYS_AND_FOUNDER_SIGN_OFF",
               "E06_RELEASE_ACCEPTANCE",
               "GATE_ACCEPTANCE"
-            ]
+            ],
+            "staging": "PRODUCTION_HOSTS_BEFORE_GENESIS_REHEARSAL_CHAIN_IDS_THROWAWAY_KEYS_THEN_WIPED"
           },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
           "assignee": null,
@@ -3036,13 +3065,14 @@
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "../node/docs/architecture/production-activation-v1.md"
           ],
-          "approved_portion": "Launch authority (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release; root signers sign only after the P02 review, E06 release acceptance and gate acceptance.",
+          "approved_portion": "Launch authority (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release; root signers sign only after the P02 review, E06 release acceptance and gate acceptance. Solo launch (P01, 3 October 2026): the P02 precondition for root signing becomes the 30-day public review and the founder's sign-off; the E03 runs, measurements and seven simulations run on the production hosts before genesis.",
           "remaining_choices": [
             "Workload, finality, recovery and acceptance thresholds",
             "Calendar"
           ],
           "approval_records": [
-            "approvals/P01_E05_ACTIVATION_2026-09-30.json"
+            "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
           ]
         },
         {
@@ -3081,7 +3111,9 @@
             "independence_evidence"
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D14-Q03.json",
-          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged."
+          "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder holds every engineering, operations and signing role. The independent review is a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded.",
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
         }
       ],
       "work": {
@@ -3899,7 +3931,48 @@
         "Archive and backup providers (D12-Q03)",
         "Written recovery procedures (F17, F19)"
       ]
+    },
+    {
+      "id": "P01-2026-10-03-E05-SOLO-LAUNCH",
+      "approved": "2026-10-03",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+      "decisions": [
+        "Custody: the founder holds every root key in five key kits; any three act (D10-Q03, D11-Q03).",
+        "Topology: one validator, one sentry (archive), one endpoint, all the founder's (D09-Q02, D12-Q01, D12-Q03).",
+        "Review: a 30-day public review with a DGT bug bounty and a labeled AI review, founder sign-off, launch labeled unaudited (D14-Q01, D14-Q02, D14-Q03).",
+        "Operations: solo best effort; goals of 99.5% and 99.0%; one archive node plus a monthly offline export; endpoint recovery 4 h; a free hosted uptime checker (D12-Q02).",
+        "Tokens: one founder account per bucket plus treasury, publicly listed; the validator self-bond from Ecosystem (D08-Q01, D02-Q02).",
+        "Staging: the production hosts before genesis; reproducible builds: a clean CI runner and a fresh local container (D12-Q03, D14-Q01, D14-Q02)."
+      ],
+      "question_refs": [
+        "D02-Q02",
+        "D08-Q01",
+        "D09-Q02",
+        "D10-Q03",
+        "D11-Q03",
+        "D12-Q01",
+        "D12-Q02",
+        "D12-Q03",
+        "D14-Q01",
+        "D14-Q02",
+        "D14-Q03"
+      ],
+      "unset": [
+        "Bug bounty tiers and amounts",
+        "Hosting and snapshot storage providers and host records (D12-Q03)",
+        "Account keys and addresses (D08-Q01, D02-Q02, D09-Q02)",
+        "DRT bootstrap amount and rows (D08-Q03)",
+        "Uptime and notification services and settings (A22)"
+      ]
     }
   ],
-  "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset."
+  "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset.",
+  "launch_profile": {
+    "id": "SOLO_LAUNCH_V1",
+    "approved": "2026-10-03",
+    "approval_record": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+    "disclosure_ref": "TRUST_MODEL.md",
+    "summary": "One person, the founder, runs the network and holds its controls at launch: one validator on three hosts, every root key in five key kits, 100% of DGT in public bucket accounts, a public review instead of an independent human audit, and best-effort operations. Each concentration of control is disclosed."
+  }
 }
