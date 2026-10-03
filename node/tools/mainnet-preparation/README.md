@@ -99,6 +99,17 @@ python3 -B tools/mainnet-preparation/check_bindings.py --bindings $F/review-bind
   --application $F/application-config.json --engine $F/genesis.json --manifest $F/BUILD_MANIFEST.json
 ```
 
+## Host values (E05)
+
+`resolve_host_values.py` writes the host configuration generator's values from the approved per-host settings in `launch/E05_VALUES.json` and the labeled proposals in `launch/hosts/PROPOSALS.json`, with a report of each value's source; `--check` compares instead of writing. The generator itself is the engine's `dytallix-host-config`, which writes each host's engine files and binding from the public pin plan; see [host configuration](../../docs/mainnet/host-configuration.md). `fixtures/host-config-rehearsal/` holds a synthetic plan for the staging rehearsal, its resolved values and its generated bindings.
+
+```text
+python3 -B tools/mainnet-preparation/resolve_host_values.py --check \
+  --values ../launch/E05_VALUES.json --proposals ../launch/hosts/PROPOSALS.json \
+  --host-values tools/mainnet-preparation/fixtures/host-config-rehearsal/host-values.json \
+  --resolution tools/mainnet-preparation/fixtures/host-config-rehearsal/host-values-resolution.json
+```
+
 ## Tests
 
 Run `python3 -B -m unittest discover -s tools/mainnet-preparation -p 'test_*.py'`.

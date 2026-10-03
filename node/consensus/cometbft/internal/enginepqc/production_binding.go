@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+
+	"github.com/cometbft/cometbft/types"
 )
 
 // Node roles in a production network (production activation v1, design F).
@@ -122,13 +124,19 @@ func ValidateProductionBinding(runtime *Runtime, binding ProductionBinding) erro
 	if digestHex(validator.Bytes()) != binding.ValidatorPublicKeySHA256 {
 		return errors.New("validator key differs from the production binding")
 	}
+	return roleMatchesGenesis(runtime.Genesis, validator.Bytes(), binding.Role)
+}
+
+// roleMatchesGenesis refuses a sentry or endpoint whose validator key is in
+// the genesis validator set, and a validator whose key is not.
+func roleMatchesGenesis(genesis *types.GenesisDoc, validator []byte, role string) error {
 	inGenesis := false
-	for _, member := range runtime.Genesis.Validators {
-		if bytes.Equal(member.PubKey.Bytes(), validator.Bytes()) {
+	for _, member := range genesis.Validators {
+		if bytes.Equal(member.PubKey.Bytes(), validator) {
 			inGenesis = true
 		}
 	}
-	if inGenesis != (binding.Role == RoleValidator) {
+	if inGenesis != (role == RoleValidator) {
 		return errors.New("only a validator's key may be in the genesis validator set")
 	}
 	return nil

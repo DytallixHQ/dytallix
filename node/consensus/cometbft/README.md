@@ -25,6 +25,8 @@ go build -mod=readonly -o /absolute/bin/dytallix-comet-proof ./cmd/dytallix-come
 go build -mod=readonly -o /absolute/bin/ ./cmd/dytallix-validator-key ./cmd/dytallix-operator-rpc
 # The production peer seed and host binding (production activation v1, A5).
 go build -mod=readonly -o /absolute/bin/ ./cmd/dytallix-peer-seed
+# Each host's engine files from the published pin plan (E05).
+go build -mod=readonly -o /absolute/bin/ ./cmd/dytallix-host-config
 go build -mod=readonly -o /absolute/bin/cometbft github.com/cometbft/cometbft/cmd/cometbft
 go test -mod=readonly ./...
 # The upstream copy (see UPSTREAM_TESTS.md).

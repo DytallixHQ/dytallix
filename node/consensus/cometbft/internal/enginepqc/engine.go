@@ -195,6 +195,40 @@ func validatePins(tc TransportConfig, c *cfg.Config, key *p2p.NodeKey, chain str
 }
 
 func validatePinsForProfile(tc TransportConfig, c *cfg.Config, key *p2p.NodeKey, chain, profile string) ([][]byte, map[p2p.ID][]byte, map[p2p.ID]string, error) {
+	return validatePinsForPublicKey(tc, c, key.PubKey(), chain, profile)
+}
+
+// ValidatePublicHost checks one host's engine configuration and transport
+// file against the engine genesis and the host's public peer and validator
+// keys, in a role: the checks the engine makes at start, without its private
+// seed or validator key (the host configuration generator, E05).
+func ValidatePublicHost(c *cfg.Config, genesis *types.GenesisDoc, tc TransportConfig, peerPublic, validatorPublic []byte, role, profile string) error {
+	if err := validateIsolationForProfile(c, profile); err != nil {
+		return err
+	}
+	if err := validateGenesis(c, genesis, false); err != nil {
+		return err
+	}
+	if tc.Profile != profile {
+		return errors.New("transport configuration profile differs from requested profile")
+	}
+	local, err := mldsa65.NewPubKeyFromBytes(peerPublic)
+	if err != nil {
+		return err
+	}
+	if _, _, _, err = validatePinsForPublicKey(tc, c, local, genesis.ChainID, profile); err != nil {
+		return err
+	}
+	if bytes.Equal(validatorPublic, peerPublic) {
+		return errors.New("validator key must be a separate, consistent ML-DSA-65 identity")
+	}
+	if role != RoleValidator && role != RoleSentry && role != RoleEndpoint {
+		return errors.New("production binding schema or role is unsupported")
+	}
+	return roleMatchesGenesis(genesis, validatorPublic, role)
+}
+
+func validatePinsForPublicKey(tc TransportConfig, c *cfg.Config, localKey crypto.PubKey, chain, profile string) ([][]byte, map[p2p.ID][]byte, map[p2p.ID]string, error) {
 	fail := func(message string) ([][]byte, map[p2p.ID][]byte, map[p2p.ID]string, error) {
 		return nil, nil, nil, errors.New(message)
 	}
@@ -202,7 +236,7 @@ func validatePinsForProfile(tc TransportConfig, c *cfg.Config, key *p2p.NodeKey,
 		return fail("invalid explicit PQC transport profile or bounds")
 	}
 	local, err := decodePin(tc.LocalPublicKeyBase64)
-	if err != nil || !bytes.Equal(local, key.PubKey().Bytes()) {
+	if err != nil || !bytes.Equal(local, localKey.Bytes()) {
 		return fail("PQC local public pin differs from the loaded peer key")
 	}
 	pins := make([][]byte, 0, len(tc.Peers))
@@ -233,7 +267,7 @@ func validatePinsForProfile(tc TransportConfig, c *cfg.Config, key *p2p.NodeKey,
 				}
 			}
 		}
-		if string(id) != peer.ID || id == key.ID() || bytes.Equal(pin, local) || byID[id] != nil || !addressAllowed || seenAddr[peer.Address] {
+		if string(id) != peer.ID || id == p2p.PubKeyToID(localKey) || bytes.Equal(pin, local) || byID[id] != nil || !addressAllowed || seenAddr[peer.Address] {
 			return fail("peer allowlist contains an invalid ID, self key, duplicate or nonlocal address")
 		}
 		byID[id] = bytes.Clone(pin)
@@ -313,6 +347,29 @@ func explicitEndpoints(profile string) bool {
 	return profile == ProductionCandidateProfile || profile == ProductionProfile
 }
 
+// validateGenesis checks the engine genesis against the profile's build and
+// the host's mempool bound.
+func validateGenesis(c *cfg.Config, genesis *types.GenesisDoc, candidate bool) error {
+	lower := strings.ToLower(genesis.ChainID)
+	// A development build refuses a chain ID naming mainnet or production.
+	if genesis.ChainID == "" || len(genesis.ChainID) > 64 || (!candidate && !ProductionBuild && (strings.Contains(lower, "mainnet") || strings.Contains(lower, "production"))) || genesis.InitialHeight != 1 || len(genesis.Validators) < 1 || len(genesis.Validators) > MaxPeers {
+		return errors.New("bounded genesis with the selected profile is required")
+	}
+	// A transaction larger than a block can never be included.
+	if int64(c.Mempool.MaxTxBytes) > genesis.ConsensusParams.Block.MaxBytes {
+		return errors.New("mempool max_tx_bytes exceeds the genesis block size")
+	}
+	if len(genesis.ConsensusParams.Validator.PubKeyTypes) != 1 || genesis.ConsensusParams.Validator.PubKeyTypes[0] != mldsa65.KeyType {
+		return errors.New("genesis must select only ML-DSA-65 validator keys")
+	}
+	for _, validator := range genesis.Validators {
+		if validator.PubKey == nil || validator.PubKey.Type() != mldsa65.KeyType || len(validator.PubKey.Bytes()) != mldsa65.PubKeySize || validator.Power <= 0 {
+			return errors.New("genesis contains an unsupported validator key or power")
+		}
+	}
+	return nil
+}
+
 func load(home, profile string, candidate bool) (*Runtime, error) {
 	// Each build runs only its own profiles (production activation v1).
 	if ProductionBuild && (profile != ProductionProfile || candidate) {
@@ -357,22 +414,8 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
-	lower := strings.ToLower(genesis.ChainID)
-	// A development build refuses a chain ID naming mainnet or production.
-	if genesis.ChainID == "" || len(genesis.ChainID) > 64 || (!candidate && !ProductionBuild && (strings.Contains(lower, "mainnet") || strings.Contains(lower, "production"))) || genesis.InitialHeight != 1 || len(genesis.Validators) < 1 || len(genesis.Validators) > MaxPeers {
-		return nil, errors.New("bounded genesis with the selected profile is required")
-	}
-	// A transaction larger than a block can never be included.
-	if int64(c.Mempool.MaxTxBytes) > genesis.ConsensusParams.Block.MaxBytes {
-		return nil, errors.New("mempool max_tx_bytes exceeds the genesis block size")
-	}
-	if len(genesis.ConsensusParams.Validator.PubKeyTypes) != 1 || genesis.ConsensusParams.Validator.PubKeyTypes[0] != mldsa65.KeyType {
-		return nil, errors.New("genesis must select only ML-DSA-65 validator keys")
-	}
-	for _, validator := range genesis.Validators {
-		if validator.PubKey == nil || validator.PubKey.Type() != mldsa65.KeyType || len(validator.PubKey.Bytes()) != mldsa65.PubKeySize || validator.Power <= 0 {
-			return nil, errors.New("genesis contains an unsupported validator key or power")
-		}
+	if err = validateGenesis(c, genesis, candidate); err != nil {
+		return nil, err
 	}
 	raw, err := privateFile(filepath.Join(home, "config", "pqc_transport.json"), 256<<10)
 	if err != nil {

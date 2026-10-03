@@ -1,0 +1,27 @@
+{
+  "schema": "dytallix.host-proposals.v1",
+  "rule": "Rehearsal inputs only. Every entry is an engineering PROPOSAL or a MEASURE_PLACEHOLDER awaiting measurement; none is approved or a production value. The resolver refuses an entry for a value that is already approved.",
+  "as_of": "2026-10-03",
+  "values": {
+    "mempool_max_txs_bytes": {
+      "value": 1073741824,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "The upstream default; set by the capacity tests (T05) on dedicated staging hosts."
+    },
+    "mempool_size": {
+      "value": 5000,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "The upstream default; set by the capacity tests (T05) on dedicated staging hosts."
+    },
+    "p2p_recv_rate": {
+      "value": 5120000,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "The upstream default; set from measured block propagation on dedicated staging hosts (T02, T05)."
+    },
+    "p2p_send_rate": {
+      "value": 5120000,
+      "status": "MEASURE_PLACEHOLDER",
+      "basis": "The upstream default; set from measured block propagation on dedicated staging hosts (T02, T05)."
+    }
+  }
+}

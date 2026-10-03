@@ -1,0 +1,219 @@
+{
+  "boundary": "Production eligibility needs every value APPROVED. Eligibility accepts nothing: the pin plan records, the engine genesis, the reviewed host files and gate acceptance remain required.",
+  "counts": {
+    "APPROVED": 30,
+    "MEASURE_PLACEHOLDER": 4
+  },
+  "production_eligible": false,
+  "schema": "dytallix.host-values-resolution.v1",
+  "values": [
+    {
+      "name": "timeout_propose",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "3s"
+    },
+    {
+      "name": "timeout_propose_delta",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "500ms"
+    },
+    {
+      "name": "timeout_prevote",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "1s"
+    },
+    {
+      "name": "timeout_prevote_delta",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "500ms"
+    },
+    {
+      "name": "timeout_precommit",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "1s"
+    },
+    {
+      "name": "timeout_precommit_delta",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "500ms"
+    },
+    {
+      "name": "timeout_commit",
+      "reference": "approvals/P01_E05_VALUES_1_2026-09-30.json",
+      "source": "APPROVED",
+      "value": "4s"
+    },
+    {
+      "name": "skip_timeout_commit",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": false
+    },
+    {
+      "name": "create_empty_blocks",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": true
+    },
+    {
+      "name": "create_empty_blocks_interval",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "0s"
+    },
+    {
+      "name": "peer_gossip_sleep_duration",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "100ms"
+    },
+    {
+      "name": "peer_query_maj23_sleep_duration",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "2s"
+    },
+    {
+      "name": "block_time_tolerance",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "60s"
+    },
+    {
+      "name": "double_sign_check_height",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": {
+        "endpoint": 0,
+        "sentry": 0,
+        "validator": 10
+      }
+    },
+    {
+      "name": "mempool_size",
+      "reference": "hosts/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 5000
+    },
+    {
+      "name": "mempool_max_txs_bytes",
+      "reference": "hosts/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 1073741824
+    },
+    {
+      "name": "mempool_cache_size",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 10000
+    },
+    {
+      "name": "mempool_recheck_timeout",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "1s"
+    },
+    {
+      "name": "mempool_max_tx_bytes",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 262144
+    },
+    {
+      "name": "p2p_max_num_inbound_peers",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 64
+    },
+    {
+      "name": "p2p_max_num_outbound_peers",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 64
+    },
+    {
+      "name": "p2p_max_packet_msg_payload_size",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 1024
+    },
+    {
+      "name": "p2p_send_rate",
+      "reference": "hosts/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 5120000
+    },
+    {
+      "name": "p2p_recv_rate",
+      "reference": "hosts/PROPOSALS.json",
+      "source": "MEASURE_PLACEHOLDER",
+      "value": 5120000
+    },
+    {
+      "name": "p2p_flush_throttle_timeout",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "10ms"
+    },
+    {
+      "name": "p2p_handshake_timeout",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "20s"
+    },
+    {
+      "name": "p2p_dial_timeout",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "3s"
+    },
+    {
+      "name": "p2p_persistent_peers_max_dial_period",
+      "reference": "approvals/P01_E05_PINNED_REDIAL_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "60s"
+    },
+    {
+      "name": "pqc_handshake_timeout_ms",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 5000
+    },
+    {
+      "name": "statesync_discovery_time",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "15s"
+    },
+    {
+      "name": "statesync_chunk_request_timeout",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "10s"
+    },
+    {
+      "name": "statesync_chunk_fetchers",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 4
+    },
+    {
+      "name": "statesync_max_snapshot_chunks",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": 100000
+    },
+    {
+      "name": "statesync_trust_period",
+      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "source": "APPROVED",
+      "value": "168h"
+    }
+  ]
+}
