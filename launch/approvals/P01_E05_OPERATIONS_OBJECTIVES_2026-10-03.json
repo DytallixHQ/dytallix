@@ -1,0 +1,43 @@
+{
+  "decision_id": "P01-2026-10-03-E05-OPERATIONS-OBJECTIVES",
+  "approved": "2026-10-03",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Operations objectives (D12-Q02)"
+  },
+  "design_ref": "../operations/OBJECTIVES.json",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "99.9% chain, 99.5% endpoints",
+      "rule": "Monthly service targets, measured by the independent monitor with planned upgrades excluded. Chain: a block committed in at least 99.9% of minutes (about 43 minutes of halt budget a month). Endpoints: at least one client endpoint serving state within 3 blocks of the head in at least 99.5% of minutes (about 3.6 hours a month)."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "24/7 paging, 15-min ack",
+      "rule": "Severity 1 (chain halted, a validator at double-sign risk, a key compromise, monitoring down) pages 24/7: acknowledged within 15 minutes, a responder at a console within 30 minutes. Severity 2 within 4 hours; severity 3 the next business day. At least two people in the rotation plus an escalation contact."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Standard retention",
+      "rule": "Full chain history on at least two archive nodes run by different operators on different providers, plus a monthly offline export; other nodes keep the approved retained window. Logs 90 days, redacted (no secrets or personal data). Metrics 13 months. Incident, alert and audit records kept permanently."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "8 h validator, quarterly drills",
+      "rule": "RPO zero committed blocks: a restore never rolls back history. The approved daily snapshots are copied, encrypted with AES-256, to a second provider. Keys move only through custody, never in routine backups. A validator's signing state is never restored from a backup, and a replacement signs only after the old host is fenced off. RTO: validator 8 hours (2 hours to provision plus the approved 6-hour catch-up), sentry 4 hours, endpoint service 15 minutes by failover, monitoring 1 hour. Restore drills quarterly on staging."
+    }
+  ],
+  "unset": [
+    "Alert signals, thresholds and routes (A22)",
+    "Named on-call people, contacts and the escalation contact (D14-Q03)",
+    "Archive node operators and providers, backup providers (D12-Q03)",
+    "Written recovery procedures (F17, F19)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

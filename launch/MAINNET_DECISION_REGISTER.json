@@ -2589,7 +2589,7 @@
     {
       "id": "D12",
       "title": "Infrastructure and service objectives",
-      "approved_portion": "Existing servers are on Hetzner. The observed host is not an approved production topology.",
+      "approved_portion": "Existing servers are on Hetzner. The observed host is not an approved production topology. Operations objectives (P01, 3 October 2026, D12-Q02): monthly targets of 99.9% of minutes with a committed block and 99.5% with an endpoint within 3 blocks of the head; 24/7 paging with severity 1 acknowledged in 15 minutes; full history on at least two archive nodes on different operators and providers plus a monthly offline export, logs 90 days, metrics 13 months, incident records permanent; RPO zero committed blocks, RTO validator 8 h, sentry 4 h, endpoint service 15 min, monitoring 1 h, quarterly restore drills.",
       "evidence_refs": [
         "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
         "batch-1/OPERATIONS_EVIDENCE.json",
@@ -2658,14 +2658,33 @@
         {
           "id": "D12-Q02",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What service targets, on-call coverage, retention, backup and recovery objectives apply?",
           "recommendation": "Set measurable availability and recovery targets. Recovery must preserve committed chain history.",
-          "selected_value": null,
+          "selected_value": {
+            "chain_target_percent_minutes_with_block": 99.9,
+            "endpoint_target_percent_minutes_within_3_blocks": 99.5,
+            "on_call": "24_7_PAGING_SEV1_ACK_15_MIN_CONSOLE_30_MIN_SEV2_4_H_SEV3_NEXT_BUSINESS_DAY_MIN_2_PEOPLE_PLUS_ESCALATION",
+            "archive_nodes_min": 2,
+            "archive_nodes_distinct_operators_and_providers": true,
+            "offline_history_export": "MONTHLY",
+            "logs_days": 90,
+            "metrics_months": 13,
+            "incident_alert_audit_records": "PERMANENT",
+            "backups": "DAILY_SNAPSHOTS_AES_256_COPY_TO_SECOND_PROVIDER_KEYS_CUSTODY_ONLY_SIGNING_STATE_NEVER_RESTORED",
+            "rpo_committed_blocks": 0,
+            "rto_minutes": {
+              "validator": 480,
+              "sentry": 240,
+              "endpoint_service": 15,
+              "monitoring": 60
+            },
+            "restore_drills": "QUARTERLY_ON_STAGING"
+          },
           "owner_role_proposed": "SRE lead with budget owner and validator coordinator",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
           "blocks_work": [
             "W12",
             "W10"
@@ -2673,8 +2692,11 @@
           "blocking_output": "Operations acceptance specification",
           "evidence_refs": [
             "PRODUCTION_INFRASTRUCTURE_DRAFT.json",
-            "batch-1/OPERATIONS_EVIDENCE.json"
-          ]
+            "batch-1/OPERATIONS_EVIDENCE.json",
+            "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+            "operations/OBJECTIVES.json"
+          ],
+          "specification_record": "operations/OBJECTIVES.json"
         },
         {
           "id": "D12-Q03",
@@ -3198,9 +3220,9 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 1,
+    "fully_open_policy_questions": 0,
     "partially_approved_policy_questions": 14,
-    "approved_policy_questions": 11,
+    "approved_policy_questions": 12,
     "required_records": 8
   },
   "supersessions": [
@@ -3855,6 +3877,27 @@
       "unset": [
         "The genesis time itself (set at the final input freeze)",
         "The genesis digest (D13-Q02)"
+      ]
+    },
+    {
+      "id": "P01-2026-10-03-E05-OPERATIONS-OBJECTIVES",
+      "approved": "2026-10-03",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
+      "decisions": [
+        "D12-Q02: monthly service targets of 99.9% (chain) and 99.5% (endpoints within 3 blocks of the head), measured by the independent monitor, planned upgrades excluded.",
+        "D12-Q02: 24/7 paging; severity 1 acknowledged within 15 minutes and at a console within 30; severity 2 within 4 hours; severity 3 next business day; at least two people plus an escalation contact.",
+        "D12-Q02: full history on at least two archive nodes (different operators and providers) plus a monthly offline export; logs 90 days redacted; metrics 13 months; incident, alert and audit records permanent.",
+        "D12-Q02: RPO zero committed blocks; daily snapshots encrypted (AES-256) to a second provider; keys only through custody; signing state never restored; RTO validator 8 h, sentry 4 h, endpoint service 15 min, monitoring 1 h; quarterly restore drills."
+      ],
+      "question_refs": [
+        "D12-Q02"
+      ],
+      "unset": [
+        "Alert signals, thresholds and routes (A22)",
+        "Named on-call people and contacts (D14-Q03)",
+        "Archive and backup providers (D12-Q03)",
+        "Written recovery procedures (F17, F19)"
       ]
     }
   ],

@@ -4,13 +4,13 @@ Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered 
 
 Links into `decision-register/`, `batch-*/`, `evidence/` and `snapshots/` name launch evidence records held outside this repository; they do not resolve here.
 
-The current register contains one OPEN policy question, 14 PARTIALLY_APPROVED policy questions, 11 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains no OPEN policy questions, 14 PARTIALLY_APPROVED policy questions, 12 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
 Each recorded approval scope below retains its original implementation context. Read current implementation progress and remaining work in the linked gates. Exact question fields, approvals and supersession records remain in [MAINNET_DECISION_REGISTER.json](MAINNET_DECISION_REGISTER.json).
 
-## Design and policy approvals, 26–30 September 2026
+## Design and policy approvals, 26 September – 3 October 2026
 
 P01 approved these engineering designs. Each document records the options and the decisions; the register lists them under `design_approvals`.
 
@@ -26,6 +26,8 @@ P01 approved these engineering designs. Each document records the options and th
 - [Root controls](approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json) (1 October): a production node refuses a configuration without the emergency freeze, upgrade and release handover controls at schema 2 (D07-Q01, D11-Q03).
 - [Fee range placement](approvals/P01_E05_FEE_RANGE_2026-10-02.json) (2 October): the basic transfer's governed range is the genesis bound `reference_send_fee_udrt`; governed fee changes and the genesis fee profile must price a reference basic Send inside it (D04-Q01, D11-Q03).
 - [Supervisor production mode](approvals/P01_E05_SUPERVISOR_2026-10-01.json) (1 October): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits, and readiness waits for catch-up up to a per-host budget whose value is unset (D12-Q01, D12-Q02).
+- [Network identity](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json) (3 October): chain ID `dytallix-mainnet-1`, display name Dytallix, and a genesis time set at the final freeze at 14:00:00 UTC on a weekday, at least 72 hours after the final build (D13-Q01; [identity](genesis/IDENTITY.json)).
+- [Operations objectives](approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json) (3 October): monthly targets of 99.9% (chain) and 99.5% (endpoints), 24/7 paging, archive and log retention, RPO zero committed blocks and RTOs per role (D12-Q02; [operations objectives](operations/OBJECTIVES.md)).
 
 ## D01 — Adaptive issuance
 
@@ -525,11 +527,20 @@ Proposed owner role: SRE lead with budget owner and validator coordinator. Named
 
 Evidence: [PRODUCTION_INFRASTRUCTURE_DRAFT.json](PRODUCTION_INFRASTRUCTURE_DRAFT.json), [batch-1/OPERATIONS_EVIDENCE.json](batch-1/OPERATIONS_EVIDENCE.json).
 
-### D12-Q02 — OPEN
+### D12-Q02 — APPROVED
 
 What service targets, on-call coverage, retention, backup and recovery objectives apply?
 
-Required output: Operations acceptance specification.
+Approved (P01, 3 October 2026, [operations objectives approval](approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json)):
+
+- **Service targets** per month, measured by the independent monitor, planned upgrades excluded: a block committed in 99.9% of minutes (about 43 minutes of budget); at least one client endpoint within 3 blocks of the head in 99.5% of minutes (about 3.6 hours).
+- **On-call:** 24/7 paging. Severity 1 (chain halted, a validator at double-sign risk, a key compromise, monitoring down) is acknowledged within 15 minutes, with a responder at a console within 30; severity 2 within 4 hours; severity 3 the next business day. At least two people in the rotation plus an escalation contact.
+- **Retention:** full history on at least two archive nodes run by different operators on different providers, plus a monthly offline export; logs 90 days, redacted; metrics 13 months; incident, alert and audit records permanently.
+- **Backups and recovery:** RPO zero committed blocks. The approved daily snapshots are copied, encrypted with AES-256, to a second provider; keys move only through custody; a validator's signing state is never restored from a backup, and a replacement signs only after the old host is fenced off. RTO: validator 8 hours (2 hours to provision plus the approved 6-hour catch-up), sentry 4 hours, endpoint service 15 minutes by failover, monitoring 1 hour. Restore drills quarterly on staging.
+
+Alert signals and routes (A22), named on-call people (D14-Q03), providers (D12-Q03) and the written recovery procedures (F17, F19) remain open.
+
+Required output: Operations acceptance specification ([operations/OBJECTIVES.md](operations/OBJECTIVES.md), [OBJECTIVES.json](operations/OBJECTIVES.json)).
 
 Proposed owner role: SRE lead with budget owner and validator coordinator. Named assignment and reviewer remain as recorded in the structured register.
 

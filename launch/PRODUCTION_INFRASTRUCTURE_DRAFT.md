@@ -58,7 +58,7 @@ The static assessment found missing validator and oracle alert inputs. Draft rec
 
 ## Recovery and upgrades
 
-Recovery time objective (RTO) is the maximum approved service recovery time. Recovery point objective (RPO) is the maximum approved age of recoverable data. Both values remain `null` for validators, RPC, monitoring, and backup restoration.
+Recovery time objective (RTO) is the maximum approved service recovery time. Recovery point objective (RPO) is the maximum approved age of recoverable data. Approved (D12-Q02, P01, 3 October 2026; [operations objectives](operations/OBJECTIVES.md)): RPO zero committed blocks; RTO validator 8 hours, sentry 4 hours, endpoint service 15 minutes, monitoring 1 hour; quarterly restore drills.
 
 A backup interval does not authorize loss of committed chain state. Recovery must reconstruct verified authoritative state. Validate chain identity, genesis, committed state, transaction receipts, staking, rewards, governance, and both token supplies. Validate signing continuity separately.
 
