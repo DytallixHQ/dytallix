@@ -1,0 +1,51 @@
+{
+  "consensus": {
+    "block_time_tolerance": "60s",
+    "create_empty_blocks": true,
+    "create_empty_blocks_interval": "0s",
+    "double_sign_check_height": {
+      "endpoint": 0,
+      "sentry": 0,
+      "validator": 10
+    },
+    "peer_gossip_sleep_duration": "100ms",
+    "peer_query_maj23_sleep_duration": "2s",
+    "skip_timeout_commit": false,
+    "timeout_commit": "4s",
+    "timeout_precommit": "1s",
+    "timeout_precommit_delta": "500ms",
+    "timeout_prevote": "1s",
+    "timeout_prevote_delta": "500ms",
+    "timeout_propose": "3s",
+    "timeout_propose_delta": "500ms"
+  },
+  "mempool": {
+    "cache_size": 10000,
+    "max_tx_bytes": 262144,
+    "max_txs_bytes": 1073741824,
+    "recheck_timeout": "1s",
+    "size": 5000
+  },
+  "p2p": {
+    "dial_timeout": "3s",
+    "flush_throttle_timeout": "10ms",
+    "handshake_timeout": "20s",
+    "max_num_inbound_peers": 64,
+    "max_num_outbound_peers": 64,
+    "max_packet_msg_payload_size": 1024,
+    "persistent_peers_max_dial_period": "60s",
+    "recv_rate": 5120000,
+    "send_rate": 5120000
+  },
+  "schema": "dytallix.host-values.v1",
+  "statesync": {
+    "chunk_fetchers": 4,
+    "chunk_request_timeout": "10s",
+    "discovery_time": "15s",
+    "max_snapshot_chunks": 100000,
+    "trust_period": "168h"
+  },
+  "transport": {
+    "handshake_timeout_ms": 5000
+  }
+}

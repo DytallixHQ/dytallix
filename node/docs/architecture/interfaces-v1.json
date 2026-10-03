@@ -1413,6 +1413,60 @@
       ]
     },
     {
+      "id": "file-pin-plan",
+      "group": "file",
+      "exposure": "operator",
+      "format": "The public pin plan (E05; production activation v1, design F and G): {schema, chain_id, hosts [{label, operator, role (validator, sentry or endpoint), home, p2p (the node's one IP and port), channel (an endpoint's client listener on the same IP, else null), peer_public_key_base64, validator_public_key_base64, pins (host labels), state_sync (null or {trust_height, trust_hash})}]}. Public keys and addresses only. dytallix-host-config refuses a plan that breaks the approved mesh rules and writes each host's engine files from it.",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/consensus/cometbft/cmd/dytallix-host-config/main.go",
+          "text": "planSchema     = \"dytallix.pin-plan.v1\""
+        }
+      },
+      "source": {
+        "file": "node/consensus/cometbft/cmd/dytallix-host-config/main.go",
+        "symbol": "type plan struct"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-host-config/main_test.go",
+          "name": "TestThePlanFollowsTheApprovedMeshRules"
+        },
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-host-config/main_test.go",
+          "name": "TestTheCommittedRehearsalIsCurrent"
+        }
+      ]
+    },
+    {
+      "id": "file-pin-plan-bindings",
+      "group": "file",
+      "exposure": "operator",
+      "format": "PIN_PLAN_BINDINGS.json from dytallix-host-config (E05): {schema, chain_id, plan_sha256, values_sha256, genesis_sha256, hosts [{label, operator, role, pins, firewall {transport_sha256, p2p_listen, public_listeners} (the host policy renderer's routed-mode firewall input), binding (file-production-binding), binding_sha256}]}. Published with the pin plan; each host's engine computes the same binding from its installed files and keys.",
+      "version": {
+        "field": "schema",
+        "literal": {
+          "file": "node/consensus/cometbft/cmd/dytallix-host-config/main.go",
+          "text": "bindingsSchema = \"dytallix.pin-plan-bindings.v1\""
+        }
+      },
+      "source": {
+        "file": "node/consensus/cometbft/cmd/dytallix-host-config/main.go",
+        "symbol": "type bindings struct"
+      },
+      "tests": [
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-host-config/main_test.go",
+          "name": "TestTheCommittedRehearsalIsCurrent"
+        },
+        {
+          "file": "node/consensus/cometbft/cmd/dytallix-host-config/main_production_test.go",
+          "name": "TestPublishedBindingsMatchTheEngineAtStart"
+        }
+      ]
+    },
+    {
       "id": "file-native-service-config",
       "group": "file",
       "exposure": "operator",

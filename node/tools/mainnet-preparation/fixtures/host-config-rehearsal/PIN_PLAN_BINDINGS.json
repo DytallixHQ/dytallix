@@ -1,0 +1,279 @@
+{
+  "schema": "dytallix.pin-plan-bindings.v1",
+  "chain_id": "dytallix-staging-1",
+  "plan_sha256": "4c9e27c289fbff1b5744c91c7690fafdf54a4ed6a0e21c39af36ce1b97bad9d2",
+  "values_sha256": "98309a3c48a97a01a6e08359e78eea701d41795912e271a663aed64bafe82176",
+  "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+  "hosts": [
+    {
+      "label": "endpoint-1",
+      "operator": "operator-1",
+      "role": "endpoint",
+      "pins": [
+        "sentry-1a",
+        "sentry-2",
+        "sentry-3",
+        "sentry-4"
+      ],
+      "firewall": {
+        "transport_sha256": "e258bf97493fb22a99adaaa246f2ecb8424c62c5fc7d7afca8aa7be5c0f17eae",
+        "p2p_listen": "203.0.113.11:26656",
+        "public_listeners": [
+          "203.0.113.11:9443"
+        ]
+      },
+      "binding": {
+        "schema": 1,
+        "role": "endpoint",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "35953d8bcbfdfdd90a51dc55fb81b7c410bde07118b74e6e893ae91bad90f5e8",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "e258bf97493fb22a99adaaa246f2ecb8424c62c5fc7d7afca8aa7be5c0f17eae",
+        "peer_public_key_sha256": "cdd307f68bee94681217940058af4371c70cf3756671c581b64dd260c0e09b4f",
+        "validator_public_key_sha256": "f9666734996f2845ed9baaed7fc35cc35eb7b4aaa062b97c55a9573ae42360f0"
+      },
+      "binding_sha256": "d71107765ff5fb664e38e65e3cdbd2a505b23180abddaf5c8093c076234a544d"
+    },
+    {
+      "label": "sentry-1a",
+      "operator": "operator-1",
+      "role": "sentry",
+      "pins": [
+        "validator-1",
+        "sentry-1b",
+        "sentry-2",
+        "sentry-3",
+        "sentry-4",
+        "endpoint-1"
+      ],
+      "firewall": {
+        "transport_sha256": "df1cbde5610d9efc25bba14b5a388a4cd3f4763be669df413937c7fd2fda03d9",
+        "p2p_listen": "198.51.100.11:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "sentry",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "5743e7c3e0fb368e22905989f81849106ae5f297009b866bbe4a7b633255f6ad",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "df1cbde5610d9efc25bba14b5a388a4cd3f4763be669df413937c7fd2fda03d9",
+        "peer_public_key_sha256": "8dcdc80b248dd02488eae8decf5a5162bd2a21a4516fe3748dd4777ab2ef1655",
+        "validator_public_key_sha256": "2a9e197e7c1180a1b2279279fc57f595d890f73c510f28fb5b40e6809679755f"
+      },
+      "binding_sha256": "b70cd01083afdbb9a96fd2678ae632b6768eb4dfbe2f1082b4974a1d6919c2eb"
+    },
+    {
+      "label": "sentry-1b",
+      "operator": "operator-1",
+      "role": "sentry",
+      "pins": [
+        "validator-1",
+        "sentry-1a",
+        "sentry-2",
+        "sentry-3",
+        "sentry-4"
+      ],
+      "firewall": {
+        "transport_sha256": "3b85151ed4e14964ca044d205a649aa168798cb04df07edeba7e09ae651394fc",
+        "p2p_listen": "198.51.100.12:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "sentry",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "ce081202571375861386445804ce8a538d8c91e68512ce2c95b1c0d5425f339c",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "3b85151ed4e14964ca044d205a649aa168798cb04df07edeba7e09ae651394fc",
+        "peer_public_key_sha256": "b0b6d3118bb93d1b52594bb2c1c161291612808bcd13485e40b465a4bc027fd8",
+        "validator_public_key_sha256": "7af439ac4cd80d8bc10db097c171081ade62419ed00c36a91e4ad3b408461dcb"
+      },
+      "binding_sha256": "428f70fdf615507f090e031d5f3bcb972d8e94f196e6c94975d8e51a734c36ff"
+    },
+    {
+      "label": "sentry-2",
+      "operator": "operator-2",
+      "role": "sentry",
+      "pins": [
+        "validator-2",
+        "sentry-1a",
+        "sentry-1b",
+        "sentry-3",
+        "sentry-4",
+        "endpoint-1"
+      ],
+      "firewall": {
+        "transport_sha256": "ee815266954169d064aec1d030491f5768bb4bb0473b11b2ab383a246becdb49",
+        "p2p_listen": "198.51.100.21:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "sentry",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "d24418bdc1977f5e31c713c2e1d54384adc7a0565101754e416059ea6dc33cd6",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "ee815266954169d064aec1d030491f5768bb4bb0473b11b2ab383a246becdb49",
+        "peer_public_key_sha256": "bfececd6823e6357ee8ad4515d539d8b9e1d0f340ba9e9c91499aa10b9469844",
+        "validator_public_key_sha256": "0cb56190d2a3425e9e0c57c8b838280d9cbb905a413ed428d433d0654284d5ba"
+      },
+      "binding_sha256": "393371982247ba01e7333989fb3bc9ece678aeca3d42488603c5610cc0e73e79"
+    },
+    {
+      "label": "sentry-3",
+      "operator": "operator-3",
+      "role": "sentry",
+      "pins": [
+        "validator-3",
+        "sentry-1a",
+        "sentry-1b",
+        "sentry-2",
+        "sentry-4",
+        "endpoint-1"
+      ],
+      "firewall": {
+        "transport_sha256": "1e9be28a8ff8a1dc3f5d39f95bb476e2ce1e9d811c17345d05548c5a70c250d3",
+        "p2p_listen": "198.51.100.31:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "sentry",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "b9391d0c431bccea5918b55f093fba0c22da285c6c16f579ccb4e2ef3962c9cc",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "1e9be28a8ff8a1dc3f5d39f95bb476e2ce1e9d811c17345d05548c5a70c250d3",
+        "peer_public_key_sha256": "179be353beffc7ff18ebb0365f5b3a74c2954ef77b19b960171bd2378c52cbd6",
+        "validator_public_key_sha256": "13bc75c7f726eaece878385f5ba54c2a82d6f0a6649f3db79505d64de67080b0"
+      },
+      "binding_sha256": "2d214c50b1c2a9a50b62019a717474e3cfb05071246f073a7e053bb8aad483d9"
+    },
+    {
+      "label": "sentry-4",
+      "operator": "operator-4",
+      "role": "sentry",
+      "pins": [
+        "validator-4",
+        "sentry-1a",
+        "sentry-1b",
+        "sentry-2",
+        "sentry-3",
+        "endpoint-1"
+      ],
+      "firewall": {
+        "transport_sha256": "6ba5e04d6c12646697c0c547ac550e0cd037b4fb2c1c601b13e7869973c8b824",
+        "p2p_listen": "198.51.100.41:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "sentry",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "ae943da03ee2887f78fb75f149b5b445f3761255c943c0a683182cafe5e3c46e",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "6ba5e04d6c12646697c0c547ac550e0cd037b4fb2c1c601b13e7869973c8b824",
+        "peer_public_key_sha256": "2bc0950357e6c11592b0c026bd2325e8789d44101326dc118da46dc89dd8ca30",
+        "validator_public_key_sha256": "ebd1b4cf3a074b4fb402e37a41efb693791cd1c0b267c92aeb73429fed755dce"
+      },
+      "binding_sha256": "e3c230383f3dbde8ceedace70f1e576ed24487629e9ecf33051aa6ca6afbda64"
+    },
+    {
+      "label": "validator-1",
+      "operator": "operator-1",
+      "role": "validator",
+      "pins": [
+        "sentry-1a",
+        "sentry-1b"
+      ],
+      "firewall": {
+        "transport_sha256": "5376b0fabb186f2ac28fc8b31acdfeb56c82d0cd3b58b0e074799ae6fbe862ba",
+        "p2p_listen": "192.0.2.11:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "validator",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "975c42d558f95ea6c5bc1a2c2a666c14cdd249c411b6d3e9b5efd864058811f2",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "5376b0fabb186f2ac28fc8b31acdfeb56c82d0cd3b58b0e074799ae6fbe862ba",
+        "peer_public_key_sha256": "f07322e0b5982fe38f4ca76fa84a3ae196bd85a13e5e645f8bc17b3d3b62c581",
+        "validator_public_key_sha256": "3a19ede7a1e950c52bc22873080238385fb6eb661726ceb69930a66248e446c6"
+      },
+      "binding_sha256": "8296a2629ceb95ecb064943434af171d468ee434814f85b63a25ffe1270ea6c4"
+    },
+    {
+      "label": "validator-2",
+      "operator": "operator-2",
+      "role": "validator",
+      "pins": [
+        "sentry-2"
+      ],
+      "firewall": {
+        "transport_sha256": "a15778b50cd582516958893ca8ac2a2f8dc92ac6df6e43845190d3e9f1c18a7f",
+        "p2p_listen": "192.0.2.12:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "validator",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "75c075519526b417efd70c0ab999c11b9cabbaf6e2fd7e263743bc8fc9749136",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "a15778b50cd582516958893ca8ac2a2f8dc92ac6df6e43845190d3e9f1c18a7f",
+        "peer_public_key_sha256": "2b72588382bd4b10ab7bc3fad8e5298ad8109b4863a4379543aa4d7f5b6b378d",
+        "validator_public_key_sha256": "c3ea67a0b8650e644e96cb90341ecbdb9546371f8eb743671aedb761eb2938d5"
+      },
+      "binding_sha256": "e2f09b148defa4c836d61bc4c7b5367b67d97b08385e0c5b17bef815198f9999"
+    },
+    {
+      "label": "validator-3",
+      "operator": "operator-3",
+      "role": "validator",
+      "pins": [
+        "sentry-3"
+      ],
+      "firewall": {
+        "transport_sha256": "ed983bf427e011a2ac889e0896fdef4c042172b558558a33a8fcf033b7f98029",
+        "p2p_listen": "192.0.2.13:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "validator",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "c6ef77aac91c6084195cac8fdd8da429dfae4bf8f46f4103dcf822910e5c5aee",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "ed983bf427e011a2ac889e0896fdef4c042172b558558a33a8fcf033b7f98029",
+        "peer_public_key_sha256": "cd7b6dcfc56a51d76162d9a651058eeae7fbe590f190ee8313c6c981d2c901bb",
+        "validator_public_key_sha256": "8763ae2fa9d28123c84546c20885f3e7d31123668e7936ba6db7139ffcb6aa91"
+      },
+      "binding_sha256": "1b98ff0f5b890ad01948fbe7f78b3d717df4d3563e47ebc67cd6af31f2561fb0"
+    },
+    {
+      "label": "validator-4",
+      "operator": "operator-4",
+      "role": "validator",
+      "pins": [
+        "sentry-4"
+      ],
+      "firewall": {
+        "transport_sha256": "522251d545a261038a265f3991050dab0ee02d8c8448ec832f29a4c25bf7bd0a",
+        "p2p_listen": "192.0.2.14:26656",
+        "public_listeners": []
+      },
+      "binding": {
+        "schema": 1,
+        "role": "validator",
+        "chain_id": "dytallix-staging-1",
+        "config_sha256": "f7ab2ee34ec63aaa71bba6043ac08f945981c79dd201b20197ab065c90419bb4",
+        "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+        "transport_sha256": "522251d545a261038a265f3991050dab0ee02d8c8448ec832f29a4c25bf7bd0a",
+        "peer_public_key_sha256": "88667b5936016f178ced193767032a62447b5ef78bae099390bc955cacbf59d1",
+        "validator_public_key_sha256": "30cd38b5b65aebdf112d9b370548373772256acc9387477deaf0c31abcfd02c5"
+      },
+      "binding_sha256": "c7e56cc28637cd5ac6cb97b2c7656004c35983a45364746fe7a165a218b5f67d"
+    }
+  ]
+}

@@ -47,6 +47,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
    T02, T05).
 6. **Genesis build** from the frozen inputs, the binding review, then the
    genesis digest (D13-Q02) and the release signers' acceptance.
+7. **Host files** from the accepted pin plan (D12-Q01), the per-host values
+   and the engine genesis: `dytallix-host-config` writes each host's engine
+   files and binding ([host configuration](../node/docs/mainnet/host-configuration.md)).
 
 ## Values to decide
 
@@ -127,6 +130,7 @@ of 1.
 | D13-Q01 | Display name, unused chain ID, genesis time procedure | Policy open |
 | D09-Q02 | Initial operators, control groups, validator keys and possession proofs, self-bond funding, fault domains, signed acceptances | Open |
 | D12-Q03 | Dedicated hosts: assets, providers, regions, account control groups, funded commitments | Open; hosts must run nothing but Dytallix |
+| D12-Q01 | Pin plan: each host's label, operator, role, address, peer and validator public keys and pins | Open; released with the network configuration, outside this repository; the [host configuration generator](../node/docs/mainnet/host-configuration.md) checks it against the approved mesh rules |
 | D10-Q03 | Signing roles: root genesis signers, 5 emergency custodians (10 keys), 5 upgrade custodians, validator and peer keys; custody, backup and drill records | Open; the emergency intake is outside the repository; the [upgrade intake](custody/upgrade/INTAKE.md) and its checker are public, and completed packets stay in the custody system. Keys use SLH-DSA-SHAKE-256s ([approval](approvals/P01_E05_CUSTODY_2026-09-30.json)) |
 | D08-Q01 | Beneficiaries, accounts, amounts, vesting and initial delegations in the five buckets (Ecosystem growth 30%, Team and advisors 20%, Public sale 15%, Private sale 15%, Reserve 20%) | Open |
 | D02-Q02 | Treasury recipient account and custody | Open |

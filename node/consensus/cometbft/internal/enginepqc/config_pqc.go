@@ -40,6 +40,18 @@ func configSliceHook(from, to reflect.Type, value any) (any, error) {
 	}
 	return strings.Split(raw, ","), nil
 }
+
+// DecodeConfig parses engine configuration bytes exactly as the loader does,
+// rooted at home (the host configuration generator, E05).
+func DecodeConfig(raw []byte, home string) (*cfg.Config, error) {
+	c, err := decodeConfig(raw)
+	if err != nil {
+		return nil, err
+	}
+	c.SetRoot(home)
+	return c, nil
+}
+
 func decodeConfig(raw []byte) (*cfg.Config, error) {
 	var values map[string]any
 	if err := toml.Unmarshal(raw, &values); err != nil {

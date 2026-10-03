@@ -25,6 +25,8 @@ COMMANDS = (
     ("consensus/cometbft", "./cmd/dytallix-operator-rpc"),
     # The production peer seed and host binding (production activation v1, A5).
     ("consensus/cometbft", "./cmd/dytallix-peer-seed"),
+    # The host configuration generator for the published pin plan (E05).
+    ("consensus/cometbft", "./cmd/dytallix-host-config"),
     ("consensus/root-authorization", "./cmd/dytallix-root-verify"),
     # The genesis signers' offline signer (production activation v1, A2).
     ("consensus/root-authorization", "./cmd/dytallix-root-sign"),
