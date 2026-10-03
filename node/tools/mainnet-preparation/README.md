@@ -112,6 +112,16 @@ python3 -B tools/mainnet-preparation/resolve_host_values.py --check \
   --resolution tools/mainnet-preparation/fixtures/host-config-rehearsal/host-values-resolution.json
 ```
 
+## Decision copies (E05)
+
+Each gate in `launch/LAUNCH_GATES.json` lists its decision dependencies as copies of questions in `launch/MAINNET_DECISION_REGISTER.json` (`source_ref`), and its `decision_counts` copies the register's `question_counts`. The register is authoritative. After recording an approval there, run:
+
+```text
+python3 -B tools/mainnet-preparation/decision_copies.py --write
+```
+
+It copies each question's kind, status, text, blocking output, assignee, reviewer and approval record into every copy, and the counts. It never changes a gate's status or the register. Without `--write` it reports each difference and exits 1; `test_decision_copies.py` fails the same way, so a register change without its copies fails CI.
+
 ## Tests
 
 Run `python3 -B -m unittest discover -s tools/mainnet-preparation -p 'test_*.py'`.
