@@ -2791,7 +2791,7 @@
     {
       "id": "D13",
       "title": "Canonical network identity",
-      "approved_portion": "One permanent mainnet genesis is required. AS01 selects address network codes and Bech32m prefixes: 1/dytallix, 2/tdytallix, 3/ddytallix. The exact display name, unused production chain ID and genesis timestamp procedure remain open. AS03 bounds the combined profile chain ID to 1 through 128 UTF-8 bytes.",
+      "approved_portion": "One permanent mainnet genesis is required. AS01 selects address network codes and Bech32m prefixes: 1/dytallix, 2/tdytallix, 3/ddytallix. AS03 bounds the combined profile chain ID to 1 through 128 UTF-8 bytes. Network identity (P01, 3 October 2026): chain ID dytallix-mainnet-1, display name Dytallix (Dytallix Testnet and Dytallix Devnet for the others), and a genesis time set at the final input freeze at 14:00:00 UTC on a weekday, at least 72 hours after the final build; a missed time means a new build, digest and signatures. The genesis time itself and the final digest (D13-Q02) remain open.",
       "evidence_refs": [
         "USER_LAUNCH_REQUIREMENTS.txt",
         "decision-register/ordinary-signing-implementation/APPROVAL.json",
@@ -2810,14 +2810,33 @@
         {
           "id": "D13-Q01",
           "kind": "policy_decision",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "What display name, unused chain ID and genesis timestamp procedure apply?",
           "recommendation": "Preserve the selected address network codes and prefixes. Select the exact production display name, unused chain ID and genesis timestamp procedure separately. Generate the final digest only after production inputs freeze.",
-          "selected_value": null,
+          "selected_value": {
+            "chain_id": "dytallix-mainnet-1",
+            "network": "mainnet",
+            "display_name": "Dytallix",
+            "other_display_names": {
+              "testnet": "Dytallix Testnet",
+              "development": "Dytallix Devnet"
+            },
+            "address_network_code": 1,
+            "address_prefix": "dytallix",
+            "genesis_time_procedure": {
+              "set_at": "FINAL_INPUT_FREEZE",
+              "format": "WHOLE_SECONDS_UTC",
+              "time_of_day_utc": "14:00:00",
+              "weekdays_only": true,
+              "min_lead_hours_after_final_build": 72,
+              "missed_time": "NEW_TIME_NEW_BUILD_NEW_DIGEST_NEW_SIGNATURES_NEVER_REUSED"
+            },
+            "genesis_time": null
+          },
           "owner_role_proposed": "Genesis and release leads",
           "assignee": null,
           "reviewer": null,
-          "approval_record": null,
+          "approval_record": "approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json",
           "blocks_work": [
             "W13",
             "W08",
@@ -2825,10 +2844,13 @@
           ],
           "blocking_output": "Network identity specification",
           "evidence_refs": [
-            "USER_LAUNCH_REQUIREMENTS.txt"
+            "USER_LAUNCH_REQUIREMENTS.txt",
+            "approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json",
+            "genesis/IDENTITY.json"
           ],
           "approved_identity_boundary": "AS01 selects address network codes and Bech32m prefixes: 1/dytallix, 2/tdytallix, 3/ddytallix. The exact display name, unused production chain ID and genesis timestamp procedure remain open. AS03 bounds the combined profile chain ID to 1 through 128 UTF-8 bytes.",
-          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json"
+          "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
+          "identity_record": "genesis/IDENTITY.json"
         },
         {
           "id": "D13-Q02",
@@ -3176,9 +3198,9 @@
     }
   ],
   "question_counts": {
-    "fully_open_policy_questions": 2,
+    "fully_open_policy_questions": 1,
     "partially_approved_policy_questions": 14,
-    "approved_policy_questions": 10,
+    "approved_policy_questions": 11,
     "required_records": 8
   },
   "supersessions": [
@@ -3816,6 +3838,24 @@
         "D11-Q03"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-03-E05-CHAIN-IDENTITY",
+      "approved": "2026-10-03",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json",
+      "decisions": [
+        "D13-Q01: the production chain ID is dytallix-mainnet-1; development builds refuse it because it names mainnet.",
+        "D13-Q01: the display name is Dytallix; other networks are Dytallix Testnet and Dytallix Devnet.",
+        "D13-Q01: the genesis time is set at the final input freeze at 14:00:00 UTC on a weekday, at least 72 hours after the final build; a missed time means a new build, digest and signatures, never reused."
+      ],
+      "question_refs": [
+        "D13-Q01"
+      ],
+      "unset": [
+        "The genesis time itself (set at the final input freeze)",
+        "The genesis digest (D13-Q02)"
+      ]
     }
   ],
   "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset."

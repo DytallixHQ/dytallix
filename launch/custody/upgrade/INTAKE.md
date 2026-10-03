@@ -45,8 +45,9 @@ the repository, through the genesis builder (E05-d).
 
 1. The emergency custodian intake comes first. The checker compares the two
    groups and cannot finish without a complete emergency packet.
-2. Proof of possession and drills wait for the chain ID (D13-Q01), because
-   the challenge binds the chain.
+2. Proof of possession and drills bind the chain ID, now approved as
+   `dytallix-mainnet-1` (D13-Q01, P01, 3 October 2026;
+   [identity](../../genesis/IDENTITY.json)).
 
 ## Required inputs
 

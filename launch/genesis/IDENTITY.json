@@ -1,0 +1,29 @@
+{
+  "schema": "dytallix.network-identity.v1",
+  "approval_record": "approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json",
+  "chain_id": "dytallix-mainnet-1",
+  "network": "mainnet",
+  "address": {
+    "network_code": 1,
+    "prefix": "dytallix"
+  },
+  "display_names": {
+    "mainnet": "Dytallix",
+    "testnet": "Dytallix Testnet",
+    "development": "Dytallix Devnet"
+  },
+  "genesis_time": {
+    "value": null,
+    "set_at": "final input freeze",
+    "format": "YYYY-MM-DDTHH:MM:SSZ",
+    "time_of_day_utc": "14:00:00",
+    "weekdays": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ],
+    "min_lead_hours": 72
+  }
+}

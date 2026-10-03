@@ -6,12 +6,14 @@ in E05_VALUES.json, or a labeled entry in the proposals file for a value that
 is still open. A proposal for an approved value, a missing value, or an
 unknown name is refused. The resolution report lists every value's source, so
 the build is production-eligible only in the production mode, with every
-value approved and every record accepted (production activation v1, A7).
+value approved, every record accepted (production activation v1, A7) and the
+records naming the approved network identity (D13-Q01).
 """
 import argparse
 import json
 from pathlib import Path
 import sys
+import network_identity
 
 INPUTS_SCHEMA = 'dytallix.genesis-build-inputs.v1'
 PROPOSALS_SCHEMA = 'dytallix.genesis-proposals.v1'
@@ -198,9 +200,10 @@ def exact(obj, keys, where):
     if not isinstance(obj, dict) or set(obj) != set(keys): raise ValueError(f'{where}: exact fields {sorted(keys)} required')
 
 
-def resolve(values, proposals, records, mode='rehearsal'):
+def resolve(values, proposals, records, mode='rehearsal', identity=None):
     """Return (inputs, resolution). Raises ValueError on any unresolved or conflicting value."""
     if mode not in MODES: raise ValueError(f'mode must be one of {list(MODES)}')
+    identity = network_identity.load() if identity is None else identity
     if proposals.get('schema') != PROPOSALS_SCHEMA: raise ValueError('proposals schema mismatch')
     if records.get('schema') != RECORDS_SCHEMA: raise ValueError('records schema mismatch')
     entries = {v['name']: v for v in values['values']}
@@ -257,13 +260,16 @@ def resolve(values, proposals, records, mode='rehearsal'):
         resolution.append({'name': 'record:' + field, 'source': 'RECORD_' + records['status'], 'reference': 'records', 'value': None})
     counts = {}
     for item in resolution: counts[item['source']] = counts.get(item['source'], 0) + 1
-    eligible = mode == 'production' and set(counts) <= {'APPROVED', 'RECORD_ACCEPTED'}
+    # The approved chain ID, network and genesis time procedure (D13-Q01).
+    differences = network_identity.record_errors(identity, records)
+    eligible = mode == 'production' and set(counts) <= {'APPROVED', 'RECORD_ACCEPTED'} and not differences
     report = {
         'schema': RESOLUTION_SCHEMA,
         'mode': mode,
         'production_eligible': eligible,
-        'boundary': 'Production eligibility needs the production mode, every value APPROVED and every record ACCEPTED. Eligibility accepts nothing: the release, the root genesis signatures and gate acceptance remain required.',
+        'boundary': 'Production eligibility needs the production mode, every value APPROVED, every record ACCEPTED and the approved network identity. Eligibility accepts nothing: the genesis time lead check at the freeze, the release, the root genesis signatures and gate acceptance remain required.',
         'counts': dict(sorted(counts.items())),
+        'identity': {'approved': 'genesis/IDENTITY.json', 'differences': differences},
         'values': resolution,
     }
     return inputs, report

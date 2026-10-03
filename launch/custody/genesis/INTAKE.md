@@ -41,8 +41,8 @@ are published. The policy is a public record every node reads.
 
 1. The emergency custodian intake, then the upgrade custodian intake. The
    checker compares all three groups and cannot finish without both.
-2. The chain identity (D13-Q01). The policy names the chain, and proof of
-   possession binds it.
+2. The chain identity (D13-Q01), approved as `dytallix-mainnet-1`. The policy
+   names the chain, and proof of possession binds it.
 3. Proof of possession and drills, after the key ceremony.
 
 ## Required inputs
@@ -73,8 +73,10 @@ Copy `PUBLIC_INTAKE.template.json` to a working packet in the custody system.
 Complete every null field and keep `production_accepted` false. The
 threshold, size and parameter set are fixed by the approvals above.
 
-- **Chain.** `chain_id` is the accepted chain identity: letters, digits, `.`,
-  `_` and `-`, at most 128 characters (the genesis builder allows 50).
+- **Chain.** `chain_id` is the approved chain identity, `dytallix-mainnet-1`
+  (D13-Q01, P01, 3 October 2026; [identity](../../genesis/IDENTITY.json)). The
+  checker accepts letters, digits, `.`, `_` and `-`, at most 128 characters,
+  so a staging rehearsal can use its own chain.
 - **Keys.** Copy `key_id` and `public_key_hex` from each signer's public key
   record unchanged: 128 lowercase hex characters, and the key ID is their
   SHA-256.
