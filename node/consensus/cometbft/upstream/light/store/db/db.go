@@ -238,7 +238,6 @@ func (s *dbs) Prune(size uint16) error {
 	if err != nil {
 		return err
 	}
-	defer itr.Close()
 
 	b := s.db.NewBatch()
 	defer b.Close()
@@ -249,6 +248,7 @@ func (s *dbs) Prune(size uint16) error {
 		_, height, ok := parseLbKey(key)
 		if ok {
 			if err = b.Delete(s.lbKey(height)); err != nil {
+				_ = itr.Close()
 				return err
 			}
 		}
@@ -256,7 +256,14 @@ func (s *dbs) Prune(size uint16) error {
 		numToPrune--
 		pruned++
 	}
-	if err = itr.Error(); err != nil {
+	// Close the iterator before writing the batch, exactly once: a MemDB
+	// iterator holds the database's read lock until it is closed, and the
+	// write needs the write lock.
+	err = itr.Error()
+	if closeErr := itr.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
 		return err
 	}
 
