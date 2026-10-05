@@ -93,6 +93,34 @@ class SumsTests(unittest.TestCase):
             self.assertEqual(d['sha256'], 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad')
 
 
+class StaticTests(unittest.TestCase):
+    """Release members are static (P01, 5 October 2026)."""
+    STATIC_PIE = ('  Type: DYN\nProgram Headers:\n  LOAD 0x0\n  DYNAMIC 0x1ea5b8\n',
+                  'Dynamic section at offset 0x1ea5b8 contains 20 entries:\n 0x1e (FLAGS) BIND_NOW\n')
+    DYNAMIC = ('Program Headers:\n  PHDR 0x40\n  INTERP 0x318\n'
+               '      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]\n',
+               ' 0x1 (NEEDED) Shared library: [libc.so.6]\n 0x1 (NEEDED) Shared library: [libstdc++.so.6]\n')
+
+    def readelf(self, outputs):
+        def run(command, **_):
+            return unittest.mock.Mock(stdout=outputs[0] if '-lW' in command else outputs[1])
+        return unittest.mock.patch.object(r.subprocess, 'run', side_effect=run)
+
+    def test_static_members_pass_and_dynamic_ones_fail(self):
+        with self.readelf(self.STATIC_PIE):
+            r.check_static('bin/consensus_stdio')
+        with self.readelf(self.DYNAMIC), self.assertRaises(ValueError) as caught:
+            r.check_static('bin/consensus_stdio')
+        self.assertIn('libstdc++.so.6', str(caught.exception))
+        with self.readelf((self.DYNAMIC[0], '')), self.assertRaises(ValueError):
+            r.check_static('bin/consensus_stdio')
+
+    def test_rust_builds_link_the_c_libraries_in(self):
+        self.assertIn('target-feature=+crt-static', r.RUSTFLAGS)
+        self.assertEqual(r.RUST_TARGET, 'x86_64-unknown-linux-gnu')
+        self.assertTrue((MAINNET/r.MIGRATION_REGISTRY).is_file())
+
+
 class SbomTests(unittest.TestCase):
     def test_the_sbom_lists_every_locked_crate_and_module(self):
         data, _ = r.load_set(HERE/'RELEASE_SET.json')

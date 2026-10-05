@@ -1,0 +1,25 @@
+{
+  "decision_id": "P01-2026-10-05-E06-STATIC-RELEASE",
+  "approved": "2026-10-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E06 release libraries"
+  },
+  "design_ref": "../release/README.md",
+  "decisions": [
+    {
+      "question": "D14-Q01",
+      "selected": "Static binaries",
+      "rule": "Every release binary is a static Linux x86_64 executable: the Rust builds link glibc and libstdc++ in, the Go builds use no cgo, and a member that loads a shared library or names a program interpreter fails the build. The release manifest (the supervisor's catalog) therefore lists only the release's own binaries, with no runtime libraries for any role, so host operating-system updates never change what the node runs or need an upgrade approval. Library fixes ship as new releases. Node configurations use IP addresses, since a static glibc does not load the host's name-service plugins."
+    }
+  ],
+  "unset": [
+    "The chain-specific release manifest, written at the final freeze once the native genesis exists"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
