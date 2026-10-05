@@ -4,13 +4,13 @@ Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered 
 
 Links into `decision-register/`, `batch-*/`, `evidence/` and `snapshots/` name launch evidence records held outside this repository; they do not resolve here.
 
-The current register contains no OPEN policy questions, 14 PARTIALLY_APPROVED policy questions, 12 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains no OPEN policy questions, 13 PARTIALLY_APPROVED policy questions, 13 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the [emergency controls and upgrade execution package](decision-register/emergency-upgrade-execution/REPORT.md). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
 Each recorded approval scope below retains its original implementation context. Read current implementation progress and remaining work in the linked gates. Exact question fields, approvals and supersession records remain in [MAINNET_DECISION_REGISTER.json](MAINNET_DECISION_REGISTER.json).
 
-## Design and policy approvals, 26 September – 3 October 2026
+## Design and policy approvals, 26 September – 5 October 2026
 
 P01 approved these engineering designs. Each document records the options and the decisions; the register lists them under `design_approvals`.
 
@@ -30,6 +30,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [Operations objectives](approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json) (3 October): monthly targets of 99.9% (chain) and 99.5% (endpoints), 24/7 paging, archive and log retention, RPO zero committed blocks and RTOs per role (D12-Q02; [operations objectives](operations/OBJECTIVES.md)).
 - [Solo launch profile](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json) (3 October): the founder launches alone. Every root key in five key kits; one validator on three hosts; a 30-day public review with a DGT bug bounty and a labeled AI review instead of an independent human audit, with the launch labeled unaudited; best-effort operations; one founder account per token bucket; staging on the production hosts; reproducible builds on a clean CI runner and a local container ([trust model](TRUST_MODEL.md)).
 - [Engineering close-out](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json) (3 October): sentries and endpoints can never sign and validators may start before registration; a plain-HTTP status page with no cryptography for the uptime checker; `client_compatibility_window` and `max_open_proposals` dropped; fault assumptions recorded; the CLI is the launch wallet.
+- [E06 release](approvals/P01_E06_RELEASE_2026-10-05.json) (5 October): Linux x86_64, the wallet also from source; a published builder image, no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release, with no separate release key ([release](../release/README.md)).
 
 ## D01 — Adaptive issuance
 
@@ -620,7 +621,7 @@ Gate references: G01, G02, G03, G04, G06, G07, G08, G09, G10, G11, G12, G13, G14
 
 **Recorded approval scope and historical implementation context:** Reproducible release, deterministic genesis, required features, closure of launch blockers and seven full launch simulations remain required. Local test passes do not satisfy these gates. LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.
 
-### D14-Q01 — PARTIALLY_APPROVED
+### D14-Q01 — APPROVED
 
 Which release targets, build environment, registry, signing authority and review independence criteria apply?
 
@@ -628,7 +629,7 @@ Which release targets, build environment, registry, signing authority and review
 
 Approved portion (P01, 30 September 2026): release binaries are built without the development entry points ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
-Remaining inputs: release targets, build environment, registry and signing authority (E06); review independence criteria (P02).
+E06 ([P01, 5 October 2026](approvals/P01_E06_RELEASE_2026-10-05.json)): Linux x86_64, the wallet also from source; the pinned builder image ([release/builder](../release/builder/Dockerfile)) and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; no release-signing key, since the root-signed genesis binds the first release and the upgrade keys approve later ones. Review independence is the solo launch profile's public review.
 
 Required output: Release and review specification.
 

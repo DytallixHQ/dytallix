@@ -47,8 +47,8 @@
   },
   "decision_counts": {
     "fully_open_policy_questions": 0,
-    "partially_approved_policy_questions": 14,
-    "approved_policy_questions": 12,
+    "partially_approved_policy_questions": 13,
+    "approved_policy_questions": 13,
     "required_records": 8
   },
   "evidence_rules": [
@@ -415,12 +415,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -728,12 +728,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1252,12 +1252,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -1622,12 +1622,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -2365,12 +2365,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -2838,12 +2838,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3260,12 +3260,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -3512,12 +3512,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4031,12 +4031,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4324,12 +4324,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4649,12 +4649,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -4910,12 +4910,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5244,12 +5244,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5544,12 +5544,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -5844,12 +5844,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6171,12 +6171,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6483,12 +6483,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -6817,12 +6817,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7184,12 +7184,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7464,12 +7464,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -7812,12 +7812,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8109,12 +8109,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -8579,12 +8579,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9073,12 +9073,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9287,12 +9287,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9511,12 +9511,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9691,12 +9691,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -9929,12 +9929,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10231,12 +10231,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -10791,12 +10791,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11252,12 +11252,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -11637,12 +11637,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12067,12 +12067,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {
@@ -12807,12 +12807,12 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "blocking_output": "Release and review specification",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         },
         {

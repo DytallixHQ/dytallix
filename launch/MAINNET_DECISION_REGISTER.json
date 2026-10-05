@@ -3011,18 +3011,23 @@
         {
           "id": "D14-Q01",
           "kind": "policy_decision",
-          "status": "PARTIALLY_APPROVED",
+          "status": "APPROVED",
           "question": "Which release targets, build environment, registry, signing authority and review independence criteria apply?",
           "recommendation": "Freeze exact sources, features, toolchains, artifacts and signer roles.",
           "selected_value": {
             "production_build": "RELEASE_BINARIES_WITHOUT_DEVELOPMENT_ENTRY_POINTS",
             "review_independence": "PUBLIC_30_DAY_REVIEW_DGT_BUG_BOUNTY_LABELED_AI_REVIEW_FOUNDER_SIGN_OFF_LAUNCH_LABELED_UNAUDITED",
-            "build_reproduction": "CLEAN_GITHUB_ACTIONS_RUNNER_AND_FRESH_LOCAL_CONTAINER_BYTE_IDENTICAL"
+            "build_reproduction": "CLEAN_GITHUB_ACTIONS_RUNNER_AND_FRESH_LOCAL_CONTAINER_BYTE_IDENTICAL",
+            "release_targets": "LINUX_X86_64_NODE_AND_TOOLS_WALLET_ALSO_FROM_SOURCE",
+            "build_environment": "PINNED_BUILDER_IMAGE_RUST_1_88_0_GO_1_25_14_DEBIAN_SNAPSHOT_20250721",
+            "container_images": "BUILDER_IMAGE_ONLY_NO_NODE_CONTAINER",
+            "registry": "GITHUB_RELEASES_ON_DYTALLIXHQ_DYTALLIX_AFTER_THE_MOVE",
+            "signing_authority": "ROOT_SIGNED_GENESIS_BINDS_THE_FIRST_RELEASE_UPGRADE_KEYS_APPROVE_LATER_RELEASES"
           },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
           "assignee": null,
           "reviewer": null,
-          "approval_record": "approvals/P01_E05_ACTIVATION_2026-09-30.json",
+          "approval_record": "approvals/P01_E06_RELEASE_2026-10-05.json",
           "blocks_work": [
             "W14",
             "W12"
@@ -3037,14 +3042,12 @@
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
           "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
-          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte.",
-          "remaining_choices": [
-            "Release targets, build environment, registry and signing authority (E06)",
-            "Review independence criteria (P02)"
-          ],
+          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte. E06 (P01, 5 October 2026): Linux x86_64 release, the wallet also from source; a published builder image and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release and the upgrade keys approve later ones, with no separate release key.",
+          "remaining_choices": [],
           "approval_records": [
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
-            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+            "approvals/P01_E06_RELEASE_2026-10-05.json"
           ]
         },
         {
@@ -3269,8 +3272,8 @@
   ],
   "question_counts": {
     "fully_open_policy_questions": 0,
-    "partially_approved_policy_questions": 14,
-    "approved_policy_questions": 12,
+    "partially_approved_policy_questions": 13,
+    "approved_policy_questions": 13,
     "required_records": 8
   },
   "supersessions": [
@@ -4003,6 +4006,26 @@
         "D14-Q02"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-05-E06-RELEASE",
+      "approved": "2026-10-05",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E06_RELEASE_2026-10-05.json",
+      "decisions": [
+        "D14-Q01: release for Linux x86_64; the CLI wallet also installs from the source tag.",
+        "D14-Q01: publish the pinned builder image; no node container.",
+        "D14-Q01: move mainnet/ to DytallixHQ/dytallix before tagging; publish GitHub Releases there.",
+        "D14-Q01: no release-signing key; the root-signed genesis binds the first release and the upgrade keys approve later releases."
+      ],
+      "question_refs": [
+        "D14-Q01"
+      ],
+      "unset": [
+        "The repository move (founder actions)",
+        "The release candidate commit and tag",
+        "The chain-specific release manifest"
+      ]
     }
   ],
   "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset.",

@@ -1,0 +1,42 @@
+{
+  "decision_id": "P01-2026-10-05-E06-RELEASE",
+  "approved": "2026-10-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E06 reproducible release"
+  },
+  "design_ref": "../release/README.md",
+  "decisions": [
+    {
+      "question": "D14-Q01",
+      "selected": "Linux x86_64; wallet also from source",
+      "rule": "The release builds every node binary and operator tool for Linux x86_64, reproducibly. The CLI wallet ships as a Linux x86_64 binary too; on macOS and other systems it is installed from the release's source tag with `cargo install --locked`."
+    },
+    {
+      "question": "D14-Q01",
+      "selected": "Builder image only",
+      "rule": "The release publishes its pinned build container so anyone can reproduce it. There is no node container: nodes run natively under the supervisor (AppArmor, seccomp, owner guard), with no second deployment path."
+    },
+    {
+      "question": "D14-Q01, D14-Q03",
+      "selected": "Move to DytallixHQ/dytallix first",
+      "rule": "Before the first release is tagged, mainnet/ moves with its history into the public DytallixHQ/dytallix repository, and releases are published there as GitHub Releases, tagged once in their final home. The founder creates the repository and enables two-factor authentication; the move itself is prepared as commands and CI."
+    },
+    {
+      "question": "D14-Q01, D11-Q03",
+      "selected": "Root-signed genesis binds it",
+      "rule": "No separate release-signing key. The first release's manifest SHA-512 is in the genesis the 3-of-5 genesis keys sign, and every later release is approved on-chain by the 3-of-5 upgrade keys. GitHub tags, checksums and any GitHub signature (classical cryptography) are conveniences, never the release's authority."
+    }
+  ],
+  "unset": [
+    "The DytallixHQ/dytallix repository itself and the move (founder actions)",
+    "The release candidate commit and tag (E06 freeze)",
+    "The chain-specific release manifest, written at the final freeze once the native genesis exists"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
