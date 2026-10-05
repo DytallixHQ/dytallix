@@ -127,6 +127,29 @@ func Test_Prune(t *testing.T) {
 	assert.EqualValues(t, 7, dbStore.Size())
 }
 
+// A MemDB iterator holds the database's read lock until it is closed, and it
+// buffers 64 entries. Pruning fewer entries than remain in range past that
+// buffer must not write the batch with the iterator still open.
+func Test_PruneLeavingManyEntriesDoesNotDeadlock(t *testing.T) {
+	dbStore := New(dbm.NewMemDB(), "Test_Prune")
+	for i := int64(1); i <= 200; i++ {
+		require.NoError(t, dbStore.SaveLightBlock(randLightBlock(i)))
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- dbStore.Prune(100) }()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("Prune deadlocked with the iterator open")
+	}
+	assert.EqualValues(t, 100, dbStore.Size())
+	height, err := dbStore.FirstLightBlockHeight()
+	require.NoError(t, err)
+	assert.EqualValues(t, 101, height)
+}
+
 func Test_Concurrency(t *testing.T) {
 	dbStore := New(dbm.NewMemDB(), "Test_Prune")
 

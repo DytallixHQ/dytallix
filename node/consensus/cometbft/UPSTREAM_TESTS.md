@@ -102,6 +102,17 @@ the real PQC transport.
   above every base. `pool.go` is unchanged upstream code. In a node, the same
   state makes `IsCaughtUp` true, so the reactor would switch to consensus
   rather than hang.
+- `light/store/db`: `Test_Concurrency` hung in CI for its 10-minute timeout
+  (#344). `Prune` wrote its batch with its iterator still open. A MemDB
+  iterator holds the database's read lock until it is closed and buffers 64
+  entries, and the write needs the write lock. So pruning while more than 64
+  entries stayed in range deadlocked, which the test's concurrent saves
+  sometimes caused. `Prune` now closes the iterator, once, before the write.
+  Upstream `main` still has the old order. The new
+  `Test_PruneLeavingManyEntriesDoesNotDeadlock` deadlocked on every run before
+  the fix. In a node, the light client's MemDB store (`internal/lightblocks`)
+  would hit it at its first prune, once one client stored more than 1,000
+  verified heights (the default pruning size). It saves one per verification.
 
 ## Not restored
 

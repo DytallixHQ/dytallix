@@ -1,0 +1,70 @@
+{
+  "schema": "dytallix.release-set.v1",
+  "approval_record": "launch/approvals/P01_E06_RELEASE_2026-10-05.json",
+  "target": {
+    "os": "linux",
+    "arch": "x86_64",
+    "abi": "gnu"
+  },
+  "builds": [
+    {
+      "id": "node-application",
+      "kind": "cargo",
+      "workspace": "node",
+      "args": ["-p", "dytallix-fast-node", "--features", "production"],
+      "bins": ["consensus_stdio", "dytallix-genesis-build", "dytallix-state-check"]
+    },
+    {
+      "id": "node-supervisor",
+      "kind": "cargo",
+      "workspace": "node",
+      "args": ["-p", "dytallix-native-supervisor", "--features", "production"],
+      "bins": ["dytallix-native-supervisor"]
+    },
+    {
+      "id": "http-adapter",
+      "kind": "cargo",
+      "workspace": "node/consensus/pqc-http-adapter",
+      "args": ["--features", "production"],
+      "bins": ["dytallix-pqc-http-adapter", "dytallix-channel-key"]
+    },
+    {
+      "id": "engine",
+      "kind": "go",
+      "module": "node/consensus/cometbft",
+      "tags": ["production"],
+      "packages": [
+        "./cmd/dytallix-pqc-engine",
+        "./cmd/dytallix-comet-bridge",
+        "./cmd/dytallix-light-export",
+        "./cmd/dytallix-peer-seed",
+        "./cmd/dytallix-validator-key",
+        "./cmd/dytallix-operator-rpc",
+        "./cmd/dytallix-host-config"
+      ]
+    },
+    {
+      "id": "root-authorization",
+      "kind": "go",
+      "module": "node/consensus/root-authorization",
+      "tags": [],
+      "packages": ["./cmd/dytallix-root-verify", "./cmd/dytallix-root-sign"]
+    },
+    {
+      "id": "wallet",
+      "kind": "cargo",
+      "workspace": "sdk",
+      "args": ["-p", "dytallix-cli"],
+      "bins": ["dytallix"]
+    }
+  ],
+  "catalog_roles": {
+    "consensus_bridge": "dytallix-comet-bridge",
+    "consensus_engine": "dytallix-pqc-engine",
+    "consensus_stdio": "consensus_stdio",
+    "control_verifier": "dytallix-root-verify",
+    "genesis_bootstrap_verifier": "dytallix-root-verify",
+    "http_adapter": "dytallix-pqc-http-adapter",
+    "service_supervisor": "dytallix-native-supervisor"
+  }
+}
