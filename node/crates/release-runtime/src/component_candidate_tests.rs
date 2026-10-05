@@ -1064,3 +1064,55 @@ fn production_profile_always_carries_the_adapter() {
         .to_string()
         .contains("required service roles"));
 }
+
+/// The release manifest writer's output (mainnet/release/release_manifest.py,
+/// E06) for a synthetic build record. Its Python tests regenerate this
+/// fixture byte for byte; here the release runtime accepts it as the
+/// production catalog, with no runtime library for any role.
+#[test]
+fn release_manifest_writer_output_is_a_valid_production_catalog() {
+    let bytes = include_bytes!("../testdata/production_release_manifest.json");
+    let manifest: ManifestV2 = serde_json::from_slice(bytes).unwrap();
+    let verifier = manifest
+        .members
+        .iter()
+        .find(|m| m.id == "dytallix-root-verify")
+        .unwrap();
+    let expected = ExpectedRelease {
+        manifest_sha512: hex::encode(Sha512::digest(bytes)),
+        chain_id: "dytallix-mainnet-1".into(),
+        app_genesis_sha256: hex::encode(Sha256::digest(
+            b"{\"synthetic\":\"native genesis for the writer fixture\"}",
+        )),
+        migration_registry_sha256: "22".repeat(32),
+        target: Target {
+            os: "linux".into(),
+            arch: "x86_64".into(),
+            abi: "gnu".into(),
+        },
+        bootstrap_verifier: member_digest(verifier),
+    };
+    let bounds = ValidationBounds {
+        max_manifest_bytes: 1024 * 1024,
+        max_mapping_bytes: 1024 * 1024,
+        max_members: 32,
+        max_roles: 16,
+        max_runtime_profiles: 16,
+        max_references: 64,
+        max_id_bytes: 64,
+        max_path_bytes: 4096,
+        max_member_bytes: 1 << 30,
+        max_total_member_bytes: 1 << 32,
+    };
+    let validated = validate_manifest_bytes(bytes, &expected, &bounds).unwrap();
+    assert_eq!(
+        validated.manifest.service_profile,
+        PRODUCTION_NATIVE_PROFILE
+    );
+    assert_eq!(validated.manifest.members.len(), 6);
+    assert!(validated
+        .manifest
+        .runtime_profiles
+        .iter()
+        .all(|p| p.member_ids.is_empty()));
+}

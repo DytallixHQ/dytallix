@@ -10,12 +10,15 @@ and writes, under --out:
 
   bin/                the release binaries
   SHA256SUMS, SHA512SUMS
-  BUILD_RECORD.json   toolchain versions, lockfile digests, each member's
-                      size, digests and shared libraries
+  BUILD_RECORD.json   toolchain versions, lockfile and migration registry
+                      digests, each member's size and digests
   SBOM.json           every Rust crate and Go module the builds lock
 
-Nothing carries a time, a host name or a builder path, so two builds in the
-builder give the same bytes. `compare` exits 1 when two builds differ.
+Every member is a static executable: the Rust builds link glibc and
+libstdc++ in, and Go builds without cgo (P01, 5 October 2026). A member
+that would load a shared library fails the build. Nothing carries a time,
+a host name or a builder path, so two builds in the builder give the same
+bytes. `compare` exits 1 when two builds differ.
 
 The release's authority is the root-signed genesis, which binds the release
 manifest's SHA-512 (P01, 5 October 2026); these files are its inputs.
@@ -38,6 +41,11 @@ HERE = Path(__file__).resolve().parent
 # Source and registry paths are fixed in the builder, and remapped out of
 # the binaries' panic locations and debug data.
 REMAPS = ('--remap-path-prefix=/src=/dytallix', '--remap-path-prefix=/usr/local/cargo/registry/src=/cargo')
+# An explicit target keeps static linking off build scripts and proc macros.
+RUST_TARGET = 'x86_64-unknown-linux-gnu'
+RUSTFLAGS = ('-C', 'target-feature=+crt-static') + REMAPS
+# Compiled into the node (upgrade.rs registry_sha256); the manifest names it.
+MIGRATION_REGISTRY = 'node/dytallix-fast-launch/node/src/upgrade/registry.json'
 NAME = re.compile(r'^[A-Za-z0-9_][A-Za-z0-9_.-]{0,63}$')
 
 
@@ -123,6 +131,14 @@ def needed_libraries(path):
     return sorted(re.findall(r'\(NEEDED\)\s+Shared library: \[([^\]]+)\]', out))
 
 
+def check_static(path):
+    """A release member loads no shared library and names no program interpreter."""
+    segments = subprocess.run(['readelf', '-lW', str(path)], capture_output=True, text=True, check=True).stdout
+    needed = needed_libraries(path)
+    if needed or re.search(r'^\s*INTERP\s', segments, re.M):
+        raise ValueError(f'{Path(path).name} is not static: interpreter or libraries {needed}')
+
+
 def first_line(command):
     return subprocess.run(command, capture_output=True, text=True, check=True).stdout.splitlines()[0].strip()
 
@@ -163,12 +179,13 @@ def build(src, out, work, offline, set_path):
         env = dict(base)
         if b['kind'] == 'cargo':
             target = work/'cargo'/b['workspace'].replace('/', '_')
-            env.update(CARGO_TARGET_DIR=str(target), RUSTFLAGS=' '.join(REMAPS))
-            command = ['cargo', 'build', '--locked', '--release'] + (['--offline'] if offline else [])
-            command += b['args'] + [arg for name in b['bins'] for arg in ('--bin', name)]
+            env.update(CARGO_TARGET_DIR=str(target), RUSTFLAGS=' '.join(RUSTFLAGS))
+            command = ['cargo', 'build', '--locked', '--release', '--target', RUST_TARGET]
+            command += (['--offline'] if offline else []) + b['args']
+            command += [arg for name in b['bins'] for arg in ('--bin', name)]
             run(command, src/b['workspace'], env)
             for name in b['bins']:
-                shutil.copyfile(target/'release'/name, out/'bin'/name)
+                shutil.copyfile(target/RUST_TARGET/'release'/name, out/'bin'/name)
         else:
             env.update(GOOS='linux', GOARCH='amd64', CGO_ENABLED='0', GOCACHE=str(work/'gocache'))
             if offline: env.update(GOPROXY='off', GOFLAGS='-mod=readonly')
@@ -179,15 +196,18 @@ def build(src, out, work, offline, set_path):
     for name in names:
         path = out/'bin'/name
         path.chmod(0o755)
-        members[name] = dict(digests(path), needed=needed_libraries(path))
+        check_static(path)
+        members[name] = digests(path)
     lockfiles = sorted({f'{b["workspace"]}/Cargo.lock' for b in data['builds'] if b['kind'] == 'cargo'}
                        | {f'{b["module"]}/{f}' for b in data['builds'] if b['kind'] == 'go' for f in ('go.mod', 'go.sum')})
     record = {
         'schema': RECORD_SCHEMA,
         'release_set_sha256': hashlib.sha256(Path(set_path).read_bytes()).hexdigest(),
         'target': data['target'],
+        'linkage': 'static',
         'toolchain': toolchain(),
         'lockfiles': {f: hashlib.sha256((src/f).read_bytes()).hexdigest() for f in lockfiles},
+        'migration_registry_sha256': hashlib.sha256((src/MIGRATION_REGISTRY).read_bytes()).hexdigest(),
         'members': {name: members[name] for name in sorted(members)},
         'catalog_roles': data['catalog_roles'],
     }
