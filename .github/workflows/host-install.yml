@@ -4,8 +4,9 @@ name: Host install
 # fresh release build, a throwaway staging chain built end to end from it
 # (key step, genesis, release manifest, 3-of-5 root signatures, host files,
 # bundles), and the validator's bundle installed with its install.sh on an
-# Ubuntu 24.04 runner, started under systemd, AppArmor and nftables, verified
-# and wiped. Invented records and throwaway keys only.
+# Ubuntu 24.04 runner, started under systemd, AppArmor and nftables, verified,
+# then stopped and started (a lone validator must rejoin), and wiped.
+# Invented records and throwaway keys only.
 on:
   push:
     branches: [main]
@@ -51,8 +52,13 @@ jobs:
             dytallix-release-builder \
             python3 /src/release/build_release.py build --src /src --out /out --work /work
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/release"
-      - name: Host packages
-        run: sudo apt-get update && sudo apt-get install -y apparmor apparmor-utils nftables
+      # Host setup v1's base setup: the packages, and ufw off (the node's table
+      # is the host firewall). GitHub's runners ship with ufw active.
+      - name: Host base setup
+        run: |
+          sudo apt-get update && sudo apt-get install -y apparmor apparmor-utils nftables
+          sudo ufw disable
+          timedatectl show -p NTPSynchronized
       - name: Staging chain and bundles
         run: |
           python3 node/tools/mainnet-preparation/staging_host.py prepare \

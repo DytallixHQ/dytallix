@@ -102,8 +102,10 @@ The generator refuses:
 ## What each host gets
 
 - **`config.toml`.** The engine's template with every approved value, the
-  role's `double_sign_check_height` (10 on validators, 0 on sentries and
-  endpoints), the host's label as moniker, local Unix ABCI under the home,
+  role's `double_sign_check_height` (0 on every role while the chain has one
+  validator, P01, 6 October 2026: a lone validator's own signatures fill the
+  last blocks, so a higher value would stop every restart; validators had
+  10), the host's label as moniker, local Unix ABCI under the home,
   goleveldb, JSON logs, and:
   - P2P listening on the host's address, peer exchange off, no seeds or
     external address, strict address book, no duplicate IP, and the pins as

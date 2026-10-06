@@ -16,8 +16,9 @@ WORK/seal-codes.json (mode 0600): this chain is throwaway.
 
 install (as root) unpacks the host's bundle and runs its install.sh,
 typing the seal code, starts dytallix-node, waits until the application's
-metrics report the height, and runs the bundle's verify. wipe runs the
-bundle's wipe.sh and checks that nothing is left.
+metrics report the height, runs the bundle's verify, then stops and starts
+the node and waits for two more blocks: a lone validator must rejoin after
+a restart. wipe runs the bundle's wipe.sh and checks that nothing is left.
 """
 import argparse
 import json
@@ -137,6 +138,21 @@ def install(work, label, target_height, timeout):
         raise Failed('install.sh failed')
     say(f'== start {UNIT}')
     subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=True)
+    seen = wait_for(target_height, timeout)
+    verified = subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'verify'])
+    if verified.returncode != 0:
+        diagnostics()
+        raise Failed('the installed host does not verify')
+    say(f'== restart at height {seen}: the node must rejoin and make blocks')
+    subprocess.run(['systemctl', 'stop', f'{UNIT}.service'], check=True)
+    subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=True)
+    seen = wait_for(seen + 2, timeout)
+    subprocess.run(['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '40'])
+    say(f'== {label} installed, verified, restarted and at height {seen}')
+
+
+def wait_for(target_height, timeout):
+    """The height once it reaches the target; fails if the unit stops."""
     deadline, seen = time.monotonic() + timeout, None
     while time.monotonic() < deadline:
         current = height()
@@ -144,21 +160,14 @@ def install(work, label, target_height, timeout):
             say(f'height {current}')
             seen = current
         if current is not None and current >= target_height:
-            break
+            return current
         active = subprocess.run(['systemctl', 'is-active', f'{UNIT}.service'], capture_output=True, text=True).stdout.strip()
         if active in ('failed', 'inactive'):
             diagnostics()
             raise Failed(f'{UNIT} is {active}')
         time.sleep(2)
-    else:
-        diagnostics()
-        raise Failed(f'the node did not reach height {target_height} in {timeout} s')
-    verified = subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'verify'])
-    if verified.returncode != 0:
-        diagnostics()
-        raise Failed('the installed host does not verify')
-    subprocess.run(['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '40'])
-    say(f'== {label} installed, verified and at height {seen}')
+    diagnostics()
+    raise Failed(f'the node did not reach height {target_height} in {timeout} s')
 
 
 def wipe(work, label):

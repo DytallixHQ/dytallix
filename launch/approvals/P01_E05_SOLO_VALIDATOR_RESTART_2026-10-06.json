@@ -1,0 +1,32 @@
+{
+  "decision_id": "P01-2026-10-06-E05-SOLO-VALIDATOR-RESTART",
+  "approved": "2026-10-06",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 host setup H5: validator restart under the solo launch profile"
+  },
+  "design_ref": "../../node/docs/mainnet/host-configuration.md",
+  "decisions": [
+    {
+      "question": "D06-Q02",
+      "selected": "Set it to 0 with one validator",
+      "rule": "config.toml [consensus] double_sign_check_height is 0 on every role while the chain has one validator, replacing 10 on validators (P01, 2 October 2026). The engine refuses to rejoin consensus when its key signed any of the last N blocks; a single validator signs every block and none is made while it is down, so any value above 0 would stop every restart, release switch and recovery for good. A second copy of the key is prevented by the validator recovery fencing rule (delete the old server first) and the rule that node keys are never copied. Revisit when other validators hold more than two-thirds of the voting power."
+    }
+  ],
+  "replaces": {
+    "record": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+    "value": "double_sign_check_height",
+    "was": {
+      "validator": 10,
+      "sentry": 0,
+      "endpoint": 0
+    }
+  },
+  "unset": [],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

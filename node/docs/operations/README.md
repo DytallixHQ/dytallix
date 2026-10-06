@@ -27,8 +27,9 @@ before acceptance.
 | Restart on a fixed release after a halt | [restart.md](restart.md) |
 | Oracle failure | Not applicable. No oracle is in the consensus path (AC-010): the epoch observation is derived from committed blocks, and a submitted one is refused. |
 
-Day-to-day host operations (status, start and stop, staging wipe) are in
-[host.md](host.md).
+Day-to-day host operations (status, start and stop, staging wipe, moving to
+a new release) are in [host.md](host.md); validator recovery (F17) is
+[validator-recovery.md](validator-recovery.md).
 
 The procedures assume the native supervisor (`crates/native-supervisor`) as
 the service owner. The Python service that `deploy/pqc-engine` once held was

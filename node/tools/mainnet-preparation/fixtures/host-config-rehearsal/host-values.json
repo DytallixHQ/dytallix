@@ -6,7 +6,7 @@
     "double_sign_check_height": {
       "endpoint": 0,
       "sentry": 0,
-      "validator": 10
+      "validator": 0
     },
     "peer_gossip_sleep_duration": "100ms",
     "peer_query_maj23_sleep_duration": "2s",

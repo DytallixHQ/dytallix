@@ -141,7 +141,7 @@ func TestEveryHostGetsItsRoleAndApprovedValues(t *testing.T) {
 	if len(byPath) != 31 {
 		t.Fatalf("%d files", len(byPath))
 	}
-	for label, check := range map[string]string{"validator-1": "10", "sentry-1a": "0", "endpoint-1": "0"} {
+	for label, check := range map[string]string{"validator-1": "0", "sentry-1a": "0", "endpoint-1": "0"} {
 		config := string(byPath[filepath.Join("hosts", label, "config.toml")])
 		for _, want := range []string{
 			"double_sign_check_height = " + check + "\n",

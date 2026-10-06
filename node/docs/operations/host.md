@@ -21,7 +21,8 @@ the host: `verify` and `wipe.sh` read its install manifest.
 - `python3 -I -B dytallix-host/host_install.py verify`: `PASS`, or every
   difference between the host and its bundle (file contents, owners and
   modes, immutable binaries, AppArmor profiles in enforce mode, the firewall
-  table, enabled units).
+  table, enabled units). The validator's signing state changes as it signs,
+  so only its owner and mode are checked after the install.
 - `aa-status | grep dytallix` and `nft list table inet dytallix_node`: the
   profiles and the firewall as loaded.
 
@@ -64,15 +65,43 @@ The production hosts are the staging environment until genesis
    journal setting, and keeps the account.
 3. Install the next bundle as in host setup v1, step 5.
 
-The Host install workflow runs the same install, start, verify and wipe on
-an Ubuntu 24.04 runner for every change (`staging_host.py`).
+The Host install workflow runs the same install, start, verify, restart and
+wipe on an Ubuntu 24.04 runner for every change (`staging_host.py`).
+
+## Moving to a new release
+
+For an approved upgrade or handover (P01, 6 October 2026,
+[approval](../../../launch/approvals/P01_E05_HOST_RECOVERY_2026-10-06.json)):
+stage the new release beside the running one before activation, and switch
+when the old release stops at the activation height.
+
+1. **Before activation**, on every host, with the host's bundle for the new
+   release (downloaded and checked like the install bundle):
+   `./dytallix-host/stage.sh`. It installs the new release's binaries and
+   configuration under its own `/opt/dytallix/NEW` and
+   `/etc/dytallix/NEW`, and the unit, profiles, firewall and journal setting
+   it will switch to under `/etc/dytallix/NEW/next`. The node home and keys
+   are kept and nothing is unsealed; a bundle for another host or chain, or
+   one that changes the node home, is refused. Releases older than the
+   running one are removed.
+2. **At activation** the old release stops itself: the committed release is
+   no longer its own (exit class `release`).
+3. On each host, from the new bundle: `./dytallix-host/switch.sh`. It
+   refuses while the node runs. It installs the staged unit, profiles,
+   firewall and journal setting, unloads the old release's profiles,
+   verifies the host against the new bundle and starts the node. The
+   previous release stays installed until the next stage.
+
+## Validator recovery
+
+[validator-recovery.md](validator-recovery.md) (F17): fence the old server
+first, never restore signing state, set the old votes aside.
 
 ## Not yet written
 
-- Moving a host to a new release for an approved upgrade or handover.
-  `install.sh` refuses a host that already has an install.
-- Validator recovery (F17) and disaster recovery (F19). The
-  [operations objectives](../../../launch/operations/OBJECTIVES.md) fix their
-  rules: a validator's signing state is never restored from a backup, and a
-  replacement signs only after the old host is fenced off.
-- Rebuilding the endpoint by state sync.
+- Disaster recovery (F19). The
+  [operations objectives](../../../launch/operations/OBJECTIVES.md) fix the
+  rules: an offline monthly export of the chain and daily snapshots copied,
+  encrypted, to a second provider (not yet chosen, D12-Q03).
+- Rebuilding the endpoint by state sync: how light blocks reach a
+  console-only host.
