@@ -671,6 +671,24 @@ impl CometClient {
         let id = ordinary_v3::transaction_id(&signed.body, &profile.limits())?;
         self.check(tx, &id).await
     }
+    /// The node's `/status` view, unverified, and the height it reports.
+    /// Root controls are prepared from it (`dytallix-control prepare`); the
+    /// node checks every field again when the control is admitted.
+    pub async fn query_status(&self) -> Result<(u64, Value)> {
+        self.query("/status").await
+    }
+    /// CheckTx for an assembled root control (an emergency, upgrade or
+    /// release handover control). Its transaction ID is its SHA-256.
+    pub async fn check_control(&self, control: Vec<u8>) -> Result<CheckTxResponse> {
+        let id: [u8; 32] = Sha256::digest(&control).into();
+        self.check(control, &id).await
+    }
+    /// Explicit broadcast of an assembled root control, as `submit_sync`. A
+    /// zero code only reports CheckTx admission.
+    pub async fn submit_control_sync(&self, control: Vec<u8>) -> Result<CheckTxResponse> {
+        let id: [u8; 32] = Sha256::digest(&control).into();
+        self.broadcast(control, &id).await
+    }
     async fn check(&self, tx: Vec<u8>, id: &[u8; 32]) -> Result<CheckTxResponse> {
         let result: CheckResult = self
             .call("check_tx", json!({"tx":STANDARD.encode(tx)}))

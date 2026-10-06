@@ -47,6 +47,8 @@ enum Commands {
     Config(ConfigArgs),
     /// Serve a browser wallet on this machine and relay it to the pinned chain.
     Gateway(commands::gateway::GatewayArgs),
+    /// Save node status for, dry-run and submit root controls (freeze, resume, upgrade, handover).
+    Control(commands::control::ControlArgs),
 }
 
 #[tokio::main]
@@ -61,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
             | Commands::Send(_)
             | Commands::Stake(_)
             | Commands::Balance(_)
+            | Commands::Control(_)
     );
     let result = match cli.command {
         Commands::Wallet(args) => commands::wallet::run(args).await,
@@ -73,6 +76,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Crypto(args) => commands::crypto::run(args).await,
         Commands::Config(args) => commands::config::run(args).await,
         Commands::Gateway(args) => commands::gateway::run(args).await,
+        Commands::Control(args) => commands::control::run(args).await,
     };
 
     if let Err(err) = result {
