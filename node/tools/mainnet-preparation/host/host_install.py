@@ -48,6 +48,7 @@ FIREWALL_TABLE = ('inet', 'dytallix_node')
 JOURNALD_FILE = '/etc/systemd/journald.conf.d/dytallix.conf'
 SINGLE_FILES = (UNIT_FILE, PROFILE_FILE, FIREWALL_FILE, JOURNALD_FILE)
 NFT_CONF = '/etc/nftables.conf'
+UFW_CONF = '/etc/ufw/ufw.conf'
 NFT_INCLUDE = 'include "/etc/nftables.d/*.nft"'
 UNSEALER = 'dytallix-root-sign'
 # The signing state changes each time a validator signs; only its install is
@@ -161,9 +162,13 @@ def preflight(host):
     require(host.path(NFT_CONF).exists(), f'{NFT_CONF} is missing (install nftables)')
     synced = host.run(['timedatectl', 'show', '-p', 'NTPSynchronized', '--value'], check=False).stdout.strip()
     require(synced == 'yes', 'the clock is not synchronized yet (systemd-timesyncd); wait and retry')
-    for firewall in ('ufw', 'firewalld'):
-        active = host.run(['systemctl', 'is-active', firewall], check=False).stdout.strip()
-        require(active != 'active', f'{firewall} is active; disable it (the node\'s table is the host firewall)')
+    # ufw's unit is a oneshot that stays active after `ufw disable`; ufw.conf
+    # says whether it filters, now and at boot. firewalld is a daemon.
+    ufw = host.path(UFW_CONF)
+    require(not (ufw.exists() and re.search(r'^ENABLED=yes\s*$', ufw.read_text(), re.M)),
+            'ufw is enabled; run `ufw disable` (the node\'s table is the host firewall)')
+    active = host.run(['systemctl', 'is-active', 'firewalld'], check=False).stdout.strip()
+    require(active != 'active', 'firewalld is active; disable it (the node\'s table is the host firewall)')
 
 
 def existing(host):

@@ -334,7 +334,8 @@ class HostBundleTests(HostNetwork):
         cases = {
             'Ubuntu 24.04': lambda h: h.path('/etc/os-release').write_text('ID=ubuntu\nVERSION_ID="22.04"\n'),
             'AppArmor': lambda h: h.path('/sys/module/apparmor/parameters/enabled').write_text('N\n'),
-            'ufw is active': lambda h: setattr(h, 'run', active_ufw(h.run)),
+            'ufw is enabled': lambda h: ufw_conf(h, 'yes'),
+            'firewalld is active': lambda h: setattr(h, 'run', active_unit('firewalld', h.run)),
             'already has': lambda h: h.path('/etc/dytallix').mkdir(),
         }
         for index, (message, change) in enumerate(cases.items()):
@@ -349,6 +350,19 @@ class HostBundleTests(HostNetwork):
         host = FakeHost(self.tmp / 'tampered', self.staging, profiles)
         with self.assertRaisesRegex(hi.Refused, 'not the manifest'):
             hi.install(bundle, host, out=lambda _: None)
+
+
+class DisabledUfwTests(HostNetwork):
+    def test_install_accepts_ufw_disabled_with_its_unit_still_active(self):
+        # GitHub's runners and a host after `ufw disable`: the oneshot unit
+        # stays active, but ufw no longer filters.
+        out, _ = self.bundle('validator-1')
+        bundle = self.unpack(out)
+        host = FakeHost(self.tmp / 'ufw-disabled', self.staging, self.manifests['validator-1']['apparmor_profiles'])
+        ufw_conf(host, 'no')
+        host.run = active_unit('ufw', host.run)
+        hi.install(bundle, host, out=lambda _: None)
+        self.assertEqual(hi.verify(bundle, host), [])
 
 
 class ReleaseSwitchTests(HostNetwork):
@@ -426,12 +440,17 @@ class ReleaseSwitchTests(HostNetwork):
             hi.stage(bundle2, host, out=lambda _: None)
 
 
-def active_ufw(run):
+def active_unit(unit, run):
     def wrapped(args, check=True, interactive=False):
-        if args[:3] == ['systemctl', 'is-active', 'ufw']:
+        if args[:3] == ['systemctl', 'is-active', unit]:
             return SimpleNamespace(returncode=0, stdout='active\n', stderr='')
         return run(args, check=check, interactive=interactive)
     return wrapped
+
+
+def ufw_conf(host, enabled):
+    host.path(hi.UFW_CONF).parent.mkdir(parents=True, exist_ok=True)
+    host.path(hi.UFW_CONF).write_text(f'# /etc/ufw/ufw.conf\nENABLED={enabled}\nLOGLEVEL=low\n')
 
 
 if __name__ == '__main__':
