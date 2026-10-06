@@ -110,20 +110,22 @@ Each execution record holds:
 ## Known limits
 
 - **Restart on new code.** A halt that needs new code resumes only through a
-  root-signed restart authorization ([restart.md](restart.md)). Its
-  signing depends on the handover custodians (E05, P02).
-- **Rejoin.** The supervisor refuses `statesync.enable`, so a node whose
-  database is set aside can rejoin only by block sync from a peer that still
-  holds every block (an archive node, `block_history: archive`). State sync
-  join runs only in the qualification harness.
+  root-signed restart authorization ([restart.md](restart.md)), signed by
+  three of the upgrade keys (the kits' upgrade keys under the solo launch
+  profile). `dytallix-root-sign sign-control` does not yet take a restart
+  artifact; that is an open follow-up.
+- **Rejoin.** A node whose database is set aside rejoins by state sync from
+  operator-supplied light blocks (state sync v1: the plan's `state_sync` and
+  the supervisor's `state_sync.light_blocks`), or by block sync from the
+  archive sentry (`block_history: archive`).
 - **Penalties.** A validator's first duplicate vote deducts the penalty rate
   from every stake bonded to it and removes the validator for good
   ([penalties v1](../architecture/penalties-v1.md), D09-Q04).
   Light-client-attack evidence is recorded only, and there is no downtime
-  penalty. The penalty profile still refuses `production_activation`;
-  [production activation v1](../architecture/production-activation-v1.md)
-  (approved design, not yet built) sets it to true.
+  penalty. A production build's genesis sets `production_activation`
+  ([production activation v1](../architecture/production-activation-v1.md)).
 - **Emergency controls.** Freeze and resume are root-signed controls
-  (3 of 5 SLH-DSA signatures). Signing them in production depends on the
-  custody procedure (E05, P02); the only signer in the repository is
-  test-only.
+  (3 of 5 SLH-DSA signatures). They are prepared from the node's status,
+  signed offline with three key kits and submitted with the CLI
+  ([control signing](../mainnet/control-signing.md)). A control's window is
+  34,560 blocks, about two days.

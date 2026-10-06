@@ -23,7 +23,24 @@ control is made in production
    (`check_tx`) and submits it (`broadcast_tx_sync`) over the pinned chain.
 
 `dytallix-control` (prepare and assemble) is in the node crate and ships in
-the release. The offline signing command and the CLI commands follow.
+the release; `dytallix-root-sign` is the offline signer; `dytallix control`
+is the CLI. The node's test `control_tools_freeze_and_resume_end_to_end`
+runs the whole chain (five kits, a freeze signed by kits 1, 3 and 5, a resume
+by kits 2, 3 and 4) against the application.
+
+```text
+dytallix control status --out status.json                    # online
+dytallix-control prepare freeze --config application-config.json \
+  --status status.json --incident incident.md --out request.json
+dytallix-root-sign show-control -request request.json        # offline, per kit
+dytallix-root-sign sign-control -request request.json \
+  -private-key /mnt/kit/kit-N-freeze.key -public-key /mnt/public/kit-N-freeze.json \
+  -operation freeze -sequence S -out kit-N.sig.json
+dytallix-control assemble --config application-config.json \
+  --request request.json --out control.json kit-*.sig.json    # online
+dytallix control check control.json
+dytallix control submit control.json
+```
 
 ## Prepare
 

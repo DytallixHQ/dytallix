@@ -1,12 +1,12 @@
 # Restart on a fixed release
 
 Runbook v1 ([index](README.md); design in
-[restart v1](../architecture/restart-v1.md)). The following are unset
-inputs (D14-Q03, E05, P02):
-- the handover custodians;
-- their signing procedure;
-- the incident channel;
-- the release process for the fixed release.
+[restart v1](../architecture/restart-v1.md)). The signers are the upgrade
+keys of the five key kits ([key ceremony](../../../launch/custody/KEY_CEREMONY.md));
+the fixed release is built and frozen as in [release](../../../release/README.md).
+Still unset (D14-Q03, E05, P02):
+- signing a restart artifact with the kits (see step 5);
+- the incident channel.
 
 Use this procedure when the chain is halted at height H on every validator
 and the fix is new code. It covers two cases:
@@ -47,16 +47,19 @@ the fixed release with the authorization.
    - It writes `restart-unsigned.json` and `restart-artifact.bin`, the exact
      bytes to sign.
    - It prints the sequence, the halted height and the artifact's SHA-512.
-4. **Compare across operators.** Several operators run step 3 on their own
-   nodes. The payloads must be identical; a difference means the nodes
+4. **Compare across nodes.** Run step 3 on at least two nodes (under the
+   solo launch profile, the validator and the sentry). The payloads must be identical; a difference means the nodes
    diverged, so follow [fork.md](fork.md).
 
 ## Signing
 
-5. **The handover custodians sign.** At least the handover threshold of
-   custodians sign `restart-artifact.bin` under the root `upgrade` action,
-   with the printed sequence and the height window H..H. Custody is E05 and
-   P02; the repository's fixture signer is test-only.
+5. **The upgrade keys sign.** At least the handover threshold of upgrade
+   keys (three key kits under the solo launch profile) sign
+   `restart-artifact.bin` under the root `upgrade` action, with the printed
+   sequence and the height window H..H. `dytallix-root-sign sign-control`
+   signs freezes, resumes, upgrades and handovers
+   ([control signing](../mainnet/control-signing.md)) but does not yet take
+   a restart artifact; that is an open follow-up.
 6. **Assemble the file.** Add each signature to `signatures` in
    `restart-unsigned.json` as `{"key_id": ..., "signature_hex": ...}`,
    sorted by key ID. The file may stay formatted; only the payload is
