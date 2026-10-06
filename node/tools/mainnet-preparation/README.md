@@ -124,6 +124,17 @@ python3 -B tools/mainnet-preparation/resolve_host_values.py --check \
   --resolution tools/mainnet-preparation/fixtures/host-config-rehearsal/host-values-resolution.json
 ```
 
+## Host files (E05, host setup v1)
+
+`host_files.py` writes each host's files ([host setup v1](../../docs/architecture/host-setup-v1.md)) from the release (`RELEASE_MANIFEST.json`, `BUILD_RECORD.json`), the chain's genesis and root records, `dytallix-host-config`'s output, the pin plan, the offline key summaries (`LABEL.keys.json`, schema `dytallix.host-keys.v1`: the host's public keys and the SHA-256 of each sealed secret file; the endpoint's `LABEL.channel-pin.json`), the approved E05 values and `launch/hosts/SETUP_VALUES.json`:
+
+```text
+python3 -B tools/mainnet-preparation/host_files.py --release RELEASE_DIR --chain CHAIN_DIR \
+  --hosts HOSTS_DIR --plan PIN_PLAN.json --keys KEYS_DIR --out OUT_DIR
+```
+
+For each host, `OUT_DIR/LABEL/` holds every file under its installed path and `INSTALL_MANIFEST.json` (schema `dytallix.host-install.v1`): owners, modes, digests, directories, binaries and the secret files the sealed keys must provide. It runs `native-execution-policy/production_roles.py` for the role profiles, unit properties, admission and firewall table, and pins every file the supervisor reads by SHA-256. The plan's home must be `/var/lib/dytallix/node`. `fixtures/host-files-staging/` holds the configurations it writes for a synthetic three-host staging network, which the supervisor's tests parse with their own types.
+
 ## Decision copies (E05)
 
 Each gate in `launch/LAUNCH_GATES.json` lists its decision dependencies as copies of questions in `launch/MAINNET_DECISION_REGISTER.json` (`source_ref`), and its `decision_counts` copies the register's `question_counts`. The register is authoritative. After recording an approval there, run:

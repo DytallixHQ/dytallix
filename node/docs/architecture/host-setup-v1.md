@@ -35,7 +35,7 @@ This is the design; the tools follow in steps H2 to H5.
 | `/var/lib/dytallix/light-blocks/` | root, 0755 | Operator light block exports, for a state sync join |
 | `/var/lib/dytallix/scratch/` | `dytallix`, 0700 | The root helper's scratch directory |
 | `/etc/systemd/system/dytallix-node.service` | root, 0644 | The unit |
-| `/etc/apparmor.d/dytallix/` | root, 0644 | The four role profiles |
+| `/etc/apparmor.d/dytallix-node` | root, 0644 | The four role profiles, in the file `apparmor.service` loads at boot |
 | `/etc/nftables.d/dytallix.nft` | root, 0644 | The host firewall table `inet dytallix_node` |
 
 The service account is the system user and group `dytallix`, UID and GID
@@ -55,7 +55,10 @@ release, genesis, root sigs ─┘                                              
 
 1. **Plan.** The founder writes the pin plan (`PIN_PLAN.json`, the three
    hosts' roles, addresses, ports and pins;
-   [host configuration](../mainnet/host-configuration.md)) from a template.
+   [host configuration](../mainnet/host-configuration.md)) from
+   [`launch/hosts/PIN_PLAN.template.json`](../../../launch/hosts/PIN_PLAN.template.json):
+   the validator pins its sentry, the sentry pins the validator and the
+   endpoint, and the endpoint pins the sentry.
 2. **Node keys, offline.** On the ceremony machine, for each host: the
    validator key and its fresh signing state (`dytallix-validator-key`), the
    peer seed (`dytallix-peer-seed`) and, for the endpoint, the client channel
@@ -99,6 +102,17 @@ release, genesis, root sigs ─┘                                              
 The TLS download is only transport: the typed SHA-256 is what the host
 trusts. The bundle's release files are the ones whose manifest SHA-512 the
 signed genesis binds.
+
+## Key summaries
+
+The offline key step writes, for each host, `LABEL.keys.json`
+(`dytallix.host-keys.v1`): the label, role, peer and validator public keys,
+and `secret_files`, the SHA-256 of each private file the sealed keys hold
+(`config/pqc_peer_seed.bin`, `config/priv_validator_key.json`,
+`data/priv_validator_state.json` and, on the endpoint,
+`config/client_channel_seed.bin`), and for the endpoint its public
+`LABEL.channel-pin.json`. The generator pins the digests; it never sees a
+private file.
 
 ## The unit
 

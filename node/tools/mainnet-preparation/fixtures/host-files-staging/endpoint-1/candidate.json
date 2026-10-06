@@ -1,0 +1,30 @@
+{
+  "config_schema": 2,
+  "manifest_path": "/etc/dytallix/f2cc05f54bc3c6ec/release-manifest.json",
+  "mapping_path": "/etc/dytallix/f2cc05f54bc3c6ec/mapping.json",
+  "bounds": {
+    "max_manifest_bytes": 1048576,
+    "max_mapping_bytes": 1048576,
+    "max_members": 32,
+    "max_roles": 16,
+    "max_runtime_profiles": 16,
+    "max_references": 128,
+    "max_id_bytes": 128,
+    "max_path_bytes": 4096,
+    "max_member_bytes": 134217728,
+    "max_total_member_bytes": 536870912
+  },
+  "observation": {
+    "max_stat_bytes": 65536,
+    "max_maps_bytes": 2097152,
+    "max_map_entries": 4096,
+    "max_path_bytes": 4096,
+    "max_unique_files": 64,
+    "max_file_bytes": 134217728,
+    "max_total_file_bytes": 536870912,
+    "max_elapsed_millis": 15000
+  },
+  "allowed_owner_uids": [
+    0
+  ]
+}

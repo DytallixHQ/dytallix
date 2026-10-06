@@ -1783,4 +1783,47 @@ mod tests {
             assert!(loopback(bad, "127.0.0.1:").is_err());
         }
     }
+    /// The host setup generator's configurations for a three-host staging
+    /// network (`tools/mainnet-preparation/host_files.py`, whose Python tests
+    /// regenerate this fixture byte for byte) parse with the supervisor's and
+    /// the application's types, and each role runs what production requires.
+    #[test]
+    fn host_setup_generator_configurations_parse() {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tools/mainnet-preparation/fixtures/host-files-staging");
+        for (label, role) in [
+            ("validator-1", NodeRole::Validator),
+            ("sentry-1", NodeRole::Sentry),
+            ("endpoint-1", NodeRole::Endpoint),
+        ] {
+            let read = |name: &str| std::fs::read(fixture.join(label).join(name)).unwrap();
+            let service: NativeServiceConfig =
+                serde_json::from_slice(&read("service.json")).unwrap();
+            assert!(service.production());
+            assert_eq!(service.role, Some(role));
+            service.validate_settings().unwrap();
+            service.process.bounds().unwrap();
+            service
+                .observation_pause
+                .as_ref()
+                .unwrap()
+                .validate()
+                .unwrap();
+            if let Some(listen) = &service.adapter_listen {
+                loopback(listen, "127.0.0.1:").unwrap();
+            }
+            if let Some(channel) = &service.adapter_channel {
+                channel.address().unwrap();
+            }
+            let _: dytallix_fast_node::emergency_verifier::EmergencyVerifierConfig =
+                serde_json::from_slice(&read("emergency-verifier.json")).unwrap();
+            let candidate: dytallix_fast_node::runtime_candidate_v2::DevelopmentCandidateV2Input =
+                serde_json::from_slice(&read("candidate.json")).unwrap();
+            candidate.observation_bounds().unwrap();
+            let root: serde_json::Value =
+                serde_json::from_slice(&read("root-config.json")).unwrap();
+            let _: dytallix_fast_node::root_genesis::ObservedHelperPolicy =
+                serde_json::from_value(root["helper_execution"].clone()).unwrap();
+        }
+    }
 }
