@@ -394,7 +394,7 @@
     "The ML-KEM-768 + ML-DSA-65 peer protocol still requires independent protocol review (P02).",
     "Production chain identity, addresses, keys, custody, the release commit, the full distribution inventory and independent review are not frozen (E05, E06, P01, P02)."
   ],
-  "source_root": "mainnet/node",
+  "source_root": "node",
   "status": "SOURCE_ROUTES_MAPPED_WITH_OPEN_PRODUCTION_BOUNDARY",
   "tooling": [
     {

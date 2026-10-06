@@ -15,13 +15,13 @@
 Add the SDK from Git:
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git
 ```
 
 Add the SDK with the node client:
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features comet-rpc
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git --features comet-rpc
 ```
 
 ## Feature Flags

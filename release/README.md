@@ -127,6 +127,6 @@ exits 1 unless the bytes match.
 
 ## Publication
 
-Releases are published as GitHub Releases on `DytallixHQ/dytallix`, after
-mainnet/ moves there with its history ([MOVE.md](MOVE.md)). They're tagged
-once, in their final home, as `v*`.
+Releases are published as GitHub Releases on `DytallixHQ/dytallix`, this
+repository, which mainnet/ moved to with its history on 5 October 2026
+([MOVE.md](MOVE.md)). They're tagged once, here, as `v*`.

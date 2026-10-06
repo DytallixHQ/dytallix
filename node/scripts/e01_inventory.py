@@ -234,7 +234,7 @@ def build():
     return {
         "schema": "dytallix-e01-crypto-source-inventory-v2",
         "status": "SOURCE_ROUTES_MAPPED_WITH_OPEN_PRODUCTION_BOUNDARY",
-        "source_root": "mainnet/node",
+        "source_root": "node",
         "routes": routes,
         "tooling": [{"path": path, "sha256": sha256(path)} for path in TOOLING],
         "enforcement": ENFORCEMENT,

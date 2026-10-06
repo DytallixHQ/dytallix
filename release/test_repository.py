@@ -1,73 +1,13 @@
-"""The repository move tools (E06), on throwaway git repositories."""
+"""The move verification and DCO check (E06), on throwaway git repositories."""
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
 import repository as r
 
-SOURCE = """on:
-  push:
-    tags: ['mainnet-v*']
-    paths:
-      - 'mainnet/**'
-      - '!mainnet/**/*.md'
-      - '.github/workflows/mainnet.yml'
-jobs:
-  node:
-    defaults:
-      run:
-        working-directory: mainnet/node
-    steps:
-      # Built by mainnet/release/reproduce.sh; see tools/mainnet-preparation.
-      - run: docker run -v "$GITHUB_WORKSPACE/mainnet:/src:ro" x mainnet/release/builder
-      # move: drop-start
-      - name: Old repository only
-        run: python3 ../release/repository.py render-workflows --check
-      # move: drop-end
-      - run: (cd "mainnet/node/consensus/$module" && cat docs/mainnet/e01.md)
-"""
-RENDERED = """on:
-  push:
-    tags: ['v*']
-    paths:
-      - '**'
-      - '!**/*.md'
-      - '.github/workflows/mainnet.yml'
-jobs:
-  node:
-    defaults:
-      run:
-        working-directory: node
-    steps:
-      # Built by release/reproduce.sh; see tools/mainnet-preparation.
-      - run: docker run -v "$GITHUB_WORKSPACE:/src:ro" x release/builder
-      - run: (cd "node/consensus/$module" && cat docs/mainnet/e01.md)
-"""
-
-
 def git(repo, *args, env=None):
     return subprocess.run(['git', '-C', str(repo), *args], capture_output=True, text=True, check=True,
                           env=env).stdout.strip()
-
-
-class RenderTests(unittest.TestCase):
-    def test_paths_lose_the_prefix_and_marked_steps_are_dropped(self):
-        self.assertEqual(r.render(SOURCE), RENDERED)
-
-    def test_markers_must_pair(self):
-        for text in ('# move: drop-start\n', '# move: drop-end\n', '# move: drop-start\n# move: drop-start\n'):
-            with self.assertRaises(ValueError): r.render(text)
-
-    def test_check_reports_drift(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            source, target = Path(tmp)/'source', Path(tmp)/'target'
-            source.mkdir()
-            for name in r.RENDERED: (source/name).write_text(SOURCE)
-            self.assertEqual(r.render_workflows(True, source, target), list(r.RENDERED))
-            self.assertEqual(r.render_workflows(False, source, target), [])
-            self.assertEqual(r.render_workflows(True, source, target), [])
-            (target/r.RENDERED[0]).write_text(RENDERED + '# edited\n')
-            self.assertEqual(r.render_workflows(True, source, target), [r.RENDERED[0]])
 
 
 class RepositoryTests(unittest.TestCase):
