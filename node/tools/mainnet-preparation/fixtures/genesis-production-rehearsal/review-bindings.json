@@ -682,7 +682,7 @@
   },
   "schema_version": 1,
   "source_digests": {
-    "application_config_sha256": "2a2ed174aa7e8dcd9286264be55a2c1e8c872f18994b55e077d515aff5d4c663",
+    "application_config_sha256": "57c754ee516bb8534a76996f2932e6f378077531a0f6ae7fe79a2cf8dc3baa03",
     "engine_genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
     "native_genesis_sha256": "ac192e9c0ff3c8b8a50a53f2b406390611b687ca2d2a2532fdea170598853b2d",
     "records_sha256": "48e3fdff4035a55bcb752d81a327017371d25fc00ca5a9504064f8d55738d9f6"

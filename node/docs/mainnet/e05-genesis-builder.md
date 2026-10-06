@@ -147,7 +147,7 @@ controls, a genesis beyond its reader's bound, and any unknown input field.
   resolved or derived, and the refusals above.
 
 Two rehearsals are committed under `tools/mainnet-preparation/fixtures/`.
-Both use 110 approved values, 9 measurement placeholders and synthetic
+Both use 116 approved values, 3 measurement placeholders and synthetic
 records: invented holders, and public keys that are SHAKE-256
 outputs, not key pairs.
 

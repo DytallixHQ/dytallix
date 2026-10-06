@@ -18,6 +18,13 @@
 //	             -purpose P -epoch N|none -session ID -out PATH
 //	verify-proof -proof F
 //
+// Root controls (node/docs/mainnet/control-signing.md) are signed offline,
+// one key at a time, from the request dytallix-control prepares:
+//
+//	show-control   -request F
+//	sign-control   -request F -private-key F -public-key F -operation OP -sequence N -out PATH
+//	verify-control -request F -signature F -public-key F
+//
 // Outputs are never overwritten. Everything it writes except private keys
 // and a kit's paper line is a public record. It cannot start a chain,
 // consume a sequence or approve a launch: the node verifies every signature
@@ -150,6 +157,31 @@ func run(args []string, out io.Writer) error {
 			return err
 		}
 		return verifyProof(*proof, out)
+	case "show-control":
+		request := flags.String("request", "", "control request")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return showControl(*request, out)
+	case "sign-control":
+		request := flags.String("request", "", "control request")
+		key := flags.String("private-key", "", "this key's private key file")
+		public := flags.String("public-key", "", "its public key record")
+		operation := flags.String("operation", "", "the operation you expect, as show-control prints it")
+		sequence := flags.String("sequence", "", "the sequence you expect, as show-control prints it")
+		output := flags.String("out", "", "new signature file")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return signControl(*request, *key, *public, *operation, *sequence, *output, out)
+	case "verify-control":
+		request := flags.String("request", "", "control request")
+		signature := flags.String("signature", "", "signature file")
+		public := flags.String("public-key", "", "the signer's public key record")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return verifyControl(*request, *signature, *public, out)
 	}
 	return fmt.Errorf("unknown command %q", args[0])
 }

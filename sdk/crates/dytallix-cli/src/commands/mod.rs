@@ -3,6 +3,7 @@
 pub mod balance;
 pub mod config;
 pub mod consensus;
+pub mod control;
 pub mod crypto;
 pub mod gateway;
 pub mod governance;

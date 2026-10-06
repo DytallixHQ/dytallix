@@ -64,3 +64,4 @@ pub mod release_handover;
 
 // Deterministic genesis builder (E05-d), rehearsal only.
 pub mod genesis_build;
+pub mod control_request;

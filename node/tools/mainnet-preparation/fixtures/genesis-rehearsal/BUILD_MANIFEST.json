@@ -1,12 +1,12 @@
 {
   "boundary": "Rehearsal output in the development profiles. Not a production genesis: a production build, approved values for every open input, accepted records, the root genesis signatures and gate acceptance remain required.",
-  "build_digest": "590a74e08dac633e050f248f2c5a5aebad30cb34e8a33946d27e418434c0c563",
+  "build_digest": "ba84d80e74d325702cab0cef81596fa915e0e59235722c30836628c0c3c94e1a",
   "chain_id": "dytallix-rehearsal-1",
   "files": {
     "application-config.json": {
-      "bytes": 157887,
-      "sha256": "efa75926a72572db4b9bc36a3e5a7bfc85008ba4c40bb6edd273bd38691322f2",
-      "sha512": "6020174e828656cd180c2ddf56b42048de737ec1dca64297969eca7ff4e81ff8a665cd49527068f0695aa515a3ee2a7ec490b22f62b461c2eec20e4841e51c9d"
+      "bytes": 157899,
+      "sha256": "a6b6df456844ba7d39b46b314f65d8fa4eeeda75d7851bd6c2551179a53a210b",
+      "sha512": "d0ada10277ddb836a446ac6ed02d289d6dfe579b0a8092395975d3d9163f0ffae0f476cebefaf65905f5dc440bac801c98dd3d789e9c979ad2f82800ed62d53e"
     },
     "genesis.json": {
       "bytes": 15385,
@@ -20,7 +20,7 @@
     }
   },
   "genesis_time": "2027-01-01T00:00:00Z",
-  "inputs_sha256": "2e6bfe9bf0dc38a6c4badb04d3b69b2e9c3b0923ba4c7c9e7c3942668abb98dc",
+  "inputs_sha256": "688e000001dd2ff72348cfc2f6d8d6fd2f2e493608cad8523942acb1d87e88c6",
   "mode": "rehearsal",
   "production": false,
   "schema": "dytallix.genesis-build-manifest.v1"
