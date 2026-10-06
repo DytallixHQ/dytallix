@@ -12,7 +12,7 @@
       "kind": "cargo",
       "workspace": "node",
       "args": ["-p", "dytallix-fast-node", "--features", "production"],
-      "bins": ["consensus_stdio", "dytallix-genesis-build", "dytallix-state-check"]
+      "bins": ["consensus_stdio", "dytallix-control", "dytallix-genesis-build", "dytallix-state-check"]
     },
     {
       "id": "node-supervisor",
