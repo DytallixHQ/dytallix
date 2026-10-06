@@ -5,7 +5,7 @@
   "vendor_path": "vendor/dytallix-client-channel",
   "hash_algorithm": "sha256",
   "source_repository": "https://github.com/exocognosis/dytallix",
-  "source_head": "d17bab27d4b699788db80defb3e649e3747197f0",
+  "source_head": "3e4398434b1b925cb92bcd0d6fbd0bcd794e09b2",
   "source_kind": "working_tree_snapshot",
   "source_head_is_complete_snapshot": false,
   "source_description": "Exact bytes of mainnet/node/crates/client-channel and mainnet/node/LICENSE, copied by scripts/sync_protocol_vendor.py. The file hashes, not source_head alone, identify this snapshot.",
@@ -13,14 +13,14 @@
     {
       "path": "Cargo.toml",
       "source_path": "crates/client-channel/Cargo.toml",
-      "bytes": 766,
-      "sha256": "492cbc7311db0da22c324a59bd146f1380ee7405ed515621b9482a558326fdce"
+      "bytes": 780,
+      "sha256": "3bd1bf3280007bbc596461da943f3deae0eff242650ac7ac9ea979c4af736dfe"
     },
     {
       "path": "LICENSE",
       "source_path": "LICENSE",
-      "bytes": 1066,
-      "sha256": "e4b10b3fc81b7b3842dbf47e90868cc4e122cf4b8fe8d20ffd17247560705fe4"
+      "bytes": 11491,
+      "sha256": "484c60e87d490713e8fb17751d8b6643b6e3a23da203f36362294ae7e5cc5387"
     },
     {
       "path": "src/handshake.rs",

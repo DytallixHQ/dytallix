@@ -128,5 +128,5 @@ exits 1 unless the bytes match.
 ## Publication
 
 Releases are published as GitHub Releases on `DytallixHQ/dytallix`, after
-mainnet/ moves there with its history. They're tagged once, in their final
-home.
+mainnet/ moves there with its history ([MOVE.md](MOVE.md)). They're tagged
+once, in their final home, as `v*`.

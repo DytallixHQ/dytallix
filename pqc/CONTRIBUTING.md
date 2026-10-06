@@ -1,5 +1,8 @@
 # Contributing to Dytallix PQC
 
+Outside contributions are signed off under the Developer Certificate of
+Origin; see the repository's [contributing guide](../CONTRIBUTING.md).
+
 Start with the [README](README.md) and [docs hub](docs/README.md).
 
 ## Getting Started

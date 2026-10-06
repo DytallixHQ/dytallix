@@ -11,7 +11,7 @@ import (
 	"io"
 	"os"
 
-	root "github.com/dytallix/root-authorization"
+	root "dytallix.local/consensus/root-authorization"
 )
 
 var errVerificationRejected = errors.New("root verification rejected")

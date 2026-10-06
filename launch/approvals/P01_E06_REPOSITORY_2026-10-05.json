@@ -1,0 +1,41 @@
+{
+  "decision_id": "P01-2026-10-05-E06-REPOSITORY",
+  "approved": "2026-10-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E06 repository move"
+  },
+  "design_ref": "../release/MOVE.md",
+  "decisions": [
+    {
+      "question": "D14-Q01",
+      "selected": "MIT OR Apache-2.0",
+      "rule": "DytallixHQ/dytallix is dual licensed under the MIT license or the Apache License, Version 2.0, at the user's option (LICENSE-MIT and LICENSE-APACHE at the root, both texts in each component's LICENSE, SPDX `MIT OR Apache-2.0` in every Cargo manifest). Contributions are licensed the same way. Third-party code keeps its own license, including the Apache-2.0 CometBFT copy."
+    },
+    {
+      "question": "D14-Q01",
+      "selected": "DCO sign-off",
+      "rule": "Outside contributions carry a Signed-off-by line from the commit's author under the Developer Certificate of Origin 1.1, and a pull request check refuses commits without one. There is no contributor license agreement. Members' pull requests are not checked."
+    },
+    {
+      "question": "D14-Q01",
+      "selected": "GitHub noreply",
+      "rule": "When mainnet/ moves with its history, every commit's personal author and committer address becomes the founder's GitHub noreply address, 24476447+exocognosis@users.noreply.github.com. The personal address is given to the move script on the command line and is never stored in the repository."
+    },
+    {
+      "question": "D14-Q01",
+      "selected": "Replace with a pointer",
+      "rule": "After the move is pushed and its CI passes, one pull request in exocognosis/dytallix replaces mainnet/ with a README pointing to DytallixHQ/dytallix and removes the mainnet workflows, so there is one live source. Git history keeps the old copy; nothing is permanently deleted."
+    }
+  ],
+  "unset": [
+    "The DytallixHQ/dytallix repository, its organization and repository settings, and the push (founder actions)",
+    "The frozen commit that moves"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

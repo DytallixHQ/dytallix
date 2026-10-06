@@ -3023,7 +3023,11 @@
             "container_images": "BUILDER_IMAGE_ONLY_NO_NODE_CONTAINER",
             "registry": "GITHUB_RELEASES_ON_DYTALLIXHQ_DYTALLIX_AFTER_THE_MOVE",
             "signing_authority": "ROOT_SIGNED_GENESIS_BINDS_THE_FIRST_RELEASE_UPGRADE_KEYS_APPROVE_LATER_RELEASES",
-            "linkage": "STATIC_EXECUTABLES_NO_RUNTIME_LIBRARIES"
+            "linkage": "STATIC_EXECUTABLES_NO_RUNTIME_LIBRARIES",
+            "license": "MIT_OR_APACHE_2_0_THIRD_PARTY_CODE_KEEPS_ITS_OWN",
+            "contributions": "DCO_SIGN_OFF_FOR_OUTSIDE_CONTRIBUTIONS_NO_CLA",
+            "history_identity": "FOUNDER_GITHUB_NOREPLY_ADDRESS_IN_MOVED_HISTORY",
+            "old_copy": "POINTER_README_IN_EXOCOGNOSIS_DYTALLIX_AFTER_THE_MOVE"
           },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
           "assignee": null,
@@ -3043,13 +3047,14 @@
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
           "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
-          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte. E06 (P01, 5 October 2026): Linux x86_64 release, the wallet also from source; a published builder image and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release and the upgrade keys approve later ones, with no separate release key. Release libraries (P01, 5 October 2026): every release binary is a static executable, so the release manifest lists no runtime libraries and host updates never change what the node runs.",
+          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte. E06 (P01, 5 October 2026): Linux x86_64 release, the wallet also from source; a published builder image and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release and the upgrade keys approve later ones, with no separate release key. Release libraries (P01, 5 October 2026): every release binary is a static executable, so the release manifest lists no runtime libraries and host updates never change what the node runs. Repository (P01, 5 October 2026): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; after the move, mainnet/ in exocognosis/dytallix becomes a pointer.",
           "remaining_choices": [],
           "approval_records": [
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
             "approvals/P01_E06_RELEASE_2026-10-05.json",
-            "approvals/P01_E06_STATIC_RELEASE_2026-10-05.json"
+            "approvals/P01_E06_STATIC_RELEASE_2026-10-05.json",
+            "approvals/P01_E06_REPOSITORY_2026-10-05.json"
           ]
         },
         {
@@ -4042,6 +4047,25 @@
       ],
       "unset": [
         "The chain-specific release manifest"
+      ]
+    },
+    {
+      "id": "P01-2026-10-05-E06-REPOSITORY",
+      "approved": "2026-10-05",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E06_REPOSITORY_2026-10-05.json",
+      "decisions": [
+        "D14-Q01: DytallixHQ/dytallix is MIT OR Apache-2.0; third-party code keeps its own license.",
+        "D14-Q01: outside contributions are signed off under the DCO; no CLA.",
+        "D14-Q01: the moved history uses the founder's GitHub noreply address.",
+        "D14-Q01: after the move, mainnet/ in exocognosis/dytallix becomes a pointer to DytallixHQ/dytallix."
+      ],
+      "question_refs": [
+        "D14-Q01"
+      ],
+      "unset": [
+        "The repository, its settings and the push (founder actions)",
+        "The frozen commit that moves"
       ]
     }
   ],

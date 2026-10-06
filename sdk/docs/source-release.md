@@ -2,7 +2,7 @@
 
 The SDK workspace includes `vendor/dytallix-protocol-types`. This directory is
 an exact copy of the approved canonical node protocol crate, its tests, and its
-public vectors. The included MIT license comes from the node repository. The SDK
+public vectors. The included license (MIT OR Apache-2.0) comes from the node repository. The SDK
 can build without a sibling node checkout.
 
 `vendor/protocol-types-source.json` identifies every vendored file by size and

@@ -23,7 +23,7 @@ Cargo workspace.
 | --- | --- | --- |
 | [`consensus/cometbft`](../consensus/cometbft) | `dytallix.local/consensus/cometbft` | Engine, ABCI bridge and qualification tools; the fork lives in `upstream/` |
 | [`consensus/owner-guard`](../consensus/owner-guard) | `dytallix.local/consensus/owner-guard` | Process-ownership guard |
-| [`consensus/root-authorization`](../consensus/root-authorization) | `github.com/dytallix/root-authorization` | Root authorization verifier |
+| [`consensus/root-authorization`](../consensus/root-authorization) | `dytallix.local/consensus/root-authorization` | Root authorization verifier |
 
 ## Consensus Application Binaries
 

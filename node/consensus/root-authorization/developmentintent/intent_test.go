@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
+	root "dytallix.local/consensus/root-authorization"
 	"github.com/cloudflare/circl/sign/slhdsa"
-	root "github.com/dytallix/root-authorization"
 )
 
 func hash(c string) string { return strings.Repeat(c, 128) }
