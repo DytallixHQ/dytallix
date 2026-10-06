@@ -9,9 +9,19 @@
 //	combine -policy F -out PATH SIGNATURES.json...
 //	verify  -policy F -signatures F -bundle-sha512 HEX
 //
-// Outputs are never overwritten. Everything it writes except the private key
-// is a public record. It cannot start a chain, consume a sequence or approve
-// a launch: the node verifies every signature again through its pinned helper.
+// The key ceremony (launch/custody/KEY_CEREMONY.md) uses the kit commands:
+//
+//	kit          -number N -private-out DIR -public-out DIR
+//	kit-check    -paper F -public DIR
+//	kit-restore  -paper F -public DIR -private-out DIR
+//	prove        -private-key F -public-key F -chain-id ID -controller ID
+//	             -purpose P -epoch N|none -session ID -out PATH
+//	verify-proof -proof F
+//
+// Outputs are never overwritten. Everything it writes except private keys
+// and a kit's paper line is a public record. It cannot start a chain,
+// consume a sequence or approve a launch: the node verifies every signature
+// again through its pinned helper.
 package main
 
 import (
@@ -98,6 +108,48 @@ func run(args []string, out io.Writer) error {
 			return err
 		}
 		return verify(*policyPath, *signatures, *bundle, out)
+	case "kit":
+		number := flags.Int("number", 0, "kit number, 1 to 5")
+		private := flags.String("private-out", "", "the kit drive's directory")
+		public := flags.String("public-out", "", "the public records directory")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return kit(*number, *private, *public, out)
+	case "kit-check":
+		paper := flags.String("paper", "", "the kit's paper line, typed into a file (- for standard input)")
+		public := flags.String("public", "", "the public records directory")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return kitCheck(*paper, *public, "", out)
+	case "kit-restore":
+		paper := flags.String("paper", "", "the kit's paper line, typed into a file (- for standard input)")
+		public := flags.String("public", "", "the public records directory")
+		private := flags.String("private-out", "", "a new kit drive's directory")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return kitCheck(*paper, *public, *private, out)
+	case "prove":
+		key := flags.String("private-key", "", "the private key file")
+		public := flags.String("public-key", "", "its public key record")
+		chain := flags.String("chain-id", "", "chain the key serves")
+		controller := flags.String("controller", "", "the controller ID in the intake")
+		purpose := flags.String("purpose", "", "genesis, upgrade, freeze or resume")
+		epoch := flags.String("epoch", "", "authority epoch, or none for genesis")
+		session := flags.String("session", "", "ceremony session ID")
+		output := flags.String("out", "", "new proof record")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return prove(*key, *public, *chain, *controller, *purpose, *epoch, *session, *output, out)
+	case "verify-proof":
+		proof := flags.String("proof", "", "proof record")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return verifyProof(*proof, out)
 	}
 	return fmt.Errorf("unknown command %q", args[0])
 }
