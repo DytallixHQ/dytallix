@@ -63,8 +63,9 @@ three cases below; identify which before acting.
    - Copy `data/priv_validator_state.json` back into the new data
      directory. A validator that forgets its last signed step can sign
      twice.
-   - Restart, and block sync from a peer that holds every block (an archive
-     node). State sync join is not available under the supervisor (see
+   - Restart, and block sync from a peer that holds every block (the archive
+     sentry), or join by state sync from operator light blocks
+     ([state sync v1](../architecture/state-sync-v1.md); see
      [known limits](README.md#known-limits)).
 5. **Verify.**
    - The node's height reaches the network's.
