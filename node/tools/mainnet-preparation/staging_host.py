@@ -25,6 +25,8 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -130,6 +132,38 @@ def diagnostics():
                  ['aa-status'], ['nft', 'list', 'table', 'inet', 'dytallix_node']):
         say('$ ' + ' '.join(args))
         subprocess.run(args)
+    traced_start()
+
+
+def traced_start():
+    """The unit's ExecStart once more, as its account but outside systemd and
+    its sandbox, under strace. The supervisor prints nothing when it refuses
+    before startup; its last calls show which check refused, and getting
+    further here than under the unit points at the sandbox."""
+    unit = Path(f'/etc/systemd/system/{UNIT}.service')
+    text = unit.read_text() if unit.exists() else ''
+    command = re.search(r'^ExecStart=(.+)$', text, re.M)
+    user = re.search(r'^User=(\d+)$', text, re.M)
+    group = re.search(r'^Group=(\d+)$', text, re.M)
+    if not (command and user and group and shutil.which('strace')):
+        say('(no traced start: the unit or strace is missing)')
+        return
+    trace = Path('/tmp/dytallix-supervisor.strace')
+    args = ['setpriv', f'--reuid={user.group(1)}', f'--regid={group.group(1)}', '--clear-groups',
+            'strace', '-f', '-qq', '-s', '200', '-o', str(trace), '--', *command.group(1).split()]
+    say('$ ' + ' '.join(args))
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        output, _ = process.communicate(timeout=30)
+        say(f'exit {process.returncode}; output {output[-2000:]!r}')
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.communicate()
+        say('still running after 30 s outside the sandbox (stopped)')
+    lines = trace.read_text(errors='replace').splitlines() if trace.exists() else []
+    say(f'-- last {min(len(lines), 150)} of {len(lines)} traced calls --')
+    for line in lines[-150:]:
+        say(line)
 
 
 def install(work, label, target_height, timeout):
