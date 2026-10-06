@@ -59,6 +59,11 @@ enter this repository, the custody packet or a ticket.
    and prints the key ID. Back up the private key under the custody
    procedure. Hand over only `signer.json`.
 
+   Under the solo launch profile the genesis keys come from the five key
+   kits instead: the [key ceremony](../../../launch/custody/KEY_CEREMONY.md)
+   makes `kit-N-genesis.key` and its record `kit-N-genesis.json` for each
+   kit, and the policy below takes the five records.
+
 2. **Policy.** The custody lead assembles the five public records for the
    chain, and every signer checks that their own key ID is listed. The
    [genesis signer intake](../../../launch/custody/genesis/INTAKE.md) checker

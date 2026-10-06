@@ -2059,7 +2059,12 @@
           "upgrade_custodian_intake_boundary": "Public template and structural checker only (E05-c). The completed packet, names and evidence stay in the custody system; no custodian, key or acceptance is recorded.",
           "production_activation_note": "The signing roles include five root genesis signers, separate from the emergency and upgrade custodians (P01, 30 September 2026, approvals/P01_E05_ACTIVATION_2026-09-30.json); the upgrade custodians also hold handover and restart.",
           "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder holds every root key in five key kits (kit N holds key N of each role: genesis, upgrade, freeze, resume) stored in up to five separate places; any three act. Keys stay distinct per role and the 3-of-5 thresholds are unchanged. Disclosed in TRUST_MODEL.md.",
-          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+          "approved_portion": "Solo launch (P01, 3 October 2026): the founder holds every root key in five key kits, kit N holding key N of each role, any three acting. Key ceremony (P01, 5 October 2026): each kit is an encrypted USB stick plus a paper copy of its 32-byte kit secret; the keys are made on an offline live Linux USB; the kits are kept in three or more places. The custody records themselves remain open until the ceremony.",
+          "approval_records": [
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+            "approvals/P01_E05_KEY_CEREMONY_2026-10-05.json"
+          ]
         }
       ],
       "work": {
@@ -4066,6 +4071,24 @@
       "unset": [
         "The repository, its settings and the push (founder actions)",
         "The frozen commit that moves"
+      ]
+    },
+    {
+      "id": "P01-2026-10-05-E05-KEY-CEREMONY",
+      "approved": "2026-10-05",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_KEY_CEREMONY_2026-10-05.json",
+      "decisions": [
+        "D10-Q03: each key kit is an encrypted USB stick plus a paper copy of its kit secret.",
+        "D10-Q03: the keys are made on an offline live Linux USB.",
+        "D10-Q03: the kits are kept in three or more places."
+      ],
+      "question_refs": [
+        "D10-Q03"
+      ],
+      "unset": [
+        "The ceremony, its session and the kit sticks (founder actions)",
+        "Drill records"
       ]
     }
   ],

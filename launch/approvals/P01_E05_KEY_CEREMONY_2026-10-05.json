@@ -1,0 +1,37 @@
+{
+  "decision_id": "P01-2026-10-05-E05-KEY-CEREMONY",
+  "approved": "2026-10-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 key ceremony"
+  },
+  "design_ref": "../custody/KEY_CEREMONY.md",
+  "decisions": [
+    {
+      "question": "D10-Q03",
+      "selected": "Encrypted USB + paper",
+      "rule": "Each of the five key kits is one USB stick with full-disk encryption (LUKS2, AES, a passphrase per kit) holding the kit's four private keys, plus a paper copy kept sealed with it. The paper copy is the kit's 32-byte secret, from which dytallix-root-sign derives the four keys (FIPS 205 key generation from SHAKE256-derived seeds), written as one checked line, so it can be copied by hand and recreates the kit."
+    },
+    {
+      "question": "D10-Q03",
+      "selected": "Offline live Linux USB",
+      "rule": "The keys are made on a laptop booted from a Debian live USB with networking off, using the release's static dytallix-root-sign checked against the release SHA-256. Private keys go straight to the kit sticks and never touch the laptop's disk or a networked system; only public key records and proofs of possession leave the ceremony."
+    },
+    {
+      "question": "D10-Q03",
+      "selected": "Three or more places",
+      "rule": "The five kits are kept in three or more places the founder controls or trusts, never three kits in one place, so no single fire or burglary reaches the three-kit threshold."
+    }
+  ],
+  "unset": [
+    "The ceremony itself, its session and the kit sticks (founder actions)",
+    "The places where the kits are kept, which stay out of every record",
+    "Drill records, which need a production signer for freeze, resume, upgrade and handover controls"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
