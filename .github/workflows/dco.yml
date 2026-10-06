@@ -1,8 +1,10 @@
 name: DCO
 
 # Outside contributions are signed off under the Developer Certificate of
-# Origin (P01, 5 October 2026; CONTRIBUTING.md and DCO). Members' pull
-# requests are not checked.
+# Origin (P01, 5 October 2026; CONTRIBUTING.md and DCO). They come from
+# forks; a pull request from a branch of this repository, which only people
+# with write access can push, is not checked. (author_association is not
+# used: a private organization member appears there as a contributor.)
 on:
   pull_request:
 
@@ -12,7 +14,7 @@ permissions:
 jobs:
   sign-off:
     name: DCO sign-off
-    if: ${{ !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association) }}
+    if: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
