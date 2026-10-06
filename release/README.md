@@ -11,7 +11,7 @@ decisions are in the [E06 release approval](../launch/approvals/P01_E06_RELEASE_
 
 | Build | Binaries |
 | --- | --- |
-| Node application (`production` feature) | `consensus_stdio`, `dytallix-genesis-build`, `dytallix-state-check` |
+| Node application (`production` feature) | `consensus_stdio`, `dytallix-control`, `dytallix-genesis-build`, `dytallix-state-check` |
 | Native supervisor (`production`) | `dytallix-native-supervisor` |
 | HTTP adapter (`production`) | `dytallix-pqc-http-adapter`, `dytallix-channel-key` |
 | Engine (`production` tag) | `dytallix-pqc-engine`, `dytallix-comet-bridge`, `dytallix-light-export`, `dytallix-peer-seed`, `dytallix-validator-key`, `dytallix-operator-rpc`, `dytallix-host-config` |

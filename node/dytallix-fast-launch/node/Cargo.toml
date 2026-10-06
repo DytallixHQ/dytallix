@@ -65,6 +65,10 @@ name = "dytallix-genesis-build"
 path = "src/bin/genesis_build.rs"
 
 [[bin]]
+name = "dytallix-control"
+path = "src/bin/control.rs"
+
+[[bin]]
 name = "helper-execution-qualification"
 path = "src/bin/helper_execution_qualification.rs"
 required-features = ["helper-qualification"]
