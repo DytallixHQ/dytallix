@@ -9,7 +9,7 @@ import re
 import check_bindings as c
 
 SCHEMA = 'dytallix.upgrade-custodian-intake.v1'
-EMERGENCY_SCHEMA = 'dytallix.emergency-custodian-intake.v1'
+EMERGENCY_SCHEMA = 'dytallix.emergency-custodian-intake.v2'
 # P01, 30 September 2026: three of five custodians (D11-Q03) and SLH-DSA-SHAKE-256s,
 # the set the node's root verifier implements (root_genesis.rs, emergency_verifier.rs).
 THRESHOLD, SIZE = 3, 5
