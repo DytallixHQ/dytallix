@@ -288,7 +288,7 @@ observe those cases through the ABCI metadata alone. Do not interpret an empty
 array as proof that the block contains no engine evidence.
 
 State sync runs only in the PQC-only build, from light blocks the operator
-exports (`docs/architecture/state-sync-v1.md` in `mainnet/node`). Withdrawal
+exports (`docs/architecture/state-sync-v1.md` in `node`). Withdrawal
 qualification depends on historical validator identities, stake exposure, block
 times, and incident records across the full evidence window. A snapshot
 therefore holds the complete committed state, including the lifecycle's

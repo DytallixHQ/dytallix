@@ -3,7 +3,7 @@
 [![Rust](https://img.shields.io/badge/Rust-stable-000000?logo=rust)](https://www.rust-lang.org/tools/install)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-yellow.svg)](LICENSE)
 [![Status: Mainnet candidate](https://img.shields.io/badge/Status-Mainnet%20candidate-0a7f5a)](https://dytallix.com)
-[![CI](https://github.com/DytallixHQ/dytallix-sdk/actions/workflows/ci.yml/badge.svg)](https://github.com/DytallixHQ/dytallix-sdk/actions/workflows/ci.yml)
+[![CI](https://github.com/DytallixHQ/dytallix/actions/workflows/mainnet.yml/badge.svg)](https://github.com/DytallixHQ/dytallix/actions/workflows/mainnet.yml)
 
 Official Rust SDK and CLI for the Dytallix consensus chain.
 
@@ -12,15 +12,16 @@ faucet, no testnet REST endpoint and no contract deployment. The CLI reaches a
 consensus-chain node (CometBFT JSON-RPC) over loopback HTTP on this machine,
 or over the post-quantum client channel for a remote node. There is no TLS.
 
-This repository contains the Rust workspace for the core cryptography crate,
-the application SDK, and the `dytallix` CLI.
+This folder, `sdk/` in [DytallixHQ/dytallix](https://github.com/DytallixHQ/dytallix),
+contains the Rust workspace for the core cryptography crate, the application
+SDK, and the `dytallix` CLI.
 
 ## Repository Role
 
 - Role: public SDK and CLI source
 - Current publication state: mainnet candidate client source, installed from
   Git
-- Important boundary: this repository holds client code only. Node operators
+- Important boundary: this folder holds client code only. Node operators
   publish their own endpoint pin files.
 
 ## Quick Links
@@ -32,8 +33,8 @@ the application SDK, and the `dytallix` CLI.
 - [CLI reference](docs/cli-reference.md)
 - [FAQ](docs/faq.md)
 - [Examples](examples/README.md)
-- [Releases](https://github.com/DytallixHQ/dytallix-sdk/releases)
-- [CI workflow](.github/workflows/ci.yml)
+- [Releases](https://github.com/DytallixHQ/dytallix/releases)
+- [CI workflow](../.github/workflows/mainnet.yml)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
@@ -61,9 +62,9 @@ Dytallix Rust repositories.
 The SDK is not currently published on crates.io. Use the Git repository:
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features comet-rpc
-cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git --features comet-rpc
+cargo install --locked --git https://github.com/DytallixHQ/dytallix.git dytallix-cli --bin dytallix
 ```
 
 The `comet-rpc` feature adds the node client, `ordinary_client::CometClient`.
@@ -76,8 +77,9 @@ Build from source:
 cargo build --release --bin dytallix
 ```
 
-Release tags matching `v*` build downloadable CLI archives for Linux, macOS,
-and Windows through GitHub Actions.
+Each release of DytallixHQ/dytallix includes the CLI as a static Linux x86_64
+binary, built reproducibly ([release/README.md](../release/README.md)). On other
+systems, install it from the release's source tag with `cargo install`.
 
 ## Developer Path
 
@@ -86,8 +88,8 @@ and Windows through GitHub Actions.
     Generate your first ML-DSA-65 keypair and print a D-Addr:
 
     ```bash
-    git clone https://github.com/DytallixHQ/dytallix-sdk
-    cd dytallix-sdk
+    git clone https://github.com/DytallixHQ/dytallix
+    cd dytallix/sdk
     cargo run -p dytallix-sdk --example first-keypair
     ```
 
@@ -99,7 +101,7 @@ and Windows through GitHub Actions.
     account receives funds at genesis or by a transfer from a funded account.
 
     ```bash
-    cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+    cargo install --locked --git https://github.com/DytallixHQ/dytallix.git dytallix-cli --bin dytallix
     dytallix wallet create --name default
     dytallix config pin-chain --endpoint http://127.0.0.1:26657 --network <network> \
       --chain-id <chain-id> --genesis-digest <sha256-of-genesis-hex>
@@ -155,8 +157,7 @@ It does not contain the node.
 
 ## DytallixHQ Repositories
 
-- [dytallix-sdk](https://github.com/DytallixHQ/dytallix-sdk) - this repository
-- [dytallix-node](https://github.com/DytallixHQ/dytallix-node) - public node and runtime source
+- [dytallix](https://github.com/DytallixHQ/dytallix) - this repository: node, SDK and CLI, release
 - [dytallix-docs](https://github.com/DytallixHQ/dytallix-docs) - broader documentation
 - [dytallix-explorer](https://github.com/DytallixHQ/dytallix-explorer) - explorer surface documentation repo
 - [DytallixHQ](https://github.com/DytallixHQ)

@@ -130,7 +130,7 @@ threshold, size and parameter set are fixed by the approvals above.
 
 ## Run the checker
 
-From `mainnet/node`:
+From `node`:
 
 ```text
 python3 -B tools/mainnet-preparation/genesis_signer_intake.py \

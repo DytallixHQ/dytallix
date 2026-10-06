@@ -32,7 +32,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [Engineering close-out](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json) (3 October): sentries and endpoints can never sign and validators may start before registration; a plain-HTTP status page with no cryptography for the uptime checker; `client_compatibility_window` and `max_open_proposals` dropped; fault assumptions recorded; the CLI is the launch wallet.
 - [E06 release](approvals/P01_E06_RELEASE_2026-10-05.json) (5 October): Linux x86_64, the wallet also from source; a published builder image, no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release, with no separate release key ([release](../release/README.md)).
 - [E06 release libraries](approvals/P01_E06_STATIC_RELEASE_2026-10-05.json) (5 October): every release binary is static, with glibc and libstdc++ linked in, so the release manifest lists no runtime libraries and host updates never change what the node runs ([release manifest](../release/README.md#release-manifest)).
-- [E06 repository](approvals/P01_E06_REPOSITORY_2026-10-05.json) (5 October): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; afterwards mainnet/ in exocognosis/dytallix becomes a pointer ([move runbook](../release/MOVE.md)).
+- [E06 repository](approvals/P01_E06_REPOSITORY_2026-10-05.json) (5 October): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; afterwards mainnet/ in exocognosis/dytallix becomes a pointer. Done on 5 October ([the move](../release/MOVE.md)).
 
 ## D01 — Adaptive issuance
 
@@ -635,7 +635,7 @@ E06 ([P01, 5 October 2026](approvals/P01_E06_RELEASE_2026-10-05.json)): Linux x8
 
 Release libraries ([P01, 5 October 2026](approvals/P01_E06_STATIC_RELEASE_2026-10-05.json)): every release binary is a static executable and the build refuses any other, so the release manifest ([release_manifest.py](../release/release_manifest.py)) names no runtime libraries; library fixes ship as new releases.
 
-Repository ([P01, 5 October 2026](approvals/P01_E06_REPOSITORY_2026-10-05.json)): DytallixHQ/dytallix is MIT OR Apache-2.0, with third-party code under its own license; outside contributions are signed off under the DCO, with no CLA; the history moves with the founder's GitHub noreply address; afterwards mainnet/ in exocognosis/dytallix becomes a pointer ([move runbook](../release/MOVE.md)).
+Repository ([P01, 5 October 2026](approvals/P01_E06_REPOSITORY_2026-10-05.json)): DytallixHQ/dytallix is MIT OR Apache-2.0, with third-party code under its own license; outside contributions are signed off under the DCO, with no CLA; the history moves with the founder's GitHub noreply address; afterwards mainnet/ in exocognosis/dytallix becomes a pointer. The move was made on 5 October 2026 ([the move](../release/MOVE.md)).
 
 Required output: Release and review specification.
 

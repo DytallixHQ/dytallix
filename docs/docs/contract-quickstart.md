@@ -5,7 +5,7 @@ ordinary, governance and recovery transactions only. No contract can be
 deployed, called or queried on it, and its CLI has no `contract` commands.
 
 A contract runtime is POST MAINNET: mainnet v1 launches with the current
-build (D07-Q01, P01, 29 September 2026; `mainnet/launch/MAINNET_DECISION_REGISTER.json`).
+build (D07-Q01, P01, 29 September 2026; [`launch/MAINNET_DECISION_REGISTER.json`](https://github.com/DytallixHQ/dytallix/blob/main/launch/MAINNET_DECISION_REGISTER.json)).
 
 ## What The Chain Runs Instead
 
@@ -19,7 +19,7 @@ See the [CLI reference](cli-reference.md).
 
 ## Contracts Toolkit
 
-`mainnet/contracts` holds reference WASM contracts and examples. The node
+[`contracts`](https://github.com/DytallixHQ/dytallix/tree/main/contracts) holds reference WASM contracts and examples. The node
 does not depend on it, and nothing in it runs on the mainnet candidate
 chain. See [its README](../../contracts/README.md).
 

@@ -1,100 +1,59 @@
-# Moving mainnet/ to DytallixHQ/dytallix
+# The move from exocognosis/dytallix
 
-Before the first release is tagged, `mainnet/` moves with its history from
-exocognosis/dytallix into the public repository `DytallixHQ/dytallix`, where
-it becomes the root and releases are published (P01, 5 October 2026; the
+This repository began as the `mainnet/` folder of
+[exocognosis/dytallix](https://github.com/exocognosis/dytallix). On 5 October
+2026, before the first release tag, it moved here with its history (P01; the
 [E06 release](../launch/approvals/P01_E06_RELEASE_2026-10-05.json) and
 [repository](../launch/approvals/P01_E06_REPOSITORY_2026-10-05.json)
-approvals). The founder does the account steps. Everything else is prepared
-here and can be rehearsed locally first.
+approvals). There, `mainnet/` is now a README pointing here.
 
-## What is already in place
+## What moved
 
-- **Workflows.** `mainnet/.github/workflows` holds the CI for the new root:
-  the current workflows with the `mainnet/` prefix removed, release tags
-  `v*`, and a DCO check (`dco.yml`). GitHub ignores them until they are at
-  the root. CI here fails if they drift from the current workflows
-  ([repository.py](repository.py) `render-workflows --check`).
-- **License and contributions.** MIT OR Apache-2.0 (`LICENSE-MIT`,
-  `LICENSE-APACHE`, and both texts in each component's `LICENSE`); outside
-  contributions are signed off under the [DCO](../DCO)
-  ([CONTRIBUTING.md](../CONTRIBUTING.md)); a root
-  [SECURITY.md](../SECURITY.md).
-- **Module path.** The root authorization Go module is
-  `dytallix.local/consensus/root-authorization`, like the other local
-  modules, instead of a path on a GitHub account the project does not own.
-- **History.** A scan of every file version in mainnet/'s history found no
-  keys, tokens or personal addresses, only public test values. The commits'
-  personal author address becomes the founder's GitHub noreply address
-  during the move.
+| | |
+| --- | --- |
+| Source | exocognosis/dytallix `31c391d08d0b576b2e427a4dcbb2fd7e32c303d1` (main, the merge of exocognosis/dytallix#346) |
+| Result | `main` here at `ba131b655d9066a70ba97e9239a97e78fcf420b2`, 229 commits |
+| Tree | `9a45a637c5f6c9f5bc72bb5fd55152e3898c7f40`, exactly `31c391d0:mainnet` |
+| Identities | every commit's personal author and committer address became the founder's GitHub noreply address, `24476447+exocognosis@users.noreply.github.com` |
 
-## Steps
+[move.sh](move.sh) made it with git-filter-repo: it kept only main at the
+source commit, made `mainnet/` the root with its history, replaced the
+personal address (given on the command line, never stored), and verified the
+result with [repository.py](repository.py) `verify-move`. A scan of every file
+version in the moved history found no keys, tokens or personal addresses, only
+public test values. The release built from this repository is byte-identical
+to the one built from the source commit.
 
-1. **Freeze.** Merge or close the open pull requests that touch mainnet/,
-   and merge nothing more there until step 6.
-2. **Founder: organization and repository.**
-   - Turn on two-factor authentication on your account, then require it for
-     DytallixHQ (Settings, Authentication security).
-   - Create the public repository `DytallixHQ/dytallix`, **empty**: no
-     README, license or .gitignore.
-   - In its Settings, Actions, General: allow only the actions the workflows
-     pin (`actions/checkout`, `actions/setup-go`, `actions/upload-artifact`,
-     `actions/download-artifact`, `dtolnay/rust-toolchain`,
-     `Swatinem/rust-cache`); set workflow permissions to read repository
-     contents; do not let Actions create or approve pull requests; require
-     approval before running workflows from outside collaborators.
-3. **Extract.** With git-filter-repo installed, from a checkout of
-   exocognosis/dytallix at the frozen commit:
+## Checking it
 
-   ```text
-   release/move.sh FROZEN_COMMIT WORK_DIR OLD_EMAIL
-   ```
-
-   It clones exocognosis/dytallix, keeps only main at FROZEN_COMMIT, makes
-   mainnet/ the root with its history, replaces OLD_EMAIL (your personal
-   commit address, given only on the command line) with
-   `24476447+exocognosis@users.noreply.github.com`, and verifies the result:
-   the new tree is exactly mainnet/ at FROZEN_COMMIT, and no commit names
-   OLD_EMAIL. It prints `"status": "VERIFIED"` and pushes nothing.
-4. **Push.** Review `WORK_DIR/dytallix`, then:
-
-   ```text
-   git -C WORK_DIR/dytallix remote add origin https://github.com/DytallixHQ/dytallix.git
-   git -C WORK_DIR/dytallix push -u origin main
-   ```
-
-5. **Founder: repository settings.**
-   - Add a ruleset on `main`: require a pull request (no approvals needed
-     while you work alone), require the **DCO sign-off** status check, block
-     force pushes and deletion. The build checks skip documentation-only
-     changes, so they are not required; merge only green pull requests.
-   - Under Security: turn on private vulnerability reporting, Dependabot
-     alerts, and secret scanning with push protection.
-   - Set the description and website (https://dytallix.com).
-6. **Check CI there.** The push runs both workflows. The release build of
-   FROZEN_COMMIT gives the same `SHA256SUMS` as this repository's build of
-   that commit, since the builder sees the same tree at the same path.
-7. **Point the old copy at the new home.** One pull request in
-   exocognosis/dytallix replaces mainnet/ with a README pointing to
-   DytallixHQ/dytallix and removes `mainnet.yml` and `mainnet-release.yml`
-   from its workflows. Its history keeps everything.
-8. **Afterwards, in DytallixHQ/dytallix.** Clone it fresh and commit with
-   the noreply address. Update what still names the old homes: the SDK
-   vendor records' `source_repository`
-   ([sync_protocol_vendor.py](../sdk/scripts/sync_protocol_vendor.py)), the
-   component README badges and links to the old separate repositories, and
-   this file's past tense.
-
-## Rehearsal
-
-Steps 3 and 6 can be rehearsed with no account and no push: make a local
-mirror and point the script at it.
+Anyone can rebuild the history from exocognosis/dytallix and compare the
+tree. Run from a checkout of this repository, with git-filter-repo
+installed:
 
 ```text
-git clone --mirror . /tmp/dytallix-mirror.git
-DYTALLIX_MOVE_SOURCE=/tmp/dytallix-mirror.git release/move.sh FROZEN_COMMIT /tmp/dytallix-move OLD_EMAIL
+release/move.sh 31c391d08d0b576b2e427a4dcbb2fd7e32c303d1 WORK_DIR OLD_EMAIL
+git -C WORK_DIR/dytallix rev-parse HEAD^{tree}
 ```
 
-Then build the release from `/tmp/dytallix-move/dytallix` with
-`release/reproduce.sh` and compare its `SHA256SUMS` with a build of
-FROZEN_COMMIT here.
+The tree is `9a45a637…` whatever OLD_EMAIL is. With the founder's original
+address the commit is `ba131b65…` too: a second run on 5 October gave the
+same commit.
+
+## Repository settings
+
+The founder sets these in the browser:
+
+- **Two-factor authentication** on the founder's account, and required for
+  the DytallixHQ organization (Settings, Authentication security).
+- **Actions** (Settings, Actions, General): allow actions created by GitHub
+  plus `dtolnay/rust-toolchain@*` and `Swatinem/rust-cache@*`, which are the
+  only others the workflows pin; require approval for workflows from outside
+  contributors. Workflow tokens are read-only and cannot approve pull
+  requests (already the defaults).
+- **A ruleset on `main`**: require a pull request (no approvals needed while
+  the founder works alone), require the **DCO sign-off** check (it becomes
+  selectable after it first runs), block force pushes and deletion. The
+  build workflows skip documentation-only changes, so they are not required
+  checks; merge only green pull requests.
+- **Security**: private vulnerability reporting, Dependabot alerts, and
+  secret scanning with push protection.

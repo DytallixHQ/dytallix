@@ -1,71 +1,22 @@
 #!/usr/bin/env python3
-"""The move to DytallixHQ/dytallix, and its contribution check (E06).
+"""The move's verification and the contribution check (E06).
 
-  repository.py render-workflows [--check]
   repository.py verify-move NEW_REPO SOURCE_REPO SOURCE_COMMIT OLD_EMAIL
   repository.py check-dco BASE HEAD
 
-mainnet/ moves with its history into DytallixHQ/dytallix before the first
-release tag (P01, 5 October 2026; release/MOVE.md). There it is the
-repository root, so its CI workflows live in mainnet/.github/workflows,
-which GitHub ignores until the move. `render-workflows` writes them from
-this repository's workflows with the mainnet/ prefix removed, and drops
-the steps marked as belonging here; `--check` exits 1 when they differ.
-
-`verify-move` checks an extracted repository (release/move.sh): its tree is
-exactly mainnet/ at the source commit, and no commit carries the old author
-address. `check-dco` checks that every commit in BASE..HEAD is signed off
-by its author under the Developer Certificate of Origin (DCO), which
-outside contributions need (P01, 5 October 2026).
+`verify-move` checks a repository extracted by release/move.sh: its tree is
+exactly mainnet/ at the source commit in exocognosis/dytallix, and no commit
+carries the old author address (release/MOVE.md). `check-dco` checks that
+every commit in BASE..HEAD is signed off by its author under the Developer
+Certificate of Origin (DCO), which outside contributions need (P01,
+5 October 2026; .github/workflows/dco.yml).
 """
 import argparse
 import json
-from pathlib import Path
 import re
 import subprocess
-import sys
 
-HERE = Path(__file__).resolve().parent
-MAINNET = HERE.parent
-SOURCE_WORKFLOWS = MAINNET.parent/'.github'/'workflows'
-TARGET_WORKFLOWS = MAINNET/'.github'/'workflows'
-RENDERED = ('mainnet.yml', 'mainnet-release.yml')
-DROP_START = '# move: drop-start'
-DROP_END = '# move: drop-end'
-PREFIX = re.compile(r'(?<![\w./-])mainnet/')
 SIGN_OFF = re.compile(r'^Signed-off-by: (.+) <([^<>\s]+)>\s*$', re.M)
-
-
-def render(text):
-    """A workflow for the repository whose root is mainnet/."""
-    lines, dropping = [], False
-    for line in text.splitlines(keepends=True):
-        marker = line.strip()
-        if marker == DROP_START:
-            if dropping: raise ValueError('nested drop marker')
-            dropping = True
-        elif marker == DROP_END:
-            if not dropping: raise ValueError('unmatched drop marker')
-            dropping = False
-        elif not dropping:
-            lines.append(line)
-    if dropping: raise ValueError('unterminated drop marker')
-    out = ''.join(lines).replace('$GITHUB_WORKSPACE/mainnet:', '$GITHUB_WORKSPACE:')
-    out = out.replace("'mainnet-v*'", "'v*'")
-    return PREFIX.sub('', out)
-
-
-def render_workflows(check, source=SOURCE_WORKFLOWS, target=TARGET_WORKFLOWS):
-    differ = []
-    for name in RENDERED:
-        rendered = render((source/name).read_text())
-        path = target/name
-        if check:
-            if not path.is_file() or path.read_text() != rendered: differ.append(name)
-        else:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(rendered)
-    return differ
 
 
 def git(repo, *args):
@@ -103,19 +54,12 @@ def check_dco(repo, base, head):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest='command', required=True)
-    r = commands.add_parser('render-workflows')
-    r.add_argument('--check', action='store_true')
     v = commands.add_parser('verify-move')
     for name in ('new', 'source', 'commit', 'old_email'): v.add_argument(name)
     d = commands.add_parser('check-dco')
     d.add_argument('base')
     d.add_argument('head')
     args = parser.parse_args()
-    if args.command == 'render-workflows':
-        differ = render_workflows(args.check)
-        print(json.dumps({'status': 'DIFFERENT' if differ else ('IN_SYNC' if args.check else 'WRITTEN'),
-                          'workflows': differ or list(RENDERED)}))
-        return 1 if differ else 0
     if args.command == 'verify-move':
         problems = verify_move(args.new, args.source, args.commit, args.old_email)
         count = int(git(args.new, 'rev-list', '--count', 'HEAD'))

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Extract mainnet/ with its history into a new local repository for
-# DytallixHQ/dytallix (E06; release/MOVE.md). It pushes nothing.
+# DytallixHQ/dytallix (E06; release/MOVE.md). It pushes nothing. It made
+# this repository on 5 October 2026 and can reproduce it.
 #
 #   release/move.sh SOURCE_COMMIT WORK_DIR OLD_EMAIL
 #
@@ -28,6 +29,9 @@ git clone --quiet --no-local --no-tags --no-checkout "$source" "$work/source"
 git -C "$work/source" cat-file -e "$commit^{commit}"
 git clone --quiet --no-local --no-tags --no-checkout "$work/source" "$work/dytallix"
 cd "$work/dytallix"
+# The clone has only the source's default branch; fetch the rest so the
+# commit is present whichever branch holds it.
+git fetch --quiet --no-tags "$work/source" '+refs/remotes/origin/*:refs/source/*'
 git update-ref refs/heads/main "$commit"
 git symbolic-ref HEAD refs/heads/main
 git remote remove origin

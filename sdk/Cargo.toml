@@ -16,7 +16,7 @@ authors = ["DytallixHQ"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/DytallixHQ/dytallix"
 homepage = "https://dytallix.com"
-documentation = "https://github.com/DytallixHQ/dytallix-sdk/tree/main/docs"
+documentation = "https://github.com/DytallixHQ/dytallix/tree/main/sdk/docs"
 
 [workspace.dependencies]
 pqcrypto-dilithium = "0.5"
