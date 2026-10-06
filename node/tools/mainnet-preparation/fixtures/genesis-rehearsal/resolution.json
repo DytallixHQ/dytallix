@@ -1,8 +1,8 @@
 {
   "boundary": "Production eligibility needs the production mode, every value APPROVED, every record ACCEPTED and the approved network identity. Eligibility accepts nothing: the genesis time lead check at the freeze, the release, the root genesis signatures and gate acceptance remain required.",
   "counts": {
-    "APPROVED": 110,
-    "MEASURE_PLACEHOLDER": 9,
+    "APPROVED": 116,
+    "MEASURE_PLACEHOLDER": 3,
     "RECORD_SYNTHETIC": 8
   },
   "identity": {
@@ -715,15 +715,15 @@
     },
     {
       "name": "emergency_max_validity_blocks",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 720
+      "reference": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
+      "source": "APPROVED",
+      "value": 34560
     },
     {
       "name": "emergency_max_anchor_age_blocks",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 720
+      "reference": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
+      "source": "APPROVED",
+      "value": 34560
     },
     {
       "name": "migration_max_receipts",
@@ -751,15 +751,15 @@
     },
     {
       "name": "upgrade_max_validity_blocks",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 720
+      "reference": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
+      "source": "APPROVED",
+      "value": 34560
     },
     {
       "name": "upgrade_max_anchor_age_blocks",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 720
+      "reference": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
+      "source": "APPROVED",
+      "value": 34560
     },
     {
       "name": "handover_max_signatures",
@@ -775,15 +775,15 @@
     },
     {
       "name": "handover_max_validity_blocks",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 720
+      "reference": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
+      "source": "APPROVED",
+      "value": 34560
     },
     {
       "name": "handover_max_anchor_age_blocks",
-      "reference": "genesis/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 720
+      "reference": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
+      "source": "APPROVED",
+      "value": 34560
     },
     {
       "name": "record:chain_id",

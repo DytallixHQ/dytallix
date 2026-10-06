@@ -1840,9 +1840,11 @@
       "couplings": "Control window: not_after - not_before < max_validity_blocks (node/dytallix-fast-launch/node/src/emergency_freeze.rs:691).",
       "notes": "A production build requires development_only false, schema 2 and the continue_previously_approved_rules transition rule; a development build requires development_only true (node/dytallix-fast-launch/node/src/emergency_freeze.rs, Policy::validate; production activation v1, A4). Fixture value only, not a recommendation.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "34560",
+      "basis": "Two days at 5-second blocks: time for the founder to reach three key kits in different places, sign offline with each, and submit (solo launch profile). The ceremony drill on the staging hosts checks it.",
+      "approved": 34560,
+      "approval_record": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json"
     },
     {
       "name": "emergency_max_anchor_age_blocks",
@@ -1856,9 +1858,11 @@
       "couplings": "Anchor age <= bound (node/dytallix-fast-launch/node/src/emergency_freeze.rs:711); block-record retention span >= max_anchor_age_blocks + 1 (node/dytallix-fast-launch/node/src/consensus_settlement.rs:1018-1026).",
       "notes": "A production build requires development_only false, schema 2 and the continue_previously_approved_rules transition rule; a development build requires development_only true (node/dytallix-fast-launch/node/src/emergency_freeze.rs, Policy::validate; production activation v1, A4). Fixture value only, not a recommendation.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "34560",
+      "basis": "Two days at 5-second blocks: time for the founder to reach three key kits in different places, sign offline with each, and submit (solo launch profile). The ceremony drill on the staging hosts checks it.",
+      "approved": 34560,
+      "approval_record": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json"
     },
     {
       "name": "upgrade_authority_threshold",
@@ -2029,9 +2033,11 @@
       "couplings": "Signed window: not_after - not_before < max_validity_blocks.",
       "notes": "Anchored signing (P01, 30 September 2026): measured with the emergency window bounds.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "34560",
+      "basis": "Two days at 5-second blocks: time for the founder to reach three key kits in different places, sign offline with each, and submit (solo launch profile). The ceremony drill on the staging hosts checks it.",
+      "approved": 34560,
+      "approval_record": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json"
     },
     {
       "name": "upgrade_max_anchor_age_blocks",
@@ -2045,9 +2051,11 @@
       "couplings": "Commit height - anchor height <= bound; block-record retention span >= max_anchor_age_blocks + 1 (consensus_settlement.rs retention_floor).",
       "notes": "Anchored signing (P01, 30 September 2026): measured with the emergency window bounds.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "34560",
+      "basis": "Two days at 5-second blocks: time for the founder to reach three key kits in different places, sign offline with each, and submit (solo launch profile). The ceremony drill on the staging hosts checks it.",
+      "approved": 34560,
+      "approval_record": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json"
     },
     {
       "name": "handover_authority_threshold",
@@ -2165,9 +2173,11 @@
       "couplings": "Signed window: not_after - not_before < max_validity_blocks.",
       "notes": "Anchored signing (P01, 30 September 2026): measured with the emergency window bounds.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "34560",
+      "basis": "Two days at 5-second blocks: time for the founder to reach three key kits in different places, sign offline with each, and submit (solo launch profile). The ceremony drill on the staging hosts checks it.",
+      "approved": 34560,
+      "approval_record": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json"
     },
     {
       "name": "handover_max_anchor_age_blocks",
@@ -2181,9 +2191,11 @@
       "couplings": "Commit height - anchor height <= bound; block-record retention span >= max_anchor_age_blocks + 1 (consensus_settlement.rs retention_floor).",
       "notes": "Anchored signing (P01, 30 September 2026): measured with the emergency window bounds.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "34560",
+      "basis": "Two days at 5-second blocks: time for the founder to reach three key kits in different places, sign offline with each, and submit (solo launch profile). The ceremony drill on the staging hosts checks it.",
+      "approved": 34560,
+      "approval_record": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json"
     },
     {
       "name": "reward_max_validators",

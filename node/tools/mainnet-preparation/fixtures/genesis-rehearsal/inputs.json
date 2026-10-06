@@ -328,8 +328,8 @@
         ],
         "threshold": 3
       },
-      "max_anchor_age_blocks": 720,
-      "max_validity_blocks": 720,
+      "max_anchor_age_blocks": 34560,
+      "max_validity_blocks": 34560,
       "resume": {
         "keys": [
           {
@@ -357,9 +357,9 @@
       }
     },
     "handover": {
-      "max_anchor_age_blocks": 720,
+      "max_anchor_age_blocks": 34560,
       "max_signatures": 3,
-      "max_validity_blocks": 720,
+      "max_validity_blocks": 34560,
       "min_notice_blocks": 120960
     },
     "release_sha512": "6dd7c1322eb5b28949fd9805cf582897444fd2342438aee56100548401b09fa0bc2baee22b8c6699f1e9e0672f40fa391468f8450a76c4a9bf08a720f5dc7646",
@@ -390,8 +390,8 @@
         "threshold": 3
       },
       "authority_epoch": 1,
-      "max_anchor_age_blocks": 720,
-      "max_validity_blocks": 720,
+      "max_anchor_age_blocks": 34560,
+      "max_validity_blocks": 34560,
       "migration_bounds": {
         "max_receipt_bytes": 67108864,
         "max_receipts": 1000000,

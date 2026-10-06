@@ -1,28 +1,8 @@
 {
   "schema": "dytallix.genesis-proposals.v1",
   "rule": "Rehearsal inputs only. Every entry is an engineering PROPOSAL or a MEASURE_PLACEHOLDER awaiting measurement; none is approved or a production value. The resolver refuses an entry for a value that is already approved.",
-  "as_of": "2026-10-02",
+  "as_of": "2026-10-06",
   "values": {
-    "emergency_max_anchor_age_blocks": {
-      "value": 720,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "One hour; set from measured propagation on staging."
-    },
-    "emergency_max_validity_blocks": {
-      "value": 720,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "One hour; set from measured multi-party signing on staging (E03, T02)."
-    },
-    "handover_max_anchor_age_blocks": {
-      "value": 720,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "One hour, like the emergency anchor age; set from measured propagation on staging."
-    },
-    "handover_max_validity_blocks": {
-      "value": 720,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "One hour, like the emergency window; set from measured multi-party signing on staging (E03, T02)."
-    },
     "queue_max_entries": {
       "value": 10000,
       "status": "MEASURE_PLACEHOLDER",
@@ -37,16 +17,6 @@
       "value": 64000000,
       "status": "MEASURE_PLACEHOLDER",
       "basis": "Set by the capacity tests (T05)."
-    },
-    "upgrade_max_anchor_age_blocks": {
-      "value": 720,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "One hour, like the emergency anchor age; set from measured propagation on staging."
-    },
-    "upgrade_max_validity_blocks": {
-      "value": 720,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "One hour, like the emergency window; set from measured multi-party signing on staging (E03, T02)."
     }
   }
 }

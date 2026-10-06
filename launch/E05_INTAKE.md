@@ -20,8 +20,8 @@ until P01 approves it; approved values are marked. Decision IDs refer to
   | measure | 18 | Set from measurements on dedicated staging hosts |
   | derived | 25 | Fixed by an approved rule or another value |
 
-  Status (3 October 2026): 165 approved, 24 derived by the genesis builder
-  (`DERIVED`), 2 dropped (`DROPPED`) and 17 still to measure on the hosts.
+  Status (6 October 2026): 171 approved, 24 derived by the genesis builder
+  (`DERIVED`), 2 dropped (`DROPPED`) and 11 still to measure on the hosts.
 
   `proposed` is a proposal for review, never an approved value. Approved
   values are recorded under [approvals/](approvals/) and marked in the file.
