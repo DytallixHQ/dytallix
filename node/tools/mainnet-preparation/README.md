@@ -54,6 +54,16 @@ SLH-DSA root authorization and approval-bundle semantics have no typed adapter i
 
 The tool does not establish production activation, custody, signature authenticity, validator admission, stake-to-power policy, or independent review. The supported runtime profiles remain local development profiles. Mainnet remains NO GO.
 
+## Emergency custodian intake
+
+`emergency_custodian_intake.py` checks a completed emergency custodian packet, the first of the three custody intakes. The packet format and collection steps are in [the emergency intake](../../../launch/custody/emergency/INTAKE.md).
+
+```text
+python3 -B tools/mainnet-preparation/emergency_custodian_intake.py EMERGENCY_INTAKE.working.json
+```
+
+It requires five custodians (or solo kits), three of five for freeze and three of five for resume, one explicit authority epoch, and SLH-DSA-SHAKE-256s keys. It checks distinct controllers and control groups (one controller and five distinct kits under `solo_kits`), ten distinct keys with SHA-256 key IDs, purpose- and epoch-bound public evidence and reviewer separation. On success it emits `authority_fragment`, the `root.emergency` records shape: the epoch and the freeze and resume key sets, each sorted by key ID with threshold 3. The upgrade and genesis checkers read the same packet through `--emergency`. It does not verify signatures, identity or independence, and it never reports production acceptance. Exit code 0 means structurally complete; 2 means incomplete or invalid.
+
 ## Upgrade custodian intake
 
 `upgrade_custodian_intake.py` checks a completed upgrade custodian packet (E05-c). The packet format and collection steps are in [the upgrade intake](../../../launch/custody/upgrade/INTAKE.md).
