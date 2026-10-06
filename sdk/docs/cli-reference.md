@@ -8,7 +8,7 @@ public testnet client.
 ## Install
 
 ```bash
-cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+cargo install --locked --git https://github.com/DytallixHQ/dytallix.git dytallix-cli --bin dytallix
 ```
 
 Global help:

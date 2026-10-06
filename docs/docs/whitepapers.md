@@ -54,7 +54,7 @@ linked architecture documents for the mainnet candidate's behavior.
 
 Each entry names a claim in a paper, what the mainnet candidate does instead,
 and where that is defined. Section numbers refer to the PDFs. Decision IDs
-(such as D07-Q01) refer to `mainnet/launch/MAINNET_DECISION_REGISTER.json`.
+(such as D07-Q01) refer to [`launch/MAINNET_DECISION_REGISTER.json`](https://github.com/DytallixHQ/dytallix/blob/main/launch/MAINNET_DECISION_REGISTER.json).
 Row and conflict IDs (such as CONS-001 and AC-004) refer to the
 [E04 requirement triage](../../node/docs/mainnet/e04-requirement-triage.md).
 Where a value is still an open decision, the entry says so.

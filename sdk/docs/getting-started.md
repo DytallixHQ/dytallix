@@ -12,19 +12,19 @@ The SDK is currently consumed from Git, not crates.io.
 Add the library crate:
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git
 ```
 
 Add the library crate with the node client (`ordinary_client::CometClient`):
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features comet-rpc
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git --features comet-rpc
 ```
 
 Install the CLI:
 
 ```bash
-cargo install --git https://github.com/DytallixHQ/dytallix-sdk.git dytallix-cli --bin dytallix
+cargo install --locked --git https://github.com/DytallixHQ/dytallix.git dytallix-cli --bin dytallix
 ```
 
 Build from a local clone:

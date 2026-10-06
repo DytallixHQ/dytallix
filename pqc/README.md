@@ -96,10 +96,10 @@ crate separately makes it easier to:
 - run standalone evidence generation and interoperability checks
 - evolve cryptographic code without coupling every change to the full node repo
 
-## Related Repositories
+## Related
 
-- [dytallix-sdk](https://github.com/DytallixHQ/dytallix-sdk)
-- [dytallix-node](https://github.com/DytallixHQ/dytallix-node)
+- [DytallixHQ/dytallix](https://github.com/DytallixHQ/dytallix): this
+  repository, with the node in `node/` and the SDK in `sdk/`
 - [DytallixHQ](https://github.com/DytallixHQ)
 
 ## Evidence limits

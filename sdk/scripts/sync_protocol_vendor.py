@@ -59,11 +59,11 @@ def sync(sdk, node, spec):
         "hash_algorithm": "sha256",
     }
     manifest.update({
-        "source_repository": "https://github.com/exocognosis/dytallix",
+        "source_repository": "https://github.com/DytallixHQ/dytallix",
         "source_head": head,
         "source_kind": "working_tree_snapshot",
         "source_head_is_complete_snapshot": False,
-        "source_description": (f"Exact bytes of mainnet/node/{CRATE} and mainnet/node/LICENSE, "
+        "source_description": (f"Exact bytes of node/{CRATE} and node/LICENSE, "
                                "copied by scripts/sync_protocol_vendor.py. The file hashes, not "
                                "source_head alone, identify this snapshot."),
         "files": records,
