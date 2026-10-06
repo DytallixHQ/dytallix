@@ -1,0 +1,67 @@
+name: Host install
+
+# Host setup v1, step H4 (E05; node/docs/architecture/host-setup-v1.md): a
+# fresh release build, a throwaway staging chain built end to end from it
+# (key step, genesis, release manifest, 3-of-5 root signatures, host files,
+# bundles), and the validator's bundle installed with its install.sh on an
+# Ubuntu 24.04 runner, started under systemd, AppArmor and nftables, verified
+# and wiped. Invented records and throwaway keys only.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'node/**'
+      - 'release/**'
+      - 'launch/E05_VALUES.json'
+      - 'launch/genesis/**'
+      - 'launch/hosts/**'
+      - '.github/workflows/host-install.yml'
+  pull_request:
+    paths:
+      - 'node/**'
+      - 'release/**'
+      - 'launch/E05_VALUES.json'
+      - 'launch/genesis/**'
+      - 'launch/hosts/**'
+      - '.github/workflows/host-install.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-install-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    name: Staging bundle install (H4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Builder image
+        run: docker build --platform linux/amd64 -t dytallix-release-builder release/builder
+      - name: Build the release set
+        run: |
+          mkdir -p "$RUNNER_TEMP/release" "$RUNNER_TEMP/release-work"
+          docker run --rm --platform linux/amd64 \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v "$RUNNER_TEMP/release:/out" -v "$RUNNER_TEMP/release-work:/work" \
+            dytallix-release-builder \
+            python3 /src/release/build_release.py build --src /src --out /out --work /work
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/release"
+      - name: Host packages
+        run: sudo apt-get update && sudo apt-get install -y apparmor apparmor-utils nftables
+      - name: Staging chain and bundles
+        run: |
+          python3 node/tools/mainnet-preparation/staging_host.py prepare \
+            --release "$RUNNER_TEMP/release" --work "$RUNNER_TEMP/staging"
+      - name: Install, start and verify the validator
+        id: install
+        run: |
+          sudo python3 node/tools/mainnet-preparation/staging_host.py install \
+            --work "$RUNNER_TEMP/staging" --height 3 --timeout 300
+      - name: Wipe
+        if: ${{ always() && steps.install.conclusion != 'skipped' }}
+        run: sudo python3 node/tools/mainnet-preparation/staging_host.py wipe --work "$RUNNER_TEMP/staging"

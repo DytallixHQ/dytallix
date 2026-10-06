@@ -4,8 +4,8 @@ Engineering task E05. How a bare server becomes a running Dytallix node of
 one role (validator, sentry or endpoint) under the solo launch profile:
 three hosts, the founder alone, console access only
 ([solo launch](../../../launch/approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)).
-This is the design. Steps H2 (the generator) and H3 (node keys, bundles and
-the installer) are built; H4 and H5 follow.
+This is the design. Steps H2 (the generator), H3 (node keys, bundles and
+the installer) and H4 (the CI install) are built; H5 follows.
 
 ## Decisions (P01, 6 October 2026)
 
@@ -210,7 +210,17 @@ founder to type `wipe LABEL` first and keeps the account.
   `wipe.sh`), tested on a synthetic network with a stand-in system
   (`test_host_bundle.py`).
 - **H4.** A CI job that installs a staging bundle on an Ubuntu 24.04 runner
-  and starts the node.
+  and starts the node. Built: the Host install workflow
+  (`.github/workflows/host-install.yml`) builds the release set in the
+  pinned builder; `staging_host.py prepare` runs the key step with the
+  release's tools and `staging_chain.py` builds a throwaway
+  production-profile staging chain (`dytallix-staging-1`: the production
+  rehearsal's invented records with this run's validator key, the release
+  manifest bound in its freeze order, five throwaway root keys signing three
+  of five, host configuration, host files and bundles); `staging_host.py
+  install` runs the validator's `install.sh` with its seal code, starts the
+  unit, waits for the application's height metric, verifies the host and
+  `wipe` removes it. The same two commands rehearse a staging host by hand.
 - **H5.** The runbooks that change with it: start and stop, a release switch
   on a host, validator recovery, rebuilding the endpoint by state sync.
 
