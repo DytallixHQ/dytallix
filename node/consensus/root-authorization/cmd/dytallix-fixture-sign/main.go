@@ -9,11 +9,11 @@ package main
 
 import (
 	"bytes"
+	root "dytallix.local/consensus/root-authorization"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/cloudflare/circl/sign/slhdsa"
-	root "github.com/dytallix/root-authorization"
 	"os"
 )
 

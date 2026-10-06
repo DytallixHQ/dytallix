@@ -26,8 +26,8 @@ import (
 	"io"
 	"os"
 
+	root "dytallix.local/consensus/root-authorization"
 	"github.com/cloudflare/circl/sign/slhdsa"
-	root "github.com/dytallix/root-authorization"
 )
 
 const (

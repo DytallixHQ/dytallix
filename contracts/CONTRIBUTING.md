@@ -1,5 +1,8 @@
 # Contributing
 
+Outside contributions are signed off under the Developer Certificate of
+Origin; see the repository's [contributing guide](../CONTRIBUTING.md).
+
 ## Scope
 
 This repository is for Dytallix contract code, contract-facing utilities, examples, and supporting documentation. Keep website copy, compliance material, and unrelated node changes in their own repositories.

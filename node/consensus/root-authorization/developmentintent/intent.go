@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	root "github.com/dytallix/root-authorization"
+	root "dytallix.local/consensus/root-authorization"
 )
 
 const (

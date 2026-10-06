@@ -1,5 +1,8 @@
 # Contributing to Dytallix SDK
 
+Outside contributions are signed off under the Developer Certificate of
+Origin; see the repository's [contributing guide](../CONTRIBUTING.md).
+
 Dytallix was built by one person. Contributions are welcome.
 
 Start with the [README](README.md), then use the [docs hub](docs/README.md) to

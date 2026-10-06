@@ -1,4 +1,4 @@
-module github.com/dytallix/root-authorization
+module dytallix.local/consensus/root-authorization
 
 go 1.22.0
 

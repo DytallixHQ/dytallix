@@ -1,5 +1,8 @@
 # Contributing to dytallix-docs
 
+Outside contributions are signed off under the Developer Certificate of
+Origin; see the repository's [contributing guide](../CONTRIBUTING.md).
+
 This repository is the canonical public documentation source for Dytallix.
 
 ## Rules For Changes

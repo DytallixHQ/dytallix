@@ -1,0 +1,269 @@
+name: Mainnet
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '.github/workflows/mainnet.yml'
+  pull_request:
+    paths:
+      - '**'
+      - '!**/*.md'
+      - '.github/workflows/mainnet.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mainnet-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  # Debug info roughly triples target/ size and is not needed in CI.
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_PROFILE_TEST_DEBUG: 0
+
+jobs:
+  node-consensus:
+    name: Node (mainnet consensus build)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: node
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+        working-directory: /
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: node
+          key: consensus
+      - name: Native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang libclang-dev cmake pkg-config
+      - name: Module boundaries
+        run: |
+          python3 scripts/check_module_boundaries.py
+          python3 -B -m unittest discover -s scripts -p test_module_boundaries.py
+      - name: Interface inventory matches the source (E04 gap 9)
+        run: |
+          python3 scripts/check_interface_inventory.py
+          python3 -B -m unittest discover -s scripts -p test_check_interface_inventory.py
+      # The G35 check reads the locked graph offline; fetch it first.
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+      - name: No quantum-vulnerable crypto in the consensus dependency graph (G35)
+        run: python3 scripts/check_consensus_cargo_profile.py --output "$RUNNER_TEMP/consensus-profile.json"
+      - name: Cryptographic routes match the E01 inventory
+        run: python3 scripts/e01_inventory.py --check
+      - name: Helper ownership and native execution policy (E02)
+        run: |
+          python3 scripts/check_helper_control.py
+          python3 -B -m unittest discover -s scripts -p test_check_helper_control.py
+          python3 -B -m unittest discover -s tools/native-execution-policy -p 'test_*.py'
+      - name: Production binding review (mainnet preparation)
+        run: python3 -B -m unittest discover -s tools/mainnet-preparation -p 'test_*.py'
+      # The release build driver (E06); the release builds themselves run in
+      # mainnet-release.yml.
+      - name: Release build driver (E06)
+        run: python3 -B -m unittest discover -s ../release -p 'test_*.py'
+      # The test profile optimizes the PQC crates, so a dev-profile build
+      # would compile the workspace a second time in the Test step.
+      - name: Build all targets
+        run: cargo build --workspace --all-targets --locked --profile test
+      - name: Test
+        run: cargo test --workspace --locked --no-fail-fast
+      # Each adapter build serves only its own profile (production activation v1).
+      - name: PQC HTTP adapter
+        run: |
+          cargo test --locked --manifest-path consensus/pqc-http-adapter/Cargo.toml
+          cargo test --locked --manifest-path consensus/pqc-http-adapter/Cargo.toml --features production
+      # Production activation v1 (A1): the production build compiles without the
+      # development entry points and runs only the production profiles.
+      - name: Production build (A1, A2, A7)
+        run: |
+          cargo check --locked -p dytallix-fast-node --features production --bins
+          cargo check --locked -p dytallix-native-supervisor --features production --bins
+          cargo test --locked -p dytallix-fast-node --features production --lib -- build_profile root_genesis::threshold genesis_build
+      # Real SLH-DSA signatures from disposable fixture keys, verified in
+      # process through the test-only snapshot verifier.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # The toolchain the engine job builds root-authorization with.
+          go-version-file: node/consensus/cometbft/go.mod
+          cache-dependency-path: node/consensus/root-authorization/go.sum
+      - name: Signed-fixture tests (E04 gap 11)
+        run: python3 scripts/run_signed_fixture_tests.py --work "$RUNNER_TEMP/signed"
+      # A production build opens a chain from a root genesis signed three of
+      # five with the offline signer (production activation v1, A2).
+      - name: Signed production root genesis (A2)
+        run: python3 scripts/run_signed_fixture_tests.py --production --tools "$RUNNER_TEMP/signed" --work "$RUNNER_TEMP/production"
+      # Two test builds of the application, each an owned child of the owner
+      # launcher, under no_new_privs and the production system call deny list.
+      - name: Signed process tests (E04 gap 11)
+        run: python3 scripts/run_signed_fixture_tests.py --process systemd --work "$RUNNER_TEMP/process"
+
+  consensus-engine:
+    name: Consensus engine (Go)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: node/consensus/cometbft/go.mod
+          cache-dependency-path: node/consensus/*/go.sum
+      - name: Vet and test
+        run: |
+          for module in owner-guard root-authorization; do
+            echo "::group::$module"
+            (cd "node/consensus/$module" && go vet -mod=readonly ./... && go test -mod=readonly ./...)
+            echo "::endgroup::"
+          done
+      # The engine fork has one cryptographic build: classical code is deleted
+      # and no tag selects a classical path (E04 gap 20). The only tag is
+      # `production` (production activation v1), which removes the development
+      # and staging entry points. This step vets and tests the fork's own
+      # packages and every upstream package (consensus/cometbft/UPSTREAM_TESTS.md),
+      # then builds the release set in both builds.
+      - name: Engine fork vet, test and production build
+        working-directory: node/consensus/cometbft
+        run: |
+          go vet -mod=readonly ./... github.com/cometbft/cometbft/...
+          go test -mod=readonly ./... github.com/cometbft/cometbft/...
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false \
+            -o "$RUNNER_TEMP/pqc/" ./cmd/dytallix-pqc-engine ./cmd/dytallix-comet-bridge \
+            ./cmd/dytallix-validator-key ./cmd/dytallix-operator-rpc ./cmd/dytallix-peer-seed \
+            ./cmd/dytallix-host-config
+          go vet -mod=readonly -tags production ./...
+          go test -mod=readonly -tags production ./internal/enginepqc/ -run 'TestProductionBuild|TestProductionProfile'
+          go test -mod=readonly -tags production ./cmd/dytallix-peer-seed/ ./cmd/dytallix-host-config/
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -mod=readonly -tags production -trimpath -buildvcs=false \
+            -o "$RUNNER_TEMP/pqc-production/" ./cmd/dytallix-pqc-engine ./cmd/dytallix-comet-bridge \
+            ./cmd/dytallix-validator-key ./cmd/dytallix-operator-rpc ./cmd/dytallix-peer-seed \
+            ./cmd/dytallix-host-config
+      - name: No quantum-vulnerable crypto in the Go graphs (G35)
+        working-directory: node
+        run: |
+          python3 -B -m unittest discover -s scripts -p test_consensus_go_graph.py
+          python3 scripts/check_consensus_go_graph.py --output "$RUNNER_TEMP/consensus-go-graph.json"
+      - name: Build engine binaries
+        working-directory: node/consensus/cometbft
+        run: |
+          go build -mod=readonly -o "$RUNNER_TEMP/bin/" ./cmd/...
+          go build -mod=readonly -o "$RUNNER_TEMP/bin/cometbft" github.com/cometbft/cometbft/cmd/cometbft
+
+  # E02 kernel checks on a disposable runner (AppArmor, root). Diagnostic only;
+  # T03 qualifies the frozen service candidate.
+  e02-native:
+    name: E02 helper ownership (native AppArmor diagnostic)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: node
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: node/consensus/root-authorization/go.mod
+          cache-dependency-path: node/consensus/*/go.sum
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.88.0
+      - name: Host tools
+        run: sudo apt-get update && sudo apt-get install -y apparmor apparmor-utils gcc libc6-dev linux-libc-dev clang libclang-dev cmake pkg-config
+      - name: Build helper, fixture and Rust fixtures
+        run: |
+          out="$RUNNER_TEMP/e02"
+          mkdir -p "$out/fixture"
+          (cd consensus/root-authorization \
+            && CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o "$out/root-verify" ./cmd/dytallix-root-verify \
+            && DYT_E02_FIXTURE_DIR="$out/fixture" go test -mod=readonly -count=1 -run TestExportHelperQualificationFixture .)
+          # Static, so the rendered supervisor profile needs no shared libraries.
+          RUSTFLAGS="-C target-feature=+crt-static" cargo build --locked --release \
+            --target x86_64-unknown-linux-gnu -p dytallix-release-runtime --features qualification-fixtures \
+            --bin release-runtime-profile-admission
+          cargo build --locked --release -p dytallix-release-runtime --features qualification-fixtures \
+            --bin release-runtime-pause-qualification
+      - name: Native checks
+        run: |
+          out="$RUNNER_TEMP/e02"
+          sudo python3 tools/native-execution-policy/e02_native/run_e02_native.py \
+            --go-helper "$out/root-verify" --fixture-dir "$out/fixture" \
+            --admission-bin target/x86_64-unknown-linux-gnu/release/release-runtime-profile-admission \
+            --pause-bin target/release/release-runtime-pause-qualification \
+            --output-dir "$out/result"
+      - name: Summary
+        if: always()
+        run: cat "$RUNNER_TEMP/e02/result/E02_NATIVE_SUMMARY.json" || true
+      # State sync v1, step C5: the real guarded binaries as a four-validator
+      # chain; node 3 joins late by state sync. Independent of the E02 result.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: ${{ !cancelled() }}
+        with:
+          go-version-file: node/consensus/cometbft/go.mod
+          cache-dependency-path: node/consensus/*/go.sum
+      - name: Build state sync join binaries
+        if: ${{ !cancelled() }}
+        run: |
+          out="$RUNNER_TEMP/join"
+          mkdir -p "$out"
+          (cd consensus/cometbft \
+            && go build -mod=readonly -trimpath -o "$out/" ./cmd/dytallix-pqc-engine \
+              ./cmd/dytallix-comet-bridge ./cmd/dytallix-light-export ./cmd/dytallix-comet-fixture)
+          CARGO_PROFILE_DEV_DEBUG=0 cargo build --locked -p dytallix-fast-node --bin consensus_stdio
+          CARGO_PROFILE_DEV_DEBUG=0 cargo build --locked -p dytallix-native-supervisor \
+            --features qualification-fixtures --bin state-sync-join
+          cp target/debug/consensus_stdio target/debug/state-sync-join "$out/"
+      - name: State sync join (C5)
+        if: ${{ !cancelled() }}
+        run: |
+          out="$RUNNER_TEMP/join"
+          # The production unit's system call deny list; the children's guards
+          # require no_new_privs and a seccomp filter.
+          deny="$(python3 -c 'import sys; sys.path.insert(0, "tools/native-execution-policy"); import render; print(render.SYSTEM_CALL_DENY)')"
+          sudo systemd-run --wait --pipe --collect --quiet \
+            -p NoNewPrivileges=yes -p "SystemCallFilter=$deny" -p SystemCallErrorNumber=EPERM \
+            -p SystemCallArchitectures=native \
+            "$out/state-sync-join" --bin "$out" --work "$out/work"
+      - name: State sync join logs
+        if: failure()
+        run: sudo sh -c 'for log in "$0"/work/logs/*.log; do echo "== $log"; tail -n 40 "$log"; done' "$RUNNER_TEMP/join" || true
+
+  sdk:
+    name: SDK and CLI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.88.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: sdk
+      # The vendored protocol types must be the node's exact bytes (E04 gap 8).
+      - name: Protocol types match the node
+        run: python3 scripts/check_protocol_vendor.py --node-root ../node
+      - name: Test
+        run: cargo test --workspace --locked
+      # No classical public-key cryptography or TLS crate in any mainnet
+      # lockfile (E04 gap 19; P01, 28 September 2026).
+      - name: No classical cryptography in the mainnet lockfiles
+        run: |
+          python3 -B -m unittest discover -s scripts -p test_no_classical.py
+          python3 scripts/check_no_classical.py Cargo.lock ../node/Cargo.lock \
+            ../node/consensus/pqc-http-adapter/Cargo.lock ../contracts/Cargo.lock ../pqc/Cargo.lock

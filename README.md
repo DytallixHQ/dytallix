@@ -1,7 +1,11 @@
 # Dytallix mainnet
 
-This folder holds the Dytallix mainnet candidate. It is kept separate from the
-testnet and product code in the rest of this repository.
+This is the Dytallix mainnet candidate. Before the first release it moves,
+with its history, to its own public repository,
+[DytallixHQ/dytallix](https://github.com/DytallixHQ/dytallix)
+([release/MOVE.md](release/MOVE.md)). Until then it is the `mainnet/` folder
+of exocognosis/dytallix, kept separate from the testnet and product code
+there.
 
 **Status: NO GO.** Mainnet is not launched and no launch is authorized. See
 [launch/MAINNET_READINESS_REPORT.md](launch/MAINNET_READINESS_REPORT.md) and
@@ -17,6 +21,7 @@ testnet and product code in the rest of this repository.
 | [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry. Not part of the consensus build; nothing here runs on the chain. |
 | [docs/](docs/) | Public documentation source (MkDocs). Mostly written for the public testnet; the tokenomics, security model, CLI reference, contract quickstart and whitepaper errata pages describe the mainnet candidate. |
 | [launch/](launch/) | Mainnet specification, tokenomics, genesis drafts, launch gates, decision register |
+| [release/](release/) | Reproducible release build, release manifest writer and the repository move |
 
 The consensus build has no contract runtime and no cross-chain bridge. It
 runs ordinary, governance and recovery transactions only. Mainnet v1
@@ -26,16 +31,19 @@ treasury spending are POST MAINNET (D07-Q01, P01, 29 September 2026).
 `dytallix-comet-bridge` in `node/consensus/cometbft` is the adapter between
 the consensus engine and the application, not a cross-chain bridge.
 
-The testnet faucet moved to [`testnet/faucet`](../testnet/faucet/) on 29
-September 2026. It is testnet-only and served over TLS, and mainnet has no
-faucet.
+The testnet faucet moved to
+[`testnet/faucet`](https://github.com/exocognosis/dytallix/tree/main/testnet/faucet)
+in exocognosis/dytallix on 29 September 2026. It is testnet-only and served
+over TLS, and mainnet has no faucet.
 
 ## Build
 
 Toolchains: Rust 1.88.0 (pinned by `rust-toolchain.toml`) and Go 1.25.
 
+From this folder:
+
 ```sh
-cd mainnet/node
+cd node
 cargo build --workspace --all-targets --locked
 cargo test --workspace --locked
 ```
@@ -43,14 +51,23 @@ cargo test --workspace --locked
 The consensus engine lives in `node/consensus/cometbft`:
 
 ```sh
-cd mainnet/node/consensus/cometbft
+cd node/consensus/cometbft
 go test -mod=readonly ./...
 ```
 
 See `node/consensus/cometbft/README.md` and `PQC_ENGINE_INTEGRATION.md` there.
 
-CI runs all of the above on every change under `mainnet/`
-(`.github/workflows/mainnet.yml`).
+CI runs all of the above on every change (`.github/workflows/mainnet.yml`),
+and [release/README.md](release/README.md) describes the reproducible release
+build.
+
+## Contributing and license
+
+See [CONTRIBUTING.md](CONTRIBUTING.md): outside contributions are signed off
+under the [Developer Certificate of Origin](DCO). Report vulnerabilities
+privately ([SECURITY.md](SECURITY.md)). Dytallix is dual licensed under the
+[MIT license](LICENSE-MIT) or the [Apache License, Version 2.0](LICENSE-APACHE),
+at your option; third-party code keeps its own license.
 
 ## Launch documents
 
