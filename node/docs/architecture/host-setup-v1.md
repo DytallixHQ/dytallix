@@ -124,19 +124,30 @@ supervisor's report goes to the journal.
   `MaxRetentionSec=90d`), the operations objectives' log retention.
 - Nothing else runs on the host.
 
-## Values to approve
+## Host values (P01, 6 October 2026)
 
-These have no approved value yet. The generator takes them from one host
-values file; proposals come from the tested harnesses and are listed with
-the generator for P01:
+[`launch/hosts/SETUP_VALUES.json`](../../../launch/hosts/SETUP_VALUES.json)
+holds the generator's approved values beyond the engine settings
+([host values approval](../../../launch/approvals/P01_E05_HOST_VALUES_2026-10-06.json)),
+proposed from the node's tested harnesses:
 
-- **Unit resources** per role: memory, tasks and open files.
-- **Ports:** P2P, the endpoint's client channel and its status page.
-- **Catalog bounds** (manifest, mapping and member sizes and counts) and
-  **observation bounds** (process maps, files and elapsed time).
-- **The root helper's execution policy and root configuration bounds**
-  (helper, request and genesis sizes, timeout).
-- **The emergency verifier timeout**, still a value to measure.
+- **Unit limits,** every host: memory 6 GiB, so 8 GB hosts suffice; 4,096
+  tasks; 65,536 open files.
+- **Ports:** P2P 26656; the endpoint's client channel 26670 and status page
+  8080.
+- **Code owners:** root only.
+- **Catalog checks:** manifest and mapping 1 MiB, 32 members, 16 roles and
+  runtime profiles, 128 references, 128-byte IDs, 4,096-byte paths, 128 MiB
+  per file and 512 MiB in all.
+- **Process observation:** 64 KiB stat, 2 MiB maps, 4,096 map entries,
+  4,096-byte paths, 64 files, 128 MiB per file, 512 MiB in all, 15 seconds.
+- **Root configuration:** a 16 MiB helper, 4 MiB requests (the rehearsal's
+  genesis bundle is about 0.2 MB encoded), a 9 MiB engine genesis, a 1 MiB
+  release manifest, a 30-second timeout; the helper's own observation
+  bounds.
+- **Emergency verifier:** a 30-second timeout.
+
+The staging hosts re-check the memory cap and the timeouts before genesis.
 
 ## Staging, then wipe
 
