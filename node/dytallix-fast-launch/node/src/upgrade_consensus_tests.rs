@@ -580,3 +580,135 @@ fn upgrade_keys_cannot_hold_an_emergency_role() {
         assert!(error.contains("share a key"), "{error}");
     }
 }
+
+/// The production control tools end to end (E05; P01, 6 October 2026): five
+/// throwaway key kits from `dytallix-root-sign kit`, a freeze prepared from
+/// the node's status view (`control_request::prepare`), signed by three kits
+/// with `dytallix-root-sign sign-control`, assembled and admitted; then a
+/// resume signed by three other kits' resume keys.
+#[test]
+#[ignore = "Requires pinned real SLH helper and disposable fixture signers"]
+fn control_tools_freeze_and_resume_end_to_end() {
+    use crate::control_request::{self, Operation, Request, SignatureRecord, Status};
+    let signer = std::env::var("DYT_ROOT_SIGNER").expect("dytallix-root-sign");
+    let kits = tempfile::tempdir().unwrap();
+    let public = kits.path().join("public");
+    std::fs::create_dir(&public).unwrap();
+    let drive = |n: u8| kits.path().join(format!("kit-{n}"));
+    let run = |args: &[&str]| {
+        let result = Command::new(&signer).args(args).output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    };
+    for n in 1..=5u8 {
+        std::fs::create_dir(drive(n)).unwrap();
+        run(&[
+            "kit",
+            "-number",
+            &n.to_string(),
+            "-private-out",
+            drive(n).to_str().unwrap(),
+            "-public-out",
+            public.to_str().unwrap(),
+        ]);
+    }
+    let authority = |purpose: &str| {
+        let mut keys: Vec<emergency::AuthorityKey> = (1..=5u8)
+            .map(|n| {
+                let raw = std::fs::read(public.join(format!("kit-{n}-{purpose}.json"))).unwrap();
+                serde_json::from_slice(&raw).unwrap()
+            })
+            .collect();
+        keys.sort_by(|a, b| a.key_id.cmp(&b.key_id));
+        emergency::AuthorityPolicy { keys, threshold: 3 }
+    };
+    let mut f = Fixture::new();
+    let root = RootFixture::with_config(&mut f, |f, _| {
+        f.config.max_tx_bytes = 262_144;
+        let genesis_sha256 = f.config.app_state_sha256.clone();
+        let policy = f.config.emergency.as_mut().unwrap();
+        policy.schema = 2;
+        policy.max_control_bytes = 262_144;
+        policy.max_signatures = 3;
+        policy.freeze_authority = authority("freeze");
+        policy.resume_authority = authority("resume");
+        policy.v2 = Some(emergency::PolicyV2 {
+            genesis_sha256,
+            authority_epoch: 1,
+            max_validity_blocks: 4,
+            max_anchor_age_blocks: 4,
+        });
+    });
+    let directory = tempfile::tempdir().unwrap();
+    let mut app = root.initialized(&f, directory.path());
+    // Prepare from the status view, sign offline with three kits, assemble.
+    let control =
+        |app: &ConsensusApplication, operation: Operation, purpose: &str, kits_used: [u8; 3]| {
+            let status: Status = serde_json::from_value(app.query().unwrap()).unwrap();
+            let request: Request =
+                control_request::prepare(&f.config, &status, &operation, None).unwrap();
+            let request_path = kits.path().join(format!("{purpose}-request.json"));
+            std::fs::write(&request_path, serde_json::to_vec_pretty(&request).unwrap()).unwrap();
+            let signatures: Vec<SignatureRecord> = kits_used
+                .iter()
+                .map(|n| {
+                    let out = kits.path().join(format!("{purpose}-signature-{n}.json"));
+                    run(&[
+                        "sign-control",
+                        "-request",
+                        request_path.to_str().unwrap(),
+                        "-private-key",
+                        drive(*n)
+                            .join(format!("kit-{n}-{purpose}.key"))
+                            .to_str()
+                            .unwrap(),
+                        "-public-key",
+                        public
+                            .join(format!("kit-{n}-{purpose}.json"))
+                            .to_str()
+                            .unwrap(),
+                        "-operation",
+                        purpose,
+                        "-sequence",
+                        &request.envelope.sequence.to_string(),
+                        "-out",
+                        out.to_str().unwrap(),
+                    ]);
+                    serde_json::from_slice(&std::fs::read(out).unwrap()).unwrap()
+                })
+                .collect();
+            control_request::assemble(&f.config, &request, &signatures).unwrap()
+        };
+    let freeze = control(
+        &app,
+        Operation::Freeze {
+            incident_sha256: "33".repeat(32),
+        },
+        "freeze",
+        [1, 3, 5],
+    );
+    commit(&mut app, 1, vec![]);
+    assert_admitted(app.check_tx(&freeze));
+    commit(&mut app, 2, vec![freeze]);
+    assert!(app.query().unwrap()["emergency_control"]["frozen"]
+        .as_bool()
+        .unwrap());
+    let resume = control(
+        &app,
+        Operation::Resume {
+            incident_sha256: "33".repeat(32),
+            readiness_evidence_sha256: "44".repeat(32),
+        },
+        "resume",
+        [2, 3, 4],
+    );
+    commit(&mut app, 3, vec![]);
+    assert_admitted(app.check_tx(&resume));
+    commit(&mut app, 4, vec![resume]);
+    let state = emergency_state(&app.storage, &app.config).unwrap().unwrap();
+    assert!(!state.frozen());
+    assert_eq!(state.next_sequence(), 3);
+}

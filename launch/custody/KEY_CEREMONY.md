@@ -132,8 +132,9 @@ three is not. The root keys cannot be replaced on chain
    public records and `kit-N` as its control group. Each proof is the public
    statement behind its `proof_of_possession` evidence; the signer and backup
    records say that the key is on kit N's encrypted stick and its paper copy,
-   without saying where they are. Drill records follow once controls can be
-   signed in production.
+   without saying where they are. The drill records come from a staging
+   freeze and resume signed with the kits
+   ([control signing](../../node/docs/mainnet/control-signing.md)).
 3. Run the three checkers. Their fragments go into the genesis records.
 
 ## Recovering a kit

@@ -151,8 +151,9 @@ proof, such as status, CheckTx and broadcast results.
 - **Many accounts,** for example a compromised wallet release: an emergency
   freeze stops every user transaction while consensus continues
   ([emergency transaction freeze](../mainnet/emergency-transaction-freeze.md)).
-  It needs 3 of the 5 freeze keys. Resume has its own authority. Signing
-  controls in production depends on custody (E05, P02).
+  It needs 3 of the 5 freeze keys. Resume has its own authority. Both are
+  signed offline with three key kits
+  ([control signing](../mainnet/control-signing.md)).
 
 ## Root authority keys
 
