@@ -3730,9 +3730,11 @@
       "couplings": "",
       "notes": "Node-local helper setting, not genesis. Fixture value only, not a recommendation.",
       "tier": "measure",
-      "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "status": "APPROVED",
+      "proposed": "30000",
+      "basis": "30 seconds for one helper run per signature; the staging hosts re-check it before genesis.",
+      "approved": 30000,
+      "approval_record": "approvals/P01_E05_HOST_VALUES_2026-10-06.json"
     },
     {
       "name": "emergency_verifier_max_request_bytes",

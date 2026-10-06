@@ -34,6 +34,8 @@ P01 approved these engineering designs. Each document records the options and th
 - [E06 release libraries](approvals/P01_E06_STATIC_RELEASE_2026-10-05.json) (5 October): every release binary is static, with glibc and libstdc++ linked in, so the release manifest lists no runtime libraries and host updates never change what the node runs ([release manifest](../release/README.md#release-manifest)).
 - [E06 repository](approvals/P01_E06_REPOSITORY_2026-10-05.json) (5 October): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; afterwards mainnet/ in exocognosis/dytallix becomes a pointer. Done on 5 October ([the move](../release/MOVE.md)).
 - [Control signing](approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json) (6 October): every root control window and anchor age is at most 34,560 blocks (two days), so the founder can reach three key kits and sign offline; the CLI prepares, dry-runs and submits controls from the founder's laptop (D11-Q03).
+- [Host setup](approvals/P01_E05_HOSTS_2026-10-06.json) (6 October): Ubuntu 24.04 LTS; each host's public IPv4 on its own interface, no NAT; node keys made offline and delivered in digest-checked host bundles, sealed under a passphrase; the service account and layout ([host setup v1](../node/docs/architecture/host-setup-v1.md), D12-Q01).
+- [Host values](approvals/P01_E05_HOST_VALUES_2026-10-06.json) (6 October): unit limits, ports, bounds and timeouts for the host setup generator ([SETUP_VALUES.json](hosts/SETUP_VALUES.json), D12-Q01).
 
 ## D01 — Adaptive issuance
 
@@ -219,7 +221,7 @@ Evidence: [batch-7/APPROVAL.json](batch-7/APPROVAL.json), [batch-9/REPORT.md](ba
 
 Approved portion: ML-KEM-768 and ML-DSA-65 authenticated pinned peers; ML-DSA-65 validators; distinct role keys; exact approved IP endpoints; no classical or plaintext fallback. The exact engine commit, production chain ID, addresses, keys, custody and candidate-bound review remain open.
 
-Peer records (P01, 30 September 2026): one IP per node, with static 1:1 NAT for public sentries, and a published pin plan keeping each node within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
+Peer records (P01, 30 September 2026): one IP per node, with static 1:1 NAT for public sentries, and a published pin plan keeping each node within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)). Replaced (P01, 6 October 2026, [host setup](approvals/P01_E05_HOSTS_2026-10-06.json)): each host's public IPv4 is on its own interface, with no NAT.
 
 ### D06-Q02 — PARTIALLY_APPROVED
 
@@ -529,7 +531,9 @@ Approved portion (P01, 30 September 2026): validators are private and peer only 
 
 Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
 
-Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets, no network listener; the supervisor checks the engine at startup and then relies on kernel limits, with no periodic pauses; one IP per node, with static 1:1 NAT for public sentries; a published partial mesh within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
+Production activation (P01, 30 September 2026): validators allow only local owner-only Unix sockets, no network listener; the supervisor checks the engine at startup and then relies on kernel limits, with no periodic pauses; one IP per node, with static 1:1 NAT for public sentries; a published partial mesh within 64 pins ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)). Replaced (P01, 6 October 2026, [host setup](approvals/P01_E05_HOSTS_2026-10-06.json)): each host's public IPv4 is on its own interface, with no NAT.
+
+Host setup ([P01, 6 October 2026](approvals/P01_E05_HOSTS_2026-10-06.json)): Ubuntu 24.04 LTS on every host; each host's public IPv4 on its own interface with no NAT; node keys made offline and delivered in digest-checked host bundles, with the keys sealed under a passphrase (AES-256); the service account `dytallix` (41001) and the `/opt`, `/etc` and `/var/lib/dytallix` layout with one unit ([host setup v1](../node/docs/architecture/host-setup-v1.md)). Host values ([P01, 6 October 2026](approvals/P01_E05_HOST_VALUES_2026-10-06.json)): 6 GiB memory, 4,096 tasks and 65,536 open files per host; ports 26656, 26670 and 8080; root-owned code; the catalog, observation and root helper bounds; 30-second root and emergency verifier timeouts ([SETUP_VALUES.json](hosts/SETUP_VALUES.json)).
 
 Supervisor production mode (P01, 1 October 2026): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits, while helpers keep paused checks; readiness waits for catch-up up to a per-host budget, the E05 value `catch_up_millis` ([supervisor approval](approvals/P01_E05_SUPERVISOR_2026-10-01.json)).
 

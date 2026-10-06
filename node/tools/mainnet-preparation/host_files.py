@@ -280,6 +280,8 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
         'max_request_bytes': approved['emergency verifier config max_request_bytes'],
         'timeout_ms': setup['emergency_verifier_timeout_ms'],
     }
+    require(approved.get('emergency verifier config timeout_ms', setup['emergency_verifier_timeout_ms'])
+            == setup['emergency_verifier_timeout_ms'], 'the setup values and E05 name different emergency verifier timeouts')
     candidate = {
         'config_schema': 2,
         'manifest_path': f'{etc}/release-manifest.json',

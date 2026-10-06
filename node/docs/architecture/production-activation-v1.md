@@ -40,7 +40,8 @@ on every start.
    and other short processes keep their paused checks.
 7. **One IP per node**: every node listens on and sends from one address;
    public sentries use static 1:1 NAT. The engine's connection check is
-   unchanged.
+   unchanged. Replaced on 6 October 2026 (P01, [host setup v1](host-setup-v1.md)):
+   each host's public IPv4 is on its own interface, with no NAT.
 8. **A published partial mesh within 64 pins**: each sentry pins its own
    validator, the endpoints it serves and a fixed set of other sentries. The
    pin plan is a public record released with each network configuration.
@@ -131,9 +132,9 @@ The validity window and anchor age come from measurements on dedicated hosts
 - **Identity.** Peer identity comes from the seed file (`pqc_peer_seed.bin`),
   generated on the host. A production peer-seed tool replaces `node_key.json`,
   which the production transport refuses.
-- **Network.** The P2P listener is the node's single IP. With 1:1 NAT a
-  sentry's public address is its only address, so the engine's same-IP check
-  holds unchanged.
+- **Network.** The P2P listener is the node's single IP, its public IPv4 on
+  its own interface with no NAT (host setup v1, P01, 6 October 2026), so the
+  engine's same-IP check holds unchanged.
 - **State sync.** Sentries and endpoints join by state sync from
   operator-supplied light blocks (state sync v1); the supervisor plumbs
   `--light-blocks`. Readiness waits for catch-up instead of failing after 60

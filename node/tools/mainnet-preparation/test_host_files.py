@@ -201,6 +201,13 @@ class HostFilesTests(unittest.TestCase):
         transport.write_bytes(transport.read_bytes().replace(b'5000', b'6000'))
         refused(lambda p: None, 'another transport file')
 
+    def test_setup_and_e05_agree(self):
+        for row in self.values['values']:
+            if row['name'] == 'emergency_verifier_timeout_ms':
+                row.update(status='APPROVED', approved=self.setup['emergency_verifier_timeout_ms'] + 1)
+        with self.assertRaises(h.Invalid):
+            self.generate()
+
     def test_secrets_and_release_must_match(self):
         keys = self.dirs['keys'] / 'endpoint-1.keys.json'
         summary = json.loads(keys.read_text())

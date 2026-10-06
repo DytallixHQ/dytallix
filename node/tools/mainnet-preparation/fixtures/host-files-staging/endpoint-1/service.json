@@ -5,7 +5,7 @@
   "lock_directory": "/var/lib/dytallix/lock",
   "consensus_config": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/application-config.json",
-    "sha256": "2a2ed174aa7e8dcd9286264be55a2c1e8c872f18994b55e077d515aff5d4c663",
+    "sha256": "57c754ee516bb8534a76996f2932e6f378077531a0f6ae7fe79a2cf8dc3baa03",
     "max_bytes": 8388608
   },
   "application_genesis": {
