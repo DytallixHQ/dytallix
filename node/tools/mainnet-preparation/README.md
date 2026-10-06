@@ -135,6 +135,14 @@ python3 -B tools/mainnet-preparation/host_files.py --release RELEASE_DIR --chain
 
 For each host, `OUT_DIR/LABEL/` holds every file under its installed path and `INSTALL_MANIFEST.json` (schema `dytallix.host-install.v1`): owners, modes, digests, directories, binaries and the secret files the sealed keys must provide. It runs `native-execution-policy/production_roles.py` for the role profiles, unit properties, admission and firewall table, and pins every file the supervisor reads by SHA-256. The plan's home must be `/var/lib/dytallix/node`. `fixtures/host-files-staging/` holds the configurations it writes for a synthetic three-host staging network, which the supervisor's tests parse with their own types.
 
+`host_keys.py` is the offline key step, run on the ceremony machine with the release's key tools ([key ceremony, node keys](../../../launch/custody/KEY_CEREMONY.md#node-keys)). For each host in the pin plan it makes the peer seed, the validator key and signing state and, on the endpoint, the client channel seed and pin in a staging home; writes `LABEL.keys.json`; seals the secret files with `dytallix-root-sign seal`; and has the founder type the printed seal code back (`seal-check`). Its output directory holds only public files, with the pin plan's public keys filled in:
+
+```text
+python3 host_keys.py --plan PIN_PLAN.json --bin BIN_DIR --staging /tmp/staging --out KEYS_DIR
+```
+
+`host_bundle.py` packs one host's bundle from `host_files.py`'s output, the release's `bin/` and the host's sealed keys, checking every file against the install manifest with the installer's own check, and writes `LABEL.bundle.tar` (deterministic) and its `.sha256`. `host/` holds what the bundle runs on the host: `install.sh` and `wipe.sh`, wrappers for `host_install.py install|verify|wipe` (standard library only). `test_host_bundle.py` runs the key step with stand-in key tools, builds bundles and installs, verifies and wipes them against a temporary root with a stand-in system; H4 installs on a real Ubuntu 24.04 runner.
+
 ## Decision copies (E05)
 
 Each gate in `launch/LAUNCH_GATES.json` lists its decision dependencies as copies of questions in `launch/MAINNET_DECISION_REGISTER.json` (`source_ref`), and its `decision_counts` copies the register's `question_counts`. The register is authoritative. After recording an approval there, run:

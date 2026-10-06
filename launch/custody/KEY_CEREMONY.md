@@ -39,8 +39,9 @@ three is not. The root keys cannot be replaced on chain
 - An x86_64 laptop that can boot from USB. Its own disk is never used.
 - A **live USB**: a Debian 12 live image written to a stick, checked against
   Debian's published SHA512SUMS before you write it. It must have
-  `cryptsetup`, `mkfs.ext4` and a text editor; check during the rehearsal,
-  since nothing can be installed offline.
+  `cryptsetup`, `mkfs.ext4`, a text editor and, for the node key session,
+  `python3`; check during the rehearsal, since nothing can be installed
+  offline.
 - A **tools USB**: the release's static Linux `dytallix-root-sign` and its
   `SHA256SUMS` ([release](../../release/README.md)). Before the first release,
   build it with `release/reproduce.sh` and compare with CI's checksums. Check
@@ -150,6 +151,39 @@ three is not. The root keys cannot be replaced on chain
   every threshold; follow the
   [key compromise runbook](../../node/docs/operations/key-compromise.md)
   before a second is at risk.
+
+## Node keys
+
+Once the hosts are rented and the pin plan has their addresses
+([host setup v1](../../node/docs/architecture/host-setup-v1.md)), a second
+offline session on the same live USB makes every host's node keys and seals
+them for its bundle (P01, 6 October 2026). The tools stick also holds the
+release's `dytallix-peer-seed`, `dytallix-validator-key` and
+`dytallix-channel-key`, and `node/tools/mainnet-preparation/host_keys.py`;
+the public stick holds the pin plan.
+
+1. Boot offline as in step 1. Check the tools against `SHA256SUMS` as in
+   step 2, copy `dytallix-root-sign` and the three key tools to `/tmp/bin`
+   and `host_keys.py` to `/tmp`, and mount the public stick at
+   `/mnt/public`.
+2. Run:
+
+   ```text
+   python3 /tmp/host_keys.py --plan /mnt/public/PIN_PLAN.json --bin /tmp/bin \
+     --staging /tmp/staging --out /mnt/public/node-keys
+   ```
+
+3. For each host it prints a seal code line: `dytallix-seal-LABEL` and
+   seventeen groups. Write it on paper twice, then type it back from the
+   paper and press Enter; `seal-check` confirms it opens that host's keys.
+4. Keep the two copies of each code with two different kits' papers. The
+   staging homes are in RAM and go when you shut down. The sealed records
+   on the public stick are the node keys' only backup: with one validator,
+   losing its key halts the chain.
+
+`/mnt/public/node-keys` then holds only public files: each host's key
+summary and sealed keys, the endpoint's channel pin and `PIN_PLAN.json` with
+the public keys filled in, for the host files and the genesis.
 
 ## Rehearse first
 

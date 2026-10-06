@@ -1,0 +1,350 @@
+"""Host setup H3 on a synthetic staging network: the offline key step with
+stand-in key tools, the host files, the bundle, and the installer run
+against a temporary root with a stand-in system. The real key tools and
+`dytallix-root-sign seal`/`unseal` have their own tests; a real Ubuntu
+install is H4. No real key, host or approval."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import sys
+import tarfile
+from types import SimpleNamespace
+import unittest
+from unittest import mock
+
+import host_bundle
+import host_files
+import host_keys
+import test_host_files
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE / 'host'))
+import host_install as hi  # noqa: E402
+
+# Stand-ins for the release's key tools: the same files and outputs, with
+# synthetic keys.
+FAKE_TOOL = r'''#!PYTHON
+import base64, hashlib, json, os, sys
+name, args = os.path.basename(sys.argv[0]), sys.argv[1:]
+flags = dict(zip(args[1::2], args[2::2]))
+def create(path, raw):
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    os.write(fd, raw); os.close(fd)
+def key(seed):
+    return base64.b64encode(hashlib.shake_256(seed).digest(1952)).decode()
+if name == 'dytallix-peer-seed':
+    seed = os.urandom(32); create(os.path.join(flags['--home'], 'config', 'pqc_peer_seed.bin'), seed)
+    print(json.dumps({'version': 1, 'public_key_base64': key(seed)}))
+elif name == 'dytallix-validator-key':
+    seed = os.urandom(32)
+    create(flags['--state-file'], b'{"height":"0","round":0,"step":0}')
+    create(flags['--key-file'], json.dumps({'synthetic': seed.hex()}).encode())
+    print(json.dumps({'version': 1, 'public_key_base64': key(seed)}))
+elif name == 'dytallix-channel-key' and args[0] == 'generate':
+    create(flags['--seed-file'], os.urandom(32)); print('{}')
+elif name == 'dytallix-channel-key':
+    create(flags['--output'], json.dumps({'network': flags['--network'], 'address': flags['--address']}).encode())
+    print('{}')
+elif name == 'dytallix-root-sign' and args[0] == 'seal':
+    label, home, out = args[2], args[4], args[6]
+    files = [{'path': p, 'bytes': os.path.getsize(os.path.join(home, p)),
+              'sha256': hashlib.sha256(open(os.path.join(home, p), 'rb').read()).hexdigest()} for p in sorted(args[7:])]
+    create(out, json.dumps({'schema': 'dytallix.sealed-host-keys.v1', 'label': label, 'files': files,
+                            'nonce_hex': '00' * 12, 'ciphertext_hex': 'synthetic'}).encode())
+    print('seal code for %s (write it on paper twice, then run seal-check):' % label)
+    print('dytallix-seal-%s %s' % (label, ' '.join(['0000'] * 17)))
+elif name == 'dytallix-root-sign' and args[0] == 'seal-check':
+    pass
+else:
+    sys.exit('unexpected ' + name)
+'''
+
+
+def fake_tools(directory):
+    directory.mkdir()
+    for name in ('dytallix-peer-seed', 'dytallix-validator-key', 'dytallix-channel-key', 'dytallix-root-sign'):
+        path = directory / name
+        path.write_text(FAKE_TOOL.replace('PYTHON', sys.executable))
+        path.chmod(0o755)
+    return directory
+
+
+class FakeHost(hi.Host):
+    """Ubuntu 24.04 with AppArmor and nftables, in a directory: commands
+    change recorded state, and unseal copies the staging home's files."""
+
+    def __init__(self, root, staging, profiles):
+        super().__init__(root)
+        self.staging, self.profiles = Path(staging), profiles
+        self.commands, self.owners, self.immutable, self.enabled = [], {}, set(), set()
+        self.user = self.group = self.table = False
+        for path, text in {'/etc/os-release': 'ID=ubuntu\nVERSION_ID="24.04"\n',
+                           '/sys/module/apparmor/parameters/enabled': 'Y\n',
+                           '/etc/nftables.conf': '#!/usr/sbin/nft -f\nflush ruleset\n'}.items():
+            self.path(path).parent.mkdir(parents=True, exist_ok=True)
+            self.path(path).write_text(text)
+        for base in ('/opt', '/var/lib', '/etc/systemd/system', '/etc/apparmor.d'):
+            self.path(base).mkdir(parents=True, exist_ok=True)
+
+    def is_root(self):
+        return True
+
+    def which(self, tool):
+        return True
+
+    def chown(self, absolute, uid, gid):
+        self.owners[absolute] = (uid, gid)
+
+    def owner(self, absolute):
+        return self.owners.get(absolute, (-1, -1))
+
+    def remove_tree(self, absolute):
+        for dirpath, _, _ in os.walk(self.path(absolute)):
+            os.chmod(dirpath, 0o755)
+        super().remove_tree(absolute)
+
+    def run(self, args, check=True, interactive=False):
+        self.commands.append(args)
+        name, out, code = Path(args[0]).name, '', 0
+        if name == 'getent':
+            exists = self.user if args[1] == 'passwd' else self.group
+            if exists and args[2] in ('dytallix', '41001'):
+                out = ('dytallix:x:41001:41001::/nonexistent:/usr/sbin/nologin' if args[1] == 'passwd'
+                       else 'dytallix:x:41001:')
+            else:
+                code = 2
+        elif name == 'groupadd':
+            self.group = True
+        elif name == 'useradd':
+            self.user = True
+        elif name == 'timedatectl':
+            out = 'yes'
+        elif name == 'systemctl':
+            verb = args[1]
+            if verb == 'is-active':
+                out = 'inactive'
+            elif verb == 'enable':
+                self.enabled.add(args[2])
+            elif verb == 'disable':
+                self.enabled.discard(args[-1])
+            elif verb == 'is-enabled':
+                out = 'enabled' if args[2] in self.enabled else 'disabled'
+            elif verb == 'restart' and args[2] == 'nftables':
+                self.table = NFT_INCLUDE_PRESENT(self) and os.path.exists(self.path(hi.FIREWALL_FILE))
+        elif name == 'chattr':
+            (self.immutable.add if args[1] == '+i' else self.immutable.discard)(args[2])
+        elif name == 'lsattr':
+            out = ('----i---------e------- ' if args[2] in self.immutable else '--------------e------- ') + args[2]
+        elif name == 'apparmor_parser':
+            listing = self.path('/sys/kernel/security/apparmor/profiles')
+            listing.parent.mkdir(parents=True, exist_ok=True)
+            listing.write_text(''.join(f'{p} (enforce)\n' for p in self.profiles) if args[1] == '--replace' else '')
+        elif name == 'nft':
+            if args[1] == 'list':
+                code = 0 if self.table else 1
+            elif args[1] == 'delete':
+                self.table = False
+        elif name == 'dytallix-root-sign' and args[1] == 'unseal':
+            label, home = args[args.index('-label') + 1], Path(args[args.index('-out') + 1])
+            source = self.staging / label
+            for path in sorted(p for p in source.rglob('*') if p.is_file()):
+                target = home / path.relative_to(source)
+                fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                os.write(fd, path.read_bytes())
+                os.close(fd)
+        if check and code:
+            raise hi.Refused(f'{" ".join(args)} failed')
+        return SimpleNamespace(returncode=code, stdout=out, stderr='')
+
+
+def NFT_INCLUDE_PRESENT(host):
+    return hi.NFT_INCLUDE in host.path(hi.NFT_CONF).read_text().splitlines()
+
+
+class HostBundleTests(unittest.TestCase):
+    def setUp(self):
+        # The host file generator's synthetic network, with the root signer
+        # in the release.
+        with mock.patch.object(test_host_files, 'BINARIES', test_host_files.BINARIES + ['dytallix-root-sign']):
+            self.network = test_host_files.HostFilesTests('test_written_out')
+            self.network.setUp()
+        self.addCleanup(self.network.doCleanups)
+        self.tmp = Path(self.network.tmp.name)
+        record = json.loads((self.network.dirs['release'] / 'BUILD_RECORD.json').read_bytes())
+        # Release binaries whose digests are the record's (sha256 of the name).
+        for name in record['members']:
+            (self.network.dirs['release'] / 'bin').mkdir(exist_ok=True)
+            (self.network.dirs['release'] / 'bin' / name).write_bytes(name.encode())
+        # The offline key step, with stand-in tools.
+        self.tools = fake_tools(self.tmp / 'tools')
+        plan_path = self.tmp / 'plan.json'
+        plan_path.write_text(json.dumps(self.network.plan))
+        self.keys = self.tmp / 'public'
+        self.staging = self.tmp / 'staging'
+        shown = []
+        self.summaries = host_keys.run(plan_path, self.tools, self.staging, self.keys, show=shown.append)
+        self.shown = '\n'.join(shown)
+        self.plan = json.loads((self.keys / 'PIN_PLAN.json').read_bytes())
+        generated = host_files.generate(self.network.dirs['release'], self.network.dirs['chain'],
+                                        self.network.dirs['hosts'], self.plan, self.keys,
+                                        self.network.values, self.network.setup)
+        self.host_files = self.tmp / 'host-files'
+        host_files.write(self.host_files, generated)
+        self.manifests = {label: manifest for label, (_, manifest) in generated.items()}
+
+    def bundle(self, label, name=None):
+        out = self.tmp / (name or f'{label}.bundle.tar')
+        return out, host_bundle.build(self.host_files / label, self.network.dirs['release'],
+                                      self.keys / f'{label}.sealed.json', out)
+
+    def unpack(self, out):
+        target = self.tmp / ('unpacked-' + out.stem)
+        with tarfile.open(out) as tar:
+            tar.extractall(target, filter='data')
+        return target / host_bundle.PREFIX
+
+    def test_key_step_writes_public_records_and_a_filled_plan(self):
+        self.assertEqual(sorted(self.summaries), sorted(test_host_files.HOSTS))
+        for label, summary in self.summaries.items():
+            role = test_host_files.HOSTS[label][0]
+            expected = set(host_keys.SECRETS) | ({host_keys.CHANNEL_SEED} if role == 'endpoint' else set())
+            self.assertEqual(set(summary['secret_files']), expected)
+            for path, digest in summary['secret_files'].items():
+                self.assertEqual(hashlib.sha256((self.staging / label / path).read_bytes()).hexdigest(), digest)
+            sealed = json.loads((self.keys / f'{label}.sealed.json').read_bytes())
+            self.assertEqual({f['path']: f['sha256'] for f in sealed['files']}, summary['secret_files'])
+            self.assertIn(f'dytallix-seal-{label} ', self.shown)
+            host = next(h for h in self.plan['hosts'] if h['label'] == label)
+            self.assertEqual(host['validator_public_key_base64'], summary['validator_public_key_base64'])
+        # Only public records leave the staging directory.
+        self.assertEqual(sorted(p.name for p in self.keys.iterdir()), sorted(
+            ['PIN_PLAN.json', 'endpoint-1.channel-pin.json'] +
+            [f'{label}.{kind}.json' for label in test_host_files.HOSTS for kind in ('keys', 'sealed')]))
+        with self.assertRaises(host_keys.Invalid):
+            host_keys.host_keys(self.plan, self.plan['hosts'][0], self.tools, self.staging, self.tmp, show=lambda _: None)
+
+    def test_bundle_is_deterministic_and_complete(self):
+        out, result = self.bundle('endpoint-1')
+        again, second = self.bundle('endpoint-1', 'again.tar')
+        self.assertEqual(result['sha256'], second['sha256'])
+        self.assertEqual(out.with_name(out.name + '.sha256').read_text(), f'{result["sha256"]}  {out.name}\n')
+        with tarfile.open(out) as tar:
+            members = {m.name: m for m in tar.getmembers()}
+        manifest = self.manifests['endpoint-1']
+        for row in manifest['files']:
+            self.assertIn(f'dytallix-host/files{row["path"]}', members)
+        for binary in manifest['binaries']:
+            self.assertEqual(members[f'dytallix-host/bin/{binary["name"]}'].mode, 0o755)
+        self.assertEqual(members['dytallix-host/install.sh'].mode, 0o755)
+        self.assertTrue(all(m.uid == 0 and m.mtime == 0 for m in members.values()))
+        with self.assertRaises(host_bundle.Invalid):
+            self.bundle('endpoint-1')  # never overwritten
+
+    def test_bundle_refuses_mismatches(self):
+        sealed_path = self.keys / 'validator-1.sealed.json'
+        sealed = json.loads(sealed_path.read_bytes())
+        wrong = dict(sealed, label='sentry-1')
+        (self.tmp / 'wrong-label.json').write_text(json.dumps(wrong))
+        missing = dict(sealed, files=sealed['files'][1:])
+        (self.tmp / 'missing.json').write_text(json.dumps(missing))
+        for name in ('wrong-label.json', 'missing.json'):
+            with self.assertRaises(host_bundle.Invalid, msg=name):
+                host_bundle.build(self.host_files / 'validator-1', self.network.dirs['release'], self.tmp / name,
+                                  self.tmp / f'{name}.tar')
+        binary = self.network.dirs['release'] / 'bin' / 'dytallix-pqc-engine'
+        binary.write_bytes(b'another engine')
+        with self.assertRaises(host_bundle.Invalid):
+            self.bundle('validator-1')
+
+    def install(self, label):
+        out, result = self.bundle(label)
+        bundle = self.unpack(out)
+        manifest = self.manifests[label]
+        host = FakeHost(self.tmp / f'root-{label}', self.staging, manifest['apparmor_profiles'])
+        printed = []
+        hi.install(bundle, host, out=printed.append)
+        return bundle, host, manifest, printed
+
+    def test_install_verify_and_wipe(self):
+        for label in ('validator-1', 'endpoint-1'):
+            bundle, host, manifest, printed = self.install(label)
+            self.assertEqual(hi.verify(bundle, host), [])
+            self.assertIn(f'Type the seal code for {label}', '\n'.join(printed))
+            release = manifest['release']
+            for secret in manifest['secrets']:
+                path = host.path(secret['path'])
+                self.assertEqual(stat.S_IMODE(os.lstat(path).st_mode), 0o600)
+                self.assertEqual(host.owner(secret['path']), (41001, 41001))
+            self.assertEqual(stat.S_IMODE(os.lstat(host.path(f'/opt/dytallix/{release}/bin')).st_mode), 0o555)
+            self.assertEqual(stat.S_IMODE(os.lstat(host.path(hi.HOME)).st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(os.lstat(host.path('/etc/nftables.d')).st_mode), 0o755)
+            self.assertIn(hi.NFT_INCLUDE, host.path(hi.NFT_CONF).read_text())
+            self.assertTrue(host.path(hi.JOURNALD_FILE).read_text().endswith('MaxRetentionSec=90d\n'))
+            commands = [' '.join(c[:2]) for c in host.commands]
+            self.assertLess(commands.index('groupadd --system'), commands.index('useradd --system'))
+            self.assertIn('dytallix-node.service', host.enabled)
+            # A second install refuses the existing one.
+            with self.assertRaisesRegex(hi.Refused, 'already has a Dytallix install'):
+                hi.install(bundle, host, out=lambda _: None)
+            # Wipe asks first, then removes everything but the account.
+            with self.assertRaises(hi.Refused):
+                hi.wipe(bundle, host, confirm=lambda _: 'yes', out=lambda _: None)
+            self.assertTrue(host.path('/var/lib/dytallix').exists())
+            hi.wipe(bundle, host, confirm=lambda _: f'wipe {label}', out=lambda _: None)
+            self.assertEqual(hi.existing(host), [])
+            self.assertFalse(host.table)
+            self.assertTrue(host.user)
+            # And the host takes a fresh install again, reusing the account.
+            hi.install(bundle, host, out=lambda _: None)
+            self.assertEqual(hi.verify(bundle, host), [])
+
+    def test_verify_reports_changes(self):
+        bundle, host, manifest, _ = self.install('sentry-1')
+        service = next(r['path'] for r in manifest['files'] if r['path'].endswith('/service.json'))
+        os.chmod(host.path(service), 0o644)
+        host.path(service).write_bytes(b'{}')
+        os.chmod(host.path(service), 0o444)
+        binary = manifest['binaries'][0]['path']
+        host.immutable.discard(str(host.path(binary)))
+        host.chown(hi.HOME, 0, 0)
+        problems = '\n'.join(hi.verify(bundle, host))
+        self.assertIn(f'{service}: content differs', problems)
+        self.assertIn(f'{binary}: not immutable', problems)
+        self.assertIn(f'{hi.HOME}: owner', problems)
+
+    def test_install_refuses_unsuitable_hosts(self):
+        out, _ = self.bundle('validator-1')
+        bundle = self.unpack(out)
+        profiles = self.manifests['validator-1']['apparmor_profiles']
+        cases = {
+            'Ubuntu 24.04': lambda h: h.path('/etc/os-release').write_text('ID=ubuntu\nVERSION_ID="22.04"\n'),
+            'AppArmor': lambda h: h.path('/sys/module/apparmor/parameters/enabled').write_text('N\n'),
+            'ufw is active': lambda h: setattr(h, 'run', active_ufw(h.run)),
+            'already has': lambda h: h.path('/etc/dytallix').mkdir(),
+        }
+        for index, (message, change) in enumerate(cases.items()):
+            host = FakeHost(self.tmp / f'unsuitable-{index}', self.staging, profiles)
+            change(host)
+            with self.assertRaisesRegex(hi.Refused, message):
+                hi.install(bundle, host, out=lambda _: None)
+            self.assertFalse(host.user, f'{message}: changed the host before refusing')
+        # A changed file in the unpacked bundle is refused too.
+        target = next(bundle.glob('files/etc/dytallix/*/service.json'))
+        target.write_bytes(b'{}')
+        host = FakeHost(self.tmp / 'tampered', self.staging, profiles)
+        with self.assertRaisesRegex(hi.Refused, 'not the manifest'):
+            hi.install(bundle, host, out=lambda _: None)
+
+
+def active_ufw(run):
+    def wrapped(args, check=True, interactive=False):
+        if args[:3] == ['systemctl', 'is-active', 'ufw']:
+            return SimpleNamespace(returncode=0, stdout='active\n', stderr='')
+        return run(args, check=check, interactive=interactive)
+    return wrapped
+
+
+if __name__ == '__main__':
+    unittest.main()

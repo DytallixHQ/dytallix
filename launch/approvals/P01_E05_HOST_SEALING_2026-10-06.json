@@ -1,0 +1,41 @@
+{
+  "decision_id": "P01-2026-10-06-E05-HOST-SEALING",
+  "approved": "2026-10-06",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 host setup H3: sealing"
+  },
+  "design_ref": "../../node/docs/architecture/host-setup-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q01",
+      "selected": "Our signer, generated code",
+      "rule": "dytallix-root-sign seal and unseal seal each host's node keys with AES-256-GCM, under a key derived with SHAKE256 from a random seal code that the tool generates and prints once as a checked paper line. Standard library and existing dependencies only; nothing classical. The host unseals with the release's own binary, bound to the release digest."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "256-bit, like the kit lines",
+      "rule": "Each seal code is 32 random bytes, printed as sixteen groups of four hex digits and a check group bound to the host's label (NIST category 5, as the kits' secrets). This replaces the 128-bit code first proposed: the bundles are public and permanent."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "One per host",
+      "rule": "Each host has its own seal code; a leaked code exposes only that host's node keys."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "Two copies, two kit places",
+      "rule": "Each seal code is written on paper twice, and the copies are kept with the papers of two different kits. The sealed bundle is the only backup of the validator key; with one validator, losing it halts the chain."
+    }
+  ],
+  "unset": [
+    "The hosts and their addresses (D12-Q03), which the node key session's pin plan needs",
+    "The CI install job (H4) and the runbooks (H5)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

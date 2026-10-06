@@ -31,6 +31,8 @@ For the solo launch profile's key kits it also has `kit`, which makes a kit's fo
 
 It also signs root controls offline (freeze, resume, upgrade, handover; [control signing](../../docs/mainnet/control-signing.md)): `show-control` prints what a request asks for, read from its signed artifact; `sign-control` signs only the operation and sequence the custodian types, with a key of the request's authority, through `SignForPolicy`; `verify-control` checks a signature file as the node's helper will.
 
+For host bundles ([host setup v1](../../docs/architecture/host-setup-v1.md)) it seals each host's node keys: `seal` encrypts the secret files of a staging node home under a fresh 32-byte seal code (AES-256-GCM, key from SHAKE256 over the host's label and the code, `SealHostKeys`) and prints the code once as a checked paper line, `dytallix-seal-LABEL` and seventeen groups; `seal-check` checks a typed paper line against a sealed record; `unseal` writes the files into a node home, owner-only, never replacing one (`OpenHostKeys` checks each file's size and SHA-256).
+
 ## Atomic execution boundary
 
 `Execute` integrates signature verification with a caller-supplied application transition. It requires an `ExecutionStore` and a reviewed `ArtifactTransition`. The maintained `FileStore` adapter commits a complete local document. The Rust development genesis and emergency consumers invoke the verification-only helper and commit their own receipts and sequences in the chain RocksDB batch. They do not use `FileStore` as a second replay database. The Go `Execute` adapter remains separate from these Rust consumers. No upgrade executor or production chain adapter for `Execute` exists. See [emergency transaction freeze](../../docs/mainnet/emergency-transaction-freeze.md).

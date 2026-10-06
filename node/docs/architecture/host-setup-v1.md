@@ -4,7 +4,8 @@ Engineering task E05. How a bare server becomes a running Dytallix node of
 one role (validator, sentry or endpoint) under the solo launch profile:
 three hosts, the founder alone, console access only
 ([solo launch](../../../launch/approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)).
-This is the design; the tools follow in steps H2 to H5.
+This is the design. Steps H2 (the generator) and H3 (node keys, bundles and
+the installer) are built; H4 and H5 follow.
 
 ## Decisions (P01, 6 October 2026)
 
@@ -20,6 +21,15 @@ This is the design; the tools follow in steps H2 to H5.
   (AES-256). The bundle is public. At the host console the founder types
   only the bundle's SHA-256 and the passphrase; nothing ever has to come off
   a host. The sealed keys are also their backup.
+- **Sealing** ([sealing approval](../../../launch/approvals/P01_E05_HOST_SEALING_2026-10-06.json)).
+  The passphrase is a seal code: 32 random bytes that `dytallix-root-sign
+  seal` makes and prints once as a checked paper line, one code per host.
+  The founder writes each code twice and keeps the copies with two
+  different kits' papers. The key is SHAKE256 of a domain, the host's label
+  and the code; the cipher is AES-256-GCM, authenticating the label and each
+  file's path, size and SHA-256. A 256-bit code matches the kits' secrets
+  (NIST category 5); the bundles are public and permanent, so the code must
+  resist offline guessing indefinitely.
 - **Layout.** The service account and paths below.
 
 ## Layout
@@ -59,12 +69,17 @@ release, genesis, root sigs ─┘                                              
    [`launch/hosts/PIN_PLAN.template.json`](../../../launch/hosts/PIN_PLAN.template.json):
    the validator pins its sentry, the sentry pins the validator and the
    endpoint, and the endpoint pins the sentry.
-2. **Node keys, offline.** On the ceremony machine, for each host: the
-   validator key and its fresh signing state (`dytallix-validator-key`), the
-   peer seed (`dytallix-peer-seed`) and, for the endpoint, the client channel
-   seed (`dytallix-channel-key`). The public keys go into the pin plan, the
-   genesis (the validator's key) and the endpoint's published channel pin.
-   The private files are sealed for their host.
+2. **Node keys, offline.** On the ceremony machine
+   ([key ceremony, node keys](../../../launch/custody/KEY_CEREMONY.md#node-keys)),
+   `host_keys.py` makes, for each host in the plan: the validator key and its
+   fresh signing state (`dytallix-validator-key`), the peer seed
+   (`dytallix-peer-seed`) and, for the endpoint, the client channel seed and
+   its pin (`dytallix-channel-key`). It writes the key summaries, seals each
+   host's private files (`dytallix-root-sign seal`) and has the founder type
+   each printed seal code back from paper (`seal-check`). Its output is
+   public: the summaries, the sealed records, the endpoint's channel pin and
+   the pin plan with the public keys filled in, which also go into the
+   genesis (the validator's key).
 3. **Generate, online.** `dytallix-host-config` writes each host's engine
    files and binding. A new generator then writes everything else for each
    host from the release, the genesis and these choices:
@@ -77,25 +92,37 @@ release, genesis, root sigs ─┘                                              
      it pins;
    - the systemd unit;
    - an install manifest: every file's destination, owner and mode.
-4. **Bundle.** One archive per host: the release binaries, its files, the
-   install manifest, `install.sh` and its sealed keys. Published with the
-   release; its SHA-256 is noted on paper for the console.
+4. **Bundle.** `host_bundle.py` writes one deterministic archive per host:
+   the release binaries, its files, the install manifest, `install.sh`,
+   `wipe.sh`, `host_install.py` and its sealed keys, all checked against the
+   manifest first. Published with the release; its SHA-256 (also written
+   beside it) is noted on paper for the console.
+
+   ```text
+   host_bundle.py --host-files OUT/LABEL --release RELEASE_DIR \
+     --sealed LABEL.sealed.json --out LABEL.bundle.tar
+   ```
 5. **Install, at the host console.** As root:
 
    ```text
-   curl -fLo bundle.tar URL
-   echo "SHA256  bundle.tar" | sha256sum -c
-   tar -xf bundle.tar && ./dytallix-host/install.sh
+   curl -fLo LABEL.bundle.tar URL
+   echo "SHA256  LABEL.bundle.tar" | sha256sum -c
+   tar -xf LABEL.bundle.tar && ./dytallix-host/install.sh
    ```
 
-   `install.sh` refuses a host that is not Ubuntu 24.04 with AppArmor
-   enabled. It creates the account and directories, unseals the keys (asking
-   for the passphrase), installs every file as the manifest says, marks the
-   binaries immutable, installs and loads the profiles in enforce mode,
-   installs the firewall and enables nftables, installs and enables the
-   unit, and then verifies: file hashes, owners and modes, profiles in
-   enforce mode, the firewall table loaded. It never overwrites an existing
-   node home.
+   `install.sh` runs `host_install.py install`. It refuses a host that is
+   not Ubuntu 24.04 with AppArmor enabled, the tools present, the clock
+   synchronized and `ufw` and `firewalld` inactive, and any host that
+   already has an install. It checks every bundled file against the
+   manifest, creates the account and directories, installs the binaries and
+   every file as the manifest says, asks for the seal code and unseals the
+   keys with the release's `dytallix-root-sign unseal` (which never replaces
+   a file), sets owners and modes, marks the binaries immutable, loads the
+   profiles in enforce mode, adds `include "/etc/nftables.d/*.nft"` to
+   `/etc/nftables.conf` and enables nftables, applies the journal setting,
+   enables the unit, and then verifies: file hashes, owners and modes, the
+   immutable flag, profiles in enforce mode, the firewall table loaded and
+   both units enabled. `host_install.py verify` repeats the check later.
 6. **Start.** `systemctl start dytallix-node`. The supervisor runs its own
    startup checks before any child starts.
 
@@ -129,13 +156,14 @@ supervisor's report goes to the journal.
 
 ## Host packages and settings
 
-- `apparmor`, `apparmor-utils` and `nftables` (`install.sh` checks them;
-  installing them is part of the operator's base setup).
+- `apparmor`, `apparmor-utils`, `nftables` and `python3` (`install.sh`
+  checks them; installing them is part of the operator's base setup).
 - `ufw` and `firewalld` disabled; the node's table is the host firewall.
 - Time from `systemd-timesyncd`, Ubuntu's default, which `install.sh`
   checks is synchronized.
 - The journal kept on disk for 90 days (`Storage=persistent`,
-  `MaxRetentionSec=90d`), the operations objectives' log retention.
+  `MaxRetentionSec=90d`, in `/etc/systemd/journald.conf.d/dytallix.conf`,
+  which the generator writes), the operations objectives' log retention.
 - Nothing else runs on the host.
 
 ## Host values (P01, 6 October 2026)
@@ -168,14 +196,19 @@ The staging hosts re-check the memory cap and the timeouts before genesis.
 The solo launch profile stages on the production hosts before genesis and
 wipes them afterwards. The same bundle and `install.sh` install the staging
 chain; a separate `wipe.sh` removes everything under `/opt/dytallix`,
-`/etc/dytallix` and `/var/lib/dytallix`, the unit, profiles and firewall
-table, so the production install starts clean.
+`/etc/dytallix` and `/var/lib/dytallix`, the unit, profiles, firewall table
+and journal setting, so the production install starts clean. It asks the
+founder to type `wipe LABEL` first and keeps the account.
 
 ## Steps
 
 - **H1.** This design and the decisions.
 - **H2.** The generator and the templates (pin plan, host values).
-- **H3.** Sealing and the bundle; `install.sh` and `wipe.sh`.
+- **H3.** Sealing and the bundle; `install.sh` and `wipe.sh`. Built:
+  `dytallix-root-sign seal`, `seal-check` and `unseal`; `host_keys.py`,
+  `host_bundle.py` and `host/` (`host_install.py`, `install.sh`,
+  `wipe.sh`), tested on a synthetic network with a stand-in system
+  (`test_host_bundle.py`).
 - **H4.** A CI job that installs a staging bundle on an Ubuntu 24.04 runner
   and starts the node.
 - **H5.** The runbooks that change with it: start and stop, a release switch

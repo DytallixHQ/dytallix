@@ -1,5 +1,6 @@
 // Validator consensus keys for operators (E04 gap 17, T-a; P01 28 September
-// 2026). It runs on the validator host, so the key never leaves it.
+// 2026). Under host setup v1 generate runs offline on the ceremony machine,
+// and the key reaches its host only sealed in the host's bundle.
 //
 //	dytallix-validator-key generate --key-file FILE --state-file FILE
 //	dytallix-validator-key proof --key-file FILE --genesis ENGINE_GENESIS \
