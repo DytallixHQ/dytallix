@@ -1,5 +1,6 @@
 // The production peer identity and host binding (production activation v1,
-// A5). It runs on the node's host, so the seed never leaves it.
+// A5). Under host setup v1 generate runs offline on the ceremony machine,
+// and the seed reaches its host only sealed in the host's bundle.
 //
 //	dytallix-peer-seed generate --home HOME
 //	dytallix-peer-seed public --home HOME

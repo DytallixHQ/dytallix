@@ -25,8 +25,15 @@
 //	sign-control   -request F -private-key F -public-key F -operation OP -sequence N -out PATH
 //	verify-control -request F -signature F -public-key F
 //
-// Outputs are never overwritten. Everything it writes except private keys
-// and a kit's paper line is a public record. It cannot start a chain,
+// Host bundles (node/docs/architecture/host-setup-v1.md) carry each host's
+// node keys sealed under a seal code that is written only on paper:
+//
+//	seal       -label L -home DIR -out PATH FILE...
+//	seal-check -paper F -sealed F
+//	unseal     -paper F -sealed F -label L -out DIR
+//
+// Outputs are never overwritten. Everything it writes except private keys,
+// a kit's paper line and unsealed files is a public record. It cannot start a chain,
 // consume a sequence or approve a launch: the node verifies every signature
 // again through its pinned helper.
 package main
@@ -182,6 +189,30 @@ func run(args []string, out io.Writer) error {
 			return err
 		}
 		return verifyControl(*request, *signature, *public, out)
+	case "seal":
+		label := flags.String("label", "", "the host's pin plan label")
+		home := flags.String("home", "", "the staging node home holding the files")
+		output := flags.String("out", "", "new sealed record")
+		if err := parse(flags, args[1:], -1); err != nil {
+			return err
+		}
+		return seal(*label, *home, *output, flags.Args(), out)
+	case "seal-check":
+		paper := flags.String("paper", "", "the seal code's paper line, or - to type it")
+		sealed := flags.String("sealed", "", "sealed record")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return sealCheck(*paper, *sealed, out)
+	case "unseal":
+		paper := flags.String("paper", "", "the seal code's paper line, or - to type it")
+		sealed := flags.String("sealed", "", "sealed record")
+		label := flags.String("label", "", "this host's label")
+		output := flags.String("out", "", "the node home")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return unseal(*paper, *sealed, *label, *output, out)
 	}
 	return fmt.Errorf("unknown command %q", args[0])
 }

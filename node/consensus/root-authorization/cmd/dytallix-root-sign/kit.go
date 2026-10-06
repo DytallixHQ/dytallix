@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strconv"
 
@@ -74,20 +73,11 @@ func writeKit(number int, secret []byte, privateDir, publicDir string, out io.Wr
 // published keys. With a private directory it then writes the four private
 // keys there, restoring a lost or damaged kit drive.
 func kitCheck(paperPath, publicDir, privateDir string, out io.Writer) error {
-	var raw []byte
-	var err error
-	if paperPath == "-" {
-		raw, err = io.ReadAll(io.LimitReader(os.Stdin, maxPaperBytes+1))
-	} else {
-		raw, err = readBounded(paperPath, maxPaperBytes)
-	}
+	raw, err := readPaper(paperPath)
 	if err != nil {
 		return err
 	}
 	defer clear(raw)
-	if len(raw) > maxPaperBytes {
-		return errors.New("the paper line is too long")
-	}
 	number, secret, err := root.DecodeKitSecret(string(raw))
 	if err != nil {
 		return err

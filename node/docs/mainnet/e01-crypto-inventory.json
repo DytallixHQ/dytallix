@@ -163,7 +163,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-validator-key/main.go",
-          "sha256": "528d52d1fada4818a67c383fcc9ab80d7a70d0ad46124c7c46059ff60b80e06c"
+          "sha256": "0fa84925c180fdab5c1c5579e563dc36b342ec45e742655d917b3fe2375e950a"
         }
       ],
       "policy": "Proof of possession for registered and rotated consensus keys; the operator tool generates keys and signs only proofs it builds for the engine genesis chain",

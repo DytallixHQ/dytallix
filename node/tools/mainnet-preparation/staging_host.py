@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+"""Install a staging bundle on this host and start the node (E05; host
+setup v1, step H4: node/docs/architecture/host-setup-v1.md). CI runs it on
+an Ubuntu 24.04 runner; it also rehearses a staging host by hand.
+
+  staging_host.py prepare --release DIR --work DIR [--address IP]
+  sudo staging_host.py install --work DIR [--label validator-1] [--height N] [--timeout S]
+  sudo staging_host.py wipe --work DIR [--label validator-1]
+
+prepare (as a normal user) writes a staging pin plan from the template
+(chain dytallix-staging-1; this host's address for the validator, RFC 5737
+documentation addresses for the others), runs the offline key step with the
+release's tools and types each seal code back, and builds the staging
+chain and every host's bundle (staging_chain.py). The seal codes go to
+WORK/seal-codes.json (mode 0600): this chain is throwaway.
+
+install (as root) unpacks the host's bundle and runs its install.sh,
+typing the seal code, starts dytallix-node, waits until the application's
+metrics report the height, and runs the bundle's verify. wipe runs the
+bundle's wipe.sh and checks that nothing is left.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import subprocess
+import sys
+import tarfile
+import time
+
+HERE = Path(__file__).resolve().parent
+MAINNET = HERE.parents[2]
+TEMPLATE = MAINNET / 'launch' / 'hosts' / 'PIN_PLAN.template.json'
+CHAIN_ID = 'dytallix-staging-1'
+UNIT = 'dytallix-node'
+APP_METRICS = Path('/var/lib/dytallix/metrics/dytallix-app.prom')
+HEIGHT = re.compile(r'^dytallix_app_height (\d+)$', re.M)
+
+
+class Failed(Exception):
+    pass
+
+
+def say(message):
+    print(message, flush=True)
+
+
+def host_address():
+    """The address this host routes from: on a runner, its interface address."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.connect(('192.0.2.1', 9))  # no packet is sent
+        return probe.getsockname()[0]
+
+
+def staging_plan(address):
+    plan = json.loads(TEMPLATE.read_bytes())
+    plan['chain_id'] = CHAIN_ID
+    others = iter(f'192.0.2.{n}' for n in range(11, 30))
+    for host in plan['hosts']:
+        ip = address if host['role'] == 'validator' else next(others)
+        for field in ('p2p', 'channel', 'status'):
+            if host[field]:
+                host[field] = ip + host[field][host[field].rindex(':'):]
+    return plan
+
+
+def prepare(release, work, address):
+    release, work = Path(release), Path(work)
+    work.mkdir(parents=True)
+    tools = release / 'bin'
+    plan = staging_plan(address)
+    (work / 'plan.json').write_text(json.dumps(plan, indent=2) + '\n')
+    say(f'== staging plan: {CHAIN_ID}, validator at {address}')
+    # The key step, typing each printed code back as the founder would.
+    process = subprocess.Popen([sys.executable, '-u', str(HERE / 'host_keys.py'), '--plan', str(work / 'plan.json'),
+                                '--bin', str(tools), '--staging', str(work / 'staging'), '--out', str(work / 'keys')],
+                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    codes, line = {}, None
+    for out in process.stdout:
+        print(out, end='', flush=True)
+        for row in out.splitlines():
+            if row.startswith('dytallix-seal-'):
+                line = row
+                codes[row.split()[0][len('dytallix-seal-'):]] = row
+        if 'type it back from the paper' in out:
+            process.stdin.write(line + '\n')
+            process.stdin.flush()
+    if process.wait() != 0:
+        raise Failed('the key step failed')
+    descriptor = os.open(work / 'seal-codes.json', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as file:
+        json.dump(codes, file, indent=2)
+    say('== staging chain')
+    result = subprocess.run([sys.executable, '-B', str(HERE / 'staging_chain.py'), '--plan', str(work / 'keys' / 'PIN_PLAN.json'),
+                             '--keys', str(work / 'keys'), '--release', str(release), '--tools', str(tools),
+                             '--out', str(work / 'chain')])
+    if result.returncode != 0:
+        raise Failed('the staging chain build failed')
+    return json.loads((work / 'chain' / 'STAGING.json').read_bytes())
+
+
+def unpack(work, label):
+    target = Path(work) / f'host-{label}'
+    if not target.exists():
+        with tarfile.open(Path(work) / 'chain' / 'bundles' / f'{label}.bundle.tar') as tar:
+            tar.extractall(target, filter='tar')
+    return target / 'dytallix-host'
+
+
+def height():
+    try:
+        found = HEIGHT.search(APP_METRICS.read_text())
+    except OSError:
+        return None
+    return int(found.group(1)) if found else None
+
+
+def diagnostics():
+    for args in (['systemctl', 'status', '--no-pager', f'{UNIT}.service'],
+                 ['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '300', '-o', 'short-precise'],
+                 ['aa-status'], ['nft', 'list', 'table', 'inet', 'dytallix_node']):
+        say('$ ' + ' '.join(args))
+        subprocess.run(args)
+
+
+def install(work, label, target_height, timeout):
+    if os.geteuid() != 0:
+        raise Failed('run install as root')
+    work = Path(work)
+    codes = json.loads((work / 'seal-codes.json').read_bytes())
+    bundle = unpack(work, label)
+    say(f'== install {label} (the seal code is typed on standard input)')
+    result = subprocess.run([str(bundle / 'install.sh')], input=codes[label] + '\n', text=True)
+    if result.returncode != 0:
+        raise Failed('install.sh failed')
+    say(f'== start {UNIT}')
+    subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=True)
+    deadline, seen = time.monotonic() + timeout, None
+    while time.monotonic() < deadline:
+        current = height()
+        if current != seen:
+            say(f'height {current}')
+            seen = current
+        if current is not None and current >= target_height:
+            break
+        active = subprocess.run(['systemctl', 'is-active', f'{UNIT}.service'], capture_output=True, text=True).stdout.strip()
+        if active in ('failed', 'inactive'):
+            diagnostics()
+            raise Failed(f'{UNIT} is {active}')
+        time.sleep(2)
+    else:
+        diagnostics()
+        raise Failed(f'the node did not reach height {target_height} in {timeout} s')
+    verified = subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'verify'])
+    if verified.returncode != 0:
+        diagnostics()
+        raise Failed('the installed host does not verify')
+    subprocess.run(['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '40'])
+    say(f'== {label} installed, verified and at height {seen}')
+
+
+def wipe(work, label):
+    if os.geteuid() != 0:
+        raise Failed('run wipe as root')
+    bundle = unpack(work, label)
+    say(f'== wipe {label}')
+    result = subprocess.run([str(bundle / 'wipe.sh')], input=f'wipe {label}\n', text=True)
+    if result.returncode != 0:
+        raise Failed('wipe.sh failed')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    commands = parser.add_subparsers(dest='command', required=True)
+    p = commands.add_parser('prepare')
+    p.add_argument('--release', type=Path, required=True)
+    p.add_argument('--work', type=Path, required=True)
+    p.add_argument('--address', help="this host's address (default: the address it routes from)")
+    for name in ('install', 'wipe'):
+        c = commands.add_parser(name)
+        c.add_argument('--work', type=Path, required=True)
+        c.add_argument('--label', default='validator-1')
+        if name == 'install':
+            c.add_argument('--height', type=int, default=3)
+            c.add_argument('--timeout', type=int, default=300)
+    args = parser.parse_args()
+    try:
+        if args.command == 'prepare':
+            print(json.dumps(prepare(args.release, args.work, args.address or host_address()), indent=2))
+        elif args.command == 'install':
+            install(args.work, args.label, args.height, args.timeout)
+        else:
+            wipe(args.work, args.label)
+    except (Failed, OSError, KeyError, ValueError, subprocess.CalledProcessError) as error:
+        print(f'staging_host: {error}', file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())
