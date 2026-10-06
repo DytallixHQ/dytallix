@@ -119,8 +119,14 @@ def height():
 
 
 def diagnostics():
+    # The supervisor prints nothing when it refuses before startup, so also
+    # show the unit as loaded and the kernel's AppArmor denials and seccomp
+    # records.
     for args in (['systemctl', 'status', '--no-pager', f'{UNIT}.service'],
                  ['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '300', '-o', 'short-precise'],
+                 ['systemctl', 'cat', '--no-pager', f'{UNIT}.service'],
+                 ['journalctl', '-k', '--no-pager', '-o', 'short-precise', '-n', '200',
+                  '--grep', 'apparmor="DENIED"|type=1326|seccomp'],
                  ['aa-status'], ['nft', 'list', 'table', 'inet', 'dytallix_node']):
         say('$ ' + ' '.join(args))
         subprocess.run(args)
