@@ -1,0 +1,84 @@
+{
+  "decision_id": "P01-2026-10-06-E05-HOST-VALUES",
+  "approved": "2026-10-06",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 host values"
+  },
+  "design_ref": "../../node/docs/architecture/host-setup-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q01",
+      "selected": "Approve as proposed",
+      "rule": "The host values in launch/hosts/SETUP_VALUES.json, as proposed from the node's tested harnesses: unit limits per host (memory 6 GiB so 8 GB hosts suffice, 4,096 tasks, 65,536 open files); ports (P2P 26656, endpoint client channel 26670, endpoint status page 8080); root-owned code only; the catalog, process observation and root helper bounds; the root configuration's sizes and 30-second timeout; and the emergency verifier's 30-second timeout. The staging hosts re-check the memory cap and the timeouts before genesis."
+    }
+  ],
+  "values": {
+    "unit": {
+      "memory_max_bytes": 6442450944,
+      "tasks_max": 4096,
+      "nofile": 65536
+    },
+    "ports": {
+      "p2p": 26656,
+      "client_channel": 26670,
+      "status_page": 8080
+    },
+    "code_owner_uids": [
+      0
+    ],
+    "catalog_bounds": {
+      "max_manifest_bytes": 1048576,
+      "max_mapping_bytes": 1048576,
+      "max_members": 32,
+      "max_roles": 16,
+      "max_runtime_profiles": 16,
+      "max_references": 128,
+      "max_id_bytes": 128,
+      "max_path_bytes": 4096,
+      "max_member_bytes": 134217728,
+      "max_total_member_bytes": 536870912
+    },
+    "observation_bounds": {
+      "max_stat_bytes": 65536,
+      "max_maps_bytes": 2097152,
+      "max_map_entries": 4096,
+      "max_path_bytes": 4096,
+      "max_unique_files": 64,
+      "max_file_bytes": 134217728,
+      "max_total_file_bytes": 536870912,
+      "max_elapsed_millis": 15000
+    },
+    "root": {
+      "max_helper_bytes": 16777216,
+      "max_request_bytes": 4194304,
+      "max_engine_genesis_bytes": 9437184,
+      "max_release_manifest_bytes": 1048576,
+      "timeout_ms": 30000
+    },
+    "root_helper_observation": {
+      "max_program_headers": 128,
+      "max_section_headers": 256,
+      "max_stat_bytes": 65536,
+      "max_maps_bytes": 1048576,
+      "max_map_entries": 4096,
+      "max_path_bytes": 4096,
+      "max_unique_files": 1,
+      "max_file_bytes": 33554432,
+      "max_total_file_bytes": 33554432,
+      "max_elapsed_ms": 1000,
+      "max_output_bytes": 8192,
+      "cleanup_timeout_ms": 100
+    },
+    "emergency_verifier_timeout_ms": 30000
+  },
+  "unset": [
+    "The emergency verifier timeout's E05 entry, updated once #4, which edits E05_VALUES.json, merges"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

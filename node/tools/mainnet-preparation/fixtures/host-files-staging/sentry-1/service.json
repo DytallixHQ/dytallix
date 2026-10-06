@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "mode": "production-native",
+  "home": "/var/lib/dytallix/node",
+  "lock_directory": "/var/lib/dytallix/lock",
+  "consensus_config": {
+    "path": "/etc/dytallix/f2cc05f54bc3c6ec/application-config.json",
+    "sha256": "57c754ee516bb8534a76996f2932e6f378077531a0f6ae7fe79a2cf8dc3baa03",
+    "max_bytes": 8388608
+  },
+  "application_genesis": {
+    "path": "/etc/dytallix/f2cc05f54bc3c6ec/native-genesis.json",
+    "sha256": "ac192e9c0ff3c8b8a50a53f2b406390611b687ca2d2a2532fdea170598853b2d",
+    "max_bytes": 8388608
+  },
+  "root_config": {
+    "path": "/etc/dytallix/f2cc05f54bc3c6ec/root-config.json",
+    "sha256": "9f1549ddd913568bc6638e715cd9d53c527b8baa2c11054a5c8fe16c27fa464d",
+    "max_bytes": 65536
+  },
+  "root_public_inputs": [
+    {
+      "path": "/etc/dytallix/f2cc05f54bc3c6ec/root-policy.json",
+      "sha256": "f13707c8beedf5451cb7b07e1a5c39a5b033ce0a0583727af3cbdc254a1c62cc",
+      "max_bytes": 65536
+    },
+    {
+      "path": "/etc/dytallix/f2cc05f54bc3c6ec/root-signatures.json",
+      "sha256": "6de7408afc3c93469e4a27eed481da2232ee1f1fdf085c454a9e56aac00c2779",
+      "max_bytes": 524288
+    }
+  ],
+  "emergency_verifier_config": {
+    "path": "/etc/dytallix/f2cc05f54bc3c6ec/emergency-verifier.json",
+    "sha256": "00aabdcb78c28fc603616f047b5fe5869013b76a18fb7c5043afc0777ddb18e5",
+    "max_bytes": 65536
+  },
+  "candidate_config": {
+    "path": "/etc/dytallix/f2cc05f54bc3c6ec/candidate.json",
+    "sha256": "9d1fa6df1f2027585ce8be0b9f83f2fb93e83ac1de365063e7bef43ae890bf9e",
+    "max_bytes": 65536
+  },
+  "process_admission": {
+    "path": "/etc/dytallix/f2cc05f54bc3c6ec/admission.json",
+    "sha256": "86db31f1c576ddba2e9a579466fa5181b8a6a0c6469974c345ea6567a9fab60e",
+    "max_bytes": 65536
+  },
+  "observation_pause": {
+    "total_millis": 1000,
+    "cleanup_reserve_millis": 200
+  },
+  "engine_inputs": [
+    {
+      "path": "/var/lib/dytallix/node/config/config.toml",
+      "sha256": "f7f9822da9c842c1f5296d6f3f9425f5217170e07da5bbaabb30ba54889b2af9",
+      "max_bytes": 65536
+    },
+    {
+      "path": "/var/lib/dytallix/node/config/genesis.json",
+      "sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
+      "max_bytes": 9437184
+    },
+    {
+      "path": "/var/lib/dytallix/node/config/pqc_peer_seed.bin",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "max_bytes": 4096
+    },
+    {
+      "path": "/var/lib/dytallix/node/config/pqc_transport.json",
+      "sha256": "4b259b2d7cb8b83db0382af1ad6887921c557ccb1f100d7e6cf5201a138aafd3",
+      "max_bytes": 524288
+    },
+    {
+      "path": "/var/lib/dytallix/node/config/priv_validator_key.json",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "max_bytes": 65536
+    }
+  ],
+  "validator_public_key_sha256": "3a2d4a72977fd836b03fd471d19a0c1a006b939a27276195ee5183362afbf537",
+  "process": {
+    "startup_millis": 60000,
+    "stop_millis": 30000,
+    "kill_millis": 10000,
+    "poll_millis": 100,
+    "max_argument_bytes": 65536,
+    "max_environment_bytes": 16384,
+    "max_probe_request_bytes": 4096,
+    "max_probe_response_bytes": 65536
+  },
+  "environment": {},
+  "monitor_interval_millis": 1000,
+  "max_state_entries": 100000,
+  "metrics": {
+    "directory": "/var/lib/dytallix/metrics",
+    "interval_seconds": 15
+  },
+  "block_history": "archive",
+  "role": "sentry",
+  "binding": {
+    "path": "/etc/dytallix/f2cc05f54bc3c6ec/binding.json",
+    "sha256": "b2859b4ef588f031e0d6cda1e22934e4b9984bff0b4499a5bda40a21e956d35e",
+    "max_bytes": 4096
+  },
+  "catch_up_millis": 21600000,
+  "snapshots": {
+    "directory": "/var/lib/dytallix/snapshots",
+    "interval_blocks": 17280,
+    "keep": 3
+  }
+}

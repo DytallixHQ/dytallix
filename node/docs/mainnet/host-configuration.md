@@ -125,23 +125,25 @@ The generator refuses:
   `public_listeners`), the input the host policy renderer's routed mode
   takes, with the digests of the plan, the values and the genesis.
 
-The supervisor configuration is not generated here: it pins private files
-(the peer seed and the validator key), so the operator writes it on the host.
+The rest of each host's files (the supervisor's service configuration, the
+root, emergency verifier and candidate configurations, the execution policy,
+the unit and the firewall table) come from
+`tools/mainnet-preparation/host_files.py`
+([host setup v1](../architecture/host-setup-v1.md), P01, 6 October 2026). The
+node keys are made offline, so the generator knows the digests of the
+private files it pins without ever holding them.
 
 ## On each host
 
-1. **Keys.** `dytallix-peer-seed generate --home HOME` and
-   `dytallix-validator-key generate --key-file FILE --state-file FILE` create
-   the keys on the host. Only their public keys enter the plan.
-2. **Files.** Once the plan is accepted and generated, install the host's
-   `config.toml`, `pqc_transport.json` and `binding.json` and the engine
-   genesis under `HOME/config`, owner-only.
+1. **Keys.** Made offline on the ceremony machine (host setup v1): the
+   validator key and its fresh signing state, the peer seed and, on the
+   endpoint, the client channel seed. Only their public keys enter the plan;
+   the private files reach the host sealed in its bundle.
+2. **Files.** `host_files.py` writes everything the host installs, and its
+   install manifest; the host's bundle carries them.
 3. **Binding.** `dytallix-peer-seed binding --home HOME --role ROLE` must
    print the published binding byte for byte. The engine (`--binding`) and
    the supervisor check it again at every start.
-4. **Policy.** Render the unit, the AppArmor profiles and `host-firewall.nft`
-   with `tools/native-execution-policy` in routed mode, passing the host's
-   exact transport file and its `firewall` block.
 
 A pin change is a new plan: regenerate, review, reinstall, re-render the
 firewall and restart.

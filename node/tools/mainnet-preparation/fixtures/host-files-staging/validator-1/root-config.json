@@ -1,0 +1,41 @@
+{
+  "profile": "SLH-DSA-SHAKE-256s",
+  "helper_path": "/opt/dytallix/f2cc05f54bc3c6ec/bin/dytallix-root-verify",
+  "helper_execution": {
+    "profile": "linux-immutable-observed-helper-v1",
+    "helper_bytes": 1005,
+    "helper_sha512": "d36111bcf395abc172cec1f6197c461c18ab2de5d306640be1fcfd888b5013ca546dab8df60539474dae3f2f4659d028edf4c55ba213d01abbce76c72b375d4d",
+    "owner_security": {
+      "supervisor_label": "dyt-role-c8571e2213503298227c-dytallix-node-supervisor",
+      "application_owner_label": "dyt-role-c8571e2213503298227c-dytallix-node-application-owner//&dyt-role-c8571e2213503298227c-dytallix-node-supervisor",
+      "workload_label": "dyt-role-c8571e2213503298227c-dytallix-node-supervisor//&dyt-role-c8571e2213503298227c-dytallix-node-workload",
+      "helper_label": "dyt-role-c8571e2213503298227c-dytallix-node-application-owner//&dyt-role-c8571e2213503298227c-dytallix-node-helper//&dyt-role-c8571e2213503298227c-dytallix-node-supervisor",
+      "uid": 41001,
+      "gid": 41001
+    },
+    "max_program_headers": 128,
+    "max_section_headers": 256,
+    "max_stat_bytes": 65536,
+    "max_maps_bytes": 1048576,
+    "max_map_entries": 4096,
+    "max_path_bytes": 4096,
+    "max_unique_files": 1,
+    "max_file_bytes": 33554432,
+    "max_total_file_bytes": 33554432,
+    "max_elapsed_ms": 1000,
+    "max_output_bytes": 8192,
+    "cleanup_timeout_ms": 100
+  },
+  "helper_sha256": "f3489ba227e955d8b298b2169807961f079d5a1f8fb0c294cb79640277f95ba8",
+  "max_helper_bytes": 16777216,
+  "max_request_bytes": 4194304,
+  "timeout_ms": 30000,
+  "policy_path": "/etc/dytallix/f2cc05f54bc3c6ec/root-policy.json",
+  "signatures_path": "/etc/dytallix/f2cc05f54bc3c6ec/root-signatures.json",
+  "engine_genesis_path": "/var/lib/dytallix/node/config/genesis.json",
+  "max_engine_genesis_bytes": 9437184,
+  "engine_genesis_sha512": "fef9f5a7c373284a191d85677b6a9a88005a2b4f34c25d7809ea708ff50bac694fa8b2e0ad3181a8d60181ef23e3e252b75655099c6751580c04eb9c940bfd00",
+  "release_manifest_path": "/etc/dytallix/f2cc05f54bc3c6ec/release-manifest.json",
+  "max_release_manifest_bytes": 1048576,
+  "release_manifest_sha512": "f2cc05f54bc3c6eca635344064514f6f6ad73691979a82f710a50c2e7cbda5244f4d1da4de94cb6d5f09ed2321b37308fa92ad5b925fb92baee069c4bede6465"
+}

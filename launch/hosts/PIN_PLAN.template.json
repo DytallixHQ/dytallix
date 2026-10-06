@@ -1,0 +1,52 @@
+{
+  "schema": "dytallix.pin-plan.v1",
+  "chain_id": "dytallix-mainnet-1",
+  "hosts": [
+    {
+      "label": "validator-1",
+      "operator": "founder",
+      "role": "validator",
+      "home": "/var/lib/dytallix/node",
+      "p2p": "PUBLIC_IP_OF_VALIDATOR_1:26656",
+      "channel": null,
+      "status": null,
+      "peer_public_key_base64": "FROM validator-1.keys.json",
+      "validator_public_key_base64": "FROM validator-1.keys.json",
+      "pins": [
+        "sentry-1"
+      ],
+      "state_sync": null
+    },
+    {
+      "label": "sentry-1",
+      "operator": "founder",
+      "role": "sentry",
+      "home": "/var/lib/dytallix/node",
+      "p2p": "PUBLIC_IP_OF_SENTRY_1:26656",
+      "channel": null,
+      "status": null,
+      "peer_public_key_base64": "FROM sentry-1.keys.json",
+      "validator_public_key_base64": "FROM sentry-1.keys.json",
+      "pins": [
+        "endpoint-1",
+        "validator-1"
+      ],
+      "state_sync": null
+    },
+    {
+      "label": "endpoint-1",
+      "operator": "founder",
+      "role": "endpoint",
+      "home": "/var/lib/dytallix/node",
+      "p2p": "PUBLIC_IP_OF_ENDPOINT_1:26656",
+      "channel": "PUBLIC_IP_OF_ENDPOINT_1:26670",
+      "status": "PUBLIC_IP_OF_ENDPOINT_1:8080",
+      "peer_public_key_base64": "FROM endpoint-1.keys.json",
+      "validator_public_key_base64": "FROM endpoint-1.keys.json",
+      "pins": [
+        "sentry-1"
+      ],
+      "state_sync": null
+    }
+  ]
+}
