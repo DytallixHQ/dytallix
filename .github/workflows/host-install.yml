@@ -61,7 +61,7 @@ jobs:
           timedatectl show -p NTPSynchronized
       # Not part of host setup: staging_host traces a failed start with it.
       - name: Diagnostic tools
-        run: sudo apt-get install -y strace
+        run: sudo apt-get install -y strace bpftrace
       - name: Staging chain and bundles
         run: |
           python3 node/tools/mainnet-preparation/staging_host.py prepare \

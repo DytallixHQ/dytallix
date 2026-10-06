@@ -127,88 +127,68 @@ def diagnostics():
     for args in (['systemctl', 'status', '--no-pager', f'{UNIT}.service'],
                  ['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '300', '-o', 'short-precise'],
                  ['systemctl', 'cat', '--no-pager', f'{UNIT}.service'],
-                 ['journalctl', '-k', '--no-pager', '-o', 'short-precise', '-n', '200',
+                 # Every transport: with journald's audit socket, AppArmor
+                 # denials arrive through audit and never reach the kernel log.
+                 ['journalctl', '--no-pager', '-o', 'short-precise', '-n', '200',
                   '--grep', 'apparmor="DENIED"|type=1326|seccomp'],
                  ['aa-status'], ['nft', 'list', 'table', 'inet', 'dytallix_node']):
         say('$ ' + ' '.join(args))
         subprocess.run(args)
     traced_start()
-    sandbox_variants()
+    kernel_traced_start()
 
 
-# Unit settings left out together in one variant run.
-SANDBOX_GROUPS = {
-    'system call filter': ('SystemCallFilter', 'SystemCallErrorNumber', 'SystemCallArchitectures'),
-    'namespace restriction': ('RestrictNamespaces',),
-    'memory write-execute denial': ('MemoryDenyWriteExecute',),
-    'address family restriction': ('RestrictAddressFamilies',),
-    'filesystem sandbox': ('ProtectSystem', 'ReadOnlyPaths', 'ReadWritePaths', 'NoExecPaths', 'ExecPaths',
-                           'BindReadOnlyPaths', 'InaccessiblePaths', 'PrivateTmp', 'PrivateDevices'),
-}
-# How the unit runs, not how it is confined: never passed to the variants.
-UNIT_ONLY = ('Type', 'ExecStart', 'Restart', 'TimeoutStopSec', 'KillSignal', 'StandardOutput', 'StandardError')
+# Kernel tracepoints, so nothing in the unit's sandbox can block the trace
+# (ptrace is denied there). Read contents are printed only for small reads
+# after a /proc open: never for key or configuration files.
+KERNEL_TRACE = r"""
+tracepoint:syscalls:sys_enter_openat /strncmp(comm, "dytallix", 8) == 0/ { @path[tid] = str(args->filename); }
+tracepoint:syscalls:sys_exit_openat /@path[tid] != ""/ {
+  printf("%s[%d] openat %s = %d\n", comm, tid, @path[tid], args->ret); @last[tid] = @path[tid]; delete(@path[tid]); }
+tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
+  printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
+tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
+"""
+KERNEL_TRACE_READS = r"""
+tracepoint:syscalls:sys_enter_read /strncmp(comm, "dytallix", 8) == 0/ { @buf[tid] = (uint64)args->buf; }
+tracepoint:syscalls:sys_exit_read /@buf[tid] != 0/ {
+  if (args->ret > 0 && args->ret <= 160 && strncmp(@last[tid], "/proc/", 6) == 0) {
+    printf("%s[%d] read %d %r\n", comm, tid, args->ret, buf(uptr((uint8 *)@buf[tid]), 160)); }
+  delete(@buf[tid]); }
+"""
 
 
-def sandbox_variants():
-    """The unit's ExecStart as transient units: all of its settings, then
-    without one group at a time. The seccomp filter and the namespace and
-    memory restrictions refuse calls with EPERM and log nothing; the variant
-    that outlives the supervisor's pre-start checks names the setting."""
-    unit = Path(f'/etc/systemd/system/{UNIT}.service')
-    text = unit.read_text() if unit.exists() else ''
-    service = text.split('[Service]', 1)[-1].split('[Install]', 1)[0]
-    settings = [line.split('=', 1) for line in service.splitlines() if '=' in line and not line.startswith('#')]
-    command = dict(settings).get('ExecStart')
-    if not command:
-        say('(no sandbox variants: the unit is missing)')
+def kernel_traced_start():
+    """Start the unit once more, with its whole sandbox, under bpftrace: every
+    failing system call (errno), every open, and small /proc reads such as
+    the AppArmor label the supervisor sees."""
+    if not shutil.which('bpftrace'):
+        say('(no kernel trace: bpftrace is missing)')
         return
-    kept = [(name, value) for name, value in settings if name not in UNIT_ONLY]
-    variants = [('as installed', ())] + [(f'without the {group}', names) for group, names in SANDBOX_GROUPS.items()]
-    for index, (title, dropped) in enumerate(variants):
-        name = f'dytallix-diagnostic-{index}'
-        args = ['systemd-run', f'--unit={name}', '--wait', '--collect', '--pipe', '--quiet',
-                *[f'--property={k}={v}' for k, v in kept if k not in dropped], '--', *command.split()]
-        started = time.monotonic()
-        process = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                   stderr=subprocess.STDOUT)
-        try:
-            output, _ = process.communicate(timeout=20)
-            outcome = f'exit {process.returncode} after {time.monotonic() - started:.2f} s'
-        except subprocess.TimeoutExpired:
-            subprocess.run(['systemctl', 'kill', '--signal=SIGKILL', f'{name}.service'], check=False)
-            output, _ = process.communicate()
-            outcome = 'still running after 20 s (stopped): this setting stops the node'
-        say(f'== sandbox variant {title}: {outcome}; output {output[-600:]!r}')
-
-
-def traced_start():
-    """The unit's ExecStart once more, as its account but outside systemd and
-    its sandbox, under strace. The supervisor prints nothing when it refuses
-    before startup; its last calls show which check refused, and getting
-    further here than under the unit points at the sandbox."""
-    unit = Path(f'/etc/systemd/system/{UNIT}.service')
-    text = unit.read_text() if unit.exists() else ''
-    command = re.search(r'^ExecStart=(.+)$', text, re.M)
-    user = re.search(r'^User=(\d+)$', text, re.M)
-    group = re.search(r'^Group=(\d+)$', text, re.M)
-    if not (command and user and group and shutil.which('strace')):
-        say('(no traced start: the unit or strace is missing)')
+    script = Path('/tmp/dytallix-start.bt')
+    for body in (KERNEL_TRACE + KERNEL_TRACE_READS, KERNEL_TRACE):
+        script.write_text(body)
+        say(f'$ bpftrace {script}; systemctl start {UNIT}.service')
+        tracer = subprocess.Popen(['bpftrace', str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                  text=True, env=dict(os.environ, BPFTRACE_MAX_STRLEN='200'))
+        time.sleep(10)  # probe attachment
+        if tracer.poll() is None:
+            break
+        # The read probes need a newer bpftrace: trace without them.
+        say(f'bpftrace stopped: {tracer.communicate()[0][-1500:]}')
+    else:
         return
-    trace = Path('/tmp/dytallix-supervisor.strace')
-    args = ['setpriv', f'--reuid={user.group(1)}', f'--regid={group.group(1)}', '--clear-groups',
-            'strace', '-f', '-qq', '-s', '200', '-o', str(trace), '--', *command.group(1).split()]
-    say('$ ' + ' '.join(args))
-    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+    subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=False)
+    time.sleep(5)
+    tracer.send_signal(signal.SIGINT)
     try:
-        output, _ = process.communicate(timeout=30)
-        say(f'exit {process.returncode}; output {output[-2000:]!r}')
+        output, _ = tracer.communicate(timeout=30)
     except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
-        process.communicate()
-        say('still running after 30 s outside the sandbox (stopped)')
-    lines = trace.read_text(errors='replace').splitlines() if trace.exists() else []
-    say(f'-- last {min(len(lines), 150)} of {len(lines)} traced calls --')
-    for line in lines[-150:]:
+        tracer.kill()
+        output, _ = tracer.communicate()
+    lines = [line for line in output.splitlines() if not line.startswith('@')]
+    say(f'-- last {min(len(lines), 300)} of {len(lines)} kernel trace lines --')
+    for line in lines[-300:]:
         say(line)
 
 
