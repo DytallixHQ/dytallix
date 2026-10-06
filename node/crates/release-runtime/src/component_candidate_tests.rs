@@ -1065,7 +1065,7 @@ fn production_profile_always_carries_the_adapter() {
         .contains("required service roles"));
 }
 
-/// The release manifest writer's output (mainnet/release/release_manifest.py,
+/// The release manifest writer's output (release/release_manifest.py,
 /// E06) for a synthetic build record. Its Python tests regenerate this
 /// fixture byte for byte; here the release runtime accepts it as the
 /// production catalog, with no runtime library for any role.

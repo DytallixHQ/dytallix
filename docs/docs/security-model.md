@@ -1,7 +1,7 @@
 # Security Model
 
 This page summarizes the security model of the mainnet candidate. Decision
-IDs (such as D07-Q01) refer to `mainnet/launch/MAINNET_DECISION_REGISTER.json`.
+IDs (such as D07-Q01) refer to [`launch/MAINNET_DECISION_REGISTER.json`](https://github.com/DytallixHQ/dytallix/blob/main/launch/MAINNET_DECISION_REGISTER.json).
 Row and conflict IDs refer to the
 [E04 requirement triage](../../node/docs/mainnet/e04-requirement-triage.md).
 

@@ -5,7 +5,7 @@ testnet is a separate chain with different fee rules; see
 [Public Testnet](#public-testnet) at the end.
 
 Decision IDs (such as D05-Q02) refer to
-`mainnet/launch/MAINNET_DECISION_REGISTER.json`. Where a value is still an
+[`launch/MAINNET_DECISION_REGISTER.json`](https://github.com/DytallixHQ/dytallix/blob/main/launch/MAINNET_DECISION_REGISTER.json). Where a value is still an
 open decision, this page says so.
 
 ## Token Roles

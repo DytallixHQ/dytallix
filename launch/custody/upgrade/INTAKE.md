@@ -140,7 +140,7 @@ matches; it does not show who made or approved it.
 
 ## Run the checker
 
-From `mainnet/node`:
+From `node`:
 
 ```text
 python3 -B tools/mainnet-preparation/upgrade_custodian_intake.py \

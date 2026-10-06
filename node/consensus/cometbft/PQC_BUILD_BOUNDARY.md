@@ -53,7 +53,7 @@ check (`scripts/check_consensus_go_graph.py`) refuses a fork source file with
 a Dytallix build constraint, and the boundary checker refuses an engine built
 with any tag.
 
-`scripts/check_consensus_go_graph.py` (from `mainnet/node`) enforces the
+`scripts/check_consensus_go_graph.py` (from `node`) enforces the
 boundary in CI. It fails when a selected graph imports a prohibited package,
 when a removed classical or gRPC package returns to the fork, or when
 remote-signer sources return to `privval`. The selected engine, bridge and root-verifier

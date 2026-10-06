@@ -10,13 +10,13 @@ no public testnet client.
 Use the Git repository directly:
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git
 ```
 
 Add the node client with:
 
 ```bash
-cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix-sdk.git --features comet-rpc
+cargo add dytallix-sdk --git https://github.com/DytallixHQ/dytallix.git --features comet-rpc
 ```
 
 ## What is the difference between DGT and DRT?

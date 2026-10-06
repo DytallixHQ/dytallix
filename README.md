@@ -1,11 +1,9 @@
 # Dytallix mainnet
 
-This is the Dytallix mainnet candidate. Before the first release it moves,
-with its history, to its own public repository,
-[DytallixHQ/dytallix](https://github.com/DytallixHQ/dytallix)
-([release/MOVE.md](release/MOVE.md)). Until then it is the `mainnet/` folder
-of exocognosis/dytallix, kept separate from the testnet and product code
-there.
+This is the Dytallix mainnet candidate. It began as the `mainnet/` folder of
+exocognosis/dytallix, separate from the testnet and product code there, and
+moved here with its history on 5 October 2026
+([release/MOVE.md](release/MOVE.md)).
 
 **Status: NO GO.** Mainnet is not launched and no launch is authorized. See
 [launch/MAINNET_READINESS_REPORT.md](launch/MAINNET_READINESS_REPORT.md) and

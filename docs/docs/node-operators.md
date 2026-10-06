@@ -7,7 +7,7 @@ running it locally. That snapshot is the public testnet node.
 The mainnet candidate's node is different: a CometBFT engine and a Rust
 consensus application under a native supervisor. It has no HTTP RPC server on
 port `3030`, no contract runtime, no bridge and no oracle, and it charges fees
-in uDRT and burns them. Its operator documents are in `mainnet/node/docs`, for
+in uDRT and burns them. Its operator documents are in [`node/docs`](https://github.com/DytallixHQ/dytallix/tree/main/node/docs), for
 example [RPC controls v1](../../node/docs/architecture/rpc-controls-v1.md) and
 [key tooling v1](../../node/docs/architecture/key-tooling-v1.md).
 
