@@ -133,6 +133,52 @@ def diagnostics():
         say('$ ' + ' '.join(args))
         subprocess.run(args)
     traced_start()
+    sandbox_variants()
+
+
+# Unit settings left out together in one variant run.
+SANDBOX_GROUPS = {
+    'system call filter': ('SystemCallFilter', 'SystemCallErrorNumber', 'SystemCallArchitectures'),
+    'namespace restriction': ('RestrictNamespaces',),
+    'memory write-execute denial': ('MemoryDenyWriteExecute',),
+    'address family restriction': ('RestrictAddressFamilies',),
+    'filesystem sandbox': ('ProtectSystem', 'ReadOnlyPaths', 'ReadWritePaths', 'NoExecPaths', 'ExecPaths',
+                           'BindReadOnlyPaths', 'InaccessiblePaths', 'PrivateTmp', 'PrivateDevices'),
+}
+# How the unit runs, not how it is confined: never passed to the variants.
+UNIT_ONLY = ('Type', 'ExecStart', 'Restart', 'TimeoutStopSec', 'KillSignal', 'StandardOutput', 'StandardError')
+
+
+def sandbox_variants():
+    """The unit's ExecStart as transient units: all of its settings, then
+    without one group at a time. The seccomp filter and the namespace and
+    memory restrictions refuse calls with EPERM and log nothing; the variant
+    that outlives the supervisor's pre-start checks names the setting."""
+    unit = Path(f'/etc/systemd/system/{UNIT}.service')
+    text = unit.read_text() if unit.exists() else ''
+    service = text.split('[Service]', 1)[-1].split('[Install]', 1)[0]
+    settings = [line.split('=', 1) for line in service.splitlines() if '=' in line and not line.startswith('#')]
+    command = dict(settings).get('ExecStart')
+    if not command:
+        say('(no sandbox variants: the unit is missing)')
+        return
+    kept = [(name, value) for name, value in settings if name not in UNIT_ONLY]
+    variants = [('as installed', ())] + [(f'without the {group}', names) for group, names in SANDBOX_GROUPS.items()]
+    for index, (title, dropped) in enumerate(variants):
+        name = f'dytallix-diagnostic-{index}'
+        args = ['systemd-run', f'--unit={name}', '--wait', '--collect', '--pipe', '--quiet',
+                *[f'--property={k}={v}' for k, v in kept if k not in dropped], '--', *command.split()]
+        started = time.monotonic()
+        process = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
+        try:
+            output, _ = process.communicate(timeout=20)
+            outcome = f'exit {process.returncode} after {time.monotonic() - started:.2f} s'
+        except subprocess.TimeoutExpired:
+            subprocess.run(['systemctl', 'kill', '--signal=SIGKILL', f'{name}.service'], check=False)
+            output, _ = process.communicate()
+            outcome = 'still running after 20 s (stopped): this setting stops the node'
+        say(f'== sandbox variant {title}: {outcome}; output {output[-600:]!r}')
 
 
 def traced_start():
