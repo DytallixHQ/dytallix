@@ -2540,7 +2540,6 @@
           ],
           "remaining_choices": [
             "Named independent emergency custodians, control groups, public keys, key epochs, custody and backup records, and signed role acceptances.",
-            "Numeric finalized-height validity windows and maximum anchor age, selected from measured signing and propagation evidence.",
             "Exact production control wire schema, with reviewed authority-epoch and anchor binding.",
             "Execution and qualification evidence for each approved mandatory transition and blocked discretionary path.",
             "Actual incident, freeze receipt, restored state, candidate and recovery evidence for any production resume.",
@@ -2548,7 +2547,7 @@
             "Named full-halt and restart authorities, operator acknowledgements, signer fencing, finalized checkpoint and corrected-candidate evidence.",
             "Recovery authorities covered by D11-Q03.",
             "Upgrade custodian names, keys and epochs.",
-            "Upgrade and handover window bounds and anchor ages measured on dedicated hosts with the emergency ones (upgrade schema 2 and handover schema 2 are implemented, production activation v1 step A3; production acceptance of the controls is step A4)."
+            "A ceremony drill on the staging hosts that checks the two-day control window (approved 6 October 2026) against measured kit retrieval, offline signing and propagation."
           ],
           "approval_records": [
             "decision-register/emergency-transaction-freeze/policy/APPROVAL.json",
@@ -2561,9 +2560,10 @@
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "approvals/P01_E05_UPGRADE_NOTICE_2026-10-01.json",
             "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
-            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+            "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+            "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json"
           ],
-          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades. Root controls (P01, 1 October 2026): a production configuration carries the emergency freeze, upgrade and handover controls at schema 2. Solo launch (P01, 3 October 2026): the founder holds all five upgrade keys and all ten emergency keys in five key kits, replacing the separate groups of independent custodians; thresholds and keys per role are unchanged."
+          "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades. Root controls (P01, 1 October 2026): a production configuration carries the emergency freeze, upgrade and handover controls at schema 2. Solo launch (P01, 3 October 2026): the founder holds all five upgrade keys and all ten emergency keys in five key kits, replacing the separate groups of independent custodians; thresholds and keys per role are unchanged. Control signing (P01, 6 October 2026): every root control window and anchor age is at most 34,560 blocks (two days) for emergency, upgrade and handover alike, and the CLI prepares, dry-runs and submits controls from the founder's laptop over the pinned chain."
         }
       ],
       "work": {
@@ -4089,6 +4089,23 @@
       "unset": [
         "The ceremony, its session and the kit sticks (founder actions)",
         "Drill records"
+      ]
+    },
+    {
+      "id": "P01-2026-10-06-E05-CONTROL-SIGNING",
+      "approved": "2026-10-06",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
+      "decisions": [
+        "D11-Q03: every root control window and anchor age is at most 34,560 blocks (two days), for emergency, upgrade and handover.",
+        "D11-Q03: the CLI prepares from node status, dry-runs and submits controls from the founder's laptop over the pinned chain."
+      ],
+      "question_refs": [
+        "D11-Q03"
+      ],
+      "unset": [
+        "The control preparation, signing and submission tools",
+        "The ceremony drill"
       ]
     }
   ],

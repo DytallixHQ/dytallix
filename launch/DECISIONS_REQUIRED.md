@@ -33,6 +33,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [E06 release](approvals/P01_E06_RELEASE_2026-10-05.json) (5 October): Linux x86_64, the wallet also from source; a published builder image, no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release, with no separate release key ([release](../release/README.md)).
 - [E06 release libraries](approvals/P01_E06_STATIC_RELEASE_2026-10-05.json) (5 October): every release binary is static, with glibc and libstdc++ linked in, so the release manifest lists no runtime libraries and host updates never change what the node runs ([release manifest](../release/README.md#release-manifest)).
 - [E06 repository](approvals/P01_E06_REPOSITORY_2026-10-05.json) (5 October): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; afterwards mainnet/ in exocognosis/dytallix becomes a pointer. Done on 5 October ([the move](../release/MOVE.md)).
+- [Control signing](approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json) (6 October): every root control window and anchor age is at most 34,560 blocks (two days), so the founder can reach three key kits and sign offline; the CLI prepares, dry-runs and submits controls from the founder's laptop (D11-Q03).
 
 ## D01 — Adaptive issuance
 

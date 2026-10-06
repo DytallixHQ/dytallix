@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-10-06-E05-CONTROL-SIGNING",
+  "approved": "2026-10-06",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 root control signing"
+  },
+  "design_ref": "../../node/docs/mainnet/emergency-transaction-freeze.md",
+  "decisions": [
+    {
+      "question": "D11-Q03",
+      "selected": "2 days",
+      "rule": "Every root control's height window and its anchor age are at most 34,560 blocks (two days at 5-second blocks), for the emergency freeze and resume, the upgrade and the release handover alike: emergency_max_validity_blocks, emergency_max_anchor_age_blocks, upgrade_max_validity_blocks, upgrade_max_anchor_age_blocks, handover_max_validity_blocks and handover_max_anchor_age_blocks. Under the solo launch profile the founder reaches three key kits in different places and signs offline with each, so a control must stay valid long enough for that; an unused signed control expires within two days. A freeze is therefore no faster than reaching three kits, so one of them should be reachable within hours. The ceremony drill on the staging hosts checks the value before genesis."
+    },
+    {
+      "question": "D11-Q03",
+      "selected": "CLI from the founder's laptop",
+      "rule": "The dytallix CLI fetches the node status a control is prepared from, dry-runs a signed control (check_tx) and submits it (broadcast_tx_sync), over the pinned chain: loopback HTTP on a node's host, or the post-quantum client channel to an endpoint, the path wallet transactions use. Controls are prepared online, signed offline with the kit keys on the ceremony machine, and assembled and submitted online."
+    }
+  ],
+  "unset": [
+    "The control preparation, offline signing and submission tools (engineering)",
+    "The ceremony drill on the staging hosts"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
