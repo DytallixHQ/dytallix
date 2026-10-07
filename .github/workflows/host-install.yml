@@ -16,6 +16,7 @@ on:
       - 'launch/E05_VALUES.json'
       - 'launch/genesis/**'
       - 'launch/hosts/**'
+      - '!**/*.md'
       - '.github/workflows/host-install.yml'
   pull_request:
     paths:
@@ -24,6 +25,7 @@ on:
       - 'launch/E05_VALUES.json'
       - 'launch/genesis/**'
       - 'launch/hosts/**'
+      - '!**/*.md'
       - '.github/workflows/host-install.yml'
   workflow_dispatch:
 
