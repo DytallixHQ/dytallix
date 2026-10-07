@@ -35,7 +35,6 @@ const (
 	sealDomain         = "DYTALLIX/HOST-SEAL/v1\x00"
 	sealCheckDomain    = "DYTALLIX/HOST-SEAL-CHECK/v1\x00"
 	sealPaperPrefix    = "dytallix-seal-"
-	sealCheckBytes     = 2
 	sealNonceBytes     = 12
 )
 
@@ -195,12 +194,6 @@ func OpenHostKeys(record SealedHostKeys, label string, code []byte) ([]SecretFil
 	return files, nil
 }
 
-func sealCheck(label string, code []byte) []byte {
-	sum := make([]byte, sealCheckBytes)
-	shake(sum, []byte(sealCheckDomain), []byte{byte(len(label))}, []byte(label), code)
-	return sum
-}
-
 // EncodeSealCode is the paper line for a host's seal code: its label, the
 // code in sixteen groups of four hex digits, and a check group bound to the
 // label.
@@ -208,35 +201,12 @@ func EncodeSealCode(label string, code []byte) (string, error) {
 	if len(code) != SealCodeBytes || !sealLabel.MatchString(label) {
 		return "", ErrSeal
 	}
-	digits := hex.EncodeToString(append(append([]byte{}, code...), sealCheck(label, code)...))
-	groups := make([]string, 0, len(digits)/4)
-	for i := 0; i < len(digits); i += 4 {
-		groups = append(groups, digits[i:i+4])
-	}
-	return fmt.Sprintf("%s%s %s", sealPaperPrefix, label, strings.Join(groups, " ")), nil
+	return encodeCodeLine(sealPaperPrefix, sealCheckDomain, label, code), nil
 }
 
 // DecodeSealCode reads a paper line back, ignoring spacing and the case of
 // the digits. A mistyped digit or label fails the check group (one in 65,536
 // errors would pass it; the record's authentication then catches the rest).
 func DecodeSealCode(line string) (string, []byte, error) {
-	fields := strings.Fields(line)
-	if len(fields) < 2 || !strings.HasPrefix(strings.ToLower(fields[0]), sealPaperPrefix) {
-		return "", nil, ErrSeal
-	}
-	label := fields[0][len(sealPaperPrefix):]
-	if !sealLabel.MatchString(label) {
-		return "", nil, ErrSeal
-	}
-	raw, err := hex.DecodeString(strings.ToLower(strings.Join(fields[1:], "")))
-	if err != nil || len(raw) != SealCodeBytes+sealCheckBytes {
-		clear(raw)
-		return "", nil, ErrSeal
-	}
-	code := raw[:SealCodeBytes]
-	if !bytes.Equal(sealCheck(label, code), raw[SealCodeBytes:]) {
-		clear(raw)
-		return "", nil, fmt.Errorf("%w: the check group does not match; recheck every digit and the host label", ErrSeal)
-	}
-	return label, code, nil
+	return decodeCodeLine(line, sealPaperPrefix, sealCheckDomain, SealCodeBytes, sealLabel.MatchString, ErrSeal, "host label")
 }

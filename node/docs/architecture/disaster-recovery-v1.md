@@ -47,15 +47,28 @@ below).
 
 ## The copy
 
-- **Encryption:** AES-256-GCM in fixed chunks, each authenticated with its
-  index and a final-chunk flag, so a truncated, reordered or altered copy is
-  refused. The key is SHAKE256 of a domain, the copy's height and a
-  256-bit **backup code**: random, printed once as a checked paper line
-  (`dytallix-backup-...`, like the seal codes), written twice and kept with
-  two different kits' papers. The tool is the release's own Go signer
-  (standard library AES-GCM), so nothing classical enters the node's stack.
-- **Name:** the chain, the height and the SHA-256 of the ciphertext, plus a
-  small manifest (height, application hash, chunk count, sizes, digests).
+- **Format** (`dytallix.backup.v1`, built in R2): a header line naming the
+  chain, the height, a random 32-byte salt and the chunk size, then the
+  snapshot directory as a deterministic tar (sorted; directories and
+  regular files only; root-owned, time zero) in AES-256-GCM chunks of
+  1 MiB. Each chunk's additional data is the header's SHA-256, its index and
+  a final flag, so a truncated, reordered, extended or altered copy, or one
+  with another header, is refused; the last chunk is always final.
+- **Key:** SHAKE256 of a domain, the chain, the height, the salt and the
+  chain's 256-bit **backup code**: random, printed once as a checked paper
+  line (`dytallix-backup-CHAIN` and seventeen groups, like the seal codes),
+  written twice and kept with two different kits' papers. The salt gives
+  every copy its own key, so a chunk index is a safe nonce. The tool is the
+  release's own Go signer (standard library AES-GCM), so nothing classical
+  enters the node's stack.
+- **Commands** (`dytallix-root-sign`): `backup-code` makes the code file the
+  sentry's bundle will seal and prints the paper line; `backup-seal` packs
+  and encrypts a snapshot directory (never overwriting, no partial copy
+  left on failure); `backup-check` opens a copy with the typed code and
+  checks every entry without writing; `backup-open` checks the whole copy,
+  then extracts it into a new owner-only directory.
+- **Name:** the chain, the height and the SHA-256 of the copy, which
+  `backup-seal` prints.
 - **Upload:** the host's own `curl` with AWS Signature V4 to an
   S3-compatible bucket, over TLS. TLS is transport only, as for the bundle
   download: the copy is already encrypted and authenticated, and no TLS
@@ -90,10 +103,9 @@ Every restore is drilled quarterly on staging, with its measured times.
 
 ## Open items
 
-- **The tools:** the chunked encryption (`dytallix-root-sign` subcommands
-  or a separate release member), the upload key in the sealed bundle, the
-  backup unit and timer in the host files and installer, and the restore
-  commands.
+- **The host side:** the backup code and upload key in the sentry's sealed
+  bundle, and the backup unit and timer in the host files and installer
+  (R3). The encryption and restore commands are built (R2).
 - **Light blocks from a running sentry:** `dytallix-light-export` reads the
   engine's stores and asks for a stopped node or a copy of its home. The
   copy needs an export that works while the node runs, or the light blocks
@@ -107,7 +119,9 @@ Every restore is drilled quarterly on staging, with its measured times.
 ## Steps
 
 - **R1.** This design and the decisions.
-- **R2.** The encryption and restore tools, with tests.
+- **R2.** The encryption and restore tools, with tests. Built:
+  `dytallix-root-sign backup-code`, `backup-seal`, `backup-check` and
+  `backup-open` over `root-authorization/backup.go`.
 - **R3.** The upload key in the sealed bundle, the backup unit and timer in
   the host files and installer; H4 runs one backup to a local stand-in
   store.
