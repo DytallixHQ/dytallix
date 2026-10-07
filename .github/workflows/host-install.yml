@@ -43,9 +43,26 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The release set depends only on these blobs: node/ and sdk/ sources and
+      # release/, without node/tools and node/docs, which no release build
+      # reads (only tests do). A change to any of them rebuilds; a change to the
+      # host tools alone reuses the last build of the same sources.
+      - name: Release cache key
+        id: release-key
+        run: |
+          key=$(git ls-tree -r HEAD -- node sdk release | grep -vP '\tnode/(tools|docs)/' | sha256sum | cut -c1-64)
+          echo "key=h4-release-$key" >> "$GITHUB_OUTPUT"
+      - name: Cached release set
+        id: release-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/release
+          key: ${{ steps.release-key.outputs.key }}
       - name: Builder image
+        if: steps.release-cache.outputs.cache-hit != 'true'
         run: docker build --platform linux/amd64 -t dytallix-release-builder release/builder
       - name: Build the release set
+        if: steps.release-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/release" "$RUNNER_TEMP/release-work"
           docker run --rm --platform linux/amd64 \
