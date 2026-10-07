@@ -183,6 +183,8 @@ def validate(catalog_bytes, mapping, request, transport=None):
                     'readonly_files','code_aliases','devices','network','resources']
     if type(request) is dict and 'readonly_directories' in request:
         request_keys.append('readonly_directories')
+    if type(request) is dict and 'readonly_trees' in request:
+        request_keys.append('readonly_trees')
     keys(request, request_keys, 'request')
     require(type(request['schema']) is int and request['schema'] == 1 and request['policy_version'] == VERSION,
             'Unsupported control policy')
@@ -251,6 +253,16 @@ def validate(catalog_bytes, mapping, request, transport=None):
     require(not set(readdirs)&set(readonly),'Readonly file/directory collision')
     require(not any(beneath(p,r) for p in readdirs for r in writable),'Readonly directory inside writable root')
     require(not any(beneath(p,c) for p in readdirs for c in all_paths),'Readonly directory conflicts with code file')
+    # A read-only tree grants reading everything beneath it (operator data such
+    # as light block exports): never code, a writable root, or a broad root.
+    trees=[path(p) for p in array(request.get('readonly_trees',[]),'readonly trees',True)]
+    unique(trees,'Readonly trees')
+    for p in trees:
+        require(len(PurePosixPath(p).parts)>=3 and not any(beneath(p,r) for r in ['/proc','/sys','/dev']),'Unsafe readonly tree')
+        require(not any(p != q and beneath(p,q) for q in trees),'Overlapping readonly trees')
+    require(not any(beneath(p,r) or beneath(r,p) for p in trees for r in writable),'Readonly tree overlaps a writable root')
+    require(not any(beneath(c,p) for p in trees for c in all_paths),'Readonly tree contains code')
+    require(not any(beneath(f,p) for p in trees for f in readonly+readdirs),'Readonly tree repeats a readonly file or directory')
     uids=array(request['service_uids'],'service UIDs');require(all(type(uid)is int and 0<uid<2**32-1 for uid in uids),'Non-root numeric service UIDs required');unique(uids,'Service UIDs')
     devices=array(request['devices'],'devices',True);unique(devices,'Devices')
     require(all(p in ['/dev/null','/dev/random','/dev/urandom'] for p in devices),'Unsupported device')
@@ -292,6 +304,7 @@ def render(catalog_bytes, mapping, request, transport=None):
     normalized=dict(request)
     for key in ['service_uids','writable_roots','readonly_files','devices']:normalized[key]=sorted(request[key])
     if 'readonly_directories' in request:normalized['readonly_directories']=sorted(request['readonly_directories'])
+    if 'readonly_trees' in request:normalized['readonly_trees']=sorted(request['readonly_trees'])
     normalized['code_aliases']=sorted(request['code_aliases'],key=lambda x:(x['member_id'],x['path']))
     normalized['network']=dict(request['network']);normalized['network']['sockets']=sorted(request['network']['sockets'],key=lambda x:(x['family'],x['type']))
     if sources:
@@ -311,7 +324,7 @@ def render(catalog_bytes, mapping, request, transport=None):
     # ReadWritePaths creates explicit nested mounts. Mark each one noexec rather
     # than relying on the parent mount's flag surviving mount construction.
     properties={'NoExecPaths':['/']+writable,'ExecPaths':code,'BindReadOnlyPaths':code,'ProtectSystem':'strict',
-                'ReadOnlyPaths':sorted(readonly+request.get('readonly_directories',[])),'ReadWritePaths':writable,'NoNewPrivileges':True,
+                'ReadOnlyPaths':sorted(readonly+request.get('readonly_directories',[])+request.get('readonly_trees',[])),'ReadWritePaths':writable,'NoNewPrivileges':True,
                 'CapabilityBoundingSet':[],'RestrictNamespaces':True,'SystemCallArchitectures':['native'],
                 'MemoryDenyWriteExecute':True,
                 'SystemCallErrorNumber':'EPERM',
@@ -339,6 +352,7 @@ def render(catalog_bytes, mapping, request, transport=None):
         for p in sorted(paths[mid]):lines.append(f'  {p} {permissions},')
     for p in readonly:lines.append(f'  {p} r,')
     for p in sorted(request.get('readonly_directories',[])):lines.append(f'  {p}/ r,')
+    for p in sorted(request.get('readonly_trees',[])):lines.extend([f'  {p}/ r,',f'  {p}/** r,'])
     for p in writable:lines.extend([f'  {p}/ r,',f'  {p}/** rwk,'])
     for p in devices:lines.append(f"  {p} {'rw' if p=='/dev/null' else 'r'},")
     lines += ['  owner /proc/[0-9]*/{stat,maps,status,comm,exe} r,',
