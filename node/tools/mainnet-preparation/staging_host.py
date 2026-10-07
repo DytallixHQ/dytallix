@@ -16,18 +16,22 @@ WORK/seal-codes.json (mode 0600): this chain is throwaway.
 
 install (as root) unpacks the host's bundle and runs its install.sh,
 typing the seal code, starts dytallix-node, waits until the application's
-metrics report the height, and runs the bundle's verify. wipe runs the
-bundle's wipe.sh and checks that nothing is left.
+metrics report the height, runs the bundle's verify, then stops and starts
+the node and waits for two more blocks: a lone validator must rejoin after
+a restart. wipe runs the bundle's wipe.sh and checks that nothing is left.
 """
 import argparse
 import json
 import os
 from pathlib import Path
 import re
+import shutil
+import signal
 import socket
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -118,11 +122,171 @@ def height():
 
 
 def diagnostics():
+    # The supervisor prints nothing when it refuses before startup, so also
+    # show the unit as loaded and the kernel's AppArmor denials and seccomp
+    # records.
     for args in (['systemctl', 'status', '--no-pager', f'{UNIT}.service'],
                  ['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '300', '-o', 'short-precise'],
+                 ['systemctl', 'cat', '--no-pager', f'{UNIT}.service'],
+                 # Every transport: with journald's audit socket, AppArmor
+                 # denials arrive through audit and never reach the kernel log.
+                 ['journalctl', '--no-pager', '-o', 'short-precise', '-n', '200',
+                  '--grep', 'apparmor="DENIED"|type=1326|seccomp'],
                  ['aa-status'], ['nft', 'list', 'table', 'inet', 'dytallix_node']):
         say('$ ' + ' '.join(args))
         subprocess.run(args)
+    traced_start()
+    audit_traced_start()
+    kernel_traced_start()
+
+
+def traced_start():
+    """The unit's ExecStart once more, as its account but outside systemd and
+    its sandbox, under strace. The supervisor prints nothing when it refuses
+    before startup; its last calls show which check refused, and getting
+    further here than under the unit points at the sandbox."""
+    unit = Path(f'/etc/systemd/system/{UNIT}.service')
+    text = unit.read_text() if unit.exists() else ''
+    command = re.search(r'^ExecStart=(.+)$', text, re.M)
+    user = re.search(r'^User=(\d+)$', text, re.M)
+    group = re.search(r'^Group=(\d+)$', text, re.M)
+    if not (command and user and group and shutil.which('strace')):
+        say('(no traced start: the unit or strace is missing)')
+        return
+    trace = Path('/tmp/dytallix-supervisor.strace')
+    args = ['setpriv', f'--reuid={user.group(1)}', f'--regid={group.group(1)}', '--clear-groups',
+            'strace', '-f', '-qq', '-s', '200', '-o', str(trace), '--', *command.group(1).split()]
+    say('$ ' + ' '.join(args))
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        output, _ = process.communicate(timeout=30)
+        say(f'exit {process.returncode}; output {output[-2000:]!r}')
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.communicate()
+        say('still running after 30 s outside the sandbox (stopped)')
+    lines = trace.read_text(errors='replace').splitlines() if trace.exists() else []
+    say(f'-- last {min(len(lines), 150)} of {len(lines)} traced calls --')
+    for line in lines[-150:]:
+        say(line)
+
+
+def unit_account():
+    unit = Path(f'/etc/systemd/system/{UNIT}.service')
+    found = re.search(r'^User=(\d+)$', unit.read_text(), re.M) if unit.exists() else None
+    return found.group(1) if found else None
+
+
+def audit_traced_start():
+    """Start the unit once more, with its whole sandbox, under audit rules for
+    its account: every failing system call, every open and every exec, with
+    names and errno interpreted by ausearch. Needs no compiler, unlike
+    bpftrace, and also records AppArmor denials."""
+    uid = unit_account()
+    if not (uid and shutil.which('auditctl') and shutil.which('ausearch')):
+        say('(no audit trace: the unit or auditd is missing)')
+        return
+    key = 'dytallix-start'
+    for syscalls in (['-S', 'all', '-F', 'success=0'], ['-S', 'openat', '-S', 'execve']):
+        subprocess.run(['auditctl', '-a', 'always,exit', '-F', 'arch=b64', *syscalls,
+                        '-F', f'uid={uid}', '-k', key], check=False)
+    say(f'$ auditctl (uid {uid}: failing calls, opens, execs); systemctl start {UNIT}.service')
+    subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=False)
+    time.sleep(5)
+    subprocess.run(['auditctl', '-D', '-k', key], check=False)
+    records = subprocess.run(['ausearch', '-i', '-k', key], capture_output=True, text=True).stdout
+    lines = [line for line in records.splitlines() if line.strip()]
+    say(f'-- last {min(len(lines), 300)} of {len(lines)} audit lines --')
+    for line in lines[-300:]:
+        say(line)
+    denials = subprocess.run(['ausearch', '-i', '-m', 'AVC'], capture_output=True, text=True).stdout
+    say('-- AppArmor (AVC) records --')
+    for line in [line for line in denials.splitlines() if line.strip()][-40:]:
+        say(line)
+
+
+# Kernel tracepoints, so nothing in the unit's sandbox can block the trace
+# (ptrace is denied there). Read contents are printed only for small reads
+# after a /proc open: never for key or configuration files. BPF programs have
+# a 512-byte stack, so no probe keeps a string in a map: paths are printed
+# where they are read, and the /proc test reads only a 6-byte prefix.
+KERNEL_TRACE = r"""
+tracepoint:syscalls:sys_enter_openat /strncmp(comm, "dytallix", 8) == 0/ {
+  printf("%s[%d] openat %s\n", comm, tid, str(args->filename));
+  @proc[tid] = 0;
+  if (strncmp(str(args->filename, 7), "/proc/", 6) == 0) { @proc[tid] = 1; } }
+tracepoint:syscalls:sys_exit_openat /strncmp(comm, "dytallix", 8) == 0/ {
+  printf("%s[%d] openat = %d\n", comm, tid, args->ret); }
+tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
+  printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
+tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
+"""
+# No strings at all: failing calls (errno) and exits, if the others do not load.
+KERNEL_TRACE_ERRORS = r"""
+tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
+  printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
+tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
+"""
+KERNEL_TRACE_READS = r"""
+tracepoint:syscalls:sys_enter_read /strncmp(comm, "dytallix", 8) == 0 && @proc[tid] == 1/ { @buf[tid] = (uint64)args->buf; }
+tracepoint:syscalls:sys_exit_read /@buf[tid] != 0/ {
+  if (args->ret > 0 && args->ret <= 96) {
+    printf("%s[%d] read %d %r\n", comm, tid, args->ret, buf(uptr((uint8 *)@buf[tid]), 96)); }
+  delete(@buf[tid]); }
+"""
+
+
+def start_tracer(script):
+    """bpftrace on script, once its probes are attached (or it has exited)."""
+    tracer = subprocess.Popen(['bpftrace', str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, env=dict(os.environ, BPFTRACE_STRLEN='96', BPFTRACE_MAX_STRLEN='96'))
+    lines, attached = [], threading.Event()
+
+    def pump():
+        for line in tracer.stdout:
+            lines.append(line.rstrip('\n'))
+            if line.startswith('Attaching'):
+                attached.set()
+        attached.set()
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+    attached.wait(180)  # compiling can take a while on a small runner
+    time.sleep(1)
+    return tracer, lines, reader
+
+
+def kernel_traced_start():
+    """Start the unit once more, with its whole sandbox, under bpftrace:
+    failing system calls (errno), opens, and small /proc reads such as the
+    AppArmor label the supervisor sees."""
+    if not shutil.which('bpftrace'):
+        say('(no kernel trace: bpftrace is missing)')
+        return
+    script = Path('/tmp/dytallix-start.bt')
+    for body in (KERNEL_TRACE + KERNEL_TRACE_READS, KERNEL_TRACE, KERNEL_TRACE_ERRORS):
+        script.write_text(body)
+        tracer, lines, reader = start_tracer(script)
+        if tracer.poll() is None:
+            break
+        # Fall back to fewer probes.
+        reader.join(5)
+        say('bpftrace stopped: ' + ' '.join(lines)[-1500:])
+    else:
+        return
+    say(f'$ bpftrace {script}; systemctl start {UNIT}.service')
+    subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=False)
+    time.sleep(5)
+    tracer.send_signal(signal.SIGINT)
+    try:
+        tracer.wait(timeout=30)
+    except subprocess.TimeoutExpired:
+        tracer.kill()
+        tracer.wait()
+    reader.join(5)
+    shown = [line for line in lines if not line.startswith('@')]
+    say(f'-- last {min(len(shown), 300)} of {len(shown)} kernel trace lines --')
+    for line in shown[-300:]:
+        say(line)
 
 
 def install(work, label, target_height, timeout):
@@ -137,6 +301,21 @@ def install(work, label, target_height, timeout):
         raise Failed('install.sh failed')
     say(f'== start {UNIT}')
     subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=True)
+    seen = wait_for(target_height, timeout)
+    verified = subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'verify'])
+    if verified.returncode != 0:
+        diagnostics()
+        raise Failed('the installed host does not verify')
+    say(f'== restart at height {seen}: the node must rejoin and make blocks')
+    subprocess.run(['systemctl', 'stop', f'{UNIT}.service'], check=True)
+    subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=True)
+    seen = wait_for(seen + 2, timeout)
+    subprocess.run(['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '40'])
+    say(f'== {label} installed, verified, restarted and at height {seen}')
+
+
+def wait_for(target_height, timeout):
+    """The height once it reaches the target; fails if the unit stops."""
     deadline, seen = time.monotonic() + timeout, None
     while time.monotonic() < deadline:
         current = height()
@@ -144,21 +323,14 @@ def install(work, label, target_height, timeout):
             say(f'height {current}')
             seen = current
         if current is not None and current >= target_height:
-            break
+            return current
         active = subprocess.run(['systemctl', 'is-active', f'{UNIT}.service'], capture_output=True, text=True).stdout.strip()
         if active in ('failed', 'inactive'):
             diagnostics()
             raise Failed(f'{UNIT} is {active}')
         time.sleep(2)
-    else:
-        diagnostics()
-        raise Failed(f'the node did not reach height {target_height} in {timeout} s')
-    verified = subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'verify'])
-    if verified.returncode != 0:
-        diagnostics()
-        raise Failed('the installed host does not verify')
-    subprocess.run(['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '40'])
-    say(f'== {label} installed, verified and at height {seen}')
+    diagnostics()
+    raise Failed(f'the node did not reach height {target_height} in {timeout} s')
 
 
 def wipe(work, label):

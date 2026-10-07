@@ -87,12 +87,12 @@
     },
     {
       "name": "double_sign_check_height",
-      "reference": "approvals/P01_E05_VALUES_4_2026-10-02.json",
+      "reference": "approvals/P01_E05_SOLO_VALIDATOR_RESTART_2026-10-06.json",
       "source": "APPROVED",
       "value": {
         "endpoint": 0,
         "sentry": 0,
-        "validator": 10
+        "validator": 0
       }
     },
     {

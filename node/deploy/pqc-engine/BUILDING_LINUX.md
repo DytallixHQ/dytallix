@@ -1,5 +1,13 @@
 # Linux application build and service qualification
 
+> **Superseded.** Release binaries are built reproducibly and statically in
+> the pinned builder ([release](../../../release/README.md)), and hosts are
+> installed from per-host bundles ([host setup v1](../../docs/architecture/host-setup-v1.md)),
+> which the Host install workflow tests on an Ubuntu 24.04 runner. The text
+> below is the historical record of the earlier local qualification
+> attempts; its hosts, toolchain notes and library findings no longer
+> describe the release.
+
 Use an isolated builder with an explicit storage and memory budget. Keep production hosts outside this procedure. Preserve the existing Cargo lockfile and private signing state.
 
 ## Artifact boundary

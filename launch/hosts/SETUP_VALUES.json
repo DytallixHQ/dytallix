@@ -53,8 +53,8 @@
     "max_map_entries": 4096,
     "max_path_bytes": 4096,
     "max_unique_files": 1,
-    "max_file_bytes": 33554432,
-    "max_total_file_bytes": 33554432,
+    "max_file_bytes": 16777216,
+    "max_total_file_bytes": 16777216,
     "max_elapsed_ms": 1000,
     "max_output_bytes": 8192,
     "cleanup_timeout_ms": 100

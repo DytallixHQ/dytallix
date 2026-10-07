@@ -4,12 +4,14 @@ Operator procedures for the incident classes of OBS-003 (E04 gap 15; design
 in [incident response v1](../architecture/incident-response-v1.md)).
 
 These are preparation documents. They authorize no live halt, restart, key
-operation or state change. The following are unset inputs:
+operation or state change. On-call coverage and the recovery objectives are
+approved ([operations objectives](../../../launch/operations/OBJECTIVES.md),
+D12-Q02), and the root keys are held in key kits
+([key ceremony](../../../launch/custody/KEY_CEREMONY.md)). The following are
+unset inputs:
 - the named roles (D14-Q03);
-- on-call coverage and recovery objectives (D12-Q02);
-- alert thresholds and routing (D12-Q02);
-- the authenticated incident channel;
-- custody.
+- alert checks, thresholds and routing (artifact A22);
+- the authenticated incident channel.
 
 Exercise each procedure on disposable local or assigned staging systems
 before acceptance.
@@ -24,6 +26,10 @@ before acceptance.
 | Upgrade or handover failure | [upgrade-failure.md](upgrade-failure.md) |
 | Restart on a fixed release after a halt | [restart.md](restart.md) |
 | Oracle failure | Not applicable. No oracle is in the consensus path (AC-010): the epoch observation is derived from committed blocks, and a submitted one is refused. |
+
+Day-to-day host operations (status, start and stop, staging wipe, moving to
+a new release) are in [host.md](host.md); validator recovery (F17) is
+[validator-recovery.md](validator-recovery.md).
 
 The procedures assume the native supervisor (`crates/native-supervisor`) as
 the service owner. The Python service that `deploy/pqc-engine` once held was

@@ -2,7 +2,7 @@
   "schema": "dytallix.pin-plan-bindings.v1",
   "chain_id": "dytallix-staging-1",
   "plan_sha256": "b5eaec35ccc6399ae814db12603c424502ae5bc023099128680703a774604f68",
-  "values_sha256": "98309a3c48a97a01a6e08359e78eea701d41795912e271a663aed64bafe82176",
+  "values_sha256": "1391f2997ac8bc0244c4528282bc7d2039a3f283257e7c0f3b9e71acb34b841c",
   "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
   "genesis_validators_without_host": 0,
   "hosts": [
@@ -197,13 +197,13 @@
         "schema": 1,
         "role": "validator",
         "chain_id": "dytallix-staging-1",
-        "config_sha256": "975c42d558f95ea6c5bc1a2c2a666c14cdd249c411b6d3e9b5efd864058811f2",
+        "config_sha256": "fecd1749aa4f9ebde59fefc52c6bb4ad34e51542f91fa357f645c69f2a10e6aa",
         "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
         "transport_sha256": "5376b0fabb186f2ac28fc8b31acdfeb56c82d0cd3b58b0e074799ae6fbe862ba",
         "peer_public_key_sha256": "f07322e0b5982fe38f4ca76fa84a3ae196bd85a13e5e645f8bc17b3d3b62c581",
         "validator_public_key_sha256": "3a19ede7a1e950c52bc22873080238385fb6eb661726ceb69930a66248e446c6"
       },
-      "binding_sha256": "8296a2629ceb95ecb064943434af171d468ee434814f85b63a25ffe1270ea6c4"
+      "binding_sha256": "d9547254c7ff4c364f0ccb5a921b5a2dab29a6a9089ac541d6c9c0d0cda1e0f5"
     },
     {
       "label": "validator-2",
@@ -221,13 +221,13 @@
         "schema": 1,
         "role": "validator",
         "chain_id": "dytallix-staging-1",
-        "config_sha256": "75c075519526b417efd70c0ab999c11b9cabbaf6e2fd7e263743bc8fc9749136",
+        "config_sha256": "cf3b708bada4603838ec575b5ec2c850661fa675bf0057caaffde302f96f367d",
         "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
         "transport_sha256": "a15778b50cd582516958893ca8ac2a2f8dc92ac6df6e43845190d3e9f1c18a7f",
         "peer_public_key_sha256": "2b72588382bd4b10ab7bc3fad8e5298ad8109b4863a4379543aa4d7f5b6b378d",
         "validator_public_key_sha256": "c3ea67a0b8650e644e96cb90341ecbdb9546371f8eb743671aedb761eb2938d5"
       },
-      "binding_sha256": "e2f09b148defa4c836d61bc4c7b5367b67d97b08385e0c5b17bef815198f9999"
+      "binding_sha256": "1504896600329f2f432777a23e0f93123aa96143246c509fad71976b13358484"
     },
     {
       "label": "validator-3",
@@ -245,13 +245,13 @@
         "schema": 1,
         "role": "validator",
         "chain_id": "dytallix-staging-1",
-        "config_sha256": "c6ef77aac91c6084195cac8fdd8da429dfae4bf8f46f4103dcf822910e5c5aee",
+        "config_sha256": "4484c8b2c7e3d342975003f72cab615b1678ab49ad6715055fb488de1cca2c30",
         "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
         "transport_sha256": "ed983bf427e011a2ac889e0896fdef4c042172b558558a33a8fcf033b7f98029",
         "peer_public_key_sha256": "cd7b6dcfc56a51d76162d9a651058eeae7fbe590f190ee8313c6c981d2c901bb",
         "validator_public_key_sha256": "8763ae2fa9d28123c84546c20885f3e7d31123668e7936ba6db7139ffcb6aa91"
       },
-      "binding_sha256": "1b98ff0f5b890ad01948fbe7f78b3d717df4d3563e47ebc67cd6af31f2561fb0"
+      "binding_sha256": "a458f4421cd440d673ce2cc3a3bc15f0fe75aff3a369d6ee8d96b6a3c5e578c7"
     },
     {
       "label": "validator-4",
@@ -269,13 +269,13 @@
         "schema": 1,
         "role": "validator",
         "chain_id": "dytallix-staging-1",
-        "config_sha256": "f7ab2ee34ec63aaa71bba6043ac08f945981c79dd201b20197ab065c90419bb4",
+        "config_sha256": "0e5887edbe67dddec0ce79cce642aa2fd6174316a6fd1aa6b8faba8d4adfc61a",
         "genesis_sha256": "c655aae547f2e933b3588f9e2e5cb869e670196bf12695f386246906ae18f2a4",
         "transport_sha256": "522251d545a261038a265f3991050dab0ee02d8c8448ec832f29a4c25bf7bd0a",
         "peer_public_key_sha256": "88667b5936016f178ced193767032a62447b5ef78bae099390bc955cacbf59d1",
         "validator_public_key_sha256": "30cd38b5b65aebdf112d9b370548373772256acc9387477deaf0c31abcfd02c5"
       },
-      "binding_sha256": "c7e56cc28637cd5ac6cb97b2c7656004c35983a45364746fe7a165a218b5f67d"
+      "binding_sha256": "86fc17d1b9571f6d56e439cc52892f63312e6dc63536496e2f1697807b935b5e"
     }
   ]
 }

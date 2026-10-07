@@ -9,7 +9,11 @@ consensus application under a native supervisor. It has no HTTP RPC server on
 port `3030`, no contract runtime, no bridge and no oracle, and it charges fees
 in uDRT and burns them. Its operator documents are in [`node/docs`](https://github.com/DytallixHQ/dytallix/tree/main/node/docs), for
 example [RPC controls v1](../../node/docs/architecture/rpc-controls-v1.md) and
-[key tooling v1](../../node/docs/architecture/key-tooling-v1.md).
+[key tooling v1](../../node/docs/architecture/key-tooling-v1.md). Its hosts
+run static release binaries under one systemd unit, installed from per-host
+bundles ([host setup v1](../../node/docs/architecture/host-setup-v1.md),
+[host operations](../../node/docs/operations/host.md)); the `systemd` and
+`pm2` templates below are for the testnet snapshot only.
 
 Keypair, faucet, transfer, and basic contract lifecycle are available for experimentation on the public testnet. Staking, governance, and some advanced or operator paths are not yet production-complete.
 
@@ -146,8 +150,8 @@ workflows.
 ## Public Deployment Provenance
 
 The current public node behavior can be checked from public endpoints such as
-`/status` and `/api/capabilities`, and the repo now includes clean `systemd`
-and `pm2` deployment templates.
+`/status` and `/api/capabilities`, and the testnet snapshot includes clean
+`systemd` and `pm2` deployment templates (not used for mainnet hosts).
 
 That is enough to publish a reproducible deployment path from source, but not
 enough on its own to prove that the live production host has already been cut

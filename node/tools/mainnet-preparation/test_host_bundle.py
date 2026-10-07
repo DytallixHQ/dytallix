@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import sys
 import tarfile
@@ -18,6 +19,7 @@ import host_bundle
 import host_files
 import host_keys
 import test_host_files
+from test_host_files import release_manifest
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / 'host'))
@@ -78,8 +80,9 @@ class FakeHost(hi.Host):
     def __init__(self, root, staging, profiles):
         super().__init__(root)
         self.staging, self.profiles = Path(staging), profiles
-        self.commands, self.owners, self.immutable, self.enabled = [], {}, set(), set()
+        self.commands, self.owners, self.immutable, self.enabled, self.active = [], {}, set(), set(), set()
         self.user = self.group = self.table = False
+        self.loaded = set()
         for path, text in {'/etc/os-release': 'ID=ubuntu\nVERSION_ID="24.04"\n',
                            '/sys/module/apparmor/parameters/enabled': 'Y\n',
                            '/etc/nftables.conf': '#!/usr/sbin/nft -f\nflush ruleset\n'}.items():
@@ -124,11 +127,14 @@ class FakeHost(hi.Host):
         elif name == 'systemctl':
             verb = args[1]
             if verb == 'is-active':
-                out = 'inactive'
+                out = 'active' if args[2] in self.active else 'inactive'
+            elif verb == 'start':
+                self.active.add(args[2])
             elif verb == 'enable':
                 self.enabled.add(args[2])
             elif verb == 'disable':
                 self.enabled.discard(args[-1])
+                self.active.discard(args[-1])
             elif verb == 'is-enabled':
                 out = 'enabled' if args[2] in self.enabled else 'disabled'
             elif verb == 'restart' and args[2] == 'nftables':
@@ -138,9 +144,12 @@ class FakeHost(hi.Host):
         elif name == 'lsattr':
             out = ('----i---------e------- ' if args[2] in self.immutable else '--------------e------- ') + args[2]
         elif name == 'apparmor_parser':
+            # Loads or unloads the profiles the file declares.
+            names = re.findall(r'^profile (\S+) \{', Path(args[-1]).read_text(), re.M)
+            self.loaded = (self.loaded | set(names)) if args[1] == '--replace' else (self.loaded - set(names))
             listing = self.path('/sys/kernel/security/apparmor/profiles')
             listing.parent.mkdir(parents=True, exist_ok=True)
-            listing.write_text(''.join(f'{p} (enforce)\n' for p in self.profiles) if args[1] == '--replace' else '')
+            listing.write_text(''.join(f'{p} (enforce)\n' for p in sorted(self.loaded)))
         elif name == 'nft':
             if args[1] == 'list':
                 code = 0 if self.table else 1
@@ -163,7 +172,9 @@ def NFT_INCLUDE_PRESENT(host):
     return hi.NFT_INCLUDE in host.path(hi.NFT_CONF).read_text().splitlines()
 
 
-class HostBundleTests(unittest.TestCase):
+class HostNetwork(unittest.TestCase):
+    """The synthetic network, its keys, host files and helpers."""
+
     def setUp(self):
         # The host file generator's synthetic network, with the root signer
         # in the release.
@@ -205,6 +216,17 @@ class HostBundleTests(unittest.TestCase):
             tar.extractall(target, filter='data')
         return target / host_bundle.PREFIX
 
+    def install(self, label):
+        out, result = self.bundle(label)
+        bundle = self.unpack(out)
+        manifest = self.manifests[label]
+        host = FakeHost(self.tmp / f'root-{label}', self.staging, manifest['apparmor_profiles'])
+        printed = []
+        hi.install(bundle, host, out=printed.append)
+        return bundle, host, manifest, printed
+
+
+class HostBundleTests(HostNetwork):
     def test_key_step_writes_public_records_and_a_filled_plan(self):
         self.assertEqual(sorted(self.summaries), sorted(test_host_files.HOSTS))
         for label, summary in self.summaries.items():
@@ -257,15 +279,6 @@ class HostBundleTests(unittest.TestCase):
         binary.write_bytes(b'another engine')
         with self.assertRaises(host_bundle.Invalid):
             self.bundle('validator-1')
-
-    def install(self, label):
-        out, result = self.bundle(label)
-        bundle = self.unpack(out)
-        manifest = self.manifests[label]
-        host = FakeHost(self.tmp / f'root-{label}', self.staging, manifest['apparmor_profiles'])
-        printed = []
-        hi.install(bundle, host, out=printed.append)
-        return bundle, host, manifest, printed
 
     def test_install_verify_and_wipe(self):
         for label in ('validator-1', 'endpoint-1'):
@@ -321,7 +334,8 @@ class HostBundleTests(unittest.TestCase):
         cases = {
             'Ubuntu 24.04': lambda h: h.path('/etc/os-release').write_text('ID=ubuntu\nVERSION_ID="22.04"\n'),
             'AppArmor': lambda h: h.path('/sys/module/apparmor/parameters/enabled').write_text('N\n'),
-            'ufw is active': lambda h: setattr(h, 'run', active_ufw(h.run)),
+            'ufw is enabled': lambda h: ufw_conf(h, 'yes'),
+            'firewalld is active': lambda h: setattr(h, 'run', active_unit('firewalld', h.run)),
             'already has': lambda h: h.path('/etc/dytallix').mkdir(),
         }
         for index, (message, change) in enumerate(cases.items()):
@@ -338,12 +352,105 @@ class HostBundleTests(unittest.TestCase):
             hi.install(bundle, host, out=lambda _: None)
 
 
-def active_ufw(run):
+class DisabledUfwTests(HostNetwork):
+    def test_install_accepts_ufw_disabled_with_its_unit_still_active(self):
+        # GitHub's runners and a host after `ufw disable`: the oneshot unit
+        # stays active, but ufw no longer filters.
+        out, _ = self.bundle('validator-1')
+        bundle = self.unpack(out)
+        host = FakeHost(self.tmp / 'ufw-disabled', self.staging, self.manifests['validator-1']['apparmor_profiles'])
+        ufw_conf(host, 'no')
+        host.run = active_unit('ufw', host.run)
+        hi.install(bundle, host, out=lambda _: None)
+        self.assertEqual(hi.verify(bundle, host), [])
+
+
+class ReleaseSwitchTests(HostNetwork):
+    """A second release of the same chain, staged and switched to."""
+
+    def second_release(self):
+        release2 = self.tmp / 'release-2'
+        (release2 / 'bin').mkdir(parents=True)
+        record = json.loads((self.network.dirs['release'] / 'BUILD_RECORD.json').read_bytes())
+        for name in record['members']:
+            raw = (self.network.dirs['release'] / 'bin' / name).read_bytes()
+            if name == 'dytallix-pqc-engine':
+                raw = b'engine, second release'
+                record['members'][name] = {'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(),
+                                           'sha512': hashlib.sha512(raw).hexdigest()}
+            (release2 / 'bin' / name).write_bytes(raw)
+        (release2 / 'BUILD_RECORD.json').write_text(json.dumps(record))
+        value = release_manifest.manifest(release_manifest.load_record(release2 / 'BUILD_RECORD.json'),
+                                          test_host_files.CHAIN_ID, self.network.dirs['chain'] / 'native-genesis.json')
+        (release2 / 'RELEASE_MANIFEST.json').write_bytes(release_manifest.encode(value))
+        generated = host_files.generate(release2, self.network.dirs['chain'], self.network.dirs['hosts'], self.plan,
+                                        self.keys, self.network.values, self.network.setup)
+        host_files.write(self.tmp / 'host-files-2', generated)
+        out = self.tmp / 'validator-1.release-2.tar'
+        host_bundle.build(self.tmp / 'host-files-2' / 'validator-1', release2, self.keys / 'validator-1.sealed.json', out)
+        return self.unpack(out), generated['validator-1'][1]
+
+    def test_stage_then_switch_at_the_halt(self):
+        bundle, host, manifest, _ = self.install('validator-1')
+        old = manifest['release']
+        host.active.add('dytallix-node.service')
+        # The validator signs: its state changes, and verify accepts that.
+        host.path(hi.SIGNING_STATE).write_bytes(b'{"height":"7"}')
+        self.assertEqual(hi.verify(bundle, host), [])
+        self.assertIn(f'{hi.SIGNING_STATE}: content differs', hi.verify(bundle, host, fresh=True))
+        bundle2, manifest2 = self.second_release()
+        new = manifest2['release']
+        self.assertNotEqual(new, old)
+        hi.stage(bundle2, host, out=lambda _: None)
+        self.assertEqual(hi.active_release(host), old)
+        self.assertTrue(host.path(f'/opt/dytallix/{old}/bin').exists())
+        engine = str(host.path(f'/opt/dytallix/{new}/bin/dytallix-pqc-engine'))
+        self.assertIn(engine, host.immutable)
+        staged_unit = host.path(f'/etc/dytallix/{new}/next/dytallix-node.service').read_text()
+        self.assertIn(f'/opt/dytallix/{new}/bin/', staged_unit)
+        # Not while the old release runs.
+        with self.assertRaisesRegex(hi.Refused, 'switch only once'):
+            hi.switch(bundle2, host, out=lambda _: None)
+        host.active.discard('dytallix-node.service')
+        hi.switch(bundle2, host, out=lambda _: None)
+        self.assertEqual(hi.active_release(host), new)
+        self.assertIn('dytallix-node.service', host.active)
+        self.assertEqual(hi.verify(bundle2, host), [])
+        self.assertEqual(host.loaded, set(manifest2['apparmor_profiles']))  # the old release's are unloaded
+        self.assertTrue(host.path(f'/opt/dytallix/{old}/bin').exists())  # kept until the next stage
+        with self.assertRaisesRegex(hi.Refused, 'already active'):
+            hi.stage(bundle2, host, out=lambda _: None)
+        # Staging again (here the first release) removes all but the active one.
+        hi.stage(bundle, host, out=lambda _: None)
+        self.assertEqual(sorted(p.name for p in host.path('/opt/dytallix').iterdir()), sorted([old, new]))
+
+    def test_stage_refuses_another_host_or_changed_home(self):
+        _, host, _, _ = self.install('validator-1')
+        sentry = self.unpack(self.bundle('sentry-1')[0])
+        with self.assertRaisesRegex(hi.Refused, 'another host or chain'):
+            hi.stage(sentry, host, out=lambda _: None)
+        bundle2, _ = self.second_release()
+        target = next(bundle2.glob('files/var/lib/dytallix/node/config/config.toml'))
+        manifest = json.loads((bundle2 / 'INSTALL_MANIFEST.json').read_bytes())
+        target.write_bytes(b'moniker = "changed"\n')
+        row = next(r for r in manifest['files'] if r['path'].endswith('/config/config.toml'))
+        row['sha256'], row['bytes'] = hashlib.sha256(target.read_bytes()).hexdigest(), target.stat().st_size
+        (bundle2 / 'INSTALL_MANIFEST.json').write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(hi.Refused, 'never changes the node home'):
+            hi.stage(bundle2, host, out=lambda _: None)
+
+
+def active_unit(unit, run):
     def wrapped(args, check=True, interactive=False):
-        if args[:3] == ['systemctl', 'is-active', 'ufw']:
+        if args[:3] == ['systemctl', 'is-active', unit]:
             return SimpleNamespace(returncode=0, stdout='active\n', stderr='')
         return run(args, check=check, interactive=interactive)
     return wrapped
+
+
+def ufw_conf(host, enabled):
+    host.path(hi.UFW_CONF).parent.mkdir(parents=True, exist_ok=True)
+    host.path(hi.UFW_CONF).write_text(f'# /etc/ufw/ufw.conf\nENABLED={enabled}\nLOGLEVEL=low\n')
 
 
 if __name__ == '__main__':

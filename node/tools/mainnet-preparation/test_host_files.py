@@ -208,6 +208,13 @@ class HostFilesTests(unittest.TestCase):
         with self.assertRaises(h.Invalid):
             self.generate()
 
+    def test_observed_helper_bound_within_helper_bound(self):
+        # The node refuses an observed file bound above the helper bound;
+        # the 6 October values had 32 MiB against 16 MiB (H4).
+        self.setup['root_helper_observation']['max_file_bytes'] = self.setup['root']['max_helper_bytes'] + 1
+        with self.assertRaisesRegex(h.Invalid, 'max_file_bytes exceeds the root max_helper_bytes'):
+            self.generate()
+
     def test_secrets_and_release_must_match(self):
         keys = self.dirs['keys'] / 'endpoint-1.keys.json'
         summary = json.loads(keys.read_text())

@@ -61,7 +61,7 @@ class HostValuesTests(unittest.TestCase):
 
     def test_approved_values_are_used_as_approved(self):
         host, report = self.resolve()
-        self.assertEqual(host['consensus']['double_sign_check_height'], {'validator': 10, 'sentry': 0, 'endpoint': 0})
+        self.assertEqual(host['consensus']['double_sign_check_height'], {'validator': 0, 'sentry': 0, 'endpoint': 0})
         self.assertEqual(host['p2p']['persistent_peers_max_dial_period'], '60s')
         self.assertEqual(host['transport']['handshake_timeout_ms'], 5000)
         source = {v['name']: v['source'] for v in report['values']}

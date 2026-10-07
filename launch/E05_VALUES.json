@@ -2856,17 +2856,17 @@
       "tier": "operate",
       "status": "APPROVED",
       "proposed": {
-        "validator": 10,
+        "validator": 0,
         "sentry": 0,
         "endpoint": 0
       },
-      "basis": "A validator refuses to sign if its key signed any of the last 10 blocks, so a second copy of the key stops instead of double-signing; a restart needs about 50 s offline. Sentries and endpoints hold no validator-set key.",
+      "basis": "0 on every role while the chain has one validator (solo launch profile). The check refuses to rejoin consensus when the key signed any of the last N blocks; one validator signs every block and none is made while it is down, so any value above 0 stops every restart for good. Fencing (validator recovery) and never copying node keys prevent a second copy instead. Earlier approval: 10 on validators (P01, 2 October 2026, approvals/P01_E05_VALUES_4_2026-10-02.json). Revisit when other validators hold more than two-thirds of the voting power.",
       "approved": {
-        "validator": 10,
+        "validator": 0,
         "sentry": 0,
         "endpoint": 0
       },
-      "approval_record": "approvals/P01_E05_VALUES_4_2026-10-02.json"
+      "approval_record": "approvals/P01_E05_SOLO_VALIDATOR_RESTART_2026-10-06.json"
     },
     {
       "name": "block_time_tolerance",

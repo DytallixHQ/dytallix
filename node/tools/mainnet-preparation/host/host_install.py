@@ -9,7 +9,17 @@ from the unpacked bundle, through install.sh and wipe.sh:
            the seal code typed from paper, loads the AppArmor profiles in
            enforce mode and the firewall table, enables the unit, and
            verifies everything. It never touches an existing install.
-  verify   re-checks an installed host against the bundle.
+  verify   re-checks an installed host against the bundle. The validator's
+           signing state changes as it signs, so after the install only its
+           owner and mode are checked.
+  stage    installs a new release beside the running one from this host's
+           bundle for that release: its binaries, configuration and the
+           unit, profiles, firewall and journal setting it switches to. The
+           node home and keys are kept and nothing is unsealed. Releases
+           older than the active one are removed.
+  switch   once the old release has stopped (at the activation height),
+           installs the staged unit, profiles, firewall and journal setting,
+           verifies the host against the new bundle and starts the node.
   wipe     removes the node from the host (staging before production):
            /opt/dytallix, /etc/dytallix, /var/lib/dytallix, the unit, the
            profiles, the firewall table and the journal setting. It keeps
@@ -21,6 +31,7 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import shutil
 import subprocess
 import sys
@@ -37,8 +48,16 @@ FIREWALL_TABLE = ('inet', 'dytallix_node')
 JOURNALD_FILE = '/etc/systemd/journald.conf.d/dytallix.conf'
 SINGLE_FILES = (UNIT_FILE, PROFILE_FILE, FIREWALL_FILE, JOURNALD_FILE)
 NFT_CONF = '/etc/nftables.conf'
+UFW_CONF = '/etc/ufw/ufw.conf'
 NFT_INCLUDE = 'include "/etc/nftables.d/*.nft"'
 UNSEALER = 'dytallix-root-sign'
+# The signing state changes each time a validator signs; only its install is
+# checked against the bundle.
+SIGNING_STATE = f'{HOME}/data/priv_validator_state.json'
+# Each release keeps the manifest it was installed from, and a staged
+# release the unit, profiles, firewall and journal setting it switches to.
+INSTALLED = 'install-manifest.json'
+NEXT = 'next'
 TOOLS = ('apparmor_parser', 'nft', 'systemctl', 'chattr', 'lsattr', 'useradd', 'groupadd', 'getent', 'timedatectl')
 NOLOGIN = '/usr/sbin/nologin'
 
@@ -143,13 +162,28 @@ def preflight(host):
     require(host.path(NFT_CONF).exists(), f'{NFT_CONF} is missing (install nftables)')
     synced = host.run(['timedatectl', 'show', '-p', 'NTPSynchronized', '--value'], check=False).stdout.strip()
     require(synced == 'yes', 'the clock is not synchronized yet (systemd-timesyncd); wait and retry')
-    for firewall in ('ufw', 'firewalld'):
-        active = host.run(['systemctl', 'is-active', firewall], check=False).stdout.strip()
-        require(active != 'active', f'{firewall} is active; disable it (the node\'s table is the host firewall)')
+    # ufw's unit is a oneshot that stays active after `ufw disable`; ufw.conf
+    # says whether it filters, now and at boot. firewalld is a daemon.
+    ufw = host.path(UFW_CONF)
+    require(not (ufw.exists() and re.search(r'^ENABLED=yes\s*$', ufw.read_text(), re.M)),
+            'ufw is enabled; run `ufw disable` (the node\'s table is the host firewall)')
+    active = host.run(['systemctl', 'is-active', 'firewalld'], check=False).stdout.strip()
+    require(active != 'active', 'firewalld is active; disable it (the node\'s table is the host firewall)')
 
 
 def existing(host):
     return [path for path in TREES + SINGLE_FILES if os.path.lexists(host.path(path))]
+
+
+def etc(release):
+    return f'/etc/dytallix/{release}'
+
+
+def active_release(host):
+    """The release the unit runs, from its ExecStart."""
+    found = re.search(r'^ExecStart=/opt/dytallix/([0-9a-f]{16})/bin/', host.path(UNIT_FILE).read_text(), re.M)
+    require(found, 'the unit names no installed release')
+    return found.group(1)
 
 
 # The account
@@ -213,6 +247,7 @@ def install(bundle, host, out=say):
         os.chmod(host.path(binary['path']), 0o555)
     for row in manifest['files']:
         write_new(host, row['path'], (bundle / 'files' / PurePosixPath(row['path']).relative_to('/')).read_bytes())
+    write_new(host, f'{etc(release)}/{INSTALLED}', (bundle / 'INSTALL_MANIFEST.json').read_bytes())
     # The node keys, unsealed with the code typed from paper.
     bin_dir = f'/opt/dytallix/{release}/bin'
     out(f'Type the seal code for {label} from its paper (dytallix-seal-{label} ...), then press Enter:')
@@ -225,6 +260,8 @@ def install(bundle, host, out=say):
     for row in manifest['files']:
         os.chmod(host.path(row['path']), int(row['mode'], 8))
         host.chown(row['path'], *ids(row['owner'], uid, gid))
+    os.chmod(host.path(f'{etc(release)}/{INSTALLED}'), 0o444)
+    host.chown(f'{etc(release)}/{INSTALLED}', 0, 0)
     for binary in manifest['binaries']:
         host.chown(binary['path'], 0, 0)
     for directory in reversed(manifest['directories']):
@@ -245,16 +282,136 @@ def install(bundle, host, out=say):
     host.run(['systemctl', 'restart', 'nftables'])
     host.run(['systemctl', 'daemon-reload'])
     host.run(['systemctl', 'enable', f'{UNIT}.service'])
-    problems = verify(bundle, host, manifest)
+    problems = verify(bundle, host, manifest, fresh=True)
     require(not problems, 'the install does not verify:\n  ' + '\n  '.join(problems))
     out(f'Installed and verified {label}. Start the node with: systemctl start {UNIT}')
     return manifest
 
 
+# Moving to a new release (P01, 6 October 2026: stage alongside, switch at
+# the halt)
+
+def stage(bundle, host, out=say):
+    bundle = Path(bundle)
+    preflight(host)
+    manifest = load_bundle(bundle)
+    release, current = manifest['release'], active_release(host)
+    installed = json.loads(host.path(f'{etc(current)}/{INSTALLED}').read_bytes())
+    for key in ('label', 'role', 'chain_id', 'account', 'unit'):
+        require(manifest[key] == installed[key], f'the bundle is for another host or chain ({key} differs)')
+    require(release != current, f'release {release} is already active')
+
+    def home(m):
+        return {row['path']: row['sha256'] for row in m['files'] if row['path'].startswith(HOME + '/')}
+    require(home(manifest) == home(installed), 'a release switch never changes the node home files')
+    require({s['path']: s['sha256'] for s in manifest['secrets']} == {s['path']: s['sha256'] for s in installed['secrets']},
+            'a release switch keeps the node keys')
+    # Releases other than the active one go, including an earlier attempt
+    # to stage this one.
+    for tree in ('/opt/dytallix', '/etc/dytallix'):
+        for entry in sorted(host.path(tree).iterdir()):
+            if entry.name != current:
+                for binary in sorted(entry.glob('bin/*')):
+                    host.run(['chattr', '-i', str(binary)])
+                host.remove_tree(f'{tree}/{entry.name}')
+                out(f'removed {tree}/{entry.name}')
+    out(f'Staging release {release} beside {current} for {manifest["label"]}')
+    os.umask(0o077)
+    acct = manifest['account']
+    uid, gid = acct['uid'], acct['gid']
+    roots = (f'/opt/dytallix/{release}', etc(release))
+    directories = [d for d in manifest['directories'] if d['path'] in roots or d['path'].startswith(roots[0] + '/')
+                   or d['path'].startswith(roots[1] + '/')]
+    for directory in directories:
+        host.path(directory['path']).mkdir(mode=0o700)
+    for binary in manifest['binaries']:
+        write_new(host, binary['path'], (bundle / 'bin' / binary['name']).read_bytes())
+        os.chmod(host.path(binary['path']), 0o555)
+    staged = []
+    for row in manifest['files']:
+        raw = (bundle / 'files' / PurePosixPath(row['path']).relative_to('/')).read_bytes()
+        if row['path'].startswith(roots[1] + '/'):
+            target = row['path']
+        elif row['path'] in SINGLE_FILES:
+            target = f'{etc(release)}/{NEXT}/{PurePosixPath(row["path"]).name}'
+        else:
+            continue
+        write_new(host, target, raw)
+        staged.append((target, row))
+    write_new(host, f'{etc(release)}/{INSTALLED}', (bundle / 'INSTALL_MANIFEST.json').read_bytes())
+    for target, row in staged:
+        os.chmod(host.path(target), int(row['mode'], 8))
+        host.chown(target, *ids(row['owner'], uid, gid))
+    os.chmod(host.path(f'{etc(release)}/{INSTALLED}'), 0o444)
+    host.chown(f'{etc(release)}/{INSTALLED}', 0, 0)
+    os.chmod(host.path(f'{etc(release)}/{NEXT}'), 0o755)
+    host.chown(f'{etc(release)}/{NEXT}', 0, 0)
+    for binary in manifest['binaries']:
+        host.chown(binary['path'], 0, 0)
+    for directory in reversed(directories):
+        os.chmod(host.path(directory['path']), int(directory['mode'], 8))
+        host.chown(directory['path'], *ids(directory['owner'], uid, gid))
+    for binary in manifest['binaries']:
+        host.run(['chattr', '+i', str(host.path(binary['path']))])
+    for target, row in staged:
+        require(sha256(host.path(target).read_bytes()) == row['sha256'], f'{target} is not the bundle\'s file')
+    out(f'Staged {release}. When {current} stops at the activation height, run switch.')
+    return manifest
+
+
+def replace_file(host, absolute, raw, mode):
+    """Replaces a root-owned file in one step."""
+    target = host.path(absolute)
+    temporary = target.with_name(target.name + '.dytallix-new')
+    if os.path.lexists(temporary):
+        os.unlink(temporary)
+    write_new(host, str(PurePosixPath(absolute).with_name(target.name + '.dytallix-new')), raw)
+    os.chmod(temporary, mode)
+    host.chown(str(PurePosixPath(absolute).with_name(target.name + '.dytallix-new')), 0, 0)
+    os.replace(temporary, target)
+    host.chown(absolute, 0, 0)
+
+
+def switch(bundle, host, out=say):
+    bundle = Path(bundle)
+    preflight(host)
+    manifest = load_bundle(bundle)
+    release, current = manifest['release'], active_release(host)
+    require(release != current, f'release {release} is already active')
+    require(host.path(f'{etc(release)}/{INSTALLED}').exists(), f'release {release} is not staged; run stage first')
+    state = host.run(['systemctl', 'is-active', f'{UNIT}.service'], check=False).stdout.strip()
+    require(state not in ('active', 'activating', 'reloading', 'deactivating'),
+            f'{UNIT} is {state}; switch only once release {current} has stopped')
+    out(f'Switching {manifest["label"]} from {current} to {release}')
+    rows = {row['path']: row for row in manifest['files']}
+    # The old release's profiles have release-specific names; unload them
+    # while nothing runs under them, before the new file replaces theirs.
+    host.run(['apparmor_parser', '--remove', str(host.path(PROFILE_FILE))])
+    for path in SINGLE_FILES:
+        if path not in rows:
+            continue
+        raw = host.path(f'{etc(release)}/{NEXT}/{PurePosixPath(path).name}').read_bytes()
+        require(sha256(raw) == rows[path]['sha256'], f'the staged {path} is not the bundle\'s')
+        replace_file(host, path, raw, int(rows[path]['mode'], 8))
+    host.run(['apparmor_parser', '--replace', '--write-cache', str(host.path(PROFILE_FILE))])
+    if JOURNALD_FILE in rows:
+        host.run(['systemctl', 'restart', 'systemd-journald'])
+    host.run(['nft', '--check', '--file', str(host.path(NFT_CONF))])
+    host.run(['systemctl', 'restart', 'nftables'])
+    host.run(['systemctl', 'daemon-reload'])
+    host.run(['systemctl', 'enable', f'{UNIT}.service'])
+    problems = verify(bundle, host, manifest)
+    require(not problems, 'the switched host does not verify; the node was not started:\n  ' + '\n  '.join(problems))
+    host.run(['systemctl', 'start', f'{UNIT}.service'])
+    out(f'Switched to {release} and started {UNIT}. Release {current} stays installed until the next stage.')
+    return manifest
+
+
 # Verifying
 
-def verify(bundle, host, manifest=None):
-    """Every difference between the host and the bundle, as text."""
+def verify(bundle, host, manifest=None, fresh=False):
+    """Every difference between the host and the bundle, as text. Unless
+    fresh (just installed), the signing state's contents are not compared."""
     manifest = manifest or load_bundle(bundle)
     acct = manifest['account']
     uid, gid = acct['uid'], acct['gid']
@@ -279,7 +436,8 @@ def verify(bundle, host, manifest=None):
     for row in manifest['files']:
         check(row['path'], row['mode'], row['owner'], row['sha256'])
     for secret in manifest['secrets']:
-        check(secret['path'], secret['mode'], secret['owner'], secret['sha256'])
+        check(secret['path'], secret['mode'], secret['owner'],
+              secret['sha256'] if fresh or secret['path'] != SIGNING_STATE else None)
     for binary in manifest['binaries']:
         check(binary['path'], '0555', 'root', binary['sha256'])
         flags = host.run(['lsattr', '-d', str(host.path(binary['path']))], check=False).stdout.split()
@@ -336,14 +494,18 @@ def wipe(bundle, host, confirm=input, out=say):
 
 
 def main(argv):
-    if len(argv) != 2 or argv[1] not in ('install', 'verify', 'wipe'):
-        print('usage: host_install.py install|verify|wipe', file=sys.stderr)
+    if len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch', 'wipe'):
+        print('usage: host_install.py install|verify|stage|switch|wipe', file=sys.stderr)
         return 2
     bundle = Path(__file__).resolve().parent
     host = Host()
     try:
         if argv[1] == 'install':
             install(bundle, host)
+        elif argv[1] == 'stage':
+            stage(bundle, host)
+        elif argv[1] == 'switch':
+            switch(bundle, host)
         elif argv[1] == 'verify':
             require(host.is_root(), 'run as root')
             problems = verify(bundle, host)

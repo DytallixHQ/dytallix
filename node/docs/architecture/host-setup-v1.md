@@ -223,6 +223,11 @@ founder to type `wipe LABEL` first and keeps the account.
   `wipe` removes it. The same two commands rehearse a staging host by hand.
 - **H5.** The runbooks that change with it: start and stop, a release switch
   on a host, validator recovery, rebuilding the endpoint by state sync.
+  Built: [host operations](../operations/host.md) (status, start and stop,
+  staging wipe, and the release switch: `stage.sh` and `switch.sh` over
+  `host_install.py stage|switch`, P01, 6 October 2026) and
+  [validator recovery](../operations/validator-recovery.md) (F17). Open:
+  disaster recovery (F19) and the endpoint rebuild.
 
 ## Open on staging
 

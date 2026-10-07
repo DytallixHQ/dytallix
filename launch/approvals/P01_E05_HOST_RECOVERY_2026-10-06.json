@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-10-06-E05-HOST-RECOVERY",
+  "approved": "2026-10-06",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "E05 host setup H5: release switch and validator fencing"
+  },
+  "design_ref": "../../node/docs/architecture/host-setup-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q01",
+      "selected": "Stage alongside, switch at halt",
+      "rule": "A host moves to a new release for an approved upgrade or handover by staging it beside the running one from that host's new bundle (host_install.py stage: binaries, configuration and the next unit, profiles and firewall; the node home and keys are kept and nothing is unsealed). When the old release stops at activation, host_install.py switch points the unit at the new release, loads its profiles and firewall, verifies and starts it. The previous release stays installed until the next stage."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Delete the old server first",
+      "rule": "Validator recovery (F17): before a replacement validator is installed from the sealed bundle, the old validator server is powered off and deleted (or reinstalled) in the provider console and seen gone. Two running copies of the one validator key would double-sign, and the first double sign removes the validator for good."
+    }
+  ],
+  "unset": [
+    "Disaster recovery (F19): the off-host chain export and the snapshot storage provider (D12-Q03)",
+    "Rebuilding the endpoint by state sync: how light blocks reach a console-only host"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
