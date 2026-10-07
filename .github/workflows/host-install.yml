@@ -52,9 +52,11 @@ jobs:
         run: |
           key=$(git ls-tree -r HEAD -- node sdk release | grep -vP '\tnode/(tools|docs)/' | sha256sum | cut -c1-64)
           echo "key=h4-release-$key" >> "$GITHUB_OUTPUT"
+      # Restore and save separately: the combined action saves only when the
+      # whole job succeeds, and H4 runs that fail later still built the set.
       - name: Cached release set
         id: release-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/release
           key: ${{ steps.release-key.outputs.key }}
@@ -71,6 +73,12 @@ jobs:
             dytallix-release-builder \
             python3 /src/release/build_release.py build --src /src --out /out --work /work
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/release"
+      - name: Save the release set
+        if: steps.release-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/release
+          key: ${{ steps.release-key.outputs.key }}
       # Host setup v1's base setup: the packages, and ufw off (the node's table
       # is the host firewall). GitHub's runners ship with ufw active.
       - name: Host base setup
