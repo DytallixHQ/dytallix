@@ -251,6 +251,27 @@ class RenderingTests(unittest.TestCase):
                 raw,m,r=fixture();r['readonly_directories']=dirs
                 with self.assertRaises(render.Invalid):render.render(raw,m,r)
 
+    def test_readonly_tree_reads_beneath_without_execution(self):
+        raw,m,r=fixture();r['readonly_trees']=['/var/lib/dyt-policy-fixture/light-blocks'];o=render.render(raw,m,r)
+        a=o['apparmor.profile'].decode()
+        self.assertIn('  /var/lib/dyt-policy-fixture/light-blocks/ r,',a)
+        self.assertIn('  /var/lib/dyt-policy-fixture/light-blocks/** r,',a)
+        self.assertNotIn('/var/lib/dyt-policy-fixture/light-blocks/** rw',a)
+        self.assertNotRegex(a,r'light-blocks/\*\* [a-z]*[mx]')
+        self.assertIn('/var/lib/dyt-policy-fixture/light-blocks',json.loads(o['unit-properties.json'])['properties']['ReadOnlyPaths'])
+        # The tree is part of the profile identity.
+        self.assertNotEqual(json.loads(o['validation.json']),json.loads(render.render(*fixture())['validation.json']))
+
+    def test_readonly_tree_rejections(self):
+        values=[['/'],['/var'],['/opt/x/'],['/opt/**'],['/opt/x','/opt/x'],['/proc/self/fd'],
+                ['/var/lib/dyt-policy-fixture'],['/var/lib/dyt-policy-fixture/state'],
+                ['/var/lib/dyt-policy-fixture/state/child'],['/opt/dyt-policy-fixture'],
+                ['/opt/dyt-policy-fixture/code'],['/var/lib/dyt-light/a','/var/lib/dyt-light/a/b']]
+        for trees in values:
+            with self.subTest(trees=trees):
+                raw,m,r=fixture();r['readonly_trees']=trees
+                with self.assertRaises(render.Invalid):render.render(raw,m,r)
+
     def test_exact_policy_and_no_authority(self):
         raw,m,r=fixture();out=render.render(raw,m,r);p=json.loads(out['unit-properties.json']);v=json.loads(out['validation.json']);a=out['apparmor.profile'].decode()
         self.assertEqual(p['properties']['ExecPaths'],sorted(x['path'] for x in m['members']))

@@ -235,6 +235,9 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
                     'firewall': firewall, 'launch_channel': render.LAUNCH_CHANNEL},
         'resources': setup['unit'],
     }
+    # A host joining by state sync reads the operator's light block export.
+    if plan_host.get('state_sync') is not None:
+        request['readonly_trees'] = [LIGHT_BLOCKS]
     identities = [{'unit': UNIT, 'uid': UID, 'gid': GID}]
     try:
         policy = production_roles.generate(manifest_raw, mapping, request, identities,

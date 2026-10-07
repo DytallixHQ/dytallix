@@ -177,6 +177,23 @@ class HostFilesTests(unittest.TestCase):
             for name, raw in files.items():
                 self.assertEqual((FIXTURE / label / name).read_bytes(), raw, f'{label}/{name}')
 
+    def test_a_state_sync_host_reads_its_light_blocks(self):
+        plan = copy.deepcopy(self.plan)
+        endpoint = next(h for h in plan['hosts'] if h['role'] == 'endpoint')
+        endpoint['state_sync'] = {'trust_height': 1, 'trust_hash': '00' * 32}
+        generated = self.generate(plan)
+        for label, (files, manifest) in generated.items():
+            profile = files['/etc/apparmor.d/dytallix-node'].decode()
+            service = json.loads(files[f'/etc/dytallix/{manifest["release"]}/service.json'])
+            if label == 'endpoint-1':
+                self.assertEqual(service['state_sync'], {'light_blocks': [h.LIGHT_BLOCKS]})
+                # Every role may list and read the export, none may write or run it.
+                self.assertEqual(profile.count(f'  {h.LIGHT_BLOCKS}/** r,'), 4)
+                self.assertEqual(profile.count(f'  {h.LIGHT_BLOCKS}/ r,'), 4)
+            else:
+                self.assertNotIn('state_sync', service)
+                self.assertNotIn(h.LIGHT_BLOCKS, profile)
+
     def test_written_out(self):
         out = Path(self.tmp.name) / 'out'
         h.write(out, self.generate())
