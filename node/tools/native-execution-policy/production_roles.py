@@ -204,6 +204,13 @@ def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only
                 # A//&S it must let the owner read A//&H//&S.
                 ptrace('readby', labels['supervisor'])
                 ptrace('read', labels['helper'])
+                # Go's runtime signals its own threads (SIGURG, asynchronous
+                # preemption); a self-signal is checked against every profile
+                # of the stack too. The other side still names only itself, so
+                # this adds no signal between two processes.
+                for target in ('application-owner', 'workload', 'helper'):
+                    signal('send', ('urg',), labels[target])
+                    signal('receive', ('urg',), labels[target])
                 signal('receive', CONTROL + ('term', 'kill', 'exists'),
                        labels['application-owner'])
                 signal('receive', ('chld',), labels['application-owner'])
@@ -219,6 +226,9 @@ def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only
                 ptrace('read, readby', labels['helper'])
                 # As a component of the helper's stack, the owner reads it.
                 ptrace('readby', labels['application-owner'])
+                # As a component of the helper's stack: its self-signals.
+                signal('send', ('urg',), labels['helper'])
+                signal('receive', ('urg',), labels['helper'])
             elif role == 'workload':
                 lines.append('  deny signal (send) set=(stop, cont),')
                 signal('receive', CONTROL + ('term', 'kill', 'exists'), labels['supervisor'])
