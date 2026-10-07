@@ -351,7 +351,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "f7fd46174b3908d286dfb629314d80665dc48bbdfc3af05d82b06189542f3db3"
+          "sha256": "cba3d3414966b20257a30debaa4942d440d59f2f8e98eef9e355a2b0b1eb3d5f"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",
@@ -378,7 +378,7 @@
         },
         {
           "path": "crates/native-supervisor/src/service.rs",
-          "sha256": "6973783d8a615fd63fc9cda5ff3b688ffebdb003075835ec0402ab886909d511"
+          "sha256": "46e3fa89c61aed7b7ef5ab7088f6faf0db13468328f248b5519855985c0195ef"
         }
       ],
       "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",
