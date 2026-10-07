@@ -164,6 +164,21 @@ pub fn verify(
     transition(policy, state, authorization)
 }
 
+/// The release a restart selects, checked against the committed state but
+/// not its signatures: the production supervisor's preflight, which never
+/// runs the root helper (P01, 7 October 2026). The application verifies the
+/// signatures with `verify` before it opens state.
+pub fn unsigned_target(
+    policy: &Policy,
+    state: &State,
+    checkpoint: &Checkpoint,
+    raw: &[u8],
+) -> Result<String> {
+    let authorization = decode_authorization(policy, raw).map_err(|e| Rejected(e.to_string()))?;
+    validate(policy, state, checkpoint, &authorization).map_err(|e| Rejected(e.to_string()))?;
+    Ok(authorization.payload.target_release_sha512)
+}
+
 /// Replay a committed restart receipt at its block. Startup supplies the
 /// real signature verifier.
 pub fn replay(

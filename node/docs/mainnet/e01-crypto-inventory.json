@@ -321,7 +321,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/release_handover/restart.rs",
-          "sha256": "afb12d516b92e5fdc41ad8ac240ab0002bbe037676451115bbfb81417ba6157e"
+          "sha256": "10b32fca304568d9ee6345f38577e3c727628d604d0b4b0948cf5cf33124e581"
         }
       ],
       "policy": "Emergency, upgrade, handover and restart controls verify through the pinned local root-verify helper",
@@ -378,7 +378,7 @@
         },
         {
           "path": "crates/native-supervisor/src/service.rs",
-          "sha256": "62c339f98410f0cba1e8a5a9bab78ec65716c34388d5bca6688524fcd1f2d624"
+          "sha256": "6973783d8a615fd63fc9cda5ff3b688ffebdb003075835ec0402ab886909d511"
         }
       ],
       "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",

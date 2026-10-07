@@ -1,7 +1,10 @@
-# Supervisor root preflight (design note, for a P01 decision)
+# Supervisor root preflight
 
-Status: **open**. Found by the first staging install (H4, PR #12, 7 October
-2026). No production supervisor can start until this is decided.
+Status: **decided, option D** (P01, 7 October 2026,
+[approval](../../../launch/approvals/P01_E05_SUPERVISOR_ROOT_2026-10-07.json)).
+Found by the first staging install (H4, PR #12, 7 October 2026).
+Implemented: `ConsensusApplication::preflight_release_pinned` and the
+production supervisor's `authorize()`; see [Decision](#decision).
 
 ## The conflict
 
@@ -126,6 +129,31 @@ starting the engine.
 signature-derived check. D keeps the reviewed E02 role model and removes a
 duplicated check rather than adding a new privileged path. A and C add
 security-relevant machinery to fix an ordering problem.
+
+## Decision
+
+P01 chose **D** on 7 October 2026. The production supervisor's `authorize()`
+calls `ConsensusApplication::preflight_release_pinned`, which:
+
+- loads the root configuration and its public records
+  (`RootGenesis::from_config`, no execution);
+- checks the pinned configuration, its exact source, the genesis binding and
+  the root records against each other (`root_checks`: the release named by
+  the root controls is the root configuration's release manifest, and no
+  genesis signer holds another role);
+- on a fresh database selects that release; on a committed one, read only,
+  checks the stored configuration and genesis bindings and selects the
+  committed active release, or a pinned restart authorization's target
+  after checking it against the committed state
+  (`handover::restart::unsigned_target`).
+
+`verify_catalog` then checks the installed manifest and every member file
+against that release, as before. The application runs the root helper
+(A→H) as it always has: three of five genesis signatures, the stored root
+receipt, every control replay and a restart's signatures, before it opens
+state; `verify_info` then requires its state to match the supervisor's.
+`threshold_tests.rs` checks that the pinned preflight selects the release
+and head with a helper that cannot run.
 
 ## After the decision
 

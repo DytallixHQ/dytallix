@@ -1,0 +1,23 @@
+{
+  "decision_id": "P01-2026-10-07-E05-SUPERVISOR-ROOT",
+  "approved": "2026-10-07",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Supervisor root preflight (design note, H4 blocker)"
+  },
+  "design_ref": "../../node/docs/architecture/supervisor-root-preflight.md",
+  "decisions": [
+    {
+      "question": "D12-Q01",
+      "selected": "D: pinned digests + app verifies",
+      "rule": "The production supervisor never runs the root helper; only the application may (E02: A→H). The supervisor selects the release from the root-owned, digest-pinned configuration, genesis and root records (and the committed state, read only), and checks the installed catalog against it. The application verifies three of five root genesis signatures, the committed controls and any restart authorization through the helper before it opens state, and the supervisor then requires the application's info to match. This replaces A5's supervisor-side signature check, which E02 made impossible: every production start was refused before any child started."
+    }
+  ],
+  "supersedes": "The supervisor's own threshold root verification in production activation v1, step A5 (approvals/P01_E05_ACTIVATION_2026-09-30.json), and the restart runbook's supervisor-side authorization check.",
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

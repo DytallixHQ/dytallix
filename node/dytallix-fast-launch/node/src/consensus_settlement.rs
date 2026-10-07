@@ -879,7 +879,29 @@ fn select_restart(
     raw: &[u8],
     verifier: &dyn handover::Verifier,
 ) -> Result<Option<handover::restart::Verified>> {
-    classify((|| {
+    restart_against(storage, config, raw, |policy, state, checkpoint, raw| {
+        handover::restart::verify(policy, state, checkpoint, raw, verifier)
+    })
+}
+
+/// As `select_restart` without the signatures, for the production
+/// supervisor's pinned preflight: the release the restart would select. The
+/// application verifies the signatures before it opens state.
+fn select_restart_unsigned(
+    storage: &Storage,
+    config: &ConsensusConfig,
+    raw: &[u8],
+) -> Result<Option<String>> {
+    restart_against(storage, config, raw, handover::restart::unsigned_target)
+}
+
+fn restart_against<T>(
+    storage: &Storage,
+    config: &ConsensusConfig,
+    raw: &[u8],
+    check: impl FnOnce(&handover::Policy, &handover::State, &handover::restart::Checkpoint, &[u8]) -> Result<T>,
+) -> Result<Option<T>> {
+    classify((move || {
         let policy = config
             .release_handover
             .as_ref()
@@ -903,7 +925,7 @@ fn select_restart(
             emergency_receipt_sha256: emergency_state(storage, config)?
                 .and_then(|state| state.last_receipt_sha256().map(str::to_owned)),
         };
-        Ok(Some(handover::restart::verify(policy, &state, &checkpoint, raw, verifier)?))
+        Ok(Some(check(policy, &state, &checkpoint, raw)?))
     })(), FailureClass::Release)
 }
 
@@ -975,12 +997,18 @@ pub fn check_stopped(path: &Path, config: &ConsensusConfig, genesis_bytes: &[u8]
     Ok(StoppedCheck::Passed(current_info(&storage)?))
 }
 
+/// The release committed state selects, read only. With `verified` (a root
+/// genesis prepared through the helper and its verifier) the stored root
+/// receipt and every control are replayed and a restart's signatures are
+/// verified. Without it (the production supervisor, which never runs the
+/// root helper) only the configuration and genesis bindings are checked and
+/// a restart is checked against committed state; the application then
+/// verifies all of it before it opens state.
 fn preflight_prepared_release(
     path: &Path,
     config: &ConsensusConfig,
     genesis_bytes: &[u8],
-    root_genesis: &crate::root_genesis::PreparedRootGenesis,
-    verifier: &EmergencyVerifier,
+    verified: Option<(&crate::root_genesis::PreparedRootGenesis, &EmergencyVerifier)>,
     restart: Option<&[u8]>,
 ) -> Result<VerifiedReleaseAuthority> {
     let root_release = &config.emergency.as_ref().context("Candidate requires root release")?.release_sha512;
@@ -1000,13 +1028,23 @@ fn preflight_prepared_release(
         return Ok(authority);
     }
     let storage = Storage::open_read_only(path.to_path_buf())?;
-    if check_stored_startup(&storage, config, genesis_bytes, Some(root_genesis), Some(verifier))? {
+    let initialized = match verified {
+        Some((root_genesis, verifier)) =>
+            check_stored_startup(&storage, config, genesis_bytes, Some(root_genesis), Some(verifier))?,
+        None => check_stored_bindings(&storage, config, genesis_bytes)?,
+    };
+    if initialized {
         authority.expected.manifest_sha512 = handover_state(&storage, config)?
             .map(|state| state.active_release_sha512().to_owned())
             .unwrap_or_else(|| root_release.clone());
         if let Some(raw) = restart {
-            if let Some(verified) = select_restart(&storage, config, raw, verifier)? {
-                authority.expected.manifest_sha512 = verified.target_release_sha512().to_owned();
+            let target = match verified {
+                Some((_, verifier)) => select_restart(&storage, config, raw, verifier)?
+                    .map(|verified| verified.target_release_sha512().to_owned()),
+                None => select_restart_unsigned(&storage, config, raw)?,
+            };
+            if let Some(target) = target {
+                authority.expected.manifest_sha512 = target;
             }
         }
         authority.committed_info = Some(current_info(&storage)?);
@@ -4264,10 +4302,16 @@ impl ConsensusApplication {
         };
         Self::open_inner(path, config, genesis_bytes, Some(prepared), emergency_verifier, candidate)
     }
-    /// The release a supervisor may launch under the threshold root
-    /// (production activation v1, A4), read only; as
-    /// `preflight_development_release_with_restart`.
-    pub fn preflight_release_with_root(
+    /// The release a production supervisor may launch under the threshold
+    /// root (production activation v1, A4), read only and from pinned inputs
+    /// (P01, 7 October 2026, supervisor root preflight option D). The
+    /// supervisor never runs the root helper: only the application may
+    /// (E02, A→H). This checks the pinned configuration, genesis and root
+    /// records against each other and selects the committed release; the
+    /// application verifies the root genesis signatures, the committed
+    /// controls and any restart authorization before it opens state, and
+    /// the supervisor then requires its info to match this authority.
+    pub fn preflight_release_pinned(
         path: impl AsRef<Path>,
         config: &ConsensusConfig,
         genesis_bytes: &[u8],
@@ -4277,9 +4321,7 @@ impl ConsensusApplication {
     ) -> Result<VerifiedReleaseAuthority> {
         root_checks(config, genesis_bytes, consensus_source, root)?;
         config.emergency.as_ref().context("Emergency policy required")?;
-        let verifier = bootstrap_history_verifier(root)?;
-        let prepared = root.prepare(&config.chain_id, genesis_bytes, consensus_source)?;
-        preflight_prepared_release(path.as_ref(), config, genesis_bytes, &prepared, &verifier, restart)
+        preflight_prepared_release(path.as_ref(), config, genesis_bytes, None, restart)
     }
     /// Explicit development API. The ordinary open path remains unchanged.
     /// Production profiles are rejected by existing configuration validation.
@@ -4481,7 +4523,7 @@ impl ConsensusApplication {
             "Exact consensus source differs from selected runtime configuration");
         let verifier = bootstrap_history_verifier(authorization)?;
         let prepared = authorization.prepare(&config.chain_id, genesis_bytes, consensus_source)?;
-        preflight_prepared_release(path.as_ref(), config, genesis_bytes, &prepared, &verifier, restart)
+        preflight_prepared_release(path.as_ref(), config, genesis_bytes, Some((&prepared, &verifier)), restart)
     }
     fn open_inner(
         path: impl AsRef<Path>,
@@ -4519,8 +4561,8 @@ impl ConsensusApplication {
         if let Some(input) = &candidate {
             let authority = preflight_prepared_release(
                 path.as_ref(), &config, &genesis_bytes,
-                root_genesis.as_ref().context("Candidate requires verified root genesis")?,
-                emergency_verifier.as_ref().context("Candidate requires emergency verifier")?,
+                Some((root_genesis.as_ref().context("Candidate requires verified root genesis")?,
+                    emergency_verifier.as_ref().context("Candidate requires emergency verifier")?)),
                 input.restart.as_deref(),
             )?;
             classify(crate::runtime_candidate_v2::verify_runtime_candidate(

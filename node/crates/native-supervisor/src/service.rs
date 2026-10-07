@@ -75,8 +75,9 @@ impl NativeService {
             &observation_bounds,
         )
         .context("Native observation phase=prepare")?;
-        // Root verification may execute trusted helper code. Recheck public
-        // inputs and lock identities before allowing writable child startup.
+        // A development root verification executes trusted helper code.
+        // Recheck public inputs and lock identities before allowing writable
+        // child startup.
         config.validate()?;
         lease.recheck()?;
         let mut owner = ProcessOwner::new(
@@ -379,9 +380,14 @@ impl NativeService {
     }
 }
 
-/// Verify the root authority and the release catalog it selects. A
-/// production build has only the threshold root (A2, A4): three of the five
-/// genesis signatures over the exact genesis files and release.
+/// Select the release and verify its catalog. A production build has only
+/// the threshold root (A2, A4), and its supervisor never runs the root
+/// helper (P01, 7 October 2026, supervisor root preflight option D; E02:
+/// only the application may). It checks the pinned configuration, genesis,
+/// root records and installed files against each other; the application
+/// verifies three of the five genesis signatures, the committed controls
+/// and any restart authorization before it opens state, and `verify_info`
+/// then requires its state to match.
 #[cfg(feature = "production")]
 fn authorize(
     config: &NativeServiceConfig,
@@ -389,7 +395,7 @@ fn authorize(
 ) -> Result<(VerifiedReleaseAuthority, catalog::VerifiedMemberFiles, RootHelper)> {
     let (consensus_source, consensus, genesis, emergency, restart) = inputs(config)?;
     let root = dytallix_fast_node::root_genesis::RootGenesis::from_config(&config.root_config.path)?;
-    let authority = ConsensusApplication::preflight_release_with_root(
+    let authority = ConsensusApplication::preflight_release_pinned(
         config.database(),
         &consensus,
         &genesis,

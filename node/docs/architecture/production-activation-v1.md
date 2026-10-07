@@ -302,8 +302,10 @@ production-profile staging chains signed with test keys:
     entry does; `consensus_stdio --root-config` takes `--verifier-config`
     and `--candidate-config`.
   - The bootstrap helper is the threshold root's own (`RootBootstrap`).
-  - `preflight_release_with_root` gives the supervisor (A5) the release it
-    may launch.
+  - `preflight_release_pinned` gives the supervisor (A5) the release it
+    may launch, from pinned inputs and without the root helper (P01,
+    7 October 2026, [supervisor root preflight](supervisor-root-preflight.md));
+    the application verifies the signatures.
   - The node refuses a genesis signer key that also holds an emergency,
     upgrade or handover role.
 - **Production transport profile** `dytallix-pqc-production-v1`, the only
@@ -333,7 +335,7 @@ production-profile staging chains signed with test keys:
     keys and refused development profiles.
 
 **A5 done** (supervisor production mode):
-- **One mode per build.** A production supervisor runs only `production-native` (`--service-config`); a development build only `disposable-loopback-native`. The production mode opens through the threshold root (`preflight_release_with_root`) and starts the application with the root, verifier and candidate configurations.
+- **One mode per build.** A production supervisor runs only `production-native` (`--service-config`); a development build only `disposable-loopback-native`. The production mode selects the release from the pinned threshold-root inputs (`preflight_release_pinned`, without the root helper; P01, 7 October 2026, [supervisor root preflight](supervisor-root-preflight.md)) and starts the application with the root, verifier and candidate configurations; the application verifies the root genesis signatures before it opens state.
 - **Release catalog.** The production service profile `production-linux-native-service-v1` serves every role and always carries the HTTP adapter.
 - **Roles.** `validator`, `sentry` or `endpoint`.
   - Validators and sentries run no adapter, channel or status listener; an endpoint runs the adapter and channel, and may serve the status page. A production adapter build serves only `dytallix-pqc-http-production-v1`.
