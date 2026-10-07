@@ -67,5 +67,9 @@ risk, a key compromise and monitoring down.
 - Alert checks, settings and the chosen free services (artifact A22).
 - The hosting provider, the snapshot storage provider and the host records
   (D12-Q03).
-- The written recovery procedures (F17 validator recovery, F19 disaster
-  recovery).
+- The written recovery procedures: F17 validator recovery is written
+  ([validator recovery](../../node/docs/operations/validator-recovery.md));
+  F19's design is approved ([disaster recovery v1](../../node/docs/architecture/disaster-recovery-v1.md),
+  P01, 7 October 2026: the sentry pushes encrypted copies to a second
+  provider, and the validator and the sentry run at different providers);
+  its tools and runbook follow.

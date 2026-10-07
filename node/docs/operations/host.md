@@ -99,9 +99,8 @@ first, never restore signing state, set the old votes aside.
 
 ## Not yet written
 
-- Disaster recovery (F19). The
-  [operations objectives](../../../launch/operations/OBJECTIVES.md) fix the
-  rules: an offline monthly export of the chain and daily snapshots copied,
-  encrypted, to a second provider (not yet chosen, D12-Q03).
+- Disaster recovery (F19): the design is approved
+  ([disaster recovery v1](../architecture/disaster-recovery-v1.md)); the
+  backup tools, unit and runbook follow.
 - Rebuilding the endpoint by state sync: how light blocks reach a
   console-only host.
