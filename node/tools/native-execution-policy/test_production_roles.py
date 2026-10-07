@@ -175,7 +175,8 @@ class ProductionRoleTests(unittest.TestCase):
             expected = {
                 'supervisor': {labels['supervisor'], labels['application-owner'],
                                labels['workload'], labels['helper'],
-                               components['helper'], components['application-owner']},
+                               components['helper'], components['application-owner'],
+                               components['workload']},
                 'application-owner': {labels['application-owner'],
                                       labels['supervisor'], labels['helper'],
                                       components['application-owner'], components['helper']},
@@ -192,6 +193,23 @@ class ProductionRoleTests(unittest.TestCase):
                                     row['peer_address'] == 'none'
                                     for row in matrix['launch_channel']
                                     if row['source_profile'] == components[role]))
+
+    def test_every_stack_component_names_the_others_for_the_launch_channel(self):
+        # AppArmor revalidates an inherited AF_UNIX socket at exec against
+        # each profile of the new stack, with the other components as bare
+        # peer labels. H4: S lacked the bare W, so S//&W children (bridge,
+        # engine) lost their launch channel and exited.
+        matrix = json.loads(self.output()['role-matrix.json'])
+        for unit in matrix['units']:
+            labels = {name: unit[name + '_label'] for name in policy.ROLE_ORDER}
+            for role in ('application-owner', 'workload', 'helper'):
+                stack = labels[role].split('//&')
+                for component in stack:
+                    named = {row['peer'] for row in matrix['launch_channel']
+                             if row['source_profile'] == component}
+                    for other in stack:
+                        if other != component:
+                            self.assertIn(other, named, f'{component} does not name {other} ({role})')
 
     def test_profile_inventory_rejects_missing_or_duplicates(self):
         matrix = json.loads(self.output()['role-matrix.json'])

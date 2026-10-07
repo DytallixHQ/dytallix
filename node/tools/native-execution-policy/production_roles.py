@@ -232,9 +232,13 @@ def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only
             # AppArmor checks inherited AF_UNIX sockets against individual
             # stack components as well as the effective peer label. The bare
             # component labels below are exact names within this unit.
+            # Each profile of a child's stack must name every other component
+            # of that stack: H4 found S lacking W, so the bridge's inherited
+            # launch channel was revoked at its exec into S//&W.
             peers = {'supervisor': (labels['supervisor'], labels['application-owner'],
                                     labels['workload'], labels['helper'],
-                                    components['helper'], components['application-owner']),
+                                    components['helper'], components['application-owner'],
+                                    components['workload']),
                      'application-owner': (labels['application-owner'],
                                             labels['supervisor'], labels['helper'],
                                             components['application-owner'],
