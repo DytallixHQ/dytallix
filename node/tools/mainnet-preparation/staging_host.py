@@ -171,11 +171,22 @@ def traced_start():
 
 # Kernel tracepoints, so nothing in the unit's sandbox can block the trace
 # (ptrace is denied there). Read contents are printed only for small reads
-# after a /proc open: never for key or configuration files.
+# after a /proc open: never for key or configuration files. BPF programs have
+# a 512-byte stack, so strings stay at 96 bytes, each probe holds at most one
+# path, and the /proc test reads only a 6-byte prefix.
 KERNEL_TRACE = r"""
-tracepoint:syscalls:sys_enter_openat /strncmp(comm, "dytallix", 8) == 0/ { @path[tid] = str(args->filename); }
+tracepoint:syscalls:sys_enter_openat /strncmp(comm, "dytallix", 8) == 0/ {
+  @path[tid] = str(args->filename);
+  @proc[tid] = 0;
+  if (strncmp(str(args->filename, 7), "/proc/", 6) == 0) { @proc[tid] = 1; } }
 tracepoint:syscalls:sys_exit_openat /@path[tid] != ""/ {
-  printf("%s[%d] openat %s = %d\n", comm, tid, @path[tid], args->ret); @last[tid] = @path[tid]; delete(@path[tid]); }
+  printf("%s[%d] openat %s = %d\n", comm, tid, @path[tid], args->ret); delete(@path[tid]); }
+tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
+  printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
+tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
+"""
+# No strings at all: failing calls (errno) and exits, if the others do not load.
+KERNEL_TRACE_ERRORS = r"""
 tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
   printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
 tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
@@ -183,8 +194,8 @@ tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf
 KERNEL_TRACE_READS = r"""
 tracepoint:syscalls:sys_enter_read /strncmp(comm, "dytallix", 8) == 0/ { @buf[tid] = (uint64)args->buf; }
 tracepoint:syscalls:sys_exit_read /@buf[tid] != 0/ {
-  if (args->ret > 0 && args->ret <= 160 && strncmp(@last[tid], "/proc/", 6) == 0) {
-    printf("%s[%d] read %d %r\n", comm, tid, args->ret, buf(uptr((uint8 *)@buf[tid]), 160)); }
+  if (args->ret > 0 && args->ret <= 96 && @proc[tid] == 1) {
+    printf("%s[%d] read %d %r\n", comm, tid, args->ret, buf(uptr((uint8 *)@buf[tid]), 96)); }
   delete(@buf[tid]); }
 """
 
@@ -197,15 +208,15 @@ def kernel_traced_start():
         say('(no kernel trace: bpftrace is missing)')
         return
     script = Path('/tmp/dytallix-start.bt')
-    for body in (KERNEL_TRACE + KERNEL_TRACE_READS, KERNEL_TRACE):
+    for body in (KERNEL_TRACE + KERNEL_TRACE_READS, KERNEL_TRACE, KERNEL_TRACE_ERRORS):
         script.write_text(body)
         say(f'$ bpftrace {script}; systemctl start {UNIT}.service')
         tracer = subprocess.Popen(['bpftrace', str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                  text=True, env=dict(os.environ, BPFTRACE_MAX_STRLEN='200'))
+                                  text=True, env=dict(os.environ, BPFTRACE_MAX_STRLEN='96'))
         time.sleep(10)  # probe attachment
         if tracer.poll() is None:
             break
-        # The read probes need a newer bpftrace: trace without them.
+        # Fall back to fewer probes.
         say(f'bpftrace stopped: {tracer.communicate()[0][-1500:]}')
     else:
         return
