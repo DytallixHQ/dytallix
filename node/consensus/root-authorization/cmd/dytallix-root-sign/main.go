@@ -32,8 +32,16 @@
 //	seal-check -paper F -sealed F
 //	unseal     -paper F -sealed F -label L -out DIR
 //
+// Off-host backups (node/docs/architecture/disaster-recovery-v1.md) encrypt
+// a snapshot directory under the chain's backup code:
+//
+//	backup-code  -chain ID -out PATH
+//	backup-seal  -code-file F -height H -in DIR -out PATH
+//	backup-check -paper F -in F
+//	backup-open  -paper F -in F -out DIR
+//
 // Outputs are never overwritten. Everything it writes except private keys,
-// a kit's paper line and unsealed files is a public record. It cannot start a chain,
+// a kit's paper line, unsealed files and backup codes is a public record. It cannot start a chain,
 // consume a sequence or approve a launch: the node verifies every signature
 // again through its pinned helper.
 package main
@@ -213,6 +221,37 @@ func run(args []string, out io.Writer) error {
 			return err
 		}
 		return unseal(*paper, *sealed, *label, *output, out)
+	case "backup-code":
+		chain := flags.String("chain", "", "the chain the code is for")
+		output := flags.String("out", "", "new backup code file")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return backupCode(*chain, *output, out)
+	case "backup-seal":
+		code := flags.String("code-file", "", "the chain's backup code file")
+		height := flags.String("height", "", "the snapshot's height")
+		input := flags.String("in", "", "the snapshot directory")
+		output := flags.String("out", "", "new copy file")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return backupSeal(*code, *height, *input, *output, out)
+	case "backup-check":
+		paper := flags.String("paper", "", "the backup code's paper line, or - to type it")
+		input := flags.String("in", "", "the copy")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return backupCheck(*paper, *input, out)
+	case "backup-open":
+		paper := flags.String("paper", "", "the backup code's paper line, or - to type it")
+		input := flags.String("in", "", "the copy")
+		output := flags.String("out", "", "new directory for the snapshot")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return backupOpen(*paper, *input, *output, out)
 	}
 	return fmt.Errorf("unknown command %q", args[0])
 }
