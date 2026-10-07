@@ -743,6 +743,14 @@ impl PinnedInput {
     }
 }
 
+/// A child endpoint left by a crash: a socket owned by this user, without
+/// group or other bits.
+pub fn stale_endpoint(metadata: &Metadata) -> bool {
+    use std::os::unix::fs::FileTypeExt;
+    metadata.file_type().is_socket()
+        && metadata.uid() == unsafe { libc::geteuid() }
+        && metadata.mode() & 0o077 == 0
+}
 pub fn private_directory(path: &Path) -> Result<()> {
     ensure!(
         path.is_absolute() && std::fs::canonicalize(path)? == path,
@@ -798,6 +806,26 @@ impl NativeServiceConfig {
     pub fn operator_rpc_socket(&self) -> PathBuf {
         self.home.join("data/rpc-operator.sock")
     }
+    /// The Unix endpoints the children create in the node home. A crash
+    /// (SIGKILL, power loss) leaves them behind; a graceful stop removes them.
+    pub fn owned_endpoints(&self) -> [PathBuf; 3] {
+        [self.bridge_socket(), self.rpc_socket(), self.operator_rpc_socket()]
+    }
+    /// Remove leftover child endpoints. Call only with both lifecycle leases
+    /// held: children inherit the leases, so holding them proves no child of
+    /// an earlier start still runs. Only a socket owned by this user without
+    /// group or other bits is removed; anything else stays and is refused.
+    pub fn remove_stale_endpoints(&self) -> Result<()> {
+        for path in self.owned_endpoints() {
+            match std::fs::symlink_metadata(&path) {
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+                Ok(metadata) if stale_endpoint(&metadata) => std::fs::remove_file(&path)?,
+                Ok(_) => {}
+            }
+        }
+        Ok(())
+    }
     pub fn lock_paths(&self) -> (PathBuf, PathBuf) {
         // Match the existing supervisor's home and signing-identity leases.
         let home_digest = hex::encode(Sha256::digest(self.home.as_os_str().as_encoded_bytes()));
@@ -844,6 +872,13 @@ impl NativeServiceConfig {
                     "State inventory exceeds bound"
                 );
                 let metadata = std::fs::symlink_metadata(&path)?;
+                // A crash leaves the engine's endpoints; they are removed
+                // under the leases in prepare, before startup.
+                if (path == self.rpc_socket() || path == self.operator_rpc_socket())
+                    && stale_endpoint(&metadata)
+                {
+                    continue;
+                }
                 ensure!(
                     !metadata.file_type().is_symlink()
                         && metadata.uid() == unsafe { libc::geteuid() }
@@ -1554,6 +1589,31 @@ mod tests {
             "environment":{},"monitor_interval_millis":1,"max_state_entries":1,
             "metrics":{"directory":"/m","interval_seconds":15},"block_history":"window"}))
         .unwrap()
+    }
+    #[test]
+    fn stale_child_endpoints_are_removed_and_nothing_else() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = service(MODE);
+        config.home = dir.path().canonicalize().unwrap();
+        for sub in ["abci", "data"] { std::fs::create_dir(config.home.join(sub)).unwrap(); }
+        let [bridge, rpc, operator] = config.owned_endpoints();
+        let listeners: Vec<_> = [&bridge, &rpc].iter().map(|p| std::os::unix::net::UnixListener::bind(p).unwrap()).collect();
+        for p in [&bridge, &rpc] { std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o600)).unwrap(); }
+        std::fs::write(&operator, b"not a socket").unwrap();
+        std::fs::set_permissions(&operator, std::fs::Permissions::from_mode(0o600)).unwrap();
+        assert!(stale_endpoint(&std::fs::symlink_metadata(&rpc).unwrap()));
+        assert!(!stale_endpoint(&std::fs::symlink_metadata(&operator).unwrap()));
+        config.remove_stale_endpoints().unwrap();
+        // Crash leftovers go; a regular file at an endpoint path stays and is refused later.
+        assert!(std::fs::symlink_metadata(&bridge).is_err() && std::fs::symlink_metadata(&rpc).is_err());
+        assert!(operator.exists());
+        // A socket with group or other bits is not a leftover of this node.
+        let _again = std::os::unix::net::UnixListener::bind(&rpc).unwrap();
+        std::fs::set_permissions(&rpc, std::fs::Permissions::from_mode(0o660)).unwrap();
+        assert!(!stale_endpoint(&std::fs::symlink_metadata(&rpc).unwrap()));
+        config.remove_stale_endpoints().unwrap();
+        assert!(std::fs::symlink_metadata(&rpc).is_ok());
+        drop(listeners);
     }
     #[test]
     fn each_build_runs_only_its_own_mode() {

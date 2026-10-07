@@ -49,7 +49,11 @@ jobs:
           workspaces: node
           key: consensus
       - name: Native build dependencies
-        run: sudo apt-get update && sudo apt-get install -y clang libclang-dev cmake pkg-config
+        # apt's 30 s network timeouts catch a stalled mirror (one held a job
+        # for 85 minutes, 7 October 2026); this backstop lets a slow but
+        # progressing mirror finish.
+        timeout-minutes: 20
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y clang libclang-dev cmake pkg-config
       - name: Module boundaries
         run: |
           python3 scripts/check_module_boundaries.py
@@ -181,7 +185,11 @@ jobs:
         with:
           toolchain: 1.88.0
       - name: Host tools
-        run: sudo apt-get update && sudo apt-get install -y apparmor apparmor-utils gcc libc6-dev linux-libc-dev clang libclang-dev cmake pkg-config
+        # apt's 30 s network timeouts catch a stalled mirror (one held a job
+        # for 85 minutes, 7 October 2026); this backstop lets a slow but
+        # progressing mirror finish.
+        timeout-minutes: 20
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y apparmor apparmor-utils gcc libc6-dev linux-libc-dev clang libclang-dev cmake pkg-config
       - name: Build helper, fixture and Rust fixtures
         run: |
           out="$RUNNER_TEMP/e02"

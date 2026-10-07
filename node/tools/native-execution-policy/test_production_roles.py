@@ -140,6 +140,30 @@ class ProductionRoleTests(unittest.TestCase):
                                      all(allows(c, 'read', labels['supervisor']) for c in peer.split('//&')),
                                      f'{peer} can read the supervisor')
 
+    def test_go_self_signal_passes_and_adds_no_cross_process_signal(self):
+        # A signal is checked against every profile of the sender and the
+        # receiver (H4 audit: Go's SIGURG preemption was denied under S//&W
+        # and A//&H//&S). Each stack must allow urg to itself; no pair of
+        # different stacks may exchange urg.
+        output = self.output()
+        profiles = parsed_profiles(output['apparmor.profile'])
+        matrix = json.loads(output['role-matrix.json'])
+
+        def allows(component, action, peer):
+            return any(a == action and 'urg' in names and p == peer
+                       for a, names, p in signal_rules(profiles[component]))
+
+        def delivered(source, target):
+            return (all(allows(c, 'send', target) for c in source.split('//&')) and
+                    all(allows(c, 'receive', source) for c in target.split('//&')))
+
+        for unit in matrix['units']:
+            labels = [unit[name + '_label'] for name in policy.ROLE_ORDER]
+            for source in labels:
+                for target in labels:
+                    self.assertEqual(delivered(source, target), source == target,
+                                     f'urg {source} -> {target}')
+
     def test_preserved_base_controls_and_hashes(self):
         raw, mapping, request, _ = self.inputs()
         base_output = render.render(raw, mapping, request)

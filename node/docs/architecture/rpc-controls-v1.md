@@ -131,8 +131,11 @@ balancer or firewall does. It cannot terminate the channel.
   `rpc.sock` and `rpc-operator.sock`; `startRPC` in the production build
   calls it. `ipc.Listen` accepts only those two socket names.
 - **Supervisor.** Before starting the engine it requires both sockets to
-  be absent (a leftover one means manual recovery), and waits for the
-  client socket. The state-sync harness removes both after a stop.
+  be absent, and waits for the client socket. A crash leaves them behind;
+  with both lifecycle leases held, the supervisor removes a leftover socket
+  owned by the service user without group or other bits, and still refuses
+  anything else at those paths (H4 start-path audit, finding 10). The
+  state-sync harness removes both after a stop.
 - **Tests.** Go: the allowlists name only real routes and exclude the
   listed methods; an excluded method is not found in both request forms;
   both sockets are created 0600 and serve their own lists; a start over

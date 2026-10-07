@@ -47,6 +47,9 @@ impl NativeService {
         let supervisor_security = admission.supervisor_state()?;
         let (service_lock, signer_lock) = config.lock_paths();
         let lease = LifecycleLease::acquire(&service_lock, &signer_lock)?;
+        // With both leases held no child of an earlier start can still run,
+        // so endpoints a crash left behind are removed before startup.
+        config.remove_stale_endpoints()?;
         // Re-read pinned settings with both lifecycle locks held.
         config.validate()?;
         let candidate: DevelopmentCandidateV2Input =
