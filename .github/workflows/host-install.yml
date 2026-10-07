@@ -79,7 +79,9 @@ jobs:
           sudo ufw disable
           timedatectl show -p NTPSynchronized
           # The node's root helper refuses a group- or other-writable ancestor.
+          # GitHub's image has /opt at 0777 (stock Ubuntu 24.04: 0755).
           stat -c '%U:%G %a %n' / /opt
+          sudo chmod 0755 /opt
       # Not part of host setup: staging_host traces a failed start with it.
       - name: Diagnostic tools
         run: sudo apt-get install -y strace bpftrace auditd
