@@ -82,8 +82,10 @@ jobs:
       # Host setup v1's base setup: the packages, and ufw off (the node's table
       # is the host firewall). GitHub's runners ship with ufw active.
       - name: Host base setup
-        # A stalled mirror once hung this step for 85 minutes (7 October 2026).
-        timeout-minutes: 10
+        # apt's 30 s network timeouts catch a stalled mirror (one held a job
+        # for 85 minutes, 7 October 2026); this backstop lets a slow but
+        # progressing mirror finish.
+        timeout-minutes: 20
         run: |
           sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y apparmor apparmor-utils nftables
           sudo ufw disable
@@ -94,8 +96,10 @@ jobs:
           sudo chmod 0755 /opt
       # Not part of host setup: staging_host traces a failed start with it.
       - name: Diagnostic tools
-        # A stalled mirror once hung this step for 85 minutes (7 October 2026).
-        timeout-minutes: 10
+        # apt's 30 s network timeouts catch a stalled mirror (one held a job
+        # for 85 minutes, 7 October 2026); this backstop lets a slow but
+        # progressing mirror finish.
+        timeout-minutes: 20
         run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y strace bpftrace auditd
       - name: Staging chain and bundles
         run: |
