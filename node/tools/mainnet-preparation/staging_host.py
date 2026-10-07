@@ -31,6 +31,7 @@ import socket
 import subprocess
 import sys
 import tarfile
+import threading
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -135,6 +136,7 @@ def diagnostics():
         say('$ ' + ' '.join(args))
         subprocess.run(args)
     traced_start()
+    audit_traced_start()
     kernel_traced_start()
 
 
@@ -169,18 +171,52 @@ def traced_start():
         say(line)
 
 
+def unit_account():
+    unit = Path(f'/etc/systemd/system/{UNIT}.service')
+    found = re.search(r'^User=(\d+)$', unit.read_text(), re.M) if unit.exists() else None
+    return found.group(1) if found else None
+
+
+def audit_traced_start():
+    """Start the unit once more, with its whole sandbox, under audit rules for
+    its account: every failing system call, every open and every exec, with
+    names and errno interpreted by ausearch. Needs no compiler, unlike
+    bpftrace, and also records AppArmor denials."""
+    uid = unit_account()
+    if not (uid and shutil.which('auditctl') and shutil.which('ausearch')):
+        say('(no audit trace: the unit or auditd is missing)')
+        return
+    key = 'dytallix-start'
+    for syscalls in (['-S', 'all', '-F', 'success=0'], ['-S', 'openat', '-S', 'execve']):
+        subprocess.run(['auditctl', '-a', 'always,exit', '-F', 'arch=b64', *syscalls,
+                        '-F', f'uid={uid}', '-k', key], check=False)
+    say(f'$ auditctl (uid {uid}: failing calls, opens, execs); systemctl start {UNIT}.service')
+    subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=False)
+    time.sleep(5)
+    subprocess.run(['auditctl', '-D', '-k', key], check=False)
+    records = subprocess.run(['ausearch', '-i', '-k', key], capture_output=True, text=True).stdout
+    lines = [line for line in records.splitlines() if line.strip()]
+    say(f'-- last {min(len(lines), 300)} of {len(lines)} audit lines --')
+    for line in lines[-300:]:
+        say(line)
+    denials = subprocess.run(['ausearch', '-i', '-m', 'AVC'], capture_output=True, text=True).stdout
+    say('-- AppArmor (AVC) records --')
+    for line in [line for line in denials.splitlines() if line.strip()][-40:]:
+        say(line)
+
+
 # Kernel tracepoints, so nothing in the unit's sandbox can block the trace
 # (ptrace is denied there). Read contents are printed only for small reads
 # after a /proc open: never for key or configuration files. BPF programs have
-# a 512-byte stack, so strings stay at 96 bytes, each probe holds at most one
-# path, and the /proc test reads only a 6-byte prefix.
+# a 512-byte stack, so no probe keeps a string in a map: paths are printed
+# where they are read, and the /proc test reads only a 6-byte prefix.
 KERNEL_TRACE = r"""
 tracepoint:syscalls:sys_enter_openat /strncmp(comm, "dytallix", 8) == 0/ {
-  @path[tid] = str(args->filename);
+  printf("%s[%d] openat %s\n", comm, tid, str(args->filename));
   @proc[tid] = 0;
   if (strncmp(str(args->filename, 7), "/proc/", 6) == 0) { @proc[tid] = 1; } }
-tracepoint:syscalls:sys_exit_openat /@path[tid] != ""/ {
-  printf("%s[%d] openat %s = %d\n", comm, tid, @path[tid], args->ret); delete(@path[tid]); }
+tracepoint:syscalls:sys_exit_openat /strncmp(comm, "dytallix", 8) == 0/ {
+  printf("%s[%d] openat = %d\n", comm, tid, args->ret); }
 tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
   printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
 tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
@@ -192,45 +228,64 @@ tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret
 tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
 """
 KERNEL_TRACE_READS = r"""
-tracepoint:syscalls:sys_enter_read /strncmp(comm, "dytallix", 8) == 0/ { @buf[tid] = (uint64)args->buf; }
+tracepoint:syscalls:sys_enter_read /strncmp(comm, "dytallix", 8) == 0 && @proc[tid] == 1/ { @buf[tid] = (uint64)args->buf; }
 tracepoint:syscalls:sys_exit_read /@buf[tid] != 0/ {
-  if (args->ret > 0 && args->ret <= 96 && @proc[tid] == 1) {
+  if (args->ret > 0 && args->ret <= 96) {
     printf("%s[%d] read %d %r\n", comm, tid, args->ret, buf(uptr((uint8 *)@buf[tid]), 96)); }
   delete(@buf[tid]); }
 """
 
 
+def start_tracer(script):
+    """bpftrace on script, once its probes are attached (or it has exited)."""
+    tracer = subprocess.Popen(['bpftrace', str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                              text=True, env=dict(os.environ, BPFTRACE_STRLEN='96', BPFTRACE_MAX_STRLEN='96'))
+    lines, attached = [], threading.Event()
+
+    def pump():
+        for line in tracer.stdout:
+            lines.append(line.rstrip('\n'))
+            if line.startswith('Attaching'):
+                attached.set()
+        attached.set()
+    reader = threading.Thread(target=pump, daemon=True)
+    reader.start()
+    attached.wait(180)  # compiling can take a while on a small runner
+    time.sleep(1)
+    return tracer, lines, reader
+
+
 def kernel_traced_start():
-    """Start the unit once more, with its whole sandbox, under bpftrace: every
-    failing system call (errno), every open, and small /proc reads such as
-    the AppArmor label the supervisor sees."""
+    """Start the unit once more, with its whole sandbox, under bpftrace:
+    failing system calls (errno), opens, and small /proc reads such as the
+    AppArmor label the supervisor sees."""
     if not shutil.which('bpftrace'):
         say('(no kernel trace: bpftrace is missing)')
         return
     script = Path('/tmp/dytallix-start.bt')
     for body in (KERNEL_TRACE + KERNEL_TRACE_READS, KERNEL_TRACE, KERNEL_TRACE_ERRORS):
         script.write_text(body)
-        say(f'$ bpftrace {script}; systemctl start {UNIT}.service')
-        tracer = subprocess.Popen(['bpftrace', str(script)], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                  text=True, env=dict(os.environ, BPFTRACE_MAX_STRLEN='96'))
-        time.sleep(10)  # probe attachment
+        tracer, lines, reader = start_tracer(script)
         if tracer.poll() is None:
             break
         # Fall back to fewer probes.
-        say(f'bpftrace stopped: {tracer.communicate()[0][-1500:]}')
+        reader.join(5)
+        say('bpftrace stopped: ' + ' '.join(lines)[-1500:])
     else:
         return
+    say(f'$ bpftrace {script}; systemctl start {UNIT}.service')
     subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=False)
     time.sleep(5)
     tracer.send_signal(signal.SIGINT)
     try:
-        output, _ = tracer.communicate(timeout=30)
+        tracer.wait(timeout=30)
     except subprocess.TimeoutExpired:
         tracer.kill()
-        output, _ = tracer.communicate()
-    lines = [line for line in output.splitlines() if not line.startswith('@')]
-    say(f'-- last {min(len(lines), 300)} of {len(lines)} kernel trace lines --')
-    for line in lines[-300:]:
+        tracer.wait()
+    reader.join(5)
+    shown = [line for line in lines if not line.startswith('@')]
+    say(f'-- last {min(len(shown), 300)} of {len(shown)} kernel trace lines --')
+    for line in shown[-300:]:
         say(line)
 
 
