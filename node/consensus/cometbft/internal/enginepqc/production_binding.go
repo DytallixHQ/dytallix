@@ -54,9 +54,12 @@ func DecodeProductionBinding(raw []byte) (ProductionBinding, error) {
 	return binding, nil
 }
 
-// LoadProductionBinding reads a bounded binding file.
+// LoadProductionBinding reads a bounded binding file. The binding is
+// published (the host setup installs it root 0444 beside the release's other
+// public inputs, and service.json pins its digest), so it is read as a
+// public file, not as the node's private configuration.
 func LoadProductionBinding(path string) (ProductionBinding, error) {
-	raw, err := privateFile(path, 4096)
+	raw, err := publicFile(path, 4096)
 	if err != nil {
 		return ProductionBinding{}, err
 	}

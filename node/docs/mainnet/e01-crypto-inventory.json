@@ -174,7 +174,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "2bd74ebbac93430a90acee31188960c2601e2f6972857053e5d3633e36969f94"
+          "sha256": "8ecc88ee37def620e33ac50580029d5831b0e06bdefd1bad0f6ade05366e3991"
         },
         {
           "path": "consensus/cometbft/upstream/crypto/mldsa65/key.go",
@@ -251,7 +251,7 @@
       "files": [
         {
           "path": "consensus/cometbft/internal/enginepqc/engine.go",
-          "sha256": "2bd74ebbac93430a90acee31188960c2601e2f6972857053e5d3633e36969f94"
+          "sha256": "8ecc88ee37def620e33ac50580029d5831b0e06bdefd1bad0f6ade05366e3991"
         },
         {
           "path": "consensus/cometbft/internal/enginepqc/production_candidate.go",

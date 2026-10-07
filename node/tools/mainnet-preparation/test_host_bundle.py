@@ -90,6 +90,9 @@ class FakeHost(hi.Host):
             self.path(path).write_text(text)
         for base in ('/opt', '/var/lib', '/etc/systemd/system', '/etc/apparmor.d'):
             self.path(base).mkdir(parents=True, exist_ok=True)
+        for base in ('/', '/opt'):
+            os.chmod(self.path(base), 0o755)
+            self.owners[base] = (0, 0)
 
     def is_root(self):
         return True
@@ -337,6 +340,7 @@ class HostBundleTests(HostNetwork):
             'ufw is enabled': lambda h: ufw_conf(h, 'yes'),
             'firewalld is active': lambda h: setattr(h, 'run', active_unit('firewalld', h.run)),
             'already has': lambda h: h.path('/etc/dytallix').mkdir(),
+            'root-owned without group or other write': lambda h: os.chmod(h.path('/opt'), 0o777),
         }
         for index, (message, change) in enumerate(cases.items()):
             host = FakeHost(self.tmp / f'unsuitable-{index}', self.staging, profiles)

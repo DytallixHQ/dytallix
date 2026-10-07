@@ -43,9 +43,28 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The release set depends only on these blobs: node/ and sdk/ sources and
+      # release/, without node/tools and node/docs, which no release build
+      # reads (only tests do). A change to any of them rebuilds; a change to the
+      # host tools alone reuses the last build of the same sources.
+      - name: Release cache key
+        id: release-key
+        run: |
+          key=$(git ls-tree -r HEAD -- node sdk release | grep -vP '\tnode/(tools|docs)/' | sha256sum | cut -c1-64)
+          echo "key=h4-release-$key" >> "$GITHUB_OUTPUT"
+      # Restore and save separately: the combined action saves only when the
+      # whole job succeeds, and H4 runs that fail later still built the set.
+      - name: Cached release set
+        id: release-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/release
+          key: ${{ steps.release-key.outputs.key }}
       - name: Builder image
+        if: steps.release-cache.outputs.cache-hit != 'true'
         run: docker build --platform linux/amd64 -t dytallix-release-builder release/builder
       - name: Build the release set
+        if: steps.release-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p "$RUNNER_TEMP/release" "$RUNNER_TEMP/release-work"
           docker run --rm --platform linux/amd64 \
@@ -54,6 +73,12 @@ jobs:
             dytallix-release-builder \
             python3 /src/release/build_release.py build --src /src --out /out --work /work
           sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/release"
+      - name: Save the release set
+        if: steps.release-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/release
+          key: ${{ steps.release-key.outputs.key }}
       # Host setup v1's base setup: the packages, and ufw off (the node's table
       # is the host firewall). GitHub's runners ship with ufw active.
       - name: Host base setup
@@ -61,6 +86,10 @@ jobs:
           sudo apt-get update && sudo apt-get install -y apparmor apparmor-utils nftables
           sudo ufw disable
           timedatectl show -p NTPSynchronized
+          # The node's root helper refuses a group- or other-writable ancestor.
+          # GitHub's image has /opt at 0777 (stock Ubuntu 24.04: 0755).
+          stat -c '%U:%G %a %n' / /opt
+          sudo chmod 0755 /opt
       # Not part of host setup: staging_host traces a failed start with it.
       - name: Diagnostic tools
         run: sudo apt-get install -y strace bpftrace auditd

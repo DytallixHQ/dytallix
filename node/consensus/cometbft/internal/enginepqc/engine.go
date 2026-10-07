@@ -105,6 +105,35 @@ func privateFile(path string, limit int64) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// publicFile reads a published, root-installed input such as the host's
+// binding (/etc/dytallix/<release>/binding.json, root 0444): a regular file
+// with one link, owned by root or by this process, that no group or other
+// user can write. Secrets stay with privateFile.
+func publicFile(path string, limit int64) ([]byte, error) {
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, err
+	}
+	file := os.NewFile(uintptr(fd), path)
+	defer file.Close()
+	var stat unix.Stat_t
+	if err := unix.Fstat(fd, &stat); err != nil {
+		return nil, err
+	}
+	owner := stat.Uid == 0 || stat.Uid == uint32(os.Geteuid())
+	if stat.Mode&unix.S_IFMT != unix.S_IFREG || stat.Mode&0o7022 != 0 || stat.Size <= 0 || stat.Size > limit || stat.Nlink != 1 || !owner {
+		return nil, fmt.Errorf("expected bounded published regular file: %s", path)
+	}
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) != stat.Size {
+		return nil, fmt.Errorf("published file changed during read: %s", path)
+	}
+	return data, nil
+}
 func loopback(address string) bool {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
