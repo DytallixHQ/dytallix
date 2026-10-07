@@ -132,7 +132,10 @@ def diagnostics():
                  # denials arrive through audit and never reach the kernel log.
                  ['journalctl', '--no-pager', '-o', 'short-precise', '-n', '200',
                   '--grep', 'apparmor="DENIED"|type=1326|seccomp'],
-                 ['aa-status'], ['nft', 'list', 'table', 'inet', 'dytallix_node']):
+                 ['aa-status'], ['nft', 'list', 'table', 'inet', 'dytallix_node'],
+                 # Every ancestor of the root helper: the node requires root
+                 # ownership without group or other write.
+                 ['sh', '-c', 'stat -c "%U:%G %a %n" / /opt /opt/dytallix /opt/dytallix/* /opt/dytallix/*/bin']):
         say('$ ' + ' '.join(args))
         subprocess.run(args)
     traced_start()

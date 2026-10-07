@@ -33,6 +33,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -101,6 +102,9 @@ class Host:
     def chown(self, absolute, uid, gid):
         os.chown(self.path(absolute), uid, gid, follow_symlinks=False)
 
+    def mode(self, absolute):
+        return stat.S_IMODE(os.lstat(self.path(absolute)).st_mode)
+
     def owner(self, absolute):
         info = os.lstat(self.path(absolute))
         return info.st_uid, info.st_gid
@@ -157,6 +161,14 @@ def preflight(host):
     require(release.get('ID') == 'ubuntu' and release.get('VERSION_ID') == '24.04', 'this host is not Ubuntu 24.04')
     enabled = host.path('/sys/module/apparmor/parameters/enabled')
     require(enabled.exists() and enabled.read_text().strip() == 'Y', 'AppArmor is not enabled')
+    # The node runs the root helper only from a path whose every ancestor is
+    # root-owned without group or other write (static_helper.rs); the
+    # installer makes /opt/dytallix and below, the host provides / and /opt.
+    for ancestor in ('/', '/opt'):
+        mode = host.mode(ancestor)
+        require(host.owner(ancestor)[0] == 0 and mode & 0o022 == 0,
+                f'{ancestor} must be root-owned without group or other write (it is uid '
+                f'{host.owner(ancestor)[0]}, mode {mode:04o}); the node refuses its root helper otherwise')
     missing = [tool for tool in TOOLS if not host.which(tool)]
     require(not missing, f'missing tools: {", ".join(missing)} (install apparmor, apparmor-utils and nftables)')
     require(host.path(NFT_CONF).exists(), f'{NFT_CONF} is missing (install nftables)')
