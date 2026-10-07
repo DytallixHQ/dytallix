@@ -198,6 +198,12 @@ def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only
                 # permissions must permit the allowed stacked peer pairs.
                 signal('send', CONTROL + ('term', 'kill', 'exists'), labels['helper'])
                 signal('receive', CONTROL + ('term', 'kill', 'exists'), labels['supervisor'])
+                # Ptrace is checked against every profile of both stacks
+                # (xcheck): as a component of A//&S and S//&W this profile
+                # must let S read them, and as a component of the owner
+                # A//&S it must let the owner read A//&H//&S.
+                ptrace('readby', labels['supervisor'])
+                ptrace('read', labels['helper'])
                 signal('receive', CONTROL + ('term', 'kill', 'exists'),
                        labels['application-owner'])
                 signal('receive', ('chld',), labels['application-owner'])
@@ -211,6 +217,8 @@ def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only
                 signal('receive', ('chld',), labels['helper'])
                 ptrace('readby', labels['supervisor'])
                 ptrace('read, readby', labels['helper'])
+                # As a component of the helper's stack, the owner reads it.
+                ptrace('readby', labels['application-owner'])
             elif role == 'workload':
                 lines.append('  deny signal (send) set=(stop, cont),')
                 signal('receive', CONTROL + ('term', 'kill', 'exists'), labels['supervisor'])

@@ -105,6 +105,41 @@ class ProductionRoleTests(unittest.TestCase):
                 self.assertIn('deny signal (send) set=(stop, cont),', profiles[components[role]])
         self.assertNotIn('change_profile ', output['apparmor.profile'].decode())
 
+    def test_observation_passes_the_stacked_ptrace_check(self):
+        # The kernel checks ptrace against every profile of both labels
+        # (AppArmor xcheck_labels): each profile of the reader needs read to
+        # the target's label, each profile of the target needs readby from
+        # the reader's label. H4 found S unable to open its child's
+        # /proc/PID/exe because the S component of A//&S lacked readby S.
+        output = self.output()
+        profiles = parsed_profiles(output['apparmor.profile'])
+        matrix = json.loads(output['role-matrix.json'])
+
+        def allows(profile, access, peer):
+            for line in profiles[profile]:
+                if line.startswith('ptrace (') and line.endswith(' peer=' + peer + ','):
+                    if access in line[len('ptrace ('):line.index(')')].replace(' ', '').split(','):
+                        return True
+            return False
+
+        for unit in matrix['units']:
+            labels = {name: unit[name + '_label'] for name in policy.ROLE_ORDER}
+            for reader, target in (('supervisor', 'application-owner'), ('supervisor', 'workload'),
+                                   ('application-owner', 'helper')):
+                for component in labels[reader].split('//&'):
+                    self.assertTrue(allows(component, 'read', labels[target]),
+                                    f'{component} cannot read {labels[target]}')
+                for component in labels[target].split('//&'):
+                    self.assertTrue(allows(component, 'readby', labels[reader]),
+                                    f'{component} is not readable by {labels[reader]}')
+            # No new observation edge: nothing may read the supervisor or be
+            # read by the workload or helper.
+            for component in labels['supervisor'].split('//&'):
+                for peer in (labels['workload'], labels['helper'], labels['application-owner']):
+                    self.assertFalse(allows(component, 'readby', peer) and
+                                     all(allows(c, 'read', labels['supervisor']) for c in peer.split('//&')),
+                                     f'{peer} can read the supervisor')
+
     def test_preserved_base_controls_and_hashes(self):
         raw, mapping, request, _ = self.inputs()
         base_output = render.render(raw, mapping, request)

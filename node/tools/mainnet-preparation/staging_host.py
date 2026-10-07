@@ -199,9 +199,12 @@ def audit_traced_start():
     say(f'-- last {min(len(lines), 300)} of {len(lines)} audit lines --')
     for line in lines[-300:]:
         say(line)
-    denials = subprocess.run(['ausearch', '-i', '-m', 'AVC'], capture_output=True, text=True).stdout
-    say('-- AppArmor (AVC) records --')
-    for line in [line for line in denials.splitlines() if line.strip()][-40:]:
+    # With auditd running, AppArmor records go to its log, not the journal.
+    log = Path('/var/log/audit/audit.log')
+    denials = [line for line in log.read_text(errors='replace').splitlines()
+               if 'apparmor=' in line] if log.exists() else []
+    say(f'-- last {min(len(denials), 40)} of {len(denials)} AppArmor audit records --')
+    for line in denials[-40:]:
         say(line)
 
 
@@ -211,24 +214,24 @@ def audit_traced_start():
 # a 512-byte stack, so no probe keeps a string in a map: paths are printed
 # where they are read, and the /proc test reads only a 6-byte prefix.
 KERNEL_TRACE = r"""
-tracepoint:syscalls:sys_enter_openat /strncmp(comm, "dytallix", 8) == 0/ {
+tracepoint:syscalls:sys_enter_openat /(strncmp(comm, "dytallix", 8) == 0 || strncmp(comm, "consensus_stdio", 15) == 0)/ {
   printf("%s[%d] openat %s\n", comm, tid, str(args->filename));
   @proc[tid] = 0;
   if (strncmp(str(args->filename, 7), "/proc/", 6) == 0) { @proc[tid] = 1; } }
-tracepoint:syscalls:sys_exit_openat /strncmp(comm, "dytallix", 8) == 0/ {
+tracepoint:syscalls:sys_exit_openat /(strncmp(comm, "dytallix", 8) == 0 || strncmp(comm, "consensus_stdio", 15) == 0)/ {
   printf("%s[%d] openat = %d\n", comm, tid, args->ret); }
-tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
+tracepoint:raw_syscalls:sys_exit /(strncmp(comm, "dytallix", 8) == 0 || strncmp(comm, "consensus_stdio", 15) == 0) && args->ret < 0 && args->ret > -4096/ {
   printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
-tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
+tracepoint:sched:sched_process_exit /(strncmp(comm, "dytallix", 8) == 0 || strncmp(comm, "consensus_stdio", 15) == 0)/ { printf("%s[%d] exit\n", comm, pid); }
 """
 # No strings at all: failing calls (errno) and exits, if the others do not load.
 KERNEL_TRACE_ERRORS = r"""
-tracepoint:raw_syscalls:sys_exit /strncmp(comm, "dytallix", 8) == 0 && args->ret < 0 && args->ret > -4096/ {
+tracepoint:raw_syscalls:sys_exit /(strncmp(comm, "dytallix", 8) == 0 || strncmp(comm, "consensus_stdio", 15) == 0) && args->ret < 0 && args->ret > -4096/ {
   printf("%s[%d] syscall %d = %d\n", comm, tid, args->id, args->ret); }
-tracepoint:sched:sched_process_exit /strncmp(comm, "dytallix", 8) == 0/ { printf("%s[%d] exit\n", comm, pid); }
+tracepoint:sched:sched_process_exit /(strncmp(comm, "dytallix", 8) == 0 || strncmp(comm, "consensus_stdio", 15) == 0)/ { printf("%s[%d] exit\n", comm, pid); }
 """
 KERNEL_TRACE_READS = r"""
-tracepoint:syscalls:sys_enter_read /strncmp(comm, "dytallix", 8) == 0 && @proc[tid] == 1/ { @buf[tid] = (uint64)args->buf; }
+tracepoint:syscalls:sys_enter_read /(strncmp(comm, "dytallix", 8) == 0 || strncmp(comm, "consensus_stdio", 15) == 0) && @proc[tid] == 1/ { @buf[tid] = (uint64)args->buf; }
 tracepoint:syscalls:sys_exit_read /@buf[tid] != 0/ {
   if (args->ret > 0 && args->ret <= 96) {
     printf("%s[%d] read %d %r\n", comm, tid, args->ret, buf(uptr((uint8 *)@buf[tid]), 96)); }
