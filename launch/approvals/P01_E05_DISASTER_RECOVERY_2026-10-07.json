@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-10-07-E05-DISASTER-RECOVERY",
+  "approved": "2026-10-07",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Disaster recovery (F19): off-host copies and host spread"
+  },
+  "design_ref": "../../node/docs/architecture/disaster-recovery-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "Sentry pushes to storage",
+      "rule": "Each day the sentry encrypts its newest snapshot (AES-256-GCM, under a 256-bit backup code printed once on paper like the seal codes) and uploads it to object storage at a second provider, with a write-only upload key sealed into the sentry's bundle: the host can add copies but never read or delete them. The founder downloads the latest copy to their own drive each month. The sentry is the archive, so its snapshot carries every block record."
+    },
+    {
+      "question": "D12-Q03",
+      "selected": "Validator and sentry, two providers",
+      "rule": "The validator and the sentry run at different hosting providers, so no single provider or account failure takes both and each committed block survives on the other host."
+    }
+  ],
+  "unset": [
+    "The hosting providers and the storage provider and account (D12-Q03)",
+    "The encryption, upload and restore tools, the backup unit and the runbook (disaster recovery v1, steps R2 to R4)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

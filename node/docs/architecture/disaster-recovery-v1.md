@@ -1,0 +1,114 @@
+# Disaster recovery v1 (F19)
+
+Engineering task E05, artifact F19. How the chain's history and state
+survive losing hosts, under the solo launch profile: one validator, one
+sentry (the archive) and one endpoint, reached only by console. The
+approved objectives fix the rules
+([operations objectives](../../../launch/operations/OBJECTIVES.md), D12-Q02):
+no committed block is ever lost (RPO zero), a restore never rolls history
+back, daily snapshots are copied encrypted with AES-256 to a second
+provider, and a monthly copy goes to the founder's own drive. This
+document is the design; the tools and the runbook follow (see
+[Steps](#steps)).
+
+## Decisions (P01, 7 October 2026)
+
+[Approval](../../../launch/approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json).
+
+- **The sentry pushes the copies.** Nothing can pull blocks or snapshots
+  from the hosts: the client channel serves only `/abci_query` and
+  transaction submission, and the hosts take no remote login. So the
+  sentry, which holds the archive and the daily snapshots, encrypts its
+  newest snapshot and uploads it to object storage at a second provider,
+  with an upload key that can add objects but never read or delete them.
+  The founder downloads the latest copy to their own drive each month.
+- **The validator and the sentry run at different hosting providers.**
+  With one validator, losing the validator and the sentry together loses
+  every block after the last copy, and the chain could not resume without
+  rolling history back. At two providers, no single provider or account
+  failure takes both, so each committed block survives on the other host
+  (a constraint on the provider choice, D12-Q03).
+
+## What is copied
+
+The sentry runs with `block_history: archive`, so its application keeps
+every block record. A snapshot of height H holds the committed state in
+chunks plus the block records the node retains
+([state sync v1](state-sync-v1.md)): on the sentry, every record since
+genesis. One snapshot is therefore both the state and the application's
+full history. Each day (`snapshots.interval_blocks` 17,280, about a day at
+5-second blocks) the newest complete snapshot is copied.
+
+A state sync restore also needs the engine's signed headers from the
+snapshot's height (light blocks from H to H+2). The sentry's daily copy
+includes them where it can export them while running; otherwise the
+validator or a surviving node supplies them at restore time (an open item,
+below).
+
+## The copy
+
+- **Encryption:** AES-256-GCM in fixed chunks, each authenticated with its
+  index and a final-chunk flag, so a truncated, reordered or altered copy is
+  refused. The key is SHAKE256 of a domain, the copy's height and a
+  256-bit **backup code**: random, printed once as a checked paper line
+  (`dytallix-backup-...`, like the seal codes), written twice and kept with
+  two different kits' papers. The tool is the release's own Go signer
+  (standard library AES-GCM), so nothing classical enters the node's stack.
+- **Name:** the chain, the height and the SHA-256 of the ciphertext, plus a
+  small manifest (height, application hash, chunk count, sizes, digests).
+- **Upload:** the host's own `curl` with AWS Signature V4 to an
+  S3-compatible bucket, over TLS. TLS is transport only, as for the bundle
+  download: the copy is already encrypted and authenticated, and no TLS
+  library enters a release binary (G35).
+- **Upload key:** write-only (it can add objects, not list, read or delete
+  them), sealed into the sentry's bundle with its node keys, so it reaches
+  the host the same way and is never typed or stored in the clear
+  elsewhere. A stolen key can only add objects.
+- **Job:** a systemd timer and a oneshot unit, separate from the node's
+  unit and its AppArmor roles, that reads the snapshot directory read-only,
+  writes ciphertext to scratch, uploads and removes the scratch copy. It
+  never touches the node's home or keys.
+- **Retention at the provider:** the bucket keeps every copy (no deletion
+  by the upload key); the founder prunes old copies by hand, keeping at
+  least one per month.
+
+## Restore
+
+- **Sentry lost** (validator alive): rebuild the sentry from its bundle,
+  join by state sync from the newest off-host copy (decrypted with the
+  backup code) and catch up from the validator. Its archive history comes
+  back with the snapshot's block records.
+- **Validator lost:** [validator recovery](../operations/validator-recovery.md)
+  (F17). The sentry holds every block.
+- **Endpoint lost:** rebuild it from its bundle and state sync.
+- **Validator and sentry lost together:** only possible if both providers
+  fail at once. Restore from the newest off-host copy; blocks after it are
+  lost, and the chain resumes only after an incident decision. The
+  two-provider rule is what makes this the last case.
+
+Every restore is drilled quarterly on staging, with its measured times.
+
+## Open items
+
+- **The tools:** the chunked encryption (`dytallix-root-sign` subcommands
+  or a separate release member), the upload key in the sealed bundle, the
+  backup unit and timer in the host files and installer, and the restore
+  commands.
+- **Light blocks from a running sentry:** `dytallix-light-export` reads the
+  engine's stores and asks for a stopped node or a copy of its home. The
+  copy needs an export that works while the node runs, or the light blocks
+  come from another node at restore time.
+- **The second provider and the hosting providers** (D12-Q03), and the
+  storage account. A free tier must hold the copies: the snapshot grows with
+  history.
+- **Runbook:** `node/docs/operations/disaster-recovery.md`, once the tools
+  exist.
+
+## Steps
+
+- **R1.** This design and the decisions.
+- **R2.** The encryption and restore tools, with tests.
+- **R3.** The upload key in the sealed bundle, the backup unit and timer in
+  the host files and installer; H4 runs one backup to a local stand-in
+  store.
+- **R4.** The runbook and the first restore drill on staging.

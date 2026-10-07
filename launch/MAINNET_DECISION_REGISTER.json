@@ -2749,7 +2749,8 @@
             "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
             "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json",
-            "approvals/P01_E05_HOST_RECOVERY_2026-10-06.json"
+            "approvals/P01_E05_HOST_RECOVERY_2026-10-06.json",
+            "approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json"
           ]
         },
         {
@@ -4177,6 +4178,24 @@
         "D12-Q01"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-07-E05-DISASTER-RECOVERY",
+      "approved": "2026-10-07",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json",
+      "decisions": [
+        "D12-Q02: the sentry pushes its daily snapshot, encrypted under a paper backup code, to object storage at a second provider with a write-only key sealed in its bundle; the founder downloads the latest copy monthly.",
+        "D12-Q03: the validator and the sentry run at different hosting providers."
+      ],
+      "question_refs": [
+        "D12-Q02",
+        "D12-Q03"
+      ],
+      "unset": [
+        "The hosting and storage providers (D12-Q03)",
+        "The disaster recovery tools and runbook (R2 to R4)"
+      ]
     },
     {
       "id": "P01-2026-10-06-E05-HOST-SEALING",
