@@ -1,0 +1,29 @@
+{
+  "decision_id": "P01-2026-10-07-E05-HOST-HELPER-BOUND",
+  "approved": "2026-10-07",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Host values: root helper observation bound"
+  },
+  "design_ref": "../../node/docs/architecture/host-setup-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q01",
+      "selected": "Lower observation to 16 MiB",
+      "rule": "The root helper observation's max_file_bytes and max_total_file_bytes are 16,777,216, equal to the root configuration's max_helper_bytes. The node requires the observed file bound to be at most the helper bound (ObservedHelperPolicy), so with 32 MiB every node refused to start, found by the first staging install (H4). The helper must fit 16 MiB in any case; it is about 4.4 MB.",
+      "values": {
+        "root_helper_observation": {
+          "max_file_bytes": 16777216,
+          "max_total_file_bytes": 16777216
+        }
+      },
+      "supersedes": "The 33,554,432 for both bounds approved in approvals/P01_E05_HOST_VALUES_2026-10-06.json."
+    }
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

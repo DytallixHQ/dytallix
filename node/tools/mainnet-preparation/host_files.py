@@ -252,6 +252,13 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     helper = members[helper_id]
     helper_path = f'{bin_dir}/{helper_id}'
     root_setup = setup['root']
+    # The node refuses an observed file bound above the helper bound
+    # (ObservedHelperPolicy), and both verifier configurations share it.
+    observation = setup['root_helper_observation']
+    for name, bound in (('root', root_setup['max_helper_bytes']),
+                        ('emergency verifier', approved['emergency verifier config max_helper_bytes'])):
+        require(observation['max_file_bytes'] <= bound,
+                f'the root helper observation\'s max_file_bytes exceeds the {name} max_helper_bytes')
     helper_execution = {
         'profile': 'linux-immutable-observed-helper-v1',
         'helper_bytes': helper['bytes'], 'helper_sha512': helper['sha512'],

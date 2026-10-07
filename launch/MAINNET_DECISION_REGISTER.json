@@ -2694,6 +2694,7 @@
             "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json",
             "approvals/P01_E05_HOSTS_2026-10-06.json",
             "approvals/P01_E05_HOST_VALUES_2026-10-06.json",
+            "approvals/P01_E05_HOST_HELPER_BOUND_2026-10-07.json",
             "approvals/P01_E05_HOST_SEALING_2026-10-06.json",
             "approvals/P01_E05_HOST_RECOVERY_2026-10-06.json"
           ]
@@ -4144,6 +4145,19 @@
       "record_ref": "approvals/P01_E05_HOST_VALUES_2026-10-06.json",
       "decisions": [
         "D12-Q01: the host values in launch/hosts/SETUP_VALUES.json (unit limits, ports, bounds, timeouts)."
+      ],
+      "question_refs": [
+        "D12-Q01"
+      ],
+      "unset": []
+    },
+    {
+      "id": "P01-2026-10-07-E05-HOST-HELPER-BOUND",
+      "approved": "2026-10-07",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_HOST_HELPER_BOUND_2026-10-07.json",
+      "decisions": [
+        "D12-Q01: the root helper observation's file bounds are 16 MiB, equal to the root helper bound (was 32 MiB, which the node refuses)."
       ],
       "question_refs": [
         "D12-Q01"
