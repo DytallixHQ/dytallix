@@ -78,7 +78,10 @@ A freeze does not block it.
 **Delivery.** The operator pins the file in the service configuration. The
 application takes `--restart-authorization FILE`. It verifies the file at
 startup and then accepts the target release as the running candidate for
-block H. The supervisor's preflight selects the target release the same way.
+block H. The supervisor's preflight selects the target release from the
+same file, checked against the committed state but not its signatures; a
+production supervisor never runs the root helper (P01, 7 October 2026,
+[supervisor root preflight](supervisor-root-preflight.md)).
 
 **Execution of block H.**
 - The switch applies before the block's transactions. The new release
@@ -125,7 +128,8 @@ block H. The supervisor's preflight selects the target release the same way.
   the restart.
   - A committed receipt holding the same authorization means it is ignored.
   - Otherwise it is verified against the committed checkpoint with the root
-    helper.
+    helper (the production supervisor's pinned preflight checks it against
+    the checkpoint only; the application verifies the signatures).
   - A failure exits `release` (14).
 - **The target runs block H.** While the committed head is H−1, the
   runtime check accepts the target as the running release.

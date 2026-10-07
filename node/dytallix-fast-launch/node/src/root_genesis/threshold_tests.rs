@@ -433,6 +433,22 @@ fn threshold_genesis_signed_three_of_five() {
         committed
     );
     drop(restarted);
+    // The production supervisor's preflight on the committed database selects
+    // the same release and head from pinned inputs alone, with a helper that
+    // cannot run (P01, 7 October 2026, option D).
+    let mut unrunnable = root(&three);
+    unrunnable.helper_path = path("no-such-helper");
+    let pinned = ConsensusApplication::preflight_release_pinned(
+        database.path(),
+        &config,
+        &genesis,
+        &config_bytes,
+        &unrunnable,
+        None,
+    )
+    .unwrap();
+    assert_eq!(pinned.expected_candidate().manifest_sha512, release_sha512);
+    assert_eq!(pinned.committed_info(), Some(&committed));
     assert!(ConsensusApplication::open(database.path(), config.clone(), genesis.clone()).is_err());
 
     // Four signatures are another valid genesis with another receipt, so
@@ -540,6 +556,60 @@ fn rebind_release(config: &mut ConsensusConfig, release_sha512: &str) {
         .as_mut()
         .unwrap()
         .initial_release_sha512 = release_sha512.into();
+}
+
+/// The production supervisor's preflight checks the pinned inputs against
+/// each other and selects the release, and never runs the root helper: only
+/// the application may (E02; P01, 7 October 2026, supervisor root preflight
+/// option D).
+#[test]
+fn supervisor_preflight_never_runs_the_root_helper() {
+    let (config, genesis) = launch_inputs();
+    let directory = tempfile::tempdir().unwrap();
+    let marker = directory.path().join("helper-ran");
+    let script = format!("#!/bin/sh\n: > '{}'\nexit 1\n", marker.display());
+    let mut root = fixture_root(directory.path(), script.as_bytes());
+    let mut policy = fixture_policy();
+    policy.chain_id = config.chain_id.clone();
+    root.policy_json = serde_json::to_vec(&policy).unwrap();
+    root.release_manifest_sha512 = config.emergency.as_ref().unwrap().release_sha512.clone();
+    let source = serde_json::to_vec(&config).unwrap();
+    let database = directory.path().join("not-created");
+    let authority =
+        ConsensusApplication::preflight_release_pinned(&database, &config, &genesis, &source, &root, None)
+            .unwrap();
+    assert_eq!(
+        authority.expected_candidate().manifest_sha512,
+        root.release_manifest_sha512
+    );
+    assert!(authority.committed_info().is_none());
+    assert!(!marker.exists(), "the supervisor's preflight ran the root helper");
+    assert!(!database.exists());
+    // The pinned inputs must agree with each other.
+    let mut other = config.clone();
+    other.emergency.as_mut().unwrap().release_sha512 = "00".repeat(64);
+    let other_source = serde_json::to_vec(&other).unwrap();
+    assert!(ConsensusApplication::preflight_release_pinned(
+        &database,
+        &other,
+        &genesis,
+        &other_source,
+        &root,
+        None
+    )
+    .is_err());
+    assert!(ConsensusApplication::preflight_release_pinned(
+        &database,
+        &config,
+        &genesis,
+        &other_source,
+        &root,
+        None
+    )
+    .is_err());
+    assert!(!marker.exists());
+    // The application verifies every signature through the helper
+    // (every_signature_must_verify_through_the_helper).
 }
 
 #[test]

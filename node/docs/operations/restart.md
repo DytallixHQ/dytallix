@@ -74,9 +74,11 @@ the fixed release with the authorization.
    `restart_authorization`: path, SHA-256 and a byte bound of at most
    256 KiB.
 9. **Start the service.**
-   - The supervisor's preflight verifies the authorization with the root
-     helper and selects the fixed release.
-   - The application runs block H on it.
+   - The supervisor's preflight checks the authorization against the
+     committed state and selects the fixed release; it never runs the root
+     helper ([supervisor root preflight](../architecture/supervisor-root-preflight.md)).
+   - The application verifies the authorization's signatures with the root
+     helper before it opens state, then runs block H on the fixed release.
    - A refused authorization stops startup with exit class `release` (14).
 10. **Verify.** Check that:
     - the height rises past H on every validator;
