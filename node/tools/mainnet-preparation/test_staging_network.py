@@ -31,6 +31,13 @@ class PlanTests(unittest.TestCase):
         import host_files
         self.assertEqual((sn.SNAPSHOTS, sn.SNAPSHOT_LIGHT_BLOCKS), (host_files.SNAPSHOTS, host_files.SNAPSHOT_LIGHT_BLOCKS))
 
+    def test_the_restore_drill_compares_height_and_both_hashes(self):
+        raw = json.dumps({'jsonrpc': '2.0', 'id': -1, 'result': {'sync_info': {
+            'latest_block_height': '41', 'latest_block_hash': 'AB', 'latest_app_hash': 'CD', 'catching_up': False}}})
+        self.assertEqual(sn.sync_info(raw), (41, 'AB', 'CD'))
+        with self.assertRaises(KeyError):
+            sn.sync_info(json.dumps({'result': {}}))
+
     def test_cloud_init_gives_the_vm_its_address_and_the_agent(self):
         network = sn.network_config('sentry-1').decode()
         self.assertIn('addresses: [10.77.0.11/24]', network)

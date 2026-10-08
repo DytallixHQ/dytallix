@@ -189,8 +189,7 @@ Every restore is drilled quarterly on staging, with its measured times.
 - **The second provider and the hosting providers** (D12-Q03), and the
   storage account. A free tier must hold the copies: the snapshot grows with
   history.
-- **Runbook:** `node/docs/operations/disaster-recovery.md`, with the
-  restore tools (R6).
+- **Runbook:** written ([disaster recovery](../operations/disaster-recovery.md)).
 
 ## Steps
 
@@ -222,4 +221,7 @@ Every restore is drilled quarterly on staging, with its measured times.
 - **R6.** The runbook and the first restore drill on staging: H4 wipes the
   sentry's VM, reinstalls it from its bundle, restores it from the stand-in
   store's copy, and checks that it catches up from the validator with the
-  chain's application hash. The drill records its measured times.
+  chain's application hash. The drill records its measured times. Built:
+  [the runbook](../operations/disaster-recovery.md) and
+  `staging_network.py restore-drill`, a step of the Host install workflow's
+  network job.
