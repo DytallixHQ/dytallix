@@ -53,6 +53,11 @@ func stateSyncOption(ctx context.Context, runtime *enginepqc.Runtime, dirs []str
 	if len(dirs) == 0 {
 		return nil, errors.New("state sync requires --light-blocks")
 	}
+	// The chunk queue goes under the node's own data, a writable root, unless
+	// the config names a directory.
+	if sync.TempDir == "" {
+		sync.TempDir = runtime.Config.DBDir()
+	}
 	// A trusted header must still be answerable for evidence.
 	if sync.TrustPeriod >= runtime.Genesis.ConsensusParams.Evidence.MaxAgeDuration {
 		return nil, errors.New("state sync trust period must be below the evidence age")

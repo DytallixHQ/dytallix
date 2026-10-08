@@ -73,6 +73,7 @@ had no importer and needed `golang.org/x/crypto`.
 | Package | Change | Test |
 | --- | --- | --- |
 | `statesync`, `node`, `config` | A restore from a local copy of a snapshot (disaster recovery v1, R5): `statesync.RestoreLocal` runs the state sync's own offer, apply and verify with chunks read from the copy instead of peers (a refetched chunk is read once more, a third request fails); `node.LocalSnapshot` and `StateSync.LocalRestore` (never read from a file) run it synchronously at start, also on the only validator, and refuse a node that holds state. `node.StateStore()` exposes the state store beside `BlockStore()` (R4). | `statesync/local_test.go` |
+| `statesync` | `NewReactor` keeps `StateSync.TempDir` for the chunk queue. Upstream never set it, so every sync, from peers or from a local copy, used the system temp directory, which the production unit does not let the engine write; the engine defaults the directory to the node's data. | `statesync/local_test.go` |
 | `p2p` | A persistent (pinned) peer is redialed for as long as the switch runs, each backoff wait at most `persistent_peers_max_dial_period` (P01, 2 October 2026). Upstream gave up after about 24.6 hours and left the peer to peer exchange, which the pinned mesh disables. | `switch_redial_test.go` |
 
 ### 5. Reactor tests that connect switches: skip

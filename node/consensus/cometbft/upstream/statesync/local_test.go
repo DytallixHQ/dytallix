@@ -2,6 +2,7 @@ package statesync
 
 import (
 	"errors"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -115,6 +116,20 @@ func TestRestoreLocalFailsOnARepeatedRefetchOrAnUnreadableChunk(t *testing.T) {
 	source = &localSource{reads: map[uint32]int{}, fail: 1}
 	_, _, err := restoreLocal(syncer, local(source), "", log.NewNopLogger())
 	require.Error(t, err)
+}
+
+// A reactor's syncs, from peers or from a local copy, keep their chunks in
+// the configured directory: a production engine names one in its writable
+// data root, and the system temp directory is not one.
+func TestReactorKeepsChunksInTheConfiguredDirectory(t *testing.T) {
+	dir := t.TempDir()
+	cfg := *config.DefaultStateSyncConfig()
+	cfg.TempDir = dir
+	r := NewReactor(cfg, nil, nil, NopMetrics())
+	queue, err := newChunkQueue(&snapshot{Height: 1, Format: 1, Chunks: 1}, r.tempDir)
+	require.NoError(t, err)
+	defer queue.Close()
+	require.Equal(t, dir, filepath.Dir(queue.dir))
 }
 
 func TestRestoreLocalNeedsItsChunks(t *testing.T) {

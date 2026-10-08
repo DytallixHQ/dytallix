@@ -263,7 +263,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "b2f6043038b7c5b31612c601244323bc721aec8bdf8d68b739be74c26499ea64"
+          "sha256": "6792fe6fe890e2f3fe3536f292d0df0aa8fda394b26c511e367734bdb6aeff86"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
