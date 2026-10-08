@@ -32,11 +32,13 @@ replaced instead of being lost for the chain's life
 
 ### The authority record
 
-- **State.** A consensus record, `consensus:root-authority:v1`, holds the
-  authority epoch and three key sets of five, upgrade, freeze and resume,
-  each key with its seat (1 to 5). At genesis it is built from the
-  configuration, which must give the emergency and upgrade policies the
-  same authority epoch (1 at launch). No new genesis input.
+- **State.** A consensus record, `consensus:root-authority:v1`, holds
+  every authority epoch: its number, the first height its keys sign for,
+  and its three key sets of five, upgrade, freeze and resume. The first
+  replacement writes it; until then the configuration's key sets are in
+  force, so the genesis and its state are unchanged. The configuration must
+  give the emergency and upgrade policies the same authority epoch (1 at
+  launch). No new genesis input.
 - **Every check reads it.** Emergency freeze and resume, upgrades, release
   handovers and restarts take their keys and epoch from the record, not the
   configuration. Thresholds, windows, anchor ages, notices and size bounds
@@ -88,6 +90,25 @@ The node admits a replacement only if:
   other root control; a freeze stops ordinary transactions, not the root
   authority.
 
+### Implementation notes (K1)
+
+- **Each epoch is a whole policy.** The emergency, upgrade and handover
+  policies are hashed into their states, receipts and signed payloads
+  (`policy_sha256`). An epoch's policy is therefore the configuration's
+  with that epoch's keys and number, with its own hash: payloads signed in
+  an epoch bind that epoch's policy, and at the effect height the three
+  states are bound again to the new policy (K2).
+- **Height decides.** A state is checked against the policy in force at the
+  committed height; a receipt, a replayed control and a block plan against
+  the one in force at their block. So a replay of history checks each
+  control with the keys it was signed under. Decoding a control checks only
+  sizes and counts, which stay the configuration's.
+- **Built in K1:** `root_authority` (the record, its validation, the epoch in
+  force at a height, and each policy for an epoch: the configuration's,
+  borrowed, while there is no record) and the configuration rule that the
+  emergency and upgrade epochs agree. The node's checks keep the
+  configuration until K2 writes the record and binds the states again.
+
 ## What does not change
 
 Five seats, the threshold of three per role, the SLH-DSA parameter set, the
@@ -114,8 +135,8 @@ genesis keys, and every window, notice and size bound in the configuration.
 
 | Step | Content | Output change |
 | --- | --- | --- |
-| K1 | The authority record, built at genesis; every check reads it | None: the same keys and epoch as before |
-| K2 | The replacement control: admission, notice, effect, epoch | New control |
+| K1 | The authority record, its epochs and each epoch's policies; one authority epoch in the configuration | None: no record until a replacement |
+| K2 | The replacement control: admission, notice, effect (the record, the epoch, the three states bound again); every check through the policy in force at its height | New control |
 | K3 | Tools: prepare, show, sign and assemble a replacement; proofs for the next epoch | New tool operations |
 | K4 | Staging drill: replace a seat; the old kit is refused after the effect height and the new kit signs a freeze and a resume | Evidence |
 
