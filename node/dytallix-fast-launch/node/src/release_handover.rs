@@ -134,9 +134,19 @@ impl Policy {
         }
         Ok(())
     }
+    /// The policy's hash. A schema 2 policy hashes its rules, not its keys:
+    /// the key sets and the authority epoch are left out (root kit
+    /// replacement v1), so a replacement changes neither this hash nor the
+    /// states, receipts and payloads that bind it; every schema 2 payload
+    /// signs its authority epoch, and only that epoch's keys verify it.
     pub fn sha256(&self) -> Result<String> {
         self.validate()?;
-        Ok(hash(&serde_json::to_vec(self)?))
+        let mut rules = self.clone();
+        if rules.v2.is_some() {
+            rules.authority_epoch = 0;
+            rules.authority.keys.clear();
+        }
+        Ok(hash(&serde_json::to_vec(&rules)?))
     }
     fn control_kind(&self) -> &'static str {
         if self.v2.is_some() {
