@@ -40,7 +40,8 @@ class SoloLaunchProfileTests(unittest.TestCase):
 
     def test_the_disclosure_states_the_concentrations(self):
         text = (LAUNCH/'TRUST_MODEL.md').read_text()
-        for phrase in ('unaudited', '100% of DGT', 'five key kits', 'One validator'):
+        # The founder's share and the five kit holders (P01, 7 October 2026).
+        for phrase in ('unaudited', '99.99% of DGT', 'five key kits', 'Five people', 'One validator'):
             self.assertIn(phrase, text)
 
 

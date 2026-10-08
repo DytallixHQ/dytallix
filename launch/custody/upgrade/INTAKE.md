@@ -6,7 +6,29 @@ or create production configuration. Upgrade schema 2 and handover schema 2,
 which enforce this authority, are implemented (production activation v1, step
 A3); a production build requires them (step A4).
 
-## Solo launch profile
+## Five key holders (P01, 7 October 2026)
+
+[Root key holders](../../approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json):
+five people, the founder and four others, hold the five kits, one each, and
+each makes their own kit ([key ceremony](../KEY_CEREMONY.md)). Each slot is
+one holder:
+
+- **Controller.** A distinct `controller_id` that names the kit, never the
+  person (for example `kit-holder-3`). Names stay in the working packet in
+  the custody system.
+- **Kits.** The slot's `control_group`, and its keys' signer and backup
+  groups, is `kit-N`, as before; the emergency, upgrade and genesis packets
+  use the same five.
+- **Backup.** A kit has no backup: its backup record says the key is on the
+  holder's encrypted fob only, and a lost kit is replaced by the kit
+  replacement control.
+- **Model.** `solo_kits` no longer fits, since it requires one controller in
+  every slot. `independent` fits five distinct holders but also requires an
+  independence review by someone outside every holder's group. Whether that
+  review applies, or the public disclosure replaces it as under the solo
+  profile, is still open (D10-Q03).
+
+## Solo launch profile (kits superseded on 7 October 2026)
 
 P01 replaced the separate groups of independent people on 3 October 2026
 ([solo launch](../../approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json),

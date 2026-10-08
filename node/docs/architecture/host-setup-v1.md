@@ -24,8 +24,10 @@ the installer) and H4 (the CI install) are built; H5 follows.
 - **Sealing** ([sealing approval](../../../launch/approvals/P01_E05_HOST_SEALING_2026-10-06.json)).
   The passphrase is a seal code: 32 random bytes that `dytallix-root-sign
   seal` makes and prints once as a checked paper line, one code per host.
-  The founder writes each code twice and keeps the copies with two
-  different kits' papers. The key is SHAKE256 of a domain, the host's label
+  The founder writes each code twice and keeps the two copies in two
+  separate places of their own, never with a holder's kit (the kits have no
+  paper and are held by five people since
+  [7 October 2026](../../../launch/approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)). The key is SHAKE256 of a domain, the host's label
   and the code; the cipher is AES-256-GCM, authenticating the label and each
   file's path, size and SHA-256. A 256-bit code matches the kits' secrets
   (NIST category 5); the bundles are public and permanent, so the code must

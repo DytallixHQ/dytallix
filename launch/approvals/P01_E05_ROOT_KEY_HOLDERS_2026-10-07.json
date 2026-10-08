@@ -1,0 +1,55 @@
+{
+  "decision_id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",
+  "approved": "2026-10-07",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Key ceremony: root key holders, kit storage, holder grants and kit replacement"
+  },
+  "reason": "The founder can name four other people to hold root key kits, so no one person, and not the founder with a business partner, can freeze, resume, upgrade or sign the genesis alone.",
+  "design_ref": "../custody/KEY_CEREMONY.md",
+  "decisions": [
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "Five people, one kit each",
+      "rule": "The five root key kits are held by five different people, one kit each: the founder and four others. Kit N still holds key N of each role (genesis, upgrade, freeze and resume), and any three kits, so any three holders, can act. No holder, and no two holders, can act alone. Each holder makes their own kit in their own offline session and passes on only its public records and proofs; no one, the founder included, sees another holder's kit secret. Holders' names stay out of every public record: the records say only kit 1 to kit 5."
+    },
+    {
+      "question": "D10-Q03",
+      "selected": "One fob, no paper, no backup",
+      "rule": "Each kit lives on one encrypted fob (an encrypted USB stick) and nowhere else: no paper copy and no backup fob. A lost or failed fob, or a forgotten passphrase, loses that kit. The other four holders still reach the threshold, and the kit is replaced with the kit replacement control below. The fob is only ever used on an offline machine. This applies to the holders' kits only: the hosts' seal codes and the chain's backup code stay on paper as approved."
+    },
+    {
+      "question": "D08-Q01",
+      "selected": "20,000 DGT each, from Team and advisors, on a separate wallet fob",
+      "rule": "Each of the five holders receives 20,000 DGT (100,000 DGT, 0.01% of supply) at genesis from the Team and advisors bucket, unlocked. Each holder's account key is on a separate wallet fob, never on the kit fob, so spending DGT never puts a root kit on a networked machine. Holders need no DGT to sign controls: signing is offline and fees are paid in DRT."
+    },
+    {
+      "question": "D08-Q01, D02-Q02",
+      "selected": "Chain controls only",
+      "rule": "The kits control the chain (genesis, upgrade and release handover, freeze, resume), not funds. No account needs three of five signatures to spend at launch. The bucket and treasury accounts stay the founder's, and their keys move out of the key kits into the founder's own custody, since the kits are now held by other people."
+    },
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "Build kit replacement before launch",
+      "rule": "Before genesis, the node gains a root control, signed by three of the five current kits, that replaces one seat's keys with a newly made kit's under a new authority epoch, after which the old kit's keys no longer verify. A lost fob or a departing holder is then replaced instead of being lost for the chain's life, and seats can move to new people. Today the key sets are fixed in the genesis-bound configuration and no control changes them."
+    }
+  ],
+  "supersedes": [
+    "Solo launch profile, D10-Q03/D11-Q03 '5 key kits, all yours' (P01, 3 October 2026): the founder no longer holds every kit",
+    "Solo launch profile, D08-Q01/D02-Q02 'One account per bucket, yours': the bucket and treasury account keys are no longer kept in the key kits",
+    "Key ceremony, D10-Q03 'Encrypted USB + paper' (P01, 5 October 2026), for the holders' kits: no paper copy and no backup"
+  ],
+  "unset": [
+    "The kit replacement control's design: which role's keys sign it, its payload, epochs and notice (a P01 design decision before it is built)",
+    "The custody packets' model for five holders: the independent model with an outside reviewer, or public disclosure in place of that review as under the solo profile",
+    "Each holder's appointment, public key records, proofs of possession and wallet address, kept in the custody system, not this repository",
+    "Where the founder keeps the bucket and treasury account keys",
+    "The holders' tax and legal position on receiving DGT (their own advice)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

@@ -6,10 +6,11 @@ a root genesis signed by three of the five genesis signers (P01, 30 September
 the signers' procedure with the offline signer,
 `consensus/root-authorization/cmd/dytallix-root-sign`. It does not appoint
 signers or authorize a launch. Root signers sign only after the P02 review,
-E06 release acceptance and gate acceptance. Under the solo launch profile
-(P01, 3 October 2026) the founder holds all five genesis keys in separate key
-kits, and the P02 review is the 30-day public review and the founder's
-sign-off (`launch/TRUST_MODEL.md`).
+E06 release acceptance and gate acceptance. The five genesis keys are in
+the five key kits, held by five people, one each (P01, 7 October 2026,
+`launch/approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json`). Under the solo
+launch profile (P01, 3 October 2026) the P02 review is the 30-day public
+review and the founder's sign-off (`launch/TRUST_MODEL.md`).
 
 ## What is signed
 
@@ -59,10 +60,11 @@ enter this repository, the custody packet or a ticket.
    and prints the key ID. Back up the private key under the custody
    procedure. Hand over only `signer.json`.
 
-   Under the solo launch profile the genesis keys come from the five key
-   kits instead: the [key ceremony](../../../launch/custody/KEY_CEREMONY.md)
-   makes `kit-N-genesis.key` and its record `kit-N-genesis.json` for each
-   kit, and the policy below takes the five records.
+   The genesis keys come from the five key kits instead: in the
+   [key ceremony](../../../launch/custody/KEY_CEREMONY.md) each holder makes
+   `kit-N-genesis.key` and its record `kit-N-genesis.json` for their kit,
+   and the policy below takes the five records. Each holder signs on their
+   own offline machine and hands over only the signature.
 
 2. **Policy.** The custody lead assembles the five public records for the
    chain, and every signer checks that their own key ID is listed. The

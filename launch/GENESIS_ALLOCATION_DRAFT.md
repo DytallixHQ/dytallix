@@ -23,6 +23,8 @@ JSON monetary values use decimal strings with explicit units. Batch 6 approved s
 
 The approved human-token total matches the observed native cap when converted at six decimals. Native genesis currently checks that issuance does not exceed the cap; it does not require full issuance. The cap and genesis check cited for this statement are in a frozen dytallix-node source snapshot held outside the public repository.
 
+**Approved recipient grants** (P01, 7 October 2026, [root key holders](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)): five root key holder accounts receive 20,000 DGT each (`20000000000` udgt) from Team and advisors, unlocked, 100,000 DGT in all; the Team and advisors bucket account keeps 199,900,000 DGT. The holders' addresses remain `null` until each holder makes their wallet fob. Category amounts are unchanged.
+
 The earlier 40/25/15/10/10 split is a superseded testnet candidate. It is not the mainnet allocation: [testnet source](../node/deploy/genesis.dyt-local-1.json#L3).
 
 Bucket labels do not enforce locks. “Reserve” does not create a lock. “Team and advisors” does not create vesting. Approve each recipient, custody rule, lock implementation, vesting schedule, and stake mapping separately. The existing testnet file has no actual delegations: [source](../node/deploy/genesis.dyt-local-1.json#L11).
