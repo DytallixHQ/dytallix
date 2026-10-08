@@ -47,6 +47,9 @@ the installer) and H4 (the CI install) are built; H5 follows.
 | `/etc/systemd/system/dytallix-node.service` | root, 0644 | The unit |
 | `/etc/apparmor.d/dytallix-node` | root, 0644 | The four role profiles, in the file `apparmor.service` loads at boot |
 | `/etc/nftables.d/dytallix.nft` | root, 0644 | The host firewall table `inet dytallix_node` |
+| `/etc/dytallix-backup/` | root, 0700, files 0400 | The sentry's backup code and upload key ([disaster recovery v1](disaster-recovery-v1.md)) |
+| `/var/lib/dytallix-backup/` | root, 0700 | The backup job's last uploaded height and scratch copy |
+| `/etc/systemd/system/dytallix-backup.{service,timer}` | root, 0444 | The sentry's hourly off-host backup |
 
 The service account is the system user and group `dytallix`, UID and GID
 41001, with no login shell. Every path the unit writes is under

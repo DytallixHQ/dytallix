@@ -59,6 +59,11 @@ elif name == 'dytallix-root-sign' and args[0] == 'seal':
     print('dytallix-seal-%s %s' % (label, ' '.join(['0000'] * 17)))
 elif name == 'dytallix-root-sign' and args[0] == 'seal-check':
     pass
+elif name == 'dytallix-root-sign' and args[0] == 'backup-code':
+    line = 'dytallix-backup-%s %s' % (flags['-chain'], ' '.join(['00b1'] * 17))
+    create(flags['-out'], (line + '\n').encode())
+    print('backup code for %s (write it on paper twice):' % flags['-chain'])
+    print(line)
 else:
     sys.exit('unexpected ' + name)
 '''
@@ -134,7 +139,9 @@ class FakeHost(hi.Host):
             elif verb == 'start':
                 self.active.add(args[2])
             elif verb == 'enable':
-                self.enabled.add(args[2])
+                self.enabled.add(args[-1])
+                if '--now' in args:
+                    self.active.add(args[-1])
             elif verb == 'disable':
                 self.enabled.discard(args[-1])
                 self.active.discard(args[-1])
@@ -175,8 +182,14 @@ def NFT_INCLUDE_PRESENT(host):
     return hi.NFT_INCLUDE in host.path(hi.NFT_CONF).read_text().splitlines()
 
 
+UPLOAD = {'schema': 'dytallix.backup-upload.v1', 'endpoint': 'https://storage.example', 'bucket': 'dytallix-copies',
+          'region': 'auto', 'prefix': 'staging/', 'access_key_id': 'AKIDEXAMPLE', 'secret_access_key': 'c2VjcmV0'}
+
+
 class HostNetwork(unittest.TestCase):
     """The synthetic network, its keys, host files and helpers."""
+    # With an upload key the sentry also seals the backup secrets.
+    backup = False
 
     def setUp(self):
         # The host file generator's synthetic network, with the root signer
@@ -198,7 +211,15 @@ class HostNetwork(unittest.TestCase):
         self.keys = self.tmp / 'public'
         self.staging = self.tmp / 'staging'
         shown = []
-        self.summaries = host_keys.run(plan_path, self.tools, self.staging, self.keys, show=shown.append)
+        upload = None
+        if self.backup:
+            upload = self.tmp / 'upload.json'
+            descriptor = os.open(upload, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, 'w') as file:
+                json.dump(UPLOAD, file)
+        typed = lambda: next(line for line in reversed(shown) if line.startswith('dytallix-backup-'))  # noqa: E731
+        self.summaries = host_keys.run(plan_path, self.tools, self.staging, self.keys, show=lambda text: shown.extend(
+            str(text).splitlines()), backup_upload=upload, read_line=typed)
         self.shown = '\n'.join(shown)
         self.plan = json.loads((self.keys / 'PIN_PLAN.json').read_bytes())
         generated = host_files.generate(self.network.dirs['release'], self.network.dirs['chain'],
@@ -459,3 +480,55 @@ def ufw_conf(host, enabled):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class BackupHostTests(HostNetwork):
+    """The sentry's backup secrets and unit (disaster recovery v1)."""
+    backup = True
+
+    def test_only_the_sentry_seals_and_installs_backup_secrets(self):
+        for label, summary in self.summaries.items():
+            backup = {p for p in summary['secret_files'] if p.startswith('backup/')}
+            self.assertEqual(backup, set(host_files.BACKUP_SECRETS) if label == 'sentry-1' else set())
+        upload = self.staging / 'sentry-1' / 'backup' / 'upload.json'
+        self.assertEqual(stat.S_IMODE(os.lstat(upload).st_mode), 0o600)
+        manifest = self.manifests['sentry-1']
+        self.assertEqual(manifest['timers'], ['dytallix-backup.timer'])
+        self.assertEqual(self.manifests['validator-1']['timers'], [])
+        secrets = {s['path']: (s['owner'], s['mode']) for s in manifest['secrets']}
+        self.assertEqual(secrets['/etc/dytallix-backup/code'], ('root', '0400'))
+        self.assertEqual(secrets['/etc/dytallix-backup/upload.json'], ('root', '0400'))
+        files = {r['path'] for r in manifest['files']}
+        etc = f'/etc/dytallix/{manifest["release"]}'
+        self.assertTrue({f'{etc}/backup.json', f'{etc}/backup.py', '/etc/systemd/system/dytallix-backup.service',
+                         '/etc/systemd/system/dytallix-backup.timer'} <= files)
+        config = json.loads((self.host_files / 'sentry-1' / etc.lstrip('/') / 'backup.json').read_bytes())
+        self.assertEqual((config['code_file'], config['snapshots']), ('/etc/dytallix-backup/code', host_files.SNAPSHOTS))
+        unit = (self.host_files / 'sentry-1' / 'etc/systemd/system/dytallix-backup.service').read_text()
+        self.assertIn('CapabilityBoundingSet=CAP_DAC_READ_SEARCH', unit)
+        self.assertIn('ReadWritePaths=/var/lib/dytallix-backup', unit)
+
+    def test_install_places_the_secrets_outside_the_node_home(self):
+        bundle, host, manifest, _ = self.install('sentry-1')
+        self.assertEqual(hi.verify(bundle, host), [])
+        for name in ('code', 'upload.json'):
+            path = f'/etc/dytallix-backup/{name}'
+            self.assertEqual(stat.S_IMODE(os.lstat(host.path(path)).st_mode), 0o400)
+            self.assertEqual(host.owner(path), (0, 0))
+        self.assertEqual(json.loads(host.path('/etc/dytallix-backup/upload.json').read_bytes()), UPLOAD)
+        self.assertFalse(host.path(hi.HOME + '/backup').exists())
+        self.assertFalse(host.path(hi.UNSEALED).exists(), 'the unsealed copy was left behind')
+        self.assertIn('dytallix-backup.timer', host.enabled)
+        hi.wipe(bundle, host, confirm=lambda _: 'wipe sentry-1', out=lambda _: None)
+        self.assertEqual(hi.existing(host), [])
+        self.assertNotIn('dytallix-backup.timer', host.enabled)
+
+    def test_a_backup_secret_on_another_host_is_refused(self):
+        key = json.loads((self.keys / 'validator-1.keys.json').read_bytes())
+        key['secret_files']['backup/code'] = '00' * 32
+        key['secret_files']['backup/upload.json'] = '00' * 32
+        (self.keys / 'validator-1.keys.json').write_text(json.dumps(key))
+        with self.assertRaisesRegex(host_files.Invalid, 'only the sentry'):
+            host_files.generate(self.network.dirs['release'], self.network.dirs['chain'], self.network.dirs['hosts'],
+                                self.plan, self.keys, self.network.values, self.network.setup)
+

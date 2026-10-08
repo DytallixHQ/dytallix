@@ -77,10 +77,22 @@ below).
   them), sealed into the sentry's bundle with its node keys, so it reaches
   the host the same way and is never typed or stored in the clear
   elsewhere. A stolen key can only add objects.
-- **Job:** a systemd timer and a oneshot unit, separate from the node's
-  unit and its AppArmor roles, that reads the snapshot directory read-only,
-  writes ciphertext to scratch, uploads and removes the scratch copy. It
-  never touches the node's home or keys.
+- **Job** (built in R3): `dytallix-backup.timer` (hourly, randomized by up
+  to 15 minutes, persistent) and the oneshot `dytallix-backup.service`,
+  separate from the node's unit and its AppArmor roles. It runs
+  `/etc/dytallix/RELEASE/backup.py` as root with only
+  `CAP_DAC_READ_SEARCH` (to read the node's snapshots), a read-only system
+  and `/var/lib/dytallix-backup` as its only writable path. When the newest
+  published snapshot is above the last height uploaded, it runs
+  `backup-seal` into its scratch directory, uploads with `curl --config -`
+  (the upload key on curl's standard input, never on a command line),
+  records the height and removes the scratch copy. It never touches the
+  node's home or keys.
+- **Where the secrets live:** the backup code and upload key are sealed as
+  `backup/code` and `backup/upload.json` with the sentry's node keys. The
+  installer unseals into a root-only directory and places them in
+  `/etc/dytallix-backup` (root, 0400), outside the node home and its
+  profiles; `verify` checks them and `wipe` removes them.
 - **Retention at the provider:** the bucket keeps every copy (no deletion
   by the upload key); the founder prunes old copies by hand, keeping at
   least one per month.
@@ -103,9 +115,9 @@ Every restore is drilled quarterly on staging, with its measured times.
 
 ## Open items
 
-- **The host side:** the backup code and upload key in the sentry's sealed
-  bundle, and the backup unit and timer in the host files and installer
-  (R3). The encryption and restore commands are built (R2).
+- **A backup run on a real host:** H4 installs only the validator so far,
+  which takes no snapshots. The first backup run, to a stand-in store on
+  the runner, comes with H4's sentry.
 - **Light blocks from a running sentry:** `dytallix-light-export` reads the
   engine's stores and asks for a stopped node or a copy of its home. The
   copy needs an export that works while the node runs, or the light blocks
@@ -124,5 +136,8 @@ Every restore is drilled quarterly on staging, with its measured times.
   `backup-open` over `root-authorization/backup.go`.
 - **R3.** The upload key in the sealed bundle, the backup unit and timer in
   the host files and installer; H4 runs one backup to a local stand-in
-  store.
+  store. Built except the H4 run: `host_keys.py --backup-upload`,
+  `backup/` sealed files, `host_files.py`'s backup unit, timer and
+  `backup.py`, the installer's placement, verify, stage, switch and wipe,
+  with tests (`test_backup_job.py`, `test_host_bundle.py`).
 - **R4.** The runbook and the first restore drill on staging.
