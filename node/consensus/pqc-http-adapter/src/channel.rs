@@ -27,7 +27,7 @@ use tokio::{
 };
 use zeroize::Zeroizing;
 
-use crate::{engine, own_metadata, valid_rpc_path, Limits, Reply};
+use crate::{engine, own_metadata, valid_rpc_path, Limits, Reply, LOCAL_CALLER};
 
 /// Compiled ceilings; operator flags can only lower them. They are
 /// prototype bounds: D12-Q01 sets production capacity and rates.
@@ -240,7 +240,7 @@ pub(crate) async fn serve(
             // engine request, as the HTTP listener does.
             let _ = tokio::time::timeout_at(
                 deadline,
-                exchange(&mut stream, &identity, &network, peer, &socket, &limits),
+                exchange(&mut stream, &identity, &network, &socket, &limits),
             )
             .await;
         });
@@ -270,7 +270,6 @@ pub(crate) async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
     stream: &mut S,
     identity: &Identity,
     network: &str,
-    peer: SocketAddr,
     socket: &Path,
     limits: &Limits,
 ) -> Result<(), ()> {
@@ -291,7 +290,7 @@ pub(crate) async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
         }
     };
     let reply = match Request::decode(&message) {
-        Ok(request) => respond(request, peer, socket, limits).await,
+        Ok(request) => respond(request, socket, limits).await,
         Err(_) => Reply::error(StatusCode::BAD_REQUEST, "Malformed channel request"),
     };
     let response = channel_response(reply)
@@ -307,8 +306,9 @@ pub(crate) async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
     stream.shutdown().await.map_err(|_| ())
 }
 
-/// The HTTP listener's request checks, in channel form.
-async fn respond(request: Request, peer: SocketAddr, socket: &Path, limits: &Limits) -> Reply {
+/// The HTTP listener's request checks, in channel form. The engine sees the
+/// adapter as a local caller.
+async fn respond(request: Request, socket: &Path, limits: &Limits) -> Reply {
     if !valid_rpc_path(&request.path) {
         return Reply::error(StatusCode::BAD_REQUEST, "Unsupported request target");
     }
@@ -330,7 +330,7 @@ async fn respond(request: Request, peer: SocketAddr, socket: &Path, limits: &Lim
         &request.path,
         &request.query,
         &request.body,
-        peer,
+        LOCAL_CALLER,
         socket,
         limits,
     )

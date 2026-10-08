@@ -68,10 +68,10 @@ async fn endpoint(identity: Identity, socket: PathBuf, limits: Limits) -> Socket
     let socket = Arc::new(socket);
     tokio::spawn(async move {
         loop {
-            let (mut stream, peer) = listener.accept().await.unwrap();
+            let (mut stream, _) = listener.accept().await.unwrap();
             let (identity, socket) = (identity.clone(), socket.clone());
             tokio::spawn(async move {
-                let _ = exchange(&mut stream, &identity, NETWORK, peer, &socket, &limits).await;
+                let _ = exchange(&mut stream, &identity, NETWORK, &socket, &limits).await;
             });
         }
     });
@@ -129,11 +129,9 @@ async fn requests_cross_the_channel_to_the_engine() {
     assert_eq!(sent["path"], "/abci_query");
     assert_eq!(sent["query"], "path=%22%2Fstatus%22");
     assert_eq!(sent["body_base64"], "");
-    // The engine sees the client's own address.
-    assert!(sent["remote_addr"]
-        .as_str()
-        .unwrap()
-        .starts_with("127.0.0.1:"));
+    // The engine sees the adapter as a local caller, never the client's own
+    // address: its client socket refuses any caller that is not loopback.
+    assert_eq!(sent["remote_addr"], "127.0.0.1:1");
 
     let post = Request {
         method: Method::Post,

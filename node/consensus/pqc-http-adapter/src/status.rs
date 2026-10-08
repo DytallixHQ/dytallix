@@ -5,7 +5,7 @@
 //! PQC-only boundary; it is unauthenticated, a liveness hint and never a
 //! source of chain state. Every other request gets a fixed error.
 
-use crate::{engine, Limits, Reply};
+use crate::{engine, Limits, Reply, LOCAL_CALLER};
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::{body::Incoming, header, Method, Request, Response, StatusCode};
@@ -66,7 +66,6 @@ pub(crate) fn summarize(reply: &Reply) -> Option<serde_json::Value> {
 
 async fn handle(
     request: Request<Incoming>,
-    peer: SocketAddr,
     socket: Arc<PathBuf>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
     if request.uri().path() != "/status" || request.uri().query().is_some() {
@@ -89,7 +88,8 @@ async fn handle(
         max_header_bytes: MAX_HEADER_BYTES,
         deadline: DEADLINE,
     };
-    let reply = engine("GET", "/status", "", b"", peer, &socket, &limits).await;
+    // The engine sees the adapter as a local caller.
+    let reply = engine("GET", "/status", "", b"", LOCAL_CALLER, &socket, &limits).await;
     Ok(match summarize(&reply) {
         Some(body) => fixed(StatusCode::OK, body),
         None => fixed(
@@ -104,7 +104,7 @@ async fn handle(
 pub async fn serve(listener: TcpListener, socket: Arc<PathBuf>) -> Result<(), String> {
     let capacity = Arc::new(Semaphore::new(MAX_CONNECTIONS));
     loop {
-        let (stream, peer) = listener
+        let (stream, _) = listener
             .accept()
             .await
             .map_err(|_| "Status listener failed")?;
@@ -116,7 +116,7 @@ pub async fn serve(listener: TcpListener, socket: Arc<PathBuf>) -> Result<(), St
         tokio::spawn(async move {
             let _permit = permit;
             let deadline = Instant::now() + DEADLINE;
-            let service = hyper::service::service_fn(move |req| handle(req, peer, socket.clone()));
+            let service = hyper::service::service_fn(move |req| handle(req, socket.clone()));
             let mut builder = hyper::server::conn::http1::Builder::new();
             builder
                 .timer(TokioTimer::new())
@@ -202,6 +202,8 @@ mod tests {
                         (request["method"].as_str(), request["path"].as_str()),
                         (Some("GET"), Some("/status"))
                     );
+                    // A local caller, never the checker's own address.
+                    assert_eq!(request["remote_addr"], "127.0.0.1:1");
                     let body = serde_json::json!({"jsonrpc":"2.0","id":-1,"result":{"node_info":{"network":"dytallix-staging-1"},"sync_info":{"latest_block_height":"7","latest_block_time":"2027-01-07T14:00:35Z","catching_up":false}}});
                     use base64::Engine;
                     let reply = serde_json::to_vec(&serde_json::json!({"version":1,"status":200,"headers":{"Content-Type":"application/json"},"body_base64":base64::engine::general_purpose::STANDARD.encode(body.to_string())})).unwrap();

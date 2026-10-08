@@ -222,6 +222,11 @@ The address is explicit: neither unspecified nor multicast.
 - **Failures.** A handshake that fails closes the connection with no reply.
 - **Request errors.** After the handshake, a refused request gets the
   loopback listener's error in channel form: 400, 413, 501, 502 or 504.
+- **Engine caller.** Channel requests, like the status page's, reach the
+  engine's client socket as a local caller (`127.0.0.1:1`), never as the
+  client's own address. The socket refuses any caller that is not loopback,
+  no route it allows uses the caller's address, and the adapter enforces
+  the per-client bounds itself. Found by the H4 staging network run.
 - **Readiness line.** The adapter's readiness line adds the channel address
   and the key fingerprint.
 
