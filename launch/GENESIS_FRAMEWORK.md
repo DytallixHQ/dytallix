@@ -94,10 +94,13 @@ kit's single 32-byte secret. The node refuses a key that holds two roles.
   public; any three are assembled into the control
   ([control signing](../node/docs/mainnet/control-signing.md)).
 - **Losing a kit.** Each kit is on one fob with no backup. A lost fob, or a
-  holder who leaves, still leaves four kits. **Kit replacement**, a control
-  signed by three kits that installs a new kit for a seat under a new
-  authority epoch, is approved to be built before launch. Until it exists
-  the key sets are fixed in the genesis-bound configuration.
+  holder who leaves, still leaves four kits. **Kit replacement** (approved
+  8 October 2026, to be built before launch): three kits' upgrade keys sign
+  one control that installs a new kit for one seat; it takes effect after
+  seven days' notice under a new authority epoch, and the old kit's keys
+  then stop working ([root kit replacement](../node/docs/architecture/root-kit-replacement-v1.md)).
+  Until it exists the key sets are fixed in the genesis-bound
+  configuration.
 
 ### The key ceremony
 
@@ -181,7 +184,7 @@ More validators join later through on-chain registration.
 
 | Item | Register | State |
 | --- | --- | --- |
-| Kit replacement control design | D10-Q03, D11-Q03 | Approved to build; design to P01 |
+| Kit replacement control | D10-Q03, D11-Q03 | Design approved 8 October 2026; to build (K1 to K4) |
 | Custody packet model for five holders (an outside reviewer, or public disclosure) | D10-Q03 | Open |
 | DRT bootstrap amount and accounts, holders included | D08-Q03 | Open |
 | Recipient rows, wallet addresses and any vesting | D08-Q01 | Holder grants approved; addresses open |

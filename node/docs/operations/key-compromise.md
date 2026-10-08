@@ -12,7 +12,7 @@ a mainnet key.
 | Node peer key (ML-DSA-65) | `config/node_key.json` or `config/pqc_peer_seed.bin` | Connect to peers as this node | Replace it and update every peer's pins |
 | Channel endpoint key (ML-DSA-65) | `config/client_channel_seed.bin` | Answer as this node's public endpoint to clients that pin it | Replace it and publish a new pin |
 | User account key | The user's wallet | Spend and act as the account | Guardian recovery; freeze for a wide compromise |
-| Root authority keys (SLH-DSA) | Custody | With enough keys: emergency, upgrade and handover controls | No replacement mechanism yet; a kit replacement control, signed by three kits, is approved to be built before launch (P01, 7 October 2026) |
+| Root authority keys (SLH-DSA) | Custody | With enough keys: emergency, upgrade and handover controls | No replacement mechanism yet; a [kit replacement control](../architecture/root-kit-replacement-v1.md), signed by three kits' upgrade keys and effective after seven days, is approved to be built before launch |
 | CLI keystore | `~/.dytallix/keystore.json` | Version 2: the keys, if the passphrase is also known or guessed. Version 1 (plaintext): every key in it | Handle each key it held; migrate any version 1 file |
 
 ## Signals

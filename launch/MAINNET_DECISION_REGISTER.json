@@ -2065,7 +2065,8 @@
           "approval_records": [
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
             "approvals/P01_E05_KEY_CEREMONY_2026-10-05.json",
-            "approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json"
+            "approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json",
+            "approvals/P01_E05_KIT_REPLACEMENT_2026-10-08.json"
           ]
         }
       ],
@@ -2564,7 +2565,8 @@
             "approvals/P01_E05_ROOT_CONTROLS_2026-10-01.json",
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
             "approvals/P01_E05_CONTROL_SIGNING_2026-10-06.json",
-            "approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json"
+            "approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json",
+            "approvals/P01_E05_KIT_REPLACEMENT_2026-10-08.json"
           ],
           "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades. Root controls (P01, 1 October 2026): a production configuration carries the emergency freeze, upgrade and handover controls at schema 2. Solo launch (P01, 3 October 2026): the founder holds all five upgrade keys and all ten emergency keys in five key kits, replacing the separate groups of independent custodians; thresholds and keys per role are unchanged. Control signing (P01, 6 October 2026): every root control window and anchor age is at most 34,560 blocks (two days) for emergency, upgrade and handover alike, and the CLI prepares, dry-runs and submits controls from the founder's laptop over the pinned chain."
         }
@@ -4181,6 +4183,24 @@
         "D12-Q01"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-08-E05-KIT-REPLACEMENT",
+      "approved": "2026-10-08",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_KIT_REPLACEMENT_2026-10-08.json",
+      "decisions": [
+        "D10-Q03, D11-Q03: one kit replacement control, signed by three of the five current upgrade keys, replaces one seat's upgrade, freeze and resume keys.",
+        "D10-Q03, D11-Q03: it takes effect after the release handover notice, 120,960 blocks (seven days).",
+        "D10-Q03, D11-Q03: one seat per control; five seats and the threshold of three stay fixed."
+      ],
+      "question_refs": [
+        "D10-Q03",
+        "D11-Q03"
+      ],
+      "unset": [
+        "The implementation, steps K1 to K4"
+      ]
     },
     {
       "id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",
