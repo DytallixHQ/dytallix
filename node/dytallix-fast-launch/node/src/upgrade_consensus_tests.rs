@@ -378,9 +378,9 @@ fn unused(purpose: &str, seed: u8) -> emergency::AuthorityPolicy {
 fn actual_freeze_takes_the_keys_of_the_epoch_in_force() {
     // Root kit replacement v1 (K2a): with a root authority record, a
     // block's controls verify with the keys of the epoch in force at it.
-    // Until K2b commits the record through a replacement control, every
-    // entry point refuses a stored one, so this test runs block 2's
-    // emergency plan, which admission and finalize both run.
+    // Every entry point refuses a record no committed kit replacement wrote,
+    // so this test runs block 2's emergency plan, which admission and
+    // finalize both run.
     let mut f = Fixture::new();
     let root = root(&mut f, false);
     let directory = tempfile::tempdir().unwrap();
@@ -435,7 +435,7 @@ fn actual_freeze_takes_the_keys_of_the_epoch_in_force() {
     assert!(plans(&app, &stale).is_err());
     assert!(plans(&app, &new).unwrap());
     let refused = app.check_tx(&new).log;
-    assert!(refused.contains("Unknown consensus record"), "{refused}");
+    assert!(refused.contains("Committed state tree root differs"), "{refused}");
     // Without a record the configuration is in force.
     app.storage
         .db

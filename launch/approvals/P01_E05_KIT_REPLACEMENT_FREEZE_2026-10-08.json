@@ -1,0 +1,28 @@
+{
+  "decision_id": "P01-2026-10-08-E05-KIT-REPLACEMENT-FREEZE",
+  "approved": "2026-10-08",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Kit replacement during a freeze"
+  },
+  "design_ref": "../../node/docs/architecture/root-kit-replacement-v1.md",
+  "decisions": [
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "Blocked, like upgrades",
+      "rule": "While the chain is frozen, or in a block with an emergency control, a kit replacement is not admitted, as upgrades and handovers signed by the same keys are not. The freeze stays a full brake on the upgrade keys. No recovery is lost: the three kits that could sign a replacement can sign a resume first. A replacement already admitted still takes effect at its effect height."
+    }
+  ],
+  "supersedes": [
+    "The design note that a replacement is admitted during a freeze (root kit replacement v1, Effect)"
+  ],
+  "unset": [
+    "The implementation (steps K2b to K4 of the design) and its staging drill"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

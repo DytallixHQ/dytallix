@@ -48,32 +48,46 @@ replaced instead of being lost for the chain's life
 
 ### The replacement control
 
-- **Payload.** The chain ID and genesis digest; the current authority epoch;
-  the seat; the new upgrade, freeze and resume public keys
-  (SLH-DSA-SHAKE-256s); the new kit's three proofs of possession, each
-  binding the chain, the seat's controller, its purpose and the next epoch;
-  the next upgrade sequence number; and an anchored window like the other
-  schema 2 controls (anchor height and hash, first and last height, within
-  the upgrade policy's validity and anchor-age bounds).
-- **Signatures.** Three distinct current upgrade keys sign it through the
-  root helper under the `upgrade` action, with an artifact domain of its own,
-  so no other control's signature can be reused for it.
-- **Ordering.** It consumes one upgrade sequence number, so it is ordered
-  with upgrades and handovers and cannot be replayed.
-- **Size.** Six SLH-DSA signatures (three authorizing, three proofs) of
-  29,792 bytes each, plus the payload: about 180 KB. Its own size bound is
-  derived from that, like the other controls' bounds.
+- **Payload** (`dytallix-root-kit-replacement-v1`):
+  - the chain ID and genesis digest, and the upgrade policy's hash;
+  - the current authority epoch, and the sequence, which is the epoch the
+    replacement creates;
+  - the seat, named by its three key IDs, one per role (upgrade, freeze and
+    resume);
+  - the new kit's three public keys (SLH-DSA-SHAKE-256s), each under its
+    SHA-256 key ID;
+  - an anchored window like the other schema 2 controls: anchor height and
+    hash, first and last height, within the upgrade policy's validity and
+    anchor-age bounds.
+- **Signatures.** At least three distinct current upgrade keys sign it
+  through the root helper under the `upgrade` action. Its artifact domain
+  (`DYTALLIX/ROOT-KIT-REPLACEMENT/v1`) is its own, so no other control's
+  signature can be reused for it.
+- **Proofs of possession.** Each new key signs the same artifact, through
+  the same helper action. The proof binds the chain, the replaced seat, the
+  role's key and the next epoch, and shows that the new kit holds each key.
+- **Ordering.** Its sequence is the epoch it creates, not an upgrade
+  sequence number. Once it is admitted, no other is admitted until its epoch
+  is in force, and from then on a control for the old epoch is refused; so
+  none is applied twice.
+- **Size.** Six SLH-DSA signatures of 29,792 bytes each. In hex, as the
+  other controls carry them, they would not fit the 262,144-byte transaction
+  bound, so this control carries them in base64: about 240 KB in all. The
+  upgrade policy's control bound applies.
 
 ### Admission
 
 The node admits a replacement only if:
 
+- the chain is not frozen and the block has no emergency control (P01,
+  8 October 2026,
+  [approval](../../../launch/approvals/P01_E05_KIT_REPLACEMENT_FREEZE_2026-10-08.json));
 - three distinct current upgrade keys signed it, within its window, with an
   anchor the node holds;
 - the epoch is the current one and no other replacement is pending;
-- the seat is 1 to 5;
-- each new key is a valid public key, differs from every key the record
-  holds or has ever held, and its proof of possession verifies.
+- each replaced key ID is a current key of its role;
+- each new key's ID is its SHA-256, the key differs from every key the
+  record holds or has ever held, and its proof of possession verifies.
 
 ### Effect
 
@@ -86,9 +100,11 @@ The node admits a replacement only if:
 - **Controls already admitted** (for example a handover waiting for its own
   notice) keep their admission: they were valid under the authority that
   admitted them.
-- **During a freeze** a replacement is admitted and takes effect like any
-  other root control; a freeze stops ordinary transactions, not the root
-  authority.
+- **During a freeze** no replacement is admitted, as no upgrade or handover
+  is (P01, 8 October 2026). The freeze stays a full brake on the upgrade
+  keys, and no recovery is lost: the three kits that could sign a
+  replacement can sign a resume first. A replacement admitted before the
+  freeze still takes effect at its effect height.
 
 ### Implementation notes
 
@@ -120,6 +136,23 @@ The node admits a replacement only if:
   yet, and every block, admission and startup refuses a stored one as an
   unknown consensus record; K2b makes it committed state and replays the
   replacements that wrote it.
+- **Built in K2b:** the replacement control (`kit_replacement`):
+  - Admission and finalize take it in a block of its own, as the other root
+    controls.
+  - It writes the record, starting from the configuration's epoch at
+    height 0, plus a receipt per replacement
+    (`consensus:root-authority:receipt:{sequence}`), all in the committed
+    state.
+  - A pending replacement is the record's last epoch while its first height
+    is still ahead. The status query reports the epoch in force and the
+    pending one.
+  - Startup and the history check rebuild the record and receipts from the
+    committed replacements, byte for byte, and with the root helper at
+    startup. Blocks with a replacement, and the anchors replacements name,
+    are kept below the retained window.
+  - The structural replay of emergency receipts, and the emergency history
+    that upgrades check, also take each record's keys from its block's
+    epoch (`recover_recorded_at`).
 
 ## What does not change
 
@@ -131,7 +164,8 @@ genesis keys, and every window, notice and size bound in the configuration.
 - **Node.** The authority record and the replacement control, with its
   admission, notice and effect, in the consensus application. The upgrade
   schema 2 module is hash-pinned (`V2_SHA256` and the registry); K2a
-  re-pinned it for the rules hash, and K2b re-pins it if it changes it.
+  re-pinned it for the rules hash, and K2b for the per-epoch emergency
+  history.
 - **Root helper.** Unchanged: it verifies single SLH-DSA signatures with the
   keys the node passes it, now taken from the record.
 - **Tools.** `dytallix-control prepare` gains the replacement, and
@@ -149,7 +183,7 @@ genesis keys, and every window, notice and size bound in the configuration.
 | --- | --- | --- |
 | K1 | The authority record, its epochs and each epoch's policies; one authority epoch in the configuration | None: no record until a replacement |
 | K2a | Schema 2 policy hashes over the rules, not the keys; every check through the policy in force at its height | Schema 2 policy hashes (no chain runs them yet) |
-| K2b | The replacement control: admission, notice, effect (the record and the epoch) | New control |
+| K2b | The replacement control: admission, notice, effect (the record and the epoch); no replacement while frozen | New control and committed state |
 | K3 | Tools: prepare, show, sign and assemble a replacement; proofs for the next epoch | New tool operations |
 | K4 | Staging drill: replace a seat; the old kit is refused after the effect height and the new kit signs a freeze and a resume | Evidence |
 
@@ -163,8 +197,10 @@ genesis keys, and every window, notice and size bound in the configuration.
   the old keys, and from it only the new ones, under either epoch number;
   a stored record is refused until K2b.
 - K2b: admission refuses two signers, a repeated signer, a freeze or resume
-  key, an old epoch, a stale anchor, a closed window, a seat outside 1 to 5,
-  a reused key, a bad proof and a second pending replacement; the notice
-  holds the old keys until the effect height; after it the old keys are
-  refused and the new ones accepted; a replayed replacement is refused.
+  key, an old epoch, a stale anchor, a closed window, a key outside its
+  role, a reused key, a bad proof, a second pending replacement and a
+  replacement while frozen; the notice holds the old keys until the effect
+  height; after it the old keys are refused and the new ones accepted; a
+  replayed replacement is refused; a restart replays the replacement, and
+  an upgrade after it checks emergency history across both epochs.
 - K3: the signed fixture runs prepare, sign and assemble end to end.

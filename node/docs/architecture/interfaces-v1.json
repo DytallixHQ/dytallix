@@ -486,6 +486,29 @@
       ]
     },
     {
+      "id": "tx-kit-replacement",
+      "group": "transaction",
+      "exposure": "external",
+      "format": "Canonical JSON control; root kit replacement of one seat's upgrade, freeze and resume keys, signed by 3 of the 5 current upgrade keys over an anchored height window, with the new keys' proofs of possession; signatures in base64.",
+      "version": {
+        "field": "kind",
+        "literal": {
+          "file": "node/dytallix-fast-launch/node/src/kit_replacement.rs",
+          "text": "dytallix-root-kit-replacement-v1"
+        }
+      },
+      "source": {
+        "file": "node/dytallix-fast-launch/node/src/consensus_settlement.rs",
+        "symbol": "replacement::canonical_control(&policies, raw)"
+      },
+      "tests": [
+        {
+          "file": "node/dytallix-fast-launch/node/src/kit_replacement_tests.rs",
+          "name": "a_replacement_brings_the_next_epoch_in_after_the_notice"
+        }
+      ]
+    },
+    {
       "id": "tx-epoch-observation",
       "group": "transaction",
       "exposure": "internal",

@@ -60,6 +60,7 @@ pub mod root_genesis;
 pub mod runtime_candidate;
 pub mod runtime_candidate_v2;
 
+pub mod kit_replacement;
 pub mod release_handover;
 pub mod root_authority;
 

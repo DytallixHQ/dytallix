@@ -21,7 +21,7 @@ const REGISTRY: &[u8] = include_bytes!("upgrade/registry.json");
 const V1_SOURCE: &[u8] = include_bytes!("upgrade/v1/upgrade.rs");
 const V1_SHA256: &str = "57bf05eda1f4676ceabc6b8b58e71e513970feb340a99d62ab75d6d1dafe31eb";
 const V2_SOURCE: &[u8] = include_bytes!("upgrade/v2/upgrade.rs");
-const V2_SHA256: &str = "1672579fdbb5848ff71509c1ba083721207fd71d6d351e5504b85a057bba2aac";
+const V2_SHA256: &str = "9618fd75b094e354947a62a56d51a54232adcaacdaf6a2c5018a912d87079611";
 
 /// Exact registry identity for candidate manifests. Registry entries are compiled.
 pub fn registry_sha256() -> String {
@@ -438,8 +438,17 @@ impl Context {
 /// version builds its own verified view for the migration.
 pub struct EmergencyHistory<'a> {
     pub policy: &'a emergency::Policy,
+    /// The root authority record: schema 2 checks each record with the keys
+    /// of the epoch in force at its block (root kit replacement v1).
+    pub authority: Option<&'a crate::root_authority::Record>,
     pub records: &'a [(emergency::Receipt, emergency::BlockContext)],
     pub state: &'a emergency::State,
+}
+impl EmergencyHistory<'_> {
+    fn policy_at(&self, height: u64) -> Result<emergency::Policy> {
+        let epoch = crate::root_authority::at(self.authority, height)?;
+        Ok(crate::root_authority::emergency_policy(self.policy, epoch)?.into_owned())
+    }
 }
 
 pub fn plan_block(
@@ -471,6 +480,7 @@ pub fn plan_block(
             raw,
             &v2::VerifiedEmergencyHistory::from_records(
                 history.policy,
+                &|height| history.policy_at(height),
                 history.records,
                 history.state,
             )?,
@@ -510,6 +520,7 @@ pub fn replay_record(
             &context.v2(),
             &v2::VerifiedEmergencyHistory::from_records(
                 history.policy,
+                &|height| history.policy_at(height),
                 history.records,
                 history.state,
             )?,

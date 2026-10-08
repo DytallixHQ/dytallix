@@ -422,13 +422,16 @@ pub struct VerifiedEmergencyHistory {
     upgrade_hold: bool,
 }
 impl VerifiedEmergencyHistory {
+    /// Each record is checked with the policy in force at its block (root
+    /// kit replacement v1).
     pub fn from_records(
         policy: &emergency::Policy,
+        policy_at: &dyn Fn(u64) -> Result<emergency::Policy>,
         records: &[(emergency::Receipt, emergency::BlockContext)],
         expected_state: &emergency::State,
     ) -> Result<Self> {
         ensure!(
-            emergency::recover_recorded(policy, records)? == *expected_state,
+            emergency::recover_recorded_at(policy, policy_at, records)? == *expected_state,
             "Migration emergency history/state mismatch"
         );
         for (receipt, _) in records {

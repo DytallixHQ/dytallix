@@ -1169,4 +1169,10 @@ fn v2_recovery_checks_each_receipt_with_the_keys_in_force_at_its_block() {
     // One key set for the whole history refuses one receipt or the other.
     assert!(recover(&first, &records, &verifier).is_err());
     assert!(recover(&second, &records, &verifier).is_err());
+    // So does the structural replay.
+    assert_eq!(
+        recover_recorded_at(&first, &policy_at, &records).unwrap(),
+        resumed.state
+    );
+    assert!(recover_recorded(&first, &records).is_err());
 }

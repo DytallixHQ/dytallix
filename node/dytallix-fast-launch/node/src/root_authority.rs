@@ -19,7 +19,8 @@ use std::borrow::Cow;
 
 /// The record's state key, written by the first kit replacement.
 pub const STATE_KEY: &str = "consensus:root-authority:v1";
-const SCHEMA: u16 = 1;
+/// The record's schema.
+pub const SCHEMA: u16 = 1;
 const MAX_RECORD_BYTES: usize = 1 << 20;
 const MAX_EPOCHS: usize = 1024;
 

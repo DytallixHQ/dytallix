@@ -2777,6 +2777,9 @@ mod upgrade_tests;
 #[cfg(unix)]
 #[path = "upgrade_v2_consensus_tests.rs"]
 mod upgrade_v2_tests;
+#[cfg(unix)]
+#[path = "kit_replacement_consensus_tests.rs"]
+mod kit_replacement_tests;
 
 #[path = "release_handover_consensus_tests.rs"]
 mod release_handover_tests;
