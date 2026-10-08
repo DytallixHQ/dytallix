@@ -312,6 +312,14 @@ impl ConsensusConfig {
                     .all(|key| !emergency_keys.contains(key.public_key_hex.as_str())),
                 "Upgrade and emergency authorities share a key"
             );
+            // One authority epoch for the upgrade, freeze and resume keys
+            // (root kit replacement v1): a replacement moves them together.
+            if let (Some(v2), upgrade::Policy::V2(_)) = (&emergency.v2, policy) {
+                ensure!(
+                    v2.authority_epoch == policy.authority_epoch(),
+                    "Emergency and upgrade authority epochs differ"
+                );
+            }
         }
         if let Some(policy) = &self.release_handover {
             policy.validate()?;
