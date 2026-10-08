@@ -70,26 +70,33 @@ def staging_plan(address):
     return plan
 
 
-def prepare(release, work, address):
+def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot_interval=None):
+    """The key step and the staging chain. Without a plan, this host is the
+    validator and the others have documentation addresses."""
     release, work = Path(release), Path(work)
     work.mkdir(parents=True)
     tools = release / 'bin'
-    plan = staging_plan(address)
+    plan = plan or staging_plan(address)
     (work / 'plan.json').write_text(json.dumps(plan, indent=2) + '\n')
-    say(f'== staging plan: {CHAIN_ID}, validator at {address}')
+    say(f'== staging plan: {CHAIN_ID}, ' + ', '.join(f'{h["label"]} at {h["p2p"]}' for h in plan['hosts']))
     # The key step, typing each printed code back as the founder would.
-    process = subprocess.Popen([sys.executable, '-u', str(HERE / 'host_keys.py'), '--plan', str(work / 'plan.json'),
-                                '--bin', str(tools), '--staging', str(work / 'staging'), '--out', str(work / 'keys')],
-                               stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-    codes, line = {}, None
+    command = [sys.executable, '-u', str(HERE / 'host_keys.py'), '--plan', str(work / 'plan.json'),
+               '--bin', str(tools), '--staging', str(work / 'staging'), '--out', str(work / 'keys')]
+    if backup_upload:
+        command += ['--backup-upload', str(backup_upload)]
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    codes, seal_line, backup_line = {}, None, None
     for out in process.stdout:
         print(out, end='', flush=True)
         for row in out.splitlines():
             if row.startswith('dytallix-seal-'):
-                line = row
+                seal_line = row
                 codes[row.split()[0][len('dytallix-seal-'):]] = row
+            elif row.startswith('dytallix-backup-'):
+                backup_line = row
+                codes['backup'] = row
         if 'type it back from the paper' in out:
-            process.stdin.write(line + '\n')
+            process.stdin.write((backup_line if 'backup code' in out else seal_line) + '\n')
             process.stdin.flush()
     if process.wait() != 0:
         raise Failed('the key step failed')
@@ -97,9 +104,11 @@ def prepare(release, work, address):
     with os.fdopen(descriptor, 'w') as file:
         json.dump(codes, file, indent=2)
     say('== staging chain')
-    result = subprocess.run([sys.executable, '-B', str(HERE / 'staging_chain.py'), '--plan', str(work / 'keys' / 'PIN_PLAN.json'),
-                             '--keys', str(work / 'keys'), '--release', str(release), '--tools', str(tools),
-                             '--out', str(work / 'chain')])
+    command = [sys.executable, '-B', str(HERE / 'staging_chain.py'), '--plan', str(work / 'keys' / 'PIN_PLAN.json'),
+               '--keys', str(work / 'keys'), '--release', str(release), '--tools', str(tools), '--out', str(work / 'chain')]
+    if snapshot_interval:
+        command += ['--snapshot-interval', str(snapshot_interval)]
+    result = subprocess.run(command)
     if result.returncode != 0:
         raise Failed('the staging chain build failed')
     return json.loads((work / 'chain' / 'STAGING.json').read_bytes())

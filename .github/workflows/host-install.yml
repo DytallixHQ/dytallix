@@ -113,3 +113,86 @@ jobs:
       - name: Wipe
         if: ${{ always() && steps.install.conclusion != 'skipped' }}
         run: sudo python3 node/tools/mainnet-preparation/staging_host.py wipe --work "$RUNNER_TEMP/staging"
+
+  # H4 for the sentry and the endpoint: the validator on the runner, the
+  # sentry and the endpoint in two KVM VMs on a private bridge, each with its
+  # own address on its own interface, each installed from its own bundle.
+  # The sentry syncs from the validator, the endpoint through the sentry; the
+  # endpoint's status page answers; the sentry snapshots (a staging interval
+  # of 10 blocks) and its backup job uploads an encrypted copy to a stand-in
+  # store inside its VM, which the runner opens with the backup code.
+  network:
+    name: Staging network (H4 sentry and endpoint)
+    needs: install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Release cache key
+        id: release-key
+        run: |
+          key=$(git ls-tree -r HEAD -- node sdk release | grep -vP '\tnode/(tools|docs)/' | sha256sum | cut -c1-64)
+          echo "key=h4-release-$key" >> "$GITHUB_OUTPUT"
+      # The install job built and saved this release set.
+      - name: Cached release set
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/release
+          key: ${{ steps.release-key.outputs.key }}
+          fail-on-cache-miss: true
+      - name: Host base setup
+        timeout-minutes: 20
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y apparmor apparmor-utils nftables qemu-system-x86 qemu-utils genisoimage
+          sudo ufw disable
+          sudo chmod 0755 /opt
+          ls -l /dev/kvm
+      # Canonical's published image, checked against its SHA256SUMS and
+      # cached by that digest.
+      - name: Ubuntu 24.04 cloud image digest
+        id: image
+        run: |
+          curl -fsSL --retry 3 https://cloud-images.ubuntu.com/releases/noble/release/SHA256SUMS -o "$RUNNER_TEMP/SHA256SUMS"
+          sum=$(grep ' \*ubuntu-24.04-server-cloudimg-amd64.img$' "$RUNNER_TEMP/SHA256SUMS" | cut -d' ' -f1)
+          test -n "$sum"
+          echo "sum=$sum" >> "$GITHUB_OUTPUT"
+      - name: Cached cloud image
+        id: image-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/cloud.img
+          key: ubuntu-cloud-${{ steps.image.outputs.sum }}
+      - name: Download the cloud image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: curl -fSL --retry 3 https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-amd64.img -o "$RUNNER_TEMP/cloud.img"
+      - name: Check the cloud image
+        run: echo "${{ steps.image.outputs.sum }}  $RUNNER_TEMP/cloud.img" | sha256sum -c
+      - name: Save the cloud image
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/cloud.img
+          key: ubuntu-cloud-${{ steps.image.outputs.sum }}
+      - name: Staging chain and bundles
+        run: |
+          python3 node/tools/mainnet-preparation/staging_network.py prepare \
+            --release "$RUNNER_TEMP/release" --work "$RUNNER_TEMP/network"
+      - name: Bridge
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py network-up --work "$RUNNER_TEMP/network"
+      - name: Sentry and endpoint VMs
+        run: |
+          sudo python3 node/tools/mainnet-preparation/staging_network.py vms-up \
+            --work "$RUNNER_TEMP/network" --image "$RUNNER_TEMP/cloud.img"
+      # The VMs install before the validator, whose firewall replaces the
+      # runner's rules and with them the VMs' route out.
+      - name: Install the sentry and the endpoint
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py install-vms --work "$RUNNER_TEMP/network"
+      - name: Install, start and verify the validator
+        run: |
+          sudo python3 node/tools/mainnet-preparation/staging_host.py install \
+            --work "$RUNNER_TEMP/network/net" --height 3 --timeout 300
+      - name: Network run (sync, status page, snapshot, backup)
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py run --work "$RUNNER_TEMP/network"
+      - name: Diagnostics
+        if: failure()
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py diagnostics --work "$RUNNER_TEMP/network"

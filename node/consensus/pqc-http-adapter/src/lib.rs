@@ -355,6 +355,12 @@ async fn forward(socket: &Path, frame: &[u8], limits: &Limits) -> Result<Reply, 
     decode_reply(&raw, limits)
 }
 
+/// The caller the channel and status listeners name to the engine. The
+/// engine's client socket accepts only local callers, and those listeners
+/// serve remote clients, whose bounds the adapter enforces itself.
+pub(crate) const LOCAL_CALLER: SocketAddr =
+    SocketAddr::new(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST), 1);
+
 /// Sends one checked request to the engine's client socket within the
 /// deadline. Both listeners end here.
 pub(crate) async fn engine(

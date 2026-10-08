@@ -224,6 +224,16 @@ founder to type `wipe LABEL` first and keeps the account.
   install` runs the validator's `install.sh` with its seal code, starts the
   unit, waits for the application's height metric, verifies the host and
   `wipe` removes it. The same two commands rehearse a staging host by hand.
+  The workflow's second job runs all three roles (`staging_network.py`):
+  the validator on the runner and the sentry and the endpoint in two KVM
+  virtual machines on a private bridge, each with its own address on its
+  own interface and its own bundle, driven through the QEMU guest agent
+  (their firewalls drop everything else). The sentry syncs from the
+  validator, the endpoint through the sentry, the endpoint's status page
+  answers, the sentry snapshots (a staging interval of 10 blocks) and its
+  backup job uploads an encrypted copy to a stand-in store
+  (`s3_standin.py`), which the runner opens with the backup code and
+  compares with the snapshot.
 - **H5.** The runbooks that change with it: start and stop, a release switch
   on a host, validator recovery, rebuilding the endpoint by state sync.
   Built: [host operations](../operations/host.md) (status, start and stop,
