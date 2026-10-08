@@ -21,7 +21,7 @@ const REGISTRY: &[u8] = include_bytes!("upgrade/registry.json");
 const V1_SOURCE: &[u8] = include_bytes!("upgrade/v1/upgrade.rs");
 const V1_SHA256: &str = "57bf05eda1f4676ceabc6b8b58e71e513970feb340a99d62ab75d6d1dafe31eb";
 const V2_SOURCE: &[u8] = include_bytes!("upgrade/v2/upgrade.rs");
-const V2_SHA256: &str = "14d103c3bf26849be10864d160e957bbc9cd77f40a08b0736d6f59f0bff8847f";
+const V2_SHA256: &str = "1672579fdbb5848ff71509c1ba083721207fd71d6d351e5504b85a057bba2aac";
 
 /// Exact registry identity for candidate manifests. Registry entries are compiled.
 pub fn registry_sha256() -> String {

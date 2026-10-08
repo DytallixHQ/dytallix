@@ -169,9 +169,20 @@ impl Policy {
         Ok(())
     }
 
+    /// The policy's hash. A schema 2 policy hashes its rules, not its keys:
+    /// the key sets and the authority epoch are left out (root kit
+    /// replacement v1), so a replacement changes neither this hash nor the
+    /// states, receipts and payloads that bind it; every schema 2 payload
+    /// signs its authority epoch, and only that epoch's keys verify it.
     pub fn sha256(&self) -> Result<String> {
         self.validate()?;
-        Ok(digest(&serde_json::to_vec(self)?))
+        let mut rules = self.clone();
+        if let Some(v2) = rules.v2.as_mut() {
+            v2.authority_epoch = 0;
+            rules.freeze_authority.keys.clear();
+            rules.resume_authority.keys.clear();
+        }
+        Ok(digest(&serde_json::to_vec(&rules)?))
     }
 }
 
@@ -778,6 +789,19 @@ pub fn recover(
     receipts: &[(Receipt, BlockContext)],
     verifier: &dyn ControlVerifier,
 ) -> Result<State> {
+    recover_at(policy, &|_| Ok(policy.clone()), receipts, verifier)
+}
+
+/// `recover` with each control checked against the policy in force at its
+/// block (root kit replacement v1): `policy_at` gives the policy with the
+/// keys of the authority epoch in force at a height. The policies share
+/// their rules and so their hash, and the state carries over.
+pub fn recover_at(
+    policy: &Policy,
+    policy_at: &dyn Fn(u64) -> Result<Policy>,
+    receipts: &[(Receipt, BlockContext)],
+    verifier: &dyn ControlVerifier,
+) -> Result<State> {
     let mut state = State::new(policy)?;
     for (receipt, actual_block) in receipts {
         ensure!(
@@ -785,7 +809,8 @@ pub fn recover(
             "Emergency receipt block mismatch"
         );
         let wire = serde_json::to_vec(&receipt.control)?;
-        let planned = plan_block(policy, &state, actual_block, Some(&wire), verifier)?;
+        let at = policy_at(actual_block.height)?;
+        let planned = plan_block(&at, &state, actual_block, Some(&wire), verifier)?;
         ensure!(
             planned.receipt.as_ref() == Some(receipt),
             "Emergency receipt replay mismatch"

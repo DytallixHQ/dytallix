@@ -844,7 +844,12 @@ fn check_stored_startup(
         let trace = verify_recovery_with(&history)?;
         if let (Some(policy), Some(verifier)) = (&config.emergency, emergency_verifier) {
             classify((|| {
-                ensure!(emergency::recover(policy, &trace.records, verifier)?
+                let authority = root_record(storage)?;
+                let policy_at = |height| {
+                    let epoch = crate::root_authority::at(authority.as_ref(), height)?;
+                    Ok(crate::root_authority::emergency_policy(policy, epoch)?.into_owned())
+                };
+                ensure!(emergency::recover_at(policy, &policy_at, &trace.records, verifier)?
                     == emergency_state(storage, config)?.context("Emergency state missing")?,
                     "Emergency cryptographic replay differs");
                 let outcomes = upgrade_history(&history, config, &trace, Some(verifier))?;
@@ -933,7 +938,10 @@ fn restart_against<T>(
             emergency_receipt_sha256: emergency_state(storage, config)?
                 .and_then(|state| state.last_receipt_sha256().map(str::to_owned)),
         };
-        Ok(Some(check(policy, &state, &checkpoint, raw)?))
+        let authority = root_record(storage)?;
+        let epoch = crate::root_authority::at(authority.as_ref(), info.height.saturating_add(1))?;
+        let policy = crate::root_authority::handover_policy(policy, epoch)?;
+        Ok(Some(check(&policy, &state, &checkpoint, raw)?))
     })(), FailureClass::Release)
 }
 
@@ -957,6 +965,9 @@ pub fn restart_payload(
         .context("A restart requires a handover policy")?;
     let storage = Storage::open_read_only(path.to_path_buf())?;
     let state = handover_state(&storage, config)?.context("Handover state missing")?;
+    let authority = root_record(&storage)?;
+    let epoch = crate::root_authority::at(authority.as_ref(), info.height.saturating_add(1))?;
+    let policy = crate::root_authority::handover_policy(policy, epoch)?;
     Ok(handover::restart::Payload {
         schema: 1,
         chain_id: policy.chain_id.clone(),
@@ -3044,6 +3055,16 @@ fn emergency_result() -> TxResult {
         log: "Emergency control recorded".into(),
     }
 }
+/// The root authority record, if a kit replacement has written one (root
+/// kit replacement v1); until then the configuration's keys are in force.
+fn root_record(storage: &Storage) -> Result<Option<crate::root_authority::Record>> {
+    crate::root_authority::decode_stored(
+        storage
+            .db
+            .get(crate::root_authority::STATE_KEY)?
+            .as_deref(),
+    )
+}
 fn emergency_state(
     storage: &Storage,
     config: &ConsensusConfig,
@@ -3410,6 +3431,7 @@ fn handover_history(
         ensure!(actual.is_empty(), "Unconfigured handover state");
         return Ok(());
     };
+    let authority = root_record(storage)?;
 
     let up = config
         .upgrade
@@ -3493,8 +3515,11 @@ fn handover_history(
                 app_hash: record.head.anchor.prior_app_hash.clone(),
                 emergency_receipt_sha256: emergency_state.last_receipt_sha256().map(str::to_owned),
             };
-            let verified =
-                handover::restart::replay(policy, &state, &checkpoint, &receipt, verifier)?;
+            let at = crate::root_authority::handover_policy(
+                policy,
+                crate::root_authority::at(authority.as_ref(), h)?,
+            )?;
+            let verified = handover::restart::replay(&at, &state, &checkpoint, &receipt, verifier)?;
             state = verified.state().clone();
             ensure!(expected.insert(key, bytes).is_none(), "Restart receipt reused");
         } else {
@@ -3527,8 +3552,12 @@ fn handover_history(
                         h - 1,
                         policy.v2.as_ref().map(|v2| v2.max_anchor_age_blocks),
                     )?;
-                    let plan = handover::replay_record(
+                    let at = crate::root_authority::handover_policy(
                         policy,
+                        crate::root_authority::at(authority.as_ref(), h)?,
+                    )?;
+                    let plan = handover::replay_record(
+                        &at,
                         &state,
                         &receipt,
                         &context,
@@ -3670,6 +3699,7 @@ fn upgrade_history(
         ensure!(actual.is_empty(), "Unconfigured upgrade/index state");
         return Ok(outcomes);
     };
+    let authority = root_record(storage)?;
     let emergency_policy = config
         .emergency
         .as_ref()
@@ -3730,8 +3760,12 @@ fn upgrade_history(
                         && record.result.tx_results.get(*index) == Some(&upgrade_result()),
                     "Upgrade receipt differs from committed input/result"
                 );
-                let plan = upgrade::replay_record(
+                let at = crate::root_authority::upgrade_policy(
                     policy,
+                    crate::root_authority::at(authority.as_ref(), h)?,
+                )?;
+                let plan = upgrade::replay_record(
+                    &at,
                     &state,
                     &receipt,
                     &context,
@@ -3829,6 +3863,13 @@ impl ConsensusApplication {
         let Some(policy) = &self.config.release_handover else {
             return Ok(None);
         };
+        // The keys of the authority epoch in force at this block.
+        let authority = root_record(&self.storage)?;
+        let at = crate::root_authority::handover_policy(
+            policy,
+            crate::root_authority::at(authority.as_ref(), height)?,
+        )?;
+        let policy = &*at;
         let state =
             handover_state(&self.storage, &self.config)?.context("Handover state missing")?;
         if let Some(restart) = self.restart.as_ref().filter(|r| r.halted_height() == height) {
@@ -3947,6 +3988,13 @@ impl ConsensusApplication {
         let Some(policy) = &self.config.emergency else {
             return Ok(None);
         };
+        // The keys of the authority epoch in force at this block.
+        let authority = root_record(&self.storage)?;
+        let at = crate::root_authority::emergency_policy(
+            policy,
+            crate::root_authority::at(authority.as_ref(), height)?,
+        )?;
+        let policy = &*at;
         let state =
             emergency_state(&self.storage, &self.config)?.context("Emergency state missing")?;
         let mut control = None;
@@ -3990,6 +4038,13 @@ impl ConsensusApplication {
         let Some(policy) = &self.config.upgrade else {
             return Ok(None);
         };
+        // The keys of the authority epoch in force at this block.
+        let authority = root_record(&self.storage)?;
+        let at = crate::root_authority::upgrade_policy(
+            policy,
+            crate::root_authority::at(authority.as_ref(), height)?,
+        )?;
+        let policy = &*at;
         let state = upgrade_state(&self.storage, &self.config)?.context("Upgrade state missing")?;
         let emergency_state = emergency_state(&self.storage, &self.config)?
             .context("Upgrade emergency state missing")?;
@@ -4742,11 +4797,15 @@ impl ConsensusApplication {
                         .context("Handover state missing")?;
                     let emergency = emergency_state(&self.storage, &self.config)?
                         .context("Handover emergency state missing")?;
-                    let policy = self
-                        .config
-                        .release_handover
-                        .as_ref()
-                        .context("Handover policy missing")?;
+                    let authority = root_record(&self.storage)?;
+                    let at = crate::root_authority::handover_policy(
+                        self.config
+                            .release_handover
+                            .as_ref()
+                            .context("Handover policy missing")?,
+                        crate::root_authority::at(authority.as_ref(), height)?,
+                    )?;
+                    let policy = &*at;
                     let parent = current_info(&self.storage)?;
                     let context = handover_context(
                         height,

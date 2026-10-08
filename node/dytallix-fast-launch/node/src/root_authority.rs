@@ -5,8 +5,8 @@
 //! from its start height until the next epoch's. Every emergency, upgrade,
 //! handover and restart check takes its keys from the epoch in force at the
 //! block it checks, so a replay of history uses the keys each control was
-//! signed under. Until a kit replacement writes the record (K2), there is no
-//! record and the configuration's key sets are in force: nothing changes.
+//! signed under. Until a kit replacement writes the record (K2b), there is
+//! no record and the configuration's key sets are in force: nothing changes.
 //!
 //! Only the keys and the epoch come from the record. Thresholds, windows,
 //! notices and size bounds stay in the configuration.

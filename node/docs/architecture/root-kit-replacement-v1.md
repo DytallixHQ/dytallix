@@ -90,14 +90,19 @@ The node admits a replacement only if:
   other root control; a freeze stops ordinary transactions, not the root
   authority.
 
-### Implementation notes (K1)
+### Implementation notes
 
-- **Each epoch is a whole policy.** The emergency, upgrade and handover
-  policies are hashed into their states, receipts and signed payloads
-  (`policy_sha256`). An epoch's policy is therefore the configuration's
-  with that epoch's keys and number, with its own hash: payloads signed in
-  an epoch bind that epoch's policy, and at the effect height the three
-  states are bound again to the new policy (K2).
+- **Each epoch is a policy.** An epoch's emergency, upgrade and handover
+  policies are the configuration's with that epoch's keys and number.
+- **Policy hashes cover the rules, not the keys (K2a).** The three policies
+  are hashed into their states, receipts and signed payloads
+  (`policy_sha256`). A schema 2 policy's hash leaves out its key sets and
+  authority epoch, so a replacement does not change it: states and
+  receipts stay valid across epochs and nothing is bound again at the
+  effect height. A payload still names its authority epoch, and only that
+  epoch's keys verify it. A changed rule (a threshold, window or bound)
+  still changes the hash and needs a migration. Schema 1 policies hash as
+  before.
 - **Height decides.** A state is checked against the policy in force at the
   committed height; a receipt, a replayed control and a block plan against
   the one in force at their block. So a replay of history checks each
@@ -106,8 +111,15 @@ The node admits a replacement only if:
 - **Built in K1:** `root_authority` (the record, its validation, the epoch in
   force at a height, and each policy for an epoch: the configuration's,
   borrowed, while there is no record) and the configuration rule that the
-  emergency and upgrade epochs agree. The node's checks keep the
-  configuration until K2 writes the record and binds the states again.
+  emergency and upgrade epochs agree.
+- **Built in K2a:** the rules hash, and every check through the policy in
+  force at its height: the emergency, upgrade and handover block plans
+  (which admission and finalize both run), handover admission, the startup
+  replay of emergency receipts, the handover, restart and upgrade history
+  replays, and the restart check and payload. Nothing writes the record
+  yet, and every block, admission and startup refuses a stored one as an
+  unknown consensus record; K2b makes it committed state and replays the
+  replacements that wrote it.
 
 ## What does not change
 
@@ -118,8 +130,8 @@ genesis keys, and every window, notice and size bound in the configuration.
 
 - **Node.** The authority record and the replacement control, with its
   admission, notice and effect, in the consensus application. The upgrade
-  schema 2 module is hash-pinned (`V2_SHA256` and the registry); this change
-  re-pins it before the E06 freeze.
+  schema 2 module is hash-pinned (`V2_SHA256` and the registry); K2a
+  re-pinned it for the rules hash, and K2b re-pins it if it changes it.
 - **Root helper.** Unchanged: it verifies single SLH-DSA signatures with the
   keys the node passes it, now taken from the record.
 - **Tools.** `dytallix-control prepare` gains the replacement, and
@@ -136,7 +148,8 @@ genesis keys, and every window, notice and size bound in the configuration.
 | Step | Content | Output change |
 | --- | --- | --- |
 | K1 | The authority record, its epochs and each epoch's policies; one authority epoch in the configuration | None: no record until a replacement |
-| K2 | The replacement control: admission, notice, effect (the record, the epoch, the three states bound again); every check through the policy in force at its height | New control |
+| K2a | Schema 2 policy hashes over the rules, not the keys; every check through the policy in force at its height | Schema 2 policy hashes (no chain runs them yet) |
+| K2b | The replacement control: admission, notice, effect (the record and the epoch) | New control |
 | K3 | Tools: prepare, show, sign and assemble a replacement; proofs for the next epoch | New tool operations |
 | K4 | Staging drill: replace a seat; the old kit is refused after the effect height and the new kit signs a freeze and a resume | Evidence |
 
@@ -144,7 +157,12 @@ genesis keys, and every window, notice and size bound in the configuration.
 
 - K1: a chain's controls verify exactly as before; a restart and a node
   restart read the record.
-- K2: admission refuses two signers, a repeated signer, a freeze or resume
+- K2a: a schema 2 state, receipt and payload keep their policy hash across
+  epochs and lose it with a changed rule; a replay checks each receipt with
+  the keys in force at its block; a block before the effect height takes
+  the old keys, and from it only the new ones, under either epoch number;
+  a stored record is refused until K2b.
+- K2b: admission refuses two signers, a repeated signer, a freeze or resume
   key, an old epoch, a stale anchor, a closed window, a seat outside 1 to 5,
   a reused key, a bad proof and a second pending replacement; the notice
   holds the old keys until the effect height; after it the old keys are

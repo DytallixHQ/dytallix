@@ -819,9 +819,15 @@ fn v2_replay_rejects_changed_anchor_incident_and_policy_without_migration() {
     // Canonical replay changes the receipt hash and state; persisted state comparison rejects it.
     let reconstructed = recover_recorded(&p, &[changed]).unwrap();
     assert_ne!(reconstructed, frozen.state);
-    let mut next_policy = p.clone();
-    next_policy.v2.as_mut().unwrap().authority_epoch += 1;
-    assert!(decode_state(&next_policy, &encode_state(&frozen.state).unwrap()).is_err());
+    // A kit replacement changes the keys and the authority epoch, not the
+    // rules: the state stays valid (root kit replacement v1). A changed rule
+    // still needs a migration.
+    let mut next_epoch = p.clone();
+    next_epoch.v2.as_mut().unwrap().authority_epoch += 1;
+    assert!(decode_state(&next_epoch, &encode_state(&frozen.state).unwrap()).is_ok());
+    let mut next_rules = p.clone();
+    next_rules.max_control_bytes -= 1;
+    assert!(decode_state(&next_rules, &encode_state(&frozen.state).unwrap()).is_err());
     assert!(decode_state(&p, &encode_state(&State::new(&policy()).unwrap()).unwrap()).is_err());
 }
 
@@ -1113,4 +1119,54 @@ fn historical_release_absence_preserves_exact_v2_receipt_bytes() {
         serde_json::from_slice::<Receipt>(&encoded).unwrap(),
         receipt
     );
+}
+
+#[test]
+fn v2_recovery_checks_each_receipt_with_the_keys_in_force_at_its_block() {
+    // Root kit replacement v1: a replacement in force from height 5 brings
+    // new keys and epoch 2. The freeze before it is checked with the first
+    // epoch's keys and the resume after it with the second's.
+    let first = v2_policy();
+    let mut second = first.clone();
+    second.v2.as_mut().unwrap().authority_epoch = 2;
+    let replaced = |authority: &AuthorityPolicy, seed: u8| AuthorityPolicy {
+        keys: (0..5u8)
+            .map(|i| AuthorityKey {
+                key_id: format!("{}-new", authority.keys[usize::from(i)].key_id),
+                public_key_hex: hex::encode(vec![seed + i; KEY_BYTES]),
+            })
+            .collect(),
+        threshold: 3,
+    };
+    second.freeze_authority = replaced(&first.freeze_authority, 51);
+    second.resume_authority = replaced(&first.resume_authority, 61);
+    second.validate().unwrap();
+    assert_eq!(first.sha256().unwrap(), second.sha256().unwrap());
+    let policy_at =
+        |height: u64| -> Result<Policy> { Ok(if height < 5 { &first } else { &second }.clone()) };
+    let verifier = V2Verifier::valid();
+    let s = State::new(&first).unwrap();
+    let fc = v2_context(3, 0);
+    let freeze = v2_control(&first, &s, &fc, Action::Freeze);
+    let frozen = v2_plan(&first, &s, &fc, &freeze, &verifier).unwrap();
+    let rc = v2_context(6, 3);
+    // The replaced keys no longer sign, under either epoch number.
+    let old = v2_control(&first, &frozen.state, &rc, Action::Resume);
+    assert!(v2_plan(&second, &frozen.state, &rc, &old, &verifier).is_err());
+    let mut stale = v2_control(&second, &frozen.state, &rc, Action::Resume);
+    stale.signatures = old.signatures.clone();
+    assert!(v2_plan(&second, &frozen.state, &rc, &stale, &verifier).is_err());
+    let resume = v2_control(&second, &frozen.state, &rc, Action::Resume);
+    let resumed = v2_plan(&second, &frozen.state, &rc, &resume, &verifier).unwrap();
+    let records = [
+        (frozen.receipt.unwrap(), fc),
+        (resumed.receipt.unwrap(), rc),
+    ];
+    assert_eq!(
+        recover_at(&first, &policy_at, &records, &verifier).unwrap(),
+        resumed.state
+    );
+    // One key set for the whole history refuses one receipt or the other.
+    assert!(recover(&first, &records, &verifier).is_err());
+    assert!(recover(&second, &records, &verifier).is_err());
 }

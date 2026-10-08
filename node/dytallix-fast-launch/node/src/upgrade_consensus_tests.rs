@@ -117,6 +117,25 @@ fn emergency_control(
     first: u64,
     last: u64,
 ) -> Vec<u8> {
+    let seed = if action == emergency::Action::Freeze {
+        11
+    } else {
+        21
+    };
+    epoch_control(root, f, app, action, anchor, (first, last), 1, seed)
+}
+/// A control naming `epoch`, signed by three keys from `seed`.
+#[allow(clippy::too_many_arguments)]
+fn epoch_control(
+    root: &RootFixture,
+    f: &Fixture,
+    app: &ConsensusApplication,
+    action: emergency::Action,
+    anchor: &Info,
+    (first, last): (u64, u64),
+    epoch: u64,
+    seed: u8,
+) -> Vec<u8> {
     let policy = f.config.emergency.as_ref().unwrap();
     let state = emergency_state(&app.storage, &app.config).unwrap().unwrap();
     let resume = if action == emergency::Action::Resume {
@@ -139,7 +158,7 @@ fn emergency_control(
         target_height: first,
         v2: Some(emergency::PayloadV2 {
             genesis_sha256: f.config.app_state_sha256.clone(),
-            authority_epoch: 1,
+            authority_epoch: epoch,
             policy_sha256: policy.sha256().unwrap(),
             not_before_height: first,
             not_after_height: last,
@@ -148,10 +167,10 @@ fn emergency_control(
         }),
     };
     let artifact = emergency::artifact_bytes(&payload).unwrap();
-    let (seed, purpose) = if action == emergency::Action::Freeze {
-        (11, "freeze")
+    let purpose = if action == emergency::Action::Freeze {
+        "freeze"
     } else {
-        (21, "resume")
+        "resume"
     };
     let signatures = (seed..seed + 3)
         .map(|key| {
@@ -339,6 +358,94 @@ fn actual_v2_signed_window_uses_stored_anchor_and_resume_checkpoint() {
     assert!(app.query().unwrap()["emergency_control"]["blocks_upgrade"]
         .as_bool()
         .unwrap());
+}
+
+/// Five keys no control signs with, for the roles a test does not exercise.
+fn unused(purpose: &str, seed: u8) -> emergency::AuthorityPolicy {
+    emergency::AuthorityPolicy {
+        threshold: 3,
+        keys: (seed..seed + 5)
+            .map(|key| emergency::AuthorityKey {
+                key_id: format!("{purpose}-{key}"),
+                public_key_hex: hex::encode([key; 64]),
+            })
+            .collect(),
+    }
+}
+
+#[test]
+#[ignore = "Requires pinned real SLH helper and disposable fixture signers"]
+fn actual_freeze_takes_the_keys_of_the_epoch_in_force() {
+    // Root kit replacement v1 (K2a): with a root authority record, a
+    // block's controls verify with the keys of the epoch in force at it.
+    // Until K2b commits the record through a replacement control, every
+    // entry point refuses a stored one, so this test runs block 2's
+    // emergency plan, which admission and finalize both run.
+    let mut f = Fixture::new();
+    let root = root(&mut f, false);
+    let directory = tempfile::tempdir().unwrap();
+    let mut app = root.initialized(&f, directory.path());
+    commit(&mut app, 1, vec![]);
+    let policy = f.config.emergency.as_ref().unwrap();
+    let replacement = authority(root._directory.path(), 51, 5, 3, "freeze");
+    let record = |from_height| crate::root_authority::Record {
+        schema: 1,
+        epochs: vec![
+            crate::root_authority::Epoch {
+                authority_epoch: 1,
+                from_height: 1,
+                upgrade: unused("upgrade", 0x70),
+                freeze: policy.freeze_authority.clone(),
+                resume: policy.resume_authority.clone(),
+            },
+            crate::root_authority::Epoch {
+                authority_epoch: 2,
+                from_height,
+                upgrade: unused("upgrade", 0x80),
+                freeze: replacement.clone(),
+                resume: unused("resume", 0x90),
+            },
+        ],
+    };
+    let store = |app: &ConsensusApplication, from_height| {
+        let bytes = record(from_height).encode().unwrap();
+        app.storage
+            .db
+            .put(crate::root_authority::STATE_KEY, bytes)
+            .unwrap();
+    };
+    let anchor = app.info().unwrap();
+    let freeze = |epoch, seed| {
+        let action = emergency::Action::Freeze;
+        epoch_control(&root, &f, &app, action, &anchor, (2, 4), epoch, seed)
+    };
+    let (old, stale, new) = (freeze(1, 11), freeze(2, 11), freeze(2, 51));
+    let plans = |app: &ConsensusApplication, raw: &Vec<u8>| {
+        app.emergency_plan(2, std::slice::from_ref(raw))
+            .map(|plan| plan.unwrap().state.frozen())
+    };
+    // Epoch 2 from block 3: block 2 still takes the configured keys.
+    store(&app, 3);
+    assert!(plans(&app, &old).unwrap());
+    assert!(plans(&app, &new).is_err());
+    // Epoch 2 from block 2: the replaced keys no longer sign, under either
+    // epoch number, and the new ones do.
+    store(&app, 2);
+    assert!(plans(&app, &old).is_err());
+    assert!(plans(&app, &stale).is_err());
+    assert!(plans(&app, &new).unwrap());
+    let refused = app.check_tx(&new).log;
+    assert!(refused.contains("Unknown consensus record"), "{refused}");
+    // Without a record the configuration is in force.
+    app.storage
+        .db
+        .delete(crate::root_authority::STATE_KEY)
+        .unwrap();
+    assert_ne!(app.check_tx(&new).code, 0);
+    assert_admitted(app.check_tx(&old));
+    commit(&mut app, 2, vec![old]);
+    let state = emergency_state(&app.storage, &app.config).unwrap().unwrap();
+    assert!(state.frozen());
 }
 
 #[test]
