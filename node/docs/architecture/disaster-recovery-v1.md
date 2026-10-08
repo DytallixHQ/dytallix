@@ -29,6 +29,20 @@ document is the design; the tools and the runbook follow (see
   failure takes both, so each committed block survives on the other host
   (a constraint on the provider choice, D12-Q03).
 
+[Restore approval](../../../launch/approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json):
+
+- **A rebuilt host restores on its own.** Only the sentry writes and serves
+  snapshots, so a rebuilt sentry has no peer to state-sync from. Instead,
+  after installing from its bundle and before its first start, the host
+  opens the newest off-host copy and restores from it locally, then catches
+  up from the validator. No other host serves the copy or changes, and the
+  same path rebuilds the validator if the validator and the sentry are lost
+  together.
+- **Light blocks are written with each snapshot.** The sentry's engine
+  writes the light blocks for each snapshot height, so every copy is
+  self-contained and no node is stopped to export them (with one validator,
+  stopping it halts the chain).
+
 ## What is copied
 
 The sentry runs with `block_history: archive`, so its application keeps
@@ -39,11 +53,12 @@ genesis. One snapshot is therefore both the state and the application's
 full history. Each day (`snapshots.interval_blocks` 17,280, about a day at
 5-second blocks) the newest complete snapshot is copied.
 
-A state sync restore also needs the engine's signed headers from the
-snapshot's height (light blocks from H to H+2). The sentry's daily copy
-includes them where it can export them while running; otherwise the
-validator or a surviving node supplies them at restore time (an open item,
-below).
+A restore also needs the engine's signed headers from the snapshot's
+height: light blocks from H to H+2, since header H+1 carries the
+application hash of H and H+2 commits it. The sentry's engine writes them
+beside snapshot H once H+2 commits, in the export format
+(`{height:020}.block` and `.params`), and keeps them as long as the
+snapshot. The backup job waits for both and copies them together.
 
 ## The copy
 
@@ -99,35 +114,56 @@ below).
 
 ## Restore
 
-- **Sentry lost** (validator alive): rebuild the sentry from its bundle,
-  join by state sync from the newest off-host copy (decrypted with the
-  backup code) and catch up from the validator. Its archive history comes
-  back with the snapshot's block records.
+A rebuilt host restores from the newest copy, as root, after `install.sh`
+and before the node's first start:
+
+1. **Fetch** the copy to the host (it is encrypted and authenticated, so
+   the download is transport only, like the bundle's).
+2. **Open** it with the backup code typed from paper (`backup-open`): the
+   whole copy is checked before anything is extracted, into a root-only
+   directory.
+3. **Verify the light blocks.** The engine's light client trusts the
+   copy's header at H (the copy is authenticated by the backup code) and
+   verifies H+1 and H+2 with ML-DSA-65, giving the trusted application
+   hash.
+4. **Import the snapshot** into the empty node through the application's
+   restore checks ([state sync v1](state-sync-v1.md), C3): every chunk's
+   hash, the rebuilt tree against the state digest, the head against the
+   trusted application hash, and the full startup check. Any failure
+   leaves the node empty.
+5. **Set the engine's stores** at H from the verified light blocks (the
+   upstream bootstrap, with the local light block provider).
+6. **Start.** The node fetches blocks from H+1 from its peers and checks
+   each against its own application.
+
+The validator keeps its blocks for at least the evidence horizon (241,920
+blocks, about 14 days), and the newest copy is at most about a day old. So a lost
+sentry must be restored within about 13 days, or the blocks after its
+newest copy are no longer held anywhere it can fetch them.
+
+- **Sentry lost** (validator alive): rebuild and restore as above. Its
+  archive history comes back with the snapshot's block records.
 - **Validator lost:** [validator recovery](../operations/validator-recovery.md)
   (F17). The sentry holds every block.
-- **Endpoint lost:** rebuild it from its bundle and state sync.
+- **Endpoint lost:** rebuild and restore as above.
 - **Validator and sentry lost together:** only possible if both providers
-  fail at once. Restore from the newest off-host copy; blocks after it are
-  lost, and the chain resumes only after an incident decision. The
-  two-provider rule is what makes this the last case.
+  fail at once. Rebuild the validator and restore it from the newest copy;
+  blocks after it are lost, and the chain resumes only after an incident
+  decision. The two-provider rule is what makes this the last case.
 
 Every restore is drilled quarterly on staging, with its measured times.
 
 ## Open items
 
-- **A backup run on a real host:** H4's staging network job installs the
-  sentry in a VM, runs its backup job against a stand-in store
+- **A backup run on a real host:** closed. H4's staging network job
+  installs the sentry in a VM, runs its backup job against a stand-in store
   (`s3_standin.py`) and opens the copy on the runner; its first green run
-  closes this item.
-- **Light blocks from a running sentry:** `dytallix-light-export` reads the
-  engine's stores and asks for a stopped node or a copy of its home. The
-  copy needs an export that works while the node runs, or the light blocks
-  come from another node at restore time.
+  copied and opened the snapshot of height 20 (8 October 2026).
 - **The second provider and the hosting providers** (D12-Q03), and the
   storage account. A free tier must hold the copies: the snapshot grows with
   history.
-- **Runbook:** `node/docs/operations/disaster-recovery.md`, once the tools
-  exist.
+- **Runbook:** `node/docs/operations/disaster-recovery.md`, with the
+  restore tools (R6).
 
 ## Steps
 
@@ -140,5 +176,14 @@ Every restore is drilled quarterly on staging, with its measured times.
   store. Built except the H4 run: `host_keys.py --backup-upload`,
   `backup/` sealed files, `host_files.py`'s backup unit, timer and
   `backup.py`, the installer's placement, verify, stage, switch and wipe,
-  with tests (`test_backup_job.py`, `test_host_bundle.py`).
-- **R4.** The runbook and the first restore drill on staging.
+  with tests (`test_backup_job.py`, `test_host_bundle.py`). The H4 run
+  passed.
+- **R4.** The sentry's engine writes the light blocks for each snapshot
+  height, and the backup copies them with the snapshot.
+- **R5.** The restore: the application's snapshot import through its
+  restore checks, the engine's bootstrap from verified light blocks, and
+  the bundle's restore step, with tests.
+- **R6.** The runbook and the first restore drill on staging: H4 wipes the
+  sentry's VM, reinstalls it from its bundle, restores it from the stand-in
+  store's copy, and checks that it catches up from the validator with the
+  chain's application hash. The drill records its measured times.

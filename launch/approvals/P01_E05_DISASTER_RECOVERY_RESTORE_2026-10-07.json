@@ -1,0 +1,35 @@
+{
+  "decision_id": "P01-2026-10-07-E05-DISASTER-RECOVERY-RESTORE",
+  "approved": "2026-10-07",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Disaster recovery (F19): how a rebuilt host restores from the off-host copy"
+  },
+  "design_ref": "../../node/docs/architecture/disaster-recovery-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "Restore on the new host",
+      "rule": "A rebuilt host restores from the newest off-host copy on its own: after installing from its bundle and before its first start, it opens the copy with the backup code typed from paper, imports the snapshot through the application's restore checks (state digest, application hash, startup check) and sets the engine's stores at the snapshot height from the copy's light blocks, verified by the engine's light client; it then catches up from the validator. No other host serves the copy or changes, and the same path restores the validator if the validator and the sentry are lost together."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Light blocks written with each snapshot",
+      "rule": "The sentry's engine writes the light blocks for each snapshot height H (heights H to H+2) once H+2 commits, and the backup job copies them with the snapshot, so every off-host copy is self-contained and no node is stopped to export them. The restore still verifies every ML-DSA signature from the copy's height."
+    }
+  ],
+  "supersedes_in_design": [
+    "The open item 'Light blocks from a running sentry' (the validator or a surviving node supplying them at restore time)",
+    "'Sentry lost: join by state sync from the newest off-host copy' through a peer offering the snapshot"
+  ],
+  "unset": [
+    "The hosting providers and the storage provider and account (D12-Q03)",
+    "The engine's light block writer, the restore tools, the runbook and the first restore drill (disaster recovery v1, steps R4 to R6)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

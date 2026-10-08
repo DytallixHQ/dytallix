@@ -123,7 +123,9 @@ Each execution record holds:
 - **Rejoin.** A node whose database is set aside rejoins by state sync from
   operator-supplied light blocks (state sync v1: the plan's `state_sync` and
   the supervisor's `state_sync.light_blocks`), or by block sync from the
-  archive sentry (`block_history: archive`).
+  archive sentry (`block_history: archive`). A rebuilt host restores from
+  the newest off-host copy instead
+  ([disaster recovery v1](../architecture/disaster-recovery-v1.md#restore)).
 - **Penalties.** A validator's first duplicate vote deducts the penalty rate
   from every stake bonded to it and removes the validator for good
   ([penalties v1](../architecture/penalties-v1.md), D09-Q04).

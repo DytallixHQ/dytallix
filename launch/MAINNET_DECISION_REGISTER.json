@@ -2750,7 +2750,8 @@
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
             "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json",
             "approvals/P01_E05_HOST_RECOVERY_2026-10-06.json",
-            "approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json"
+            "approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json",
+            "approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json"
           ]
         },
         {
@@ -4178,6 +4179,23 @@
         "D12-Q01"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-07-E05-DISASTER-RECOVERY-RESTORE",
+      "approved": "2026-10-07",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json",
+      "decisions": [
+        "D12-Q02: a rebuilt host restores from the newest off-host copy on its own (backup code from paper, the application's restore checks, the engine's stores set from verified light blocks), then catches up from the validator.",
+        "D12-Q02: the sentry's engine writes the light blocks for each snapshot height (H to H+2), and the backup copies them with the snapshot."
+      ],
+      "question_refs": [
+        "D12-Q02"
+      ],
+      "unset": [
+        "The hosting and storage providers (D12-Q03)",
+        "The light block writer, restore tools, runbook and first drill (R4 to R6)"
+      ]
     },
     {
       "id": "P01-2026-10-07-E05-DISASTER-RECOVERY",
