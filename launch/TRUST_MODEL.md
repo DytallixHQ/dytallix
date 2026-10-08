@@ -35,8 +35,9 @@ key holders changed on 7 October 2026
 - **Validators.** Other operators can join through on-chain validator
   registration, up to 16 active validators under the current genesis bound.
 - **Root controls.** A lost kit is replaced, or a seat moves to a new
-  holder, through a kit replacement control signed by three kits (P01,
-  7 October 2026; built before launch).
+  holder, through a kit replacement control signed by three kits' upgrade
+  keys, public on chain for seven days before it takes effect (P01, 7 and
+  8 October 2026; built before launch).
 - **Tokens.** Sales, grants and team allocations leave their bucket accounts
   as public transfers.
 - **Audit.** An independent human audit is commissioned when funding allows,

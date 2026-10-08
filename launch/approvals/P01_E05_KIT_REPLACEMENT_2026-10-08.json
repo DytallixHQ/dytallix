@@ -1,0 +1,35 @@
+{
+  "decision_id": "P01-2026-10-08-E05-KIT-REPLACEMENT",
+  "approved": "2026-10-08",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Kit replacement control: signers, notice and scope"
+  },
+  "design_ref": "../../node/docs/architecture/root-kit-replacement-v1.md",
+  "decisions": [
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "Three kits' upgrade keys",
+      "rule": "One kit replacement control, signed by three of the five current upgrade keys, replaces one seat's upgrade, freeze and resume keys together. The upgrade keys already control releases, handovers and restarts, so the replacement adds no new kind of power."
+    },
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "After 7 days' notice",
+      "rule": "An admitted replacement takes effect after the release handover notice, 120,960 blocks (seven days at five-second blocks). It is public on chain from admission, and the old seat's keys keep working until the effect height."
+    },
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "One seat per control",
+      "rule": "Each replacement changes exactly one seat's keys, with the new kit's proofs of possession. The five seats and the threshold of three stay fixed; changing them would need a release."
+    }
+  ],
+  "unset": [
+    "The implementation (steps K1 to K4 of the design) and its staging drill"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
