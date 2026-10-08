@@ -17,7 +17,7 @@ import sys
 args = sys.argv[1:]
 flags = dict(zip(args[1::2], args[2::2]))
 assert args[0] == 'backup-seal'
-open(flags['-out'], 'xb').write(b'encrypted copy of ' + flags['-in'].encode())
+open(flags['-out'], 'xb').write(b'encrypted copy of ' + flags['-in'].encode() + b' with ' + flags['-light-blocks'].encode())
 print('wrote', flags['-out'])
 '''
 CURL = r'''#!PYTHON
@@ -40,6 +40,8 @@ class BackupJobTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         root = Path(self.tmp.name)
         self.snapshots = root / 'snapshots'
+        self.light_blocks = root / 'light-blocks'
+        self.light_blocks.mkdir()
         self.state = root / 'state'
         (self.state / 'scratch').mkdir(parents=True)
         self.snapshots.mkdir()
@@ -56,14 +58,17 @@ class BackupJobTests(unittest.TestCase):
         self.config = root / 'backup.json'
         self.config.write_text(json.dumps({
             'schema': 'dytallix.host-backup.v1', 'chain_id': 'dytallix-staging-1', 'snapshots': str(self.snapshots),
+            'light_blocks': str(self.light_blocks),
             'signer': str(tools / 'signer'), 'code_file': str(root / 'code'), 'upload_file': str(self.upload_path),
             'state': str(self.state), 'curl': str(tools / 'curl')}))
 
-    def snapshot(self, height, complete=True):
+    def snapshot(self, height, complete=True, light_blocks=True):
         directory = self.snapshots / f'{height:020}'
         directory.mkdir()
         if complete:
             (directory / 'metadata.json').write_text('{}')
+        if light_blocks:
+            (self.light_blocks / f'{height:020}').mkdir()
 
     def calls(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
@@ -78,6 +83,7 @@ class BackupJobTests(unittest.TestCase):
         self.snapshot(17280)
         self.snapshot(34560)
         self.snapshot(51840, complete=False)  # still being written
+        self.snapshot(69120, light_blocks=False)  # its light blocks not yet written
         result, _ = self.run_job()
         self.assertEqual(result['height'], 34560)
         self.assertRegex(result['object'], r'^staging/dytallix-staging-1/00000000000000034560-[0-9a-f]{64}\.bin$')
@@ -88,7 +94,7 @@ class BackupJobTests(unittest.TestCase):
         self.assertIn('user = "AKIDEXAMPLE:c2VjcmV0"', call['config'])
         self.assertIn('aws-sigv4 = "aws:amz:auto:s3"', call['config'])
         self.assertIn(f'url = "https://storage.example/copies/{result["object"]}"', call['config'])
-        self.assertTrue(call['copy'].endswith('00000000000000034560'))
+        self.assertTrue(call['copy'].endswith('00000000000000034560 with ' + str(self.light_blocks / '00000000000000034560')))
         self.assertEqual((self.state / 'last-uploaded').read_text(), '34560\n')
         self.assertEqual(list((self.state / 'scratch').iterdir()), [], 'the scratch copy was left behind')
         # Nothing new: no second upload.
@@ -96,10 +102,13 @@ class BackupJobTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIn('NOTHING_NEW', lines[0])
         self.assertEqual(len(self.calls()), 1)
-        # The next snapshot goes up.
+        # The next snapshot goes up, then the one whose light blocks arrive.
         (self.snapshots / f'{51840:020}' / 'metadata.json').write_text('{}')
         result, _ = self.run_job()
         self.assertEqual(result['height'], 51840)
+        (self.light_blocks / f'{69120:020}').mkdir()
+        result, _ = self.run_job()
+        self.assertEqual(result['height'], 69120)
 
     def test_a_failed_upload_records_nothing_and_leaves_no_copy(self):
         self.snapshot(17280)

@@ -98,7 +98,7 @@ func metricsOption(config *cfg.Config, dir string, interval time.Duration) (node
 
 func run() error {
 	if len(os.Args) < 2 || os.Args[1] != "start" {
-		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("usage: dytallix-pqc-engine start --home HOME --p2p-profile PROFILE [--binding FILE] [--candidate-staging] [--light-blocks DIR]...")))
+		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("usage: dytallix-pqc-engine start --home HOME --p2p-profile PROFILE [--binding FILE] [--candidate-staging] [--light-blocks DIR]... [--snapshot-light-blocks DIR --snapshot-interval N --snapshot-keep K]")))
 	}
 	flags := flag.NewFlagSet("start", flag.ContinueOnError)
 	home := flags.String("home", "", "existing private fixture home")
@@ -111,6 +111,9 @@ func run() error {
 	flags.Var(&lightBlocks, "light-blocks", "operator light block export for state sync; repeat for witnesses")
 	metricsDir := flags.String("metrics-dir", "", "directory for the dytallix-engine.prom metrics file")
 	metricsInterval := flags.Duration("metrics-interval", 0, "metrics file write interval")
+	snapshotLightBlocks := flags.String("snapshot-light-blocks", "", "directory for the light blocks of each application snapshot (the sentry)")
+	snapshotInterval := flags.Int64("snapshot-interval", 0, "the application's snapshot interval in blocks")
+	snapshotKeep := flags.Int("snapshot-keep", 0, "the number of snapshots the application keeps")
 	if err := flags.Parse(os.Args[2:]); err != nil {
 		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, err))
 	}
@@ -119,6 +122,9 @@ func run() error {
 	}
 	if *production {
 		return startupdiag.At(1, pqcp2p.RequireProductionTransport())
+	}
+	if (*snapshotLightBlocks != "") != (*snapshotInterval != 0) || (*snapshotLightBlocks != "") != (*snapshotKeep != 0) {
+		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("--snapshot-light-blocks, --snapshot-interval and --snapshot-keep go together")))
 	}
 	var runtime *enginepqc.Runtime
 	var err error
@@ -175,6 +181,16 @@ func run() error {
 	if err != nil {
 		return startupdiag.At(4, err)
 	}
+	// Disaster recovery v1, R4: the light blocks each snapshot's restore
+	// verifies, written beside the application's snapshots.
+	var snapshotWriter *lightblocks.SnapshotWriter
+	if *snapshotLightBlocks != "" {
+		snapshotWriter, err = lightblocks.NewSnapshotWriter(*snapshotLightBlocks, *snapshotInterval, *snapshotKeep,
+			runtime.Genesis.ChainID, engine.BlockStore(), engine.StateStore())
+		if err != nil {
+			return startupdiag.At(4, err)
+		}
+	}
 	summary := runtime.PublicSummary()
 	summary["event"] = "experimental_pqc_engine_ready"
 	summary["version"] = readyVersion
@@ -185,6 +201,9 @@ func run() error {
 		return startupdiag.At(6, err)
 	}
 	go writeMetrics(ctx)
+	if snapshotWriter != nil {
+		go snapshotWriter.Run(ctx, time.Second, logger.With("module", "snapshot-light-blocks"))
+	}
 	<-ctx.Done()
 	return startupdiag.At(7, engine.Stop())
 }

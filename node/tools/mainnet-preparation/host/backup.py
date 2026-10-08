@@ -5,10 +5,11 @@ runs it hourly from its timer, as root with only CAP_DAC_READ_SEARCH:
 
   backup.py --config /etc/dytallix/RELEASE/backup.json
 
-It takes the newest published snapshot (SNAPSHOTS/{height:020} with its
-metadata.json); if its height is above the last one uploaded, it encrypts it
-with the release's `dytallix-root-sign backup-seal` under the chain's backup
-code, uploads the copy with the host's curl (AWS Signature V4, to an
+It takes the newest height with both a published snapshot
+(SNAPSHOTS/{height:020} with its metadata.json) and the light blocks the
+engine wrote for it (LIGHT_BLOCKS/{height:020}, heights H to H+2); if that
+height is above the last one uploaded, it encrypts them together with the
+release's `dytallix-root-sign backup-seal` under the chain's backup code, uploads the copy with the host's curl (AWS Signature V4, to an
 S3-compatible bucket at a second provider, with a write-only key), records
 the height and removes its scratch copy. The upload key reaches curl on its
 standard input, never on a command line. Standard library only.
@@ -64,9 +65,11 @@ def load(config_path):
     return config, upload
 
 
-def newest_snapshot(snapshots):
+def newest_snapshot(snapshots, light_blocks):
+    """The newest height with a published snapshot and its light blocks."""
+    published = {entry.name for entry in Path(light_blocks).iterdir() if HEIGHT_DIR.match(entry.name) and entry.is_dir()}
     heights = sorted(int(entry.name) for entry in Path(snapshots).iterdir()
-                     if HEIGHT_DIR.match(entry.name) and (entry / 'metadata.json').is_file())
+                     if HEIGHT_DIR.match(entry.name) and (entry / 'metadata.json').is_file() and entry.name in published)
     return heights[-1] if heights else None
 
 
@@ -105,7 +108,7 @@ def curl_config(upload, copy, url):
 def run(config_path, runner=subprocess.run, out=print):
     config, upload = load(config_path)
     chain, snapshots, state = config['chain_id'], config['snapshots'], config['state']
-    height = newest_snapshot(snapshots)
+    height = newest_snapshot(snapshots, config['light_blocks'])
     if height is None or height <= last_uploaded(state):
         out(json.dumps({'status': 'NOTHING_NEW', 'newest': height, 'uploaded': last_uploaded(state)}))
         return None
@@ -116,7 +119,8 @@ def run(config_path, runner=subprocess.run, out=print):
             leftover.unlink()
     try:
         result = runner([config['signer'], 'backup-seal', '-code-file', config['code_file'], '-height', str(height),
-                         '-in', str(Path(snapshots) / f'{height:020}'), '-out', str(copy)],
+                         '-in', str(Path(snapshots) / f'{height:020}'),
+                         '-light-blocks', str(Path(config['light_blocks']) / f'{height:020}'), '-out', str(copy)],
                         capture_output=True, text=True)
         require(result.returncode == 0, f'backup-seal failed: {(result.stderr or "").strip()}')
         digest = sha256_file(copy)

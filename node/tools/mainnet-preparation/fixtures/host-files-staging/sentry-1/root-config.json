@@ -6,10 +6,10 @@
     "helper_bytes": 1005,
     "helper_sha512": "d36111bcf395abc172cec1f6197c461c18ab2de5d306640be1fcfd888b5013ca546dab8df60539474dae3f2f4659d028edf4c55ba213d01abbce76c72b375d4d",
     "owner_security": {
-      "supervisor_label": "dyt-role-9041c418a2e32415ee4d-dytallix-node-supervisor",
-      "application_owner_label": "dyt-role-9041c418a2e32415ee4d-dytallix-node-application-owner//&dyt-role-9041c418a2e32415ee4d-dytallix-node-supervisor",
-      "workload_label": "dyt-role-9041c418a2e32415ee4d-dytallix-node-supervisor//&dyt-role-9041c418a2e32415ee4d-dytallix-node-workload",
-      "helper_label": "dyt-role-9041c418a2e32415ee4d-dytallix-node-application-owner//&dyt-role-9041c418a2e32415ee4d-dytallix-node-helper//&dyt-role-9041c418a2e32415ee4d-dytallix-node-supervisor",
+      "supervisor_label": "dyt-role-e1755c2df4cd6057c685-dytallix-node-supervisor",
+      "application_owner_label": "dyt-role-e1755c2df4cd6057c685-dytallix-node-application-owner//&dyt-role-e1755c2df4cd6057c685-dytallix-node-supervisor",
+      "workload_label": "dyt-role-e1755c2df4cd6057c685-dytallix-node-supervisor//&dyt-role-e1755c2df4cd6057c685-dytallix-node-workload",
+      "helper_label": "dyt-role-e1755c2df4cd6057c685-dytallix-node-application-owner//&dyt-role-e1755c2df4cd6057c685-dytallix-node-helper//&dyt-role-e1755c2df4cd6057c685-dytallix-node-supervisor",
       "uid": 41001,
       "gid": 41001
     },

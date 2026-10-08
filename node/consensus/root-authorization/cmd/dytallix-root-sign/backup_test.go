@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/rand"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,26 @@ func makeSnapshot(t *testing.T, dir string) map[string][]byte {
 	return files
 }
 
+// makeLightBlocks writes the six light block files of heights height to
+// height+2, as the engine's snapshot writer does.
+func makeLightBlocks(t *testing.T, dir string, height uint64) map[string][]byte {
+	t.Helper()
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string][]byte{}
+	for h := height; h <= height+2; h++ {
+		for _, suffix := range []string{"block", "params"} {
+			name := fmt.Sprintf("%020d.%s", h, suffix)
+			files[name] = []byte(name)
+			if err := os.WriteFile(filepath.Join(dir, name), files[name], 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	return files
+}
+
 func TestBackupSealCheckAndOpen(t *testing.T) {
 	dir := t.TempDir()
 	codeFile := filepath.Join(dir, "backup-code")
@@ -49,9 +70,11 @@ func TestBackupSealCheckAndOpen(t *testing.T) {
 	}
 	snapshots := filepath.Join(dir, "snapshots")
 	files := makeSnapshot(t, snapshots)
+	lightBlocks := filepath.Join(dir, "light-blocks")
+	blocks := makeLightBlocks(t, lightBlocks, 17280)
 	copyFile := filepath.Join(dir, "copy.bin")
-	sealed := runOK(t, "backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-out", copyFile)
-	if !strings.Contains(sealed, "chain dytallix-staging-1, height 17280, 5 entries") {
+	sealed := runOK(t, "backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-light-blocks", lightBlocks, "-out", copyFile)
+	if !strings.Contains(sealed, "chain dytallix-staging-1, height 17280, 12 entries") {
 		t.Fatalf("seal: %q", sealed)
 	}
 	if _, err := os.Stat(copyFile + ".partial"); err == nil {
@@ -65,7 +88,7 @@ func TestBackupSealCheckAndOpen(t *testing.T) {
 	if err := os.WriteFile(paper, []byte(line+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if out := runOK(t, "backup-check", "-paper", paper, "-in", copyFile); !strings.Contains(out, "5 entries") {
+	if out := runOK(t, "backup-check", "-paper", paper, "-in", copyFile); !strings.Contains(out, "12 entries") {
 		t.Fatalf("check: %q", out)
 	}
 	restored := filepath.Join(dir, "restored")
@@ -77,8 +100,13 @@ func TestBackupSealCheckAndOpen(t *testing.T) {
 			t.Fatalf("%s did not restore exactly and owner-only: %v", path, err)
 		}
 	}
+	for name, want := range blocks {
+		if got, err := os.ReadFile(filepath.Join(restored, "light-blocks", name)); err != nil || !bytes.Equal(got, want) {
+			t.Fatalf("light block file %s did not restore: %v", name, err)
+		}
+	}
 	// Never overwrites: the copy, the restore directory.
-	if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-out", copyFile}, &bytes.Buffer{}); err == nil {
+	if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-light-blocks", lightBlocks, "-out", copyFile}, &bytes.Buffer{}); err == nil {
 		t.Fatal("a copy was overwritten")
 	}
 	if err := run([]string{"backup-open", "-paper", paper, "-in", copyFile, "-out", restored}, &bytes.Buffer{}); err == nil {
@@ -116,10 +144,12 @@ func TestBackupSealRefusesUnsafeInputs(t *testing.T) {
 	runOK(t, "backup-code", "-chain", "dytallix-staging-1", "-out", codeFile)
 	snapshots := filepath.Join(dir, "snapshots")
 	makeSnapshot(t, snapshots)
+	lightBlocks := filepath.Join(dir, "light-blocks")
+	makeLightBlocks(t, lightBlocks, 17280)
 	if err := os.Symlink("/etc/hosts", filepath.Join(snapshots, "link")); err != nil {
 		t.Fatal(err)
 	}
-	if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-out", filepath.Join(dir, "a.bin")}, &bytes.Buffer{}); err == nil {
+	if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-light-blocks", lightBlocks, "-out", filepath.Join(dir, "a.bin")}, &bytes.Buffer{}); err == nil {
 		t.Fatal("sealed a symbolic link")
 	}
 	if _, err := os.Stat(filepath.Join(dir, "a.bin")); err == nil {
@@ -131,14 +161,52 @@ func TestBackupSealRefusesUnsafeInputs(t *testing.T) {
 	if err := os.Chmod(codeFile, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-out", filepath.Join(dir, "b.bin")}, &bytes.Buffer{}); err == nil {
+	if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-light-blocks", lightBlocks, "-out", filepath.Join(dir, "b.bin")}, &bytes.Buffer{}); err == nil {
 		t.Fatal("read a code file others can read")
 	}
 	if err := os.Chmod(codeFile, 0o600); err != nil {
 		t.Fatal(err)
 	}
+	// A copy carries exactly its own height's light blocks.
+	seal := func(name string, args ...string) error {
+		base := []string{"backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots}
+		return run(append(append(base, args...), "-out", filepath.Join(dir, name)), &bytes.Buffer{})
+	}
+	if err := seal("d.bin"); err == nil {
+		t.Fatal("sealed without light blocks")
+	}
+	other := filepath.Join(dir, "other-heights")
+	makeLightBlocks(t, other, 17281)
+	if err := seal("e.bin", "-light-blocks", other); err == nil {
+		t.Fatal("sealed another height's light blocks")
+	}
+	if err := os.WriteFile(filepath.Join(lightBlocks, "extra"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := seal("f.bin", "-light-blocks", lightBlocks); err == nil {
+		t.Fatal("sealed a light block directory with a foreign file")
+	}
+	if err := os.Remove(filepath.Join(lightBlocks, "extra")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(lightBlocks, fmt.Sprintf("%020d.params", 17282))); err != nil {
+		t.Fatal(err)
+	}
+	if err := seal("g.bin", "-light-blocks", lightBlocks); err == nil {
+		t.Fatal("sealed incomplete light blocks")
+	}
+	makeLightBlocks(t, lightBlocks, 17280)
+	if err := os.Mkdir(filepath.Join(snapshots, "light-blocks"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := seal("h.bin", "-light-blocks", lightBlocks); err == nil {
+		t.Fatal("sealed a snapshot that has its own light-blocks entry")
+	}
+	if err := os.Remove(filepath.Join(snapshots, "light-blocks")); err != nil {
+		t.Fatal(err)
+	}
 	for _, height := range []string{"0", "-1", "x"} {
-		if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", height, "-in", snapshots, "-out", filepath.Join(dir, "c.bin")}, &bytes.Buffer{}); err == nil {
+		if err := run([]string{"backup-seal", "-code-file", codeFile, "-height", height, "-in", snapshots, "-light-blocks", lightBlocks, "-out", filepath.Join(dir, "c.bin")}, &bytes.Buffer{}); err == nil {
 			t.Fatalf("height %s accepted", height)
 		}
 	}
@@ -152,8 +220,10 @@ func TestBackupOpenWithATypedCode(t *testing.T) {
 	line := output[strings.Index(output, "dytallix-backup-"):]
 	snapshots := filepath.Join(dir, "snapshots")
 	makeSnapshot(t, snapshots)
+	lightBlocks := filepath.Join(dir, "light-blocks")
+	makeLightBlocks(t, lightBlocks, 17280)
 	copyFile := filepath.Join(dir, "copy.bin")
-	runOK(t, "backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-out", copyFile)
+	runOK(t, "backup-seal", "-code-file", codeFile, "-height", "17280", "-in", snapshots, "-light-blocks", lightBlocks, "-out", copyFile)
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)

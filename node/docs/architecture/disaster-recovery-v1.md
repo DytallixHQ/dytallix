@@ -56,15 +56,19 @@ full history. Each day (`snapshots.interval_blocks` 17,280, about a day at
 A restore also needs the engine's signed headers from the snapshot's
 height: light blocks from H to H+2, since header H+1 carries the
 application hash of H and H+2 commits it. The sentry's engine writes them
-beside snapshot H once H+2 commits, in the export format
-(`{height:020}.block` and `.params`), and keeps them as long as the
-snapshot. The backup job waits for both and copies them together.
+once H+2 commits, in the export format (`{height:020}.block` and
+`.params`), to `/var/lib/dytallix/snapshot-light-blocks/{H:020}` (staged,
+then renamed), and keeps as many as the application keeps snapshots
+(`dytallix-pqc-engine start --snapshot-light-blocks DIR --snapshot-interval N
+--snapshot-keep K`, from the supervisor's `snapshots` settings). The backup
+job takes the newest height with both and copies them together.
 
 ## The copy
 
 - **Format** (`dytallix.backup.v1`, built in R2): a header line naming the
   chain, the height, a random 32-byte salt and the chunk size, then the
-  snapshot directory as a deterministic tar (sorted; directories and
+  snapshot directory, with its six light block files under `light-blocks/`,
+  as a deterministic tar (sorted; directories and
   regular files only; root-owned, time zero) in AES-256-GCM chunks of
   1 MiB. Each chunk's additional data is the header's SHA-256, its index and
   a final flag, so a truncated, reordered, extended or altered copy, or one
@@ -79,7 +83,8 @@ snapshot. The backup job waits for both and copies them together.
   enters the node's stack.
 - **Commands** (`dytallix-root-sign`): `backup-code` makes the code file the
   sentry's bundle will seal and prints the paper line; `backup-seal` packs
-  and encrypts a snapshot directory (never overwriting, no partial copy
+  and encrypts a snapshot directory with its light blocks (`-light-blocks`,
+  required: exactly heights H to H+2; never overwriting, no partial copy
   left on failure); `backup-check` opens a copy with the typed code and
   checks every entry without writing; `backup-open` checks the whole copy,
   then extracts it into a new owner-only directory.
@@ -99,7 +104,8 @@ snapshot. The backup job waits for both and copies them together.
   `/etc/dytallix/RELEASE/backup.py` as root with only
   `CAP_DAC_READ_SEARCH` (to read the node's snapshots), a read-only system
   and `/var/lib/dytallix-backup` as its only writable path. When the newest
-  published snapshot is above the last height uploaded, it runs
+  height with a published snapshot and its light blocks is above the last
+  height uploaded, it runs
   `backup-seal` into its scratch directory, uploads with `curl --config -`
   (the upload key on curl's standard input, never on a command line),
   records the height and removes the scratch copy. It never touches the
@@ -180,7 +186,11 @@ Every restore is drilled quarterly on staging, with its measured times.
   with tests (`test_backup_job.py`, `test_host_bundle.py`). The H4 run
   passed.
 - **R4.** The sentry's engine writes the light blocks for each snapshot
-  height, and the backup copies them with the snapshot.
+  height, and the backup copies them with the snapshot. Built:
+  `lightblocks.SnapshotWriter` and the engine's `--snapshot-light-blocks`
+  flags, the supervisor's `snapshots.light_blocks`, the host files'
+  directory, `backup-seal -light-blocks` and the backup job, with tests;
+  H4's network run checks that the copy holds the sentry's light blocks.
 - **R5.** The restore: the application's snapshot import through its
   restore checks, the engine's bootstrap from verified light blocks, and
   the bundle's restore step, with tests.

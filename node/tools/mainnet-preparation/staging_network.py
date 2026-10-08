@@ -57,6 +57,7 @@ UPLOAD = {'schema': 'dytallix.backup-upload.v1', 'endpoint': f'http://127.0.0.1:
           'secret_access_key': 'c3RhbmRpbi1vbmx5'}
 METRICS = '/var/lib/dytallix/metrics/dytallix-app.prom'
 SNAPSHOTS = '/var/lib/dytallix/snapshots'
+SNAPSHOT_LIGHT_BLOCKS = '/var/lib/dytallix/snapshot-light-blocks'
 HEIGHT = re.compile(r'^dytallix_app_height (\d+)$', re.M)
 
 
@@ -344,11 +345,14 @@ def run(work, timeout=600):
     while True:
         _, listing, _ = sentry.run(['sh', '-c', f'cd {SNAPSHOTS} && ls -d [0-9]*/metadata.json 2>/dev/null'], check=False)
         heights = sorted(int(name.split('/')[0]) for name in listing.split())
-        if heights:
-            say(f'== sentry snapshots at {heights}')
+        # The engine writes a snapshot's light blocks once H+2 commits (R4).
+        _, listing, _ = sentry.run(['sh', '-c', f'cd {SNAPSHOT_LIGHT_BLOCKS} && ls -d [0-9]* 2>/dev/null'], check=False)
+        light = sorted(int(name) for name in listing.split())
+        if set(heights) & set(light):
+            say(f'== sentry snapshots at {heights}, their light blocks at {light}')
             break
         if time.monotonic() > deadline:
-            raise Failed('the sentry took no snapshot')
+            raise Failed(f'the sentry has no snapshot with its light blocks (snapshots {heights}, light blocks {light})')
         time.sleep(5)
     sentry.run(['systemd-run', '--unit=dytallix-store-standin', 'python3', '/root/s3_standin.py', '--root',
                 '/var/tmp/standin', '--port', str(STANDIN_PORT), '--access-key-id', UPLOAD['access_key_id']])
@@ -375,7 +379,17 @@ def run(work, timeout=600):
     remote = sentry.read(f'{SNAPSHOTS}/{copy["height"]:020}/metadata.json')
     if (restored / 'metadata.json').read_bytes() != remote:
         raise Failed('the restored copy is not the sentry\'s snapshot')
-    say(f'== backup of height {copy["height"]} uploaded, opened with the backup code and matches the snapshot')
+    # The copy carries the light blocks its restore verifies (R4): heights H to
+    # H+2, as the sentry's engine wrote them.
+    height = copy['height']
+    names = sorted(f'{h:020}.{kind}' for h in range(height, height + 3) for kind in ('block', 'params'))
+    found = sorted(p.name for p in (restored / 'light-blocks').iterdir()) if (restored / 'light-blocks').is_dir() else []
+    if found != names:
+        raise Failed(f'the copy\'s light blocks are {found}, not heights {height} to {height + 2}')
+    for name in names:
+        if (restored / 'light-blocks' / name).read_bytes() != sentry.read(f'{SNAPSHOT_LIGHT_BLOCKS}/{height:020}/{name}'):
+            raise Failed(f'the copy\'s {name} is not the sentry\'s')
+    say(f'== backup of height {height} uploaded, opened with the backup code and matches the snapshot and its light blocks')
     for label, guest in guests.items():
         _, out, _ = guest.run(['python3', '-I', '-B', '/root/node/dytallix-host/host_install.py', 'verify'])
         say(f'{label}: {out.strip()}')

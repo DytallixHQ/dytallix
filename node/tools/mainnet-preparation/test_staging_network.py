@@ -27,6 +27,10 @@ class PlanTests(unittest.TestCase):
         self.assertEqual((hosts['endpoint-1']['channel'], hosts['endpoint-1']['status']),
                          ('10.77.0.12:26670', '10.77.0.12:8080'))
 
+    def test_the_paths_match_the_host_files(self):
+        import host_files
+        self.assertEqual((sn.SNAPSHOTS, sn.SNAPSHOT_LIGHT_BLOCKS), (host_files.SNAPSHOTS, host_files.SNAPSHOT_LIGHT_BLOCKS))
+
     def test_cloud_init_gives_the_vm_its_address_and_the_agent(self):
         network = sn.network_config('sentry-1').decode()
         self.assertIn('addresses: [10.77.0.11/24]', network)

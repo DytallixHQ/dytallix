@@ -312,6 +312,9 @@ pub struct SnapshotOutput {
     pub directory: PathBuf,
     pub interval_blocks: u64,
     pub keep: u64,
+    /// The engine writes each snapshot's light blocks, heights H to H+2, here
+    /// (disaster recovery v1, R4), and keeps as many as the snapshots.
+    pub light_blocks: PathBuf,
 }
 
 /// The application's block records: the retained window, or every record.
@@ -368,6 +371,15 @@ impl SnapshotOutput {
         ensure!(
             metadata.mode() & 0o7777 == 0o700,
             "Snapshot directory must be current-user mode 0700"
+        );
+        let metadata = output_directory(&self.light_blocks, home)?;
+        ensure!(
+            metadata.mode() & 0o7777 == 0o700,
+            "Snapshot light block directory must be current-user mode 0700"
+        );
+        ensure!(
+            self.light_blocks != self.directory,
+            "Snapshot and light block directories must differ"
         );
         ensure!(
             self.interval_blocks > 0 && self.keep > 0,
@@ -965,7 +977,8 @@ impl NativeServiceConfig {
         if let Some(snapshots) = &self.snapshots {
             snapshots.validate(&self.home)?;
             ensure!(
-                snapshots.directory != self.metrics.directory,
+                snapshots.directory != self.metrics.directory
+                    && snapshots.light_blocks != self.metrics.directory,
                 "Snapshot and metrics directories must differ"
             );
         }
@@ -1511,6 +1524,7 @@ mod tests {
             "home/config",
             "metrics",
             "snapshots",
+            "snapshot-light-blocks",
         ] {
             std::fs::create_dir_all(root.join(dir)).unwrap();
         }
@@ -1546,14 +1560,25 @@ mod tests {
         assert!(metrics(root.join("metrics"), 15).validate(&home).is_err());
 
         mode("snapshots", 0o700);
+        mode("snapshot-light-blocks", 0o700);
         let snapshots = |interval_blocks, keep| SnapshotOutput {
             directory: root.join("snapshots"),
             interval_blocks,
             keep,
+            light_blocks: root.join("snapshot-light-blocks"),
         };
         snapshots(100, 2).validate(&home).unwrap();
         assert!(snapshots(0, 2).validate(&home).is_err());
         assert!(snapshots(100, 0).validate(&home).is_err());
+        // The light blocks have their own owner-only directory.
+        let mut shared = snapshots(100, 2);
+        shared.light_blocks = root.join("snapshots");
+        assert!(shared.validate(&home).is_err());
+        shared.light_blocks = root.join("home/data");
+        assert!(shared.validate(&home).is_err());
+        mode("snapshot-light-blocks", 0o750);
+        assert!(snapshots(100, 2).validate(&home).is_err());
+        mode("snapshot-light-blocks", 0o700);
         mode("snapshots", 0o750);
         assert!(snapshots(100, 2).validate(&home).is_err());
     }
@@ -1571,7 +1596,7 @@ mod tests {
             serde_json::from_value::<MetricsOutput>(serde_json::json!({"directory":"/m"})).is_err()
         );
         assert!(serde_json::from_value::<SnapshotOutput>(
-            serde_json::json!({"directory":"/s","interval_blocks":1,"keep":1,"format":1})
+            serde_json::json!({"directory":"/s","interval_blocks":1,"keep":1,"light_blocks":"/l","format":1})
         )
         .is_err());
     }

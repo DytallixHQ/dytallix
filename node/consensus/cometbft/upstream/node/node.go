@@ -868,6 +868,12 @@ func (n *Node) BlockStore() *store.BlockStore {
 	return n.blockStore
 }
 
+// StateStore returns the Node's state store. Dytallix: the snapshot light
+// block writer reads validators and consensus parameters from it.
+func (n *Node) StateStore() sm.Store {
+	return n.stateStore
+}
+
 // ConsensusReactor returns the Node's ConsensusReactor.
 func (n *Node) ConsensusReactor() *cs.Reactor {
 	return n.consensusReactor
