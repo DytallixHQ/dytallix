@@ -13,10 +13,12 @@ control is made in production
 
 1. **Prepare, online.** Save the node's `/status` view and run
    `dytallix-control prepare`. It writes a signing request.
-2. **Sign, offline.** On the ceremony machine
-   ([key ceremony](../../../launch/custody/KEY_CEREMONY.md)), with three key
-   kits in turn, `dytallix-root-sign sign-control` signs the request and
-   writes one signature file per key.
+2. **Sign, offline.** Three holders each sign on their own ceremony
+   machine ([key ceremony](../../../launch/custody/KEY_CEREMONY.md)) with
+   their kit: `dytallix-root-sign sign-control` signs the request and writes
+   one signature file per key. The request and the signature files are
+   public, so they travel by any channel; the kits never leave their
+   holders.
 3. **Assemble, online.** `dytallix-control assemble` turns the request and the
    three signature files into the control.
 4. **Check and submit.** The CLI dry-runs the control against the node

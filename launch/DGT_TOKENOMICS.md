@@ -41,6 +41,8 @@ APPROVED means the user selected the rule within the recorded scope. OBSERVED me
 
 **PROPOSED — remaining EC-05 custody detail.** Return still-locked principal to locked custody after unbonding. The complete custody schema and production lock enforcement remain unqualified.
 
+**APPROVED — root key holder grants (D08-Q01, P01, 7 October 2026).** Each of the five root key holders receives 20,000 DGT at genesis from the Team and advisors bucket, unlocked: 100,000 DGT in all (0.01% of supply), leaving 199,900,000 DGT in the bucket account. The grants move existing units inside the fixed total; nothing is minted. Each holder's account key is on a separate wallet fob, never on their kit ([root key holders](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json), [genesis framework](GENESIS_FRAMEWORK.md)). The five addresses, and the DRT each holder needs for fees (D08-Q03), remain missing.
+
 **MISSING — EC-05.** Recipient addresses, beneficiary identities, custody signatures, vesting amounts and dates, initial delegations, commissions, unbonding duration, penalties, and named approvers remain absent. Do not generate substitute identities or infer vesting from the five allocation categories.
 
 ## Governance dependency

@@ -72,7 +72,8 @@ snapshot. The backup job waits for both and copies them together.
 - **Key:** SHAKE256 of a domain, the chain, the height, the salt and the
   chain's 256-bit **backup code**: random, printed once as a checked paper
   line (`dytallix-backup-CHAIN` and seventeen groups, like the seal codes),
-  written twice and kept with two different kits' papers. The salt gives
+  written twice and kept by the founder in two separate places, like the
+  seal codes. The salt gives
   every copy its own key, so a chunk index is a safe nonce. The tool is the
   release's own Go signer (standard library AES-GCM), so nothing classical
   enters the node's stack.
