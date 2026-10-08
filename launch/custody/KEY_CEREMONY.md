@@ -170,13 +170,24 @@ the public stick holds the pin plan.
 
    ```text
    python3 /tmp/host_keys.py --plan /mnt/public/PIN_PLAN.json --bin /tmp/bin \
-     --staging /tmp/staging --out /mnt/public/node-keys
+     --staging /tmp/staging --out /mnt/public/node-keys \
+     --backup-upload /tmp/upload.json
    ```
+
+   `/tmp/upload.json` is the off-host store's write-only upload key
+   ([disaster recovery v1](../../node/docs/architecture/disaster-recovery-v1.md)):
+   type it into the RAM disk with a text editor (`chmod 600`; schema
+   `dytallix.backup-upload.v1`: `endpoint`, `bucket`, `region`, `prefix`,
+   `access_key_id`, `secret_access_key`). For the sentry, `host_keys.py`
+   also makes the chain's backup code and prints its line,
+   `dytallix-backup-CHAIN` and seventeen groups: write it on paper twice and
+   type it back. Both are sealed with the sentry's keys.
 
 3. For each host it prints a seal code line: `dytallix-seal-LABEL` and
    seventeen groups. Write it on paper twice, then type it back from the
    paper and press Enter; `seal-check` confirms it opens that host's keys.
-4. Keep the two copies of each code with two different kits' papers. The
+4. Keep the two copies of each code, the seal codes and the backup code,
+   with two different kits' papers. The
    staging homes are in RAM and go when you shut down. The sealed records
    on the public stick are the node keys' only backup: with one validator,
    losing its key halts the chain.

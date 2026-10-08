@@ -67,16 +67,31 @@ func TestSealedHostKeysOpenOnlyForTheirHostAndCode(t *testing.T) {
 	}
 }
 
+// The sentry's backup secrets travel in its sealed keys too.
+func TestSealCarriesBackupSecrets(t *testing.T) {
+	files := append(testHostFiles(), SecretFile{Path: "backup/code", Data: []byte("dytallix-backup-x")},
+		SecretFile{Path: "backup/upload.json", Data: []byte(`{"bucket":"b"}`)})
+	record, err := SealHostKeys("sentry-1", testCode(5), files, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened, err := OpenHostKeys(record, "sentry-1", testCode(5))
+	if err != nil || len(opened) != 5 || opened[0].Path != "backup/code" {
+		t.Fatalf("backup secrets did not round trip: %v", err)
+	}
+}
+
 func TestSealRefusesBadFiles(t *testing.T) {
 	cases := map[string][]SecretFile{
-		"absolute":  {{Path: "/etc/shadow", Data: []byte("x")}},
-		"parent":    {{Path: "config/a..b", Data: []byte("x")}},
-		"outside":   {{Path: "abci/state", Data: []byte("x")}},
-		"nested":    {{Path: "config/sub/file", Data: []byte("x")}},
-		"empty":     {{Path: "config/empty", Data: nil}},
-		"duplicate": {{Path: "config/a", Data: []byte("x")}, {Path: "config/a", Data: []byte("y")}},
-		"large":     {{Path: "config/large", Data: make([]byte, MaxSealedFileBytes+1)}},
-		"none":      nil,
+		"absolute":   {{Path: "/etc/shadow", Data: []byte("x")}},
+		"parent":     {{Path: "config/a..b", Data: []byte("x")}},
+		"outside":    {{Path: "abci/state", Data: []byte("x")}},
+		"backup dir": {{Path: "backup/sub/code", Data: []byte("x")}},
+		"nested":     {{Path: "config/sub/file", Data: []byte("x")}},
+		"empty":      {{Path: "config/empty", Data: nil}},
+		"duplicate":  {{Path: "config/a", Data: []byte("x")}, {Path: "config/a", Data: []byte("y")}},
+		"large":      {{Path: "config/large", Data: make([]byte, MaxSealedFileBytes+1)}},
+		"none":       nil,
 	}
 	for name, files := range cases {
 		if _, err := SealHostKeys("validator-1", testCode(3), files, rand.Reader); !errors.Is(err, ErrSeal) {

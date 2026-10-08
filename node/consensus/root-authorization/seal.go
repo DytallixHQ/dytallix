@@ -43,8 +43,11 @@ var ErrSeal = errors.New("invalid sealed host keys")
 // sealLabel is the pin plan's host label (dytallix-host-config).
 var sealLabel = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
-// sealPath is a secret file under the node home's config or data directory.
-var sealPath = regexp.MustCompile(`^(config|data)/[a-z0-9][a-z0-9_.-]{0,127}$`)
+// sealPath is a secret file by where it goes: the node home's config or
+// data directory, or the sentry's backup secrets (the backup code and the
+// upload key, disaster recovery v1), which the installer places outside the
+// node home.
+var sealPath = regexp.MustCompile(`^(config|data|backup)/[a-z0-9][a-z0-9_.-]{0,127}$`)
 
 // SecretFile is one secret file, by its path relative to the node home.
 type SecretFile struct {

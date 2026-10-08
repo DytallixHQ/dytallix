@@ -25,6 +25,11 @@ the host: `verify` and `wipe.sh` read its install manifest.
   so only its owner and mode are checked after the install.
 - `aa-status | grep dytallix` and `nft list table inet dytallix_node`: the
   profiles and the firewall as loaded.
+- On the sentry, `systemctl list-timers dytallix-backup.timer` and
+  `journalctl -u dytallix-backup`: the off-host copies, one line per run
+  (`UPLOADED` with the height and object name, or `NOTHING_NEW`);
+  `/var/lib/dytallix-backup/last-uploaded` is the last height copied
+  ([disaster recovery v1](../architecture/disaster-recovery-v1.md)).
 
 ## Start and stop
 

@@ -39,7 +39,10 @@ import sys
 
 SCHEMA = 'dytallix.host-install.v1'
 SEALED_SCHEMA = 'dytallix.sealed-host-keys.v1'
-TREES = ('/opt/dytallix', '/etc/dytallix', '/var/lib/dytallix')
+# The sentry's backup secrets and state (disaster recovery v1) live outside
+# the node's trees.
+BACKUP_ETC = '/etc/dytallix-backup'
+TREES = ('/opt/dytallix', '/etc/dytallix', '/var/lib/dytallix', BACKUP_ETC, '/var/lib/dytallix-backup')
 HOME = '/var/lib/dytallix/node'
 UNIT = 'dytallix-node'
 UNIT_FILE = f'/etc/systemd/system/{UNIT}.service'
@@ -47,7 +50,12 @@ PROFILE_FILE = f'/etc/apparmor.d/{UNIT}'
 FIREWALL_FILE = '/etc/nftables.d/dytallix.nft'
 FIREWALL_TABLE = ('inet', 'dytallix_node')
 JOURNALD_FILE = '/etc/systemd/journald.conf.d/dytallix.conf'
-SINGLE_FILES = (UNIT_FILE, PROFILE_FILE, FIREWALL_FILE, JOURNALD_FILE)
+BACKUP_UNIT = 'dytallix-backup'
+SINGLE_FILES = (UNIT_FILE, PROFILE_FILE, FIREWALL_FILE, JOURNALD_FILE,
+                f'/etc/systemd/system/{BACKUP_UNIT}.service', f'/etc/systemd/system/{BACKUP_UNIT}.timer')
+# The sealed keys are unsealed here first, root-only; each file then goes
+# where the manifest says, and this directory is removed.
+UNSEALED = '/var/lib/dytallix/.unsealed'
 NFT_CONF = '/etc/nftables.conf'
 UFW_CONF = '/etc/ufw/ufw.conf'
 NFT_INCLUDE = 'include "/etc/nftables.d/*.nft"'
@@ -65,6 +73,22 @@ NOLOGIN = '/usr/sbin/nologin'
 
 class Refused(Exception):
     pass
+
+
+def secret_path(relative):
+    """Where a sealed file is installed: node keys in the node home, the
+    sentry's backup secrets outside it."""
+    if relative.startswith('backup/'):
+        return f'{BACKUP_ETC}/{relative[len("backup/"):]}'
+    return f'{HOME}/{relative}'
+
+
+def sealed_name(absolute):
+    """A secret file's name in the sealed keys."""
+    if absolute.startswith(BACKUP_ETC + '/'):
+        return 'backup/' + absolute[len(BACKUP_ETC) + 1:]
+    require(absolute.startswith(HOME + '/'), f'{absolute} is not a sealed file')
+    return absolute[len(HOME) + 1:]
 
 
 def require(ok, message):
@@ -143,7 +167,7 @@ def load_bundle(bundle, read=None):
                 f'{directory["path"]} is outside the host layout')
     sealed = json.loads(read('keys.sealed.json'))
     require(sealed.get('schema') == SEALED_SCHEMA and sealed.get('label') == label, f'the sealed keys are not {label}\'s')
-    named = {f'{HOME}/{entry["path"]}': entry['sha256'] for entry in sealed['files']}
+    named = {secret_path(entry['path']): entry['sha256'] for entry in sealed['files']}
     require(named == {s['path']: s['sha256'] for s in manifest['secrets']},
             'the sealed keys are not the files the manifest names')
     return manifest
@@ -260,11 +284,19 @@ def install(bundle, host, out=say):
     for row in manifest['files']:
         write_new(host, row['path'], (bundle / 'files' / PurePosixPath(row['path']).relative_to('/')).read_bytes())
     write_new(host, f'{etc(release)}/{INSTALLED}', (bundle / 'INSTALL_MANIFEST.json').read_bytes())
-    # The node keys, unsealed with the code typed from paper.
+    # The node keys (and the sentry's backup secrets), unsealed with the code
+    # typed from paper into a root-only directory, then placed.
     bin_dir = f'/opt/dytallix/{release}/bin'
+    staging = host.path(UNSEALED)
+    staging.mkdir(mode=0o700)
+    for name in ('config', 'data', 'backup'):
+        (staging / name).mkdir(mode=0o700)
     out(f'Type the seal code for {label} from its paper (dytallix-seal-{label} ...), then press Enter:')
     host.run([str(host.path(f'{bin_dir}/{UNSEALER}')), 'unseal', '-paper', '-', '-sealed',
-              str(bundle / 'keys.sealed.json'), '-label', label, '-out', str(host.path(HOME))], interactive=True)
+              str(bundle / 'keys.sealed.json'), '-label', label, '-out', str(staging)], interactive=True)
+    for secret in manifest['secrets']:
+        write_new(host, secret['path'], (staging / sealed_name(secret['path'])).read_bytes())
+    host.remove_tree(UNSEALED)
     # Owners and modes, innermost first; directories last.
     for secret in manifest['secrets']:
         os.chmod(host.path(secret['path']), int(secret['mode'], 8))
@@ -294,6 +326,8 @@ def install(bundle, host, out=say):
     host.run(['systemctl', 'restart', 'nftables'])
     host.run(['systemctl', 'daemon-reload'])
     host.run(['systemctl', 'enable', f'{UNIT}.service'])
+    for timer in manifest.get('timers', []):
+        host.run(['systemctl', 'enable', '--now', timer])
     problems = verify(bundle, host, manifest, fresh=True)
     require(not problems, 'the install does not verify:\n  ' + '\n  '.join(problems))
     out(f'Installed and verified {label}. Start the node with: systemctl start {UNIT}')
@@ -412,6 +446,8 @@ def switch(bundle, host, out=say):
     host.run(['systemctl', 'restart', 'nftables'])
     host.run(['systemctl', 'daemon-reload'])
     host.run(['systemctl', 'enable', f'{UNIT}.service'])
+    for timer in manifest.get('timers', []):
+        host.run(['systemctl', 'enable', '--now', timer])
     problems = verify(bundle, host, manifest)
     require(not problems, 'the switched host does not verify; the node was not started:\n  ' + '\n  '.join(problems))
     host.run(['systemctl', 'start', f'{UNIT}.service'])
@@ -466,7 +502,7 @@ def verify(bundle, host, manifest=None, fresh=False):
             problems.append(f'AppArmor profile {name}: {loaded.get(name, "not loaded")}, expected enforce')
     if host.run(['nft', 'list', 'table', *FIREWALL_TABLE], check=False).returncode != 0:
         problems.append(f'firewall table {" ".join(FIREWALL_TABLE)} is not loaded')
-    for unit in ('nftables', f'{UNIT}.service'):
+    for unit in ('nftables', f'{UNIT}.service', *manifest.get('timers', [])):
         if host.run(['systemctl', 'is-enabled', unit], check=False).stdout.strip() != 'enabled':
             problems.append(f'{unit} is not enabled')
     return problems
@@ -480,10 +516,13 @@ def wipe(bundle, host, confirm=input, out=say):
     require(manifest.get('schema') == SCHEMA, 'not a host install manifest')
     label = manifest['label']
     out(f'This removes the Dytallix node from this host: {", ".join(TREES)} (its node keys and chain data), '
-        f'the unit, the AppArmor profiles, the firewall table and the journal setting.')
+        f'the unit, the AppArmor profiles, the firewall table, the journal setting and any backup unit.')
     answer = confirm(f'Type "wipe {label}" to continue: ').strip()
     require(answer == f'wipe {label}', 'not confirmed; nothing removed')
     host.run(['systemctl', 'disable', '--now', f'{UNIT}.service'], check=False)
+    for unit in (f'{BACKUP_UNIT}.timer', f'{BACKUP_UNIT}.service'):
+        if os.path.lexists(host.path(f'/etc/systemd/system/{unit}')):
+            host.run(['systemctl', 'disable', '--now', unit], check=False)
     opt = host.path('/opt/dytallix')
     if opt.exists():
         for binary in sorted(opt.glob('*/bin/*')):
