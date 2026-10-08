@@ -49,10 +49,14 @@ func NewReactor(
 	connQuery proxy.AppConnQuery,
 	metrics *Metrics,
 ) *Reactor {
+	// Dytallix: the chunk queue lives in the configured directory. Upstream
+	// never set it, so every sync used the system temp directory, which the
+	// production unit does not let the engine write (disaster recovery v1).
 	r := &Reactor{
 		cfg:       cfg,
 		conn:      conn,
 		connQuery: connQuery,
+		tempDir:   cfg.TempDir,
 		metrics:   metrics,
 	}
 	r.BaseReactor = *p2p.NewBaseReactor("StateSync", r)

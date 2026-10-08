@@ -193,6 +193,8 @@ jobs:
             --work "$RUNNER_TEMP/network/net" --height 3 --timeout 300
       - name: Network run (sync, status page, snapshot, backup)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py run --work "$RUNNER_TEMP/network"
+      - name: Restore drill (disaster recovery R6)
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
       - name: Diagnostics
         if: failure()
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py diagnostics --work "$RUNNER_TEMP/network"

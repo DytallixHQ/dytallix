@@ -30,6 +30,12 @@ func TestStateSyncNeedsLightBlocksAndABoundedTrustPeriod(t *testing.T) {
 	if _, err := stateSyncOption(ctx, runtime, nil, logger); err == nil {
 		t.Fatal("state sync accepted without light blocks")
 	}
+	// The chunk queue defaults to the node's data directory.
+	runtime.Config.StateSync.TempDir = ""
+	_, _ = stateSyncOption(ctx, runtime, []string{t.TempDir()}, logger)
+	if runtime.Config.StateSync.TempDir != runtime.Config.DBDir() {
+		t.Fatal("state sync chunks outside the node's data:", runtime.Config.StateSync.TempDir)
+	}
 	runtime.Config.StateSync.TrustPeriod = runtime.Genesis.ConsensusParams.Evidence.MaxAgeDuration
 	_, err := stateSyncOption(ctx, runtime, []string{t.TempDir()}, logger)
 	if err == nil || !strings.Contains(err.Error(), "below the evidence age") {

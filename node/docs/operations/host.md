@@ -102,10 +102,10 @@ when the old release stops at the activation height.
 [validator-recovery.md](validator-recovery.md) (F17): fence the old server
 first, never restore signing state, set the old votes aside.
 
-## Not yet written
+## Disaster recovery
 
-- Disaster recovery (F19): the design is approved
-  ([disaster recovery v1](../architecture/disaster-recovery-v1.md)); the
-  backup tools, unit and runbook follow.
-- Rebuilding the endpoint by state sync: how light blocks reach a
-  console-only host.
+[disaster-recovery.md](disaster-recovery.md) (F19): a lost sentry or
+endpoint is installed again from its bundle and restored from the newest
+off-host copy with `restore.sh`, then catches up from the validator. The
+copy carries the light blocks the restore verifies, so nothing reaches the
+console-only host but the copy.

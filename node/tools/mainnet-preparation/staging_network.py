@@ -12,6 +12,7 @@ throwaway keys only.
   sudo staging_network.py install-vms --work DIR
   sudo staging_host.py install --work DIR/net --label validator-1 ...
   sudo staging_network.py run --work DIR
+  sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
 The VMs are driven through the QEMU guest agent (a virtio serial channel):
@@ -26,6 +27,13 @@ snapshot (a staging interval of 10 blocks), that its backup job uploads an
 encrypted copy to a stand-in store inside the sentry VM, that the copy
 opens on the runner with the backup code and holds the sentry's snapshot,
 and that both VMs verify against their bundles.
+
+restore-drill is the first restore drill (disaster recovery v1, R6): the
+sentry is lost, so its VM is wiped and reinstalled from its bundle, then
+restored from the stand-in store's copy with restore.sh and the backup code
+typed from paper. It must catch up with the validator, at the same height
+with the same block and application hashes, and verify against its bundle.
+It prints the measured times.
 """
 import argparse
 import base64
@@ -364,6 +372,8 @@ def run(work, timeout=600):
     if not uploaded:
         raise Failed('the sentry\'s backup job uploaded nothing')
     copy = uploaded[-1]
+    # The restore drill takes the same copy from the store.
+    (work / 'backup-uploaded.json').write_text(json.dumps(copy))
     stored = f'/var/tmp/standin/{UPLOAD["bucket"]}/{copy["object"]}'
     data = sentry.read(stored)
     local = work / 'backup-copy.bin'
@@ -396,6 +406,70 @@ def run(work, timeout=600):
     say('== the staging network runs: validator, sentry and endpoint, with an off-host copy')
 
 
+# The first restore drill (disaster recovery v1, R6)
+
+OPERATOR_STATUS = ('sh', '-c', 'exec /opt/dytallix/*/bin/dytallix-operator-rpc --home /var/lib/dytallix/node status')
+
+
+def sync_info(raw):
+    """(height, block hash, application hash) from the operator status."""
+    info = json.loads(raw)['result']['sync_info']
+    return int(info['latest_block_height']), info['latest_block_hash'], info['latest_app_hash']
+
+
+def restore_drill(work, timeout=900):
+    work = Path(work)
+    sentry = agent(work, 'sentry-1')
+    codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
+    copy = json.loads((work / 'backup-uploaded.json').read_bytes())
+    restored = json.loads((work / 'restored' / 'metadata.json').read_bytes())
+    say(f'== the copy: height {copy["height"]}, block records from height {restored.get("retained_from")}')
+    # The copy as the founder fetches it: a file outside the node's trees.
+    sentry.run(['cp', f'/var/tmp/standin/{UPLOAD["bucket"]}/{copy["object"]}', '/root/restore-copy.bin'])
+    times, started = {}, time.monotonic()
+
+    def lap(name, since):
+        times[name] = round(time.monotonic() - since, 1)
+        return time.monotonic()
+
+    say('== the sentry is lost: wipe it')
+    _, out, _ = sentry.run(['/root/node/dytallix-host/wipe.sh'], stdin='wipe sentry-1\n', timeout=300)
+    say(out.strip())
+    mark = lap('wipe_seconds', started)
+    say('== reinstall it from its bundle (typing its seal code)')
+    _, out, _ = sentry.run(['/root/node/dytallix-host/install.sh'], stdin=codes['sentry-1'] + '\n', timeout=900)
+    say(out.strip())
+    mark = lap('install_seconds', mark)
+    say('== restore it from the copy (typing the backup code)')
+    code, out, err = sentry.run(['/root/node/dytallix-host/restore.sh', '/root/restore-copy.bin'],
+                                stdin=codes['backup'] + '\n', timeout=timeout, check=False)
+    say(out.strip())
+    if code != 0:
+        raise Failed(f'restore.sh exited {code}: {err.strip()}')
+    mark = lap('restore_and_catch_up_seconds', mark)
+    # Caught up: the same height, block hash and application hash as the
+    # validator, read from both engines' operator status.
+    deadline = time.monotonic() + 180
+    while True:
+        _, raw, _ = sentry.run(list(OPERATOR_STATUS))
+        ours = sync_info(raw)
+        theirs = sync_info(subprocess.run(OPERATOR_STATUS, capture_output=True, text=True, check=True).stdout)
+        if ours[0] == theirs[0]:
+            if ours != theirs:
+                raise Failed(f'the restored sentry differs from the validator at height {ours[0]}: {ours} vs {theirs}')
+            break
+        if time.monotonic() > deadline:
+            raise Failed(f'the restored sentry is at {ours[0]}, the validator at {theirs[0]}')
+        time.sleep(1)
+    times['total_seconds'] = round(time.monotonic() - started, 1)
+    _, out, _ = sentry.run(['python3', '-I', '-B', '/root/node/dytallix-host/host_install.py', 'verify'])
+    say(f'sentry-1: {out.strip()}')
+    say(json.dumps({'restore_drill': {'copy_height': copy['height'], 'compared_height': ours[0],
+                                      'block_hash': ours[1], 'app_hash': ours[2], **times}}, indent=2))
+    say(f'== the sentry was wiped, reinstalled and restored from the copy of height {copy["height"]}, '
+        f'and matches the validator at height {ours[0]}')
+
+
 def diagnostics(work):
     work = Path(work)
     for label in VMS:
@@ -422,7 +496,7 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'diagnostics'):
+    for name in ('network-up', 'install-vms', 'run', 'restore-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     v = commands.add_parser('vms-up')
     v.add_argument('--work', type=Path, required=True)
@@ -441,6 +515,8 @@ def main():
             install_vms(args.work)
         elif args.command == 'run':
             run(args.work)
+        elif args.command == 'restore-drill':
+            restore_drill(args.work)
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, OSError, KeyError, ValueError) as error:

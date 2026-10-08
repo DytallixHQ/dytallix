@@ -85,5 +85,5 @@ Severity 1.
 - A replacement on a new address (a new pin plan and bundles).
 - A lost seal code with both copies gone, or a stolen one: follow
   [key compromise](key-compromise.md).
-- Losing the sentry as well: [disaster recovery](host.md#not-yet-written)
-  (F19) is not yet written.
+- Losing the sentry as well: [disaster recovery](disaster-recovery.md)
+  (F19), after the incident decision.

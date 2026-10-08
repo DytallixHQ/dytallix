@@ -29,7 +29,9 @@ before acceptance.
 
 Day-to-day host operations (status, start and stop, staging wipe, moving to
 a new release) are in [host.md](host.md); validator recovery (F17) is
-[validator-recovery.md](validator-recovery.md).
+[validator-recovery.md](validator-recovery.md), and restoring a lost sentry
+or endpoint from the off-host copy (F19) is
+[disaster-recovery.md](disaster-recovery.md).
 
 The procedures assume the native supervisor (`crates/native-supervisor`) as
 the service owner. The Python service that `deploy/pqc-engine` once held was
