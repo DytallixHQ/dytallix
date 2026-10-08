@@ -194,6 +194,17 @@ class HostFilesTests(unittest.TestCase):
                 self.assertNotIn('state_sync', service)
                 self.assertNotIn(h.LIGHT_BLOCKS, profile)
 
+    def test_every_host_can_read_an_opened_restore_copy(self):
+        # Disaster recovery v1, R5: any host may be restored from a copy.
+        for label, (files, manifest) in self.generate().items():
+            profile = files['/etc/apparmor.d/dytallix-node'].decode()
+            # Every role may list and read the copy, none may write or run it.
+            self.assertEqual(profile.count(f'  {h.RESTORE}/** r,'), 4, label)
+            self.assertEqual(profile.count(f'  {h.RESTORE}/ r,'), 4, label)
+            self.assertNotIn(f'{h.RESTORE}/** rw', profile)
+            directory = next(d for d in manifest['directories'] if d['path'] == h.RESTORE)
+            self.assertEqual((directory['owner'], directory['mode']), ('root', '0755'))
+
     def test_written_out(self):
         out = Path(self.tmp.name) / 'out'
         h.write(out, self.generate())

@@ -88,6 +88,7 @@ class FakeHost(hi.Host):
         self.commands, self.owners, self.immutable, self.enabled, self.active = [], {}, set(), set(), set()
         self.user = self.group = self.table = False
         self.loaded = set()
+        self.journal, self.copy_metadata = '', {}
         for path, text in {'/etc/os-release': 'ID=ubuntu\nVERSION_ID="24.04"\n',
                            '/sys/module/apparmor/parameters/enabled': 'Y\n',
                            '/etc/nftables.conf': '#!/usr/sbin/nft -f\nflush ruleset\n'}.items():
@@ -138,6 +139,8 @@ class FakeHost(hi.Host):
                 out = 'active' if args[2] in self.active else 'inactive'
             elif verb == 'start':
                 self.active.add(args[2])
+            elif verb == 'stop':
+                self.active.discard(args[2])
             elif verb == 'enable':
                 self.enabled.add(args[-1])
                 if '--now' in args:
@@ -165,6 +168,17 @@ class FakeHost(hi.Host):
                 code = 0 if self.table else 1
             elif args[1] == 'delete':
                 self.table = False
+        elif name == 'journalctl':
+            out = self.journal
+        elif name == 'dytallix-root-sign' and args[1] == 'backup-open':
+            # Writes the opened copy owner-only, as backup-open does.
+            target = Path(args[args.index('-out') + 1])
+            target.mkdir(mode=0o700)
+            (target / 'light-blocks').mkdir(mode=0o700)
+            for path, raw in (('metadata.json', json.dumps(self.copy_metadata)), ('chunk-000000', 'chunk'),
+                              ('light-blocks/00000000000000000020.block', 'block')):
+                (target / path).write_text(raw)
+                os.chmod(target / path, 0o600)
         elif name == 'dytallix-root-sign' and args[1] == 'unseal':
             label, home = args[args.index('-label') + 1], Path(args[args.index('-out') + 1])
             source = self.staging / label
@@ -463,6 +477,105 @@ class ReleaseSwitchTests(HostNetwork):
         (bundle2 / 'INSTALL_MANIFEST.json').write_text(json.dumps(manifest))
         with self.assertRaisesRegex(hi.Refused, 'never changes the node home'):
             hi.stage(bundle2, host, out=lambda _: None)
+
+
+class RestoreTests(HostNetwork):
+    """A freshly installed host restored from an off-host copy (R5)."""
+    READY = json.dumps({'started': True, 'engine_readiness': {'block_height': 31, 'application_height': 31}})
+
+    def restore_host(self, label, height=20):
+        bundle, host, manifest, _ = self.install(label)
+        host.copy_metadata = {'chain_id': manifest['chain_id'], 'height': height}
+        copy = self.tmp / f'{label}-copy.bin'
+        copy.write_bytes(b'encrypted copy')
+        return bundle, host, manifest, copy
+
+    def restore(self, bundle, host, copy, **options):
+        printed = []
+        report = hi.restore(bundle, host, copy, out=printed.append, sleep=lambda _: None, clock=lambda: 1000,
+                            **options)
+        return report, printed
+
+    def test_restore_opens_the_copy_starts_once_and_cleans_up(self):
+        bundle, host, manifest, copy = self.restore_host('sentry-1')
+        seen = {}
+        run = host.run
+
+        def at_start(args, check=True, interactive=False):
+            if args[:2] == ['systemctl', 'start']:
+                drop_in = host.path(hi.RESTORE_DROP_IN).read_text()
+                seen['drop_in'] = drop_in
+                seen['modes'] = [oct(host.mode(p)) for p in (hi.RESTORE_COPY, f'{hi.RESTORE_COPY}/metadata.json',
+                                                             f'{hi.RESTORE_COPY}/light-blocks')]
+                host.journal = 'not json\n' + self.READY + '\n'
+            return run(args, check=check, interactive=interactive)
+        host.run = at_start
+        report, printed = self.restore(bundle, host, copy)
+        self.assertEqual(report['engine_readiness']['block_height'], 31)
+        # The backup code is typed; the copy is opened into the fixed directory.
+        opened = next(c for c in host.commands if c[1:2] == ['backup-open'])
+        self.assertEqual(opened[opened.index('-paper') + 1], '-')
+        self.assertEqual(opened[opened.index('-out') + 1], str(host.path(hi.RESTORE_COPY)))
+        # One start with --restore-snapshot, through a drop-in that resets ExecStart.
+        lines = seen['drop_in'].splitlines()
+        self.assertEqual(lines[:2], ['[Service]', 'ExecStart='])
+        self.assertTrue(lines[2].startswith(f'ExecStart=/opt/dytallix/{manifest["release"]}/bin/'))
+        self.assertTrue(lines[2].endswith(f' --restore-snapshot {hi.RESTORE_COPY}'))
+        self.assertEqual(seen['modes'], ['0o755', '0o644', '0o755'])
+        # Afterwards: the drop-in and the opened copy are gone, the node runs.
+        self.assertFalse(os.path.lexists(host.path(hi.RESTORE_DROP_IN)))
+        self.assertFalse(os.path.lexists(host.path(hi.RESTORE_COPY)))
+        self.assertTrue(os.path.isdir(host.path(hi.RESTORE)))
+        self.assertEqual([c for c in host.commands if c == ['systemctl', 'daemon-reload']][-2:],
+                         [['systemctl', 'daemon-reload']] * 2)
+        self.assertIn(f'{hi.UNIT}.service', host.active)
+        self.assertIn('at height 20', printed[-1])
+
+    def test_restore_refuses_unsafe_starts(self):
+        # The validator only with --accept-history-loss.
+        bundle, host, _, copy = self.restore_host('validator-1')
+        with self.assertRaisesRegex(hi.Refused, 'accept-history-loss'):
+            self.restore(bundle, host, copy)
+        host.journal = self.READY
+        self.restore(bundle, host, copy, accept_history_loss=True)
+        # A running node, a node with state, a copy of another chain, a leftover copy.
+        bundle, host, _, copy = self.restore_host('endpoint-1')
+        host.active.add(f'{hi.UNIT}.service')
+        with self.assertRaisesRegex(hi.Refused, 'stop the node'):
+            self.restore(bundle, host, copy)
+        host.active.clear()
+        host.path(f'{hi.HOME}/data/blockstore.db').mkdir()
+        with self.assertRaisesRegex(hi.Refused, 'freshly installed'):
+            self.restore(bundle, host, copy)
+        os.rmdir(host.path(f'{hi.HOME}/data/blockstore.db'))
+        host.copy_metadata = {'chain_id': 'another-chain', 'height': 20}
+        with self.assertRaisesRegex(hi.Refused, 'not of'):
+            self.restore(bundle, host, copy)
+        with self.assertRaisesRegex(hi.Refused, 'left from an earlier restore'):
+            self.restore(bundle, host, copy)
+        host.remove_tree(hi.RESTORE_COPY)
+        # A start that stops without restoring: the drop-in goes, the copy stays for diagnosis.
+        host.copy_metadata['chain_id'] = self.manifests['endpoint-1']['chain_id']
+        run = host.run
+
+        def stopped(args, check=True, interactive=False):
+            result = run(args, check=check, interactive=interactive)
+            if args[:2] == ['systemctl', 'start']:
+                host.active.discard(args[2])
+            return result
+        host.run = stopped
+        with self.assertRaisesRegex(hi.Refused, 'restore start stopped'):
+            self.restore(bundle, host, copy)
+        self.assertFalse(os.path.lexists(host.path(hi.RESTORE_DROP_IN)))
+        # A start that never reports within the timeout is stopped.
+        host.run = run
+        host.remove_tree(hi.RESTORE_COPY)
+        ticks = iter(range(1000, 10**6, 10**4))
+        with self.assertRaisesRegex(hi.Refused, 'within'):
+            hi.restore(bundle, host, copy, out=lambda _: None, sleep=lambda _: None, clock=lambda: next(ticks),
+                       timeout=60)
+        self.assertIn(['systemctl', 'stop', f'{hi.UNIT}.service'], host.commands)
+        self.assertNotIn(f'{hi.UNIT}.service', host.active)
 
 
 def active_unit(unit, run):

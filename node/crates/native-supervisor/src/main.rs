@@ -26,13 +26,17 @@ const CONFIG_FLAG: &str = if cfg!(feature = "production") {
 };
 fn run() -> Result<()> {
     let args: Vec<_> = std::env::args_os().skip(1).collect();
+    // A one-time restore adds --restore-snapshot DIR (disaster recovery v1, R5).
     ensure!(
-        args.len() == 2 && args[0] == CONFIG_FLAG,
-        "Usage: dytallix-native-supervisor {CONFIG_FLAG} /absolute/config.json"
+        args.len() >= 2
+            && args[0] == CONFIG_FLAG
+            && (args.len() == 2 || (args.len() == 4 && args[2] == "--restore-snapshot")),
+        "Usage: dytallix-native-supervisor {CONFIG_FLAG} /absolute/config.json [--restore-snapshot DIR]"
     );
     dytallix_release_runtime::ownership::install_cancellation()?;
     let sink = ReportSink::stdout()?;
-    let mut service = NativeService::prepare(Path::new(&args[1]))?;
+    let restore = args.get(3).map(Path::new);
+    let mut service = NativeService::prepare(Path::new(&args[1]), restore)?;
     let flag = service.cancellation_handle();
     let result = (|| -> Result<()> {
         service.start()?;

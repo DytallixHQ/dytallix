@@ -40,9 +40,14 @@ pub struct NativeService {
 }
 
 impl NativeService {
-    pub fn prepare(path: &Path) -> Result<Self> {
+    pub fn prepare(path: &Path, restore: Option<&Path>) -> Result<Self> {
         ensure!(cfg!(target_os = "linux"), "Native service requires Linux");
-        let config = NativeServiceConfig::load(path)?;
+        let mut config = NativeServiceConfig::load(path)?;
+        // A one-time restore from an opened copy (disaster recovery v1, R5).
+        if let Some(dir) = restore {
+            crate::config::restore_directory(dir, &config.home)?;
+            config.restore_snapshot = Some(dir.to_path_buf());
+        }
         let admission = config.admission()?;
         let supervisor_security = admission.supervisor_state()?;
         let (service_lock, signer_lock) = config.lock_paths();
@@ -539,6 +544,10 @@ fn engine_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
     for export in config.state_sync.iter().flat_map(|s| &s.light_blocks) {
         args.extend(["--light-blocks".into(), export.clone().into()]);
     }
+    // A one-time restore from an opened copy (R5).
+    if let Some(dir) = &config.restore_snapshot {
+        args.extend(["--restore-snapshot".into(), dir.clone().into()]);
+    }
     // Each snapshot's light blocks, written beside the snapshots (R4).
     if let Some(snapshots) = &config.snapshots {
         args.extend([
@@ -706,7 +715,16 @@ mod argument_tests {
         assert!(bridge_arguments(&config).is_empty());
         assert!(!strings(engine_arguments(&config))
             .iter()
-            .any(|a| a.starts_with("--snapshot")));
+            .any(|a| a.starts_with("--snapshot") || a == "--restore-snapshot"));
+    }
+    #[test]
+    fn a_restore_passes_its_copy_to_the_engine() {
+        let mut config = config(Value::Null);
+        config.restore_snapshot = Some("/var/lib/dytallix/restore".into());
+        let engine = strings(engine_arguments(&config));
+        assert!(engine
+            .windows(2)
+            .any(|w| w == ["--restore-snapshot", "/var/lib/dytallix/restore"]));
     }
 }
 

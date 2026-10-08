@@ -593,23 +593,14 @@ func (n *Node) performStateSync() error {
 		}
 	}
 
-	go func() {
-		state, commit, err := n.stateSyncReactor.Sync(n.stateSyncProvider, config.DiscoveryTime)
-		if err != nil {
-			logger.Error("State sync failed", "err", err)
-			return
+	// finish bootstraps the stores from the restored state and switches to
+	// block sync.
+	finish := func(state sm.State, commit *types.Commit) error {
+		if err := n.stateStore.Bootstrap(state); err != nil {
+			return fmt.Errorf("failed to bootstrap node with new state: %w", err)
 		}
-
-		err = n.stateStore.Bootstrap(state)
-		if err != nil {
-			logger.Error("Failed to bootstrap node with new state", "err", err)
-			return
-		}
-
-		err = n.blockStore.SaveSeenCommit(state.LastBlockHeight, commit)
-		if err != nil {
-			logger.Error("Failed to store last seen commit", "err", err)
-			return
+		if err := n.blockStore.SaveSeenCommit(state.LastBlockHeight, commit); err != nil {
+			return fmt.Errorf("failed to store last seen commit: %w", err)
 		}
 
 		// Adaptive sync ingests blocks through consensus internals, so consensus
@@ -622,8 +613,30 @@ func (n *Node) performStateSync() error {
 		}
 
 		if err := blockSyncReactor.Enable(state); err != nil {
-			logger.Error("Failed to switch to block sync", "err", err)
+			return fmt.Errorf("failed to switch to block sync: %w", err)
+		}
+		return nil
+	}
+
+	// Dytallix: a restore from a local copy runs before the start completes,
+	// and its failure fails the start.
+	if n.localSnapshot != nil {
+		state, commit, err := n.stateSyncReactor.RestoreLocal(n.stateSyncProvider, *n.localSnapshot)
+		if err != nil {
+			return fmt.Errorf("restore from the local snapshot failed: %w", err)
+		}
+		logger.Info("Restored from the local snapshot", "height", state.LastBlockHeight)
+		return finish(state, commit)
+	}
+
+	go func() {
+		state, commit, err := n.stateSyncReactor.Sync(n.stateSyncProvider, config.DiscoveryTime)
+		if err != nil {
+			logger.Error("State sync failed", "err", err)
 			return
+		}
+		if err := finish(state, commit); err != nil {
+			logger.Error("State sync could not finish", "err", err)
 		}
 	}()
 

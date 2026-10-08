@@ -3,6 +3,7 @@ package node
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -73,6 +74,9 @@ type Node struct {
 	prometheusSrv     auxiliaryServer
 	pprofSrv          auxiliaryServer
 	pprofLn           net.Listener
+
+	// Dytallix: restore from a local copy instead of peers.
+	localSnapshot *statesync.LocalSnapshot
 }
 
 type waitSyncReactor interface {
@@ -159,6 +163,16 @@ func CustomReactors(reactors map[string]p2p.Reactor) Option {
 func StateProvider(stateProvider statesync.StateProvider) Option {
 	return func(n *Node) {
 		n.stateSyncProvider = stateProvider
+	}
+}
+
+// LocalSnapshot restores the node from a local copy of a snapshot instead of
+// peers (Dytallix, disaster recovery v1). It goes with
+// config.StateSync.LocalRestore and a state provider that trusts the copy's
+// height.
+func LocalSnapshot(local statesync.LocalSnapshot) Option {
+	return func(n *Node) {
+		n.localSnapshot = &local
 	}
 }
 
@@ -377,9 +391,14 @@ func NewNodeWithContext(
 	}
 	localAddr := pubKey.Address()
 
-	// Determine whether we should attempt state sync.
-	stateSync := config.StateSync.Enable && !onlyValidatorIsUs(state, localAddr)
+	// Determine whether we should attempt state sync. Dytallix: a restore from
+	// a local copy runs on any node, the only validator included, and only on
+	// a node that holds no state.
+	stateSync := config.StateSync.Enable && (config.StateSync.LocalRestore || !onlyValidatorIsUs(state, localAddr))
 	if stateSync && state.LastBlockHeight > 0 {
+		if config.StateSync.LocalRestore {
+			return nil, errors.New("a restore from a local snapshot needs a node that holds no state")
+		}
 		logger.Info("Found local state with non-zero height, skipping state sync")
 		stateSync = false
 	}

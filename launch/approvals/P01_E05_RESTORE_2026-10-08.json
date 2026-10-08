@@ -1,0 +1,30 @@
+{
+  "decision_id": "P01-2026-10-08-E05-RESTORE",
+  "approved": "2026-10-08",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Disaster recovery R5: how old a copy may be, and restoring the validator"
+  },
+  "design_ref": "../../node/docs/architecture/disaster-recovery-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "Up to 13 days",
+      "rule": "A restore trusts the copy's header for the evidence age less one day: 312 hours (13 days) with the approved 14-day evidence age, just under the bound the engine requires and within the validator's block retention. The copy's header is trusted because the backup code authenticated the copy, and the light client still verifies the two headers after it. Peer state sync joins keep the approved 168 hours."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Validator only with an explicit flag",
+      "rule": "Restoring the validator means the validator and the sentry were both lost: blocks after the copy are gone and the chain resumes from it, an incident decision. restore.sh refuses on the validator unless the operator adds --accept-history-loss, and the runbook ties that flag to the incident decision."
+    }
+  ],
+  "unset": [
+    "The runbook and the first restore drill (disaster recovery v1, R6)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
