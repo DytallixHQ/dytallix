@@ -20,6 +20,12 @@ from the unpacked bundle, through install.sh and wipe.sh:
   switch   once the old release has stopped (at the activation height),
            installs the staged unit, profiles, firewall and journal setting,
            verifies the host against the new bundle and starts the node.
+  restore  on a freshly installed host, before its first start, restores
+           the node from an off-host copy (disaster recovery v1, R5): opens
+           it with the backup code typed from paper, starts the node once
+           with --restore-snapshot, waits until it has restored and caught
+           up, then removes the one-time start and the opened copy. On the
+           validator it requires --accept-history-loss.
   wipe     removes the node from the host (staging before production):
            /opt/dytallix, /etc/dytallix, /var/lib/dytallix, the unit, the
            profiles, the firewall table and the journal setting. It keeps
@@ -36,6 +42,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 
 SCHEMA = 'dytallix.host-install.v1'
 SEALED_SCHEMA = 'dytallix.sealed-host-keys.v1'
@@ -67,6 +74,14 @@ SIGNING_STATE = f'{HOME}/data/priv_validator_state.json'
 # release the unit, profiles, firewall and journal setting it switches to.
 INSTALLED = 'install-manifest.json'
 NEXT = 'next'
+# A one-time restore (disaster recovery v1, R5): the opened copy, readable
+# by the node, and the start that passes it, under /run so that a reboot
+# also removes it.
+RESTORE = '/var/lib/dytallix/restore'
+RESTORE_COPY = f'{RESTORE}/copy'
+RESTORE_DROP_IN = f'/run/systemd/system/{UNIT}.service.d/50-restore.conf'
+# Above the approved catch-up budget (6 h), which the supervisor waits.
+RESTORE_TIMEOUT = 7 * 3600
 TOOLS = ('apparmor_parser', 'nft', 'systemctl', 'chattr', 'lsattr', 'useradd', 'groupadd', 'getent', 'timedatectl')
 NOLOGIN = '/usr/sbin/nologin'
 
@@ -510,6 +525,92 @@ def verify(bundle, host, manifest=None, fresh=False):
 
 # Wiping
 
+# Restoring from an off-host copy (disaster recovery v1, R5)
+
+def restored_report(journal, height):
+    """The supervisor's report once the node has started at or above the
+    copy's height, if the journal holds it."""
+    for line in journal.splitlines():
+        if not line.startswith('{'):
+            continue
+        try:
+            report = json.loads(line)
+        except ValueError:
+            continue
+        ready = report.get('engine_readiness') if isinstance(report, dict) else None
+        if report.get('started') is True and isinstance(ready, dict) and ready.get('application_height', 0) >= height:
+            return report
+    return None
+
+
+def restore(bundle, host, copy, accept_history_loss=False, out=say, sleep=time.sleep, clock=time.time,
+            timeout=RESTORE_TIMEOUT):
+    require(host.is_root(), 'run as root')
+    manifest = load_bundle(Path(bundle))
+    label, release, chain = manifest['label'], manifest['release'], manifest['chain_id']
+    require(active_release(host) == release, f'release {release} is not installed here; install this host first')
+    if manifest['role'] == 'validator':
+        require(accept_history_loss, 'restoring the validator loses every block after the copy; add '
+                                     '--accept-history-loss only after the incident decision (disaster recovery runbook)')
+    state = host.run(['systemctl', 'is-active', f'{UNIT}.service'], check=False).stdout.strip()
+    require(state != 'active', f'stop the node first (systemctl stop {UNIT})')
+    # A fresh install has the application's empty database directory and no
+    # engine stores.
+    appdb = host.path(f'{HOME}/appdb')
+    held = [path for path in (f'{HOME}/data/blockstore.db', f'{HOME}/data/state.db') if os.path.lexists(host.path(path))]
+    held += [f'{HOME}/appdb'] if appdb.is_dir() and any(appdb.iterdir()) else []
+    require(not held, f'{", ".join(held)} holds chain state: a restore needs a freshly installed host '
+                      '(wipe and install it first)')
+    require(not os.path.lexists(host.path(RESTORE_COPY)), f'{RESTORE_COPY} is left from an earlier restore; remove it')
+    copy = Path(copy).resolve()
+    require(copy.is_file(), f'{copy} is not a copy file')
+    signer = str(host.path(f'/opt/dytallix/{release}/bin/{UNSEALER}'))
+    out(f'Type the backup code for {chain} from its paper (dytallix-backup-{chain} ...), then press Enter:')
+    host.run([signer, 'backup-open', '-paper', '-', '-in', str(copy), '-out', str(host.path(RESTORE_COPY))],
+             interactive=True)
+    # The snapshot is the chain's public state: the node reads it, only root
+    # writes it.
+    for dirpath, _, filenames in os.walk(host.path(RESTORE_COPY)):
+        os.chmod(dirpath, 0o755)
+        for name in filenames:
+            os.chmod(os.path.join(dirpath, name), 0o644)
+    metadata = json.loads(host.path(f'{RESTORE_COPY}/metadata.json').read_bytes())
+    require(metadata.get('chain_id') == chain, f'the copy is not of {chain}')
+    height = int(metadata['height'])
+    out(f'Opened the copy of {chain} at height {height}. Starting {label} once to restore it.')
+    exec_start = re.findall(r'^ExecStart=(.+)$', host.path(UNIT_FILE).read_text(), re.M)
+    require(len(exec_start) == 1, 'the unit has no single ExecStart')
+    drop_in = host.path(RESTORE_DROP_IN)
+    drop_in.parent.mkdir(parents=True, exist_ok=True)
+    drop_in.write_text(f'[Service]\nExecStart=\nExecStart={exec_start[0]} --restore-snapshot {RESTORE_COPY}\n')
+    host.run(['systemctl', 'daemon-reload'])
+    since = int(clock())
+    report = None
+    try:
+        host.run(['systemctl', 'start', f'{UNIT}.service'])
+        deadline = since + timeout
+        while report is None:
+            journal = host.run(['journalctl', '-u', f'{UNIT}.service', '--since', f'@{since}', '-o', 'cat',
+                                '--no-pager'], check=False).stdout
+            report = restored_report(journal, height)
+            if report is not None:
+                break
+            state = host.run(['systemctl', 'is-active', f'{UNIT}.service'], check=False).stdout.strip()
+            require(state in ('active', 'activating'), f'the restore start stopped ({state}); see journalctl -u '
+                                                      f'{UNIT}, then wipe and install the host before trying again')
+            if clock() > deadline:
+                host.run(['systemctl', 'stop', f'{UNIT}.service'], check=False)
+                raise Refused(f'the node did not restore and catch up within {timeout} s; it is stopped')
+            sleep(15)
+    finally:
+        os.unlink(drop_in)
+        host.run(['systemctl', 'daemon-reload'])
+    host.remove_tree(RESTORE_COPY)
+    reached = report['engine_readiness'].get('block_height')
+    out(f'Restored {label} from the copy at height {height}; it has caught up to height {reached} and runs.')
+    return report
+
+
 def wipe(bundle, host, confirm=input, out=say):
     require(host.is_root(), 'run as root')
     manifest = json.loads((Path(bundle) / 'INSTALL_MANIFEST.json').read_bytes())
@@ -545,13 +646,17 @@ def wipe(bundle, host, confirm=input, out=say):
 
 
 def main(argv):
-    if len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch', 'wipe'):
-        print('usage: host_install.py install|verify|stage|switch|wipe', file=sys.stderr)
+    restoring = len(argv) in (3, 4) and argv[1] == 'restore' and argv[3:] in ([], ['--accept-history-loss'])
+    if not restoring and (len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch', 'wipe')):
+        print('usage: host_install.py install|verify|stage|switch|wipe, or restore COPY [--accept-history-loss]',
+              file=sys.stderr)
         return 2
     bundle = Path(__file__).resolve().parent
     host = Host()
     try:
-        if argv[1] == 'install':
+        if restoring:
+            restore(bundle, host, argv[2], accept_history_loss=len(argv) == 4)
+        elif argv[1] == 'install':
             install(bundle, host)
         elif argv[1] == 'stage':
             stage(bundle, host)

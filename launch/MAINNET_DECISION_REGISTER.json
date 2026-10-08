@@ -2755,7 +2755,8 @@
             "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json",
             "approvals/P01_E05_HOST_RECOVERY_2026-10-06.json",
             "approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json",
-            "approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json"
+            "approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json",
+            "approvals/P01_E05_RESTORE_2026-10-08.json"
           ]
         },
         {
@@ -4183,6 +4184,22 @@
         "D12-Q01"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-08-E05-RESTORE",
+      "approved": "2026-10-08",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_RESTORE_2026-10-08.json",
+      "decisions": [
+        "D12-Q02: a restore trusts the copy's header for the evidence age less one day (312 hours, 13 days); peer state sync joins keep 168 hours.",
+        "D12-Q02: restore.sh refuses on the validator unless --accept-history-loss is given, after the incident decision."
+      ],
+      "question_refs": [
+        "D12-Q02"
+      ],
+      "unset": [
+        "The runbook and the first restore drill (R6)"
+      ]
     },
     {
       "id": "P01-2026-10-08-E05-KIT-REPLACEMENT",

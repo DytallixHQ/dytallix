@@ -98,7 +98,7 @@ func metricsOption(config *cfg.Config, dir string, interval time.Duration) (node
 
 func run() error {
 	if len(os.Args) < 2 || os.Args[1] != "start" {
-		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("usage: dytallix-pqc-engine start --home HOME --p2p-profile PROFILE [--binding FILE] [--candidate-staging] [--light-blocks DIR]... [--snapshot-light-blocks DIR --snapshot-interval N --snapshot-keep K]")))
+		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, errors.New("usage: dytallix-pqc-engine start --home HOME --p2p-profile PROFILE [--binding FILE] [--candidate-staging] [--light-blocks DIR]... [--restore-snapshot DIR] [--snapshot-light-blocks DIR --snapshot-interval N --snapshot-keep K]")))
 	}
 	flags := flag.NewFlagSet("start", flag.ContinueOnError)
 	home := flags.String("home", "", "existing private fixture home")
@@ -114,6 +114,7 @@ func run() error {
 	snapshotLightBlocks := flags.String("snapshot-light-blocks", "", "directory for the light blocks of each application snapshot (the sentry)")
 	snapshotInterval := flags.Int64("snapshot-interval", 0, "the application's snapshot interval in blocks")
 	snapshotKeep := flags.Int("snapshot-keep", 0, "the number of snapshots the application keeps")
+	restoreSnapshot := flags.String("restore-snapshot", "", "restore this node, which holds no state, from an opened off-host copy")
 	if err := flags.Parse(os.Args[2:]); err != nil {
 		return startupdiag.At(1, startupdiag.AsClass(startupdiag.Invalid, err))
 	}
@@ -165,10 +166,25 @@ func run() error {
 	logger := log.NewFilter(log.NewTMJSONLogger(log.NewSyncWriter(os.Stdout)), log.AllowInfo())
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+	// Disaster recovery v1, R5: a one-time restore from an opened copy, with
+	// the copy's own light blocks.
+	var restore []node.Option
+	if *restoreSnapshot != "" {
+		if len(lightBlocks) != 0 {
+			return startupdiag.At(3, startupdiag.AsClass(startupdiag.Invalid, errors.New("--restore-snapshot takes its light blocks from the copy")))
+		}
+		local, light, err := restoreOption(ctx, runtime, *restoreSnapshot)
+		if err != nil {
+			return startupdiag.At(3, err)
+		}
+		lightBlocks = exports{light}
+		restore = []node.Option{node.LocalSnapshot(local)}
+	}
 	options, err := stateSyncOption(ctx, runtime, lightBlocks, logger)
 	if err != nil {
 		return startupdiag.At(3, err)
 	}
+	options = append(options, restore...)
 	metrics, writeMetrics, err := metricsOption(runtime.Config, *metricsDir, *metricsInterval)
 	if err != nil {
 		return startupdiag.At(3, err)

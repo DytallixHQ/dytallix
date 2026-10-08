@@ -1113,6 +1113,9 @@ type StateSyncConfig struct {
 	ChunkRequestTimeout time.Duration `mapstructure:"chunk_request_timeout"`
 	ChunkFetchers       int32         `mapstructure:"chunk_fetchers"`
 	MaxSnapshotChunks   uint32        `mapstructure:"max_snapshot_chunks"`
+	// Dytallix: restore from a local copy of a snapshot (disaster recovery
+	// v1). The engine sets it for one start; it is never read from a file.
+	LocalRestore bool `mapstructure:"-" toml:"-"`
 }
 
 func (cfg *StateSyncConfig) TrustHashBytes() []byte {

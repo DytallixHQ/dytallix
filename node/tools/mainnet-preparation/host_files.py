@@ -52,6 +52,8 @@ SNAPSHOTS = '/var/lib/dytallix/snapshots'
 # The engine writes each snapshot's light blocks here (disaster recovery v1, R4).
 SNAPSHOT_LIGHT_BLOCKS = '/var/lib/dytallix/snapshot-light-blocks'
 LIGHT_BLOCKS = '/var/lib/dytallix/light-blocks'
+# A one-time restore reads the opened off-host copy here (disaster recovery v1, R5).
+RESTORE = '/var/lib/dytallix/restore'
 SCRATCH = '/var/lib/dytallix/scratch'
 # The adapter's loopback listener on the endpoint, behind its client channel
 # and status page; reachable only on the host.
@@ -308,9 +310,9 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
                     'firewall': firewall, 'launch_channel': render.LAUNCH_CHANNEL},
         'resources': setup['unit'],
     }
-    # A host joining by state sync reads the operator's light block export.
-    if plan_host.get('state_sync') is not None:
-        request['readonly_trees'] = [LIGHT_BLOCKS]
+    # A host joining by state sync reads the operator's light block export,
+    # and any host restored from an off-host copy reads the opened copy.
+    request['readonly_trees'] = ([LIGHT_BLOCKS] if plan_host.get('state_sync') is not None else []) + [RESTORE]
     identities = [{'unit': UNIT, 'uid': UID, 'gid': GID}]
     try:
         policy = production_roles.generate(manifest_raw, mapping, request, identities,
@@ -483,6 +485,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
           (HOME, f'{HOME}/config', f'{HOME}/data', f'{HOME}/data/cs.wal', f'{HOME}/abci', f'{HOME}/appdb', LOCK, SCRATCH)],
         {'path': METRICS, 'owner': USER, 'mode': '0755'},
         {'path': LIGHT_BLOCKS, 'owner': 'root', 'mode': '0755'},
+        {'path': RESTORE, 'owner': 'root', 'mode': '0755'},
     ] + ([{'path': p, 'owner': USER, 'mode': '0700'} for p in (SNAPSHOTS, SNAPSHOT_LIGHT_BLOCKS)]
          if role == 'sentry' else []) + (
         [{'path': p, 'owner': 'root', 'mode': '0700'} for p in (BACKUP_ETC, BACKUP_STATE, f'{BACKUP_STATE}/scratch')]

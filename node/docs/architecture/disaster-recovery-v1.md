@@ -43,6 +43,10 @@ document is the design; the tools and the runbook follow (see
   self-contained and no node is stopped to export them (with one validator,
   stopping it halts the chain).
 
+[Restore age and the validator](../../../launch/approvals/P01_E05_RESTORE_2026-10-08.json)
+(8 October 2026): a restore accepts a copy up to 13 days old, and on the
+validator only with `--accept-history-loss` after the incident decision.
+
 ## What is copied
 
 The sentry runs with `block_history: archive`, so its application keeps
@@ -122,31 +126,47 @@ job takes the newest height with both and copies them together.
 ## Restore
 
 A rebuilt host restores from the newest copy, as root, after `install.sh`
-and before the node's first start:
+and before the node's first start, with `restore.sh COPY` from its bundle
+(built in R5):
 
 1. **Fetch** the copy to the host (it is encrypted and authenticated, so
    the download is transport only, like the bundle's).
-2. **Open** it with the backup code typed from paper (`backup-open`): the
-   whole copy is checked before anything is extracted, into a root-only
-   directory.
-3. **Verify the light blocks.** The engine's light client trusts the
-   copy's header at H (the copy is authenticated by the backup code) and
-   verifies H+1 and H+2 with ML-DSA-65, giving the trusted application
-   hash.
-4. **Import the snapshot** into the empty node through the application's
-   restore checks ([state sync v1](state-sync-v1.md), C3): every chunk's
-   hash, the rebuilt tree against the state digest, the head against the
-   trusted application hash, and the full startup check. Any failure
-   leaves the node empty.
-5. **Set the engine's stores** at H from the verified light blocks (the
-   upstream bootstrap, with the local light block provider).
-6. **Start.** The node fetches blocks from H+1 from its peers and checks
-   each against its own application.
+2. **Checks.** The installed release is the bundle's, the node is stopped
+   and holds no chain state (no engine stores, an empty application
+   database), and on the validator the operator added
+   `--accept-history-loss` (P01, 8 October 2026).
+3. **Open** it with the backup code typed from paper (`backup-open`): the
+   whole copy is checked before anything is extracted, into
+   `/var/lib/dytallix/restore/copy`. It is the chain's public state, so the
+   node may read it and only root write it; every role reads that tree.
+4. **One restore start.** A drop-in under `/run` adds
+   `--restore-snapshot DIR` to the supervisor for one start; the supervisor
+   passes it to the engine. The node then restores the way a state sync
+   joins, with the chunks read from the copy instead of from peers:
+   - the engine's light client trusts the copy's header at H (the copy is
+     authenticated by the backup code) and verifies H+1 and H+2 with
+     ML-DSA-65, giving the trusted application hash;
+   - the snapshot is offered to the application, which checks every
+     chunk's hash, rebuilds the tree against the state digest, the head
+     against the trusted application hash, and runs the full startup check
+     ([state sync v1](state-sync-v1.md), C3); a chunk it asks for again is
+     read once more, and a third request fails the restore;
+   - the engine checks the application's height and hash, sets its stores
+     at H and switches to block sync.
+   A failure fails the start; the node then holds a partial state, and the
+   host is wiped and installed again.
+5. **Catch up.** The node fetches blocks from H+1 from its peers and checks
+   each against its own application. Once the supervisor reports it
+   started at or above H, `restore.sh` removes the drop-in and the opened
+   copy; later starts are ordinary.
 
-The validator keeps its blocks for at least the evidence horizon (241,920
-blocks, about 14 days), and the newest copy is at most about a day old. So a lost
-sentry must be restored within about 13 days, or the blocks after its
-newest copy are no longer held anywhere it can fetch them.
+A restore trusts the copy's header for the evidence age less one day:
+13 days with the approved 14 (P01, 8 October 2026), just under the bound
+the engine requires of any trust period. Peer state sync joins keep their
+approved 168 hours. The validator keeps its blocks for at least the
+evidence horizon (241,920 blocks, about 14 days), and the newest copy is
+at most about a day old, so a lost sentry must be restored within about 12
+days of its loss.
 
 - **Sentry lost** (validator alive): rebuild and restore as above. Its
   archive history comes back with the snapshot's block records.
@@ -193,7 +213,12 @@ Every restore is drilled quarterly on staging, with its measured times.
   H4's network run checks that the copy holds the sentry's light blocks.
 - **R5.** The restore: the application's snapshot import through its
   restore checks, the engine's bootstrap from verified light blocks, and
-  the bundle's restore step, with tests.
+  the bundle's restore step, with tests. Built: the fork's
+  `statesync.RestoreLocal` and `node.LocalSnapshot` (the state sync's own
+  offer, apply and verify, with a local chunk source),
+  `dytallix-pqc-engine start --restore-snapshot DIR`, the supervisor's
+  `--restore-snapshot DIR`, the hosts' restore directory, and
+  `restore.sh` over `host_install.py restore`.
 - **R6.** The runbook and the first restore drill on staging: H4 wipes the
   sentry's VM, reinstalls it from its bundle, restores it from the stand-in
   store's copy, and checks that it catches up from the validator with the

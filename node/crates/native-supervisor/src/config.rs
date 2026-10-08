@@ -144,6 +144,10 @@ pub struct NativeServiceConfig {
     /// Production mode: how long readiness waits for the engine to catch up
     /// (P01, 1 October 2026). Required; an E05 operating value.
     pub catch_up_millis: Option<u64>,
+    /// A one-time restore from an opened off-host copy (disaster recovery v1,
+    /// R5): given on the command line, never in the file.
+    #[serde(skip)]
+    pub restore_snapshot: Option<PathBuf>,
 }
 
 /// A production node's role (production activation v1, design F).
@@ -205,6 +209,34 @@ impl StateSyncInput {
         }
         Ok(())
     }
+}
+
+/// The opened copy a one-time restore reads (disaster recovery v1, R5): a
+/// root or current-user directory outside the node home, without group or
+/// other write, holding the snapshot's metadata and its light blocks.
+pub fn restore_directory(path: &Path, home: &Path) -> Result<()> {
+    ensure!(
+        path.is_absolute() && std::fs::canonicalize(path)? == path,
+        "Restore copy path alias"
+    );
+    ensure!(!path.starts_with(home), "Restore copy inside the node home");
+    for (entry, directory) in [
+        (path.to_path_buf(), true),
+        (path.join("metadata.json"), false),
+        (path.join("light-blocks"), true),
+    ] {
+        let metadata = std::fs::symlink_metadata(&entry)?;
+        ensure!(
+            if directory {
+                metadata.is_dir()
+            } else {
+                metadata.is_file()
+            } && [0, unsafe { libc::geteuid() }].contains(&metadata.uid())
+                && metadata.mode() & 0o022 == 0,
+            "Restore copy must be root or current-user owned without group or other write"
+        );
+    }
+    Ok(())
 }
 
 /// A host binding (production activation v1, A4), as the engine decodes it.
@@ -1581,6 +1613,40 @@ mod tests {
         mode("snapshot-light-blocks", 0o700);
         mode("snapshots", 0o750);
         assert!(snapshots(100, 2).validate(&home).is_err());
+    }
+    #[test]
+    fn a_restore_copy_is_a_protected_directory_outside_the_home() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let home = root.join("home");
+        let copy = root.join("restore");
+        for dir in [home.join("copy/light-blocks"), copy.join("light-blocks")] {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        for base in [&copy, &home.join("copy")] {
+            std::fs::write(base.join("metadata.json"), b"{}").unwrap();
+            for (path, mode) in [
+                (base.to_path_buf(), 0o755),
+                (base.join("light-blocks"), 0o755),
+                (base.join("metadata.json"), 0o644),
+            ] {
+                std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap();
+            }
+        }
+        restore_directory(&copy, &home).unwrap();
+        assert!(restore_directory(&home.join("copy"), &home).is_err());
+        assert!(restore_directory(Path::new("restore"), &home).is_err());
+        let mode = |path: PathBuf, mode| {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode)).unwrap()
+        };
+        mode(copy.clone(), 0o775);
+        assert!(restore_directory(&copy, &home).is_err());
+        mode(copy.clone(), 0o755);
+        mode(copy.join("light-blocks"), 0o757);
+        assert!(restore_directory(&copy, &home).is_err());
+        mode(copy.join("light-blocks"), 0o755);
+        std::fs::remove_file(copy.join("metadata.json")).unwrap();
+        assert!(restore_directory(&copy, &home).is_err());
     }
     #[test]
     fn block_history_and_metrics_have_no_defaults() {
