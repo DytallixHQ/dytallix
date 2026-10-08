@@ -115,9 +115,10 @@ Every restore is drilled quarterly on staging, with its measured times.
 
 ## Open items
 
-- **A backup run on a real host:** H4 installs only the validator so far,
-  which takes no snapshots. The first backup run, to a stand-in store on
-  the runner, comes with H4's sentry.
+- **A backup run on a real host:** H4's staging network job installs the
+  sentry in a VM, runs its backup job against a stand-in store
+  (`s3_standin.py`) and opens the copy on the runner; its first green run
+  closes this item.
 - **Light blocks from a running sentry:** `dytallix-light-export` reads the
   engine's stores and asks for a stopped node or a copy of its home. The
   copy needs an export that works while the node runs, or the light blocks

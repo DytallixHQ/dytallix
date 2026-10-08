@@ -153,7 +153,18 @@ def sign_root(chain, genesis, manifest_path, tools, out, show):
     return policy, signatures, bundle
 
 
-def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=print):
+def staging_values(snapshot_interval=None):
+    """The approved E05 values, with a staging-only snapshot interval: a CI run
+    cannot wait a day (17,280 blocks) for the sentry's first snapshot."""
+    values = read_json(E05_VALUES)
+    if snapshot_interval is not None:
+        require(1 <= snapshot_interval <= 17280, 'the staging snapshot interval is 1 to 17,280 blocks')
+        row = next(r for r in values['values'] if r.get('path') == 'service.snapshots.interval_blocks')
+        row['approved'] = snapshot_interval
+    return values
+
+
+def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=print, snapshot_interval=None):
     plan_path, keys_dir, release_dir, tools, out = map(Path, (plan_path, keys_dir, release_dir, tools, out))
     plan = read_json(plan_path)
     require(not out.exists(), f'{out} exists; use a new directory')
@@ -197,7 +208,7 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
          '--genesis', chain_dir / 'genesis.json', '--out', out / 'hosts'], show)
 
     show('== host files and bundles')
-    generated = host_files.generate(release, chain_dir, out / 'hosts', plan, keys_dir, read_json(E05_VALUES),
+    generated = host_files.generate(release, chain_dir, out / 'hosts', plan, keys_dir, staging_values(snapshot_interval),
                                     read_json(SETUP_VALUES))
     host_files.write(out / 'host-files', generated)
     bundles = out / 'bundles'
@@ -222,9 +233,11 @@ def main():
     for name in ('plan', 'keys', 'release', 'tools', 'out'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--genesis-time', help='UTC, whole seconds (default: now)')
+    parser.add_argument('--snapshot-interval', type=int, help='staging only: the sentry snapshot interval in blocks')
     args = parser.parse_args()
     try:
-        summary = build(args.plan, args.keys, args.release, args.tools, args.out, args.genesis_time)
+        summary = build(args.plan, args.keys, args.release, args.tools, args.out, args.genesis_time,
+                        snapshot_interval=args.snapshot_interval)
     except (Invalid, host_files.Invalid, host_bundle.Invalid, OSError, KeyError, ValueError) as error:
         print(f'staging_chain: {error}', file=sys.stderr)
         return 2
