@@ -88,7 +88,7 @@ class FakeHost(hi.Host):
         self.commands, self.owners, self.immutable, self.enabled, self.active = [], {}, set(), set(), set()
         self.user = self.group = self.table = False
         self.loaded = set()
-        self.journal, self.copy_metadata = '', {}
+        self.journal, self.copy_metadata, self.synced_height = '', {}, 31
         for path, text in {'/etc/os-release': 'ID=ubuntu\nVERSION_ID="24.04"\n',
                            '/sys/module/apparmor/parameters/enabled': 'Y\n',
                            '/etc/nftables.conf': '#!/usr/sbin/nft -f\nflush ruleset\n'}.items():
@@ -170,6 +170,9 @@ class FakeHost(hi.Host):
                 self.table = False
         elif name == 'journalctl':
             out = self.journal
+        elif name == 'dytallix-operator-rpc':
+            out = json.dumps({'result': {'sync_info': {'latest_block_height': str(self.synced_height),
+                                                       'catching_up': self.synced_height < 30}}})
         elif name == 'dytallix-root-sign' and args[1] == 'backup-open':
             # Writes the opened copy owner-only, as backup-open does.
             target = Path(args[args.index('-out') + 1])
@@ -530,6 +533,7 @@ class RestoreTests(HostNetwork):
                          [['systemctl', 'daemon-reload']] * 2)
         self.assertIn(f'{hi.UNIT}.service', host.active)
         self.assertIn('at height 20', printed[-1])
+        self.assertIn('caught up to height 31', printed[-1])
 
     def test_restore_refuses_unsafe_starts(self):
         # The validator only with --accept-history-loss.
@@ -576,6 +580,14 @@ class RestoreTests(HostNetwork):
                        timeout=60)
         self.assertIn(['systemctl', 'stop', f'{hi.UNIT}.service'], host.commands)
         self.assertNotIn(f'{hi.UNIT}.service', host.active)
+        # Ready, but still catching up past the copy: it waits, then says so.
+        host.remove_tree(hi.RESTORE_COPY)
+        host.journal, host.synced_height = self.READY, 12
+        ticks = iter(range(1000, 10**6, 10**4))
+        with self.assertRaisesRegex(hi.Refused, 'has not caught up'):
+            hi.restore(bundle, host, copy, out=lambda _: None, sleep=lambda _: None, clock=lambda: next(ticks),
+                       timeout=60)
+        self.assertEqual(hi.synced('not json'), (0, True))
 
 
 def active_unit(unit, run):

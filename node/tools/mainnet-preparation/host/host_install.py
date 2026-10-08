@@ -543,6 +543,15 @@ def restored_report(journal, height):
     return None
 
 
+def synced(raw):
+    """(height, catching up) from the engine's operator status."""
+    try:
+        info = json.loads(raw)['result']['sync_info']
+        return int(info['latest_block_height']), bool(info['catching_up'])
+    except (ValueError, KeyError, TypeError):
+        return 0, True
+
+
 def restore(bundle, host, copy, accept_history_loss=False, out=say, sleep=time.sleep, clock=time.time,
             timeout=RESTORE_TIMEOUT):
     require(host.is_root(), 'run as root')
@@ -606,7 +615,18 @@ def restore(bundle, host, copy, accept_history_loss=False, out=say, sleep=time.s
         os.unlink(drop_in)
         host.run(['systemctl', 'daemon-reload'])
     host.remove_tree(RESTORE_COPY)
-    reached = report['engine_readiness'].get('block_height')
+    # The supervisor reports ready once the engine answers, which after a
+    # restore can be before block sync has moved: wait until the engine has
+    # synced past the copy and is not catching up.
+    rpc = str(host.path(f'/opt/dytallix/{release}/bin/dytallix-operator-rpc'))
+    while True:
+        status = host.run([rpc, '--home', HOME, 'status'], check=False)
+        reached, catching_up = synced(status.stdout) if status.returncode == 0 else (0, True)
+        if reached > height and not catching_up:
+            break
+        require(clock() <= deadline, f'the node restored at height {height} but has not caught up '
+                                     f'(height {reached}); see journalctl -u {UNIT}')
+        sleep(5)
     out(f'Restored {label} from the copy at height {height}; it has caught up to height {reached} and runs.')
     return report
 
