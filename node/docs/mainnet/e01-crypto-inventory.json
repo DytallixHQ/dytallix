@@ -263,7 +263,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "aafe182784c7ddb81b11db05ec9c5778a26e7b1b0892c42a6ad132de8bd847e2"
+          "sha256": "4876a819a2f121c3f8e657d25c69b853a92f0475c5a1bd8011a037c473a6c896"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
@@ -351,7 +351,7 @@
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
-          "sha256": "cba3d3414966b20257a30debaa4942d440d59f2f8e98eef9e355a2b0b1eb3d5f"
+          "sha256": "315fa00f6ca18f58ed976d79cf8df6fdd04ab8f5348a3ef954afa498047a6081"
         },
         {
           "path": "crates/release-runtime/src/ownership_security.rs",
@@ -378,7 +378,7 @@
         },
         {
           "path": "crates/native-supervisor/src/service.rs",
-          "sha256": "46e3fa89c61aed7b7ef5ab7088f6faf0db13468328f248b5519855985c0195ef"
+          "sha256": "91c3cc512bfa33c3d0f41309a15ab53482ad85b9b1ac9c7ef384c3cd7fa23f47"
         }
       ],
       "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",

@@ -539,6 +539,17 @@ fn engine_arguments(config: &NativeServiceConfig) -> Vec<OsString> {
     for export in config.state_sync.iter().flat_map(|s| &s.light_blocks) {
         args.extend(["--light-blocks".into(), export.clone().into()]);
     }
+    // Each snapshot's light blocks, written beside the snapshots (R4).
+    if let Some(snapshots) = &config.snapshots {
+        args.extend([
+            "--snapshot-light-blocks".into(),
+            snapshots.light_blocks.clone().into(),
+            "--snapshot-interval".into(),
+            snapshots.interval_blocks.to_string().into(),
+            "--snapshot-keep".into(),
+            snapshots.keep.to_string().into(),
+        ]);
+    }
     args
 }
 
@@ -628,7 +639,8 @@ mod argument_tests {
     }
     #[test]
     fn every_child_receives_its_outputs() {
-        let config = config(json!({"directory":"/s","interval_blocks":100,"keep":2}));
+        let config =
+            config(json!({"directory":"/s","interval_blocks":100,"keep":2,"light_blocks":"/l"}));
         let app = strings(application_arguments(&config));
         for pair in [
             ["--block-history", "archive"],
@@ -642,12 +654,15 @@ mod argument_tests {
         }
         assert_eq!(strings(bridge_arguments(&config)), ["--snapshot-dir", "/s"]);
         let engine = strings(engine_arguments(&config));
-        assert!(engine.ends_with(&[
-            "--metrics-dir".into(),
-            "/m".into(),
-            "--metrics-interval".into(),
-            "15s".into()
-        ]));
+        for pair in [
+            ["--metrics-dir", "/m"],
+            ["--metrics-interval", "15s"],
+            ["--snapshot-light-blocks", "/l"],
+            ["--snapshot-interval", "100"],
+            ["--snapshot-keep", "2"],
+        ] {
+            assert!(engine.windows(2).any(|w| w == pair), "{pair:?}");
+        }
     }
     #[test]
     fn production_mode_uses_the_root_controls_binding_and_light_blocks() {
@@ -689,6 +704,9 @@ mod argument_tests {
             .iter()
             .any(|a| a.starts_with("--snapshot")));
         assert!(bridge_arguments(&config).is_empty());
+        assert!(!strings(engine_arguments(&config))
+            .iter()
+            .any(|a| a.starts_with("--snapshot")));
     }
 }
 

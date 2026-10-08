@@ -15,7 +15,7 @@
   },
   "root_config": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/root-config.json",
-    "sha256": "f94e197d692ecba57edb408a6a92121dfc2c27c5f7e241dcff8d6079067a653b",
+    "sha256": "4b5bbc106aa0aba63ae7763aa859006d1535d6890d7b0d1036cf1feabf42f569",
     "max_bytes": 65536
   },
   "root_public_inputs": [
@@ -32,7 +32,7 @@
   ],
   "emergency_verifier_config": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/emergency-verifier.json",
-    "sha256": "65a80d3f134efaa8b1320ab8cc923a75a5aa23dbbb5b355237615b8e571e1ea8",
+    "sha256": "05c325eb16c8e44957dff331c786abaebbac313b8d7ea02655848358b78a8f01",
     "max_bytes": 65536
   },
   "candidate_config": {
@@ -42,7 +42,7 @@
   },
   "process_admission": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/admission.json",
-    "sha256": "86db31f1c576ddba2e9a579466fa5181b8a6a0c6469974c345ea6567a9fab60e",
+    "sha256": "bf1a05b5b99c2402805cd608d37dbb60ec74bf20cdc31fb00641fe585cb656c1",
     "max_bytes": 65536
   },
   "observation_pause": {
@@ -105,6 +105,7 @@
   "snapshots": {
     "directory": "/var/lib/dytallix/snapshots",
     "interval_blocks": 17280,
-    "keep": 3
+    "keep": 3,
+    "light_blocks": "/var/lib/dytallix/snapshot-light-blocks"
   }
 }

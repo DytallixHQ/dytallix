@@ -44,6 +44,7 @@ the installer) and H4 (the CI install) are built; H5 follows.
 | `/var/lib/dytallix/lock/` | `dytallix`, 0700 | The supervisor's lock |
 | `/var/lib/dytallix/metrics/` | `dytallix`, 0755 | Metrics text files |
 | `/var/lib/dytallix/snapshots/` | `dytallix`, 0700 | State sync snapshots, where configured |
+| `/var/lib/dytallix/snapshot-light-blocks/` | `dytallix`, 0700 | The engine's light blocks for each snapshot, beside the snapshots |
 | `/var/lib/dytallix/light-blocks/` | root, 0755 | Operator light block exports, for a state sync join |
 | `/var/lib/dytallix/scratch/` | `dytallix`, 0700 | The root helper's scratch directory |
 | `/etc/systemd/system/dytallix-node.service` | root, 0644 | The unit |

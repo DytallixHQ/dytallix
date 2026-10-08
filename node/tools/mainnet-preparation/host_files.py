@@ -49,6 +49,8 @@ HOME = '/var/lib/dytallix/node'
 LOCK = '/var/lib/dytallix/lock'
 METRICS = '/var/lib/dytallix/metrics'
 SNAPSHOTS = '/var/lib/dytallix/snapshots'
+# The engine writes each snapshot's light blocks here (disaster recovery v1, R4).
+SNAPSHOT_LIGHT_BLOCKS = '/var/lib/dytallix/snapshot-light-blocks'
 LIGHT_BLOCKS = '/var/lib/dytallix/light-blocks'
 SCRATCH = '/var/lib/dytallix/scratch'
 # The adapter's loopback listener on the endpoint, behind its client channel
@@ -296,7 +298,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     readonly = sorted([f'{etc}/{name}' for name in etc_files] +
                       [f'{etc}/{name}' for name in ('admission.json', 'root-config.json',
                                                      'emergency-verifier.json', 'candidate.json', 'service.json')])
-    writable = [HOME, LOCK, METRICS, SCRATCH] + ([SNAPSHOTS] if role == 'sentry' else [])
+    writable = [HOME, LOCK, METRICS, SCRATCH] + ([SNAPSHOTS, SNAPSHOT_LIGHT_BLOCKS] if role == 'sentry' else [])
     request = {
         'schema': 1, 'policy_version': render.VERSION, 'catalog_sha512': hashlib.sha512(manifest_raw).hexdigest(),
         'service_uids': [UID], 'writable_roots': sorted(writable), 'readonly_files': readonly,
@@ -430,7 +432,8 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     if role == 'sentry':
         service['snapshots'] = {'directory': SNAPSHOTS,
                                 'interval_blocks': service_value(approved, 'snapshots.interval_blocks'),
-                                'keep': service_value(approved, 'snapshots.keep')}
+                                'keep': service_value(approved, 'snapshots.keep'),
+                                'light_blocks': SNAPSHOT_LIGHT_BLOCKS}
     if plan_host.get('state_sync') is not None:
         service['state_sync'] = {'light_blocks': [LIGHT_BLOCKS]}
     if role == 'endpoint':
@@ -456,6 +459,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     if backup:
         require('dytallix-root-sign' in record_members, 'the release has no dytallix-root-sign to encrypt backups')
         backup_config = {'schema': 'dytallix.host-backup.v1', 'chain_id': catalog['chain_id'], 'snapshots': SNAPSHOTS,
+                         'light_blocks': SNAPSHOT_LIGHT_BLOCKS,
                          'signer': f'{bin_dir}/dytallix-root-sign', 'code_file': f'{BACKUP_ETC}/code',
                          'upload_file': f'{BACKUP_ETC}/upload.json', 'state': BACKUP_STATE, 'curl': CURL}
         add(f'{etc}/backup.json', pretty(backup_config))
@@ -479,7 +483,8 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
           (HOME, f'{HOME}/config', f'{HOME}/data', f'{HOME}/data/cs.wal', f'{HOME}/abci', f'{HOME}/appdb', LOCK, SCRATCH)],
         {'path': METRICS, 'owner': USER, 'mode': '0755'},
         {'path': LIGHT_BLOCKS, 'owner': 'root', 'mode': '0755'},
-    ] + ([{'path': SNAPSHOTS, 'owner': USER, 'mode': '0700'}] if role == 'sentry' else []) + (
+    ] + ([{'path': p, 'owner': USER, 'mode': '0700'} for p in (SNAPSHOTS, SNAPSHOT_LIGHT_BLOCKS)]
+         if role == 'sentry' else []) + (
         [{'path': p, 'owner': 'root', 'mode': '0700'} for p in (BACKUP_ETC, BACKUP_STATE, f'{BACKUP_STATE}/scratch')]
         if backup else [])
     manifest = {

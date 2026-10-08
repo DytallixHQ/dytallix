@@ -18,9 +18,40 @@ import (
 )
 
 // Off-host backups (disaster recovery v1, F19; P01, 7 October 2026): a
-// snapshot directory, packed as a deterministic tar and encrypted under the
-// chain's backup code.
+// snapshot directory and the light blocks its restore verifies, packed as a
+// deterministic tar and encrypted under the chain's backup code.
 const maxBackupEntries = 1 << 20
+
+// lightBlocksEntry is the copy's directory for the snapshot's light blocks:
+// heights H to H+2, a block and a parameters file each (R4).
+const lightBlocksEntry = "light-blocks"
+
+// checkLightBlocks requires exactly the six light block files of heights
+// height to height+2 in dir.
+func checkLightBlocks(dir string, height uint64) error {
+	if err := directory(dir); err != nil {
+		return err
+	}
+	want := map[string]bool{}
+	for h := height; h <= height+2; h++ {
+		want[fmt.Sprintf("%020d.block", h)] = true
+		want[fmt.Sprintf("%020d.params", h)] = true
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if !want[entry.Name()] || !entry.Type().IsRegular() {
+			return fmt.Errorf("%s: %s is not a light block file of heights %d to %d", dir, entry.Name(), height, height+2)
+		}
+		delete(want, entry.Name())
+	}
+	if len(want) != 0 {
+		return fmt.Errorf("%s lacks light block files of heights %d to %d", dir, height, height+2)
+	}
+	return nil
+}
 
 // backupCode makes a chain's backup code: the code file the sentry's bundle
 // seals, and the paper line, printed once.
@@ -58,23 +89,43 @@ func readCodeFile(path string) (string, []byte, error) {
 	return root.DecodeBackupCode(string(raw))
 }
 
-// packDirectory writes dir as a tar: sorted, root-owned, time zero, only
-// directories and regular files.
-func packDirectory(dir string, w io.Writer) (int, error) {
+// packDirectory writes dir as a tar, with lightBlocks under light-blocks/:
+// sorted, root-owned, time zero, only directories and regular files.
+func packDirectory(dir, lightBlocks string, w io.Writer) (int, error) {
 	if err := directory(dir); err != nil {
 		return 0, err
 	}
+	if _, err := os.Lstat(filepath.Join(dir, lightBlocksEntry)); err == nil {
+		return 0, fmt.Errorf("%s already has a %s entry", dir, lightBlocksEntry)
+	}
 	archive := tar.NewWriter(w)
 	entries := 0
-	err := filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil || path == dir {
+	if err := packTree(archive, dir, "", &entries); err != nil {
+		return entries, err
+	}
+	if err := packTree(archive, lightBlocks, lightBlocksEntry, &entries); err != nil {
+		return entries, err
+	}
+	return entries, archive.Close()
+}
+
+// packTree adds dir's entries to archive, under prefix when it is not empty.
+func packTree(archive *tar.Writer, dir, prefix string, entries *int) error {
+	return filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil || (path == dir && prefix == "") {
 			return err
 		}
 		relative, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
 		}
-		if entries++; entries > maxBackupEntries {
+		if prefix != "" {
+			relative = filepath.Join(prefix, relative)
+			if path == dir {
+				relative = prefix
+			}
+		}
+		if *entries++; *entries > maxBackupEntries {
 			return errors.New("the snapshot has too many entries")
 		}
 		header := &tar.Header{Name: filepath.ToSlash(relative), ModTime: time.Unix(0, 0), Format: tar.FormatPAX}
@@ -102,14 +153,11 @@ func packDirectory(dir string, w io.Writer) (int, error) {
 			return fmt.Errorf("%s is not a directory or a regular file", path)
 		}
 	})
-	if err != nil {
-		return entries, err
-	}
-	return entries, archive.Close()
 }
 
-// backupSeal encrypts a snapshot directory into a new copy file.
-func backupSeal(codePath, heightValue, dir, output string, out io.Writer) error {
+// backupSeal encrypts a snapshot directory and its light blocks into a new
+// copy file.
+func backupSeal(codePath, heightValue, dir, lightBlocks, output string, out io.Writer) error {
 	chain, code, err := readCodeFile(codePath)
 	if err != nil {
 		return err
@@ -118,6 +166,12 @@ func backupSeal(codePath, heightValue, dir, output string, out io.Writer) error 
 	height, err := strconv.ParseUint(heightValue, 10, 64)
 	if err != nil {
 		return errors.New("the height must be a positive integer")
+	}
+	if lightBlocks == "" {
+		return errors.New("-light-blocks is required: a copy carries the light blocks its restore verifies")
+	}
+	if err := checkLightBlocks(lightBlocks, height); err != nil {
+		return err
 	}
 	partial := output + ".partial"
 	file, err := os.OpenFile(partial, os.O_WRONLY|os.O_CREATE|os.O_EXCL, publicFileMode)
@@ -135,7 +189,7 @@ func backupSeal(codePath, heightValue, dir, output string, out io.Writer) error 
 		if err != nil {
 			return 0, err
 		}
-		entries, err := packDirectory(dir, writer)
+		entries, err := packDirectory(dir, lightBlocks, writer)
 		if err != nil {
 			return entries, err
 		}

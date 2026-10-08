@@ -36,7 +36,7 @@
 // a snapshot directory under the chain's backup code:
 //
 //	backup-code  -chain ID -out PATH
-//	backup-seal  -code-file F -height H -in DIR -out PATH
+//	backup-seal  -code-file F -height H -in DIR -light-blocks DIR -out PATH
 //	backup-check -paper F -in F
 //	backup-open  -paper F -in F -out DIR
 //
@@ -232,11 +232,12 @@ func run(args []string, out io.Writer) error {
 		code := flags.String("code-file", "", "the chain's backup code file")
 		height := flags.String("height", "", "the snapshot's height")
 		input := flags.String("in", "", "the snapshot directory")
+		lightBlocks := flags.String("light-blocks", "", "the snapshot's light blocks, heights H to H+2")
 		output := flags.String("out", "", "new copy file")
 		if err := parse(flags, args[1:], 0); err != nil {
 			return err
 		}
-		return backupSeal(*code, *height, *input, *output, out)
+		return backupSeal(*code, *height, *input, *lightBlocks, *output, out)
 	case "backup-check":
 		paper := flags.String("paper", "", "the backup code's paper line, or - to type it")
 		input := flags.String("in", "", "the copy")
