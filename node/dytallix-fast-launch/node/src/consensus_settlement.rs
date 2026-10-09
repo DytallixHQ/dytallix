@@ -7332,14 +7332,21 @@ impl ConsensusApplication {
                 "migration_sha256": policy.migration_sha256()
             });
         }
-        // The authority epoch the next block's controls name, and a kit
+        // The authority epoch the next block's controls name and its keys,
+        // which the control tools prepare and assemble with, and a kit
         // replacement waiting for its effect height (root kit replacement v1).
         if let Some(policies) = replacement_policies(&self.config) {
             let record = policies.current(root_record(&self.storage)?.as_ref());
             let next = info.height.checked_add(1).context("Height exhausted")?;
             let pending = record.epochs.last().filter(|last| last.from_height > next);
+            let epoch = record.at(next)?;
             response["root_authority"] = serde_json::json!({
-                "authority_epoch": record.at(next)?.authority_epoch,
+                "authority_epoch": epoch.authority_epoch,
+                "keys": replacement::Roles {
+                    upgrade: &epoch.upgrade,
+                    freeze: &epoch.freeze,
+                    resume: &epoch.resume,
+                },
                 "pending": pending.map(|epoch| serde_json::json!({
                     "authority_epoch": epoch.authority_epoch,
                     "effect_height": epoch.from_height,

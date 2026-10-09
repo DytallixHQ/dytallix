@@ -1,15 +1,21 @@
 //! Root control requests (E05; P01, 6 October 2026). A control (an emergency
-//! freeze or resume, an upgrade or a release handover) is prepared online
-//! from the chain's application configuration and the node's `/status`,
-//! signed offline by three custodian keys (`dytallix-root-sign
+//! freeze or resume, an upgrade, a release handover or a kit replacement) is
+//! prepared online from the chain's application configuration and the
+//! node's `/status`, signed offline by three custodian keys (`dytallix-root-sign
 //! sign-control`), and assembled here into the exact transaction the node
 //! admits. Preparation chooses nothing the node checks for itself: every
 //! field comes from the configuration, the status or the operator's digests.
+//!
+//! The keys that sign are those of the root authority epoch in force at the
+//! next block (root kit replacement v1): the configuration's until a kit
+//! replacement takes effect, then the epoch's that the status reports.
 use crate::consensus_settlement::ConsensusConfig;
 use crate::emergency_freeze as emergency;
+use crate::kit_replacement as replacement;
 use crate::release_handover as handover;
 use crate::upgrade::{self, v2 as upgrade_v2};
 use anyhow::{bail, ensure, Context, Result};
+use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256, Sha512};
 use std::collections::BTreeSet;
@@ -79,6 +85,21 @@ pub struct Status {
     pub emergency_control: Option<EmergencyStatus>,
     pub release_handover: Option<HandoverStatus>,
     pub upgrade: Option<UpgradeStatus>,
+    /// The root authority epoch in force at the next block and its keys;
+    /// reported by nodes with the three schema 2 root policies.
+    pub root_authority: Option<RootAuthorityStatus>,
+}
+#[derive(Clone, Debug, Deserialize)]
+pub struct RootAuthorityStatus {
+    pub authority_epoch: u64,
+    pub keys: replacement::Roles<emergency::AuthorityPolicy>,
+    pub pending: Option<PendingEpoch>,
+}
+/// A kit replacement admitted and waiting for its effect height.
+#[derive(Clone, Debug, Deserialize)]
+pub struct PendingEpoch {
+    pub authority_epoch: u64,
+    pub effect_height: u64,
 }
 #[derive(Clone, Debug, Deserialize)]
 pub struct EmergencyStatus {
@@ -139,6 +160,12 @@ pub enum Operation {
         upgrade_activation_sha256: Option<String>,
     },
     HandoverCancel,
+    /// One seat's keys replaced: the leaving key IDs and the new kit's
+    /// public keys, one per role.
+    KitReplacement {
+        replaced: replacement::Roles<String>,
+        keys: replacement::Roles<emergency::AuthorityKey>,
+    },
 }
 impl Operation {
     pub fn name(&self) -> &'static str {
@@ -151,6 +178,7 @@ impl Operation {
             Self::HandoverAdmit { .. } => "handover-admit",
             Self::HandoverActivate { .. } => "handover-activate",
             Self::HandoverCancel => "handover-cancel",
+            Self::KitReplacement { .. } => "kit-replacement",
         }
     }
 }
@@ -172,12 +200,14 @@ fn lower_hex(value: &str, bytes: usize, what: &str) -> Result<()> {
 }
 
 /// The window the signatures cover: from the block after the anchor, at most
-/// the policy's validity length and within its anchor age.
+/// the policy's validity length and within its anchor age. It ends before a
+/// pending kit replacement's effect height, where the signing keys change.
 fn window(
     anchor: u64,
     max_validity: u64,
     max_anchor_age: u64,
     blocks: Option<u64>,
+    effect: Option<u64>,
 ) -> Result<(u64, u64)> {
     let limit = max_validity.min(max_anchor_age);
     let blocks = blocks.unwrap_or(limit);
@@ -186,8 +216,45 @@ fn window(
         "The window must be 1 to {limit} blocks"
     );
     let first = anchor.checked_add(1).context("Height exhausted")?;
-    let last = anchor.checked_add(blocks).context("Height exhausted")?;
+    let mut last = anchor.checked_add(blocks).context("Height exhausted")?;
+    if let Some(effect) = effect.filter(|&effect| effect <= last) {
+        ensure!(
+            effect > first,
+            "A kit replacement takes effect at height {effect}; prepare the control after it"
+        );
+        last = effect - 1;
+    }
     Ok((first, last))
+}
+
+/// The root authority in force at the next block, as the status reports it;
+/// `None` before kit replacement exists for this configuration, when the
+/// configuration's keys sign.
+fn in_force<'a>(
+    config: &ConsensusConfig,
+    status: &'a Status,
+) -> Result<Option<&'a RootAuthorityStatus>> {
+    let replaceable = replacement::Policies::of(
+        config.emergency.as_ref(),
+        config.upgrade.as_ref(),
+        config.release_handover.as_ref(),
+    )
+    .is_some();
+    match (&status.root_authority, replaceable) {
+        (Some(current), true) => Ok(Some(current)),
+        (None, false) => Ok(None),
+        (None, true) => bail!(
+            "The status view has no root authority epoch; save it again from a current node"
+        ),
+        (Some(_), false) => {
+            bail!("The status reports a root authority this configuration does not have")
+        }
+    }
+}
+fn effect(current: Option<&RootAuthorityStatus>) -> Option<u64> {
+    current
+        .and_then(|current| current.pending.as_ref())
+        .map(|pending| pending.effect_height)
 }
 
 fn request(
@@ -237,6 +304,9 @@ pub fn prepare(
         Operation::UpgradeAdmit { .. }
         | Operation::UpgradeActivate { .. }
         | Operation::UpgradeCancel => prepare_upgrade(config, status, operation, anchor, blocks),
+        Operation::KitReplacement { .. } => {
+            prepare_replacement(config, status, operation, anchor, blocks)
+        }
         _ => prepare_handover(config, status, operation, anchor, blocks),
     }
 }
@@ -264,11 +334,13 @@ fn prepare_emergency(
         || policy.release_sha512.clone(),
         |h| h.active_release_sha512.clone(),
     );
+    let current = in_force(config, status)?;
     let (first, last) = window(
         anchor.0,
         v2.max_validity_blocks,
         v2.max_anchor_age_blocks,
         blocks,
+        effect(current),
     )?;
     let (action, incident, resume, authority, purpose) = match operation {
         Operation::Freeze { incident_sha256 } => {
@@ -277,7 +349,7 @@ fn prepare_emergency(
                 emergency::Action::Freeze,
                 incident_sha256,
                 None,
-                &policy.freeze_authority,
+                current.map_or(&policy.freeze_authority, |c| &c.keys.freeze),
                 "freeze",
             )
         }
@@ -304,7 +376,7 @@ fn prepare_emergency(
                     restored_state_sha256: anchor.1.into(),
                     readiness_evidence_sha256: readiness_evidence_sha256.clone(),
                 }),
-                &policy.resume_authority,
+                current.map_or(&policy.resume_authority, |c| &c.keys.resume),
                 "resume",
             )
         }
@@ -322,7 +394,7 @@ fn prepare_emergency(
         target_height: first,
         v2: Some(emergency::PayloadV2 {
             genesis_sha256: v2.genesis_sha256.clone(),
-            authority_epoch: v2.authority_epoch,
+            authority_epoch: current.map_or(v2.authority_epoch, |c| c.authority_epoch),
             policy_sha256: policy.sha256()?,
             not_before_height: first,
             not_after_height: last,
@@ -379,11 +451,14 @@ fn prepare_upgrade(
         .upgrade
         .as_ref()
         .context("The status has no upgrade state")?;
+    let current = in_force(config, status)?;
+    let authority = current.map_or(&policy.authority, |c| &c.keys.upgrade);
     let (first, last) = window(
         anchor.0,
         policy.max_validity_blocks,
         policy.max_anchor_age_blocks,
         blocks,
+        effect(current),
     )?;
     let action = match operation {
         Operation::UpgradeAdmit {
@@ -432,7 +507,7 @@ fn prepare_upgrade(
         genesis_sha256: policy.genesis_sha256.clone(),
         policy_sha256: policy.sha256()?,
         source_release_sha512: state.active_release_sha512.clone(),
-        authority_epoch: policy.authority_epoch,
+        authority_epoch: current.map_or(policy.authority_epoch, |c| c.authority_epoch),
         sequence: state.next_sequence,
         anchor_height: anchor.0,
         anchor_app_hash: anchor.1.into(),
@@ -450,9 +525,9 @@ fn prepare_upgrade(
         (&policy.chain_id, "upgrade", payload.sequence, first, last),
         Authority {
             purpose: "upgrade".into(),
-            threshold: policy.authority.threshold,
+            threshold: authority.threshold,
             max_signatures: policy.max_signatures,
-            keys: policy.authority.keys.clone(),
+            keys: authority.keys.clone(),
         },
     ))
 }
@@ -484,11 +559,14 @@ fn prepare_handover(
         .release_handover
         .as_ref()
         .context("The status has no release handover state")?;
+    let current = in_force(config, status)?;
+    let authority = current.map_or(&policy.authority, |c| &c.keys.upgrade);
     let (first, last) = window(
         anchor.0,
         v2.max_validity_blocks,
         v2.max_anchor_age_blocks,
         blocks,
+        effect(current),
     )?;
     let action = match operation {
         Operation::HandoverAdmit {
@@ -557,7 +635,7 @@ fn prepare_handover(
         genesis_sha256: policy.genesis_sha256.clone(),
         policy_sha256: policy.sha256()?,
         source_release_sha512: state.active_release_sha512.clone(),
-        authority_epoch: policy.authority_epoch,
+        authority_epoch: current.map_or(policy.authority_epoch, |c| c.authority_epoch),
         sequence: state.next_sequence,
         parent_height: anchor.0,
         parent_app_hash: anchor.1.into(),
@@ -578,21 +656,123 @@ fn prepare_handover(
         (&policy.chain_id, "upgrade", payload.sequence, first, last),
         Authority {
             purpose: "upgrade".into(),
-            threshold: policy.authority.threshold,
+            threshold: authority.threshold,
             max_signatures: policy.max_signatures,
-            keys: policy.authority.keys.clone(),
+            keys: authority.keys.clone(),
+        },
+    ))
+}
+
+/// A kit replacement (root kit replacement v1): the current upgrade keys
+/// sign it, and the request also lists the new kit's keys, which sign the
+/// same request as their proofs of possession.
+fn prepare_replacement(
+    config: &ConsensusConfig,
+    status: &Status,
+    operation: &Operation,
+    anchor: (u64, &str),
+    blocks: Option<u64>,
+) -> Result<Request> {
+    let Operation::KitReplacement { replaced, keys } = operation else {
+        unreachable!()
+    };
+    let policy = upgrade_policy(config)?;
+    let current = in_force(config, status)?.context(
+        "A kit replacement needs the emergency, upgrade and handover policies at schema 2",
+    )?;
+    if let Some(pending) = &current.pending {
+        bail!(
+            "A kit replacement is pending; it takes effect at height {}",
+            pending.effect_height
+        );
+    }
+    ensure!(
+        !status
+            .emergency_control
+            .as_ref()
+            .context("The status has no emergency control state")?
+            .frozen,
+        "The chain is frozen; no kit replacement is admitted until it resumes"
+    );
+    let sets = current.keys.each();
+    for ((set, id), role) in sets
+        .into_iter()
+        .zip(replaced.each())
+        .zip(["upgrade", "freeze", "resume"])
+    {
+        ensure!(
+            set.keys.iter().any(|key| &key.key_id == id),
+            "Key {id} is not a current {role} key"
+        );
+    }
+    for key in keys.each() {
+        lower_hex(&key.public_key_hex, 64, "A new public key")?;
+        ensure!(
+            key.key_id == sha256_hex(&hex::decode(&key.public_key_hex)?),
+            "Key {} is not its public key's SHA-256",
+            key.key_id
+        );
+        ensure!(
+            sets.iter()
+                .all(|set| set.keys.iter().all(|held| held.key_id != key.key_id)),
+            "Key {} is already a root key",
+            key.key_id
+        );
+    }
+    let (first, last) = window(
+        anchor.0,
+        policy.max_validity_blocks,
+        policy.max_anchor_age_blocks,
+        blocks,
+        None,
+    )?;
+    let payload = replacement::Payload {
+        schema: 1,
+        chain_id: policy.chain_id.clone(),
+        genesis_sha256: policy.genesis_sha256.clone(),
+        policy_sha256: policy.sha256()?,
+        authority_epoch: current.authority_epoch,
+        sequence: current
+            .authority_epoch
+            .checked_add(1)
+            .context("Authority epoch exhausted")?,
+        anchor_height: anchor.0,
+        anchor_app_hash: anchor.1.into(),
+        not_before_height: first,
+        not_after_height: last,
+        replaced: replaced.clone(),
+        keys: keys.clone(),
+    };
+    let artifact = replacement::artifact_bytes(&payload)?;
+    let mut signers = current.keys.upgrade.keys.clone();
+    signers.extend(keys.each().into_iter().cloned());
+    Ok(request(
+        operation,
+        replacement::CONTROL_KIND,
+        anchor,
+        serde_json::to_value(&payload)?,
+        artifact,
+        (&policy.chain_id, "upgrade", payload.sequence, first, last),
+        Authority {
+            purpose: "upgrade".into(),
+            threshold: current.keys.upgrade.threshold,
+            max_signatures: policy.max_signatures,
+            keys: signers,
         },
     ))
 }
 
 /// Assembles the signed control: the request's payload (re-encoded and
 /// checked against the signed artifact) with the signatures sorted by key
-/// ID. Only keys of the configuration's authority for the request's purpose
-/// count. The node's own decoder checks the result; the signatures
-/// themselves are verified by the node (dry-run with `dytallix control
-/// check` before submitting).
+/// ID. Only keys of the authority in force for the request's purpose count:
+/// the configuration's, or after a kit replacement the epoch's that `status`
+/// reports, and the request must name that epoch. A kit replacement also
+/// takes each new key's proof. The node's own decoder checks the result; the
+/// signatures themselves are verified by the node (dry-run with `dytallix
+/// control check` before submitting).
 pub fn assemble(
     config: &ConsensusConfig,
+    status: &Status,
     request: &Request,
     signatures: &[SignatureRecord],
 ) -> Result<Vec<u8>> {
@@ -605,31 +785,37 @@ pub fn assemble(
         hex::encode(Sha512::digest(&artifact)) == request.envelope.artifact_sha512,
         "The request's artifact digest differs from its artifact"
     );
-    let (authority, max_signatures) = match request.kind.as_str() {
+    let current = in_force(config, status)?;
+    let upgrade_keys = |configured: &emergency::AuthorityPolicy| {
+        current.map_or_else(|| configured.clone(), |c| c.keys.upgrade.clone())
+    };
+    let signed = |matches: bool| {
+        ensure!(matches, "The payload is not the signed artifact");
+        Ok(())
+    };
+    let (authority, max_signatures, epoch, proofs) = match request.kind.as_str() {
         emergency::CONTROL_KIND_V2 => {
             let policy = config
                 .emergency
                 .as_ref()
                 .context("The configuration has no emergency policy")?;
             let payload: emergency::Payload = serde_json::from_value(request.payload.clone())?;
-            ensure!(
-                emergency::artifact_bytes(&payload)? == artifact,
-                "The payload is not the signed artifact"
-            );
-            let authority = match payload.action {
-                emergency::Action::Freeze => &policy.freeze_authority,
-                emergency::Action::Resume => &policy.resume_authority,
+            signed(emergency::artifact_bytes(&payload)? == artifact)?;
+            let authority = match (payload.action, current) {
+                (emergency::Action::Freeze, Some(c)) => c.keys.freeze.clone(),
+                (emergency::Action::Resume, Some(c)) => c.keys.resume.clone(),
+                (emergency::Action::Freeze, None) => policy.freeze_authority.clone(),
+                (emergency::Action::Resume, None) => policy.resume_authority.clone(),
             };
-            (authority, policy.max_signatures)
+            let epoch = payload.v2.as_ref().map(|v2| v2.authority_epoch);
+            (authority, policy.max_signatures, epoch, None)
         }
         upgrade_v2::CONTROL_KIND => {
             let policy = upgrade_policy(config)?;
             let payload: upgrade_v2::Payload = serde_json::from_value(request.payload.clone())?;
-            ensure!(
-                upgrade_v2::artifact_bytes(&payload)? == artifact,
-                "The payload is not the signed artifact"
-            );
-            (&policy.authority, policy.max_signatures)
+            signed(upgrade_v2::artifact_bytes(&payload)? == artifact)?;
+            let epoch = Some(payload.authority_epoch);
+            (upgrade_keys(&policy.authority), policy.max_signatures, epoch, None)
         }
         handover::CONTROL_KIND_V2 => {
             let policy = config
@@ -637,16 +823,34 @@ pub fn assemble(
                 .as_ref()
                 .context("The configuration has no release handover policy")?;
             let payload: handover::Payload = serde_json::from_value(request.payload.clone())?;
-            ensure!(
-                handover::artifact_bytes(&payload)? == artifact,
-                "The payload is not the signed artifact"
-            );
-            (&policy.authority, policy.max_signatures)
+            signed(handover::artifact_bytes(&payload)? == artifact)?;
+            let epoch = Some(payload.authority_epoch);
+            (upgrade_keys(&policy.authority), policy.max_signatures, epoch, None)
+        }
+        replacement::CONTROL_KIND => {
+            let policy = upgrade_policy(config)?;
+            let payload: replacement::Payload = serde_json::from_value(request.payload.clone())?;
+            signed(replacement::artifact_bytes(&payload)? == artifact)?;
+            let current = current.context("A kit replacement is assembled with a root authority status")?;
+            let epoch = Some(payload.authority_epoch);
+            (current.keys.upgrade.clone(), policy.max_signatures, epoch, Some(payload.keys))
         }
         other => bail!("Unsupported control kind {other}"),
     };
+    if let (Some(current), Some(epoch)) = (current, epoch) {
+        ensure!(
+            epoch == current.authority_epoch,
+            "The request names authority epoch {epoch}, but epoch {} is in force; prepare it again",
+            current.authority_epoch
+        );
+    }
     let allowed: BTreeSet<&str> = authority.keys.iter().map(|k| k.key_id.as_str()).collect();
+    let provers: BTreeSet<&str> = proofs
+        .iter()
+        .flat_map(|keys| keys.each().map(|key| key.key_id.as_str()))
+        .collect();
     let mut chosen = std::collections::BTreeMap::new();
+    let mut proved = std::collections::BTreeMap::new();
     for record in signatures {
         ensure!(
             record.schema == SIGNATURE_SCHEMA,
@@ -658,14 +862,16 @@ pub fn assemble(
             "Signature {} is for another control",
             record.key_id
         );
-        ensure!(
-            allowed.contains(record.key_id.as_str()),
-            "Key {} is not in this control's authority",
-            record.key_id
-        );
+        let target = if allowed.contains(record.key_id.as_str()) {
+            &mut chosen
+        } else if provers.contains(record.key_id.as_str()) {
+            &mut proved
+        } else {
+            bail!("Key {} is not in this control's authority", record.key_id)
+        };
         lower_hex(&record.signature_hex, SIGNATURE_HEX / 2, "A signature")?;
         ensure!(
-            chosen
+            target
                 .insert(record.key_id.clone(), record.signature_hex.clone())
                 .is_none(),
             "Key {} signed twice",
@@ -678,6 +884,12 @@ pub fn assemble(
         chosen.len(),
         authority.threshold,
         max_signatures
+    );
+    ensure!(
+        proved.len() == provers.len(),
+        "{} of the {} new keys signed; each new key signs the request as its proof",
+        proved.len(),
+        provers.len()
     );
     let signatures: Vec<emergency::ControlSignature> = chosen
         .into_iter()
@@ -709,7 +921,7 @@ pub fn assemble(
             upgrade_v2::decode_control(upgrade_policy(config)?, &bytes)?;
             bytes
         }
-        _ => {
+        handover::CONTROL_KIND_V2 => {
             let control = handover::Control {
                 kind: request.kind.clone(),
                 payload: serde_json::from_value(request.payload.clone())?,
@@ -717,6 +929,41 @@ pub fn assemble(
             };
             let bytes = serde_json::to_vec(&control)?;
             handover::decode_control(config.release_handover.as_ref().unwrap(), &bytes)?;
+            bytes
+        }
+        _ => {
+            // A kit replacement carries its signatures in base64.
+            let base64 = |signature_hex: &str| -> Result<String> {
+                Ok(B64.encode(hex::decode(signature_hex)?))
+            };
+            let keys = proofs.context("Kit replacement keys missing")?;
+            let proof = |key: &emergency::AuthorityKey| base64(&proved[&key.key_id]);
+            let control = replacement::Control {
+                kind: request.kind.clone(),
+                payload: serde_json::from_value(request.payload.clone())?,
+                signatures: signatures
+                    .iter()
+                    .map(|s| {
+                        Ok(replacement::Signature {
+                            key_id: s.key_id.clone(),
+                            signature_base64: base64(&s.signature_hex)?,
+                        })
+                    })
+                    .collect::<Result<_>>()?,
+                proofs: replacement::Roles {
+                    upgrade: proof(&keys.upgrade)?,
+                    freeze: proof(&keys.freeze)?,
+                    resume: proof(&keys.resume)?,
+                },
+            };
+            let bytes = serde_json::to_vec(&control)?;
+            let policies = replacement::Policies::of(
+                config.emergency.as_ref(),
+                config.upgrade.as_ref(),
+                config.release_handover.as_ref(),
+            )
+            .context("Kit replacement policies missing")?;
+            replacement::decode_control(&policies, &bytes)?;
             bytes
         }
     };

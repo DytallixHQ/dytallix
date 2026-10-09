@@ -787,7 +787,7 @@ fn control_tools_freeze_and_resume_end_to_end() {
                     serde_json::from_slice(&std::fs::read(out).unwrap()).unwrap()
                 })
                 .collect();
-            control_request::assemble(&f.config, &request, &signatures).unwrap()
+            control_request::assemble(&f.config, &status, &request, &signatures).unwrap()
         };
     let freeze = control(
         &app,

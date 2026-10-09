@@ -5,7 +5,7 @@ use super::*;
 use crate::emergency_freeze::AuthorityKey;
 use crate::{emergency_freeze as emergency, kit_replacement as replacement};
 use crate::{release_handover as handover, upgrade};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// Blocks from admission to the effect height, in this fixture.
@@ -101,7 +101,10 @@ impl Kits {
 /// Emergency, upgrade and handover policies at schema 2, as in production:
 /// freeze keys 11 to 15, resume keys 21 to 25, upgrade keys 41 to 45. A
 /// handover policy needs a release manifest for this test executable.
-fn root(f: &mut Fixture) -> (RootFixture, Kits) {
+fn root_with(
+    f: &mut Fixture,
+    keys: impl FnOnce(&Path) -> [emergency::AuthorityPolicy; 3],
+) -> RootFixture {
     use sha2::Sha512;
     let executable = std::fs::read(std::env::current_exe().unwrap()).unwrap();
     let manifest = crate::runtime_candidate::ManifestV1 {
@@ -120,17 +123,9 @@ fn root(f: &mut Fixture) -> (RootFixture, Kits) {
         migration_registry_sha256: upgrade::registry_sha256(),
     };
     let manifest = serde_json::to_vec(&manifest).unwrap();
-    let mut chosen = None;
-    let root = RootFixture::with_release_manifest(f, &manifest, |f, path| {
+    RootFixture::with_release_manifest(f, &manifest, |f, path| {
         f.config.max_tx_bytes = 262_144;
-        let (freeze, mut keys) = set(path, 11);
-        let (resume, resume_keys) = set(path, 21);
-        let (authority, upgrade_keys) = set(path, 41);
-        keys.extend(resume_keys);
-        keys.extend(upgrade_keys);
-        for key in [61, 62, 63, 64] {
-            keys.insert(key, public_key(path, key));
-        }
+        let [freeze, resume, authority] = keys(path);
         let genesis_sha256 = f.config.app_state_sha256.clone();
         let emergency = f.config.emergency.as_mut().unwrap();
         emergency.schema = 2;
@@ -182,7 +177,23 @@ fn root(f: &mut Fixture) -> (RootFixture, Kits) {
                 max_anchor_age_blocks: 4,
             }),
         });
+    })
+}
+/// Fixture keys 11 to 15 freeze, 21 to 25 resume and 41 to 45 upgrade, and
+/// keys 61 to 64 for new kits.
+fn root(f: &mut Fixture) -> (RootFixture, Kits) {
+    let mut chosen = None;
+    let root = root_with(f, |path| {
+        let (freeze, mut keys) = set(path, 11);
+        let (resume, resume_keys) = set(path, 21);
+        let (authority, upgrade_keys) = set(path, 41);
+        keys.extend(resume_keys);
+        keys.extend(upgrade_keys);
+        for key in [61, 62, 63, 64] {
+            keys.insert(key, public_key(path, key));
+        }
         chosen = Some(Kits(keys));
+        [freeze, resume, authority]
     });
     (root, chosen.unwrap())
 }
@@ -544,4 +555,177 @@ fn actual_kit_replacement_takes_effect_after_its_notice_and_replays() {
     );
     drop(app);
     assert!(open(&root, &f, &db).is_err());
+}
+
+/// The control tools end to end (root kit replacement v1, K3): five kits and
+/// a replacement kit for seat 5 from `dytallix-root-sign kit`; the
+/// replacement prepared from the node's status view
+/// (`control_request::prepare`), shown, signed offline with `sign-control`
+/// by three current kits' upgrade keys and by each of the new kit's keys,
+/// assembled and admitted. Until its effect height a prepared window ends
+/// before it; from it a freeze is prepared for the new epoch and signed with
+/// the new kit's freeze key.
+#[test]
+#[ignore = "Requires pinned real SLH helper and disposable fixture signers"]
+fn control_tools_replace_a_kit_end_to_end() {
+    use crate::control_request::{self, Operation, Request, SignatureRecord, Status};
+    let signer = std::env::var("DYT_ROOT_SIGNER").expect("dytallix-root-sign");
+    let dir = tempfile::tempdir().unwrap();
+    let path = |name: &str| dir.path().join(name);
+    let run = |args: &[&str]| -> String {
+        let result = Command::new(&signer).args(args).output().unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        String::from_utf8(result.stdout).unwrap()
+    };
+    for name in ["public", "new-public", "new-drive"] {
+        std::fs::create_dir(path(name)).unwrap();
+    }
+    let drive = |n: u8| path(&format!("kit-{n}"));
+    let kit = |n: u8, private: &Path, public: &Path| {
+        let n = n.to_string();
+        let (private, public) = (private.to_str().unwrap(), public.to_str().unwrap());
+        run(&[
+            "kit",
+            "-number",
+            &n,
+            "-private-out",
+            private,
+            "-public-out",
+            public,
+        ]);
+    };
+    for n in 1..=5u8 {
+        std::fs::create_dir(drive(n)).unwrap();
+        kit(n, &drive(n), &path("public"));
+    }
+    // The replacement kit for seat 5, made the same way.
+    kit(5, &path("new-drive"), &path("new-public"));
+    let record = |dir: &str, n: u8, purpose: &str| -> AuthorityKey {
+        let file = path(dir).join(format!("kit-{n}-{purpose}.json"));
+        serde_json::from_slice(&std::fs::read(file).unwrap()).unwrap()
+    };
+    let authority = |purpose: &str| {
+        let mut keys: Vec<_> = (1..=5).map(|n| record("public", n, purpose)).collect();
+        keys.sort_by(|a, b| a.key_id.cmp(&b.key_id));
+        emergency::AuthorityPolicy { keys, threshold: 3 }
+    };
+    let mut f = Fixture::new();
+    let root = root_with(&mut f, |_| {
+        [
+            authority("freeze"),
+            authority("resume"),
+            authority("upgrade"),
+        ]
+    });
+    let directory = tempfile::tempdir().unwrap();
+    let db = directory.path().join("state");
+    let mut app = open(&root, &f, &db).unwrap();
+    app.init_chain(CHAIN, 1, &f.genesis, &f.config.validators)
+        .unwrap();
+    commit(&mut app, 1, vec![]);
+    // A signer's private key and public key record.
+    type Signer = (PathBuf, PathBuf);
+    let current = |n: u8, purpose: &str| -> Signer {
+        (
+            drive(n).join(format!("kit-{n}-{purpose}.key")),
+            path("public").join(format!("kit-{n}-{purpose}.json")),
+        )
+    };
+    let new = |purpose: &str| -> Signer {
+        (
+            path("new-drive").join(format!("kit-5-{purpose}.key")),
+            path("new-public").join(format!("kit-5-{purpose}.json")),
+        )
+    };
+    // Prepare from the status view, show, sign offline and assemble.
+    let control = |app: &ConsensusApplication, operation: &Operation, signers: &[Signer]| {
+        let status: Status = serde_json::from_value(app.query().unwrap()).unwrap();
+        let request: Request =
+            control_request::prepare(&f.config, &status, operation, None).unwrap();
+        let request_path = path(&format!("{}-request.json", request.operation));
+        std::fs::write(&request_path, serde_json::to_vec_pretty(&request).unwrap()).unwrap();
+        let request_file = request_path.to_str().unwrap();
+        let shown = run(&["show-control", "-request", request_file]);
+        assert!(shown.contains(&request.operation), "{shown}");
+        let sequence = request.envelope.sequence.to_string();
+        let signatures: Vec<SignatureRecord> = signers
+            .iter()
+            .enumerate()
+            .map(|(i, (private, public))| {
+                let out = path(&format!("{}-signature-{i}.json", request.operation));
+                run(&[
+                    "sign-control",
+                    "-request",
+                    request_file,
+                    "-private-key",
+                    private.to_str().unwrap(),
+                    "-public-key",
+                    public.to_str().unwrap(),
+                    "-operation",
+                    &request.operation,
+                    "-sequence",
+                    &sequence,
+                    "-out",
+                    out.to_str().unwrap(),
+                ]);
+                serde_json::from_slice(&std::fs::read(out).unwrap()).unwrap()
+            })
+            .collect();
+        (
+            shown,
+            control_request::assemble(&f.config, &status, &request, &signatures).unwrap(),
+        )
+    };
+    let operation = Operation::KitReplacement {
+        replaced: replacement::Roles {
+            upgrade: record("public", 5, "upgrade").key_id,
+            freeze: record("public", 5, "freeze").key_id,
+            resume: record("public", 5, "resume").key_id,
+        },
+        keys: replacement::Roles {
+            upgrade: record("new-public", 5, "upgrade"),
+            freeze: record("new-public", 5, "freeze"),
+            resume: record("new-public", 5, "resume"),
+        },
+    };
+    let signers = [
+        current(1, "upgrade"),
+        current(3, "upgrade"),
+        current(4, "upgrade"),
+        new("upgrade"),
+        new("freeze"),
+        new("resume"),
+    ];
+    let (shown, control_bytes) = control(&app, &operation, &signers);
+    let new_freeze = record("new-public", 5, "freeze").key_id;
+    assert!(
+        shown.contains(&format!("new_freeze       {new_freeze}")),
+        "{shown}"
+    );
+    assert_admitted(app.check_tx(&control_bytes));
+    commit(&mut app, 2, vec![control_bytes]);
+    // Until the effect height a prepared window ends before it.
+    let freeze = Operation::Freeze {
+        incident_sha256: "33".repeat(32),
+    };
+    let status: Status = serde_json::from_value(app.query().unwrap()).unwrap();
+    let early = control_request::prepare(&f.config, &status, &freeze, None).unwrap();
+    assert_eq!(early.envelope.not_after_height, 2 + NOTICE - 1);
+    commit(&mut app, 3, vec![]);
+    commit(&mut app, 4, vec![]);
+    // From it, the new kit's freeze key signs for the new epoch.
+    let signers = [current(1, "freeze"), current(2, "freeze"), new("freeze")];
+    let (_, control_bytes) = control(&app, &freeze, &signers);
+    let payload = serde_json::from_slice::<serde_json::Value>(&control_bytes).unwrap();
+    assert_eq!(payload["payload"]["v2"]["authority_epoch"], 2);
+    assert_admitted(app.check_tx(&control_bytes));
+    commit(&mut app, 5, vec![control_bytes]);
+    assert!(emergency_state(&app.storage, &app.config)
+        .unwrap()
+        .unwrap()
+        .frozen());
 }

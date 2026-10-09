@@ -39,7 +39,8 @@ pub struct Roles<T> {
     pub resume: T,
 }
 impl<T> Roles<T> {
-    fn each(&self) -> [&T; 3] {
+    /// The upgrade, freeze and resume values, in that order.
+    pub fn each(&self) -> [&T; 3] {
         [&self.upgrade, &self.freeze, &self.resume]
     }
 }

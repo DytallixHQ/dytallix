@@ -153,6 +153,14 @@ The node admits a replacement only if:
   - The structural replay of emergency receipts, and the emergency history
     that upgrades check, also take each record's keys from its block's
     epoch (`recover_recorded_at`).
+- **Built in K3:** the tools.
+  - The status reports the keys of the epoch in force.
+  - `control_request` prepares every control with that epoch and its keys,
+    ends a window the block before a pending replacement's effect height,
+    and assembles against the status's keys (`assemble --status`), refusing
+    a request for another epoch.
+  - The `kit-replacement` operation, the signer's control kind, and the
+    CLI's.
 
 ## What does not change
 
@@ -168,11 +176,13 @@ genesis keys, and every window, notice and size bound in the configuration.
   history.
 - **Root helper.** Unchanged: it verifies single SLH-DSA signatures with the
   keys the node passes it, now taken from the record.
-- **Tools.** `dytallix-control prepare` gains the replacement, and
-  `dytallix-root-sign show-control` and `sign-control` show the seat and the
-  new key IDs before signing. The new holder makes their kit and proofs in
-  the [key ceremony](../../../launch/custody/KEY_CEREMONY.md) with the next
-  epoch.
+- **Tools** ([control signing](../mainnet/control-signing.md#kit-replacement)).
+  `dytallix-control prepare kit-replacement` builds the request from the
+  leaving and the new kit's public key records, and `dytallix-root-sign
+  show-control` and `sign-control` show the seat and the new key IDs before
+  signing. The new holder makes their kit with `dytallix-root-sign kit` in
+  the [key ceremony](../../../launch/custody/KEY_CEREMONY.md), with its
+  custody proofs for the next epoch.
 - **Genesis builder and binding review.** They check that the emergency and
   upgrade epochs are equal; the record's starting value derives from the
   configuration.
@@ -184,7 +194,7 @@ genesis keys, and every window, notice and size bound in the configuration.
 | K1 | The authority record, its epochs and each epoch's policies; one authority epoch in the configuration | None: no record until a replacement |
 | K2a | Schema 2 policy hashes over the rules, not the keys; every check through the policy in force at its height | Schema 2 policy hashes (no chain runs them yet) |
 | K2b | The replacement control: admission, notice, effect (the record and the epoch); no replacement while frozen | New control and committed state |
-| K3 | Tools: prepare, show, sign and assemble a replacement; proofs for the next epoch | New tool operations |
+| K3 | Tools: prepare, show, sign and assemble a replacement; every control prepared and assembled with the epoch in force | New tool operation; `assemble` takes the status |
 | K4 | Staging drill: replace a seat; the old kit is refused after the effect height and the new kit signs a freeze and a resume | Evidence |
 
 ## Tests
@@ -203,4 +213,9 @@ genesis keys, and every window, notice and size bound in the configuration.
   height; after it the old keys are refused and the new ones accepted; a
   replayed replacement is refused; a restart replays the replacement, and
   an upgrade after it checks emergency history across both epochs.
-- K3: the signed fixture runs prepare, sign and assemble end to end.
+- K3: the signed fixture runs prepare, show, sign and assemble end to end
+  with real kits: a replacement of seat 5, then a freeze signed with the new
+  kit after the effect height; a window prepared while the replacement is
+  pending ends before its effect height; the signer reads a request the
+  node wrote; assembly refuses a key outside the epoch in force, a missing
+  proof and a request for another epoch.

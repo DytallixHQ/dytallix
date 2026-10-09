@@ -34,6 +34,12 @@ func showControl(path string, out io.Writer) error {
 	if err != nil {
 		return err
 	}
+	if request.Kind == root.ReplacementKind {
+		// The request lists the current upgrade keys and the three new keys.
+		_, err = fmt.Fprintf(out, "%ssigners          %d of the %d current upgrade keys, and each of the 3 new keys\n",
+			summary.Render(), request.Authority.Threshold, len(request.Authority.Keys)-3)
+		return err
+	}
 	_, err = fmt.Fprintf(out, "%ssigners          %d of the %d %s keys\n", summary.Render(),
 		request.Authority.Threshold, len(request.Authority.Keys), request.Authority.Purpose)
 	return err
