@@ -47,6 +47,34 @@ class StagingChainTests(unittest.TestCase):
         with self.assertRaises(sc.Invalid):
             sc.staging_records(plan, self.rehearsal, '2026-10-06T12:00:00Z')
 
+    def test_control_kits_replace_only_the_root_control_keys(self):
+        records = sc.staging_records(self.plan, self.rehearsal, '2026-10-06T12:00:00Z')
+        authorities = {purpose: {'keys': [{'key_id': purpose, 'public_key_hex': '00'}], 'threshold': 3}
+                       for purpose in ('freeze', 'resume', 'upgrade')}
+        changed = sc.with_control_kits(records, authorities)
+        root = changed['root']
+        self.assertEqual((root['emergency']['freeze'], root['emergency']['resume'], root['upgrade']['authority']),
+                         (authorities['freeze'], authorities['resume'], authorities['upgrade']))
+        # The rest of the records, and the input, are unchanged.
+        self.assertEqual(records['root'], self.rehearsal['root'])
+        self.assertEqual({k: v for k, v in changed.items() if k != 'root'},
+                         {k: v for k, v in records.items() if k != 'root'})
+        for section in ('emergency', 'upgrade'):
+            kept = {k: v for k, v in root[section].items() if k not in ('freeze', 'resume', 'authority')}
+            self.assertEqual(kept, {k: v for k, v in records['root'][section].items()
+                                    if k not in ('freeze', 'resume', 'authority')})
+
+    def test_only_the_notice_is_a_staging_value(self):
+        approved = sc.read_json(sc.E05_VALUES)['values']
+        staging = sc.genesis_values()['values']
+        changed = [(a, b) for a, b in zip(approved, staging) if a != b]
+        self.assertEqual(len(approved), len(staging))
+        self.assertEqual(sorted(b['path'] for _, b in changed), sorted(sc.NOTICE_PATHS))
+        for before, after in changed:
+            self.assertEqual((before['approved'], after['approved']), (120960, sc.STAGING_NOTICE_BLOCKS))
+            self.assertEqual(after['approval_record'], sc.DRILL_APPROVAL)
+            self.assertTrue((sc.MAINNET / sc.DRILL_APPROVAL).is_file())
+
 
 if __name__ == '__main__':
     unittest.main()

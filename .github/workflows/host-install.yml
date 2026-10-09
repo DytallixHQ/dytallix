@@ -195,6 +195,12 @@ jobs:
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py run --work "$RUNNER_TEMP/network"
       - name: Restore drill (disaster recovery R6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
+      # Seat 5's kit replaced with the release's tools over the endpoint's
+      # client channel; after a staging-only notice of 20 blocks the old kit
+      # is refused and the new kit freezes and resumes the chain (root kit
+      # replacement K4; P01, 8 October 2026).
+      - name: Kit replacement drill (K4)
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py kit-drill --work "$RUNNER_TEMP/network"
       - name: Diagnostics
         if: failure()
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py diagnostics --work "$RUNNER_TEMP/network"

@@ -1,0 +1,27 @@
+{
+  "decision_id": "P01-2026-10-08-E05-KIT-REPLACEMENT-DRILL",
+  "approved": "2026-10-08",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Where the kit replacement drill runs (K4)"
+  },
+  "design_ref": "../../node/docs/architecture/root-kit-replacement-v1.md",
+  "decisions": [
+    {
+      "question": "D10-Q03, D11-Q03",
+      "selected": "CI staging, short notice",
+      "rule": "The kit replacement drill (K4) runs in the CI staging network (the validator on the runner, the sentry and the endpoint in VMs) on every change, with the release's binaries, bundles and root helper. The staging chain gets five throwaway kits for its freeze, resume and upgrade keys, and a staging-only upgrade and handover notice of 20 blocks instead of 120,960. Production values are unchanged, and no real host is touched."
+    }
+  ],
+  "unset": [
+    "A replacement drill on real hosts with the full notice"
+  ],
+  "does_not_authorize": [
+    "any change to production values",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
