@@ -174,4 +174,8 @@ chain is frozen or while another is pending.
 6. **After the effect height** the status reports the new epoch and its
    keys, and controls are prepared for it. The leaving kit no longer signs.
 
+CI runs these steps on every change in the staging network
+(`staging_network.py kit-drill`), with the release's tools and a
+staging-only notice of 20 blocks.
+
 Outputs are never overwritten.

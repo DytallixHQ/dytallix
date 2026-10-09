@@ -13,6 +13,7 @@ throwaway keys only.
   sudo staging_host.py install --work DIR/net --label validator-1 ...
   sudo staging_network.py run --work DIR
   sudo staging_network.py restore-drill --work DIR
+  sudo staging_network.py kit-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
 The VMs are driven through the QEMU guest agent (a virtio serial channel):
@@ -34,9 +35,17 @@ restored from the stand-in store's copy with restore.sh and the backup code
 typed from paper. It must catch up with the validator, at the same height
 with the same block and application hashes, and verify against its bundle.
 It prints the measured times.
+
+kit-drill is the kit replacement drill (root kit replacement v1, K4; P01, 8
+October 2026), run as an operator would with the release's own tools from
+the runner, over the endpoint's client channel: seat 5's kit is replaced by
+a new kit, signed by three kits' upgrade keys and the new kit's three keys.
+After the staging notice of 20 blocks the old kit is refused and the new kit
+freezes and resumes the chain. It prints the evidence.
 """
 import argparse
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -470,6 +479,146 @@ def restore_drill(work, timeout=900):
         f'and matches the validator at height {ours[0]}')
 
 
+# The kit replacement drill (root kit replacement v1, K4)
+
+SEAT = 5
+
+
+def tool(binary, *args, env=None, quiet=False, check=True):
+    """A release tool, as an operator runs it."""
+    say('$ ' + ' '.join([Path(binary).name, *map(str, args)]))
+    result = subprocess.run([str(binary), *map(str, args)], capture_output=True, text=True, env=env)
+    if result.stdout.strip() and not quiet:
+        say(result.stdout.rstrip())
+    if check and result.returncode != 0:
+        raise Failed(f'{Path(binary).name} failed: {result.stderr.strip()}')
+    return result
+
+
+def kit_drill(work, timeout=900):
+    work = Path(work)
+    bins, chain = work / 'release-bin', work / 'net' / 'chain'
+    config = chain / 'chain' / 'application-config.json'
+    kits = chain / 'control-kits'
+    drill = work / 'kit-drill'
+    (drill / 'home').mkdir(parents=True)
+    # The CLI's own home, with the endpoint pinned over its client channel.
+    env = dict(os.environ, HOME=str(drill / 'home'))
+    digest = hashlib.sha256((chain / 'chain' / 'native-genesis.json').read_bytes()).hexdigest()
+    tool(bins / 'dytallix', 'config', 'pin-chain', '--endpoint', work / 'net' / 'keys' / 'endpoint-1.channel-pin.json',
+         '--network', 'testnet', '--chain-id', staging_host.CHAIN_ID, '--genesis-digest', digest, env=env)
+    saved = iter(range(1, 1_000_000))
+
+    def status():
+        path = drill / f'status-{next(saved)}.json'
+        tool(bins / 'dytallix', 'control', 'status', '--out', path, env=env, quiet=True)
+        return path, json.loads(path.read_bytes())
+
+    def wait(what, done):
+        deadline = time.monotonic() + timeout
+        while True:
+            path, view = status()
+            if done(view):
+                say(f'== {what}: height {view["height"]}')
+                return path, view
+            if time.monotonic() > deadline:
+                raise Failed(f'{what} did not happen by height {view["height"]}')
+            time.sleep(3)
+
+    def prepare(operation, *inputs):
+        path, _ = status()
+        out = drill / f'{operation}-request.json'
+        tool(bins / 'dytallix-control', 'prepare', operation, '--config', config, '--status', path,
+             '--out', out, *inputs)
+        tool(bins / 'dytallix-root-sign', 'show-control', '-request', out)
+        return out, json.loads(out.read_bytes())
+
+    def sign(request_path, request, private, public):
+        out = drill / f'{request["operation"]}-{public.parent.name}-{public.stem}.sig.json'
+        tool(bins / 'dytallix-root-sign', 'sign-control', '-request', request_path, '-private-key', private,
+             '-public-key', public, '-operation', request['operation'],
+             '-sequence', request['envelope']['sequence'], '-out', out, quiet=True)
+        return out
+
+    def kit_key(n, purpose):
+        return kits / f'kit-{n}' / f'kit-{n}-{purpose}.key', kits / 'public' / f'kit-{n}-{purpose}.json'
+
+    def new_key(purpose):
+        return drill / 'new-kit' / f'kit-{SEAT}-{purpose}.key', drill / 'new-public' / f'kit-{SEAT}-{purpose}.json'
+
+    def submit(request_path, request, signatures):
+        path, _ = status()
+        control = drill / f'{request["operation"]}-control.json'
+        tool(bins / 'dytallix-control', 'assemble', '--config', config, '--status', path,
+             '--request', request_path, '--out', control, *signatures)
+        for command, admitted in (('check', 'WOULD_BE_ADMITTED'), ('submit', 'SUBMITTED')):
+            result = json.loads(tool(bins / 'dytallix', 'control', command, control, env=env).stdout)
+            if result['status'] != admitted:
+                raise Failed(f'the {request["operation"]} control was refused: {result}')
+        return hashlib.sha256(control.read_bytes()).hexdigest()
+
+    _, before = status()
+    authority = before['root_authority']
+    if authority['authority_epoch'] != 1 or authority['pending'] or before['emergency_control']['frozen']:
+        raise Failed(f'the drill needs epoch 1, nothing pending and no freeze: {authority}')
+
+    say(f'== a new kit for seat {SEAT}, made as the key ceremony makes one')
+    for name in ('new-kit', 'new-public'):
+        (drill / name).mkdir(mode=0o700)
+    tool(bins / 'dytallix-root-sign', 'kit', '-number', SEAT, '-private-out', drill / 'new-kit',
+         '-public-out', drill / 'new-public', quiet=True)
+    request_path, request = prepare('kit-replacement', '--seat', SEAT, '--old-kit', kits / 'public',
+                                    '--new-kit', drill / 'new-public')
+    signatures = [sign(request_path, request, *kit_key(n, 'upgrade')) for n in (1, 3, 4)]
+    signatures += [sign(request_path, request, *new_key(purpose)) for purpose in ('upgrade', 'freeze', 'resume')]
+    replacement = submit(request_path, request, signatures)
+    _, admitted = wait('the replacement is admitted', lambda view: view['root_authority']['pending'])
+    effect = admitted['root_authority']['pending']['effect_height']
+    say(f'== admitted by height {admitted["height"]}; the new kit signs from height {effect}')
+
+    _, switched = wait('the new epoch is in force', lambda view: view['root_authority']['authority_epoch'] == 2)
+    incident = hashlib.sha256(b'kit replacement drill').hexdigest()
+    request_path, request = prepare('freeze', '--incident-sha256', incident)
+    # The old kit: assembly refuses its key, and so does the node.
+    old = [sign(request_path, request, *kit_key(n, 'freeze')) for n in (1, 2, SEAT)]
+    path, _ = status()
+    refused = tool(bins / 'dytallix-control', 'assemble', '--config', config, '--status', path,
+                   '--request', request_path, '--out', drill / 'freeze-old-control.json', *old, check=False)
+    if refused.returncode == 0 or 'not in this control' not in refused.stderr:
+        raise Failed(f'assembly took the old kit\'s key: {refused.stderr.strip()}')
+    signed = [json.loads(Path(record).read_bytes()) for record in old]
+    forced = {'kind': request['kind'], 'payload': request['payload'],
+              'signatures': sorted(({'key_id': r['key_id'], 'signature_hex': r['signature_hex']} for r in signed),
+                                   key=lambda r: r['key_id'])}
+    (drill / 'freeze-old-control.json').write_text(json.dumps(forced))
+    checked = json.loads(tool(bins / 'dytallix', 'control', 'check', drill / 'freeze-old-control.json',
+                              env=env, quiet=True).stdout)
+    if checked['status'] != 'REFUSED':
+        raise Failed(f'the node took a freeze signed by the old kit: {checked}')
+    say(f'== the old kit is refused: {checked["log"]}')
+    # The new kit freezes, then resumes, the chain.
+    freeze = submit(request_path, request, old[:2] + [sign(request_path, request, *new_key('freeze'))])
+    _, frozen = wait('the chain is frozen', lambda view: view['emergency_control']['frozen'])
+    readiness = hashlib.sha256(b'kit replacement drill readiness').hexdigest()
+    request_path, request = prepare('resume', '--incident-sha256', incident, '--readiness-sha256', readiness)
+    signatures = [sign(request_path, request, *kit_key(n, 'resume')) for n in (3, 4)]
+    resume = submit(request_path, request, signatures + [sign(request_path, request, *new_key('resume'))])
+    _, resumed = wait('the chain resumes', lambda view: not view['emergency_control']['frozen'])
+
+    leaving = {purpose: json.loads(kit_key(SEAT, purpose)[1].read_bytes())['key_id']
+               for purpose in ('upgrade', 'freeze', 'resume')}
+    arriving = {purpose: json.loads(new_key(purpose)[1].read_bytes())['key_id']
+                for purpose in ('upgrade', 'freeze', 'resume')}
+    say(json.dumps({'kit_drill': {
+        'chain_id': staging_host.CHAIN_ID, 'seat': SEAT, 'leaving_key_ids': leaving, 'new_key_ids': arriving,
+        'replacement_control_sha256': replacement, 'admitted_by_height': admitted['height'],
+        'effect_height': effect, 'epoch_2_seen_at_height': switched['height'],
+        'old_kit_refused': checked['log'], 'freeze_control_sha256': freeze, 'frozen_at_height': frozen['height'],
+        'resume_control_sha256': resume, 'resumed_at_height': resumed['height']}}, indent=2))
+    say(f'== seat {SEAT}\'s kit was replaced: after the effect height the old kit is refused, '
+        'and the new kit froze and resumed the chain')
+
+
 def diagnostics(work):
     work = Path(work)
     for label in VMS:
@@ -496,7 +645,7 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'restore-drill', 'diagnostics'):
+    for name in ('network-up', 'install-vms', 'run', 'restore-drill', 'kit-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     v = commands.add_parser('vms-up')
     v.add_argument('--work', type=Path, required=True)
@@ -517,6 +666,8 @@ def main():
             run(args.work)
         elif args.command == 'restore-drill':
             restore_drill(args.work)
+        elif args.command == 'kit-drill':
+            kit_drill(args.work)
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, OSError, KeyError, ValueError) as error:

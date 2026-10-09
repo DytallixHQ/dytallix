@@ -161,6 +161,25 @@ The node admits a replacement only if:
     a request for another epoch.
   - The `kit-replacement` operation, the signer's control kind, and the
     CLI's.
+- **Built in K4:** the drill, in the CI staging network on every change
+  (P01, 8 October 2026,
+  [approval](../../../launch/approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json);
+  `staging_network.py kit-drill`). The staging chain's freeze, resume and
+  upgrade keys come from five throwaway kits made as the key ceremony makes
+  them, and its upgrade and handover notice is a staging-only 20 blocks.
+  From the runner, with the release's tools, over the endpoint's client
+  channel:
+  - pin the chain (`dytallix config pin-chain`);
+  - a new kit for seat 5;
+  - prepare, show, sign (kits 1, 3 and 4, and the new kit's three keys),
+    assemble, check and submit the replacement;
+  - wait for its effect height;
+  - a freeze signed with the old kit is refused by assembly and by the
+    node;
+  - the new kit freezes and then resumes the chain.
+
+  It prints the evidence: the key IDs, the control digests and the
+  heights.
 
 ## What does not change
 
@@ -195,7 +214,7 @@ genesis keys, and every window, notice and size bound in the configuration.
 | K2a | Schema 2 policy hashes over the rules, not the keys; every check through the policy in force at its height | Schema 2 policy hashes (no chain runs them yet) |
 | K2b | The replacement control: admission, notice, effect (the record and the epoch); no replacement while frozen | New control and committed state |
 | K3 | Tools: prepare, show, sign and assemble a replacement; every control prepared and assembled with the epoch in force | New tool operation; `assemble` takes the status |
-| K4 | Staging drill: replace a seat; the old kit is refused after the effect height and the new kit signs a freeze and a resume | Evidence |
+| K4 | Staging drill in CI: replace a seat; the old kit is refused after the effect height and the new kit signs a freeze and a resume | Evidence on every CI run |
 
 ## Tests
 
@@ -219,3 +238,6 @@ genesis keys, and every window, notice and size bound in the configuration.
   pending ends before its effect height; the signer reads a request the
   node wrote; assembly refuses a key outside the epoch in force, a missing
   proof and a request for another epoch.
+- K4: the staging network drill in CI, with the release's binaries,
+  bundles and root helper on three hosts (the validator on the runner, the
+  sentry and the endpoint in VMs).
