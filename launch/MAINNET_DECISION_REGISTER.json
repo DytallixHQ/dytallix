@@ -2760,7 +2760,8 @@
             "approvals/P01_E05_HOST_RECOVERY_2026-10-06.json",
             "approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json",
             "approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json",
-            "approvals/P01_E05_RESTORE_2026-10-08.json"
+            "approvals/P01_E05_RESTORE_2026-10-08.json",
+            "approvals/P01_E05_MONITORING_2026-10-09.json"
           ]
         },
         {
@@ -3167,7 +3168,10 @@
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D14-Q03.json",
           "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
           "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder holds every engineering, operations and signing role. The independent review is a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded.",
-          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+          "approval_records": [
+            "approvals/P01_E05_MONITORING_2026-10-09.json"
+          ]
         }
       ],
       "work": {
@@ -4253,6 +4257,29 @@
       ],
       "unset": [
         "A replacement drill on real hosts with the full notice"
+      ]
+    },
+    {
+      "id": "P01-2026-10-09-E05-MONITORING",
+      "approved": "2026-10-09",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_MONITORING_2026-10-09.json",
+      "decisions": [
+        "D12-Q02: a monitor job on each host pushes a heartbeat and alerts outbound every minute; nothing listens and no host is added.",
+        "D12-Q02: the endpoint's status page answers 503 when the newest block is older than an approved age.",
+        "D12-Q02, D14-Q03: the founder is primary on-call; an unacknowledged severity 1 alert also goes to one backup person after 15 minutes.",
+        "D12-Q02: delivery is vendor-neutral: webhook URLs in sealed host settings; the services are chosen later (A22)."
+      ],
+      "question_refs": [
+        "D12-Q02",
+        "D14-Q03"
+      ],
+      "unset": [
+        "Alert thresholds and the status page's head age",
+        "The services and accounts (A22)",
+        "The backup person, outside the repository",
+        "Metrics history and dashboards",
+        "Live alert acceptance on the production hosts"
       ]
     },
     {
