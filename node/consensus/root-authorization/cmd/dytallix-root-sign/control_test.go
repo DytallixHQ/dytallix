@@ -89,3 +89,14 @@ func TestSignControlWithKitKeys(t *testing.T) {
 		t.Fatal("a resume key signed a freeze")
 	}
 }
+
+// A kit replacement request shows the seat and the new keys, and who signs.
+func TestShowKitReplacement(t *testing.T) {
+	out := runOK(t, "show-control", "-request", filepath.Join("..", "..", "testdata", "control-request-kit-replacement.json"))
+	for _, want := range []string{"operation        kit-replacement", "leaving_upgrade", "new_resume",
+		"3 of the 5 current upgrade keys, and each of the 3 new keys"} {
+		if !strings.Contains(out, want) {
+			t.Fatal(out)
+		}
+	}
+}

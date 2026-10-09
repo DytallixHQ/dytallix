@@ -81,7 +81,16 @@ var controlKinds = map[string]controlKind{
 	"dytallix-emergency-control-v2": {"DYTALLIX/EMERGENCY-TRANSACTION-FREEZE/v2\x00", Emergency, "emergency"},
 	"dytallix-upgrade-control-v2":   {"DYTALLIX/CHAIN-UPGRADE/v2\x00", Upgrade, "upgrade"},
 	"dytallix-release-handover-v2":  {"DYTALLIX/RELEASE-HANDOVER/v2\x00", Upgrade, "handover"},
+	// Root kit replacement v1: the current upgrade keys sign, and the new
+	// kit's keys sign the same request as their proofs of possession.
+	ReplacementKind: {"DYTALLIX/ROOT-KIT-REPLACEMENT/v1\x00", Upgrade, "replacement"},
 }
+
+// ReplacementKind is the kit replacement control's kind.
+const ReplacementKind = "dytallix-root-kit-replacement-v1"
+
+// replacementRoles are the roles a kit replacement changes, in payload order.
+var replacementRoles = []string{"upgrade", "freeze", "resume"}
 
 // field reads a nested field of the decoded payload.
 func field(value any, keys ...string) any {
@@ -170,6 +179,32 @@ func (r ControlRequest) Check() (Envelope, ControlSummary, error) {
 		add("readiness_evidence_sha256", field(payload, "v2", "resume", "readiness_evidence_sha256"))
 		if action != "freeze" && action != "resume" {
 			return fail("unknown emergency action")
+		}
+	case "replacement":
+		summary.Operation = "kit-replacement"
+		summary.AnchorHeight, ok3 = numberField(payload["anchor_height"])
+		summary.AnchorAppHash, ok4 = textField(payload["anchor_app_hash"])
+		summary.NotBefore, ok5 = numberField(payload["not_before_height"])
+		summary.NotAfter, ok6 = numberField(payload["not_after_height"])
+		add("authority_epoch", payload["authority_epoch"])
+		for _, role := range replacementRoles {
+			leaving, ok := textField(field(payload, "replaced", role))
+			id, okID := textField(field(payload, "keys", role, "key_id"))
+			publicHex, okKey := textField(field(payload, "keys", role, "public_key_hex"))
+			public, okHex := canonicalHex(publicHex, PublicKeySize)
+			if !ok || !okID || !okKey || !okHex || KeyID(public) != id {
+				return fail("the replacement's " + role + " keys are missing or inconsistent")
+			}
+			// The new keys sign their proofs, so the request lists them.
+			listed := false
+			for _, key := range r.Authority.Keys {
+				listed = listed || (key.KeyID == id && key.PublicKeyHex == publicHex)
+			}
+			if !listed {
+				return fail("the request does not list the new " + role + " key")
+			}
+			add("leaving_"+role, leaving)
+			add("new_"+role, id)
 		}
 	default:
 		action, _ := textField(field(payload, "action", "action"))

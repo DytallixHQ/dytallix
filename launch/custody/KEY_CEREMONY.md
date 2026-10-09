@@ -31,9 +31,11 @@ fob. The secret recreates all four keys, so the fob is the kit.
 - **A lost or failed fob, or a forgotten passphrase,** loses that kit. The
   other four still reach the threshold of three. The kit is then replaced
   with the [kit replacement control](../../node/docs/architecture/root-kit-replacement-v1.md)
-  (to be built before launch): the holder makes a new kit with proofs for
-  the next authority epoch, three kits' upgrade keys sign the replacement,
-  and seven days later the old keys stop verifying.
+  ([steps](../../node/docs/mainnet/control-signing.md#kit-replacement)): the
+  holder makes a new kit for the same seat number in this ceremony, with its
+  proofs for the next authority epoch; three kits' upgrade keys and the new
+  kit's three keys sign the replacement; and seven days later the old keys
+  stop verifying.
 - **Two kits lost** leaves three: every action then needs all three, so
   replace a lost kit before anything else.
 - **Three kits lost or exposed** is beyond recovery: the root keys cannot be

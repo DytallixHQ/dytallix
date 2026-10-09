@@ -17,13 +17,14 @@ use super::consensus::ChainConfig;
 use super::ordinary::print_json;
 
 /// The control kinds the node admits as transactions.
-const KINDS: [&str; 3] = [
+const KINDS: [&str; 4] = [
     "dytallix-emergency-control-v2",
     "dytallix-upgrade-control-v2",
     "dytallix-release-handover-v2",
+    "dytallix-root-kit-replacement-v1",
 ];
-/// A control with three signatures is about 180 KB; the node's transaction
-/// bound is lower than this.
+/// A control with three signatures is about 180 KB, and a kit replacement
+/// with six about 240 KB; the node's transaction bound is lower than this.
 const MAX_CONTROL_BYTES: u64 = 1_048_576;
 
 #[derive(Debug, Clone, Args)]
@@ -106,6 +107,8 @@ pub async fn run(args: ControlArgs) -> Result<()> {
                 "status": "SAVED", "chain_id": pin.chain_id, "height": height,
                 "app_hash": view["app_hash"], "path": out.display().to_string(),
                 "frozen": view["emergency_control"]["frozen"],
+                "authority_epoch": view["root_authority"]["authority_epoch"],
+                "pending_kit_replacement": view["root_authority"]["pending"],
             }))
         }
         ControlCommand::Check { control, endpoint } => {
@@ -156,6 +159,10 @@ mod tests {
         let path = write(&dir, "control.json", control.clone());
         assert!(read_control(&path, "dytallix-mainnet-1").is_ok());
         assert!(read_control(&path, "dytallix-staging-1").is_err());
+        let replacement = json!({"kind": "dytallix-root-kit-replacement-v1",
+            "payload": {"chain_id": "dytallix-mainnet-1"}, "signatures": [], "proofs": {}});
+        let path = write(&dir, "replacement.json", replacement);
+        assert!(read_control(&path, "dytallix-mainnet-1").is_ok());
         let mut other = control.clone();
         other["kind"] = json!("ordinary-v2");
         let path = write(&dir, "other.json", other);

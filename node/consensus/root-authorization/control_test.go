@@ -126,3 +126,98 @@ func TestControlRequestFromTheNode(t *testing.T) {
 		t.Fatalf("unexpected summary %+v", summary)
 	}
 }
+
+// A kit replacement request written by the node's dytallix-control (root kit
+// replacement v1): the signer shows the leaving and the new key IDs, the new
+// keys must be listed so that they can sign their proofs, and both a current
+// upgrade key and a new key sign it.
+func TestKitReplacementRequest(t *testing.T) {
+	raw, err := os.ReadFile("testdata/control-request-kit-replacement.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request ControlRequest
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		t.Fatal(err)
+	}
+	envelope, summary, err := request.Check()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload struct {
+		Keys map[string]AuthorityKey `json:"keys"`
+	}
+	if err := json.Unmarshal(request.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	rendered := summary.Render()
+	if summary.Operation != "kit-replacement" || summary.Sequence != 2 || envelope.Action != Upgrade ||
+		!strings.Contains(rendered, "new_freeze       "+payload.Keys["freeze"].KeyID) ||
+		!strings.Contains(rendered, "authority_epoch  1") {
+		t.Fatal(rendered)
+	}
+	unlisted := request
+	unlisted.Authority.Keys = request.Authority.Keys[:len(request.Authority.Keys)-1]
+	if _, _, err := unlisted.Check(); !errors.Is(err, ErrControl) {
+		t.Fatal("a request that does not list a new key was accepted")
+	}
+
+	// Signing: a current upgrade key and a new key, over a request built
+	// from test kits.
+	var current []AuthorityKey
+	var privates [][]byte
+	for kit := 1; kit <= KitCount; kit++ {
+		public, private, err := DeriveKitKey(testSecret(byte(60+kit)), kit, "upgrade")
+		if err != nil {
+			t.Fatal(err)
+		}
+		current = append(current, AuthorityKey{KeyID: KeyID(public), PublicKeyHex: hex.EncodeToString(public)})
+		privates = append(privates, private)
+	}
+	newKeys := map[string]AuthorityKey{}
+	var newPrivate []byte
+	for _, role := range replacementRoles {
+		public, private, err := DeriveKitKey(testSecret(77), 5, role)
+		if err != nil {
+			t.Fatal(err)
+		}
+		newKeys[role] = AuthorityKey{KeyID: KeyID(public), PublicKeyHex: hex.EncodeToString(public)}
+		if role == "freeze" {
+			newPrivate = private
+		}
+	}
+	key := func(k AuthorityKey) string {
+		return `{"key_id":"` + k.KeyID + `","public_key_hex":"` + k.PublicKeyHex + `"}`
+	}
+	payloadJSON := `{"schema":1,"chain_id":"dytallix-staging-1","genesis_sha256":"` + strings.Repeat("c", 64) +
+		`","policy_sha256":"` + strings.Repeat("d", 64) + `","authority_epoch":1,"sequence":2,"anchor_height":100,` +
+		`"anchor_app_hash":"` + strings.Repeat("b", 64) + `","not_before_height":101,"not_after_height":200,` +
+		`"replaced":{"upgrade":"` + current[4].KeyID + `","freeze":"` + strings.Repeat("1", 64) + `","resume":"` +
+		strings.Repeat("2", 64) + `"},"keys":{"upgrade":` + key(newKeys["upgrade"]) + `,"freeze":` + key(newKeys["freeze"]) +
+		`,"resume":` + key(newKeys["resume"]) + `}}`
+	artifact := append([]byte("DYTALLIX/ROOT-KIT-REPLACEMENT/v1\x00"), payloadJSON...)
+	digest := sha512.Sum512(artifact)
+	built := ControlRequest{
+		Schema: ControlRequestSchema, Operation: "kit-replacement", Kind: ReplacementKind,
+		AnchorHeight: 100, AnchorAppHash: strings.Repeat("b", 64), Payload: json.RawMessage(payloadJSON),
+		ArtifactHex: hex.EncodeToString(artifact),
+		Envelope: ControlEnvelope{ChainID: "dytallix-staging-1", Action: "upgrade", Sequence: 2,
+			NotBeforeHeight: 101, NotAfterHeight: 200, ArtifactSHA512: hex.EncodeToString(digest[:])},
+		Authority: ControlAuthority{Purpose: "upgrade", Threshold: 3, MaxSignatures: 3,
+			Keys: append(append([]AuthorityKey{}, current...), newKeys["upgrade"], newKeys["freeze"], newKeys["resume"])},
+	}
+	for _, signer := range []struct {
+		private []byte
+		key     AuthorityKey
+	}{{privates[0], current[0]}, {newPrivate, newKeys["freeze"]}} {
+		signature, err := SignControl(built, signer.private, signer.key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := VerifyControlSignature(built, signature, signer.key); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
