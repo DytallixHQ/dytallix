@@ -496,6 +496,19 @@ def tool(binary, *args, env=None, quiet=False, check=True):
     return result
 
 
+def with_signature(control, leaving, record):
+    """A control with one signature swapped for another key's, in the
+    node's canonical form, which is all the node decodes: the assembled
+    control's key order, compact, its signatures sorted by key ID."""
+    value = json.loads(control)
+    signatures = [s for s in value['signatures'] if s['key_id'] != leaving]
+    if len(signatures) != len(value['signatures']) - 1:
+        raise Failed(f'the control has no signature by {leaving}')
+    signatures.append({'key_id': record['key_id'], 'signature_hex': record['signature_hex']})
+    value['signatures'] = sorted(signatures, key=lambda s: s['key_id'])
+    return json.dumps(value, separators=(',', ':')).encode()
+
+
 def kit_drill(work, timeout=900):
     work = Path(work)
     bins, chain = work / 'release-bin', work / 'net' / 'chain'
@@ -547,16 +560,22 @@ def kit_drill(work, timeout=900):
     def new_key(purpose):
         return drill / 'new-kit' / f'kit-{SEAT}-{purpose}.key', drill / 'new-public' / f'kit-{SEAT}-{purpose}.json'
 
-    def submit(request_path, request, signatures):
+    def assemble(request_path, request, signatures):
         path, _ = status()
         control = drill / f'{request["operation"]}-control.json'
         tool(bins / 'dytallix-control', 'assemble', '--config', config, '--status', path,
              '--request', request_path, '--out', control, *signatures)
+        return control
+
+    def send(control, operation):
         for command, admitted in (('check', 'WOULD_BE_ADMITTED'), ('submit', 'SUBMITTED')):
             result = json.loads(tool(bins / 'dytallix', 'control', command, control, env=env).stdout)
             if result['status'] != admitted:
-                raise Failed(f'the {request["operation"]} control was refused: {result}')
+                raise Failed(f'the {operation} control was refused: {result}')
         return hashlib.sha256(control.read_bytes()).hexdigest()
+
+    def submit(request_path, request, signatures):
+        return send(assemble(request_path, request, signatures), request['operation'])
 
     _, before = status()
     authority = before['root_authority']
@@ -609,18 +628,19 @@ def kit_drill(work, timeout=900):
                    '--request', request_path, '--out', drill / 'freeze-old-control.json', *old, check=False)
     if refused.returncode == 0 or 'not in this control' not in refused.stderr:
         raise Failed(f'assembly took the old kit\'s key: {refused.stderr.strip()}')
-    signed = [json.loads(Path(record).read_bytes()) for record in old]
-    forced = {'kind': request['kind'], 'payload': request['payload'],
-              'signatures': sorted(({'key_id': r['key_id'], 'signature_hex': r['signature_hex']} for r in signed),
-                                   key=lambda r: r['key_id'])}
-    (drill / 'freeze-old-control.json').write_text(json.dumps(forced))
+    # The node decodes only its canonical form: the new kit's control as
+    # assembly writes it, with the new key's signature swapped for the old
+    # kit's, so that the node refuses it for the key and nothing else.
+    control = assemble(request_path, request, old[:2] + [sign(request_path, request, *new_key('freeze'))])
+    forced = with_signature(control.read_bytes(), arriving_id, json.loads(old[2].read_bytes()))
+    (drill / 'freeze-old-control.json').write_bytes(forced)
     checked = json.loads(tool(bins / 'dytallix', 'control', 'check', drill / 'freeze-old-control.json',
                               env=env, quiet=True).stdout)
-    if checked['status'] != 'REFUSED':
-        raise Failed(f'the node took a freeze signed by the old kit: {checked}')
-    say(f'== the old kit is refused: {checked["log"]}')
+    if checked['status'] != 'REFUSED' or 'Emergency authority key missing' not in checked['log']:
+        raise Failed(f'the node did not refuse the old kit\'s key: {checked}')
+    say(f'== the node refuses the old kit: {checked["log"]}')
     # The new kit freezes, then resumes, the chain.
-    freeze = submit(request_path, request, old[:2] + [sign(request_path, request, *new_key('freeze'))])
+    freeze = send(control, 'freeze')
     _, frozen = wait('the chain is frozen', lambda view: view['emergency_control']['frozen'])
     readiness = hashlib.sha256(b'kit replacement drill readiness').hexdigest()
     request_path, request = prepare('resume', '--incident-sha256', incident, '--readiness-sha256', readiness)

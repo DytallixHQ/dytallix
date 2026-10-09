@@ -176,7 +176,10 @@ The node admits a replacement only if:
   - wait for its effect height;
   - the old kit is refused: the signer will not sign a freeze with its
     key, which the request no longer lists, and a signature made from a
-    stale key list is refused by assembly and by the node;
+    stale key list is refused by assembly and by the node. The node is sent
+    the new kit's assembled control with that one signature swapped, in its
+    canonical form, and must refuse it for the key ("Emergency authority
+    key missing"), not for its encoding;
   - the new kit freezes and then resumes the chain.
 
   It prints the evidence: the key IDs, the control digests and the
