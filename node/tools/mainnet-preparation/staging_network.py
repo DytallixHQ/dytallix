@@ -40,7 +40,8 @@ kit-drill is the kit replacement drill (root kit replacement v1, K4; P01, 8
 October 2026), run as an operator would with the release's own tools from
 the runner, over the endpoint's client channel: seat 5's kit is replaced by
 a new kit, signed by three kits' upgrade keys and the new kit's three keys.
-After the staging notice of 20 blocks the old kit is refused and the new kit
+After the staging notice of 20 blocks the old kit is refused (by the signer,
+and, signed from a stale key list, by assembly and the node) and the new kit
 freezes and resumes the chain. It prints the evidence.
 """
 import argparse
@@ -579,8 +580,30 @@ def kit_drill(work, timeout=900):
     _, switched = wait('the new epoch is in force', lambda view: view['root_authority']['authority_epoch'] == 2)
     incident = hashlib.sha256(b'kit replacement drill').hexdigest()
     request_path, request = prepare('freeze', '--incident-sha256', incident)
-    # The old kit: assembly refuses its key, and so does the node.
-    old = [sign(request_path, request, *kit_key(n, 'freeze')) for n in (1, 2, SEAT)]
+    # The old kit: the signer refuses its key, which the request no longer
+    # lists.
+    old_private, old_public = kit_key(SEAT, 'freeze')
+    refused = tool(bins / 'dytallix-root-sign', 'sign-control', '-request', request_path, '-private-key', old_private,
+                   '-public-key', old_public, '-operation', 'freeze', '-sequence', request['envelope']['sequence'],
+                   '-out', drill / 'freeze-old-kit.sig.json', quiet=True, check=False)
+    if refused.returncode == 0 or "is not one of this control's freeze keys" not in refused.stderr:
+        raise Failed(f'the signer took the old kit\'s key: {refused.stderr.strip()}')
+    signer_refused = refused.stderr.strip()
+    say(f'== the signer refuses the old kit: {signer_refused}')
+    # The list is the signer's guard, not part of what it signs: a signer
+    # given a stale list signs the same envelope with the old key. Assembly
+    # refuses that signature, and so does the node.
+    stale = json.loads(request_path.read_bytes())
+    arriving_id = json.loads(new_key('freeze')[1].read_bytes())['key_id']
+    old_record = json.loads(old_public.read_bytes())
+    stale['authority']['keys'] = sorted(
+        [k for k in stale['authority']['keys'] if k['key_id'] != arriving_id] +
+        [{'key_id': old_record['key_id'], 'public_key_hex': old_record['public_key_hex']}],
+        key=lambda k: k['key_id'])
+    stale_path = drill / 'freeze-stale-list-request.json'
+    stale_path.write_text(json.dumps(stale, indent=2))
+    old = [sign(request_path, request, *kit_key(n, 'freeze')) for n in (1, 2)]
+    old.append(sign(stale_path, request, old_private, old_public))
     path, _ = status()
     refused = tool(bins / 'dytallix-control', 'assemble', '--config', config, '--status', path,
                    '--request', request_path, '--out', drill / 'freeze-old-control.json', *old, check=False)
@@ -613,7 +636,8 @@ def kit_drill(work, timeout=900):
         'chain_id': staging_host.CHAIN_ID, 'seat': SEAT, 'leaving_key_ids': leaving, 'new_key_ids': arriving,
         'replacement_control_sha256': replacement, 'admitted_by_height': admitted['height'],
         'effect_height': effect, 'epoch_2_seen_at_height': switched['height'],
-        'old_kit_refused': checked['log'], 'freeze_control_sha256': freeze, 'frozen_at_height': frozen['height'],
+        'old_kit_signer_refused': signer_refused, 'old_kit_refused': checked['log'],
+        'freeze_control_sha256': freeze, 'frozen_at_height': frozen['height'],
         'resume_control_sha256': resume, 'resumed_at_height': resumed['height']}}, indent=2))
     say(f'== seat {SEAT}\'s kit was replaced: after the effect height the old kit is refused, '
         'and the new kit froze and resumed the chain')

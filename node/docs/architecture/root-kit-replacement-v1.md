@@ -174,8 +174,9 @@ The node admits a replacement only if:
   - prepare, show, sign (kits 1, 3 and 4, and the new kit's three keys),
     assemble, check and submit the replacement;
   - wait for its effect height;
-  - a freeze signed with the old kit is refused by assembly and by the
-    node;
+  - the old kit is refused: the signer will not sign a freeze with its
+    key, which the request no longer lists, and a signature made from a
+    stale key list is refused by assembly and by the node;
   - the new kit freezes and then resumes the chain.
 
   It prints the evidence: the key IDs, the control digests and the
