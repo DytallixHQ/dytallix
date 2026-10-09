@@ -70,7 +70,7 @@ FIXTURES = {
 PROCESS_TESTS = ['cross_binary_compat', 'release_handover_process']
 SKIP = PROCESS_TESTS + ['ten_thousand']
 # A test dropped by a rename or a filter must fail the run, not shrink it.
-EXPECTED_IN_PROCESS = 27
+EXPECTED_IN_PROCESS = 28
 EXPECTED_PROCESS = 4
 # The signed tests a production build runs (production activation v1, A2).
 PRODUCTION_TESTS = ['root_genesis::threshold::tests::threshold_genesis_signed_three_of_five']

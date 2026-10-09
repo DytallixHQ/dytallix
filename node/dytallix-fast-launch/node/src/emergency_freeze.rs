@@ -853,9 +853,24 @@ pub(crate) fn replay_recorded_step(
 }
 
 pub fn recover_recorded(policy: &Policy, receipts: &[(Receipt, BlockContext)]) -> Result<State> {
+    recover_recorded_at(policy, &|_| Ok(policy.clone()), receipts)
+}
+
+/// As `recover_recorded`, each receipt checked with the policy in force at
+/// its block (root kit replacement v1).
+pub fn recover_recorded_at(
+    policy: &Policy,
+    policy_at: &dyn Fn(u64) -> Result<Policy>,
+    receipts: &[(Receipt, BlockContext)],
+) -> Result<State> {
     let mut state = State::new(policy)?;
     for (receipt, actual_block) in receipts {
-        state = replay_recorded_step(policy, &state, receipt, actual_block)?;
+        state = replay_recorded_step(
+            &policy_at(actual_block.height)?,
+            &state,
+            receipt,
+            actual_block,
+        )?;
     }
     Ok(state)
 }

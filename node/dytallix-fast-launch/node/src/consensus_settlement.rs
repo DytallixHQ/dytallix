@@ -31,6 +31,7 @@ use crate::{
     storage::state::Storage,
 };
 use crate::{release_handover as handover, upgrade};
+use crate::kit_replacement as replacement;
 use anyhow::{ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use dytallix_protocol_types::address::AccountAddress;
@@ -619,6 +620,10 @@ pub enum WireTransaction {
     UpgradeControl {
         control: Vec<u8>,
     },
+    #[serde(skip)]
+    KitReplacement {
+        control: Vec<u8>,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -844,6 +849,7 @@ fn check_stored_startup(
         let trace = verify_recovery_with(&history)?;
         if let (Some(policy), Some(verifier)) = (&config.emergency, emergency_verifier) {
             classify((|| {
+                root_authority_history(&history, config, &trace, Some(verifier))?;
                 let authority = root_record(storage)?;
                 let policy_at = |height| {
                     let epoch = crate::root_authority::at(authority.as_ref(), height)?;
@@ -1249,6 +1255,17 @@ fn control_anchors(storage: &Storage, config: &ConsensusConfig) -> Result<BTreeS
             }
         }
     }
+    // The anchors recorded kit replacements name.
+    if let Some(policies) = replacement_policies(config) {
+        for item in storage.db.prefix_iterator(replacement::RECEIPT_PREFIX) {
+            let (key, bytes) = item?;
+            if !key.starts_with(replacement::RECEIPT_PREFIX.as_bytes()) {
+                break;
+            }
+            let receipt = replacement::decode_receipt(&policies, &bytes)?;
+            heights.extend(receipt.context.finalized_anchor.map(|a| a.height));
+        }
+    }
     Ok(heights)
 }
 /// A record that outlives the window, because a replay reads it: it holds a
@@ -1256,7 +1273,12 @@ fn control_anchors(storage: &Storage, config: &ConsensusConfig) -> Result<BTreeS
 /// is the finalized anchor of a recorded emergency control. Such records are
 /// rare: controls need their policy's authority.
 fn pinned(height: u64, record: &BlockRecord, anchors: &BTreeSet<u64>) -> bool {
-    let recorded = [emergency_result(), upgrade_result(), handover_result()];
+    let recorded = [
+        emergency_result(),
+        upgrade_result(),
+        handover_result(),
+        replacement_result(),
+    ];
     anchors.contains(&height)
         || record
             .result
@@ -1473,7 +1495,7 @@ fn record_key(height: u64) -> String {
     format!("{BLOCK_PREFIX}{height:016x}")
 }
 /// Key prefixes whose entries form the consensus state commitment.
-const STATE_PREFIXES: [&[u8]; 18] = [
+const STATE_PREFIXES: [&[u8]; 19] = [
     b"acct:",
     b"evidence:",
     b"dms:config:",
@@ -1492,6 +1514,7 @@ const STATE_PREFIXES: [&[u8]; 18] = [
     b"consensus:emergency:",
     b"consensus:upgrade:",
     b"consensus:release-handover:",
+    b"consensus:root-authority:",
 ];
 /// Individual keys in the consensus state commitment, outside STATE_PREFIXES.
 fn state_keys(governance_enabled: bool) -> Vec<&'static [u8]> {
@@ -2208,6 +2231,11 @@ fn wire(config: &ConsensusConfig, raw: &[u8]) -> Result<WireTransaction> {
     if let Some(policy) = &config.upgrade {
         if let Ok(control) = upgrade::canonical_control(policy, raw) {
             return Ok(WireTransaction::UpgradeControl { control });
+        }
+    }
+    if let Some(policies) = replacement_policies(config) {
+        if let Ok(control) = replacement::canonical_control(&policies, raw) {
+            return Ok(WireTransaction::KitReplacement { control });
         }
     }
     if let Ok(value) = serde_json::from_slice::<OrdinaryOuter>(raw) {
@@ -3065,6 +3093,25 @@ fn root_record(storage: &Storage) -> Result<Option<crate::root_authority::Record
             .as_deref(),
     )
 }
+/// The root authority state: the record and the kit replacement receipts.
+const ROOT_AUTHORITY_PREFIX: &[u8] = b"consensus:root-authority:";
+/// A kit replacement reads the emergency, upgrade and handover policies, all
+/// at schema 2 (root kit replacement v1).
+fn replacement_policies(config: &ConsensusConfig) -> Option<replacement::Policies<'_>> {
+    replacement::Policies::of(
+        config.emergency.as_ref(),
+        config.upgrade.as_ref(),
+        config.release_handover.as_ref(),
+    )
+}
+fn replacement_result() -> TxResult {
+    TxResult {
+        code: 0,
+        gas_wanted: 0,
+        gas_used: 0,
+        log: "Kit replacement recorded".into(),
+    }
+}
 fn emergency_state(
     storage: &Storage,
     config: &ConsensusConfig,
@@ -3240,10 +3287,16 @@ fn emergency_history_with(
         frozen = next_frozen;
     }
     ensure!(keys.is_empty(), "Unknown or orphan emergency record");
+    // Each record with the keys of the epoch in force at its block.
+    let authority = root_record(storage)?;
     let mut states = vec![emergency::State::new(policy)?];
     for (receipt, context) in &receipts {
-        let next = emergency::replay_recorded_step(
+        let at = crate::root_authority::emergency_policy(
             policy,
+            crate::root_authority::at(authority.as_ref(), context.height)?,
+        )?;
+        let next = emergency::replay_recorded_step(
+            &at,
             states.last().context("Emergency trace missing")?,
             receipt,
             context,
@@ -3674,6 +3727,102 @@ fn upgrade_context(
         emergency_receipt_sha256: state.last_receipt_sha256().map(str::to_owned),
     })
 }
+/// Recreate the root authority record and the kit replacement receipts from
+/// the committed replacements and compare them with the stored state, byte for
+/// byte (root kit replacement v1). A replacement in a frozen block or beside
+/// an emergency control was refused and changed nothing.
+fn root_authority_history(
+    history: &HistoryRead<'_>,
+    config: &ConsensusConfig,
+    emergency_trace: &EmergencyTrace,
+    verifier: Option<&dyn upgrade::Verifier>,
+) -> Result<()> {
+    let storage = history.storage;
+    let mut actual = BTreeMap::new();
+    for item in storage.db.prefix_iterator(ROOT_AUTHORITY_PREFIX) {
+        let (key, value) = item?;
+        if !key.starts_with(ROOT_AUTHORITY_PREFIX) {
+            break;
+        }
+        actual.insert(key.to_vec(), value.to_vec());
+    }
+    let Some(policies) = replacement_policies(config) else {
+        ensure!(actual.is_empty(), "Unconfigured root authority state");
+        return Ok(());
+    };
+    let emergency_records = &emergency_trace.records;
+    let mut record = None;
+    let mut expected = BTreeMap::new();
+    let height = block_lifecycle::height(storage, "meta:height")?;
+    for h in history.heights(height)? {
+        let block = history.block(h)?;
+        let controls: Vec<_> = block
+            .input
+            .txs
+            .iter()
+            .enumerate()
+            .filter_map(|(index, raw)| match wire(config, raw) {
+                Ok(WireTransaction::KitReplacement { control }) => Some((index, control)),
+                _ => None,
+            })
+            .collect();
+        let Some((index, raw)) = controls.first() else {
+            continue;
+        };
+        let prior_end = emergency_records.partition_point(|(_, context)| context.height < h);
+        let current_end = emergency_records.partition_point(|(_, context)| context.height <= h);
+        let frozen = emergency_records[..prior_end]
+            .last()
+            .is_some_and(|(receipt, _)| receipt.control.payload.action == emergency::Action::Freeze);
+        if frozen || current_end != prior_end {
+            for (index, _) in &controls {
+                ensure!(
+                    block.result.tx_results.get(*index) == Some(&TxResult::invalid(EMERGENCY_FROZEN)),
+                    "Blocked kit replacement result differs"
+                );
+            }
+            continue;
+        }
+        ensure!(controls.len() == 1, "Multiple committed kit replacements");
+        let context = replacement::BlockContext {
+            height: h,
+            finalized_anchor: named_anchor(
+                |anchor| history.anchor(anchor, h - 1),
+                Some(replacement::control_anchor_height(&policies, raw)?),
+                h - 1,
+                Some(policies.max_anchor_age_blocks()),
+            )?,
+        };
+        let key = replacement::receipt_key(replacement::control_sequence(&policies, raw)?);
+        let bytes = storage
+            .db
+            .get(&key)?
+            .context("Kit replacement receipt missing")?;
+        let receipt = replacement::decode_receipt(&policies, &bytes)?;
+        ensure!(
+            serde_json::to_vec(&receipt.control)? == *raw
+                && block.result.tx_results.get(*index) == Some(&replacement_result()),
+            "Kit replacement receipt differs from committed input/result"
+        );
+        let plan = replacement::replay(&policies, record.as_ref(), &receipt, &context, verifier)?;
+        ensure!(
+            expected.insert(key.into_bytes(), bytes.to_vec()).is_none(),
+            "Reused kit replacement receipt"
+        );
+        record = Some(plan.record);
+    }
+    if let Some(record) = &record {
+        expected.insert(
+            crate::root_authority::STATE_KEY.as_bytes().to_vec(),
+            record.encode()?,
+        );
+    }
+    ensure!(
+        actual == expected,
+        "Root authority state differs from committed replacements"
+    );
+    Ok(())
+}
 /// Recreate every upgrade transition from actual committed controls. All migration
 /// writes are compared byte-for-byte; this function never repairs missing state.
 fn upgrade_history(
@@ -3771,6 +3920,7 @@ fn upgrade_history(
                     &context,
                     &upgrade::EmergencyHistory {
                         policy: emergency_policy,
+                        authority: authority.as_ref(),
                         records: prior_records,
                         state: emergency_state,
                     },
@@ -4107,12 +4257,68 @@ impl ConsensusApplication {
                     .emergency
                     .as_ref()
                     .context("Emergency policy missing")?,
+                authority: authority.as_ref(),
                 records: &records,
                 state: &emergency_state,
             },
             self.emergency_verifier
                 .as_ref()
                 .context("Upgrade verifier unavailable")?,
+        )?))
+    }
+    /// The kit replacement a block carries, checked with the root authority
+    /// epoch in force at it (root kit replacement v1). `None` when the block
+    /// carries none, or when a freeze or an emergency control in the block
+    /// blocks it, as they block upgrades (P01, 8 October 2026).
+    fn replacement_plan(
+        &self,
+        height: u64,
+        txs: &[Vec<u8>],
+        emergency_plan: Option<&emergency::BlockPlan>,
+    ) -> Result<Option<replacement::BlockPlan>> {
+        let Some(policies) = replacement_policies(&self.config) else {
+            return Ok(None);
+        };
+        let mut control = None;
+        for raw in txs {
+            if let Ok(WireTransaction::KitReplacement { control: bytes }) = wire(&self.config, raw)
+            {
+                ensure!(
+                    control.replace(bytes).is_none(),
+                    "Only one kit replacement is permitted per block"
+                );
+            }
+        }
+        let Some(raw) = control else {
+            return Ok(None);
+        };
+        if emergency_plan.is_some_and(|plan| plan.reject_user_transactions) {
+            return Ok(None);
+        }
+        let info = current_info(&self.storage)?;
+        ensure!(
+            info.height.checked_add(1) == Some(height),
+            "Kit replacement block is not next"
+        );
+        let context = replacement::BlockContext {
+            height,
+            finalized_anchor: named_anchor(
+                |anchor| finalized_anchor(&self.storage, anchor, info.height),
+                Some(replacement::control_anchor_height(&policies, &raw)?),
+                info.height,
+                Some(policies.max_anchor_age_blocks()),
+            )?,
+        };
+        let verifier: &dyn upgrade::Verifier = self
+            .emergency_verifier
+            .as_ref()
+            .context("Kit replacement verifier unavailable")?;
+        Ok(Some(replacement::plan_block(
+            &policies,
+            root_record(&self.storage)?.as_ref(),
+            &context,
+            &raw,
+            Some(verifier),
         )?))
     }
     /// Give emergency input priority, then select one admissible upgrade.
@@ -4268,12 +4474,37 @@ impl ConsensusApplication {
                 }
             }
         }
+        // A kit replacement takes a block of its own, as the other root
+        // controls do, and waits while the chain is frozen.
+        if !state.frozen() && selected_controls.is_empty() {
+            for raw in txs.iter().take(self.config.max_txs.saturating_mul(4)) {
+                if !matches!(
+                    wire(&self.config, raw),
+                    Ok(WireTransaction::KitReplacement { .. })
+                ) || raw.len().saturating_add(observation_size) > limit
+                    || usize::from(observation.is_some()) + 1 > self.config.max_txs
+                {
+                    continue;
+                }
+                match self.replacement_plan(height, std::slice::from_ref(raw), None) {
+                    Ok(Some(_)) => {
+                        selected_controls = vec![raw.clone()];
+                        break;
+                    }
+                    Err(error) if crate::emergency_verifier::is_infrastructure_error(&error) => {
+                        return Err(error)
+                    }
+                    _ => {}
+                }
+            }
+        }
         txs.retain(|raw| {
             !matches!(
                 wire(&self.config, raw),
                 Ok(WireTransaction::EmergencyControl { .. }
                     | WireTransaction::UpgradeControl { .. }
-                    | WireTransaction::HandoverControl { .. })
+                    | WireTransaction::HandoverControl { .. }
+                    | WireTransaction::KitReplacement { .. })
             )
         });
         if !state.frozen() && selected_controls.is_empty() {
@@ -4850,6 +5081,21 @@ impl ConsensusApplication {
                     ensure!(plan.receipt.is_some(), "Upgrade action not admitted");
                     return Ok(Some(upgrade_result()));
                 }
+                if matches!(item, WireTransaction::KitReplacement { .. }) {
+                    ensure!(
+                        !emergency_state(&self.storage, &self.config)?
+                            .context("Emergency state missing")?
+                            .frozen(),
+                        EMERGENCY_FROZEN
+                    );
+                    let height = current_info(&self.storage)?
+                        .height
+                        .checked_add(1)
+                        .context("Height exhausted")?;
+                    self.replacement_plan(height, &[raw.to_vec()], None)?
+                        .context("Kit replacement policies missing")?;
+                    return Ok(Some(replacement_result()));
+                }
                 ensure!(
                     !emergency_state(&self.storage, &self.config)?
                         .context("Emergency state missing")?
@@ -4993,7 +5239,8 @@ impl ConsensusApplication {
             match wire(&self.config, raw)? {
                 WireTransaction::EmergencyControl { .. }
                 | WireTransaction::UpgradeControl { .. }
-                | WireTransaction::HandoverControl { .. } => {
+                | WireTransaction::HandoverControl { .. }
+                | WireTransaction::KitReplacement { .. } => {
                     anyhow::bail!("Control profile missing")
                 }
                 WireTransaction::OrdinaryV2 { .. } => anyhow::bail!("Ordinary profile missing"),
@@ -5089,7 +5336,8 @@ impl ConsensusApplication {
             Ok(WireTransaction::EpochObservation { .. }
                 | WireTransaction::EmergencyControl { .. }
                 | WireTransaction::UpgradeControl { .. }
-                | WireTransaction::HandoverControl { .. })
+                | WireTransaction::HandoverControl { .. }
+                | WireTransaction::KitReplacement { .. })
         ) {
             return self.check_tx_result(raw);
         }
@@ -5715,6 +5963,8 @@ impl ConsensusApplication {
             emergency_plan.as_ref(),
             upgrade_plan.as_ref(),
         )?;
+        let replacement_plan =
+            self.replacement_plan(input.height, &input.txs, emergency_plan.as_ref())?;
         // The explicit TimingState controls every amount.
         let (lifecycle, _, journal, issuance_deletes) = block_lifecycle::prepare_adaptive_interval(
             &self.storage,
@@ -5805,6 +6055,14 @@ impl ConsensusApplication {
                 results.push(upgrade_result());
                 continue;
             }
+            if matches!(item, Ok(WireTransaction::KitReplacement { .. })) {
+                ensure!(
+                    replacement_plan.is_some(),
+                    "Kit replacement has no verified plan"
+                );
+                results.push(replacement_result());
+                continue;
+            }
             if let Some(state) = ordinary.as_mut() {
                 let (result, _) = combined_transaction(
                     &self.config,
@@ -5823,7 +6081,8 @@ impl ConsensusApplication {
                 Ok(
                     WireTransaction::EmergencyControl { .. }
                     | WireTransaction::UpgradeControl { .. }
-                    | WireTransaction::HandoverControl { .. },
+                    | WireTransaction::HandoverControl { .. }
+                    | WireTransaction::KitReplacement { .. },
                 ) => {
                     anyhow::bail!("Control escaped bounded path")
                 }
@@ -5921,6 +6180,18 @@ impl ConsensusApplication {
                     );
                 }
             }
+        }
+        if let Some(plan) = replacement_plan {
+            let key = replacement::receipt_key(plan.receipt.control.payload.sequence);
+            ensure!(
+                self.storage.db.get(&key)?.is_none(),
+                "Kit replacement receipt already exists"
+            );
+            writes.insert(key.into_bytes(), replacement::encode_receipt(&plan.receipt)?);
+            writes.insert(
+                crate::root_authority::STATE_KEY.as_bytes().to_vec(),
+                plan.record.encode()?,
+            );
         }
         if let Some(plan) = handover_plan {
             writes.insert(
@@ -7061,6 +7332,20 @@ impl ConsensusApplication {
                 "migration_sha256": policy.migration_sha256()
             });
         }
+        // The authority epoch the next block's controls name, and a kit
+        // replacement waiting for its effect height (root kit replacement v1).
+        if let Some(policies) = replacement_policies(&self.config) {
+            let record = policies.current(root_record(&self.storage)?.as_ref());
+            let next = info.height.checked_add(1).context("Height exhausted")?;
+            let pending = record.epochs.last().filter(|last| last.from_height > next);
+            response["root_authority"] = serde_json::json!({
+                "authority_epoch": record.at(next)?.authority_epoch,
+                "pending": pending.map(|epoch| serde_json::json!({
+                    "authority_epoch": epoch.authority_epoch,
+                    "effect_height": epoch.from_height,
+                })),
+            });
+        }
         if let Some(penalties) = penalty_state(&self.storage)? {
             response["validator_penalties"] = serde_json::to_value(penalties)?;
         }
@@ -7672,6 +7957,11 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                                 && matches!(
                                     wire(&config, &record.input.txs[index]),
                                     Ok(WireTransaction::UpgradeControl { .. })
+                                ))
+                            || (result == &replacement_result()
+                                && matches!(
+                                    wire(&config, &record.input.txs[index]),
+                                    Ok(WireTransaction::KitReplacement { .. })
                                 )),
                         "Successful result lacks settlement"
                     );
@@ -7835,6 +8125,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             && !key.starts_with(b"consensus:emergency:")
             && !key.starts_with(b"consensus:upgrade:")
             && !key.starts_with(b"consensus:release-handover:")
+            && !key.starts_with(ROOT_AUTHORITY_PREFIX)
         {
             ensure!(known.contains(key.as_ref()), "Unknown consensus record");
         }
@@ -7866,6 +8157,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         committed_emergency_records(storage, &config)? == emergency_trace.records,
         "Stored emergency receipts differ from committed history"
     );
+    root_authority_history(history, &config, &emergency_trace, None)?;
     let outcomes = upgrade_history(history, &config, &emergency_trace, None)?;
     handover_history(history, &config, &emergency_trace, &outcomes, None)?;
     Ok(emergency_trace)
