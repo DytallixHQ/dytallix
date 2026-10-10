@@ -201,6 +201,13 @@ jobs:
       # replacement K4; P01, 8 October 2026).
       - name: Kit replacement drill (K4)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py kit-drill --work "$RUNNER_TEMP/network"
+      # The sentry's monitor reports to a stand-in alerting service, with the
+      # approved rules: a restart loop, a full disk, a halt (the validator
+      # stopped) and a stopped monitor each alert and resolve (monitoring v1,
+      # M5). The restart loop resolves only after its 15-minute window.
+      - name: Monitoring drill (M5)
+        timeout-minutes: 35
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py monitor-drill --work "$RUNNER_TEMP/network"
       - name: Diagnostics
         if: failure()
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py diagnostics --work "$RUNNER_TEMP/network"

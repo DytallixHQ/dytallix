@@ -216,6 +216,21 @@ How the job judges them (built in M4a):
   - **Opening.** On the founder's machine, `dytallix-root-sign history-open
     -paper - -in COPY -out DAY.jsonl.gz` with the code typed from paper.
 
+### The staging drill (built in M5)
+
+`staging_network.py monitor-drill`, the last step of the Host install
+workflow's staging network: the sentry's monitor gets settings pointing at
+a stand-in alerting service on its loopback (`alert_standin.py`: it records
+each heartbeat, alert and escalation, and alerts itself, severity 1, when a
+host's heartbeat is missing for 3 minutes). With the approved thresholds, a
+restart loop (three restarts of the node, each seen by a run), a full disk
+(the data disk left 3% free), a halt (the validator stopped) and a stopped
+monitor (its timer stopped) must each alert and then resolve, and the last
+heartbeat must show nothing firing. The restart loop resolves only once its
+first start leaves the 15-minute window, so the drill takes about 20
+minutes. It prints the evidence. Escalation is not reached (no severity 1
+alert stays firing 15 minutes); M6 exercises it with the real services.
+
 ## Steps
 
 | Step | Content | Output change |

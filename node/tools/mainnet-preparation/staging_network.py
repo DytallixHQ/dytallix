@@ -14,6 +14,7 @@ throwaway keys only.
   sudo staging_network.py run --work DIR
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
+  sudo staging_network.py monitor-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
 The VMs are driven through the QEMU guest agent (a virtio serial channel):
@@ -43,6 +44,14 @@ a new kit, signed by three kits' upgrade keys and the new kit's three keys.
 After the staging notice of 20 blocks the old kit is refused (by the signer,
 and, signed from a stale key list, by assembly and the node) and the new kit
 freezes and resumes the chain. It prints the evidence.
+
+monitor-drill is the monitoring drill (monitoring v1, M5): the sentry's
+monitor reports to a stand-in alerting service on its loopback, with the
+approved rules. A restart loop (three restarts of its node), a full disk
+(the data disk under the critical level), a halt (the validator stopped) and
+a stopped monitor (its timer stopped; only the service sees it) must each
+alert and then resolve, and nothing may be firing after. It prints the
+evidence.
 """
 import argparse
 import base64
@@ -272,9 +281,11 @@ def vms_up(work, image):
         (seed / 'meta-data').write_bytes(meta_data(label))
         (seed / 'network-config').write_bytes(network_config(label))
         shutil.copyfile(work / 'net' / 'chain' / 'bundles' / f'{label}.bundle.tar', seed / 'bundle.tar')
-        shutil.copyfile(HERE / 's3_standin.py', seed / 's3_standin.py')
+        for name in ('s3_standin.py', 'alert_standin.py'):
+            shutil.copyfile(HERE / name, seed / name)
         sh('genisoimage', '-quiet', '-output', str(vm / f'{label}-seed.iso'), '-volid', 'cidata', '-joliet', '-rock',
-           *[str(seed / name) for name in ('user-data', 'meta-data', 'network-config', 'bundle.tar', 's3_standin.py')])
+           *[str(seed / name) for name in ('user-data', 'meta-data', 'network-config', 'bundle.tar', 's3_standin.py',
+                                                    'alert_standin.py')])
         sh('qemu-img', 'create', '-q', '-f', 'qcow2', '-F', 'qcow2', '-b', str(Path(image).resolve()),
            str(vm / f'{label}.qcow2'), '20G')
         sh('qemu-system-x86_64', '-name', label, '-machine', 'q35,accel=kvm', '-cpu', 'host', '-smp', '2', '-m', '4096',
@@ -318,7 +329,7 @@ def install_vms(work):
         guest = agent(work, label)
         wait_synchronized(guest, label)
         guest.run(['sh', '-c', 'mkdir -p /mnt/seed /root/node && mount -o ro /dev/disk/by-label/cidata /mnt/seed '
-                   '&& tar -xf /mnt/seed/bundle.tar -C /root/node && cp /mnt/seed/s3_standin.py /root/ '
+                   '&& tar -xf /mnt/seed/bundle.tar -C /root/node && cp /mnt/seed/s3_standin.py /mnt/seed/alert_standin.py /root/ '
                    '&& umount /mnt/seed'])
         say(f'== install {label} (typing its seal code)')
         _, out, err = guest.run(['/root/node/dytallix-host/install.sh'], stdin=codes[label] + '\n', timeout=900)
@@ -687,6 +698,200 @@ def kit_drill(work, timeout=900):
         'and the new kit froze and resumed the chain')
 
 
+# The monitoring drill (monitoring v1, M5)
+
+ALERTS_PORT = 9100
+ALERTS = '/var/tmp/alerts'
+EVENTS = f'{ALERTS}/events.jsonl'
+# The alerting service's approved rule: a heartbeat missing for 3 minutes.
+MONITORING_DOWN_SECONDS = 180
+# A file on the data disk's file system that leaves it under the critical level.
+FILL = '/var/lib/dytallix-drill-fill'
+FILL_FREE_PERCENT = 3
+
+
+def parse_events(raw):
+    """The stand-in service's events; a line still being written is skipped."""
+    events = []
+    for line in raw.splitlines():
+        try:
+            events.append(json.loads(line))
+        except ValueError:
+            continue
+    return events
+
+
+def alert_events(guest):
+    code, raw, _ = guest.run(['cat', EVENTS], check=False)
+    return parse_events(raw) if code == 0 else []
+
+
+def find_event(events, condition, status, after):
+    """The first alert for the condition with the status from event index
+    `after` on, as (index, event), or None."""
+    for index, event in enumerate(events[after:], start=after):
+        body = event['body']
+        if event['to'] in ('alert', 'service') and body.get('condition') == condition and body.get('status') == status:
+            return index, event
+    return None
+
+
+def guest_time(guest):
+    _, out, _ = guest.run(['date', '+%s'])
+    return int(out.strip())
+
+
+def installed_thresholds(guest):
+    """The thresholds in the monitor configuration the host's unit runs."""
+    _, unit, _ = guest.run(['systemctl', 'cat', 'dytallix-monitor.service'])
+    found = re.search(r'--config (\S+)', unit)
+    if not found:
+        raise Failed('the monitor unit names no configuration')
+    return json.loads(guest.read(found.group(1)))['thresholds']
+
+
+def fill_size(stat_line, free_percent):
+    """Bytes to allocate so that the unprivileged free space (statvfs
+    f_bavail, what the monitor reads) is free_percent of the disk, from
+    `stat -f -c '%a %b %S'` (available blocks, total blocks, block size)."""
+    available, total, size = (int(x) for x in stat_line.split())
+    return max(available - total * free_percent // 100, 0) * size
+
+
+def monitor_drill(work, label='sentry-1'):
+    """A halt, a restart loop, a full disk and a stopped monitor on the
+    sentry, with the approved rules: each must reach the stand-in alerting
+    service as an alert and then resolve. It prints the evidence."""
+    work = Path(work)
+    guest = agent(work, label)
+    say(f'== a stand-in alerting service on {label}\'s loopback, and its monitor settings')
+    guest.run(['rm', '-rf', ALERTS])
+    guest.run(['systemd-run', '--unit=dytallix-alert-standin', 'python3', '/root/alert_standin.py', '--root', ALERTS,
+               '--port', str(ALERTS_PORT), '--missing-seconds', str(MONITORING_DOWN_SECONDS)])
+    time.sleep(2)
+    base = f'http://127.0.0.1:{ALERTS_PORT}'
+    settings = {'schema': 'dytallix.monitor-settings.v1', 'label': label, 'heartbeat_url': f'{base}/heartbeat',
+                'alert_url': f'{base}/alert', 'escalation_url': f'{base}/escalation'}
+    guest.run(['sh', '-c', 'umask 077 && cat > /root/monitor-settings.json'], stdin=json.dumps(settings))
+    _, out, _ = guest.run(['/root/node/dytallix-host/monitor-settings.sh', '/root/monitor-settings.json'], timeout=180)
+    say(out.strip())
+
+    def heartbeat_after(moment, timeout=180):
+        """The first heartbeat from a run that started after the moment
+        (the guest's clock), as (index, payload)."""
+        deadline = time.monotonic() + timeout
+        while True:
+            for index, event in enumerate(alert_events(guest)):
+                if event['to'] == 'heartbeat' and event['body']['time'] > moment:
+                    return index, event['body']
+            if time.monotonic() > deadline:
+                raise Failed(f'{label}: no heartbeat from a run after {moment} in {timeout} s')
+            time.sleep(5)
+
+    def wait_event(condition, status, after, timeout):
+        deadline = time.monotonic() + timeout
+        while True:
+            found = find_event(alert_events(guest), condition, status, after)
+            if found:
+                index, event = found
+                say(f'== {condition} {status} at {event["received"]}: value {json.dumps(event["body"]["value"])}, '
+                    f'threshold {event["body"]["threshold"]}')
+                return index, event
+            if time.monotonic() > deadline:
+                raise Failed(f'{label}: no {condition} {status} in {timeout} s')
+            time.sleep(5)
+
+    index, first = heartbeat_after(guest_time(guest) - 1)
+    if first['firing']:
+        raise Failed(f'{label} is already firing {first["firing"]} before the drill')
+    say(f'== heartbeat received; nothing firing at height {first["height"]}')
+    evidence = {}
+
+    def scenario(name, conditions, start, cause, cure, timeout):
+        """Starts the cause, waits for each condition to fire, removes the
+        cause and waits for each to resolve."""
+        say(f'== {name}')
+        mark = len(alert_events(guest))
+        cause()
+        fired = {c: wait_event(c, 'firing', mark, timeout) for c in conditions}
+        cure()
+        resolved = {c: wait_event(c, 'resolved', fired[c][0] + 1, timeout) for c in conditions}
+        evidence[name] = {c: {'fired_at': fired[c][1]['received'], 'fired_value': fired[c][1]['body']['value'],
+                              'threshold': fired[c][1]['body']['threshold'],
+                              'resolved_at': resolved[c][1]['received'], 'to': fired[c][1]['to']}
+                          for c in conditions}
+        evidence[name]['started_at'] = start
+
+    # Restart loop: three new starts of the node within the window, each seen
+    # by a monitor run. It resolves once the first leaves the window
+    # (15 minutes), so it is judged last; the other drills run meanwhile.
+    say('== restart loop: the node is restarted three times')
+    mark, starts = len(alert_events(guest)), []
+    for _ in range(3):
+        guest.run(['systemctl', 'restart', 'dytallix-node'], timeout=180)
+        starts.append(guest_time(guest))
+        heartbeat_after(starts[-1])
+    loop_index, loop_fired = wait_event('restart_loop', 'firing', mark, 180)
+
+    def fill():
+        critical = installed_thresholds(guest)['disk_free_critical_percent']
+        if FILL_FREE_PERCENT >= critical:
+            raise Failed(f'the drill leaves {FILL_FREE_PERCENT}% free, not under the critical {critical}%')
+        _, line, _ = guest.run(['stat', '-f', '-c', '%a %b %S', '/var/lib/dytallix'])
+        size = fill_size(line, FILL_FREE_PERCENT)
+        _, same, _ = guest.run(['sh', '-c', f'touch {FILL} && test "$(stat -c %d {FILL})" = '
+                                            '"$(stat -c %d /var/lib/dytallix)" && echo same'])
+        if same.strip() != 'same':
+            raise Failed(f'{FILL} is not on the data disk')
+        guest.run(['fallocate', '-l', str(size), FILL])
+        _, df, _ = guest.run(['df', '-h', '/var/lib/dytallix'])
+        say(df.strip())
+
+    scenario('full_disk', ('disk_low', 'disk_critical'), guest_time(guest), fill,
+             lambda: guest.run(['rm', '-f', FILL]), 180)
+
+    # A halt: the validator, on the runner, stops; the sentry's height stops.
+    def halt():
+        subprocess.run(['systemctl', 'stop', f'{staging_host.UNIT}.service'], check=True)
+
+    def restart_validator():
+        subprocess.run(['systemctl', 'start', f'{staging_host.UNIT}.service'], check=True)
+        staging_host.wait_for((staging_host.height() or 0) + 2, 300)
+
+    scenario('halt', ('consensus_halt',), guest_time(guest), halt, restart_validator, 300)
+
+    # A stopped monitor: only the alerting service can see it.
+    def stop_monitor():
+        guest.run(['systemctl', 'stop', 'dytallix-monitor.timer', 'dytallix-monitor.service'], timeout=180)
+
+    scenario('stopped_monitor', ('monitoring_down',), guest_time(guest), stop_monitor,
+             lambda: guest.run(['systemctl', 'start', 'dytallix-monitor.timer']), MONITORING_DOWN_SECONDS + 180)
+
+    window = installed_thresholds(guest)['restarts_window_seconds']
+    say(f'== restart loop: waiting for the first start to leave the {window} s window')
+    _, loop_resolved = wait_event('restart_loop', 'resolved', loop_index + 1,
+                                  max(starts[0] + window - guest_time(guest), 0) + 240)
+    evidence['restart_loop'] = {'restart_loop': {
+        'fired_at': loop_fired['received'], 'fired_value': loop_fired['body']['value'],
+        'threshold': loop_fired['body']['threshold'], 'resolved_at': loop_resolved['received'], 'to': 'alert'},
+        'started_at': starts[0], 'starts': starts}
+
+    _, last = heartbeat_after(guest_time(guest))
+    if last['firing']:
+        raise Failed(f'{label} is still firing {last["firing"]} after the drill')
+    events = alert_events(guest)
+    seen = sorted({(e['body']['condition'], e['body']['status']) for e in events if e['to'] in ('alert', 'service')})
+    escalations = [e['body']['condition'] for e in events if e['to'] == 'escalation']
+    say(json.dumps({'monitor_drill': {
+        'chain_id': staging_host.CHAIN_ID, 'host': label, 'scenarios': evidence,
+        'alerts_seen': [f'{c} {s}' for c, s in seen], 'escalations': escalations,
+        'heartbeats': sum(e['to'] == 'heartbeat' for e in events),
+        'final_heartbeat': {k: last[k] for k in ('time', 'height', 'firing', 'undelivered', 'delivery_failures')}}},
+        indent=2))
+    guest.run(['systemctl', 'stop', 'dytallix-alert-standin'], check=False)
+    say(f'== {label}: a restart loop, a full disk, a halt and a stopped monitor each alerted and resolved')
+
+
 def diagnostics(work):
     work = Path(work)
     for label in VMS:
@@ -700,6 +905,8 @@ def diagnostics(work):
                          ['journalctl', '-u', 'dytallix-node', '-o', 'cat', '--no-pager', '-n', '200'],
                          ['journalctl', '-u', 'dytallix-backup', '-o', 'cat', '--no-pager', '-n', '50'],
                          ['journalctl', '-u', 'dytallix-monitor', '-o', 'cat', '--no-pager', '-n', '20'],
+                         ['journalctl', '-u', 'dytallix-alert-standin', '-o', 'cat', '--no-pager', '-n', '20'],
+                         ['tail', '-n', '40', EVENTS],
                          ['journalctl', '-k', '--no-pager', '-n', '50', '--grep', 'apparmor'],
                          ['tail', '-n', '40', '/var/log/cloud-init-output.log']):
                 _, out, err = guest.run(args, check=False, timeout=60)
@@ -714,7 +921,7 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'restore-drill', 'kit-drill', 'diagnostics'):
+    for name in ('network-up', 'install-vms', 'run', 'restore-drill', 'kit-drill', 'monitor-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     v = commands.add_parser('vms-up')
     v.add_argument('--work', type=Path, required=True)
@@ -737,6 +944,8 @@ def main():
             restore_drill(args.work)
         elif args.command == 'kit-drill':
             kit_drill(args.work)
+        elif args.command == 'monitor-drill':
+            monitor_drill(args.work)
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, OSError, KeyError, ValueError) as error:
