@@ -2061,14 +2061,15 @@
           "production_activation_note": "The signing roles include five root genesis signers, separate from the emergency and upgrade custodians (P01, 30 September 2026, approvals/P01_E05_ACTIVATION_2026-09-30.json); the upgrade custodians also hold handover and restart.",
           "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder holds every root key in five key kits (kit N holds key N of each role: genesis, upgrade, freeze, resume) stored in up to five separate places; any three act. Keys stay distinct per role and the 3-of-5 thresholds are unchanged. Disclosed in TRUST_MODEL.md.",
           "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
-          "approved_portion": "Solo launch (P01, 3 October 2026): the founder holds every root key in five key kits, kit N holding key N of each role, any three acting. Key ceremony (P01, 5 October 2026): each kit is an encrypted USB stick plus a paper copy of its 32-byte kit secret; the keys are made on an offline live Linux USB; the kits are kept in three or more places. The custody records themselves remain open until the ceremony.",
+          "approved_portion": "Solo launch (P01, 3 October 2026): the founder holds every root key in five key kits, kit N holding key N of each role, any three acting. Key ceremony (P01, 5 October 2026): each kit is an encrypted USB stick plus a paper copy of its 32-byte kit secret; the keys are made on an offline live Linux USB; the kits are kept in three or more places. The custody records themselves remain open until the ceremony. Packet model (P01, 10 October 2026): the five holders' custody packets use the public disclosure in place of an independence review (custody_model five_holders, no review).",
           "approval_records": [
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
             "approvals/P01_E05_KEY_CEREMONY_2026-10-05.json",
             "approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json",
             "approvals/P01_E05_KIT_REPLACEMENT_2026-10-08.json",
             "approvals/P01_E05_KIT_REPLACEMENT_FREEZE_2026-10-08.json",
-            "approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json"
+            "approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json",
+            "approvals/P01_E05_HOLDER_DISCLOSURE_2026-10-10.json"
           ]
         }
       ],
@@ -2570,7 +2571,8 @@
             "approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json",
             "approvals/P01_E05_KIT_REPLACEMENT_2026-10-08.json",
             "approvals/P01_E05_KIT_REPLACEMENT_FREEZE_2026-10-08.json",
-            "approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json"
+            "approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json",
+            "approvals/P01_E05_HOLDER_DISCLOSURE_2026-10-10.json"
           ],
           "approved_portion": "Production activation (P01, 30 September 2026): root genesis signed 3-of-5 by its own group of genesis signers; upgrade schema 2 and handover v2 sign over a finalized anchor and bounded window; the upgrade custodians, three of five, control release handover and halt restart. Notice scope (P01, 1 October 2026): the 120,960-block notice applies to release handovers as well as state-migration upgrades. Root controls (P01, 1 October 2026): a production configuration carries the emergency freeze, upgrade and handover controls at schema 2. Solo launch (P01, 3 October 2026): the founder holds all five upgrade keys and all ten emergency keys in five key kits, replacing the separate groups of independent custodians; thresholds and keys per role are unchanged. Control signing (P01, 6 October 2026): every root control window and anchor age is at most 34,560 blocks (two days) for emergency, upgrade and handover alike, and the CLI prepares, dry-runs and submits controls from the founder's laptop over the pinned chain."
         }
@@ -2764,7 +2766,8 @@
             "approvals/P01_E05_MONITORING_2026-10-09.json",
             "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json",
             "approvals/P01_E05_METRIC_SET_2026-10-10.json",
-            "approvals/P01_E05_ALERT_RULES_2026-10-10.json"
+            "approvals/P01_E05_ALERT_RULES_2026-10-10.json",
+            "approvals/P01_E05_ROLE_LOGS_2026-10-10.json"
           ]
         },
         {
@@ -4330,6 +4333,36 @@
         "The history code, upload key and commands (M4b)",
         "Live alert acceptance on the production hosts"
       ]
+    },
+    {
+      "id": "P01-2026-10-10-E05-HOLDER-DISCLOSURE",
+      "approved": "2026-10-10",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_HOLDER_DISCLOSURE_2026-10-10.json",
+      "decisions": [
+        "D10-Q03: the five key holders' custody packets carry no independence review; the public disclosure in TRUST_MODEL.md stands in for it, as under the solo profile."
+      ],
+      "question_refs": [
+        "D10-Q03",
+        "D11-Q03"
+      ],
+      "unset": [
+        "Holder records and wallet addresses (custody system)",
+        "The completed packets and their acceptance"
+      ]
+    },
+    {
+      "id": "P01-2026-10-10-E05-ROLE-LOGS",
+      "approved": "2026-10-10",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_ROLE_LOGS_2026-10-10.json",
+      "decisions": [
+        "D12-Q02: the engine, bridge and adapter keep their log levels (the engine at info); their output in the journal, kept 90 days, meets the approved log policy."
+      ],
+      "question_refs": [
+        "D12-Q02"
+      ],
+      "unset": []
     },
     {
       "id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",

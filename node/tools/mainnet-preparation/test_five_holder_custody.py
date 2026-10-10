@@ -105,7 +105,7 @@ class FiveHolderCustodyTests(unittest.TestCase):
         result = self.set.check()
         self.assertEqual(result['errors'], [])
         self.assertEqual((result['status'], result['custody_review']), ('STRUCTURALLY_COMPLETE', 'public_disclosure'))
-        self.assertIn('OPEN', result['d10_q03'])
+        self.assertIn('P01_E05_HOLDER_DISCLOSURE_2026-10-10', result['d10_q03'])
         self.assertFalse(result['signature_verification_performed'] or result['production_accepted'])
         self.assertEqual(len(result['emergency_authority_fragment']['freeze']['keys']), 5)
         self.assertEqual(len(result['upgrade_authority_fragment']['authority']['keys']), 5)
@@ -113,27 +113,10 @@ class FiveHolderCustodyTests(unittest.TestCase):
         # Each checker alone agrees and names the form.
         self.assertEqual(e.validate(self.packets['emergency'], self.set.root('emergency'))['custody_review'], 'public_disclosure')
 
-    def test_five_holders_with_an_outside_reviewer(self):
+    def test_an_outside_review_is_refused(self):
+        # The public disclosure stands in for it (P01, 10 October 2026, D10-Q03).
         self.setUp(reviewed=True)
-        result = self.set.check()
-        self.assertEqual(result['errors'], [])
-        self.assertEqual(result['custody_review'], 'outside_reviewer')
-
-    def test_every_slot_has_the_same_review_form(self):
-        self.setUp(reviewed=True)
-        upgrade = self.packets['upgrade']
-        upgrade['evidence'].pop('review-3')
-        upgrade['custodians'][2]['independence_review'] = None
-        self.bad('every slot has an outside review, or none')
-
-    def test_the_packets_use_the_same_review_form(self):
-        (Path(self.tmp.name) / 'reviewed').mkdir()
-        reviewed = Packets(Path(self.tmp.name).resolve() / 'reviewed', True)
-        self.set.packets['genesis'] = reviewed.packets['genesis']
-        roots = self.set.roots()
-        roots['genesis'] = reviewed.root('genesis')
-        result = f.check(self.set.packets, roots)
-        self.assertTrue(any('same review form' in error for error in result['errors']), result['errors'])
+        self.bad('five_holders has no independence review (public disclosure)')
 
     def test_holders_are_named_only_by_their_kits(self):
         self.packets['emergency']['custodians'][1]['controller_id'] = 'Alice Example'
