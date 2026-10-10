@@ -221,3 +221,100 @@ func TestKitReplacementRequest(t *testing.T) {
 		}
 	}
 }
+
+// A restart request written by the node's dytallix-state-check (restart
+// v1; the vector is checked by the node's own test): the upgrade keys sign
+// it under the upgrade action for the halted height alone, and the signer
+// shows the releases, the bindings and whether block H was decided.
+func TestRestartRequestFromTheNode(t *testing.T) {
+	raw, err := os.ReadFile("testdata/control-request-restart.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request ControlRequest
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		t.Fatal(err)
+	}
+	envelope, summary, err := request.Check()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rendered := summary.Render()
+	if summary.Operation != "restart" || summary.ChainID != "dytallix-rehearsal-1" || summary.Sequence != 2 ||
+		summary.AnchorHeight != 120 || summary.NotBefore != 121 || summary.NotAfter != 121 ||
+		envelope.Action != Upgrade || envelope.NotBeforeHeight != 121 || envelope.NotAfterHeight != 121 ||
+		!strings.Contains(rendered, "target_release_sha512 "+strings.Repeat("4", 128)) ||
+		!strings.Contains(rendered, "halted_block_hash "+strings.Repeat("5", 64)) ||
+		!strings.Contains(rendered, "evidence_sha256  "+strings.Repeat("2", 64)) {
+		t.Fatalf("unexpected summary %+v\n%s", summary, rendered)
+	}
+
+	// The payload rewritten, with the envelope's digest made to agree.
+	rewrite := func(r *ControlRequest, from, to string) {
+		artifact, _ := hex.DecodeString(r.ArtifactHex)
+		if !bytes.Contains(artifact, []byte(from)) {
+			t.Fatalf("the artifact has no %s", from)
+		}
+		artifact = bytes.Replace(artifact, []byte(from), []byte(to), 1)
+		digest := sha512.Sum512(artifact)
+		r.ArtifactHex, r.Envelope.ArtifactSHA512 = hex.EncodeToString(artifact), hex.EncodeToString(digest[:])
+	}
+	undecided := request
+	rewrite(&undecided, `"halted_block_hash":"`+strings.Repeat("5", 64)+`"`, `"halted_block_hash":null`)
+	if _, summary, err := undecided.Check(); err != nil ||
+		!strings.Contains(summary.Render(), "halted_block_hash none: block H was never decided") {
+		t.Fatal("a restart for an undecided block H", err, summary.Render())
+	}
+	for name, change := range map[string]func(*ControlRequest){
+		// The halted height is the anchor's next block.
+		"halted height": func(r *ControlRequest) {
+			rewrite(r, `"halted_height":121`, `"halted_height":123`)
+			r.Envelope.NotBeforeHeight, r.Envelope.NotAfterHeight = 123, 123
+		},
+		"window":    func(r *ControlRequest) { r.Envelope.NotAfterHeight = 122 },
+		"action":    func(r *ControlRequest) { r.Envelope.Action = "emergency" },
+		"operation": func(r *ControlRequest) { r.Operation = "handover-activate" },
+		"anchor":    func(r *ControlRequest) { r.AnchorHeight = 121 },
+		"kind":      func(r *ControlRequest) { r.Kind = "dytallix-release-handover-v2" },
+	} {
+		changed := request
+		change(&changed)
+		if _, _, err := changed.Check(); !errors.Is(err, ErrControl) {
+			t.Fatalf("%s: accepted", name)
+		}
+	}
+
+	// Signed with test kits' upgrade keys listed as the authority.
+	var keys []AuthorityKey
+	var privates [][]byte
+	for kit := 1; kit <= KitCount; kit++ {
+		public, private, err := DeriveKitKey(testSecret(byte(80+kit)), kit, "upgrade")
+		if err != nil {
+			t.Fatal(err)
+		}
+		keys = append(keys, AuthorityKey{KeyID: KeyID(public), PublicKeyHex: hex.EncodeToString(public)})
+		privates = append(privates, private)
+	}
+	signing := request
+	signing.Authority.Keys = keys
+	signature, err := SignControl(signing, privates[2], keys[2])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if signature.Sequence != 2 || signature.ArtifactSHA512 != request.Envelope.ArtifactSHA512 {
+		t.Fatalf("unexpected signature record %+v", signature)
+	}
+	if err := VerifyControlSignature(signing, signature, keys[2]); err != nil {
+		t.Fatal(err)
+	}
+	// As the node's helper checks it: at the halted height, under the
+	// upgrade action.
+	signatureBytes, _ := hex.DecodeString(signature.SignatureHex)
+	public, _ := hex.DecodeString(keys[2].PublicKeyHex)
+	if err := Verify(envelope, signatureBytes, Policy{TrustedPublicKey: public, ChainID: envelope.ChainID,
+		Action: Upgrade, ExpectedSequence: 2, CurrentHeight: 121, ExpectedArtifactDigest: envelope.ArtifactDigest}); err != nil {
+		t.Fatal(err)
+	}
+}

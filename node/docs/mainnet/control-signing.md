@@ -2,7 +2,8 @@
 
 Engineering task E05. A root control is an emergency freeze or resume, an
 upgrade admission, activation or cancellation, a release handover
-admission, activation or cancellation, or a kit replacement. The node admits
+admission, activation or cancellation, a kit replacement, or a restart on a
+fixed release after a halt. The node admits
 one as a transaction carrying three signatures from the five keys of its
 authority
 ([emergency freeze](emergency-transaction-freeze.md),
@@ -139,6 +140,19 @@ artifact or sequence and a key that signed twice, and needs at least the
 threshold and at most the policy's maximum (three in production). It sorts
 the signatures by key ID and checks the result with the node's own control
 decoder. It does not verify the signatures; the node's dry run does.
+
+## Restart
+
+A restart after a halt ([restart runbook](../operations/restart.md)) is not
+a transaction: the chain is halted, so the stopped node prepares and
+assembles it instead of `dytallix-control`. `dytallix-state-check
+--restart-target` writes `restart-request.json` (kind
+`dytallix-release-restart-v1`, operation `restart`) with the upgrade keys
+in force at the halted height H; the window is H..H under the `upgrade`
+action. The kits sign it with `sign-control -operation restart`, and
+`dytallix-state-check --restart-assemble` writes the authorization the
+service configuration pins. `dytallix-control assemble` refuses a restart
+request and names that command.
 
 ## Kit replacement
 

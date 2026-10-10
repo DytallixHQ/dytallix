@@ -681,3 +681,149 @@ fn a_window_ends_before_a_pending_replacement_takes_effect() {
     let request = prepare(&config, &pending, &freeze, Some(10)).unwrap();
     assert_eq!(request.envelope.not_after_height, 110);
 }
+
+fn restart_payload(config: &ConsensusConfig) -> handover::restart::Payload {
+    let policy = config.release_handover.as_ref().unwrap();
+    handover::restart::Payload {
+        schema: 1,
+        chain_id: policy.chain_id.clone(),
+        genesis_sha256: policy.genesis_sha256.clone(),
+        policy_sha256: policy.sha256().unwrap(),
+        authority_epoch: policy.authority_epoch,
+        sequence: 2,
+        source_release_sha512: config.emergency.as_ref().unwrap().release_sha512.clone(),
+        target_release_sha512: OTHER_RELEASE.into(),
+        state_schema: 0,
+        parent_height: 120,
+        parent_app_hash: APP_HASH.into(),
+        halted_height: 121,
+        halted_block_hash: Some("55".repeat(32)),
+        emergency_receipt_sha256: None,
+        pending_admission_receipt_sha256: None,
+        evidence_sha256: DIGEST.into(),
+    }
+}
+
+/// The offline signer's test vector: the restart request this node writes
+/// for the rehearsal configuration. `DYTALLIX_WRITE_VECTORS=1` rewrites it.
+const RESTART_VECTOR: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../consensus/root-authorization/testdata/control-request-restart.json"
+);
+
+#[test]
+fn a_restart_request_is_signed_at_the_halted_height_and_assembles_into_the_authorization() {
+    let config = config();
+    let policy = config.release_handover.as_ref().unwrap();
+    let payload = restart_payload(&config);
+    let request = restart_request(policy, &payload).unwrap();
+    assert_eq!(
+        (request.operation.as_str(), request.kind.as_str()),
+        ("restart", handover::restart::KIND)
+    );
+    assert_eq!(
+        (request.anchor_height, request.anchor_app_hash.as_str()),
+        (120, APP_HASH)
+    );
+    // The upgrade keys sign under the upgrade action, at the halted height only.
+    let artifact = handover::restart::artifact_bytes(&payload).unwrap();
+    assert_eq!(
+        request.envelope,
+        Envelope {
+            chain_id: policy.chain_id.clone(),
+            action: "upgrade".into(),
+            sequence: 2,
+            not_before_height: 121,
+            not_after_height: 121,
+            artifact_sha512: hex::encode(Sha512::digest(&artifact)),
+        }
+    );
+    assert_eq!(hex::decode(&request.artifact_hex).unwrap(), artifact);
+    assert_eq!(
+        (
+            request.authority.purpose.as_str(),
+            request.authority.threshold,
+            request.authority.max_signatures
+        ),
+        ("upgrade", policy.authority.threshold, policy.max_signatures)
+    );
+    assert_eq!(request.authority.keys, policy.authority.keys);
+    let pretty = serde_json::to_string_pretty(&request).unwrap() + "\n";
+    if std::env::var_os("DYTALLIX_WRITE_VECTORS").is_some() {
+        std::fs::write(RESTART_VECTOR, &pretty).unwrap();
+    }
+    assert_eq!(
+        std::fs::read_to_string(RESTART_VECTOR).unwrap(),
+        pretty,
+        "the signer's restart vector differs; rewrite it with DYTALLIX_WRITE_VECTORS=1"
+    );
+
+    // Given out of order; assembled sorted, as the node's restart file.
+    let keys = &policy.authority.keys;
+    let records = signed(&request, &[&keys[3], &keys[0], &keys[1]]);
+    let bytes = assemble_restart(policy, &request, &records).unwrap();
+    let authorization = handover::restart::decode_authorization(policy, &bytes).unwrap();
+    assert_eq!(authorization.payload, payload);
+    let ids: Vec<_> = authorization
+        .signatures
+        .iter()
+        .map(|s| s.key_id.as_str())
+        .collect();
+    let mut sorted = vec![
+        keys[3].key_id.as_str(),
+        keys[0].key_id.as_str(),
+        keys[1].key_id.as_str(),
+    ];
+    sorted.sort();
+    assert_eq!(ids, sorted);
+    assert_eq!(serde_json::to_vec(&authorization).unwrap(), bytes);
+
+    let refuse = |policy: &handover::Policy,
+                  records: Vec<SignatureRecord>,
+                  request: &Request,
+                  why: &str| {
+        let error = assemble_restart(policy, request, &records)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains(why), "{error}");
+    };
+    refuse(
+        policy,
+        signed(&request, &[&keys[0], &keys[1]]),
+        &request,
+        "signatures given",
+    );
+    let freeze_key = &config.emergency.as_ref().unwrap().freeze_authority.keys[0];
+    refuse(
+        policy,
+        signed(&request, &[&keys[0], &keys[1], freeze_key]),
+        &request,
+        "not in this control's authority",
+    );
+    let mut tampered = request.clone();
+    tampered.payload["evidence_sha256"] = serde_json::json!(INCIDENT);
+    refuse(
+        policy,
+        signed(&request, &[&keys[0], &keys[1], &keys[2]]),
+        &tampered,
+        "not the signed artifact",
+    );
+    // Signed under another epoch than the node's: build it again.
+    let mut later = policy.clone();
+    later.authority_epoch += 1;
+    refuse(
+        &later,
+        signed(&request, &[&keys[0], &keys[1], &keys[2]]),
+        &request,
+        "build it again",
+    );
+    // The online assembly sends a restart to the stopped node's tool.
+    let error = assembled(
+        &config,
+        &request,
+        &signed(&request, &[&keys[0], &keys[1], &keys[2]]),
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("--restart-assemble"), "{error}");
+}
