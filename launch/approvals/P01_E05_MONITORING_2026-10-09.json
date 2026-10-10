@@ -1,0 +1,45 @@
+{
+  "decision_id": "P01-2026-10-09-E05-MONITORING",
+  "approved": "2026-10-09",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Monitoring and alerts: collection, halt signal, on-call and delivery (G27, G28)"
+  },
+  "design_ref": "../../node/docs/architecture/monitoring-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "Push from each host",
+      "rule": "A monitor job on each host, run by a timer every minute like the sentry's backup job, reads the node's metric files and the host's CPU, memory, disk and network, evaluates the alert rules, and pushes a heartbeat and any alert outbound with the host's curl. Nothing listens and no host is added. This is a deliberate exception to 'nothing else runs on the host' (host setup v1)."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "503 when the head is stale",
+      "rule": "The endpoint's public status page answers 503 when the newest block is older than a set age, so any uptime checker detects a halt or a stuck endpoint from the HTTP status alone. The age is an E05 value to approve (proposed 60 seconds)."
+    },
+    {
+      "question": "D12-Q02, D14-Q03",
+      "selected": "The founder plus one backup",
+      "rule": "The founder is the primary on-call. A severity 1 alert not acknowledged within 15 minutes also goes to one backup person, a root key holder the founder names outside the repository. This replaces 'at least two people in the rotation plus an escalation contact' for on-call only."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Vendor-neutral, pick later",
+      "rule": "The monitor job pushes heartbeats and alerts to webhook URLs held in each host's sealed settings. The founder chooses the free alerting and uptime services and creates their accounts later (artifact A22); no vendor is named in the code."
+    }
+  ],
+  "unset": [
+    "Alert thresholds and the status page's head age (E05 values, proposed in the design)",
+    "The alerting and uptime services and their accounts (A22)",
+    "The backup person's identity and contact, held outside the repository",
+    "Metrics history and dashboards (proposed in the design)",
+    "Live alert delivery, acknowledgement and escalation acceptance on the production hosts"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

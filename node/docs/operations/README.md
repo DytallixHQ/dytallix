@@ -10,7 +10,8 @@ D12-Q02), and the root keys are held in key kits
 ([key ceremony](../../../launch/custody/KEY_CEREMONY.md)). The following are
 unset inputs:
 - the named roles (D14-Q03);
-- alert checks, thresholds and routing (artifact A22);
+- alert checks, thresholds and routing (artifact A22; the design is
+  [monitoring v1](../architecture/monitoring-v1.md), P01, 9 October 2026);
 - the authenticated incident channel.
 
 Exercise each procedure on disposable local or assigned staging systems
