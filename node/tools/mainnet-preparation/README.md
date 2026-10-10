@@ -97,7 +97,7 @@ python3 -B tools/mainnet-preparation/genesis_signer_intake.py GENESIS_INTAKE.wor
 `five_holder_custody.py` checks the three packets together under the five key holders model (`"custody_model": "five_holders"`; P01, 7 October 2026: five people, one kit each, kit N holding key N of every role). Each packet must pass its own checker, and together:
 - slot N is named only by its kit, `kit-holder-N` in `kit-N`, in every packet, so the five holders are the same in every role;
 - the twenty keys are distinct across roles, and the emergency and upgrade keys share one authority epoch;
-- every slot of every packet has an outside independence review, or none does (the public disclosure). Which one stands is open (D10-Q03); the result names it as `custody_review`.
+- no slot carries an independence review: the public disclosure stands in for it (P01, 10 October 2026, D10-Q03).
 
 ```text
 python3 -B tools/mainnet-preparation/five_holder_custody.py --emergency EMERGENCY_INTAKE.working.json \

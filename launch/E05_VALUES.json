@@ -1174,11 +1174,11 @@
       "fixture_ref": "node/dytallix-fast-launch/node/src/ordinary_test_support.rs:164",
       "decision": "D06-Q02",
       "couplings": "Full queue refuses, never evicts (node/docs/architecture/mempool-v1.md rule 5).",
-      "notes": "Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review, derived from the approved capacity; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 2000,
+      "basis": "About eleven blocks of basic Sends at the approved capacity (about 180 a block), so a full queue drains in under a minute of full blocks; a 20-minute expiry (240 blocks) never needs a longer backlog, and a full queue refuses rather than evicts."
     },
     {
       "name": "queue_max_wire_bytes",
@@ -1190,11 +1190,11 @@
       "fixture_ref": "node/dytallix-fast-launch/node/src/ordinary_test_support.rs:165",
       "decision": "D06-Q02",
       "couplings": "Not checked >= limits.max_wire_bytes.",
-      "notes": "Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review, derived from the approved capacity; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 10000000,
+      "basis": "Ten blocks of the approved 1,000,000 transaction bytes a block; far above one transaction's wire bound, and about 10 MB of memory."
     },
     {
       "name": "queue_max_signature_work",
@@ -1206,11 +1206,11 @@
       "fixture_ref": "node/dytallix-fast-launch/node/src/ordinary_test_support.rs:166",
       "decision": "D06-Q02",
       "couplings": "",
-      "notes": "Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review, derived from the approved capacity; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 2000,
+      "basis": "Ten blocks of the approved 200 signature checks a block. Every pending transaction is checked again after each block, so this bounds that work: 2,000 ML-DSA-65 verifications, a fraction of a 5-second block on one core. T05 measures signature_verification_seconds to confirm."
     },
     {
       "name": "template_timing_version",

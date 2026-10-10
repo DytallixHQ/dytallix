@@ -1,0 +1,25 @@
+{
+  "decision_id": "P01-2026-10-10-E05-ROLE-LOGS",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The engine's, bridge's and adapter's output in the journal"
+  },
+  "reason": "The engine's info log carries peer IDs, network addresses and block data but no keys; peer addresses are the operators' hosts, not users' personal data, and the log is what an operator reads after a halt or a panic.",
+  "design_ref": "../../node/docs/architecture/host-setup-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "Yes, keep info level",
+      "rule": "The engine, bridge and adapter keep their current log levels (the engine at info); their output reaches the node's journal through the supervisor's bounded copy, each line prefixed with its role, and is kept 90 days with the rest of the journal. This meets the approved log policy (90 days, redacted: no secrets or personal data, P01_E05_OPERATIONS_OBJECTIVES_2026-10-03)."
+    }
+  ],
+  "unset": [],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

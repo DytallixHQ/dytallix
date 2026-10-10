@@ -136,7 +136,7 @@ def validate(data, root, emergency=None, upgrade=None):
         if held is not None: others.append((name, held))
         if five and held is not None:
             require(packet.get('custody_model') == u.FIVE, f'five_holders: the {name} intake uses another custody model')
-    groups, controllers, keys, slots, authority, reviewed = set(), set(), set(), set(), [], []
+    groups, controllers, keys, slots, authority = set(), set(), set(), set(), []
     for person in people:
         if not fields(person, PERSON, 'signer'): continue
         slot = person['slot']
@@ -157,11 +157,11 @@ def validate(data, root, emergency=None, upgrade=None):
         if solo:
             # The public disclosure (TRUST_MODEL.md) replaces the independence review.
             require(person['independence_review'] is None, f'slot {slot}: solo_kits has no independence review')
-        elif five and person['independence_review'] is None:
-            reviewed.append(False)
+        elif five:
+            # The public disclosure stands in for the review (P01, 10 October 2026, D10-Q03).
+            require(person['independence_review'] is None, f'slot {slot}: five_holders has no independence review (public disclosure)')
         else:
             binding(person['independence_review'], 'independence_review', controller, group=group)
-            if five: reviewed.append(True)
         key = person['key']
         if not fields(key, KEY, f'slot {slot}.key'): continue
         raw = public_key(key['public_key_hex'])
@@ -186,7 +186,6 @@ def validate(data, root, emergency=None, upgrade=None):
         for name, (o_controllers, o_groups, _) in others:
             require(o_controllers == controllers, f'solo_kits: the {name} intake names another controller')
             require(o_groups == groups, f'solo_kits: the {name} keys use other kits')
-    review = u.five_holder_review(require, reviewed) if five else None
     if five:
         for name, (o_controllers, o_groups, _) in others:
             require(o_controllers == controllers and o_groups == groups, f'five_holders: the {name} intake names other holders or kits')
@@ -196,7 +195,7 @@ def validate(data, root, emergency=None, upgrade=None):
     require(set(parsed) == used, 'unreferenced evidence is not permitted')
     out = result(errors)
     out['custody_model'] = data['custody_model'] if data['custody_model'] in MODELS else None
-    if five and not errors: out['custody_review'] = review
+    if five and not errors: out['custody_review'] = 'public_disclosure'
     if not errors:
         policy = signer_policy(chain, authority)
         out['signer_policy'] = policy

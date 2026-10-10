@@ -259,4 +259,6 @@ founder to type `wipe LABEL` first and keeps the account.
   4,096 bytes, at most 1,000 lines per role in 30 seconds with the rest
   counted (`[N lines dropped ...]`), so a role cannot crowd out the
   supervisor's report or reach the journal's rate limit. The H4 install
-  requires the engine's lines in the validator's journal.
+  requires the engine's lines in the validator's journal. The engine stays at
+  info level; its log meets the log policy (P01, 10 October 2026,
+  [approval](../../../launch/approvals/P01_E05_ROLE_LOGS_2026-10-10.json)).

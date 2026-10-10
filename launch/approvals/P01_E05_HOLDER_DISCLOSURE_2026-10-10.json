@@ -1,0 +1,34 @@
+{
+  "decision_id": "P01-2026-10-10-E05-HOLDER-DISCLOSURE",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The custody packet model for five key holders (D10-Q03)"
+  },
+  "reason": "The five key holders are named only by their kits; an outside reviewer would need to be named and engaged before the packets could pass, and the trust model already discloses the holders, the threshold and that they are not named publicly.",
+  "design_ref": "../custody/KEY_CEREMONY.md",
+  "decisions": [
+    {
+      "question": "D10-Q03",
+      "selected": "Public disclosure",
+      "rule": "The emergency, upgrade and genesis custody packets of the five key holders (custody_model five_holders) carry no independence review: every slot's independence_review is null, and the public disclosure in TRUST_MODEL.md (five people, one kit each, any three acting, not named publicly) stands in for it, as under the solo profile. A packet with an outside review is refused. The checkers report custody_review public_disclosure."
+    }
+  ],
+  "supersedes": [
+    {
+      "decision_id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",
+      "part": "Unset: the custody packets' model for five holders. It is now the public disclosure."
+    }
+  ],
+  "unset": [
+    "Each holder's appointment, public key records, proofs of possession and wallet address (custody system)",
+    "The completed packets and their acceptance"
+  ],
+  "does_not_authorize": [
+    "any key ceremony",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

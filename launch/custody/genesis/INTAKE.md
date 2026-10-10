@@ -27,10 +27,10 @@ one holder:
   `solo_kits` requires one controller in every slot, and `independent`
   refuses a holder or kit that also holds another role. Under
   `five_holders` slot N must be `kit-holder-N` in `kit-N`, the five holders
-  must be the same in all three packets, and every slot either carries an
-  outside `independence_review` or none does (the public disclosure). Which
-  of the two stands is still open (D10-Q03); the checkers accept either and
-  report it as `custody_review`. Check the three packets together with
+  must be the same in all three packets, and every slot's
+  `independence_review` is null: the public disclosure in the trust model
+  stands in for it (P01, 10 October 2026,
+  [approval](../../approvals/P01_E05_HOLDER_DISCLOSURE_2026-10-10.json)). Check the three packets together with
   `five_holder_custody.py` (see [the tools](../../../node/tools/mainnet-preparation/README.md)).
 
 ## Solo launch profile (kits superseded on 7 October 2026)

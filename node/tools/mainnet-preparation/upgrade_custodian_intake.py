@@ -23,12 +23,11 @@ TOP = {'schema', 'production_accepted', 'custody_model', 'threshold', 'authority
 # founder holds all five slots in five key kits, each kit its own control group.
 # `five_holders`: five people, one kit each (P01, 7 October 2026): slot N is
 # kit N in the emergency, upgrade and genesis packets alike, named only by its
-# kit, so the roles share their holders by design. Whether an outside
-# reviewer or the public disclosure stands for the independence review is
-# open (D10-Q03): either is accepted when every slot has the same.
+# kit, so the roles share their holders by design. As under the solo
+# profile, the public disclosure stands in for an independence review (P01,
+# 10 October 2026, D10-Q03).
 FIVE = 'five_holders'
 MODELS = ('independent', 'solo_kits', FIVE)
-REVIEWS = {True: 'outside_reviewer', False: 'public_disclosure'}
 PERSON = {'slot', 'controller_id', 'name', 'organization', 'control_group', 'appointment', 'independence_review', 'key'}
 KEY = {'key_id', 'public_key_base64', 'signer_control_group', 'backup_control_group', 'signer_record', 'backup_record', 'proof_of_possession', 'drill_record'}
 ITEM = {'kind', 'controller_id', 'purpose', 'key_id', 'parameter_set', 'epoch', 'reviewer_control_group', 'public_statement'}
@@ -44,11 +43,6 @@ def kit_names(slot):
     """Slot N's controller and control group under five_holders: the kit, never the person."""
     return f'kit-holder-{slot}', f'kit-{slot}'
 
-
-def five_holder_review(require, reviewed):
-    """The packet's review form: every slot reviewed, or none."""
-    require(len(set(reviewed)) <= 1, 'five_holders: every slot has an outside review, or none (public disclosure)')
-    return REVIEWS[reviewed[0]] if len(set(reviewed)) == 1 else None
 
 
 def public_key(value):
@@ -150,7 +144,7 @@ def validate(data, root, emergency=None):
     require(held is not None, problem)
     if five and held is not None:
         require(emergency.get('custody_model') == FIVE, 'five_holders: the emergency intake uses another custody model')
-    groups, controllers, keys, slots, authority, reviewed = set(), set(), set(), set(), [], []
+    groups, controllers, keys, slots, authority = set(), set(), set(), set(), []
     for person in people:
         if not fields(person, PERSON, 'custodian'): continue
         slot = person['slot']
@@ -171,11 +165,11 @@ def validate(data, root, emergency=None):
         if solo:
             # The public disclosure (TRUST_MODEL.md) replaces the independence review.
             require(person['independence_review'] is None, f'slot {slot}: solo_kits has no independence review')
-        elif five and person['independence_review'] is None:
-            reviewed.append(False)
+        elif five:
+            # The public disclosure stands in for the review (P01, 10 October 2026, D10-Q03).
+            require(person['independence_review'] is None, f'slot {slot}: five_holders has no independence review (public disclosure)')
         else:
             binding(person['independence_review'], 'independence_review', controller, group=group)
-            if five: reviewed.append(True)
         key = person['key']
         if not fields(key, KEY, f'slot {slot}.key'): continue
         raw = public_key(key['public_key_base64'])
@@ -199,7 +193,6 @@ def validate(data, root, emergency=None):
         if held is not None:
             require(held[0] == controllers, 'solo_kits: the emergency intake names another controller')
             require(held[1] == groups, 'solo_kits: the emergency keys use other kits')
-    review = five_holder_review(require, reviewed) if five else None
     if five and held is not None:
         require(held[0] == controllers and held[1] == groups, 'five_holders: the emergency intake names other holders or kits')
     for ref, item in parsed.items():
@@ -208,7 +201,7 @@ def validate(data, root, emergency=None):
     require(set(parsed) == used, 'unreferenced evidence is not permitted')
     out = result(errors)
     out['custody_model'] = data['custody_model'] if data['custody_model'] in MODELS else None
-    if five and not errors: out['custody_review'] = review
+    if five and not errors: out['custody_review'] = 'public_disclosure'
     if not errors:
         # The shape of the node's upgrade policy authority (upgrade/v1/upgrade.rs): keys strictly sorted by key_id.
         out['authority_fragment'] = {'parameter_set': PARAMETER_SET, 'authority_epoch': epoch,

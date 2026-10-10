@@ -8,11 +8,10 @@ of the genesis, upgrade, freeze and resume roles
 (launch/custody/KEY_CEREMONY.md). Each packet is checked by its own checker
 under the five_holders model, then the three together: the same five
 holders and kits in all three, slot N named only kit-holder-N in kit-N,
-twenty distinct keys, one authority epoch for the emergency and upgrade
-keys (a kit replacement moves a seat's keys together) and the same review
-form in all three. Whether an outside reviewer or the public disclosure
-stands for the independence review is open (D10-Q03); the result names the
-form the packets use.
+twenty distinct keys and one authority epoch for the emergency and upgrade
+keys (a kit replacement moves a seat's keys together). No slot carries an
+independence review: the public disclosure stands in for it (P01, 10
+October 2026, D10-Q03).
 """
 import argparse
 import hashlib
@@ -24,8 +23,8 @@ import genesis_signer_intake as g
 import upgrade_custodian_intake as u
 
 SCHEMA = 'dytallix.five-holder-custody-check.v1'
-D10_Q03 = ('OPEN: the custody packet model for five holders, an outside reviewer or the public disclosure '
-           '(P01_E05_ROOT_KEY_HOLDERS_2026-10-07, unset). This check accepts either when all three packets use the same.')
+D10_Q03 = ('Approved: the five holders\' packets use the public disclosure in place of an independence review '
+           '(P01_E05_HOLDER_DISCLOSURE_2026-10-10).')
 
 
 def check(packets, roots):
@@ -40,15 +39,12 @@ def check(packets, roots):
             errors.append(f'{name}: custody_model must be {u.FIVE}')
     if isinstance(emergency, dict) and isinstance(upgrade, dict) and emergency.get('authority_epoch') != upgrade.get('authority_epoch'):
         errors.append('the emergency and upgrade keys must share one authority epoch: each kit\'s roles are replaced together')
-    reviews = {result.get('custody_review') for result in results.values()}
-    if not errors and len(reviews) != 1:
-        errors.append('the three packets must use the same review form: an outside reviewer in all, or the public disclosure in all')
     out = {'schema': SCHEMA, 'status': 'STRUCTURALLY_COMPLETE' if not errors else 'INCOMPLETE_OR_INVALID', 'errors': errors,
-           'custody_model': u.FIVE, 'custody_review': reviews.pop() if not errors else None, 'd10_q03': D10_Q03,
+           'custody_model': u.FIVE, 'custody_review': 'public_disclosure' if not errors else None, 'd10_q03': D10_Q03,
            'packets': {name: result['status'] for name, result in results.items()},
            'signature_verification_performed': False, 'identity_or_independence_verified': False, 'production_accepted': False,
            'boundary': 'Checks the three packets structurally and together: five kit holders named only by their kits, the same '
-                       'in every role, distinct keys, one epoch and one review form. Cryptographic verification, the holders\' '
+                       'in every role, distinct keys and one epoch; no independence review (the public disclosure). Cryptographic verification, the holders\' '
                        'identities and formal acceptance remain required; holders\' names stay in the custody system.'}
     if not errors:
         out['emergency_authority_fragment'] = results['emergency']['authority_fragment']

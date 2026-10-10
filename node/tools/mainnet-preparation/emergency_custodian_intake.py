@@ -96,7 +96,7 @@ def validate(data, root):
     people = data['custodians']
     if not require(isinstance(people, list) and len(people) == SIZE, 'exactly five custodians required'):
         return result(errors)
-    groups, controllers, keys, slots, reviewed = set(), set(), set(), set(), []
+    groups, controllers, keys, slots = set(), set(), set(), set()
     authority = {purpose: [] for purpose in PURPOSES}
     for person in people:
         if not fields(person, PERSON, 'custodian'): continue
@@ -118,11 +118,11 @@ def validate(data, root):
         if solo:
             # The public disclosure (TRUST_MODEL.md) replaces the independence review.
             require(person['independence_review'] is None, f'slot {slot}: solo_kits has no independence review')
-        elif five and person['independence_review'] is None:
-            reviewed.append(False)
+        elif five:
+            # The public disclosure stands in for the review (P01, 10 October 2026, D10-Q03).
+            require(person['independence_review'] is None, f'slot {slot}: five_holders has no independence review (public disclosure)')
         else:
             binding(person['independence_review'], 'independence_review', controller, group=group)
-            if five: reviewed.append(True)
         pair = person['keys']
         if not fields(pair, set(PURPOSES), f'slot {slot}.keys'): continue
         for purpose in PURPOSES:
@@ -141,14 +141,13 @@ def validate(data, root):
             if raw is not None: authority[purpose].append({'key_id': fingerprint, 'public_key_hex': raw.hex()})
     if solo:
         require(len(controllers) == 1, 'solo_kits: one controller holds every slot')
-    review = u.five_holder_review(require, reviewed) if five else None
     for ref, item in parsed.items():
         if item['kind'] == 'independence_review':
             require(text(item['reviewer_control_group']) and item['reviewer_control_group'] not in groups, ref + ': reviewer shares a custodian control group')
     require(set(parsed) == used, 'unreferenced evidence is not permitted')
     out = result(errors)
     out['custody_model'] = data['custody_model'] if data['custody_model'] in u.MODELS else None
-    if five and not errors: out['custody_review'] = review
+    if five and not errors: out['custody_review'] = 'public_disclosure'
     if not errors:
         # records.root.emergency for the genesis resolver: the node's emergency
         # policy authorities, keys strictly sorted by key_id.
