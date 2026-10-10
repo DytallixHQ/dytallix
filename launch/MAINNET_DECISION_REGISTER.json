@@ -2761,7 +2761,8 @@
             "approvals/P01_E05_DISASTER_RECOVERY_2026-10-07.json",
             "approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json",
             "approvals/P01_E05_RESTORE_2026-10-08.json",
-            "approvals/P01_E05_MONITORING_2026-10-09.json"
+            "approvals/P01_E05_MONITORING_2026-10-09.json",
+            "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json"
           ]
         },
         {
@@ -4281,6 +4282,19 @@
         "Metrics history and dashboards",
         "Live alert acceptance on the production hosts"
       ]
+    },
+    {
+      "id": "P01-2026-10-10-E05-STATUS-HEAD-AGE",
+      "approved": "2026-10-10",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json",
+      "decisions": [
+        "D12-Q02: the endpoint's status page answers 503 when the newest block is more than 60 seconds old."
+      ],
+      "question_refs": [
+        "D12-Q02"
+      ],
+      "unset": []
     },
     {
       "id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",

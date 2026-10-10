@@ -3719,6 +3719,24 @@
       "basis": null
     },
     {
+      "name": "status_max_head_age_seconds",
+      "path": "service.adapter_status_max_head_age_seconds",
+      "type_unit": "u64, seconds",
+      "code_bounds": "1..=3600; required with adapter_status_listen",
+      "bounds_ref": "node/consensus/pqc-http-adapter/src/lib.rs (--status-max-head-age-seconds); node/crates/native-supervisor/src/config.rs (adapter_status_max_head_age_seconds)",
+      "fixture_value": null,
+      "fixture_ref": null,
+      "decision": "D12-Q02",
+      "couplings": "The endpoint's status page answers 503 when the engine's newest block is older than this (monitoring v1, M2). Blocks come every 4 to 5 seconds (timeout_commit 4s, create_empty_blocks true).",
+      "notes": "Read by the independent uptime checker each minute.",
+      "tier": "operate",
+      "status": "APPROVED",
+      "proposed": 60,
+      "basis": "About 12 missed blocks: a few slow rounds do not alarm, and a halt shows within about 2 minutes.",
+      "approved": 60,
+      "approval_record": "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json"
+    },
+    {
       "name": "emergency_verifier_timeout_ms",
       "path": "emergency verifier config timeout_ms",
       "type_unit": "u64, milliseconds",

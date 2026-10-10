@@ -1,0 +1,26 @@
+{
+  "decision_id": "P01-2026-10-10-E05-STATUS-HEAD-AGE",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The status page's head age (monitoring M2)"
+  },
+  "design_ref": "../../node/docs/architecture/monitoring-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "60 seconds",
+      "rule": "The endpoint's status page answers 503 when the newest block is more than 60 seconds old: about 12 missed blocks at the chain's 4 to 5 second pace, so a few slow rounds do not alarm and an uptime checker polling each minute sees a halt within about 2 minutes."
+    }
+  ],
+  "values": {
+    "status_max_head_age_seconds": 60
+  },
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
