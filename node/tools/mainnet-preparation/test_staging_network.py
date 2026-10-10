@@ -38,6 +38,23 @@ class PlanTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             sn.sync_info(json.dumps({'result': {}}))
 
+    def test_a_swapped_signature_keeps_the_nodes_canonical_form(self):
+        # The node decodes only its canonical form (compact, its key order),
+        # so the kit drill's old-kit control must keep it to be refused for
+        # its key rather than its encoding.
+        control = (b'{"kind":"dytallix-emergency-control-v2","payload":{"schema":2,"chain_id":"c",'
+                   b'"v2":{"authority_epoch":2,"resume":null}},"signatures":[{"key_id":"aa","signature_hex":"01"},'
+                   b'{"key_id":"cc","signature_hex":"03"}]}')
+        swapped = sn.with_signature(control, 'cc', {'key_id': 'bb', 'signature_hex': '02', 'schema': 'ignored'})
+        self.assertEqual(swapped, control.replace(b'"key_id":"cc","signature_hex":"03"',
+                                                  b'"key_id":"bb","signature_hex":"02"'))
+        self.assertEqual(sn.with_signature(swapped, 'bb', {'key_id': 'cc', 'signature_hex': '03'}), control)
+        # Sorted by key ID, as the node requires.
+        resorted = sn.with_signature(control, 'aa', {'key_id': 'dd', 'signature_hex': '04'})
+        self.assertEqual([s['key_id'] for s in json.loads(resorted)['signatures']], ['cc', 'dd'])
+        with self.assertRaises(sn.Failed):
+            sn.with_signature(control, 'ee', {'key_id': 'ff', 'signature_hex': '05'})
+
     def test_cloud_init_gives_the_vm_its_address_and_the_agent(self):
         network = sn.network_config('sentry-1').decode()
         self.assertIn('addresses: [10.77.0.11/24]', network)
