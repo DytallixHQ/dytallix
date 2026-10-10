@@ -3,6 +3,7 @@
 node/docs/architecture/host-setup-v1.md). Runs on the ceremony machine.
 
   host_keys.py --plan PIN_PLAN.json --bin DIR --staging DIR --out DIR [--backup-upload FILE]
+               [--history-upload FILE]
 
 For each host in the pin plan, in a new staging node home STAGING/LABEL:
   - the peer seed (dytallix-peer-seed generate);
@@ -19,6 +20,12 @@ chain's backup code (`dytallix-root-sign backup-code`; its paper line is
 written twice and typed back) and the off-host store's write-only upload
 key, FILE (dytallix.backup-upload.v1, owner-only: endpoint, bucket, region,
 prefix, access_key_id, secret_access_key); both are sealed with its keys.
+
+With --history-upload (monitoring v1, M4b), the chain's history code is
+made once (`dytallix-root-sign history-code`; its paper line is written twice
+and typed back) and, with FILE, the store's write-only upload key for the
+hosts' metric history (the same fields), sealed with every host's keys. The
+history code opens only history; the backup code stays on the sentry.
 
 OUT receives only public files: LABEL.keys.json (dytallix.host-keys.v1: the
 public keys and each secret file's SHA-256), LABEL.sealed.json, the
@@ -40,6 +47,7 @@ PLAN_SCHEMA = 'dytallix.pin-plan.v1'
 SECRETS = ('config/pqc_peer_seed.bin', 'config/priv_validator_key.json', 'data/priv_validator_state.json')
 CHANNEL_SEED = 'config/client_channel_seed.bin'
 BACKUP_SECRETS = ('backup/code', 'backup/upload.json')
+HISTORY_SECRETS = ('history/code', 'history/upload.json')
 UPLOAD_SCHEMA = 'dytallix.backup-upload.v1'
 UPLOAD_FIELDS = ('schema', 'endpoint', 'bucket', 'region', 'prefix', 'access_key_id', 'secret_access_key')
 
@@ -94,17 +102,45 @@ def backup_secrets(plan, home, bin_dir, upload, show, read_line):
     printed = tool(bin_dir, 'dytallix-root-sign', 'backup-code', '-chain', plan['chain_id'],
                    '-out', str(directory / 'code'))
     show(printed if isinstance(printed, str) else json.dumps(printed))
-    expected = code_line((directory / 'code').read_text())
+    type_back('backup code', plan['chain_id'], code_line((directory / 'code').read_text()), show, read_line)
+
+
+def type_back(what, chain, expected, show, read_line):
+    """The founder types a printed code back from the paper."""
     for attempt in range(3):
-        show(f'Write the backup code for {plan["chain_id"]} on paper twice. Then type it back from the paper '
-             'and press Enter:')
+        show(f'Write the {what} for {chain} on paper twice. Then type it back from the paper and press Enter:')
         if code_line(read_line()) == expected:
             return
-        show('That is not the printed backup code; check every group.')
-    raise Invalid('the backup code was not typed back correctly')
+        show(f'That is not the printed {what}; check every group.')
+    raise Invalid(f'the {what} was not typed back correctly')
 
 
-def host_keys(plan, plan_host, bin_dir, staging, out, show=print, upload=None, read_line=sys.stdin.readline):
+def history_code(plan, staging, bin_dir, show, read_line):
+    """The chain's history code, made once for every host: its file's bytes."""
+    directory = Path(staging) / '.history'
+    directory.mkdir(mode=0o700)
+    printed = tool(bin_dir, 'dytallix-root-sign', 'history-code', '-chain', plan['chain_id'],
+                   '-out', str(directory / 'code'))
+    show(printed if isinstance(printed, str) else json.dumps(printed))
+    raw = (directory / 'code').read_bytes()
+    type_back('history code', plan['chain_id'], code_line(raw.decode()), show, read_line)
+    return raw
+
+
+def history_secrets(home, history):
+    """The history code and upload key, in a host's staging home."""
+    code, upload = history
+    directory = home / 'history'
+    directory.mkdir(mode=0o700)
+    os.chmod(directory, 0o700)
+    for name, raw in (('code', code), ('upload.json', (json.dumps(upload, indent=2) + '\n').encode())):
+        descriptor = os.open(directory / name, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, 'wb') as file:
+            file.write(raw)
+
+
+def host_keys(plan, plan_host, bin_dir, staging, out, show=print, upload=None, read_line=sys.stdin.readline,
+              history=None):
     label, role = plan_host['label'], plan_host['role']
     home = Path(staging) / label
     require(not home.exists(), f'{home} exists; use a new staging directory')
@@ -126,6 +162,9 @@ def host_keys(plan, plan_host, bin_dir, staging, out, show=print, upload=None, r
     if role == 'sentry' and upload is not None:
         backup_secrets(plan, home, bin_dir, upload, show, read_line)
         secrets.extend(BACKUP_SECRETS)
+    if history is not None:
+        history_secrets(home, history)
+        secrets.extend(HISTORY_SECRETS)
     secrets.sort()
     summary = {
         'schema': KEYS_SCHEMA, 'label': label, 'role': role,
@@ -144,17 +183,28 @@ def host_keys(plan, plan_host, bin_dir, staging, out, show=print, upload=None, r
     return summary
 
 
-def run(plan_path, bin_dir, staging, out, show=print, backup_upload=None, read_line=sys.stdin.readline):
+def run(plan_path, bin_dir, staging, out, show=print, backup_upload=None, read_line=sys.stdin.readline,
+        history_upload=None):
     plan = json.loads(Path(plan_path).read_bytes())
     require(plan.get('schema') == PLAN_SCHEMA, 'not a pin plan')
     upload = read_upload(backup_upload) if backup_upload else None
     require(upload is None or any(h['role'] == 'sentry' for h in plan['hosts']), 'backups need a sentry in the plan')
+    history_key = read_upload(history_upload) if history_upload else None
+    # A separate key (P01, 10 October 2026): the validator and endpoint
+    # never hold the sentry's backup upload key.
+    require(history_key is None or upload is None or history_key['access_key_id'] != upload['access_key_id'],
+            'the history upload key must be a separate key from the backup upload key')
     Path(out).mkdir(mode=0o755, exist_ok=False)
     Path(staging).mkdir(mode=0o700, exist_ok=True)
+    history = None
+    if history_key is not None:
+        show(f'== history code for {plan["chain_id"]}')
+        history = (history_code(plan, staging, bin_dir, show, read_line), history_key)
     summaries = {}
     for plan_host in plan['hosts']:
         show(f'== {plan_host["label"]} ({plan_host["role"]})')
-        summaries[plan_host['label']] = host_keys(plan, plan_host, bin_dir, staging, out, show, upload, read_line)
+        summaries[plan_host['label']] = host_keys(plan, plan_host, bin_dir, staging, out, show, upload, read_line,
+                                                  history)
     filled = json.loads(json.dumps(plan))
     for plan_host in filled['hosts']:
         summary = summaries[plan_host['label']]
@@ -170,9 +220,11 @@ def main():
     for name in ('plan', 'bin', 'staging', 'out'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--backup-upload', type=Path, help="the off-host store's write-only upload key")
+    parser.add_argument('--history-upload', type=Path, help="the store's write-only upload key for metric history")
     args = parser.parse_args()
     try:
-        summaries = run(args.plan, args.bin, args.staging, args.out, backup_upload=args.backup_upload)
+        summaries = run(args.plan, args.bin, args.staging, args.out, backup_upload=args.backup_upload,
+                        history_upload=args.history_upload)
     except (Invalid, OSError, KeyError, ValueError) as error:
         print(f'host_keys: {error}', file=sys.stderr)
         return 2

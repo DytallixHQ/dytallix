@@ -194,10 +194,27 @@ How the job judges them (built in M4a):
 - **Logs, 90 days.** journald already keeps 90 days.
 - **Alert records, permanently.** Alert records are kept by the alerting
   service, plus the founder's monthly export.
-- **Off the host (decision 6, M4b):** each host also uploads its finished
-  daily file, encrypted under the history code, to the backup store, so the
-  founder can draw dashboards on their own machine from the history. The
-  hosts are console-only.
+- **Off the host (decision 6, built in M4b):** each host also uploads its
+  finished daily file, encrypted under the history code, to the backup
+  store, so the founder can draw dashboards on their own machine from the
+  history. The hosts are console-only.
+  - **Code and key.** The key step makes the chain's history code once
+    (`dytallix-root-sign history-code`; paper line `dytallix-history-CHAIN`,
+    typed back) and seals it, with a separate write-only upload key
+    (`--history-upload`, refused if it is the backup key), with every host's
+    keys. The installer places them in `/etc/dytallix-monitor/` (root 0400).
+  - **Format** (`dytallix.history.v1`): the backup copy's AES-256-GCM chunk
+    stream under its own header (chain, host, UTC day, salt) and key domain,
+    so a copy cannot pass for another host's or day's, and neither a backup
+    nor a history copy opens as the other.
+  - **Upload.** After the heartbeat, each run encrypts the oldest finished
+    day not yet uploaded (`history-seal`) and uploads it with curl (AWS
+    Signature V4, the key on curl's standard input) as
+    `PREFIX/CHAIN/history/HOST/DAY-SHA256.bin`; it records the day only once
+    the store accepts it. The heartbeat carries `history_pending` and
+    `history_failures`.
+  - **Opening.** On the founder's machine, `dytallix-root-sign history-open
+    -paper - -in COPY -out DAY.jsonl.gz` with the code typed from paper.
 
 ## Steps
 

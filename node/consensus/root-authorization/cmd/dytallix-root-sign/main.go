@@ -40,8 +40,16 @@
 //	backup-check -paper F -in F
 //	backup-open  -paper F -in F -out DIR
 //
+// Metric history copies (node/docs/architecture/monitoring-v1.md) encrypt
+// one host's finished day of history under the chain's history code:
+//
+//	history-code  -chain ID -out PATH
+//	history-seal  -code-file F -host LABEL -day YYYY-MM-DD -in F -out PATH
+//	history-check -paper F -in F
+//	history-open  -paper F -in F -out PATH
+//
 // Outputs are never overwritten. Everything it writes except private keys,
-// a kit's paper line, unsealed files and backup codes is a public record. It cannot start a chain,
+// a kit's paper line, unsealed files and backup and history codes is a public record. It cannot start a chain,
 // consume a sequence or approve a launch: the node verifies every signature
 // again through its pinned helper.
 package main
@@ -253,6 +261,38 @@ func run(args []string, out io.Writer) error {
 			return err
 		}
 		return backupOpen(*paper, *input, *output, out)
+	case "history-code":
+		chain := flags.String("chain", "", "the chain the code is for")
+		output := flags.String("out", "", "new history code file")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return historyCode(*chain, *output, out)
+	case "history-seal":
+		code := flags.String("code-file", "", "the chain's history code file")
+		host := flags.String("host", "", "the host's pin plan label")
+		day := flags.String("day", "", "the history's UTC day, YYYY-MM-DD")
+		input := flags.String("in", "", "the day's history file")
+		output := flags.String("out", "", "new copy file")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return historySeal(*code, *host, *day, *input, *output, out)
+	case "history-check":
+		paper := flags.String("paper", "", "the history code's paper line, or - to type it")
+		input := flags.String("in", "", "the copy")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return historyCheck(*paper, *input, out)
+	case "history-open":
+		paper := flags.String("paper", "", "the history code's paper line, or - to type it")
+		input := flags.String("in", "", "the copy")
+		output := flags.String("out", "", "new file for the day's history")
+		if err := parse(flags, args[1:], 0); err != nil {
+			return err
+		}
+		return historyOpen(*paper, *input, *output, out)
 	}
 	return fmt.Errorf("unknown command %q", args[0])
 }
