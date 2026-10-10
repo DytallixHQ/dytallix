@@ -176,6 +176,9 @@ More validators join later through on-chain registration.
    production hosts (E03, the T suites, the seven simulations) with
    rehearsal identities; wipe.
 6. Freeze the release candidate (E06); the 30-day public review; fixes.
+   Until the freeze, engineering prepares the review: a review guide, issue
+   templates and the AI review, labeled as AI
+   ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)).
 7. Final input freeze: the allocation ledger (bucket, holder, validator and
    DRT bootstrap rows) and the genesis time.
 8. Reproduce, sign (three of five), install, start.
@@ -184,7 +187,7 @@ More validators join later through on-chain registration.
 
 | Item | Register | State |
 | --- | --- | --- |
-| Kit replacement control | D10-Q03, D11-Q03 | Design approved 8 October 2026; to build (K1 to K4) |
+| Kit replacement control | D10-Q03, D11-Q03 | Design approved 8 October 2026; built (K1 to K4) |
 | Custody packet model for five holders | D10-Q03 | Public disclosure, approved 10 October 2026 ([approval](approvals/P01_E05_HOLDER_DISCLOSURE_2026-10-10.json)) |
 | DRT bootstrap amount and accounts, holders included | D08-Q03 | Open |
 | Recipient rows, wallet addresses and any vesting | D08-Q01 | Holder grants approved; addresses open |

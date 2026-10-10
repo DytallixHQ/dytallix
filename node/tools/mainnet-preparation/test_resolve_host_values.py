@@ -80,6 +80,8 @@ class HostValuesTests(unittest.TestCase):
         self.proposals['values']['no_such_value'] = {'value': 1, 'status': 'PROPOSED', 'basis': 'x'}
         self.refused('unknown values')
         del self.proposals['values']['no_such_value']
+        # A genesis value, reopened: a proposal for an approved one is refused before this check.
+        self.entry('queue_max_entries')['status'] = 'OPEN'
         self.proposals['values']['queue_max_entries'] = {'value': 1, 'status': 'PROPOSED', 'basis': 'x'}
         self.refused('does not use')
 

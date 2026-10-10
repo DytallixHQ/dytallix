@@ -1,0 +1,33 @@
+{
+  "decision_id": "P01-2026-10-10-E05-QUEUE-BOUNDS",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The transaction queue's bounds and the other capacity values"
+  },
+  "reason": "The queue bounds follow from the approved capacity, about ten full blocks each, so a full queue drains in under a minute of full blocks and every pending transaction's recheck after each block stays bounded.",
+  "design_ref": "../../node/docs/architecture/mempool-v1.md",
+  "decisions": [
+    {
+      "question": "D06-Q02",
+      "selected": "Approve as proposed",
+      "rule": "The ordinary admission queue holds at most 2,000 pending transactions (queue_max_entries), 10,000,000 envelope bytes (queue_max_wire_bytes) and 2,000 signature checks (queue_max_signature_work). A full queue refuses new transactions and never evicts (mempool v1, rule 5). T05 measures them on the staging hosts and can return a value for a new approval."
+    },
+    {
+      "question": "D06-Q02, D12-Q01",
+      "selected": "Draft proposals now",
+      "rule": "Engineering proposes the seven remaining capacity values from the approved capacity and the compiled ceilings, for P01 review: the engine mempool's size and bytes, the per-peer send and receive rates, and the loopback adapter's and client channel's connection limits (E05_VALUES.json, `proposed` and `basis`). They stay OPEN until P01 approves them; T05 measures them on the staging hosts."
+    }
+  ],
+  "unset": [
+    "The seven proposed values (mempool_size, mempool_max_txs_bytes, p2p_send_rate, p2p_recv_rate, adapter_max_connections, channel_max_connections, channel_max_connections_per_address)",
+    "The T05 capacity measurements on the staging hosts"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

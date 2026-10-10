@@ -20,8 +20,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
   | measure | 18 | Set from measurements on dedicated staging hosts |
   | derived | 25 | Fixed by an approved rule or another value |
 
-  Status (10 October 2026): 189 approved, 24 derived by the genesis builder
-  (`DERIVED`), 2 dropped (`DROPPED`) and 10 still to measure on the hosts.
+  Status (10 October 2026): 192 approved, 24 derived by the genesis builder
+  (`DERIVED`), 2 dropped (`DROPPED`) and 7 still open, each proposed for
+  review and measured on the hosts.
 
   `proposed` is a proposal for review, never an approved value. Approved
   values are recorded under [approvals/](approvals/) and marked in the file.
@@ -111,11 +112,15 @@ Earlier sets cover `timeout_propose` 3 s, `timeout_prevote` and `timeout_precomm
 
 ## Measured values (17)
 
-The emergency, upgrade and handover validity windows and maximum anchor ages
-(from measured multi-party signing and propagation; labeled 720-block
-placeholders in the rehearsals), mempool, queue and peer capacity,
-adapter and channel connection limits and the emergency verifier timeout.
-They need the hosts first. The fault assumptions are a recorded statement
+The emergency, upgrade and handover validity windows and maximum anchor
+ages and the emergency verifier timeout were approved on 6 October 2026, and
+the admission queue bounds on 10 October 2026: at most 2,000 pending
+transactions, 10,000,000 envelope bytes and 2,000 signature checks
+([approval](approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json)). The engine
+mempool's size and bytes, the peer send and receive rates and the adapter
+and channel connection limits are proposed for review in
+[E05_VALUES.json](E05_VALUES.json). T05 measures all of them on the hosts
+and can return a value for a new approval. The fault assumptions are a recorded statement
 instead ([P01, 3 October 2026](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json)): less than one third of voting power is
 faulty, and with one validator no fault is tolerated.
 

@@ -1,22 +1,6 @@
 {
   "schema": "dytallix.genesis-proposals.v1",
   "rule": "Rehearsal inputs only. Every entry is an engineering PROPOSAL or a MEASURE_PLACEHOLDER awaiting measurement; none is approved or a production value. The resolver refuses an entry for a value that is already approved.",
-  "as_of": "2026-10-06",
-  "values": {
-    "queue_max_entries": {
-      "value": 10000,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "Set by the capacity tests (T05)."
-    },
-    "queue_max_signature_work": {
-      "value": 10000,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "Set by the capacity tests (T05)."
-    },
-    "queue_max_wire_bytes": {
-      "value": 64000000,
-      "status": "MEASURE_PLACEHOLDER",
-      "basis": "Set by the capacity tests (T05)."
-    }
-  }
+  "as_of": "2026-10-10",
+  "values": {}
 }

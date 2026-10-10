@@ -1,0 +1,29 @@
+{
+  "decision_id": "P01-2026-10-10-E06-REVIEW-ORDER",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "What engineering does while the holders are recruited and the hosts chosen"
+  },
+  "reason": "The 30-day public review starts when the release candidate is frozen. Freezing after the staging runs means the review covers a candidate that has passed them, rather than one that staging fixes would change again.",
+  "design_ref": "../GENESIS_FRAMEWORK.md#6-order-of-work",
+  "decisions": [
+    {
+      "question": "D14-Q01, D14-Q02",
+      "selected": "Prepare the public review",
+      "rule": "The order of work stands: the release candidate is frozen (E06) after the holders make their kits, the custody packets are checked and the staging runs on the production hosts are done (genesis framework, order of work, steps 2 to 5). Until then engineering prepares the review: a review guide and issue templates for the 30-day public review, and the adversarial AI review, labeled as AI, run on the current code so that its findings are fixed or answered on the record before the freeze."
+    }
+  ],
+  "unset": [
+    "Bug bounty tiers and amounts (a later P01 decision)",
+    "The release candidate commit and tag (E06 freeze)",
+    "The review's start date, set by the freeze"
+  ],
+  "does_not_authorize": [
+    "the E06 freeze or any release tag",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
