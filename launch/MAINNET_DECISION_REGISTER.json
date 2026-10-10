@@ -2763,7 +2763,8 @@
             "approvals/P01_E05_RESTORE_2026-10-08.json",
             "approvals/P01_E05_MONITORING_2026-10-09.json",
             "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json",
-            "approvals/P01_E05_METRIC_SET_2026-10-10.json"
+            "approvals/P01_E05_METRIC_SET_2026-10-10.json",
+            "approvals/P01_E05_ALERT_RULES_2026-10-10.json"
           ]
         },
         {
@@ -4309,6 +4310,26 @@
         "D12-Q02"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-10-E05-ALERT-RULES",
+      "approved": "2026-10-10",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_ALERT_RULES_2026-10-10.json",
+      "decisions": [
+        "D12-Q02: the fourteen alert rules of monitoring v1 and their severities, as proposed; a severity 1 alert firing 15 minutes also goes to the escalation URL; metric history is kept 396 days (E05 values monitor.*).",
+        "D12-Q02: each host uploads its daily metric history, encrypted under a separate history code with its own write-only upload key; the backup code stays on the sentry (M4b).",
+        "D12-Q02: webhook settings are installed and replaced by the installer's monitor-settings command, root-only, not sealed with the node keys and never in the bundle; replaces the sealed settings of P01-2026-10-09-E05-MONITORING."
+      ],
+      "question_refs": [
+        "D12-Q02"
+      ],
+      "unset": [
+        "The services and accounts (A22)",
+        "The backup person, outside the repository",
+        "The history code, upload key and commands (M4b)",
+        "Live alert acceptance on the production hosts"
+      ]
     },
     {
       "id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",

@@ -40,18 +40,39 @@ Targets and severities are the
    severity 1 alert not acknowledged within 15 minutes also goes to one
    backup person, a root key holder named outside this repository.
 4. **Vendor-neutral delivery.** Heartbeats and alerts go to webhook URLs held
-   in each host's sealed settings. The founder chooses the free services and
+   in each host's settings. The founder chooses the free services and
    creates their accounts later (artifact A22).
+
+## Decisions (P01, 10 October 2026)
+
+[Approval](../../../launch/approvals/P01_E05_ALERT_RULES_2026-10-10.json):
+
+5. **The alert rules as proposed.** The fourteen rules and severities below,
+   escalation after 15 minutes and 396 days of history are E05 values
+   `monitor.*`.
+6. **History off the host, under its own code.** Each host uploads its
+   finished daily history file, encrypted. The validator and endpoint do
+   not get the chain's backup code: a separate history code (its own paper
+   line) and write-only upload key are sealed on every host (M4b).
+7. **Replaceable settings.** The webhook URLs are not sealed with the node
+   keys, so changing a service never touches them: the installer's
+   `monitor-settings` command installs them from the founder's own media,
+   root-only, and they never enter the bundle. This replaces "sealed
+   settings" in decision 4.
 
 ## Rule
 
 ### The monitor job
 
-- **Where.** `dytallix-monitor.timer` and `dytallix-monitor.service` on every
-  host, in the host bundle. They run `python3 -I -B monitor.py` from the
-  release as their own unprivileged user. It needs read access to
-  `/var/lib/dytallix/metrics` (already world-readable), `/proc` and the
-  node's unit state.
+- **Where.** `dytallix-monitor.timer` (every minute, on the minute) and the
+  oneshot `dytallix-monitor.service` on every host, in the host bundle. They
+  run `python3 -I -B monitor.py --config monitor.json` from the release as
+  root with an empty capability set, `NoNewPrivileges` and a read-only
+  system; it can write only `/var/lib/dytallix-monitor`. Root without
+  capabilities, like the backup job, so it reads its root-only settings and
+  the backup job's state without changing their modes; it reads
+  `/var/lib/dytallix/metrics` (world-readable), `/proc` and the node's unit
+  state (`systemctl show`).
 - **Reads, each minute:**
   - both metric files and their write times;
   - CPU (`/proc/stat`), memory (`/proc/meminfo`), the data disk's free space
@@ -61,9 +82,17 @@ Targets and severities are the
 - **State.** `/var/lib/dytallix-monitor` keeps the previous sample for rates,
   each alert's state (firing or resolved, and since when), and the metric
   history (see Retention).
-- **Sends**, outbound only, through the host's `curl`. TLS stays in `curl`
-  and out of every release binary, as the backup job's upload already does
-  (G35):
+- **Settings.** `/etc/dytallix-monitor/webhooks.json`
+  (`dytallix.monitor-settings.v1`: the host's label, `heartbeat_url`,
+  `alert_url` and `escalation_url` or null), root 0400, installed and
+  replaced by `monitor-settings.sh FILE`. Each URL is https (plain http only
+  to a stand-in on the host). Without them the job still records history
+  and alert state and sends nothing; the service, missing the heartbeat,
+  alerts.
+- **Sends**, outbound only, through the host's `curl`, each URL and payload
+  passed in curl's configuration on its standard input, never on a command
+  line. TLS stays in `curl` and out of every release binary, as the backup
+  job's upload already does (G35):
   - a heartbeat every run to the host's heartbeat URL. The service alerts
     when it stops, which covers a host down, a monitor down and failed
     collection;
@@ -98,7 +127,7 @@ Built in M3 (P01, 10 October 2026,
 [metrics v1](metrics-v1.md), decision 3): the application's transaction,
 gas, evidence, root control and signature verification measurements and the
 engine's signing time. Restarts, host resources and RPC latency come with
-the monitor job (M4).
+the monitor job (M4a).
 
 | Measurement | Source |
 | --- | --- |
@@ -116,7 +145,8 @@ the monitor job (M4).
 
 ### Alerts (G28, Day 9)
 
-Every threshold here is a proposal (E05 values, approved in step M4).
+Approved as proposed (P01, 10 October 2026; E05 values `monitor.*`). What to
+do for each is in the [monitoring runbook](../operations/monitoring.md).
 
 | Alert | Rule (proposed) | Severity | Where |
 | --- | --- | --- | --- |
@@ -138,6 +168,24 @@ Every threshold here is a proposal (E05 values, approved in step M4).
 A divergence between the validator and the sentry stops the sentry, which
 the halt and stale-metric alerts catch on the sentry.
 
+How the job judges them (built in M4a):
+- **Halt:** the time since `dytallix_app_height` last changed.
+- **Windows** (missed blocks, signature failures, restarts): the rise of the
+  counter since the oldest sample in the window; a counter that went back
+  (a process restart) counts from zero.
+- **Supply:** DRT `total` against `genesis + emitted - burned` each run; DGT
+  `issued` against the first value the job saw, which stays firing until an
+  operator resets it. Emission beyond the schedule is a rise of `emitted`
+  above the ceiling per block (the approved `max_udrt` over `epoch_blocks`,
+  rounded up: 1,000,000,000 uDRT) times the blocks committed; a burn without
+  fees is a rise of `burned` while no transaction committed, judged only
+  within one node process.
+- **Staking:** staked DGT now against the sample an hour ago.
+- **Restarts:** a new `InvocationID` of `dytallix-node.service`; the unit
+  never restarts itself.
+- **Validator outage, monitoring down:** the alerting service's heartbeat
+  checks, one per host.
+
 ### Retention
 
 - **Metrics, 13 months.** Each host's job appends one compact line per
@@ -146,9 +194,10 @@ the halt and stale-metric alerts catch on the sentry.
 - **Logs, 90 days.** journald already keeps 90 days.
 - **Alert records, permanently.** Alert records are kept by the alerting
   service, plus the founder's monthly export.
-- **Proposed for step M4:** each host also uploads its daily file, encrypted,
-  to the backup store, so the founder can draw dashboards on their own
-  machine from the history. The hosts are console-only.
+- **Off the host (decision 6, M4b):** each host also uploads its finished
+  daily file, encrypted under the history code, to the backup store, so the
+  founder can draw dashboards on their own machine from the history. The
+  hosts are console-only.
 
 ## Steps
 
@@ -157,7 +206,8 @@ the halt and stale-metric alerts catch on the sentry.
 | M1 | This design and the decisions | None |
 | M2 | The status page's 503 on a stale head; `status_max_head_age` | Status page |
 | M3 | The missing application and engine measurements | New metrics |
-| M4 | The monitor job, its timer, sealed webhook settings, alert rules and history; the threshold values | Host bundle |
+| M4a | The monitor job, its timer, the settings command, alert rules, escalation and local history; the threshold values | Host bundle |
+| M4b | The history code and upload key, `dytallix-root-sign` history commands, the daily encrypted upload | Host bundle, key step |
 | M5 | Staging drill in CI: a stand-in alert receiver; a halt, a restart loop, a full disk and a stopped monitor each alert and resolve | Evidence |
 | M6 | On the production hosts: the services chosen, each alert exercised, delivery, acknowledgement and escalation recorded (T-phase) | Acceptance evidence |
 

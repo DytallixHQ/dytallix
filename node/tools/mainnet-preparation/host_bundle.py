@@ -11,7 +11,7 @@ Inputs, all public:
 
 The bundle is one deterministic tar archive, everything under
 dytallix-host/: the install manifest, install.sh, stage.sh, switch.sh,
-restore.sh, wipe.sh and host_install.py, the release binaries in bin/, the files in files/ and the
+restore.sh, monitor-settings.sh, wipe.sh and host_install.py, the release binaries in bin/, the files in files/ and the
 sealed keys. Every file is checked against the manifest first, and the
 sealed keys must name exactly the manifest's secret files. It prints the
 bundle's SHA-256, to note on paper for the console, and writes it beside
@@ -31,6 +31,7 @@ import host_install  # noqa: E402
 
 PREFIX = 'dytallix-host'
 SCRIPTS = (('install.sh', 0o755), ('stage.sh', 0o755), ('switch.sh', 0o755), ('restore.sh', 0o755),
+           ('monitor-settings.sh', 0o755),
            ('wipe.sh', 0o755), ('host_install.py', 0o644))
 
 
