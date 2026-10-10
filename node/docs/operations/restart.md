@@ -4,9 +4,7 @@ Runbook v1 ([index](README.md); design in
 [restart v1](../architecture/restart-v1.md)). The signers are the upgrade
 keys of the five key kits ([key ceremony](../../../launch/custody/KEY_CEREMONY.md));
 the fixed release is built and frozen as in [release](../../../release/README.md).
-Still unset (D14-Q03, E05, P02):
-- signing a restart artifact with the kits (see step 5);
-- the incident channel.
+Still unset (D14-Q03, E05, P02): the incident channel.
 
 Use this procedure when the chain is halted at height H on every validator
 and the fix is new code. It covers two cases:
@@ -44,8 +42,9 @@ the fixed release with the authorization.
      height H−1.
    - It reads the committed checkpoint, the active release, the next
      handover sequence, the emergency history and any pending admission.
-   - It writes `restart-unsigned.json` and `restart-artifact.bin`, the exact
-     bytes to sign.
+   - It writes `restart-unsigned.json`, `restart-artifact.bin`, the exact
+     bytes to sign, and `restart-request.json`, the signing request
+     (`dytallix.control-request.v1`) with the upgrade keys in force there.
    - It prints the sequence, the halted height and the artifact's SHA-512.
 4. **Compare across nodes.** Run step 3 on at least two nodes (under the
    solo launch profile, the validator and the sentry). The payloads must be identical; a difference means the nodes
@@ -54,16 +53,30 @@ the fixed release with the authorization.
 ## Signing
 
 5. **The upgrade keys sign.** At least the handover threshold of upgrade
-   keys (three key kits under the solo launch profile) sign
-   `restart-artifact.bin` under the root `upgrade` action, with the printed
-   sequence and the height window H..H. `dytallix-root-sign sign-control`
-   signs freezes, resumes, upgrades and handovers
-   ([control signing](../mainnet/control-signing.md)) but does not yet take
-   a restart artifact; that is an open follow-up.
-6. **Assemble the file.** Add each signature to `signatures` in
-   `restart-unsigned.json` as `{"key_id": ..., "signature_hex": ...}`,
-   sorted by key ID. The file may stay formatted; only the payload is
-   signed.
+   keys (three key kits under the solo launch profile) sign the request
+   offline, as any root control ([control signing](../mainnet/control-signing.md)):
+   ```sh
+   dytallix-root-sign show-control -request restart-request.json
+   dytallix-root-sign sign-control -request restart-request.json \
+     -private-key /mnt/kit/kit-N-upgrade.key -public-key /mnt/public/kit-N-upgrade.json \
+     -operation restart -sequence S -out signatures/kit-N.sig.json
+   ```
+   The signer reads what it shows from the artifact: the halted height H
+   (the window is H..H, under the root `upgrade` action), the source and
+   target releases, block H's hash or that it was never decided, and the
+   bound receipts and evidence. Check them against steps 1 to 4. It refuses
+   a request whose halted height is not the committed head plus one.
+6. **Assemble the file** on the stopped node:
+   ```sh
+   dytallix-state-check --config APPLICATION_CONFIG --genesis NATIVE_GENESIS --db HOME/appdb \
+     --restart-assemble restart-request.json --restart-signatures signatures --restart-output DIR
+   ```
+   It counts only the upgrade keys in force on this node (never the
+   request's copy), needs the threshold to the maximum, sorts the signatures
+   and checks the result with the node's decoder. It writes
+   `restart-authorization.json` and prints its SHA-256 and size for the pin
+   (step 8). It does not verify the signatures; the application does at
+   startup.
 
 ## Restart
 

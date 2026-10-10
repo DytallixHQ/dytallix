@@ -84,6 +84,9 @@ var controlKinds = map[string]controlKind{
 	// Root kit replacement v1: the current upgrade keys sign, and the new
 	// kit's keys sign the same request as their proofs of possession.
 	ReplacementKind: {"DYTALLIX/ROOT-KIT-REPLACEMENT/v1\x00", Upgrade, "replacement"},
+	// Restart v1: the upgrade keys switch the active release at the halted
+	// height, built on a stopped node by dytallix-state-check.
+	"dytallix-release-restart-v1": {"DYTALLIX/RELEASE-RESTART/v1\x00", Upgrade, "restart"},
 }
 
 // ReplacementKind is the kit replacement control's kind.
@@ -180,6 +183,26 @@ func (r ControlRequest) Check() (Envelope, ControlSummary, error) {
 		if action != "freeze" && action != "resume" {
 			return fail("unknown emergency action")
 		}
+	case "restart":
+		// Signed for the halted height alone: the window is that one block.
+		summary.Operation = "restart"
+		summary.AnchorHeight, ok3 = numberField(payload["parent_height"])
+		summary.AnchorAppHash, ok4 = textField(payload["parent_app_hash"])
+		summary.NotBefore, ok5 = numberField(payload["halted_height"])
+		summary.NotAfter = summary.NotBefore
+		ok6 = ok3 && ok5 && summary.NotBefore == summary.AnchorHeight+1
+		add("source_release_sha512", payload["source_release_sha512"])
+		add("target_release_sha512", payload["target_release_sha512"])
+		add("authority_epoch", payload["authority_epoch"])
+		add("state_schema", payload["state_schema"])
+		if payload["halted_block_hash"] == nil {
+			add("halted_block_hash", "none: block H was never decided")
+		} else {
+			add("halted_block_hash", payload["halted_block_hash"])
+		}
+		add("emergency_receipt_sha256", payload["emergency_receipt_sha256"])
+		add("pending_admission_receipt_sha256", payload["pending_admission_receipt_sha256"])
+		add("evidence_sha256", payload["evidence_sha256"])
 	case "replacement":
 		summary.Operation = "kit-replacement"
 		summary.AnchorHeight, ok3 = numberField(payload["anchor_height"])

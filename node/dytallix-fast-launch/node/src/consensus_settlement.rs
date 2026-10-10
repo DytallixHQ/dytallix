@@ -962,19 +962,23 @@ pub fn restart_payload(
     halted_block_hash: Option<String>,
     evidence_sha256: &str,
 ) -> Result<handover::restart::Payload> {
-    let StoppedCheck::Passed(info) = check_stopped(path, config, genesis_bytes)? else {
-        anyhow::bail!("A restart needs committed state");
-    };
-    let policy = config
-        .release_handover
-        .as_ref()
-        .context("A restart requires a handover policy")?;
+    Ok(restart_inputs(path, config, genesis_bytes, target_release_sha512, halted_block_hash, evidence_sha256)?.0)
+}
+
+/// The unsigned restart payload and the handover policy it is signed under
+/// (see `restart_policy`), for the signing request.
+pub fn restart_inputs(
+    path: &Path,
+    config: &ConsensusConfig,
+    genesis_bytes: &[u8],
+    target_release_sha512: &str,
+    halted_block_hash: Option<String>,
+    evidence_sha256: &str,
+) -> Result<(handover::restart::Payload, handover::Policy)> {
+    let (info, policy) = restart_checkpoint(path, config, genesis_bytes)?;
     let storage = Storage::open_read_only(path.to_path_buf())?;
     let state = handover_state(&storage, config)?.context("Handover state missing")?;
-    let authority = root_record(&storage)?;
-    let epoch = crate::root_authority::at(authority.as_ref(), info.height.saturating_add(1))?;
-    let policy = crate::root_authority::handover_policy(policy, epoch)?;
-    Ok(handover::restart::Payload {
+    let payload = handover::restart::Payload {
         schema: 1,
         chain_id: policy.chain_id.clone(),
         genesis_sha256: policy.genesis_sha256.clone(),
@@ -994,7 +998,39 @@ pub fn restart_payload(
             .pending()
             .map(|pending| pending.admission_receipt_sha256.clone()),
         evidence_sha256: evidence_sha256.to_owned(),
-    })
+    };
+    Ok((payload, policy))
+}
+
+/// The handover policy a restart of a stopped node is signed under: the
+/// configuration's, with the upgrade keys of the root authority epoch in
+/// force at the halted height (root kit replacement v1). Assembly checks the
+/// signatures against it, never against a request's copy.
+pub fn restart_policy(
+    path: &Path,
+    config: &ConsensusConfig,
+    genesis_bytes: &[u8],
+) -> Result<handover::Policy> {
+    Ok(restart_checkpoint(path, config, genesis_bytes)?.1)
+}
+
+fn restart_checkpoint(
+    path: &Path,
+    config: &ConsensusConfig,
+    genesis_bytes: &[u8],
+) -> Result<(Info, handover::Policy)> {
+    let StoppedCheck::Passed(info) = check_stopped(path, config, genesis_bytes)? else {
+        anyhow::bail!("A restart needs committed state");
+    };
+    let policy = config
+        .release_handover
+        .as_ref()
+        .context("A restart requires a handover policy")?;
+    let storage = Storage::open_read_only(path.to_path_buf())?;
+    let authority = root_record(&storage)?;
+    let epoch = crate::root_authority::at(authority.as_ref(), info.height.saturating_add(1))?;
+    let policy = crate::root_authority::handover_policy(policy, epoch)?.into_owned();
+    Ok((info, policy))
 }
 
 /// What a stopped node's read-only check found.

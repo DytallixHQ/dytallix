@@ -5,6 +5,9 @@
 //! sign-control`), and assembled here into the exact transaction the node
 //! admits. Preparation chooses nothing the node checks for itself: every
 //! field comes from the configuration, the status or the operator's digests.
+//! A restart on a fixed release after a halt (restart v1) is signed the same
+//! way, but prepared and assembled on the stopped node (`restart_request`,
+//! `assemble_restart`, used by `dytallix-state-check`).
 //!
 //! The keys that sign are those of the root authority epoch in force at the
 //! next block (root kit replacement v1): the configuration's until a kit
@@ -835,6 +838,9 @@ pub fn assemble(
             let epoch = Some(payload.authority_epoch);
             (current.keys.upgrade.clone(), policy.max_signatures, epoch, Some(payload.keys))
         }
+        handover::restart::KIND => {
+            bail!("A restart is assembled on the stopped node: dytallix-state-check --restart-assemble")
+        }
         other => bail!("Unsupported control kind {other}"),
     };
     if let (Some(current), Some(epoch)) = (current, epoch) {
@@ -844,60 +850,11 @@ pub fn assemble(
             current.authority_epoch
         );
     }
-    let allowed: BTreeSet<&str> = authority.keys.iter().map(|k| k.key_id.as_str()).collect();
     let provers: BTreeSet<&str> = proofs
         .iter()
         .flat_map(|keys| keys.each().map(|key| key.key_id.as_str()))
         .collect();
-    let mut chosen = std::collections::BTreeMap::new();
-    let mut proved = std::collections::BTreeMap::new();
-    for record in signatures {
-        ensure!(
-            record.schema == SIGNATURE_SCHEMA,
-            "Unsupported signature schema"
-        );
-        ensure!(
-            record.artifact_sha512 == request.envelope.artifact_sha512
-                && record.sequence == request.envelope.sequence,
-            "Signature {} is for another control",
-            record.key_id
-        );
-        let target = if allowed.contains(record.key_id.as_str()) {
-            &mut chosen
-        } else if provers.contains(record.key_id.as_str()) {
-            &mut proved
-        } else {
-            bail!("Key {} is not in this control's authority", record.key_id)
-        };
-        lower_hex(&record.signature_hex, SIGNATURE_HEX / 2, "A signature")?;
-        ensure!(
-            target
-                .insert(record.key_id.clone(), record.signature_hex.clone())
-                .is_none(),
-            "Key {} signed twice",
-            record.key_id
-        );
-    }
-    ensure!(
-        chosen.len() >= authority.threshold && chosen.len() <= max_signatures,
-        "{} signatures given; this control needs {} to {}",
-        chosen.len(),
-        authority.threshold,
-        max_signatures
-    );
-    ensure!(
-        proved.len() == provers.len(),
-        "{} of the {} new keys signed; each new key signs the request as its proof",
-        proved.len(),
-        provers.len()
-    );
-    let signatures: Vec<emergency::ControlSignature> = chosen
-        .into_iter()
-        .map(|(key_id, signature_hex)| emergency::ControlSignature {
-            key_id,
-            signature_hex,
-        })
-        .collect();
+    let (signatures, proved) = choose(request, signatures, &authority, max_signatures, &provers)?;
     // Re-encode through the node's types, then let its decoder refuse anything
     // it would not admit as a control.
     let bytes = match request.kind.as_str() {
@@ -967,6 +924,153 @@ pub fn assemble(
             bytes
         }
     };
+    Ok(bytes)
+}
+
+/// The signatures of the authority's keys, sorted by key ID, between the
+/// threshold and the maximum, and each new key's proof (a kit replacement).
+fn choose(
+    request: &Request,
+    signatures: &[SignatureRecord],
+    authority: &emergency::AuthorityPolicy,
+    max_signatures: usize,
+    provers: &BTreeSet<&str>,
+) -> Result<(
+    Vec<emergency::ControlSignature>,
+    std::collections::BTreeMap<String, String>,
+)> {
+    let allowed: BTreeSet<&str> = authority.keys.iter().map(|k| k.key_id.as_str()).collect();
+    let mut chosen = std::collections::BTreeMap::new();
+    let mut proved = std::collections::BTreeMap::new();
+    for record in signatures {
+        ensure!(
+            record.schema == SIGNATURE_SCHEMA,
+            "Unsupported signature schema"
+        );
+        ensure!(
+            record.artifact_sha512 == request.envelope.artifact_sha512
+                && record.sequence == request.envelope.sequence,
+            "Signature {} is for another control",
+            record.key_id
+        );
+        let target = if allowed.contains(record.key_id.as_str()) {
+            &mut chosen
+        } else if provers.contains(record.key_id.as_str()) {
+            &mut proved
+        } else {
+            bail!("Key {} is not in this control's authority", record.key_id)
+        };
+        lower_hex(&record.signature_hex, SIGNATURE_HEX / 2, "A signature")?;
+        ensure!(
+            target
+                .insert(record.key_id.clone(), record.signature_hex.clone())
+                .is_none(),
+            "Key {} signed twice",
+            record.key_id
+        );
+    }
+    ensure!(
+        chosen.len() >= authority.threshold && chosen.len() <= max_signatures,
+        "{} signatures given; this control needs {} to {}",
+        chosen.len(),
+        authority.threshold,
+        max_signatures
+    );
+    ensure!(
+        proved.len() == provers.len(),
+        "{} of the {} new keys signed; each new key signs the request as its proof",
+        proved.len(),
+        provers.len()
+    );
+    let signatures = chosen
+        .into_iter()
+        .map(|(key_id, signature_hex)| emergency::ControlSignature {
+            key_id,
+            signature_hex,
+        })
+        .collect();
+    Ok((signatures, proved))
+}
+
+/// The signing request for a restart on a fixed release (restart v1): the
+/// payload `dytallix-state-check` built from the stopped node, under the
+/// handover policy in force there. The upgrade keys sign it under the
+/// `upgrade` action, with the window the halted height alone.
+pub fn restart_request(
+    policy: &handover::Policy,
+    payload: &handover::restart::Payload,
+) -> Result<Request> {
+    let artifact = handover::restart::artifact_bytes(payload)?;
+    let height = payload.halted_height;
+    Ok(Request {
+        schema: REQUEST_SCHEMA.into(),
+        operation: "restart".into(),
+        kind: handover::restart::KIND.into(),
+        anchor_height: payload.parent_height,
+        anchor_app_hash: payload.parent_app_hash.clone(),
+        payload: serde_json::to_value(payload)?,
+        envelope: Envelope {
+            chain_id: payload.chain_id.clone(),
+            action: "upgrade".into(),
+            sequence: payload.sequence,
+            not_before_height: height,
+            not_after_height: height,
+            artifact_sha512: hex::encode(Sha512::digest(&artifact)),
+        },
+        artifact_hex: hex::encode(artifact),
+        authority: Authority {
+            purpose: "upgrade".into(),
+            threshold: policy.authority.threshold,
+            max_signatures: policy.max_signatures,
+            keys: policy.authority.keys.clone(),
+        },
+    })
+}
+
+/// Assembles a restart authorization from its request and signatures. Only
+/// keys of `policy`, the handover policy in force on the stopped node
+/// (`consensus_settlement::restart_policy`), count; the payload must be the
+/// signed artifact and name that policy and epoch. The node's decoder checks
+/// the result; the application verifies the signatures with the root helper
+/// when it starts with the authorization.
+pub fn assemble_restart(
+    policy: &handover::Policy,
+    request: &Request,
+    signatures: &[SignatureRecord],
+) -> Result<Vec<u8>> {
+    ensure!(
+        request.schema == REQUEST_SCHEMA && request.kind == handover::restart::KIND,
+        "Not a restart signing request"
+    );
+    let artifact = hex::decode(&request.artifact_hex).context("Request artifact hex")?;
+    ensure!(
+        hex::encode(Sha512::digest(&artifact)) == request.envelope.artifact_sha512,
+        "The request's artifact digest differs from its artifact"
+    );
+    let payload: handover::restart::Payload = serde_json::from_value(request.payload.clone())?;
+    ensure!(
+        handover::restart::artifact_bytes(&payload)? == artifact,
+        "The payload is not the signed artifact"
+    );
+    ensure!(
+        payload.policy_sha256 == policy.sha256()? && payload.authority_epoch == policy.authority_epoch,
+        "The request names authority epoch {}, but epoch {} is in force on this node; build it again",
+        payload.authority_epoch,
+        policy.authority_epoch
+    );
+    let (signatures, _) = choose(
+        request,
+        signatures,
+        &policy.authority,
+        policy.max_signatures,
+        &BTreeSet::new(),
+    )?;
+    let bytes = serde_json::to_vec(&handover::restart::Authorization {
+        kind: handover::restart::KIND.into(),
+        payload,
+        signatures,
+    })?;
+    handover::restart::decode_authorization(policy, &bytes)?;
     Ok(bytes)
 }
 

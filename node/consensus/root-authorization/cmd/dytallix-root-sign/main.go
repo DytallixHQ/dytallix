@@ -19,7 +19,8 @@
 //	verify-proof -proof F
 //
 // Root controls (node/docs/mainnet/control-signing.md) are signed offline,
-// one key at a time, from the request dytallix-control prepares:
+// one key at a time, from the request dytallix-control prepares (for a
+// restart after a halt, dytallix-state-check on the stopped node):
 //
 //	show-control   -request F
 //	sign-control   -request F -private-key F -public-key F -operation OP -sequence N -out PATH

@@ -790,8 +790,33 @@ fn restart_resumes_a_halted_chain_on_the_running_release() {
     let built = restart_payload(&db, &f.config, &f.genesis, &running, Some(halted.hash.clone()), &"35".repeat(32))
         .unwrap();
     assert_eq!(built, signed.payload);
+    // The operator's signing request, signed as `dytallix-root-sign
+    // sign-control` signs it and assembled on the stopped node: the
+    // authorization the node opens with below.
+    let (payload, policy) =
+        restart_inputs(&db, &f.config, &f.genesis, &running, Some(halted.hash.clone()), &"35".repeat(32))
+            .unwrap();
+    let request = crate::control_request::restart_request(&policy, &payload).unwrap();
+    let artifact = hex::decode(&request.artifact_hex).unwrap();
+    let signature = signature(&root, &artifact, request.envelope.sequence, request.envelope.not_before_height,
+        31, "upgrade-31", "upgrade");
+    let record = crate::control_request::SignatureRecord {
+        schema: crate::control_request::SIGNATURE_SCHEMA.into(),
+        key_id: signature.key_id,
+        artifact_sha512: request.envelope.artifact_sha512.clone(),
+        sequence: request.envelope.sequence,
+        signature_hex: signature.signature_hex,
+    };
+    let assembled = crate::control_request::assemble_restart(
+        &restart_policy(&db, &f.config, &f.genesis).unwrap(),
+        &request,
+        &[record],
+    )
+    .unwrap();
+    let assembled: handover::restart::Authorization = serde_json::from_slice(&assembled).unwrap();
+    assert_eq!(assembled.payload, signed.payload);
     // A formatted file is accepted: the signatures bind the payload.
-    let bound = serde_json::to_vec_pretty(&signed).unwrap();
+    let bound = serde_json::to_vec_pretty(&assembled).unwrap();
 
     // A restart bound to another block opens, but refuses block 3.
     let mut refusing = open_restart(&root, &f, &db, other_block).unwrap();

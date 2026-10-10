@@ -123,8 +123,9 @@ Each execution record holds:
 - **Restart on new code.** A halt that needs new code resumes only through a
   root-signed restart authorization ([restart.md](restart.md)), signed by
   three of the upgrade keys (the kits' upgrade keys under the solo launch
-  profile). `dytallix-root-sign sign-control` does not yet take a restart
-  artifact; that is an open follow-up.
+  profile). The stopped node writes the signing request and assembles the
+  signed file (`dytallix-state-check`); the kits sign it offline with
+  `dytallix-root-sign sign-control`, as other root controls.
 - **Rejoin.** A node whose database is set aside rejoins by state sync from
   operator-supplied light blocks (state sync v1: the plan's `state_sync` and
   the supervisor's `state_sync.light_blocks`), or by block sync from the

@@ -100,3 +100,15 @@ func TestShowKitReplacement(t *testing.T) {
 		}
 	}
 }
+
+// A restart request shows the halted height as its whole window, the
+// releases and who signs: the upgrade keys.
+func TestShowRestart(t *testing.T) {
+	out := runOK(t, "show-control", "-request", filepath.Join("..", "..", "testdata", "control-request-restart.json"))
+	for _, want := range []string{"operation        restart", "window           121 to 121", "target_release_sha512",
+		"halted_block_hash", "signers          3 of the 5 upgrade keys"} {
+		if !strings.Contains(out, want) {
+			t.Fatal(out)
+		}
+	}
+}
