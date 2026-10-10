@@ -111,5 +111,6 @@
       "max_bytes": 8192
     }
   },
-  "adapter_status_listen": "10.20.0.12:8080"
+  "adapter_status_listen": "10.20.0.12:8080",
+  "adapter_status_max_head_age_seconds": 60
 }

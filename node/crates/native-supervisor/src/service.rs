@@ -260,8 +260,16 @@ impl NativeService {
             if let Some(limits) = &self.config.adapter_limits {
                 args.extend(limits.args());
             }
-            if let Some(status) = &self.config.adapter_status_listen {
-                args.extend(["--status-listen".into(), status.into()]);
+            if let (Some(status), Some(age)) = (
+                &self.config.adapter_status_listen,
+                self.config.adapter_status_max_head_age_seconds,
+            ) {
+                args.extend([
+                    "--status-listen".into(),
+                    status.into(),
+                    "--status-max-head-age-seconds".into(),
+                    age.to_string().into(),
+                ]);
             }
             let chain_id = self.authority.expected_candidate().chain_id.clone();
             let channel = match &self.config.adapter_channel {

@@ -79,10 +79,17 @@ Targets and severities are the
 ### The status page
 
 The endpoint's `/status` answers 503, with the same JSON body, when the
-engine's newest block time is older than `status_max_head_age` (proposed
-60 seconds, an E05 value to approve). The independent uptime checker polls
-it each minute. That one check measures the chain's and the endpoint's
-service targets from outside the hosts.
+engine's newest block time is more than `status_max_head_age_seconds` old:
+60 seconds (P01, 10 October 2026,
+[approval](../../../launch/approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json)),
+about 12 missed blocks. An unreadable block time also answers 503, and a
+block time ahead of the endpoint's clock counts as fresh. The independent
+uptime checker polls it each minute. That one check measures the chain's
+and the endpoint's service targets from outside the hosts.
+
+Built in M2: the adapter's `--status-max-head-age-seconds`, the
+supervisor's `adapter_status_max_head_age_seconds` (required with the
+status page), and the host files' value from `E05_VALUES.json`.
 
 ### Measurements (G27, Day 9)
 

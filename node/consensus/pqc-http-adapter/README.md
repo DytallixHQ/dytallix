@@ -59,10 +59,10 @@ dytallix-channel-key pin --seed-file HOME/config/client_channel_seed.bin --netwo
 
 ## Status page
 
-An endpoint can serve a read-only status page for a free uptime checker (P01, 3 October 2026). Add `--status-listen IP:PORT`:
+An endpoint can serve a read-only status page for a free uptime checker (P01, 3 October 2026). Add `--status-listen IP:PORT` and `--status-max-head-age-seconds N` (1 to 3600; 60 in production, P01, 10 October 2026), which come together:
 
 - **Address.** An explicit address and port of its own, not the loopback listener's or the channel's. A production build refuses loopback and link-local addresses; the supervisor requires the node's P2P IP.
-- **What it serves.** `GET /status` only, answering `{"chain_id","height","time"}` from the engine's local `/status` route, with `Cache-Control: no-store`. Every other path or method gets a fixed 404 or 405, and an unavailable engine a 503.
+- **What it serves.** `GET /status` only, answering `{"chain_id","height","time"}` from the engine's local `/status` route, with `Cache-Control: no-store`: 200 while the newest block is at most N seconds old, and 503 with the same fields once it is older or its time is unreadable, so a halted chain or a stuck endpoint shows in the status code ([monitoring v1](../../docs/architecture/monitoring-v1.md)). Every other path or method gets a fixed 404 or 405, and an unavailable engine a 503.
 - **What it is not.** It uses no cryptography and takes no input, so it adds nothing to the PQC-only boundary (G35). It is unauthenticated: a liveness hint for monitoring, never a source of chain state for clients.
 - **Bounds.** At most 8 connections, one request each, a 2 s deadline, 16 headers and an 8 KiB header buffer.
 - **Readiness line.** It adds `status_listen`.

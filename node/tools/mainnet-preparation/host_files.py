@@ -445,6 +445,9 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
                                                  PIN_BOUNDS['channel_pin'])}
         if plan_host.get('status'):
             service['adapter_status_listen'] = plan_host['status']
+            # It answers 503 on an older head (monitoring v1; P01, 10 October 2026).
+            service['adapter_status_max_head_age_seconds'] = service_value(approved,
+                                                                          'adapter_status_max_head_age_seconds')
     service_raw = pretty(service)
     etc_files['service.json'] = service_raw
     for name, raw in etc_files.items():

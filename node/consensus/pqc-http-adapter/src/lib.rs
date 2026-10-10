@@ -111,8 +111,9 @@ pub struct Config {
     pub socket: PathBuf,
     pub limits: Limits,
     pub channel: Option<channel::ChannelConfig>,
-    /// The public status page's address, if served (P01, 3 October 2026).
-    pub status: Option<SocketAddr>,
+    /// The public status page's address, if served (P01, 3 October 2026),
+    /// and the head age past which it answers 503 (P01, 10 October 2026).
+    pub status: Option<(SocketAddr, Duration)>,
 }
 
 impl Config {
@@ -120,6 +121,7 @@ impl Config {
         let mut home = None;
         let mut listen = None;
         let mut status = None;
+        let mut head_age = None;
         let mut profile = None;
         let mut limits = Limits::CEILING;
         let mut channel = channel::ChannelArgs::default();
@@ -149,6 +151,16 @@ impl Config {
                             .parse::<SocketAddr>()
                             .map_err(|_| "Use a numeric IP:port")?,
                     );
+                }
+                "--status-max-head-age-seconds" if head_age.is_none() => {
+                    let seconds = args
+                        .next()
+                        .ok_or("Missing status head age")?
+                        .parse::<u64>()
+                        .ok()
+                        .filter(|s| status::MAX_HEAD_AGE.contains(s))
+                        .ok_or("The status head age is 1 to 3600 seconds")?;
+                    head_age = Some(Duration::from_secs(seconds));
                 }
                 "--profile" if profile.is_none() => profile = args.next(),
                 flag if (flag.starts_with("--max-") || flag == "--deadline-ms")
@@ -181,6 +193,11 @@ impl Config {
                 return Err("The status and channel listeners need their own ports".into());
             }
         }
+        let status = match (status, head_age) {
+            (Some(address), Some(age)) => Some((address, age)),
+            (None, None) => None,
+            _ => return Err("The status page and its head age come together".into()),
+        };
         Ok(Self {
             home,
             listen,
@@ -592,11 +609,12 @@ pub async fn serve(config: Config) -> Result<(), String> {
         None => None,
     };
     let status = match config.status {
-        Some(address) => Some(
+        Some((address, max_age)) => Some((
             TcpListener::bind(address)
                 .await
                 .map_err(|_| "Cannot bind status listener")?,
-        ),
+            max_age,
+        )),
         None => None,
     };
     let mut ready = if cfg!(feature = "production") {
@@ -604,7 +622,7 @@ pub async fn serve(config: Config) -> Result<(), String> {
     } else {
         serde_json::json!({"status":"EXPERIMENTAL_LOCAL_ONLY","profile":PROFILE,"listen":actual.to_string(),"production_authorized":false,"launch_status":"NO_GO"})
     };
-    if let Some(listener) = &status {
+    if let Some((listener, _)) = &status {
         let bound = listener
             .local_addr()
             .map_err(|_| "Cannot inspect status listener")?;
@@ -633,7 +651,7 @@ pub async fn serve(config: Config) -> Result<(), String> {
     let status_socket = socket.clone();
     let status_task = async move {
         match status {
-            Some(listener) => status::serve(listener, status_socket).await,
+            Some((listener, max_age)) => status::serve(listener, status_socket, max_age).await,
             None => std::future::pending().await,
         }
     };
@@ -790,6 +808,24 @@ mod tests {
                 .unwrap_err()
                 .contains("numeric")
         );
+        // The head age is 1 to 3600 seconds, given once.
+        for age in ["0", "3601", "-1", "sixty"] {
+            assert!(
+                Config::parse(["--status-max-head-age-seconds", age].map(String::from))
+                    .unwrap_err()
+                    .contains("1 to 3600"),
+                "{age}"
+            );
+        }
+        let twice = [
+            "--status-max-head-age-seconds",
+            "60",
+            "--status-max-head-age-seconds",
+            "60",
+        ];
+        assert!(Config::parse(twice.map(String::from))
+            .unwrap_err()
+            .contains("duplicate"));
     }
     #[test]
     fn canonical_rpc_paths() {

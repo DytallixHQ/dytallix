@@ -711,7 +711,7 @@
       "id": "engine-rpc-status-page",
       "group": "engine_rpc",
       "exposure": "external",
-      "format": "The endpoint's public status page (P01, 3 October 2026): plain HTTP GET /status on the adapter's --status-listen address answers {chain_id, height, time} from the engine's local /status route, with Cache-Control no-store; any other path or method gets a fixed 404 or 405, and an unavailable engine a 503. No cryptography and no input; unauthenticated, a liveness hint for an uptime checker, never a source of chain state.",
+      "format": "The endpoint's public status page (P01, 3 October 2026): plain HTTP GET /status on the adapter's --status-listen address answers {chain_id, height, time} from the engine's local /status route, with Cache-Control no-store: 200 while the newest block is at most --status-max-head-age-seconds old, and 503 with the same fields once it is older (monitoring v1, P01, 10 October 2026); any other path or method gets a fixed 404 or 405, and an unavailable engine a 503. No cryptography and no input; unauthenticated, a liveness hint for an uptime checker, never a source of chain state.",
       "version": {
         "none": "A fixed three-field JSON object; a change is a new route."
       },
@@ -1516,7 +1516,7 @@
       "id": "file-native-service-config",
       "group": "file",
       "exposure": "operator",
-      "format": "The native supervisor's service configuration (strict JSON, at most 64 KiB): pinned inputs, process limits and outputs. Mode disposable-loopback-native in a development build; production-native in a production build, which adds role (validator, sentry or endpoint), the host's pinned binding, optional state_sync light_blocks and catch_up_millis (production activation v1, A5). An endpoint may add adapter_status_listen, the public status page on the node's address (P01, 3 October 2026).",
+      "format": "The native supervisor's service configuration (strict JSON, at most 64 KiB): pinned inputs, process limits and outputs. Mode disposable-loopback-native in a development build; production-native in a production build, which adds role (validator, sentry or endpoint), the host's pinned binding, optional state_sync light_blocks and catch_up_millis (production activation v1, A5). An endpoint may add adapter_status_listen, the public status page on the node's address (P01, 3 October 2026), with adapter_status_max_head_age_seconds, the head age past which it answers 503 (P01, 10 October 2026).",
       "version": {
         "field": "schema",
         "literal": {

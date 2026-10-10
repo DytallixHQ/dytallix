@@ -126,6 +126,9 @@ pub struct NativeServiceConfig {
     /// The adapter's public status page (P01, 3 October 2026): a read-only
     /// plain-HTTP listener for an uptime checker; requires `adapter_listen`.
     pub adapter_status_listen: Option<String>,
+    /// The head age past which the status page answers 503 (monitoring v1;
+    /// P01, 10 October 2026): 1 to 3600 seconds, with the status page only.
+    pub adapter_status_max_head_age_seconds: Option<u64>,
     pub metrics: MetricsOutput,
     pub snapshots: Option<SnapshotOutput>,
     pub block_history: BlockHistory,
@@ -1026,6 +1029,15 @@ impl NativeServiceConfig {
         self.validate_settings()
     }
     fn validate_settings(&self) -> Result<()> {
+        // The status page comes with its head age (P01, 10 October 2026).
+        ensure!(
+            self.adapter_status_listen.is_some()
+                == self.adapter_status_max_head_age_seconds.is_some()
+                && self
+                    .adapter_status_max_head_age_seconds
+                    .is_none_or(|age| (1..=3600).contains(&age)),
+            "The status page needs its head age, 1 to 3600 seconds, and nothing else does"
+        );
         if !self.production() {
             ensure!(
                 self.role.is_none()
@@ -1761,12 +1773,29 @@ mod tests {
         endpoint.adapter_channel = Some(serde_json::from_value(serde_json::json!({
             "listen":"203.0.113.9:26670","pin":{"path":"/p","sha256":"0".repeat(64),"max_bytes":1}})).unwrap());
         endpoint.validate_settings().unwrap();
-        // The status page is optional on an endpoint and absent elsewhere.
+        // The status page is optional on an endpoint and absent elsewhere,
+        // and comes with its head age.
         endpoint.adapter_status_listen = Some("203.0.113.9:8080".into());
+        assert!(
+            endpoint.validate_settings().is_err(),
+            "status page without its head age"
+        );
+        for age in [0, 3601] {
+            endpoint.adapter_status_max_head_age_seconds = Some(age);
+            assert!(endpoint.validate_settings().is_err(), "head age {age}");
+        }
+        endpoint.adapter_status_max_head_age_seconds = Some(60);
         endpoint.validate_settings().unwrap();
+        let mut ageless = endpoint.clone();
+        ageless.adapter_status_listen = None;
+        assert!(
+            ageless.validate_settings().is_err(),
+            "head age without a status page"
+        );
         for role in [NodeRole::Validator, NodeRole::Sentry] {
             let mut serving = production(role);
             serving.adapter_status_listen = Some("203.0.113.9:8080".into());
+            serving.adapter_status_max_head_age_seconds = Some(60);
             assert!(
                 serving.validate_settings().is_err(),
                 "{role:?} with a status page"
