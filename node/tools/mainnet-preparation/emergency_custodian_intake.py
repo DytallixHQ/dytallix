@@ -49,8 +49,8 @@ def validate(data, root):
     require(data['production_accepted'] is False, 'production acceptance must remain false')
     for key, value in (('freeze_threshold', THRESHOLD), ('resume_threshold', THRESHOLD), ('authority_size', SIZE)):
         require(type(data[key]) is int and data[key] == value, key + ': approved value mismatch')
-    solo = data['custody_model'] == 'solo_kits'
-    require(data['custody_model'] in u.MODELS, 'custody_model must be independent or solo_kits')
+    solo, five = data['custody_model'] == 'solo_kits', data['custody_model'] == u.FIVE
+    require(data['custody_model'] in u.MODELS, 'custody_model must be independent, solo_kits or five_holders')
     epoch = data['authority_epoch']
     require(type(epoch) is int and epoch >= 1, 'explicit positive authority epoch required')
     profile = data['profile']
@@ -96,7 +96,7 @@ def validate(data, root):
     people = data['custodians']
     if not require(isinstance(people, list) and len(people) == SIZE, 'exactly five custodians required'):
         return result(errors)
-    groups, controllers, keys, slots = set(), set(), set(), set()
+    groups, controllers, keys, slots, reviewed = set(), set(), set(), set(), []
     authority = {purpose: [] for purpose in PURPOSES}
     for person in people:
         if not fields(person, PERSON, 'custodian'): continue
@@ -108,6 +108,9 @@ def validate(data, root):
             require(text(person[field]), f'slot {slot}: {field} missing')
         # Solo kits: one controller in every slot, each slot its own kit.
         require(text(controller) and (solo or controller not in controllers), f'slot {slot}: duplicate or missing controller')
+        if five:
+            require((controller, group) == u.kit_names(slot), f'slot {slot}: five_holders names the holder only by the kit: '
+                    f'controller {u.kit_names(slot)[0]}, control group {u.kit_names(slot)[1]}')
         require(text(group) and group not in groups, f'slot {slot}: duplicate or missing control group')
         if text(controller): controllers.add(controller)
         if text(group): groups.add(group)
@@ -115,8 +118,11 @@ def validate(data, root):
         if solo:
             # The public disclosure (TRUST_MODEL.md) replaces the independence review.
             require(person['independence_review'] is None, f'slot {slot}: solo_kits has no independence review')
+        elif five and person['independence_review'] is None:
+            reviewed.append(False)
         else:
             binding(person['independence_review'], 'independence_review', controller, group=group)
+            if five: reviewed.append(True)
         pair = person['keys']
         if not fields(pair, set(PURPOSES), f'slot {slot}.keys'): continue
         for purpose in PURPOSES:
@@ -135,12 +141,14 @@ def validate(data, root):
             if raw is not None: authority[purpose].append({'key_id': fingerprint, 'public_key_hex': raw.hex()})
     if solo:
         require(len(controllers) == 1, 'solo_kits: one controller holds every slot')
+    review = u.five_holder_review(require, reviewed) if five else None
     for ref, item in parsed.items():
         if item['kind'] == 'independence_review':
             require(text(item['reviewer_control_group']) and item['reviewer_control_group'] not in groups, ref + ': reviewer shares a custodian control group')
     require(set(parsed) == used, 'unreferenced evidence is not permitted')
     out = result(errors)
     out['custody_model'] = data['custody_model'] if data['custody_model'] in u.MODELS else None
+    if five and not errors: out['custody_review'] = review
     if not errors:
         # records.root.emergency for the genesis resolver: the node's emergency
         # policy authorities, keys strictly sorted by key_id.
@@ -153,7 +161,7 @@ def validate(data, root):
 def result(errors):
     return {'status': 'STRUCTURALLY_COMPLETE' if not errors else 'INCOMPLETE_OR_INVALID', 'errors': errors,
             'signature_verification_performed': False, 'identity_or_independence_verified': False, 'production_accepted': False,
-            'boundary': 'Checks syntax, distinct freeze and resume keys, custodian control groups (or, for solo kits, one controller with five kits) and local public evidence bindings only. Cryptographic verification and formal acceptance remain required.'}
+            'boundary': 'Checks syntax, distinct freeze and resume keys, custodian control groups (or, for solo kits, one controller with five kits; for five holders, kit-holder-N in kit-N) and local public evidence bindings only. Cryptographic verification and formal acceptance remain required.'}
 
 
 def main():

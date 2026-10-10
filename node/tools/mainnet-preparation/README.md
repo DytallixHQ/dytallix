@@ -94,6 +94,18 @@ python3 -B tools/mainnet-preparation/genesis_signer_intake.py GENESIS_INTAKE.wor
 - Reviewer separation.
 - That no controller, control group or key appears in the complete emergency or upgrade intake.
 
+`five_holder_custody.py` checks the three packets together under the five key holders model (`"custody_model": "five_holders"`; P01, 7 October 2026: five people, one kit each, kit N holding key N of every role). Each packet must pass its own checker, and together:
+- slot N is named only by its kit, `kit-holder-N` in `kit-N`, in every packet, so the five holders are the same in every role;
+- the twenty keys are distinct across roles, and the emergency and upgrade keys share one authority epoch;
+- every slot of every packet has an outside independence review, or none does (the public disclosure). Which one stands is open (D10-Q03); the result names it as `custody_review`.
+
+```text
+python3 -B tools/mainnet-preparation/five_holder_custody.py --emergency EMERGENCY_INTAKE.working.json \
+  --upgrade UPGRADE_INTAKE.working.json --genesis GENESIS_INTAKE.working.json --policy-out root-genesis-policy.json
+```
+
+It outputs the two authority fragments, the genesis signer policy and each packet's SHA-256. Like the other checkers it verifies no signature, identity or independence, and accepts nothing.
+
 **On success:** it emits `signer_policy`, the public signer policy record. It is byte for byte what `dytallix-root-sign policy` writes from the same records, which `fixtures/genesis-signer-policy` and the signer's own test check. `--policy-out` writes it to a new file.
 
 **What it doesn't do:** verify signatures, identity or independence. It never reports production acceptance.

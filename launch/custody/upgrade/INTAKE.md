@@ -22,11 +22,15 @@ one holder:
 - **Backup.** A kit has no backup: its backup record says the key is on the
   holder's encrypted fob only, and a lost kit is replaced by the kit
   replacement control.
-- **Model.** `solo_kits` no longer fits, since it requires one controller in
-  every slot. `independent` fits five distinct holders but also requires an
-  independence review by someone outside every holder's group. Whether that
-  review applies, or the public disclosure replaces it as under the solo
-  profile, is still open (D10-Q03).
+- **Model.** `"custody_model": "five_holders"`. Neither older model fits:
+  `solo_kits` requires one controller in every slot, and `independent`
+  refuses a holder or kit that also holds another role. Under
+  `five_holders` slot N must be `kit-holder-N` in `kit-N`, the five holders
+  must be the same in all three packets, and every slot either carries an
+  outside `independence_review` or none does (the public disclosure). Which
+  of the two stands is still open (D10-Q03); the checkers accept either and
+  report it as `custody_review`. Check the three packets together with
+  `five_holder_custody.py` (see [the tools](../../../node/tools/mainnet-preparation/README.md)).
 
 ## Solo launch profile (kits superseded on 7 October 2026)
 
