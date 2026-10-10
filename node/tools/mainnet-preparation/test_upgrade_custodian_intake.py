@@ -246,7 +246,7 @@ class UpgradeIntakeTests(unittest.TestCase):
     def test_custody_model_is_required(self):
         for model in (None, 'shared'):
             self.setUp(); self.data['custody_model'] = model
-            self.check_bad('custody_model must be independent or solo_kits')
+            self.check_bad('custody_model must be independent, solo_kits or five_holders')
         # An independent packet still refuses one controller in two slots.
         self.setUp(); self.person(1).update(controller_id=self.person(0)['controller_id'])
         self.check_bad('duplicate or missing controller')

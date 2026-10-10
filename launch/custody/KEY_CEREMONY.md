@@ -163,7 +163,9 @@ DRT bootstrap, D08-Q03).
    the key is on kit N's encrypted fob, with no backup, without saying where
    it is. The drill records come from a staging freeze and resume signed with
    the kits ([control signing](../../node/docs/mainnet/control-signing.md)).
-4. Run the three checkers. Their fragments go into the genesis records.
+4. Check the three packets together with `five_holder_custody.py`
+   ([the tools](../../node/tools/mainnet-preparation/README.md)). Its fragments
+   and signer policy go into the genesis records.
 
 ## A stolen or exposed kit
 
