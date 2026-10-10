@@ -347,7 +347,7 @@
       "files": [
         {
           "path": "crates/native-supervisor/src/processes.rs",
-          "sha256": "782cc0bad6f6dd9c622b138dc958c51d5250c3de5de2f059ce796162e820dfa1"
+          "sha256": "06d2965d4a3263f2d38ec8a8249428db709f02d042f041de81dddc232522da9a"
         },
         {
           "path": "crates/native-supervisor/src/config.rs",

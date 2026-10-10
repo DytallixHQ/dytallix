@@ -333,7 +333,28 @@ def install(work, label, target_height, timeout):
     subprocess.run(['systemctl', 'start', f'{UNIT}.service'], check=True)
     seen = wait_for(seen + 2, timeout)
     subprocess.run(['journalctl', '-u', f'{UNIT}.service', '--no-pager', '-n', '40'])
+    require_role_logs()
     say(f'== {label} installed, verified, restarted and at height {seen}')
+
+
+# The roles whose own output the supervisor copies to the journal, each line
+# prefixed with the role (native supervisor, helper_log). The engine logs at
+# info level, so a running node always has its lines; the others may be quiet.
+LOGGED_ROLES = ('consensus_bridge', 'consensus_engine', 'http_adapter')
+
+
+def require_role_logs():
+    """The roles' output reaches the journal under the unit's sandbox."""
+    journal = subprocess.run(['journalctl', '-u', f'{UNIT}.service', '-o', 'cat', '--no-pager', '-n', '2000'],
+                             capture_output=True, text=True).stdout
+    for role in LOGGED_ROLES:
+        lines = [line for line in journal.splitlines() if line.startswith(f'{role}: ')]
+        if not lines:
+            if role == 'consensus_engine':
+                raise Failed(f'no {role} output in the journal')
+            say(f'== {role}: no output in the journal')
+            continue
+        say(f'== {role} logs reach the journal ({len(lines)} lines), e.g. {lines[-1][:200]}')
 
 
 def wait_for(target_height, timeout):

@@ -2,6 +2,7 @@
 //! production mode of a production build. Running grants no launch
 //! authorization; the root-signed genesis does.
 pub mod config;
+pub mod helper_log;
 pub mod lease;
 pub mod processes;
 pub mod readiness;

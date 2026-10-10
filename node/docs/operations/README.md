@@ -50,7 +50,11 @@ retired in production activation v1, A5.
   - `child_exit`, whose `application_failure_class` comes from the
     application's exit status.
 
-  The engine's own output is discarded, so its panic text is never kept.
+  The engine's, bridge's and adapter's own output follows in the same
+  journal, each line prefixed with its role:
+  `journalctl -u dytallix-node -o cat | grep '^consensus_engine: '` shows
+  the engine's log and any panic text. The copy is bounded (lines cut at
+  4,096 bytes, 1,000 lines per role in 30 seconds, the rest counted).
   The application's class is the record of a failed block.
 - **Metrics files** in the configured metrics directory:
   `dytallix-engine.prom` and `dytallix-app.prom` (metrics v1). A value of
