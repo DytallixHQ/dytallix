@@ -253,5 +253,10 @@ founder to type `wipe LABEL` first and keeps the account.
 
 - Whether the engine writes `config/addrbook.json` under the read-only
   configuration (strict address book, PEX off).
-- The engine, bridge and adapter write their logs to /dev/null today; only
-  the supervisor's report and the application's errors reach the journal.
+- Role logs (resolved): the engine, bridge and adapter write their standard
+  output and error to a private pipe each; the supervisor copies each line
+  to the journal prefixed with the role (`consensus_engine: ...`), cut at
+  4,096 bytes, at most 1,000 lines per role in 30 seconds with the rest
+  counted (`[N lines dropped ...]`), so a role cannot crowd out the
+  supervisor's report or reach the journal's rate limit. The H4 install
+  requires the engine's lines in the validator's journal.

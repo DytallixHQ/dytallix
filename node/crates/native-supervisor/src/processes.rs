@@ -405,7 +405,7 @@ impl ProcessOwner {
         role: Role,
         args: &[OsString],
         stdin: Stdio,
-        stdout: Stdio,
+        stdout: Option<Stdio>,
         bridge_fds: Option<(RawFd, RawFd)>,
     ) -> Result<()> {
         self.active()?;
@@ -423,15 +423,28 @@ impl ProcessOwner {
             .context("Role not in verified catalog")?
             .path();
         let mut command = Command::new(path);
-        command
-            .args(args)
-            .env_clear()
-            .envs(&self.environment)
-            .stdin(stdin)
-            .stdout(stdout)
-            // Only the application can emit the bounded failed-helper record.
-            // Preserve the exact inherited journal socket; other roles stay quiet.
-            .stderr(if role == Role::Application { Stdio::inherit() } else { Stdio::null() });
+        command.args(args).env_clear().envs(&self.environment).stdin(stdin);
+        // The application's standard output is its protocol pipe, and it
+        // keeps the exact inherited journal socket for the bounded
+        // failed-helper record. Every other role writes both streams to a
+        // private pipe that the supervisor copies to the journal, line by
+        // line and bounded (helper_log).
+        let output = match stdout {
+            Some(stdout) => {
+                command.stdout(stdout).stderr(Stdio::inherit());
+                None
+            }
+            None => {
+                // Above the fixed bridge and lease targets (3 to 6), as the
+                // bridge's duplicates are.
+                let (read, write) = pipe()?;
+                let (read, write) = (duplicate(read.as_raw_fd())?, duplicate(write.as_raw_fd())?);
+                command
+                    .stdout(Stdio::from(duplicate(write.as_raw_fd())?))
+                    .stderr(Stdio::from(write));
+                Some(read)
+            }
+        };
         let leases = self
             .leases
             .as_ref()
@@ -462,6 +475,11 @@ impl ProcessOwner {
         // actual child for cleanup. Drop Command to close its duplicate pipe ends.
         drop(command);
         drop(reserved);
+        if let Some(read) = output {
+            // The copy ends when the role closes its output (it exits).
+            crate::helper_log::start(role.as_str(), File::from(read))
+                .with_context(|| format!("Start the {} log copy", role.as_str()))?;
+        }
         self.children.push(OwnedChild {
             role,
             child,
@@ -501,7 +519,7 @@ impl ProcessOwner {
                 Role::Application,
                 args,
                 Stdio::from(input_read),
-                Stdio::from(output_write),
+                Some(Stdio::from(output_write)),
                 None,
             )?;
             let pipes = self.pipes.as_ref().unwrap();
@@ -670,7 +688,7 @@ impl ProcessOwner {
                 Role::Bridge,
                 &args,
                 Stdio::null(),
-                Stdio::null(),
+                None,
                 Some((input.as_raw_fd(), output.as_raw_fd())),
             )?;
             drop(input);
@@ -700,7 +718,7 @@ impl ProcessOwner {
             );
             phase(endpoint_absent(ready_socket), Role::Engine, Stage::EndpointAbsent)?;
             phase(endpoint_absent(operator_socket), Role::Engine, Stage::EndpointAbsent)?;
-            self.spawn(Role::Engine, args, Stdio::null(), Stdio::null(), None)?;
+            self.spawn(Role::Engine, args, Stdio::null(), None, None)?;
             phase(self.wait_endpoint(ready_socket), Role::Engine, Stage::EndpointReady)?;
             phase(self.observe(Role::Engine), Role::Engine, Stage::ControlledObservation)?;
             Ok(())
@@ -716,7 +734,7 @@ impl ProcessOwner {
                     && self.children[2].snapshot.is_some(),
                 "Adapter requires observed engine endpoint"
             );
-            self.spawn(Role::Adapter, args, Stdio::null(), Stdio::null(), None)?;
+            self.spawn(Role::Adapter, args, Stdio::null(), None, None)?;
             phase(self.observe(Role::Adapter), Role::Adapter, Stage::ControlledObservation)?;
             Ok(())
         })();
