@@ -50,6 +50,26 @@ apply. The services and accounts (A22) and the backup person are unset.
 To change a URL, run the same command with a new file; the keys and the
 bundle are untouched.
 
+## The staging drill
+
+Every Host install run drills the alerts on the staging sentry (M5,
+`staging_network.py monitor-drill`). Its monitor reports to a stand-in
+alerting service on its own loopback (`alert_standin.py`, which also alerts
+on a heartbeat missing for 3 minutes), with the approved thresholds:
+
+| Drill | Cause | Alerts | Cure |
+| --- | --- | --- | --- |
+| Restart loop | `systemctl restart dytallix-node` three times, each seen by a run | Restart loop | Resolves when the first start leaves the 15-minute window |
+| Full disk | A file on the data disk's file system leaves 3% free | Disk low, Disk critical | The file removed |
+| Halt | The validator stopped | Consensus halt | The validator started; blocks resume |
+| Stopped monitor | `dytallix-monitor.timer` stopped | Monitoring down (the service) | The timer started; heartbeats resume |
+
+Each alert must arrive firing and then resolved, and the last heartbeat must
+show nothing firing. The run's log ends with the evidence (`monitor_drill`:
+when each fired and resolved, its value and threshold, every alert seen).
+Delivery to the chosen services, acknowledgement and escalation are
+exercised on the production hosts (M6).
+
 ## Reading the job
 
 - `journalctl -u dytallix-monitor -o cat -n 5`: one JSON line per run with

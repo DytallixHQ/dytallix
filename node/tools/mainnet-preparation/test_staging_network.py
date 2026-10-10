@@ -1,6 +1,7 @@
 """The three-host staging network's pieces that run without KVM (H4): the
 plan, the VMs' cloud-init, the guest agent client against a stand-in agent,
-and the stand-in store. The whole network runs in the Host install
+the stand-in store, and the stand-in alerting service and helpers of the
+monitoring drill (M5). The whole network runs in the Host install
 workflow."""
 import base64
 import json
@@ -13,6 +14,7 @@ import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+import alert_standin
 import s3_standin
 import staging_network as sn
 
@@ -166,6 +168,90 @@ class StandinTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as refused:
             self.put('/copies/staging/chain/1.bin', b'other', signed)
         self.assertEqual(refused.exception.code, 409)
+
+
+
+class AlertStandinTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.now = 1000.0
+        self.service = alert_standin.Service(self.tmp.name, 180, clock=lambda: self.now)
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), alert_standin.handler(self.service))
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(self.server.shutdown)
+        self.base = f'http://127.0.0.1:{self.server.server_address[1]}'
+
+    def post(self, path, body):
+        data = body if isinstance(body, bytes) else json.dumps(body).encode()
+        request = urllib.request.Request(self.base + path, data=data, method='POST',
+                                         headers={'Content-Type': 'application/json'})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.status
+
+    def events(self):
+        return sn.parse_events((Path(self.tmp.name) / 'events.jsonl').read_text())
+
+    def test_records_heartbeats_alerts_and_escalations(self):
+        beat = {'schema': 'dytallix.heartbeat.v1', 'host': 'sentry-1', 'role': 'sentry', 'chain_id': 'c',
+                'time': 999, 'firing': []}
+        alert = {'schema': 'dytallix.alert.v1', 'condition': 'disk_low', 'status': 'firing', 'host': 'sentry-1',
+                 'value': 3.1, 'threshold': 15}
+        for path, body in (('/heartbeat', beat), ('/alert', alert), ('/escalation', alert)):
+            self.assertEqual(self.post(path, body), 200)
+        self.assertEqual([(e['to'], e['received']) for e in self.events()],
+                         [('heartbeat', 1000.0), ('alert', 1000.0), ('escalation', 1000.0)])
+        self.assertEqual(sn.find_event(self.events(), 'disk_low', 'firing', 0)[0], 1)
+        # An escalation is not a change of state.
+        self.assertIsNone(sn.find_event(self.events(), 'disk_low', 'firing', 2))
+        for path, body in (('/other', beat), ('/alert', b'not json'), ('/alert', [1]), ('/alert', {'host': 3})):
+            with self.assertRaises(urllib.error.HTTPError):
+                self.post(path, body)
+        self.assertEqual(len(self.events()), 3)
+
+    def test_alerts_when_a_heartbeat_stops_and_resolves_when_it_returns(self):
+        beat = {'host': 'sentry-1', 'role': 'sentry', 'chain_id': 'c', 'time': 1000}
+        self.post('/heartbeat', beat)
+        self.now += 179
+        self.service.check()
+        self.assertIsNone(sn.find_event(self.events(), 'monitoring_down', 'firing', 0))
+        self.now += 1
+        self.service.check()
+        self.service.check()
+        index, down = sn.find_event(self.events(), 'monitoring_down', 'firing', 0)
+        self.assertEqual((down['to'], down['body']['severity'], down['body']['value'], down['body']['threshold'],
+                          down['body']['role']), ('service', 1, 180, 180, 'sentry'))
+        self.assertEqual(len(self.events()), 2)  # once, however many checks
+        self.now += 60
+        self.post('/heartbeat', beat)
+        _, back = sn.find_event(self.events(), 'monitoring_down', 'resolved', index + 1)
+        self.assertEqual(back['body']['value'], 240)
+        self.now += 100
+        self.service.check()
+        self.assertEqual(len(self.events()), 4)
+
+
+class MonitorDrillTests(unittest.TestCase):
+    def test_the_fill_leaves_the_asked_free_space(self):
+        # 1,000,000 blocks of 4096 bytes, 400,000 available: leave 3%.
+        self.assertEqual(sn.fill_size('400000 1000000 4096', 3), 370000 * 4096)
+        self.assertEqual(sn.fill_size('20000 1000000 4096', 3), 0)
+
+    def test_finds_changes_of_state_in_order(self):
+        events = [{'to': 'heartbeat', 'body': {'host': 'h'}},
+                  {'to': 'alert', 'body': {'condition': 'consensus_halt', 'status': 'firing'}},
+                  {'to': 'alert', 'body': {'condition': 'consensus_halt', 'status': 'resolved'}},
+                  {'to': 'service', 'body': {'condition': 'monitoring_down', 'status': 'firing'}}]
+        self.assertEqual(sn.find_event(events, 'consensus_halt', 'resolved', 0)[0], 2)
+        self.assertIsNone(sn.find_event(events, 'consensus_halt', 'firing', 2))
+        self.assertEqual(sn.find_event(events, 'monitoring_down', 'firing', 0)[0], 3)
+
+    def test_the_approved_critical_level_is_above_the_fill(self):
+        approved = {v['path']: v.get('approved') for v in json.loads(
+            (Path(__file__).resolve().parents[3] / 'launch' / 'E05_VALUES.json').read_bytes())['values']}
+        self.assertLess(sn.FILL_FREE_PERCENT, approved['monitor.disk_free_critical_percent'])
+        # The alerting service's rule (monitoring v1): a heartbeat missing 3 minutes.
+        self.assertEqual(sn.MONITORING_DOWN_SECONDS, 180)
 
 
 if __name__ == '__main__':
