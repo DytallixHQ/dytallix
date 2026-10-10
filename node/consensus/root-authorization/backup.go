@@ -87,9 +87,16 @@ func newBackupCipher(header BackupHeader, raw []byte, code []byte) (*backupCiphe
 	salt, _ := hex.DecodeString(header.SaltHex)
 	height := make([]byte, 8)
 	binary.BigEndian.PutUint64(height, header.Height)
+	return newChunkCipher(raw, []byte(backupDomain), []byte{byte(len(header.ChainID))}, []byte(header.ChainID), height,
+		salt, code)
+}
+
+// newChunkCipher keys a copy's chunks with SHAKE256 over parts, and binds
+// them to the header line raw.
+func newChunkCipher(raw []byte, parts ...[]byte) (*backupCipher, error) {
 	key := make([]byte, 32)
 	defer clear(key)
-	shake(key, []byte(backupDomain), []byte{byte(len(header.ChainID))}, []byte(header.ChainID), height, salt, code)
+	shake(key, parts...)
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -144,10 +151,19 @@ func NewBackupWriter(out io.Writer, chain string, height uint64, code []byte, ra
 	if err != nil {
 		return nil, BackupHeader{}, err
 	}
-	if _, err := out.Write(append(raw, '\n')); err != nil {
+	writer, err := newChunkWriter(out, raw, c)
+	if err != nil {
 		return nil, BackupHeader{}, err
 	}
-	return &BackupWriter{out: out, cipher: c, buffer: make([]byte, 0, BackupChunkBytes)}, header, nil
+	return writer, header, nil
+}
+
+// newChunkWriter writes the header line and returns the copy's writer.
+func newChunkWriter(out io.Writer, raw []byte, c *backupCipher) (*BackupWriter, error) {
+	if _, err := out.Write(append(raw, '\n')); err != nil {
+		return nil, err
+	}
+	return &BackupWriter{out: out, cipher: c, buffer: make([]byte, 0, BackupChunkBytes)}, nil
 }
 
 func (w *BackupWriter) seal(final bool) error {
@@ -206,27 +222,37 @@ type BackupReader struct {
 
 // NewBackupReader reads a copy's header and prepares to decrypt it.
 func NewBackupReader(in io.Reader, code []byte) (*BackupReader, BackupHeader, error) {
-	reader := bufio.NewReaderSize(in, maxBackupHeader)
-	line, err := reader.ReadSlice('\n')
-	if err != nil {
-		return nil, BackupHeader{}, fmt.Errorf("%w: no header", ErrBackup)
-	}
-	raw := bytes.TrimSuffix(line, []byte("\n"))
 	var header BackupHeader
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&header); err != nil || header.validate() != nil {
-		return nil, BackupHeader{}, fmt.Errorf("%w: header", ErrBackup)
-	}
-	canonical, err := json.Marshal(header)
-	if err != nil || !bytes.Equal(canonical, raw) {
-		return nil, BackupHeader{}, fmt.Errorf("%w: header is not canonical", ErrBackup)
+	reader, raw, err := readHeaderLine(in, &header)
+	if err != nil {
+		return nil, BackupHeader{}, err
 	}
 	c, err := newBackupCipher(header, raw, code)
 	if err != nil {
 		return nil, BackupHeader{}, err
 	}
 	return &BackupReader{in: reader, cipher: c}, header, nil
+}
+
+// readHeaderLine reads a copy's header line into header: known fields
+// only, valid and in its canonical encoding.
+func readHeaderLine(in io.Reader, header interface{ validate() error }) (*bufio.Reader, []byte, error) {
+	reader := bufio.NewReaderSize(in, maxBackupHeader)
+	line, err := reader.ReadSlice('\n')
+	if err != nil {
+		return nil, nil, fmt.Errorf("%w: no header", ErrBackup)
+	}
+	raw := bytes.TrimSuffix(line, []byte("\n"))
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(header); err != nil || header.validate() != nil {
+		return nil, nil, fmt.Errorf("%w: header", ErrBackup)
+	}
+	canonical, err := json.Marshal(header)
+	if err != nil || !bytes.Equal(canonical, raw) {
+		return nil, nil, fmt.Errorf("%w: header is not canonical", ErrBackup)
+	}
+	return reader, append([]byte{}, raw...), nil
 }
 
 func (r *BackupReader) next() error {

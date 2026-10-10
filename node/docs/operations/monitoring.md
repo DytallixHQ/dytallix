@@ -63,6 +63,13 @@ bundle are untouched.
   memory, disk, network, peers, mempool, missed blocks, signature failures,
   staked DGT, emitted and burned DRT, restarts, the endpoint's status
   request, firing rules); finished days are compressed, 396 days are kept.
+- **History off the host.** Each finished day is encrypted under the
+  chain's history code and uploaded to the store, oldest first, one per run;
+  `history_pending` in the job's line and the heartbeat says how many wait,
+  and an `errors` entry starting `history:` says why one failed. To chart
+  it on your own machine, download the copies and open each with the code
+  typed from paper:
+  `dytallix-root-sign history-open -paper - -in COPY -out DAY.jsonl.gz`.
 
 ## Alerts
 

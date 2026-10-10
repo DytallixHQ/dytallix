@@ -15,7 +15,11 @@ severity 1 alert still firing after the escalation time to the escalation
 URL, and a heartbeat to the heartbeat URL, all with the host's curl. A
 delivery that fails is kept and retried on the next run; the heartbeat
 carries the count. It appends one line to the day's history file and keeps
-the approved number of days. The URLs come from the host's monitor settings
+the approved number of days. With the history secrets (M4b) it encrypts one
+finished day per run, oldest first, with the release's `dytallix-root-sign
+history-seal` under the chain's history code, and uploads it with curl (AWS
+Signature V4, the write-only upload key on curl's standard input). The URLs
+come from the host's monitor settings
 (/etc/dytallix-monitor/webhooks.json, root 0400, installed by
 `host_install.py monitor-settings`); without them it still records history
 and alert state, and the alerting service, receiving no heartbeat, alerts.
@@ -24,6 +28,7 @@ Standard library only.
 import argparse
 import datetime
 import gzip
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -51,6 +56,11 @@ SAMPLE_SPAN = 3600 + 180
 # Undelivered alerts kept for the next run; older ones are dropped and counted.
 MAX_OUTBOX = 200
 RUNBOOK = 'https://github.com/DytallixHQ/dytallix/blob/main/node/docs/operations/monitoring.md'
+# The history upload key (M4b) has the backup upload key's fields.
+UPLOAD_SCHEMA = 'dytallix.backup-upload.v1'
+# Values that go into curl's configuration unquoted-safe.
+SAFE = re.compile(r'^[A-Za-z0-9._~+/=-]{1,256}$')
+FINISHED_DAY = re.compile(r'^([0-9]{4}-[0-9]{2}-[0-9]{2})\.jsonl\.gz$')
 
 # The approved rules (P01, 10 October 2026; monitoring v1, Alerts): name,
 # severity and the roles that evaluate it. Validator outage and monitoring
@@ -380,6 +390,87 @@ def history(config, state_dir, line, now):
             entry.unlink()
 
 
+# Uploading finished days (M4b)
+
+def load_history_upload(config):
+    """The signer, code file and upload key, or None without them."""
+    paths = config.get('history_upload')
+    if not paths:
+        return None
+    upload = read_json(paths['upload_file'])
+    require(upload.get('schema') == UPLOAD_SCHEMA, 'not an upload key')
+    endpoint = urlsplit(upload['endpoint'])
+    # TLS is only transport (the copy is encrypted and authenticated); plain
+    # HTTP is allowed only to a stand-in store on this host.
+    require(endpoint.scheme == 'https' or (endpoint.scheme == 'http' and endpoint.hostname in ('127.0.0.1', 'localhost')),
+            'the upload endpoint must use https')
+    require(endpoint.path in ('', '/') and not endpoint.query and not endpoint.username, 'the endpoint is a bare origin')
+    for field in ('bucket', 'region', 'access_key_id', 'secret_access_key'):
+        require(SAFE.match(upload[field] or ''), f'the upload key\'s {field} has unexpected characters')
+    require(upload['prefix'] == '' or re.fullmatch(r'[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*/', upload['prefix']),
+            'the prefix is empty or ends with /')
+    return paths, upload
+
+
+def upload_config(upload, copy, url):
+    """curl's options for one upload, read from its standard input."""
+    return '\n'.join([
+        'fail', 'silent', 'show-error', 'max-time = 30',
+        f'aws-sigv4 = "aws:amz:{upload["region"]}:s3"',
+        f'user = "{upload["access_key_id"]}:{upload["secret_access_key"]}"',
+        f'upload-file = "{copy}"',
+        f'url = "{url}"', '']).encode()
+
+
+def finished_days(state_dir, now):
+    today = datetime.datetime.fromtimestamp(now, datetime.timezone.utc).date().isoformat()
+    directory = Path(state_dir) / 'history'
+    if not directory.exists():
+        return []
+    days = (FINISHED_DAY.match(entry.name) for entry in directory.iterdir())
+    return sorted(match.group(1) for match in days if match and match.group(1) < today)
+
+
+def upload_history(config, state, state_dir, now, run, errors):
+    """Uploads the oldest finished day not yet uploaded; returns how many
+    still wait, or None without the history secrets."""
+    try:
+        loaded = load_history_upload(config)
+    except (Failed, OSError, KeyError, ValueError) as error:
+        errors.append(f'history: {error}')
+        return None
+    if loaded is None:
+        return None
+    paths, upload = loaded
+    pending = [day for day in finished_days(state_dir, now) if day > state.get('history_uploaded', '')]
+    if not pending:
+        return 0
+    day = pending[0]
+    scratch = Path(state_dir) / 'scratch'
+    copy = scratch / f'history-{day}.bin'
+    for leftover in (copy, copy.with_name(copy.name + '.partial')):
+        leftover.unlink(missing_ok=True)
+    try:
+        result = run([paths['signer'], 'history-seal', '-code-file', paths['code_file'], '-host', config['label'],
+                      '-day', day, '-in', str(Path(state_dir) / 'history' / f'{day}.jsonl.gz'), '-out', str(copy)],
+                     capture_output=True, text=True)
+        require(result.returncode == 0, f'history-seal failed: {(result.stderr or "").strip()}')
+        digest = hashlib.sha256(copy.read_bytes()).hexdigest()
+        name = f'{upload["prefix"]}{config["chain_id"]}/history/{config["label"]}/{day}-{digest}.bin'
+        url = f'{upload["endpoint"].rstrip("/")}/{upload["bucket"]}/{name}'
+        result = run([config['curl'], '--config', '-'], input=upload_config(upload, copy, url), capture_output=True)
+        require(result.returncode == 0, f'the upload of {day} failed: '
+                                        f'{(result.stderr or b"").decode(errors="replace").strip()}')
+        state['history_uploaded'] = day
+        return len(pending) - 1
+    except (Failed, OSError) as error:
+        state['history_failures'] = state.get('history_failures', 0) + 1
+        errors.append(f'history: {error}')
+        return len(pending)
+    finally:
+        copy.unlink(missing_ok=True)
+
+
 # The run
 
 def load_state(state_dir, now):
@@ -539,7 +630,8 @@ def run_once(config_path, run=subprocess.run, clock=time.time, statvfs=os.statvf
     heartbeat = {'schema': HEARTBEAT_SCHEMA, 'host': config['label'], 'role': config['role'],
                  'chain_id': config['chain_id'], 'time': round(now), 'height': sample['height'], 'firing': firing,
                  'undelivered': len(state['outbox']), 'dropped': state['dropped'],
-                 'delivery_failures': state['delivery_failures'], 'errors': errors}
+                 'delivery_failures': state['delivery_failures'], 'history_pending': state.get('history_pending'),
+                 'history_failures': state.get('history_failures', 0), 'errors': errors}
     beat = settings is not None and send(run, config['curl'], scratch, settings['heartbeat_url'], heartbeat)
     if beat and not state['outbox']:
         state['delivery_failures'] = 0
@@ -555,9 +647,13 @@ def run_once(config_path, run=subprocess.run, clock=time.time, statvfs=os.statvf
         'missed': sample['missed'], 'sig_invalid': sample['signature_invalid'], 'staked': sample['staked'],
         'emitted': sample['emitted'], 'burned': sample['burned'], 'restarts': len(state['starts']),
         'rpc': sample['rpc_status'], 'rpc_ms': sample['rpc_ms'], 'firing': firing}, now)
+    # After the heartbeat, so a slow store never delays it; the next
+    # heartbeat carries what still waits.
+    state['history_pending'] = upload_history(config, state, state_dir, now, run, errors)
+    save_state(state_dir, state)
     summary = {'status': 'OK' if not errors else 'PARTIAL', 'firing': firing, 'delivered': delivered,
                'heartbeat': 'SENT' if beat else ('NO_SETTINGS' if settings is None else 'FAILED'),
-               'undelivered': len(state['outbox']), 'errors': errors}
+               'undelivered': len(state['outbox']), 'history_pending': state['history_pending'], 'errors': errors}
     out(json.dumps(summary))
     return summary
 

@@ -60,7 +60,7 @@ class MonitorJob(unittest.TestCase):
         self.free = 50.0
         self.curl_exit = 0
         self.status = 200
-        self.sent = []
+        self.sent, self.sealed, self.uploads, self.upload_exit = [], [], [], 0
         self.cpu_ticks = 0
         self.write_proc()
 
@@ -107,11 +107,20 @@ class MonitorJob(unittest.TestCase):
         if name == 'systemctl':
             return SimpleNamespace(returncode=0, stdout=f'ActiveState=active\nInvocationID={self.invocation}\n',
                                    stderr='')
+        if name == 'dytallix-root-sign':
+            flags = dict(zip(args[2::2], args[3::2]))
+            self.sealed.append((args[1], flags))
+            Path(flags['-out']).write_bytes(b'sealed ' + Path(flags['-in']).read_bytes())
+            return SimpleNamespace(returncode=0, stdout='', stderr='')
         assert name == 'curl' and args[1:] == ['--config', '-'], args
         config = input if isinstance(input, str) else input.decode()
         url = next(line.split('"')[1] for line in config.splitlines() if line.startswith('url'))
         if 'write-out' in config:
             return SimpleNamespace(returncode=0, stdout=str(self.status), stderr='')
+        if 'upload-file' in config:
+            copy = next(line.split('"')[1] for line in config.splitlines() if line.startswith('upload-file'))
+            self.uploads.append({'url': url, 'argv': args, 'config': config, 'copy': Path(copy).read_bytes()})
+            return SimpleNamespace(returncode=self.upload_exit, stdout=b'', stderr=b'store refused')
         data = next(line.split('"')[1] for line in config.splitlines() if line.startswith('data-binary'))
         payload = json.loads(Path(data[1:]).read_text())
         self.sent.append({'url': url, 'payload': payload, 'ok': self.curl_exit == 0})
@@ -329,6 +338,80 @@ class ValidatorTests(MonitorJob):
                 self.config.write_text(json.dumps(dict(config, thresholds=dict(THRESHOLDS, **{name: bad}))))
                 with self.assertRaises(monitor.Failed):
                     monitor.load(self.config)
+
+
+class HistoryUploadTests(MonitorJob):
+    UPLOAD = {'schema': 'dytallix.backup-upload.v1', 'endpoint': 'https://store.example', 'bucket': 'history',
+              'region': 'auto', 'prefix': 'mainnet/', 'access_key_id': 'AKIDHISTORY', 'secret_access_key': 'aGlzdA=='}
+
+    def setUp(self):
+        super().setUp()
+        root = Path(self.tmp.name)
+        self.upload_file = root / 'history-upload.json'
+        self.upload_file.write_text(json.dumps(self.UPLOAD))
+        config = json.loads(self.config.read_bytes())
+        config['history_upload'] = {'signer': '/opt/dytallix/r/bin/dytallix-root-sign',
+                                    'code_file': '/etc/dytallix-monitor/history-code',
+                                    'upload_file': str(self.upload_file)}
+        self.config.write_text(json.dumps(config))
+        history = self.state / 'history'
+        history.mkdir()
+        today = datetime.datetime.fromtimestamp(START + 60, datetime.timezone.utc).date()
+        self.days = [str(today - datetime.timedelta(days=n)) for n in (2, 1)]
+        for day in self.days:
+            (history / f'{day}.jsonl.gz').write_bytes(gzip.compress(day.encode()))
+
+    def test_finished_days_go_up_oldest_first_one_per_run(self):
+        summary, _ = self.tick()
+        self.assertEqual(summary['history_pending'], 1)
+        (upload,) = self.uploads
+        (command, flags), = self.sealed
+        self.assertEqual(command, 'history-seal')
+        self.assertEqual((flags['-host'], flags['-day'], flags['-code-file']),
+                         ('validator-1', self.days[0], '/etc/dytallix-monitor/history-code'))
+        self.assertRegex(upload['url'], r'^https://store\.example/history/mainnet/dytallix-staging-1/history/'
+                                        rf'validator-1/{self.days[0]}-[0-9a-f]{{64}}\.bin$')
+        # The upload key reaches curl on its standard input only.
+        self.assertEqual(upload['argv'][1:], ['--config', '-'])
+        self.assertIn('user = "AKIDHISTORY:aGlzdA=="', upload['config'])
+        self.assertEqual(upload['copy'], b'sealed ' + gzip.compress(self.days[0].encode()))
+        self.assertEqual(list((self.state / 'scratch').iterdir()), [], 'the copy was left behind')
+        summary, sent = self.tick()
+        self.assertEqual((summary['history_pending'], len(self.uploads)), (0, 2))
+        self.assertEqual(sent[-1]['payload']['history_pending'], 1, 'the heartbeat carries the last count')
+        summary, _ = self.tick()
+        self.assertEqual((summary['history_pending'], len(self.uploads)), (0, 2))
+        self.assertEqual(json.loads((self.state / 'state.json').read_bytes())['history_uploaded'], self.days[1])
+
+    def test_a_failed_upload_records_nothing_and_retries(self):
+        self.upload_exit = 22
+        summary, _ = self.tick()
+        self.assertEqual(summary['history_pending'], 2)
+        self.assertTrue(any('store refused' in e for e in summary['errors']), summary['errors'])
+        self.assertEqual(list((self.state / 'scratch').iterdir()), [])
+        self.upload_exit = 0
+        summary, sent = self.tick()
+        self.assertEqual(sent[-1]['payload']['history_failures'], 1)
+        self.assertEqual([u['url'].split('/')[-1][:10] for u in self.uploads], [self.days[0]] * 2)
+        self.assertEqual(summary['history_pending'], 1)
+
+    def test_an_unsafe_upload_key_is_refused_and_reported(self):
+        for change in ({'endpoint': 'http://store.example'}, {'bucket': 'a"b'}, {'prefix': '../x'},
+                       {'secret_access_key': 'x\nurl = "evil"'}):
+            with self.subTest(change=change):
+                self.upload_file.write_text(json.dumps(dict(self.UPLOAD, **change)))
+                summary, _ = self.tick()
+                self.assertIsNone(summary['history_pending'])
+                self.assertTrue(any(e.startswith('history:') for e in summary['errors']), summary['errors'])
+        self.assertEqual(self.uploads, [])
+
+    def test_without_the_secrets_nothing_is_uploaded(self):
+        config = json.loads(self.config.read_bytes())
+        config['history_upload'] = None
+        self.config.write_text(json.dumps(config))
+        summary, _ = self.tick()
+        self.assertIsNone(summary['history_pending'])
+        self.assertEqual((self.sealed, self.uploads, summary['errors']), ([], [], []))
 
 
 class RunbookTests(unittest.TestCase):

@@ -73,6 +73,10 @@ STANDIN_PORT = 9000
 UPLOAD = {'schema': 'dytallix.backup-upload.v1', 'endpoint': f'http://127.0.0.1:{STANDIN_PORT}',
           'bucket': 'copies', 'region': 'auto', 'prefix': 'staging/', 'access_key_id': 'STANDIN',
           'secret_access_key': 'c3RhbmRpbi1vbmx5'}
+# A separate stand-in key for the hosts' metric history (M4b): every host
+# seals and installs it; only a finished day is ever uploaded.
+HISTORY_UPLOAD = dict(UPLOAD, prefix='staging-history/', access_key_id='STANDINHISTORY',
+                      secret_access_key='aGlzdG9yeS1vbmx5')
 METRICS = '/var/lib/dytallix/metrics/dytallix-app.prom'
 SNAPSHOTS = '/var/lib/dytallix/snapshots'
 SNAPSHOT_LIGHT_BLOCKS = '/var/lib/dytallix/snapshot-light-blocks'
@@ -232,8 +236,12 @@ def prepare(release, work):
     descriptor = os.open(upload, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as file:
         json.dump(UPLOAD, file)
+    history = work / 'history-upload.json'
+    descriptor = os.open(history, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as file:
+        json.dump(HISTORY_UPLOAD, file)
     return staging_host.prepare(release, work / 'net', plan=network_plan(), backup_upload=upload,
-                                snapshot_interval=SNAPSHOT_INTERVAL)
+                                history_upload=history, snapshot_interval=SNAPSHOT_INTERVAL)
 
 
 def network_up(work):
@@ -343,11 +351,14 @@ def wait_height(guest, label, target, timeout):
 
 def monitor_run(guest, label):
     """One run of the host's monitor job in its sandbox (monitoring v1, M4):
-    before its settings exist it reads every input and sends nothing."""
-    guest.run(['systemctl', 'start', 'dytallix-monitor.service'], timeout=120)
+    before its settings exist it reads every input and sends nothing. The
+    stand-in store is the sentry's own loopback, so a history upload (only
+    after a UTC midnight) may fail here; any other error fails the run."""
+    guest.run(['systemctl', 'start', 'dytallix-monitor.service'], timeout=180)
     _, journal, _ = guest.run(['journalctl', '-u', 'dytallix-monitor', '-o', 'cat', '--no-pager', '-n', '20'])
     runs = [json.loads(line) for line in journal.splitlines() if line.startswith('{"status"')]
-    if not runs or runs[-1]['heartbeat'] != 'NO_SETTINGS' or runs[-1]['errors']:
+    errors = [e for e in runs[-1]['errors'] if not e.startswith('history: the upload')] if runs else None
+    if not runs or runs[-1]['heartbeat'] != 'NO_SETTINGS' or errors or runs[-1]['history_pending'] is None:
         raise Failed(f'{label}: the monitor job did not run cleanly:\n{journal.strip()[-2000:]}')
     say(f'== {label} monitor: {json.dumps(runs[-1])}')
 

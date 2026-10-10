@@ -64,6 +64,11 @@ elif name == 'dytallix-root-sign' and args[0] == 'backup-code':
     create(flags['-out'], (line + '\n').encode())
     print('backup code for %s (write it on paper twice):' % flags['-chain'])
     print(line)
+elif name == 'dytallix-root-sign' and args[0] == 'history-code':
+    line = 'dytallix-history-%s %s' % (flags['-chain'], ' '.join(['00c2'] * 17))
+    create(flags['-out'], (line + '\n').encode())
+    print('history code for %s (write it on paper twice):' % flags['-chain'])
+    print(line)
 else:
     sys.exit('unexpected ' + name)
 '''
@@ -201,12 +206,15 @@ def NFT_INCLUDE_PRESENT(host):
 
 UPLOAD = {'schema': 'dytallix.backup-upload.v1', 'endpoint': 'https://storage.example', 'bucket': 'dytallix-copies',
           'region': 'auto', 'prefix': 'staging/', 'access_key_id': 'AKIDEXAMPLE', 'secret_access_key': 'c2VjcmV0'}
+HISTORY_UPLOAD = dict(UPLOAD, prefix='staging-history/', access_key_id='AKIDHISTORY', secret_access_key='aGlzdA==')
 
 
 class HostNetwork(unittest.TestCase):
     """The synthetic network, its keys, host files and helpers."""
-    # With an upload key the sentry also seals the backup secrets.
+    # With an upload key the sentry also seals the backup secrets; with a
+    # history upload key every host seals the history secrets.
     backup = False
+    history = False
 
     def setUp(self):
         # The host file generator's synthetic network, with the root signer
@@ -234,9 +242,17 @@ class HostNetwork(unittest.TestCase):
             descriptor = os.open(upload, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
             with os.fdopen(descriptor, 'w') as file:
                 json.dump(UPLOAD, file)
-        typed = lambda: next(line for line in reversed(shown) if line.startswith('dytallix-backup-'))  # noqa: E731
+        history = None
+        if self.history:
+            history = self.tmp / 'history-upload.json'
+            descriptor = os.open(history, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(descriptor, 'w') as file:
+                json.dump(HISTORY_UPLOAD, file)
+        # The founder types back the code just printed.
+        typed = lambda: next(line for line in reversed(shown)  # noqa: E731
+                             if line.startswith(('dytallix-backup-', 'dytallix-history-')))
         self.summaries = host_keys.run(plan_path, self.tools, self.staging, self.keys, show=lambda text: shown.extend(
-            str(text).splitlines()), backup_upload=upload, read_line=typed)
+            str(text).splitlines()), backup_upload=upload, read_line=typed, history_upload=history)
         self.shown = '\n'.join(shown)
         self.plan = json.loads((self.keys / 'PIN_PLAN.json').read_bytes())
         generated = host_files.generate(self.network.dirs['release'], self.network.dirs['chain'],
@@ -703,6 +719,56 @@ class MonitorHostTests(HostNetwork):
         # A stand-in receiver on the host may use plain HTTP.
         hi.monitor_settings(bundle, host, self.settings_file(alert_url='http://127.0.0.1:9100/alert'),
                             out=lambda _: None)
+
+
+class HistoryHostTests(HostNetwork):
+    """Every host's history secrets (monitoring v1, M4b), beside the
+    sentry's backup secrets."""
+    backup = history = True
+
+    def test_every_host_seals_the_one_history_code(self):
+        self.assertEqual(self.shown.count('dytallix-history-'), 1, 'the history code is printed once')
+        codes = set()
+        for label, summary in self.summaries.items():
+            history = {p for p in summary['secret_files'] if p.startswith('history/')}
+            self.assertEqual(history, set(host_files.HISTORY_SECRETS), label)
+            codes.add((self.staging / label / 'history' / 'code').read_bytes())
+            upload = json.loads((self.staging / label / 'history' / 'upload.json').read_bytes())
+            self.assertEqual(upload, HISTORY_UPLOAD)
+            backup = {p for p in summary['secret_files'] if p.startswith('backup/')}
+            self.assertEqual(bool(backup), label == 'sentry-1', 'the backup code stays on the sentry')
+        self.assertEqual(len(codes), 1)
+        for label, manifest in self.manifests.items():
+            secrets = {s['path']: (s['owner'], s['mode']) for s in manifest['secrets']}
+            self.assertEqual(secrets['/etc/dytallix-monitor/history-code'], ('root', '0400'))
+            self.assertEqual(secrets['/etc/dytallix-monitor/history-upload.json'], ('root', '0400'))
+            config = json.loads((self.host_files / label / f'etc/dytallix/{manifest["release"]}/monitor.json')
+                                .read_bytes())
+            self.assertEqual(config['history_upload'], {
+                'signer': f'/opt/dytallix/{manifest["release"]}/bin/dytallix-root-sign',
+                'code_file': '/etc/dytallix-monitor/history-code',
+                'upload_file': '/etc/dytallix-monitor/history-upload.json'})
+
+    def test_install_places_the_history_secrets_beside_the_settings(self):
+        for label in ('validator-1', 'sentry-1'):
+            bundle, host, manifest, _ = self.install(label)
+            self.assertEqual(hi.verify(bundle, host), [])
+            for name in ('history-code', 'history-upload.json'):
+                path = f'/etc/dytallix-monitor/{name}'
+                self.assertEqual(stat.S_IMODE(os.lstat(host.path(path)).st_mode), 0o400)
+                self.assertEqual(host.owner(path), (0, 0))
+            self.assertFalse(host.path(hi.HOME + '/history').exists())
+            self.assertEqual(os.path.lexists(host.path('/etc/dytallix-backup/code')), label == 'sentry-1')
+
+    def test_the_history_key_must_be_separate(self):
+        same = self.tmp / 'same.json'
+        descriptor = os.open(same, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(descriptor, 'w') as file:
+            json.dump(dict(HISTORY_UPLOAD, access_key_id=UPLOAD['access_key_id']), file)
+        backup = self.tmp / 'upload.json'
+        with self.assertRaisesRegex(host_keys.Invalid, 'separate key'):
+            host_keys.run(self.tmp / 'plan.json', self.tools, self.tmp / 'staging-2', self.tmp / 'out-2',
+                          show=lambda _: None, backup_upload=backup, history_upload=same)
 
 
 class BackupHostTests(HostNetwork):

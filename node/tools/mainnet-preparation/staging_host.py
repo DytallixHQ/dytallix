@@ -70,7 +70,8 @@ def staging_plan(address):
     return plan
 
 
-def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot_interval=None):
+def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot_interval=None,
+            history_upload=None):
     """The key step and the staging chain. Without a plan, this host is the
     validator and the others have documentation addresses."""
     release, work = Path(release), Path(work)
@@ -84,8 +85,10 @@ def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot
                '--bin', str(tools), '--staging', str(work / 'staging'), '--out', str(work / 'keys')]
     if backup_upload:
         command += ['--backup-upload', str(backup_upload)]
+    if history_upload:
+        command += ['--history-upload', str(history_upload)]
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
-    codes, seal_line, backup_line = {}, None, None
+    codes, seal_line, backup_line, history_line = {}, None, None, None
     for out in process.stdout:
         print(out, end='', flush=True)
         for row in out.splitlines():
@@ -95,8 +98,12 @@ def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot
             elif row.startswith('dytallix-backup-'):
                 backup_line = row
                 codes['backup'] = row
+            elif row.startswith('dytallix-history-'):
+                history_line = row
+                codes['history'] = row
         if 'type it back from the paper' in out:
-            process.stdin.write((backup_line if 'backup code' in out else seal_line) + '\n')
+            typed = backup_line if 'backup code' in out else history_line if 'history code' in out else seal_line
+            process.stdin.write(typed + '\n')
             process.stdin.flush()
     if process.wait() != 0:
         raise Failed('the key step failed')

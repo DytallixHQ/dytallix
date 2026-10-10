@@ -54,7 +54,7 @@ the installer) and H4 (the CI install) are built; H5 follows.
 | `/etc/dytallix-backup/` | root, 0700, files 0400 | The sentry's backup code and upload key ([disaster recovery v1](disaster-recovery-v1.md)) |
 | `/var/lib/dytallix-backup/` | root, 0700 | The backup job's last uploaded height and scratch copy |
 | `/etc/systemd/system/dytallix-backup.{service,timer}` | root, 0444 | The sentry's hourly off-host backup |
-| `/etc/dytallix-monitor/` | root, 0700, file 0400 | The host's monitor settings, `webhooks.json`, installed by `monitor-settings.sh` and never in the bundle ([monitoring v1](monitoring-v1.md)) |
+| `/etc/dytallix-monitor/` | root, 0700, files 0400 | The host's monitor settings, `webhooks.json`, installed by `monitor-settings.sh` and never in the bundle; the history code and upload key, `history-code` and `history-upload.json`, unsealed with the node keys ([monitoring v1](monitoring-v1.md)) |
 | `/var/lib/dytallix-monitor/` | root, 0700 | The monitor job's state and metric history |
 | `/etc/systemd/system/dytallix-monitor.{service,timer}` | root, 0444 | The monitor job, every minute, on every host |
 

@@ -109,9 +109,11 @@ class Refused(Exception):
 
 def secret_path(relative):
     """Where a sealed file is installed: node keys in the node home, the
-    sentry's backup secrets outside it."""
+    sentry's backup secrets and every host's history secrets outside it."""
     if relative.startswith('backup/'):
         return f'{BACKUP_ETC}/{relative[len("backup/"):]}'
+    if relative.startswith('history/'):
+        return f'{MONITOR_ETC}/history-{relative[len("history/"):]}'
     return f'{HOME}/{relative}'
 
 
@@ -119,6 +121,8 @@ def sealed_name(absolute):
     """A secret file's name in the sealed keys."""
     if absolute.startswith(BACKUP_ETC + '/'):
         return 'backup/' + absolute[len(BACKUP_ETC) + 1:]
+    if absolute.startswith(MONITOR_ETC + '/history-'):
+        return 'history/' + absolute[len(MONITOR_ETC + '/history-'):]
     require(absolute.startswith(HOME + '/'), f'{absolute} is not a sealed file')
     return absolute[len(HOME) + 1:]
 
@@ -321,7 +325,7 @@ def install(bundle, host, out=say):
     bin_dir = f'/opt/dytallix/{release}/bin'
     staging = host.path(UNSEALED)
     staging.mkdir(mode=0o700)
-    for name in ('config', 'data', 'backup'):
+    for name in ('config', 'data', 'backup', 'history'):
         (staging / name).mkdir(mode=0o700)
     out(f'Type the seal code for {label} from its paper (dytallix-seal-{label} ...), then press Enter:')
     host.run([str(host.path(f'{bin_dir}/{UNSEALER}')), 'unseal', '-paper', '-', '-sealed',

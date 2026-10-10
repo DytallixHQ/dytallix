@@ -75,6 +75,9 @@ MONITOR_ETC = '/etc/dytallix-monitor'
 MONITOR_STATE = '/var/lib/dytallix-monitor'
 MONITOR_UNIT = 'dytallix-monitor'
 MONITOR_SCRIPT = HERE / 'host' / 'monitor.py'
+# The chain's history code and the history upload key (M4b), sealed with
+# every host's keys and installed beside its monitor settings.
+HISTORY_SECRETS = ('history/code', 'history/upload.json')
 # The approved alert thresholds and history retention (E05 values monitor.*).
 MONITOR_VALUES = ('halt_seconds', 'missed_blocks', 'missed_blocks_window_seconds', 'disk_free_warning_percent',
                   'disk_free_critical_percent', 'rpc_failing_seconds', 'staking_change_percent',
@@ -185,6 +188,8 @@ def secret_path(relative):
     """Where an unsealed secret file is installed."""
     if relative.startswith('backup/'):
         return f'{BACKUP_ETC}/{relative[len("backup/"):]}'
+    if relative.startswith('history/'):
+        return f'{MONITOR_ETC}/history-{relative[len("history/"):]}'
     return f'{HOME}/{relative}'
 
 
@@ -276,7 +281,7 @@ def monitor_unit(etc):
         'SystemCallArchitectures=native',
         'SystemCallFilter=@system-service',
         'Nice=5',
-        'TimeoutStartSec=50s',
+        'TimeoutStartSec=110s',
         'StandardOutput=journal',
         'StandardError=journal',
         '',
@@ -358,6 +363,10 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     if backup:
         require(role == 'sentry', f'{label}: only the sentry makes off-host backups')
         expected |= set(BACKUP_SECRETS)
+    # Any host may carry the history secrets (both or neither).
+    history = any(path.startswith('history/') for path in secrets)
+    if history:
+        expected |= set(HISTORY_SECRETS)
     require(set(secrets) == expected, f'{label}: the sealed keys must be exactly {sorted(expected)}')
 
     # The catalog mapping: each member at its installed path.
@@ -560,7 +569,12 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
         'status_url': f'http://{plan_host["status"]}/status' if role == 'endpoint' and plan_host.get('status') else None,
         'curl': CURL, 'systemctl': SYSTEMCTL,
         'thresholds': thresholds, 'emission_ceiling_udrt_per_block': ceiling,
+        # Each finished day is encrypted under the history code and uploaded (M4b).
+        'history_upload': {'signer': f'{bin_dir}/dytallix-root-sign', 'code_file': f'{MONITOR_ETC}/history-code',
+                           'upload_file': f'{MONITOR_ETC}/history-upload.json'} if history else None,
     }
+    if history:
+        require('dytallix-root-sign' in record_members, 'the release has no dytallix-root-sign to encrypt history')
     add(f'{etc}/monitor.json', pretty(monitor_config))
     add(f'{etc}/monitor.py', MONITOR_SCRIPT.read_bytes())
     add(f'/etc/systemd/system/{MONITOR_UNIT}.service', monitor_unit(etc))
@@ -596,8 +610,8 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
                      for m in sorted(record_members)],
         'files': rows,
         'secrets': [{'path': secret_path(relative), 'sha256': digest,
-                     'owner': 'root' if relative.startswith('backup/') else USER,
-                     'mode': '0400' if relative.startswith('backup/') else '0600'}
+                     'owner': 'root' if relative.startswith(('backup/', 'history/')) else USER,
+                     'mode': '0400' if relative.startswith(('backup/', 'history/')) else '0600'}
                     for relative, digest in sorted(secrets.items())],
         'timers': ([f'{BACKUP_UNIT}.timer'] if backup else []) + [f'{MONITOR_UNIT}.timer'],
         'apparmor_profiles': unit_properties['required_enforce_profiles'],

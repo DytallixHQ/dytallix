@@ -191,7 +191,7 @@ pin plan. The session needs `python3` on the live USB.
    ```text
    python3 /tmp/host_keys.py --plan /mnt/public/PIN_PLAN.json --bin /tmp/bin \
      --staging /tmp/staging --out /mnt/public/node-keys \
-     --backup-upload /tmp/upload.json
+     --backup-upload /tmp/upload.json --history-upload /tmp/history-upload.json
    ```
 
    `/tmp/upload.json` is the off-host store's write-only upload key
@@ -203,11 +203,20 @@ pin plan. The session needs `python3` on the live USB.
    `dytallix-backup-CHAIN` and seventeen groups: write it on paper twice and
    type it back. Both are sealed with the sentry's keys.
 
+   `/tmp/history-upload.json` is a separate write-only key, same fields,
+   for the hosts' metric history
+   ([monitoring v1](../../node/docs/architecture/monitoring-v1.md), M4b); it
+   must be a different key from the backup one. Before the first host,
+   `host_keys.py` makes the chain's history code and prints its line,
+   `dytallix-history-CHAIN` and seventeen groups: write it on paper twice and
+   type it back. The history code and this key are sealed with every host's
+   keys; the history code opens only metric history, never a snapshot.
+
 3. For each host it prints a seal code line: `dytallix-seal-LABEL` and
    seventeen groups. Write it on paper twice, then type it back from the
    paper and press Enter; `seal-check` confirms it opens that host's keys.
-4. The seal codes and the backup code stay on paper (the root key holders
-   approval changes only the kits). Keep the two copies of each in two
+4. The seal codes, the backup code and the history code stay on paper (the
+   root key holders approval changes only the kits). Keep the two copies of each in two
    separate places of your own, never with a holder's kit: a code and the
    sealed records together open that host's keys. The staging homes are in
    RAM and go when you shut down. The sealed records on the public stick are
