@@ -10,8 +10,9 @@ D12-Q02), and the root keys are held in key kits
 ([key ceremony](../../../launch/custody/KEY_CEREMONY.md)). The following are
 unset inputs:
 - the named roles (D14-Q03);
-- alert checks, thresholds and routing (artifact A22; the design is
-  [monitoring v1](../architecture/monitoring-v1.md), P01, 9 October 2026);
+- the alerting and uptime services and their accounts (artifact A22); the
+  alert rules and thresholds are approved and each alert's response is in
+  [monitoring.md](monitoring.md) ([monitoring v1](../architecture/monitoring-v1.md));
 - the authenticated incident channel.
 
 Exercise each procedure on disposable local or assigned staging systems
@@ -32,7 +33,8 @@ Day-to-day host operations (status, start and stop, staging wipe, moving to
 a new release) are in [host.md](host.md); validator recovery (F17) is
 [validator-recovery.md](validator-recovery.md), and restoring a lost sentry
 or endpoint from the off-host copy (F19) is
-[disaster-recovery.md](disaster-recovery.md).
+[disaster-recovery.md](disaster-recovery.md). The monitor job, its settings and what to do for
+each alert are in [monitoring.md](monitoring.md).
 
 The procedures assume the native supervisor (`crates/native-supervisor`) as
 the service owner. The Python service that `deploy/pqc-engine` once held was

@@ -607,6 +607,104 @@ if __name__ == '__main__':
     unittest.main()
 
 
+class MonitorHostTests(HostNetwork):
+    """The monitor job on every host (monitoring v1, M4): its files, unit and
+    timer from the bundle, and its settings from the founder's own media."""
+
+    SETTINGS = {'schema': 'dytallix.monitor-settings.v1', 'label': 'validator-1',
+                'heartbeat_url': 'https://beat.example/ping/v1', 'alert_url': 'https://alerts.example/hook',
+                'escalation_url': None}
+
+    def test_every_host_gets_the_job_with_the_approved_values(self):
+        values = {r['path']: r['approved'] for r in self.network.values['values'] if r['status'] == 'APPROVED'}
+        for label, manifest in self.manifests.items():
+            etc = f'/etc/dytallix/{manifest["release"]}'
+            files = {r['path'] for r in manifest['files']}
+            self.assertTrue({f'{etc}/monitor.json', f'{etc}/monitor.py', '/etc/systemd/system/dytallix-monitor.service',
+                             '/etc/systemd/system/dytallix-monitor.timer'} <= files, label)
+            self.assertIn('dytallix-monitor.timer', manifest['timers'])
+            directories = {d['path']: (d['owner'], d['mode']) for d in manifest['directories']}
+            self.assertEqual(directories['/etc/dytallix-monitor'], ('root', '0700'))
+            self.assertEqual(directories['/var/lib/dytallix-monitor'], ('root', '0700'))
+            # The settings are never in the bundle or the sealed keys.
+            self.assertFalse(any('monitor' in s['path'] for s in manifest['secrets']))
+            config = json.loads((self.host_files / label / etc.lstrip('/') / 'monitor.json').read_bytes())
+            self.assertEqual((config['label'], config['role']), (label, manifest['role']))
+            self.assertEqual(config['thresholds'], {name: values['monitor.' + name] for name in host_files.MONITOR_VALUES})
+            self.assertEqual(config['emission_ceiling_udrt_per_block'], 1_000_000_000)
+            self.assertEqual(config['status_url'] is not None, manifest['role'] == 'endpoint')
+            self.assertIsNone(config['backup_state'])
+        unit = (self.host_files / 'validator-1' / 'etc/systemd/system/dytallix-monitor.service').read_text()
+        self.assertIn('CapabilityBoundingSet=\n', unit)
+        self.assertIn('ReadWritePaths=/var/lib/dytallix-monitor\n', unit)
+        self.assertIn('ProtectSystem=strict', unit)
+        timer = (self.host_files / 'validator-1' / 'etc/systemd/system/dytallix-monitor.timer').read_text()
+        self.assertIn('OnCalendar=*-*-* *:*:00', timer)
+        endpoint = self.manifests['endpoint-1']
+        config = json.loads((self.host_files / 'endpoint-1' / f'etc/dytallix/{endpoint["release"]}/monitor.json')
+                            .read_bytes())
+        status = next(h['status'] for h in self.plan['hosts'] if h['label'] == 'endpoint-1')
+        self.assertEqual(config['status_url'], f'http://{status}/status')
+
+    def test_an_unapproved_threshold_is_refused(self):
+        values = json.loads(json.dumps(self.network.values))
+        next(r for r in values['values'] if r['path'] == 'monitor.halt_seconds')['status'] = 'OPEN'
+        with self.assertRaisesRegex(host_files.Invalid, 'monitor.halt_seconds is not approved'):
+            host_files.generate(self.network.dirs['release'], self.network.dirs['chain'], self.network.dirs['hosts'],
+                                self.plan, self.keys, values, self.network.setup)
+
+    def settings_file(self, **change):
+        path = self.tmp / 'webhooks.json'
+        path.write_text(json.dumps(dict(self.SETTINGS, **change)))
+        return path
+
+    def test_install_settings_replace_and_wipe(self):
+        bundle, host, manifest, printed = self.install('validator-1')
+        self.assertIn('dytallix-monitor.timer', host.enabled)
+        self.assertIn('./monitor-settings.sh', '\n'.join(printed))
+        self.assertEqual(hi.verify(bundle, host), [])
+        self.assertTrue((bundle / 'monitor-settings.sh').exists())
+        shown = []
+        self.assertTrue(hi.monitor_settings(bundle, host, self.settings_file(), out=shown.append))
+        installed = host.path(hi.MONITOR_SETTINGS)
+        self.assertEqual(stat.S_IMODE(os.lstat(installed).st_mode), 0o400)
+        self.assertEqual(host.owner(hi.MONITOR_SETTINGS), (0, 0))
+        self.assertEqual(json.loads(installed.read_bytes())['alert_url'], 'https://alerts.example/hook')
+        self.assertIn(['systemctl', 'start', 'dytallix-monitor.service'], host.commands)
+        self.assertNotIn('alerts.example', '\n'.join(shown), 'the URLs are not printed')
+        self.assertIn('by the alerting service', '\n'.join(shown))
+        # Replaced in one step, later.
+        hi.monitor_settings(bundle, host, self.settings_file(alert_url='https://other.example/hook',
+                                                             escalation_url='https://backup.example/x'),
+                            out=lambda _: None)
+        self.assertEqual(json.loads(installed.read_bytes())['alert_url'], 'https://other.example/hook')
+        self.assertEqual(hi.verify(bundle, host), [], 'the settings are not part of the bundle check')
+        hi.wipe(bundle, host, confirm=lambda _: 'wipe validator-1', out=lambda _: None)
+        self.assertEqual(hi.existing(host), [])
+        self.assertNotIn('dytallix-monitor.timer', host.enabled)
+
+    def test_settings_refusals(self):
+        bundle, host, _, _ = self.install('validator-1')
+        cases = (({'label': 'sentry-1'}, 'for sentry-1'),
+                 ({'alert_url': 'http://alerts.example/hook'}, 'https'),
+                 ({'heartbeat_url': 'https://beat.example/a b'}, 'https'),
+                 ({'heartbeat_url': 'https://beat.example/"x'}, 'https'),
+                 ({'escalation_url': 'https://u:p@backup.example/'}, 'https'),
+                 ({'extra': 1}, 'not monitor settings'),
+                 ({'schema': 'other'}, 'not monitor settings'))
+        for change, message in cases:
+            with self.subTest(change=change):
+                with self.assertRaisesRegex(hi.Refused, message):
+                    hi.monitor_settings(bundle, host, self.settings_file(**change), out=lambda _: None)
+        self.assertFalse(os.path.lexists(host.path(hi.MONITOR_SETTINGS)))
+        (self.tmp / 'bad.json').write_text('{')
+        with self.assertRaisesRegex(hi.Refused, 'not JSON'):
+            hi.monitor_settings(bundle, host, self.tmp / 'bad.json', out=lambda _: None)
+        # A stand-in receiver on the host may use plain HTTP.
+        hi.monitor_settings(bundle, host, self.settings_file(alert_url='http://127.0.0.1:9100/alert'),
+                            out=lambda _: None)
+
+
 class BackupHostTests(HostNetwork):
     """The sentry's backup secrets and unit (disaster recovery v1)."""
     backup = True
@@ -618,8 +716,11 @@ class BackupHostTests(HostNetwork):
         upload = self.staging / 'sentry-1' / 'backup' / 'upload.json'
         self.assertEqual(stat.S_IMODE(os.lstat(upload).st_mode), 0o600)
         manifest = self.manifests['sentry-1']
-        self.assertEqual(manifest['timers'], ['dytallix-backup.timer'])
-        self.assertEqual(self.manifests['validator-1']['timers'], [])
+        self.assertEqual(manifest['timers'], ['dytallix-backup.timer', 'dytallix-monitor.timer'])
+        self.assertEqual(self.manifests['validator-1']['timers'], ['dytallix-monitor.timer'])
+        monitor = json.loads((self.host_files / 'sentry-1' / f'etc/dytallix/{manifest["release"]}/monitor.json')
+                             .read_bytes())
+        self.assertEqual(monitor['backup_state'], '/var/lib/dytallix-backup/last-uploaded')
         secrets = {s['path']: (s['owner'], s['mode']) for s in manifest['secrets']}
         self.assertEqual(secrets['/etc/dytallix-backup/code'], ('root', '0400'))
         self.assertEqual(secrets['/etc/dytallix-backup/upload.json'], ('root', '0400'))

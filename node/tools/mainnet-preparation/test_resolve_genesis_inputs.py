@@ -11,7 +11,7 @@ LAUNCH = HERE.parents[2]/'launch'
 REHEARSAL = HERE/'fixtures'/'genesis-rehearsal'
 # The production-profile rehearsal on the staging chain (A7).
 PRODUCTION = HERE/'fixtures'/'genesis-production-rehearsal'
-NOT_GENESIS = ('config.toml', 'service.', 'emergency verifier', 'config/pqc', '(')
+NOT_GENESIS = ('config.toml', 'service.', 'monitor.', 'emergency verifier', 'config/pqc', '(')
 
 
 class ResolverTests(unittest.TestCase):

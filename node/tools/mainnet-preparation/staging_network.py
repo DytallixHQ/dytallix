@@ -341,6 +341,17 @@ def wait_height(guest, label, target, timeout):
     raise Failed(f'{label} did not reach height {target} in {timeout} s')
 
 
+def monitor_run(guest, label):
+    """One run of the host's monitor job in its sandbox (monitoring v1, M4):
+    before its settings exist it reads every input and sends nothing."""
+    guest.run(['systemctl', 'start', 'dytallix-monitor.service'], timeout=120)
+    _, journal, _ = guest.run(['journalctl', '-u', 'dytallix-monitor', '-o', 'cat', '--no-pager', '-n', '20'])
+    runs = [json.loads(line) for line in journal.splitlines() if line.startswith('{"status"')]
+    if not runs or runs[-1]['heartbeat'] != 'NO_SETTINGS' or runs[-1]['errors']:
+        raise Failed(f'{label}: the monitor job did not run cleanly:\n{journal.strip()[-2000:]}')
+    say(f'== {label} monitor: {json.dumps(runs[-1])}')
+
+
 def run(work, timeout=600):
     work = Path(work)
     guests = {label: agent(work, label) for label in VMS}
@@ -357,6 +368,8 @@ def run(work, timeout=600):
     if page.get('chain_id') != staging_host.CHAIN_ID or not int(page.get('height', 0)) > 0:
         raise Failed(f'the endpoint status page is wrong: {page}')
     say(f'== endpoint status page: {page}')
+    for label, guest in guests.items():
+        monitor_run(guest, label)
     # The sentry's snapshot and its off-host copy.
     sentry = guests['sentry-1']
     deadline = time.monotonic() + 180
@@ -675,6 +688,7 @@ def diagnostics(work):
             for args in (['systemctl', 'status', '--no-pager', 'dytallix-node'],
                          ['journalctl', '-u', 'dytallix-node', '-o', 'cat', '--no-pager', '-n', '200'],
                          ['journalctl', '-u', 'dytallix-backup', '-o', 'cat', '--no-pager', '-n', '50'],
+                         ['journalctl', '-u', 'dytallix-monitor', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['journalctl', '-k', '--no-pager', '-n', '50', '--grep', 'apparmor'],
                          ['tail', '-n', '40', '/var/log/cloud-init-output.log']):
                 _, out, err = guest.run(args, check=False, timeout=60)

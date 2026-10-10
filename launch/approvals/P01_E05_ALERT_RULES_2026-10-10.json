@@ -1,0 +1,45 @@
+{
+  "decision_id": "P01-2026-10-10-E05-ALERT-RULES",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The monitor job's alert rules, metric history and webhook settings (monitoring M4)"
+  },
+  "design_ref": "../../node/docs/architecture/monitoring-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "Approve as proposed",
+      "rule": "The fourteen alert rules of monitoring v1 with their severities: consensus halt (application height unchanged 60 s, severity 1); validator outage and monitoring down (a heartbeat missing 3 minutes, severity 1, in the alerting service); abnormal missed blocks (5 or more in 10 minutes, 2); disk exhaustion (data disk under 15% free, 2; under 5%, 1); RPC outage (status page not 200 for 3 minutes, 2); supply invariant violation (DRT total differs from genesis plus emitted minus burned, or DGT issued changes, 1); unexpected mint or burn (emission beyond the issuance schedule, or a burn without fees, 1); abnormal staking event (staked DGT changes by more than 5% in an hour, 2); abnormal governance event (any governance transaction, 3); repeated signature verification failures (10 or more in 10 minutes, 2); node restart loop (3 or more starts in 15 minutes, 1); stale metrics (a metric file older than 60 s, 2); stale backup (no upload for 26 hours, 2). A severity 1 alert firing for 15 minutes also goes to the escalation URL, once. Metric history is kept 396 days (the approved 13 months). The values are E05 values monitor.*."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Yes, encrypted upload, under a separate history code",
+      "rule": "Each host also uploads its finished daily metric history file, encrypted, to the backup store, so the founder can draw dashboards on their own machine. The validator and the endpoint do not receive the chain's backup code: a separate per-chain history code (its own paper line at the key ceremony) and a separate write-only upload key are sealed on every host, and dytallix-root-sign gains history commands on the existing authenticated encryption under their own domain. Built in M4b."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Separate and replaceable",
+      "rule": "Each host's webhook settings (heartbeat, alert and escalation URLs) are not sealed with its node keys. The installer's monitor-settings command reads them at the console from a file on the founder's own media, checks them and installs them root-only (0400), and they can be replaced at any time without touching the keys. They never enter the public bundle. This replaces 'webhook URLs in sealed host settings' in P01-2026-10-09-E05-MONITORING; the rest of that decision stands."
+    }
+  ],
+  "supersedes": [
+    {
+      "decision_id": "P01-2026-10-09-E05-MONITORING",
+      "part": "Where the webhook URLs are held: 'each host's sealed settings' becomes root-only settings installed and replaced by the installer's monitor-settings command."
+    }
+  ],
+  "unset": [
+    "The alerting and uptime services and their accounts (A22)",
+    "The backup person's identity and contact, held outside the repository",
+    "The history code, its upload key and the history commands (M4b)",
+    "Live alert delivery, acknowledgement and escalation acceptance on the production hosts"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

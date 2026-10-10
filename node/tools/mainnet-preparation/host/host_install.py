@@ -26,10 +26,15 @@ from the unpacked bundle, through install.sh and wipe.sh:
            with --restore-snapshot, waits until it has restored and caught
            up, then removes the one-time start and the opened copy. On the
            validator it requires --accept-history-loss.
+  monitor-settings FILE
+           installs or replaces this host's monitor settings (monitoring v1,
+           M4): the heartbeat, alert and escalation URLs, from a file on the
+           founder's own media, root-only, then runs the monitor once. They
+           are never in the bundle and change without touching the keys.
   wipe     removes the node from the host (staging before production):
            /opt/dytallix, /etc/dytallix, /var/lib/dytallix, the unit, the
-           profiles, the firewall table and the journal setting. It keeps
-           the account.
+           profiles, the firewall table, the journal setting and the
+           monitor and backup units and their state. It keeps the account.
 
 Standard library only; Ubuntu 24.04's python3.
 """
@@ -49,7 +54,11 @@ SEALED_SCHEMA = 'dytallix.sealed-host-keys.v1'
 # The sentry's backup secrets and state (disaster recovery v1) live outside
 # the node's trees.
 BACKUP_ETC = '/etc/dytallix-backup'
-TREES = ('/opt/dytallix', '/etc/dytallix', '/var/lib/dytallix', BACKUP_ETC, '/var/lib/dytallix-backup')
+# The monitor job's settings and state (monitoring v1), on every host.
+MONITOR_ETC = '/etc/dytallix-monitor'
+MONITOR_SETTINGS = f'{MONITOR_ETC}/webhooks.json'
+TREES = ('/opt/dytallix', '/etc/dytallix', '/var/lib/dytallix', BACKUP_ETC, '/var/lib/dytallix-backup',
+         MONITOR_ETC, '/var/lib/dytallix-monitor')
 HOME = '/var/lib/dytallix/node'
 UNIT = 'dytallix-node'
 UNIT_FILE = f'/etc/systemd/system/{UNIT}.service'
@@ -58,8 +67,16 @@ FIREWALL_FILE = '/etc/nftables.d/dytallix.nft'
 FIREWALL_TABLE = ('inet', 'dytallix_node')
 JOURNALD_FILE = '/etc/systemd/journald.conf.d/dytallix.conf'
 BACKUP_UNIT = 'dytallix-backup'
+MONITOR_UNIT = 'dytallix-monitor'
 SINGLE_FILES = (UNIT_FILE, PROFILE_FILE, FIREWALL_FILE, JOURNALD_FILE,
-                f'/etc/systemd/system/{BACKUP_UNIT}.service', f'/etc/systemd/system/{BACKUP_UNIT}.timer')
+                f'/etc/systemd/system/{BACKUP_UNIT}.service', f'/etc/systemd/system/{BACKUP_UNIT}.timer',
+                f'/etc/systemd/system/{MONITOR_UNIT}.service', f'/etc/systemd/system/{MONITOR_UNIT}.timer')
+# The monitor settings (dytallix.monitor-settings.v1): each URL https, or
+# plain http only to a stand-in on the host, and safe inside curl's quotes.
+SETTINGS_SCHEMA = 'dytallix.monitor-settings.v1'
+SETTINGS_FIELDS = ('schema', 'label', 'heartbeat_url', 'alert_url', 'escalation_url')
+URL = re.compile(r'^(https://[A-Za-z0-9.-]+|http://(127\.0\.0\.1|localhost))(:[0-9]{1,5})?'
+                 r'(/[A-Za-z0-9._~:/?#\[\]@!$&\'()*+,;=%-]*)?$')
 # The sealed keys are unsealed here first, root-only; each file then goes
 # where the manifest says, and this directory is removed.
 UNSEALED = '/var/lib/dytallix/.unsealed'
@@ -346,6 +363,8 @@ def install(bundle, host, out=say):
     problems = verify(bundle, host, manifest, fresh=True)
     require(not problems, 'the install does not verify:\n  ' + '\n  '.join(problems))
     out(f'Installed and verified {label}. Start the node with: systemctl start {UNIT}')
+    if not os.path.lexists(host.path(MONITOR_SETTINGS)):
+        out(f'Then install its monitor settings: ./monitor-settings.sh FILE (the {label} webhook URLs)')
     return manifest
 
 
@@ -637,11 +656,12 @@ def wipe(bundle, host, confirm=input, out=say):
     require(manifest.get('schema') == SCHEMA, 'not a host install manifest')
     label = manifest['label']
     out(f'This removes the Dytallix node from this host: {", ".join(TREES)} (its node keys and chain data), '
-        f'the unit, the AppArmor profiles, the firewall table, the journal setting and any backup unit.')
+        f'the unit, the AppArmor profiles, the firewall table, the journal setting and the monitor and any '
+        f'backup unit.')
     answer = confirm(f'Type "wipe {label}" to continue: ').strip()
     require(answer == f'wipe {label}', 'not confirmed; nothing removed')
     host.run(['systemctl', 'disable', '--now', f'{UNIT}.service'], check=False)
-    for unit in (f'{BACKUP_UNIT}.timer', f'{BACKUP_UNIT}.service'):
+    for unit in (f'{BACKUP_UNIT}.timer', f'{BACKUP_UNIT}.service', f'{MONITOR_UNIT}.timer', f'{MONITOR_UNIT}.service'):
         if os.path.lexists(host.path(f'/etc/systemd/system/{unit}')):
             host.run(['systemctl', 'disable', '--now', unit], check=False)
     opt = host.path('/opt/dytallix')
@@ -665,17 +685,57 @@ def wipe(bundle, host, confirm=input, out=say):
     out(f'Wiped {label}. The account {manifest["account"]["user"]} is kept.')
 
 
+# The monitor settings (monitoring v1, M4)
+
+def monitor_settings(bundle, host, source, out=say):
+    """Checks this host's monitor settings and installs them root-only in
+    one step, replacing any earlier ones; then runs the monitor once."""
+    require(host.is_root(), 'run as root')
+    manifest = json.loads((Path(bundle) / 'INSTALL_MANIFEST.json').read_bytes())
+    require(manifest.get('schema') == SCHEMA, 'not a host install manifest')
+    label = manifest['label']
+    require(any(d['path'] == MONITOR_ETC for d in manifest['directories']), 'this release has no monitor job')
+    require(host.path(MONITOR_ETC).is_dir(), f'{MONITOR_ETC} is missing; install the host first')
+    info = os.stat(source)
+    require(stat.S_ISREG(info.st_mode) and info.st_size <= 65536, f'{source} is not a settings file')
+    raw = Path(source).read_bytes()
+    try:
+        settings = json.loads(raw)
+    except ValueError as error:
+        raise Refused(f'{source} is not JSON: {error}') from error
+    require(type(settings) is dict and set(settings) <= set(SETTINGS_FIELDS)
+            and settings.get('schema') == SETTINGS_SCHEMA, f'{source} is not monitor settings ({SETTINGS_SCHEMA})')
+    require(settings.get('label') == label, f'the settings are for {settings.get("label")}, not {label}')
+    for field in ('heartbeat_url', 'alert_url', 'escalation_url'):
+        url = settings.get(field)
+        if field == 'escalation_url' and url is None:
+            continue
+        require(type(url) is str and len(url) <= 2048 and URL.match(url),
+                f'the {field} must be an https URL without spaces or quotes')
+    replace_file(host, MONITOR_SETTINGS, raw, 0o400)
+    out(f'Installed the monitor settings for {label} ({sha256(raw)[:16]}). Escalation: '
+        + ('to the escalation URL' if settings.get('escalation_url') else 'by the alerting service'))
+    result = host.run(['systemctl', 'start', f'{MONITOR_UNIT}.service'], check=False)
+    out('Ran the monitor once; the heartbeat service should show this host now.' if result.returncode == 0 else
+        f'The monitor run failed; see journalctl -u {MONITOR_UNIT}.')
+    return result.returncode == 0
+
+
 def main(argv):
     restoring = len(argv) in (3, 4) and argv[1] == 'restore' and argv[3:] in ([], ['--accept-history-loss'])
-    if not restoring and (len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch', 'wipe')):
-        print('usage: host_install.py install|verify|stage|switch|wipe, or restore COPY [--accept-history-loss]',
-              file=sys.stderr)
+    settings = len(argv) == 3 and argv[1] == 'monitor-settings'
+    if not (restoring or settings) and (len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch',
+                                                                           'wipe')):
+        print('usage: host_install.py install|verify|stage|switch|wipe, restore COPY [--accept-history-loss], '
+              'or monitor-settings FILE', file=sys.stderr)
         return 2
     bundle = Path(__file__).resolve().parent
     host = Host()
     try:
         if restoring:
             restore(bundle, host, argv[2], accept_history_loss=len(argv) == 4)
+        elif settings:
+            return 0 if monitor_settings(bundle, host, argv[2]) else 1
         elif argv[1] == 'install':
             install(bundle, host)
         elif argv[1] == 'stage':
