@@ -93,16 +93,23 @@ status page), and the host files' value from `E05_VALUES.json`.
 
 ### Measurements (G27, Day 9)
 
+Built in M3 (P01, 10 October 2026,
+[approval](../../../launch/approvals/P01_E05_METRIC_SET_2026-10-10.json);
+[metrics v1](metrics-v1.md), decision 3): the application's transaction,
+gas, evidence, root control and signature verification measurements and the
+engine's signing time. Restarts, host resources and RPC latency come with
+the monitor job (M4).
+
 | Measurement | Source |
 | --- | --- |
 | Block height, production, time; consensus rounds | Engine: height, block interval, rounds; app: height |
 | Validator participation, missed blocks, voting power, availability | Engine: validators, missing validators, missed blocks, last signed height |
 | Peer count | Engine: `p2p_peers` |
 | Mempool size | Engine: mempool size and bytes |
-| Transaction throughput and failure rate, gas, fees | App, new: transactions by result, gas used, fees burned |
-| Reward distribution, DRT issuance, DGT supply, burns | App: supply buckets; new: rewards paid |
-| Delegation activity, slashing events, governance events | App, new: staking, penalty and governance event counters |
-| Signature verification failures; PQC signing and verification time | App and engine, new: counters and timings |
+| Transaction throughput and failure rate, gas, fees | App: `transactions_total{kind, result}`, `gas_used_total`; fees burned (`supply_udrt{bucket="burned"}`) |
+| Reward distribution, DRT issuance, DGT supply, burns | App: supply buckets (emitted, the reward pools, burned, DGT issued) |
+| Delegation activity, slashing events, governance events | App: staked, bonding and unbonding buckets; `validator_evidence_total` and the penalty reserve; `transactions_total{kind="governance"}` and `root_controls_total{kind}` |
+| Signature verification failures; PQC signing and verification time | App: `signature_verifications_total{scheme, result}`, `signature_verification_seconds{scheme}`; engine: `privval_sign_seconds` |
 | Node restarts | Monitor: `systemctl` restart count |
 | CPU, memory, disk, disk growth, network traffic | Monitor: `/proc`, `statvfs` |
 | RPC latency and error rate | Monitor on the endpoint: a local timed status request; uptime checker from outside |

@@ -1,0 +1,23 @@
+{
+  "decision_id": "P01-2026-10-10-E05-METRIC-SET",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Measurements added to the metric set (monitoring M3)"
+  },
+  "design_ref": "../../node/docs/architecture/metrics-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "All seven",
+      "rule": "The core metric set (metrics v1, decision 2, P01 27 September 2026) gains, without per-peer or per-account labels: in the application, transactions by kind and result, gas used, validator evidence applied, root controls committed by kind, signature verifications by scheme and result, and signature verification time by scheme; in the engine, the PQC signing time of votes and proposals. Fees, issuance, supply, staking and penalties stay the supply buckets; restarts, host resources and RPC latency come from the monitor job (monitoring v1)."
+    }
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

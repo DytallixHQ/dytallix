@@ -76,7 +76,7 @@ fn verify_backend(
                 .as_slice()
                 .try_into()
                 .map_err(|_| SponsorVerificationError::InvalidSignature)?;
-            public.verify(&message, &signature, &[])
+            crate::stats::measured(|| public.verify(&message, &signature, &[]))
         }
         _ => return Err(SponsorVerificationError::UnsupportedAlgorithm),
     };

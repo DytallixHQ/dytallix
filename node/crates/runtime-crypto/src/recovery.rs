@@ -112,7 +112,7 @@ fn verify_signature(
             let signature: [u8; ml_dsa_65::SIG_LEN] = signature
                 .try_into()
                 .map_err(|_| RecoveryVerificationError::InvalidSignature)?;
-            public_key.verify(message, &signature, &[])
+            crate::stats::measured(|| public_key.verify(message, &signature, &[]))
         }
         _ => return Err(RecoveryVerificationError::UnsupportedAlgorithm),
     };

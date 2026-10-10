@@ -170,6 +170,7 @@ impl EmergencyVerifier {
             request_json.len() <= self.config.max_request_bytes,
             "Emergency request exceeds local helper resource bound"
         );
+        let started = std::time::Instant::now();
         let response = run_verified_helper(&VerifiedHelperConfig {
             profile: PROFILE,
             helper_path: &self.config.helper_path,
@@ -183,8 +184,12 @@ impl EmergencyVerifier {
             request_json: &request_json,
         })
         .context("Emergency helper execution failed")?;
+        let elapsed = started.elapsed();
         match response.outcome {
-            HelperOutcome::Rejected => Ok(false),
+            HelperOutcome::Rejected => {
+                crate::app_metrics::helper_verified(false, elapsed);
+                Ok(false)
+            }
             HelperOutcome::Verified(response) => {
                 ensure!(
                     response.status == "VERIFIED"
@@ -195,6 +200,7 @@ impl EmergencyVerifier {
                         && response.sequence == sequence,
                     "Emergency verifier response differs from exact request"
                 );
+                crate::app_metrics::helper_verified(true, elapsed);
                 Ok(true)
             }
         }

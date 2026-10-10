@@ -54,7 +54,7 @@ func TestStateSyncNeedsLightBlocksAndABoundedTrustPeriod(t *testing.T) {
 // the default no-op provider.
 func TestMetricsNeedADirectoryAndABoundedInterval(t *testing.T) {
 	config := cfg.DefaultConfig()
-	if provider, _, err := metricsOption(config, "", 0); err != nil || provider == nil {
+	if provider, _, timed, err := metricsOption(config, "", 0); err != nil || provider == nil || timed == nil {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
@@ -62,11 +62,11 @@ func TestMetricsNeedADirectoryAndABoundedInterval(t *testing.T) {
 		dir      string
 		interval time.Duration
 	}{{dir, 0}, {"", time.Second}, {"relative", time.Second}, {dir, time.Millisecond}, {dir, 2 * time.Hour}, {dir + "/missing", time.Second}} {
-		if _, _, err := metricsOption(config, bad.dir, bad.interval); err == nil {
+		if _, _, _, err := metricsOption(config, bad.dir, bad.interval); err == nil {
 			t.Fatal("accepted", bad)
 		}
 	}
-	if _, write, err := metricsOption(config, dir, time.Second); err != nil || write == nil {
+	if _, write, timed, err := metricsOption(config, dir, time.Second); err != nil || write == nil || timed == nil {
 		t.Fatal(err)
 	}
 }

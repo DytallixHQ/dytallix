@@ -35,6 +35,6 @@ impl PQC for MlDsa65 {
             Err(_) => return false,
         };
 
-        pk_obj.verify(msg, &sig_array, &[])
+        crate::stats::measured(|| pk_obj.verify(msg, &sig_array, &[]))
     }
 }

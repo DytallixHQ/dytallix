@@ -50,6 +50,21 @@ tests.
 1. Export: text files in a directory, read by an operator agent; no
    listener or query path.
 2. Metric set: the core set above, without per-peer or per-account labels.
+3. Added to the set (P01, 10 October 2026,
+   [approval](../../../launch/approvals/P01_E05_METRIC_SET_2026-10-10.json);
+   [monitoring v1](monitoring-v1.md), M3), with fixed labels only:
+   - application: `transactions_total{kind, result}` (kind ordinary,
+     governance, recovery, observation, root_control or other; result ok or
+     failed), `gas_used_total`, `validator_evidence_total`,
+     `root_controls_total{kind}` (emergency, upgrade, handover,
+     kit_replacement), `signature_verifications_total{scheme, result}` and
+     `signature_verification_seconds{scheme}` (scheme `ml_dsa_65`, every
+     ML-DSA verification in the runtime crypto, or `slh_dsa_shake_256s`, the
+     root helper; result valid or invalid);
+   - engine: `privval_sign_seconds`, the PQC signing time of this node's
+     votes and proposals (successful signatures only).
+   Fees, issuance, supply, staking and penalties stay the supply buckets.
+   The counters start at zero with the process.
 
 ## Implementation notes
 

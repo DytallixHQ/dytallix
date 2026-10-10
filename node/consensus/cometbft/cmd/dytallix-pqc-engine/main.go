@@ -71,18 +71,20 @@ func stateSyncOption(ctx context.Context, runtime *enginepqc.Runtime, dirs []str
 	return []node.Option{node.StateProvider(provider)}, nil
 }
 
-// metricsOption builds the metrics provider and file writer for an operator
-// directory and interval (metrics v1), or the default no-op provider when
-// neither is set.
-func metricsOption(config *cfg.Config, dir string, interval time.Duration) (node.MetricsProvider, func(context.Context), error) {
+// metricsOption builds the metrics provider, the file writer and a signer
+// wrapper that times each signature for an operator directory and interval
+// (metrics v1), or the default no-op provider and no timing when neither is
+// set.
+func metricsOption(config *cfg.Config, dir string, interval time.Duration) (node.MetricsProvider, func(context.Context), func(types.PrivValidator) types.PrivValidator, error) {
+	unchanged := func(signer types.PrivValidator) types.PrivValidator { return signer }
 	if dir == "" && interval == 0 {
-		return node.DefaultMetricsProvider(config.Instrumentation), func(context.Context) {}, nil
+		return node.DefaultMetricsProvider(config.Instrumentation), func(context.Context) {}, unchanged, nil
 	}
 	if dir == "" || !filepath.IsAbs(dir) || interval < time.Second || interval > time.Hour {
-		return nil, nil, errors.New("--metrics-dir (absolute) and --metrics-interval (1s to 1h) go together")
+		return nil, nil, nil, errors.New("--metrics-dir (absolute) and --metrics-interval (1s to 1h) go together")
 	}
 	if stat, err := os.Stat(dir); err != nil || !stat.IsDir() {
-		return nil, nil, errors.New("--metrics-dir must be an existing directory")
+		return nil, nil, nil, errors.New("--metrics-dir must be an existing directory")
 	}
 	registry := metricsfile.NewRegistry()
 	write := func(ctx context.Context) {
@@ -98,7 +100,9 @@ func metricsOption(config *cfg.Config, dir string, interval time.Duration) (node
 			}
 		}
 	}
-	return metricsfile.Provider(registry), write, nil
+	sign := registry.Histogram(metricsfile.SignSecondsMetric)
+	timed := func(signer types.PrivValidator) types.PrivValidator { return metricsfile.TimedSigner(signer, sign) }
+	return metricsfile.Provider(registry), write, timed, nil
 }
 
 func run() error {
@@ -190,10 +194,11 @@ func run() error {
 		return startupdiag.At(3, err)
 	}
 	options = append(options, restore...)
-	metrics, writeMetrics, err := metricsOption(runtime.Config, *metricsDir, *metricsInterval)
+	metrics, writeMetrics, timed, err := metricsOption(runtime.Config, *metricsDir, *metricsInterval)
 	if err != nil {
 		return startupdiag.At(3, err)
 	}
+	signer = timed(signer)
 	options = append(options, node.WithAuthenticatedTransport(runtime.Upgrade(logger)))
 	engine, err := node.NewNodeWithContext(ctx, runtime.Config, signer, runtime.NodeKey,
 		proxy.DefaultClientCreator(runtime.Config.ProxyApp, runtime.Config.ABCI, runtime.Config.DBDir()),
