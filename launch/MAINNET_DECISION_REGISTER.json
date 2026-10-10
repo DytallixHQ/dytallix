@@ -2762,7 +2762,8 @@
             "approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json",
             "approvals/P01_E05_RESTORE_2026-10-08.json",
             "approvals/P01_E05_MONITORING_2026-10-09.json",
-            "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json"
+            "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json",
+            "approvals/P01_E05_METRIC_SET_2026-10-10.json"
           ]
         },
         {
@@ -4290,6 +4291,19 @@
       "record_ref": "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json",
       "decisions": [
         "D12-Q02: the endpoint's status page answers 503 when the newest block is more than 60 seconds old."
+      ],
+      "question_refs": [
+        "D12-Q02"
+      ],
+      "unset": []
+    },
+    {
+      "id": "P01-2026-10-10-E05-METRIC-SET",
+      "approved": "2026-10-10",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_METRIC_SET_2026-10-10.json",
+      "decisions": [
+        "D12-Q02: the metric set gains transactions by kind and result, gas used, validator evidence, root controls by kind, signature verifications and their time (application), and PQC signing time (engine), without per-peer or per-account labels."
       ],
       "question_refs": [
         "D12-Q02"

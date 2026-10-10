@@ -160,7 +160,7 @@ fn verify_mldsa65_fips204(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> Result<(), P
                 details: format!("Expected {} bytes, got {}", ml_dsa_65::SIG_LEN, sig.len()),
             })?;
 
-    if pk_obj.verify(msg, &sig_array, &[]) {
+    if crate::stats::measured(|| pk_obj.verify(msg, &sig_array, &[])) {
         Ok(())
     } else {
         Err(PQCVerifyError::VerificationFailed {

@@ -72,7 +72,7 @@
       "files": [
         {
           "path": "crates/runtime-crypto/src/ordinary.rs",
-          "sha256": "5a2afc1deafbc2beed1d2b198b016d6c895744008069744d9a7011002403201c"
+          "sha256": "9494c1f867ef64748fbb2b8a127e34e9d94d4c7d4caa7bd0b9202e0143ad95ea"
         },
         {
           "path": "crates/protocol-types/src/ordinary.rs",
@@ -87,11 +87,11 @@
       "files": [
         {
           "path": "crates/runtime-crypto/src/recovery.rs",
-          "sha256": "1d9de45b871dab83dd6f5b9067c002d8a66a4f261bf407210692fe689c134279"
+          "sha256": "46fd4eda0ee37328177a9d6d13945b61764e35289517660d6631fcf1cabfe6d6"
         },
         {
           "path": "crates/runtime-crypto/src/recovery_sponsor.rs",
-          "sha256": "4079de8ada055a8f8fd5f8e5195e64fd5d9e8015498042d2250a3cf94ee38c0a"
+          "sha256": "0f846b1b8bfe8f6282500a0cad66e4402a9e60f2cf22dcbe2160f60516536a1d"
         },
         {
           "path": "crates/protocol-types/src/recovery_wire.rs",
@@ -110,7 +110,7 @@
       "files": [
         {
           "path": "crates/runtime-crypto/src/ordinary_v3.rs",
-          "sha256": "e38eaac4813ecba87a5f538d53621d0b3fe2300c2a06700303e54c94524b1835"
+          "sha256": "a2912e524aabebdc5a67d8bbbbba221a8e767e182fc8b96bfb558349c7e61598"
         }
       ],
       "policy": "Mainnet network requires mldsa65; not yet executed by consensus",
@@ -121,11 +121,11 @@
       "files": [
         {
           "path": "crates/runtime-crypto/src/lib.rs",
-          "sha256": "ef019bf721aa7018d6ca3a25242017afbbf7e9cfa225ba25b4944b7326f43f25"
+          "sha256": "3d7235ec8f4bc8ce38497918dbc0f8f8d625ca449f7cdd993f4f0ad966e98ad8"
         },
         {
           "path": "crates/runtime-crypto/src/dilithium_fips204.rs",
-          "sha256": "052aca92633925314704c76bc0a2e96a99711992be5f141205eea4054c73bd48"
+          "sha256": "ed1c53e3a56484466f22f846cc2e1181be46700767f27b52542bc4cb66347dde"
         }
       ],
       "policy": "Key generation and signing for fixtures, tests and qualification harnesses (state-sync-join); no production signing path uses it. The legacy signed-transaction route was removed (E04 gap 14)",
@@ -159,7 +159,7 @@
         },
         {
           "path": "crates/runtime-crypto/src/pqc_verify.rs",
-          "sha256": "b468ebc17a5fcb49ad870832a58b5fbb7f91ce24f1effdd1af91db038ce49225"
+          "sha256": "9a6b2ddb7fe5bf9311efd4ca33e005912f134c046571af16c38206ed95881bdb"
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-validator-key/main.go",
@@ -263,7 +263,7 @@
         },
         {
           "path": "consensus/cometbft/cmd/dytallix-pqc-engine/main.go",
-          "sha256": "6792fe6fe890e2f3fe3536f292d0df0aa8fda394b26c511e367734bdb6aeff86"
+          "sha256": "fb7b61ce2c39b01851f6269da71b53a647ac97579f710a8f5520a499e64add5e"
         }
       ],
       "policy": "No negotiated fallback; --production remains blocked; the candidate profile runs only on reserved staging chains",
@@ -309,7 +309,7 @@
         },
         {
           "path": "dytallix-fast-launch/node/src/emergency_verifier.rs",
-          "sha256": "2228277a93fa3d4c02fcdd830412553a0b235434462d8122c025048d11a4cffb"
+          "sha256": "6f4abc9c755a25c58a969daf6f488909a2df2f9f8992aa3a49fccd8ee7a8298f"
         },
         {
           "path": "dytallix-fast-launch/node/src/upgrade/v1/upgrade.rs",

@@ -3104,6 +3104,40 @@ fn replacement_policies(config: &ConsensusConfig) -> Option<replacement::Policie
         config.release_handover.as_ref(),
     )
 }
+/// What a committed block carried, for the metrics (metrics v1; P01, 10
+/// October 2026): each transaction's kind and result, gas, evidence and the
+/// root controls it committed.
+fn block_activity(
+    config: &ConsensusConfig,
+    record: &BlockRecord,
+) -> crate::app_metrics::BlockActivity {
+    let mut activity = crate::app_metrics::BlockActivity {
+        evidence: u64::try_from(record.input.misbehavior.len()).unwrap_or(u64::MAX),
+        ..Default::default()
+    };
+    for (raw, result) in record.input.txs.iter().zip(&record.result.tx_results) {
+        let ok = result.code == 0;
+        let (kind, control) = match wire(config, raw) {
+            Ok(WireTransaction::OrdinaryV2 { .. }) => ("ordinary", None),
+            Ok(WireTransaction::OrdinaryV3 { .. }) => ("governance", None),
+            Ok(WireTransaction::Recovery { .. }) => ("recovery", None),
+            Ok(WireTransaction::EpochObservation { .. }) => ("observation", None),
+            Ok(WireTransaction::EmergencyControl { .. }) => ("root_control", Some("emergency")),
+            Ok(WireTransaction::UpgradeControl { .. }) => ("root_control", Some("upgrade")),
+            Ok(WireTransaction::HandoverControl { .. }) => ("root_control", Some("handover")),
+            Ok(WireTransaction::KitReplacement { .. }) => ("root_control", Some("kit_replacement")),
+            Err(_) => ("other", None),
+        };
+        activity.transactions.push((kind, ok));
+        activity.gas_used = activity
+            .gas_used
+            .saturating_add(u64::try_from(result.gas_used).unwrap_or(0));
+        if let (true, Some(control)) = (ok, control) {
+            activity.root_controls.push(control);
+        }
+    }
+    activity
+}
 fn replacement_result() -> TxResult {
     TxResult {
         code: 0,
@@ -6581,6 +6615,10 @@ impl ConsensusApplication {
                 && state_digest(&self.storage, current.height)? == prepared.expected_state_digest,
             "Prepared block predecessor changed"
         );
+        let activity = self
+            .metrics
+            .as_ref()
+            .map(|_| block_activity(&self.config, &prepared.record));
         let mut batch = WriteBatch::default();
         let adaptive: BTreeMap<_, _> = prepared
             .writes
@@ -6674,6 +6712,9 @@ impl ConsensusApplication {
                     &supply,
                     u64::try_from(entries)?,
                 );
+                if let Some(activity) = &activity {
+                    metrics.block_activity(activity);
+                }
                 Ok(())
             })();
             if let Err(error) = recorded {

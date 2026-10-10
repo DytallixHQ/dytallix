@@ -30,3 +30,6 @@ pub mod ordinary;
 
 /// Provisional ordinary-v3 signatures. No consensus activation.
 pub mod ordinary_v3;
+
+/// Verification counts and time, for the node's metrics.
+pub mod stats;
