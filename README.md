@@ -85,7 +85,7 @@ Start with:
 - [launch/MAINNET_GATE_MASTER.md](launch/MAINNET_GATE_MASTER.md): the 35 launch gates
 - [launch/DECISIONS_REQUIRED.md](launch/DECISIONS_REQUIRED.md): decisions and required records
 - [launch/E05_INTAKE.md](launch/E05_INTAKE.md): production values and records
-- [launch/MAINNET_V1_SPEC.md](launch/MAINNET_V1_SPEC.md), [launch/DGT_TOKENOMICS.md](launch/DGT_TOKENOMICS.md), [launch/DRT_TOKENOMICS.md](launch/DRT_TOKENOMICS.md): specification and token models (being brought up to date)
+- [launch/MAINNET_V1_SPEC.md](launch/MAINNET_V1_SPEC.md), [launch/DGT_TOKENOMICS.md](launch/DGT_TOKENOMICS.md), [launch/DRT_TOKENOMICS.md](launch/DRT_TOKENOMICS.md): specification and token models
 - [launch/USER_LAUNCH_REQUIREMENTS.txt](launch/USER_LAUNCH_REQUIREMENTS.txt): the original launch requirements
 
 ## Provenance

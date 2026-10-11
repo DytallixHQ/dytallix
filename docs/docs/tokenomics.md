@@ -29,8 +29,9 @@ and nothing mints DGT later (D05-Q02, P01, 29 September 2026).
 The first users get DRT for fees from a liquid bootstrap: genesis creates
 a fixed amount of ordinary, transferable DRT, counted in supply, and the
 genesis manifest assigns it to named accounts such as validator operators
-and custody accounts (D08-Q02, P01, 29 September 2026). The amount and
-recipients are genesis inputs (D08-Q02, D08-Q03).
+and custody accounts (D08-Q02, P01, 29 September 2026). The amount is
+1,000,000 DRT; the recipients are genesis inputs (D08-Q03). DRT has no
+supply cap (P01, 10 October 2026).
 
 ## Fees
 
@@ -46,7 +47,10 @@ recipients are genesis inputs (D08-Q02, D08-Q03).
 - The gas price, per-resource costs and account creation fee are set at
   genesis. Governance can change them within genesis bounds. Changing where
   fees go needs an upgrade.
-- No production fee values are set yet. They are genesis inputs.
+- Approved values: gas price 10 and minimum gas 100,000, so the minimum
+  fee is 1 DRT, which a basic transfer pays; the account creation fee is
+  10 DRT. Governance bounds keep a basic transfer between 0.1 and 10 DRT and
+  the creation fee between 1 and 100 DRT.
 
 Every write carries an explicit gas limit and maximum fee in uDRT. The CLI
 requires both (`--gas-limit`, `--maximum-fee-udrt`); see the
@@ -57,7 +61,7 @@ Defined in [fees v1](../../node/docs/architecture/fees-v1.md) and
 
 ## Issuance And Rewards
 
-- DRT supply is the genesis supply plus issuance minus burns.
+- DRT supply is the genesis supply plus issuance minus burns, with no cap.
 - Issuance is split 40% validator rewards, 30% staking rewards and 30%
   treasury. The rounding remainder goes to the issuance reserve.
 - The validator share is divided every block by voting power among the
@@ -70,8 +74,9 @@ Issuance per epoch comes from the adaptive emission controller. Its only
 input is an observation that every validator derives from committed blocks:
 block-space utilization, with volatility 0. There is no oracle. This
 observation contract is approved (D01-Q02, P01, 29 September 2026). The
-controller's parameters and first command (D01-Q01) and the epoch length
-(D03-Q01) are open.
+epoch is 17,280 blocks, about a day (D03-Q01). Issuance is 1,000 DRT a block
+up to 50% utilization and falls linearly to 500 DRT a block at full blocks
+(D01-Q01).
 
 Defined in [fees v1](../../node/docs/architecture/fees-v1.md) and
 [adaptive emission v1](../../node/docs/mainnet/adaptive-emission-v1.md).
@@ -82,17 +87,17 @@ Staking:
 
 - An account bonds DGT to a validator with `dytallix stake bond` and begins
   unbonding with `dytallix stake unbond`.
-- An unbond matures after the evidence age limits plus processing margins.
-  Those values are open (D09-Q03).
+- An unbond matures after the evidence age limit plus a processing margin:
+  14 days plus 1 hour (D09-Q03).
 - An unbond can be withdrawn once it matures and no penalty on it is
   unsettled (D09-Q05, P01, 30 September 2026).
 - Double-signing is penalized: a validator's first duplicate vote deducts a
   fixed share from all stake bonded to it at that height, the operator's and
   every delegator's, and removes the validator for good. Later evidence
   against it adds nothing. Light-client-attack evidence is recorded only,
-  and there is no downtime penalty (D09-Q04, P01, 30 September 2026). The rate is a genesis
-  input.
-- Vesting-locked stake carries the same risk: a penalty comes off the amount
+  and there is no downtime penalty (D09-Q04, P01, 30 September 2026). The rate is
+  5%.
+- Vesting-locked stake, if vesting is added later (none exists at launch), carries the same risk: a penalty comes off the amount
   still locked, on the same vesting dates.
 - Penalized DGT moves to a penalty escrow that nothing can spend; the DGT
   total stays fixed.
@@ -109,7 +114,8 @@ Governance:
 - Governance can change the ordinary fee profile, `min_self_bond`,
   `max_active` and the validator operator registry. Everything else changes
   only by a root-signed upgrade.
-- Quorum, thresholds, deposit, periods and timelock are open (D11-Q02).
+- Quorum 33.4%, approval 50% and veto 33.4%; a 10,000 DGT deposit; 7-day
+  deposit and voting periods; and a 2-day timelock (D11-Q02).
 
 Defined in [governance v1](../../node/docs/architecture/governance-v1.md)
 and [liveness v1](../../node/docs/architecture/liveness-v1.md).

@@ -39,7 +39,7 @@ protocol; penalized DGT goes to an escrow nothing can spend (D05-Q02,
   approved nor built. Every movement out of a bucket is a public on-chain
   transfer.
 - No DGT is created for validators on top of the total: initial stake moves
-  or encumbers existing units ([genesis specification](GENESIS_SPEC.md)).
+  or encumbers existing units ([DGT tokenomics](DGT_TOKENOMICS.md#supply)).
 - Governance votes with bonded DGT only, so liquid holdings carry no vote.
 
 ### DRT: the fee and reward token

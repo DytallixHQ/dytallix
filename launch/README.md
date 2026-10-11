@@ -12,8 +12,6 @@ Launch: **NO GO**. The [G01–G35 gate list](MAINNET_GATE_MASTER.md) is the read
 
 ## Specifications and models
 
-These drafts are being brought up to date; where they differ from the documents above, those are right.
-
 - [Mainnet v1 specification](MAINNET_V1_SPEC.md) and [PQC architecture](PQC_ARCHITECTURE.md)
 - [DGT](DGT_TOKENOMICS.md), [DRT](DRT_TOKENOMICS.md) and the [token supply model](TOKEN_SUPPLY_MODEL.md)
 - [Launch requirements](USER_LAUNCH_REQUIREMENTS.txt): the original requirements the gates cite
