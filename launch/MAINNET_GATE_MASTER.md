@@ -10,10 +10,10 @@ Current counts: 0 OPEN, 35 PARTIAL, 0 READY FOR ACCEPTANCE, 0 PASS. Partial prog
 
 **Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)). The founder launches alone. Where a gate asks for independent, named, operator, reviewer or custodian acceptance, these terms apply. Gate requirements are otherwise unchanged, and each concentration of control is disclosed in TRUST_MODEL.md.
 
-- **Independent review or acceptance:** A 30-day public review of the frozen candidate (GitHub issues, with a bug bounty paid in DGT), every finding fixed or answered on the record, a separate adversarial AI review labeled as AI, and the founder's sign-off. The launch is labeled unaudited until a human audit is funded.
+- **Independent review or acceptance:** Hashlock, an independent security firm, audits the frozen candidate, every finding fixed (Hashlock re-checking the fix) or answered on the record; alongside it, a 30-day public review (GitHub issues, with a bug bounty paid in DGT) and a separate adversarial AI review labeled as AI; and the founder's sign-off. The launch is labeled unaudited until Hashlock's report is published (P01, 10 October 2026).
 - **Independent reproduction:** A clean GitHub Actions runner and a fresh container on the founder's machine each reproduce the release and the genesis files byte for byte.
 - **Operator acceptance and genesis hash verification:** The founder, the only operator, records acceptance and verifies the genesis hash on every host.
-- **Custodians and signers:** The founder holds every genesis, upgrade and emergency key in five key kits stored in separate places; any three act.
+- **Custodians and signers:** Five people, the founder and four others, hold the five key kits, one each; kit N holds key N of each role (genesis, upgrade, freeze, resume), any three act, and no holder sees another's kit secret (P01, 7 October 2026).
 - **Independent monitoring:** A free hosted uptime checker, separate from the hosts, with phone push alerts.
 - **On-call coverage:** The founder, paged 24/7, best effort, against the published goals in operations/OBJECTIVES.json.
 - **Staging and simulations:** The production hosts before genesis, with rehearsal chain IDs and throwaway keys, then wiped and re-provisioned.

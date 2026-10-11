@@ -528,9 +528,16 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
         service['state_sync'] = {'light_blocks': [LIGHT_BLOCKS]}
     if role == 'endpoint':
         service['adapter_listen'] = ADAPTER_LISTEN
+        # The connection limits keep the adapter's listeners within the engine
+        # socket's 32 connections (P01, 10 October 2026); the other adapter
+        # limits stay at their compiled ceilings.
+        service['adapter_limits'] = {'max_connections': service_value(approved, 'adapter_limits.max_connections')}
         service['adapter_channel'] = {'listen': plan_host['channel'],
                                       'pin': pin(f'{etc}/channel-pin.json', etc_files['channel-pin.json'],
-                                                 PIN_BOUNDS['channel_pin'])}
+                                                 PIN_BOUNDS['channel_pin']),
+                                      'max_connections': service_value(approved, 'adapter_channel.max_connections'),
+                                      'max_connections_per_address':
+                                          service_value(approved, 'adapter_channel.max_connections_per_address')}
         if plan_host.get('status'):
             service['adapter_status_listen'] = plan_host['status']
             # It answers 503 on an older head (monitoring v1; P01, 10 October 2026).

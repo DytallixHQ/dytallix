@@ -27,13 +27,20 @@ class HostValuesTests(unittest.TestCase):
 
     def entry(self, name): return next(v for v in self.values['values'] if v['name'] == name)
 
+    def reopen(self, name):
+        # Every host value is approved; reopen one, with a labeled proposal, to test the proposal rules.
+        entry = self.entry(name)
+        entry['status'] = 'OPEN'
+        self.proposals['values'][name] = {'value': entry.pop('approved'), 'status': 'MEASURE_PLACEHOLDER', 'basis': 'test'}
+        del entry['approval_record']
+
     def test_the_committed_rehearsal_is_current(self):
         host, report = self.resolve()
         self.assertEqual(r.render(host), (REHEARSAL/'host-values.json').read_text(), 'rerun resolve_host_values.py')
         self.assertEqual(r.render(report), (REHEARSAL/'host-values-resolution.json').read_text(), 'rerun resolve_host_values.py')
-        # Labeled placeholders keep it ineligible.
-        self.assertFalse(report['production_eligible'])
-        self.assertEqual(report['counts'], {'APPROVED': 30, 'MEASURE_PLACEHOLDER': 4})
+        # Every host value is approved (the last four on 10 October 2026).
+        self.assertTrue(report['production_eligible'])
+        self.assertEqual(report['counts'], {'APPROVED': 34})
 
     def test_the_cli_checks_the_committed_files(self):
         command = [sys.executable, '-B', str(HERE/'resolve_host_values.py'), '--values', str(LAUNCH/'E05_VALUES.json'),
@@ -54,8 +61,9 @@ class HostValuesTests(unittest.TestCase):
             self.assertTrue(self.entry(name)['path'].startswith(HOST_PATHS), name)
 
     def test_eligibility_needs_every_value_approved(self):
-        for name, proposal in self.proposals['values'].items():
-            self.entry(name).update(status='APPROVED', approved=proposal['value'], approval_record='approvals/test.json')
+        self.reopen('mempool_size')
+        self.assertFalse(self.resolve()[1]['production_eligible'])
+        self.entry('mempool_size').update(status='APPROVED', approved=2100, approval_record='approvals/test.json')
         self.proposals['values'] = {}
         self.assertTrue(self.resolve()[1]['production_eligible'])
 
@@ -66,13 +74,15 @@ class HostValuesTests(unittest.TestCase):
         self.assertEqual(host['transport']['handshake_timeout_ms'], 5000)
         source = {v['name']: v['source'] for v in report['values']}
         self.assertEqual(source['timeout_commit'], 'APPROVED')
-        self.assertEqual(source['mempool_size'], 'MEASURE_PLACEHOLDER')
+        self.assertEqual(source['mempool_size'], 'APPROVED')
+        self.assertEqual((host['mempool']['size'], host['mempool']['max_txs_bytes']), (2100, 16000000))
 
     def test_a_proposal_for_an_approved_value_is_refused(self):
         self.proposals['values']['timeout_commit'] = {'value': '5s', 'status': 'PROPOSED', 'basis': 'stale'}
         self.refused('proposals for approved values')
 
     def test_an_open_value_needs_a_proposal(self):
+        self.reopen('p2p_send_rate')
         del self.proposals['values']['p2p_send_rate']
         self.refused('p2p_send_rate: open with no proposal')
 
@@ -86,6 +96,7 @@ class HostValuesTests(unittest.TestCase):
         self.refused('does not use')
 
     def test_a_proposal_carries_a_label(self):
+        self.reopen('mempool_size')
         self.proposals['values']['mempool_size']['status'] = 'APPROVED'
         self.refused('proposal status')
         self.proposals['values']['mempool_size'] = {'value': 5000, 'status': 'PROPOSED'}
@@ -93,7 +104,7 @@ class HostValuesTests(unittest.TestCase):
 
     def test_values_keep_their_types(self):
         for name, value in (('mempool_size', '5000'), ('mempool_size', -1), ('mempool_size', True), ('p2p_send_rate', 1.5)):
-            self.setUp(); self.proposals['values'][name]['value'] = value
+            self.setUp(); self.reopen(name); self.proposals['values'][name]['value'] = value
             self.refused(name)
         for name, value in (('timeout_commit', '4 s'), ('timeout_commit', '1m30s'), ('timeout_commit', 4),
                             ('skip_timeout_commit', 0), ('double_sign_check_height', {'validator': 10, 'sentry': 0})):

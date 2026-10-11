@@ -22,9 +22,9 @@
   "mempool": {
     "cache_size": 10000,
     "max_tx_bytes": 262144,
-    "max_txs_bytes": 1073741824,
+    "max_txs_bytes": 16000000,
     "recheck_timeout": "1s",
-    "size": 5000
+    "size": 2100
   },
   "p2p": {
     "dial_timeout": "3s",

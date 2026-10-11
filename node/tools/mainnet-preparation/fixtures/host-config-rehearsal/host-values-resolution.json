@@ -1,10 +1,9 @@
 {
   "boundary": "Production eligibility needs every value APPROVED. Eligibility accepts nothing: the pin plan records, the engine genesis, the reviewed host files and gate acceptance remain required.",
   "counts": {
-    "APPROVED": 30,
-    "MEASURE_PLACEHOLDER": 4
+    "APPROVED": 34
   },
-  "production_eligible": false,
+  "production_eligible": true,
   "schema": "dytallix.host-values-resolution.v1",
   "values": [
     {
@@ -97,15 +96,15 @@
     },
     {
       "name": "mempool_size",
-      "reference": "hosts/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 5000
+      "reference": "approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json",
+      "source": "APPROVED",
+      "value": 2100
     },
     {
       "name": "mempool_max_txs_bytes",
-      "reference": "hosts/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
-      "value": 1073741824
+      "reference": "approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json",
+      "source": "APPROVED",
+      "value": 16000000
     },
     {
       "name": "mempool_cache_size",
@@ -145,14 +144,14 @@
     },
     {
       "name": "p2p_send_rate",
-      "reference": "hosts/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
+      "reference": "approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json",
+      "source": "APPROVED",
       "value": 5120000
     },
     {
       "name": "p2p_recv_rate",
-      "reference": "hosts/PROPOSALS.json",
-      "source": "MEASURE_PLACEHOLDER",
+      "reference": "approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json",
+      "source": "APPROVED",
       "value": 5120000
     },
     {

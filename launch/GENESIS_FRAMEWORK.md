@@ -142,9 +142,11 @@ two copies in two separate places of their own
   ([root genesis signing](../node/docs/mainnet/root-genesis-signing.md)).
 - **Reproducible.** A clean CI runner and a fresh container each rebuild the
   release and the genesis files byte for byte.
-- **When.** Holders sign only after the 30-day public review (with a
-  separate review by AI, labeled as AI), release acceptance (E06) and gate
-  acceptance ([activation](approvals/P01_E05_ACTIVATION_2026-09-30.json)).
+- **When.** Holders sign only after Hashlock's audit and the 30-day public
+  review (with a separate review by AI, labeled as AI), the seven simulation
+  runs on the final candidate, release acceptance (E06) and gate acceptance
+  ([activation](approvals/P01_E05_ACTIVATION_2026-09-30.json),
+  [audit](approvals/P01_E06_AUDIT_2026-10-10.json)).
 - **Genesis time.** Set at the final input freeze: 14:00:00 UTC on a
   weekday, at least 72 hours after the final build. In that window the
   digest is reproduced, three holders sign, and the hosts install and wait.
@@ -170,19 +172,24 @@ More validators join later through on-chain registration.
 ## 6. Order of work
 
 1. Choose the hosting providers and the storage provider (D12-Q03).
-2. Build kit replacement; confirm the four other holders.
-3. Rehearse the ceremony; each holder makes their kit and wallet fob.
+2. Confirm the four other holders (kit replacement is built).
+3. Rehearse the ceremony; each holder makes their kit and wallet fob on the
+   fobs the founder supplies.
 4. Fill and check the emergency, upgrade and genesis custody packets.
 5. Rent the hosts; the node key session; the staging runs on the
-   production hosts (E03, the T suites, the seven simulations) with
-   rehearsal identities; wipe.
-6. Freeze the release candidate (E06); the 30-day public review; fixes.
-   Until the freeze, engineering prepares the review: a review guide, issue
+   production hosts (E03, the T suites, the capacity measurements, the kit
+   drills) with rehearsal identities.
+6. Freeze the release candidate (E06); Hashlock's audit and the 30-day
+   public review; fixes, re-checked by Hashlock; the final candidate. Until
+   the freeze, engineering prepares the review: a review guide, issue
    templates and the AI review, labeled as AI
-   ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)).
-7. Final input freeze: the allocation ledger (bucket, holder, validator and
+   ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json),
+   [audit](approvals/P01_E06_AUDIT_2026-10-10.json)).
+7. The seven simulation runs on the final candidate, on the production
+   hosts; wipe.
+8. Final input freeze: the allocation ledger (bucket, holder, validator and
    DRT bootstrap rows) and the genesis time.
-8. Reproduce, sign (three of five), install, start.
+9. Reproduce, sign (three of five), install, start.
 
 ## 7. Open decisions
 

@@ -20,9 +20,9 @@ until P01 approves it; approved values are marked. Decision IDs refer to
   | measure | 18 | Set from measurements on dedicated staging hosts |
   | derived | 25 | Fixed by an approved rule or another value |
 
-  Status (10 October 2026): 192 approved, 24 derived by the genesis builder
-  (`DERIVED`), 2 dropped (`DROPPED`) and 7 still open, each proposed for
-  review and measured on the hosts.
+  Status (10 October 2026): 199 approved, 24 derived by the genesis builder
+  (`DERIVED`) and 2 dropped (`DROPPED`); none is open. T05 measures the
+  capacity values on the hosts and can return one for a new approval.
 
   `proposed` is a proposal for review, never an approved value. Approved
   values are recorded under [approvals/](approvals/) and marked in the file.
@@ -118,8 +118,8 @@ the admission queue bounds on 10 October 2026: at most 2,000 pending
 transactions, 10,000,000 envelope bytes and 2,000 signature checks
 ([approval](approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json)). The engine
 mempool's size and bytes, the peer send and receive rates and the adapter
-and channel connection limits are proposed for review in
-[E05_VALUES.json](E05_VALUES.json). T05 measures all of them on the hosts
+and channel connection limits were approved on 10 October 2026
+([approval](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json)). T05 measures all of them on the hosts
 and can return a value for a new approval. The fault assumptions are a recorded statement
 instead ([P01, 3 October 2026](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json)): less than one third of voting power is
 faulty, and with one validator no fault is tolerated.
@@ -147,7 +147,7 @@ of 1.
 | D02-Q02 | Treasury recipient account and custody | Open; solo launch: a founder treasury account ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
 | D08-Q03 | DRT bootstrap recipients and amounts | Open; after the bootstrap amount |
 | D13-Q02 | Final identity manifest and genesis digest | After the build |
-| D14-Q03 | Release roles and the independent reviewer (P02) | Open; solo launch: the founder holds every role; the review is a 30-day public review with a DGT bug bounty and a labeled AI review, and the launch is labeled unaudited ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
+| D14-Q03 | Release roles and the independent reviewer (P02) | Open; solo launch: the founder holds every role; the review is a 30-day public review with a DGT bug bounty and a labeled AI review ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)); Hashlock audits the frozen candidate, and the launch is labeled unaudited until its report is published ([audit](approvals/P01_E06_AUDIT_2026-10-10.json)) |
 
 ## Next engineering
 

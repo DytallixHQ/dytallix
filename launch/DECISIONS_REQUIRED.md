@@ -47,6 +47,8 @@ P01 approved these engineering designs. Each document records the options and th
 - [Review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json) (10 October): the release candidate is frozen after the holders' kits, the custody packets and the staging runs, as the order of work says; until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered before the freeze (D14-Q01, D14-Q02) ([genesis framework](GENESIS_FRAMEWORK.md#6-order-of-work)).
 - [Launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json) (10 October): the readable gate list is generated in the repository by `gate_master.py` and checked in CI, and each gate's text is reconciled against the current main branch, every gate staying PARTIAL; superseded reports keep their paths with a dated historical banner; references to records held outside the repository stay only in the gate data and historical reports (G32, D14-Q02) ([gate list](MAINNET_GATE_MASTER.md)).
 - [DRT supply](approvals/P01_E05_DRT_SUPPLY_2026-10-10.json) (10 October): the genesis DRT bootstrap stays at 1,000,000 DRT as approved on 30 September, with only its per-account rows open; DRT has no total supply cap, since issuance stays between 500 and 1,000 DRT a block and every fee is burned (D08-Q02, D05-Q01) ([genesis framework](GENESIS_FRAMEWORK.md#1-tokens)).
+- [Audit](approvals/P01_E06_AUDIT_2026-10-10.json) (10 October): Hashlock audits the frozen release candidate (the node application, the PQC CometBFT fork, the root authorization tools and the CLI wallet) alongside the 30-day public review and the AI review; the launch is labeled unaudited until its report is published; the seven simulation runs move after the audit's fixes, onto the final candidate (D14-Q01, D14-Q02, D14-Q03) ([genesis framework](GENESIS_FRAMEWORK.md#6-order-of-work)).
+- [Capacity values](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json) (10 October): the seven proposed capacity values are approved: engine mempool 2,100 transactions and 16,000,000 bytes, peer rates 5,120,000 bytes a second, client channel 16 connections and 2 per address, loopback adapter 4; T05 confirms them (D06-Q02, D12-Q01) ([E05 values](E05_VALUES.json)).
 - [Alert rules](approvals/P01_E05_ALERT_RULES_2026-10-10.json) (10 October): the fourteen alert rules of monitoring v1 and their severities as proposed, escalation of a severity 1 alert after 15 minutes and 396 days of metric history (E05 values monitor.*); each host uploads its daily history encrypted under a separate history code and upload key, so the backup code stays on the sentry (M4b); the webhook settings are installed and replaced by the installer's monitor-settings command, root-only and never in the bundle, instead of being sealed with the node keys (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
 - [Metric set](approvals/P01_E05_METRIC_SET_2026-10-10.json) (10 October): the metric set gains transactions by kind and result, gas used, validator evidence, root controls by kind, signature verifications and their time, and the engine's PQC signing time, without per-peer or per-account labels (D12-Q02) ([metrics v1](../node/docs/architecture/metrics-v1.md)).
 - [Status page head age](approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json) (10 October): the endpoint's status page answers 503 when the newest block is more than 60 seconds old (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
@@ -271,7 +273,9 @@ Fault assumptions ([P01, 3 October 2026](approvals/P01_E05_ENGINEERING_CLOSE_202
 
 Queue bounds ([P01, 10 October 2026](approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json)): the ordinary admission queue holds at most 2,000 pending transactions, 10,000,000 envelope bytes and 2,000 signature checks, about ten blocks of the approved capacity; a full queue refuses and never evicts. T05 measures them and can return one for a new approval.
 
-Remaining inputs: the mempool size and bytes and the send and receive rates (proposed for review in [E05_VALUES.json](E05_VALUES.json); T05 measures them), and the state-sync trust source and snapshot peers (records).
+Capacity values ([P01, 10 October 2026](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json)): the engine mempool holds 2,100 transactions and 16,000,000 bytes, and peers send and receive at most 5,120,000 bytes a second; T05 measures them and can return one for a new approval.
+
+Remaining inputs: the state-sync trust source and snapshot peers (records).
 
 Required output: Consensus operating specification.
 
@@ -571,6 +575,8 @@ Host settings (P01, 2 October 2026), from the [E05 values, fourth set](approvals
 - **Adapter:** its compiled ceilings.
 - **Emergency verifier:** its byte bounds.
 
+Endpoint connections ([P01, 10 October 2026](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json)): the client channel takes 16 connections and 2 per address, and the loopback adapter 4, which with the status page's fixed 8 stay within the engine client socket's 32.
+
 Remaining inputs: counts, hosts, regions, account separation, failure domains and the capacity budget (E05).
 
 Required output: Production topology and budget.
@@ -672,6 +678,8 @@ Repository ([P01, 5 October 2026](approvals/P01_E06_REPOSITORY_2026-10-05.json))
 
 Review order ([P01, 10 October 2026](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)): the release candidate is frozen after the holders' kits, the custody packets and the staging runs on the production hosts ([order of work](GENESIS_FRAMEWORK.md#6-order-of-work)). Until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered on the record before the freeze. The bounty tiers and amounts remain a later decision.
 
+Audit ([P01, 10 October 2026](approvals/P01_E06_AUDIT_2026-10-10.json)): Hashlock audits the frozen release candidate (the node application, the PQC CometBFT fork, the root authorization tools and the CLI wallet), alongside the public review and the AI review. Every finding is fixed, with Hashlock re-checking the fix, or answered on the record; the launch is labeled unaudited until the report is published.
+
 Required output: Release and review specification.
 
 Proposed owner role: Release and QA leads with independent reviewers. Named assignment and reviewer remain as recorded in the structured register.
@@ -688,6 +696,8 @@ Review order ([P01, 10 October 2026](approvals/P01_E06_REVIEW_ORDER_2026-10-10.j
 
 Launch records ([P01, 10 October 2026](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json)): the readable gate list is generated in the repository and checked in CI; each gate's text is reconciled against the current main branch, with every gate still PARTIAL; superseded reports are marked historical in place.
 
+Simulation order ([P01, 10 October 2026](approvals/P01_E06_AUDIT_2026-10-10.json)): the seven simulation runs happen after the audit's fixes, on the final candidate; the staging runs before the freeze still find defects first.
+
 Approved portion (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release, and the root signers sign only after the P02 review, E06 release acceptance and gate acceptance ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
 Remaining inputs: workload, finality, recovery and acceptance thresholds, and the calendar.
@@ -703,6 +713,8 @@ Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_
 Who accepts each engineering, operations, signing and independent review role?
 
 **Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder holds every engineering, operations and signing role. The independent review is a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded.
+
+Audit ([P01, 10 October 2026](approvals/P01_E06_AUDIT_2026-10-10.json)): Hashlock is the independent auditor of the frozen candidate; its engagement is open.
 
 Required output: Release responsibility register.
 

@@ -22,10 +22,10 @@ Every policy question and required record is in the [decision register](DECISION
 | E02 | Helper ownership under AppArmor | Done ([E02 helper ownership](../node/docs/mainnet/e02-helper-ownership.md)) |
 | E03 | Negative-peer runner | Method ready; the runs are on the staging hosts ([E03 method](../node/docs/mainnet/e03-negative-peer-method.md)) |
 | E04 | Protocol and economic gaps | All 20 gaps closed ([E04 triage](../node/docs/mainnet/e04-requirement-triage.md)) |
-| E05 | Genesis from approved inputs | Built; seven capacity values and the launch records open ([E05 intake](E05_INTAKE.md), [genesis builder](../node/docs/mainnet/e05-genesis-builder.md)) |
-| E06 | Reproducible release | Built; the candidate is frozen after the staging runs ([release](../release/README.md)) |
+| E05 | Genesis from approved inputs | Built; every value approved, the launch records open ([E05 intake](E05_INTAKE.md), [genesis builder](../node/docs/mainnet/e05-genesis-builder.md)) |
+| E06 | Reproducible release | Built; the candidate is frozen after the staging runs, then audited by Hashlock ([release](../release/README.md)) |
 
-**Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)): the founder holds every owner role, except that five people hold the root key kits, one each, since 7 October 2026 ([approval](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)). Where this plan asks for independent engineers, operators, auditors or custodians, the `acceptance_profile` in [LAUNCH_GATES.json](LAUNCH_GATES.json) defines what satisfies it: a 30-day public review with a DGT bug bounty, a separate review labeled as AI and the founder's sign-off, with the launch labeled unaudited until a human audit is funded. An AI assessment is always labeled as AI and never presented as an independent human review.
+**Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)): the founder holds every owner role, except that five people hold the root key kits, one each, since 7 October 2026 ([approval](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)). Where this plan asks for independent engineers, operators, auditors or custodians, the `acceptance_profile` in [LAUNCH_GATES.json](LAUNCH_GATES.json) defines what satisfies it: Hashlock's independent audit of the frozen candidate, a 30-day public review with a DGT bug bounty, a separate review labeled as AI and the founder's sign-off, with the launch labeled unaudited until Hashlock's report is published ([audit](approvals/P01_E06_AUDIT_2026-10-10.json)). An AI assessment is always labeled as AI and never presented as an independent human review.
 
 ## Week gates
 
@@ -36,7 +36,7 @@ Every policy question and required record is in the [decision register](DECISION
 
 ## Seven simulation runs
 
-Every run starts from clean, isolated staging infrastructure. Under the solo launch profile, that is the three production hosts before genesis, rebuilt clean for each run and wiped before the production ceremony. Use the frozen production architecture, protocol rules, allocation amounts, validator weights, release artifacts, deployment automation, and operational procedures. Record the exact configuration and all approved rehearsal substitutions.
+The runs happen after the audit's fixes, on the final candidate (P01, 10 October 2026, [audit](approvals/P01_E06_AUDIT_2026-10-10.json)). Every run starts from clean, isolated staging infrastructure. Under the solo launch profile, that is the three production hosts before genesis, rebuilt clean for each run and wiped before the production ceremony. Use the frozen production architecture, protocol rules, allocation amounts, validator weights, release artifacts, deployment automation, and operational procedures. Record the exact configuration and all approved rehearsal substitutions.
 
 Use a separate rehearsal chain identity and fresh rehearsal keys. Do not use production signing keys. Record a deterministic mapping from approved allocation recipients to rehearsal accounts. The allowed identity, endpoint, and timestamp substitutions need explicit review. They must not alter consensus, economics, resource limits, or timing rules. Production genesis remains a separate ceremony.
 
