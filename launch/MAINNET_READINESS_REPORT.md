@@ -1,3 +1,5 @@
+> **Historical record.** The readiness report of the September 2026 emergency and upgrade work. It is kept as it was and no longer maintained: where it differs from the current documents, they are right. Current readiness is the [gate list](MAINNET_GATE_MASTER.md); decision counts are in the [decision register](DECISIONS_REQUIRED.md), production values in the [E05 intake](E05_INTAKE.md), and next steps in the [genesis framework, order of work](GENESIS_FRAMEWORK.md#6-order-of-work). Paths in backticks under `decision-register/`, `batch-*/`, `evidence/`, `snapshots/` and `assessment/` name launch records held outside this repository. (Marked 10 October 2026, [launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json).)
+
 # Dytallix mainnet readiness
 
 Current source: [LAUNCH_GATES.json](LAUNCH_GATES.json). The [generated master list](MAINNET_GATE_MASTER.md) records requirements, evidence and remaining work.
@@ -23,7 +25,7 @@ The migration targets the root-bound running candidate. Future releases must pre
 
 The prior queue's Linux builds and 50 native lifecycle assertions remain evidence for those pinned artifacts. They predate the changed Rust code. Rebuild and inspect the current Linux candidate, then repeat affected checks through the actual consensus engine and RPC. No remote command ran in this queue. Existing websites were not changed.
 
-D11-Q03 retains the six approved emergency recommendations. No policy approval changed. Custodian names, keys, epochs, numeric limits, production format acceptance and remaining authority inputs remain open. The public intake packet (`decision-register/emergency-upgrade-execution/custody/INTAKE.md`, held outside this repository) is ready for five custodian records. Rick Glenn remains a prior nominee; no emergency appointment is inferred.
+D11-Q03 retains the six approved emergency recommendations. No policy approval changed. Custodian names, keys, epochs, numeric limits, production format acceptance and remaining authority inputs remain open. The public intake packet (`decision-register/emergency-upgrade-execution/custody/INTAKE.md`, held outside this repository) is ready for five custodian records. the founder remains a prior nominee; no emergency appointment is inferred.
 
 The production packet still contains 112 populated fields and 181 unset fields across eight records. No new field or record was accepted. The dependency groups remain 54 policy/configuration inputs, 112 human custody/identity/acceptance inputs, 12 executed qualification inputs and three final-candidate inputs. Nineteen other fields require later candidate binding.
 

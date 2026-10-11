@@ -1,4 +1,4 @@
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
+> **Historical record.** The genesis allocation review draft of September 2026. It is kept as it was and no longer maintained: where it differs from the current documents, they are right. The allocation is now the [genesis framework](GENESIS_FRAMEWORK.md#1-tokens) (tokens and accounts) and the [E05 values](E05_VALUES.json); the executable allocation ledger is made at the final input freeze. Paths in backticks under `decision-register/`, `batch-*/`, `evidence/`, `snapshots/` and `assessment/` name launch records held outside this repository. (Marked 10 October 2026, [launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json).)
 
 # Genesis allocation review draft
 
@@ -33,7 +33,7 @@ Bucket labels do not enforce locks. “Reserve” does not create a lock. “Tea
 
 DRT initial supply remains unapproved and `null`. No DRT genesis allocation or recipient is proposed. Approved DRT reward shares are validators 40%, stakers 30%, and treasury 30%. Owner staking eligibility, zero staking-pool commission, reward rounding and reserves are approved. Separate validator-pool rules, treasury records and production qualification remain open. Source: [Dytallix Tokenomics](https://dytallix.com/developers/tokenomics).
 
-Liquid DRT fee funding remains open. Later local reward integration and claim recovery supersede the original snapshot claim limitation. See [issuance timing](batch-6/issuance-timing/REPORT.md) and [claim recovery](batch-6/claim-recovery/REPORT.md).
+Liquid DRT fee funding remains open. Later local reward integration and claim recovery supersede the original snapshot claim limitation. See issuance timing (`batch-6/issuance-timing/REPORT.md`) and claim recovery (`batch-6/claim-recovery/REPORT.md`).
 
 The corrected adaptive controller remains selected. Epoch and block issuance mapping is approved and locally integrated. Production parameters, numeric epoch length, observations and activation remain open. Allocation approval does not approve a different controller.
 

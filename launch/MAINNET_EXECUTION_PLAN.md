@@ -1,44 +1,29 @@
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
-
 # Dytallix mainnet execution plan
 
-Status: NO GO. Planning baseline: 9 September 2026, America/Phoenix.
+Status: NO GO. This plan holds the launch requirements the gates cite: the scope, the stages a candidate passes (the week gates), the seven simulation runs and the evidence rules. The current order of work is the [genesis framework](GENESIS_FRAMEWORK.md#6-order-of-work), and readiness is the [gate list](MAINNET_GATE_MASTER.md). The original plan of 9 September 2026, with its day-by-day schedule, is in this file's history. Updated 10 October 2026 ([launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json)).
 
-The objective is one permanent mainnet genesis. The four-week period is a target. It is not evidence that the remaining work fits that period. Batch 7 integrates CometBFT v0.40.0 for local qualification. Production consensus, economic policy and operator assignments remain open. See [Batch 7](batch-7/REPORT.md).
+The objective is one permanent mainnet genesis.
 
 ## Entry gate and scope
 
-Complete the Phase 0 assessment before discretionary feature work. The current source assessment covers eight pinned repositories. Batch 1 inspected one existing Hetzner host. Provider-wide inventory, approved mainnet topology, named operators and custody records remain incomplete. See MAINNET_READINESS_REPORT.md.
+Required initial scope includes DRT, DGT, staking, delegation, rewards, fees, slashing, governance, treasury controls, wallets, PQC, consensus, recovery, upgrades, and developer interfaces. Do not remove these requirements to meet a date. The selected corrected adaptive emission model is calibrated and integrated; its qualification remains required.
 
-Required initial scope includes DRT, DGT, staking, delegation, rewards, fees, slashing, governance, treasury controls, wallets, PQC, consensus, recovery, upgrades, and developer interfaces. Do not remove these requirements to meet a date. Keep the selected corrected adaptive emission model. Its integration and qualification remain required.
+Mainnet v1 launches with the current build only (D07-Q01, P01, 29 September 2026): ordinary transfers and staking, governance, recovery, emergency controls, root-signed upgrades, state sync, the client channel and the local gateway. A contract runtime, bridges, the Airlock, a liquidity bootstrapping pool, wrapped USDC, external oracles, gRPC and treasury spending are POST MAINNET. No mainnet rewards go to an optional service.
 
-Propose POST MAINNET status for optional product integrations, experimental aggregation, AI modules, bridges, and nonessential UI changes. Confirm whether any external input is necessary for adaptive emission before deferral. Do not allocate mainnet rewards to an undefined optional service.
+## Decisions
 
-## Batch 2 decision package
+Every policy question and required record is in the [decision register](DECISIONS_REQUIRED.md), with the dated P01 approvals in [approvals/](approvals/). Production values and records are in the [E05 intake](E05_INTAKE.md).
 
-[Batch 2](batch-2/BATCH_2_REPORT.md) supplies consensus, identity, economic and genesis proposals plus the 14-case repair plan. It does not freeze the protocol or qualify a release. Resolve [the decision index](batch-2/DECISION_REVIEW.md) before dependent runtime integration.
+## Engineering tasks
 
-## Engineering schedule
-
-Day numbers below identify engineering work packages. They do not certify elapsed days or completed work. Each of weeks 1–3 has five planned engineering days and two days reserved for correction, review, and gate closure. Do not use week 4 for unfinished engineering.
-
-| Week/day | Work package | Required output and closure | Owner role |
-|---|---|---|---|
-| 1/1 | Define mainnet v1 | Resolve DECISIONS_REQUIRED.md. Freeze MAINNET_V1_SPEC.md only after source mapping and a review labeled as AI; the 30-day public review of the frozen candidate covers the specification too (solo launch profile). | Protocol lead |
-| 1/2 | Validator and economic security | Approve consensus, voting weights, operator control, admission, exit, penalties, custody, and fault domains. Complete validator architecture, operations, and security model. | Consensus lead |
-| 1/3 | Token model | Apply the approved page allocation shares. Complete DRT/DGT rules, recipient custody, vesting, fees, burns, rewards, and treasury authority. Prove integer custody reconciliation. | Economics lead |
-| 1/4 | Cryptographic model | Freeze algorithm identifiers, encoding, authorization, address identity, replay rules, custody, and migration. Qualify known-answer and interoperability vectors. | Cryptography lead |
-| 1/5 | Genesis model | Complete deterministic generator, allocation ledger, validator map, ceremony, validation, and manifest. Validate explicit genesis input at startup. | Release lead |
-| 2/6 | Reproducible release | Produce an immutable source set, RC1, binaries, node container, checksums, dependency locks, SBOM, dependency report, and build manifest. A clean GitHub Actions runner and a fresh local container must reproduce the build byte for byte. | Release lead |
-| 2/7 | Deployment | Deploy approved validator and RPC architecture from clean staging servers. Complete deployment, runbook, and recovery documents. | SRE lead |
-| 2/8 | Wallet | Qualify creation, encryption, persistence, recovery, signing, network selection, fees, nonce handling, receipts, reconnect, and upgrade compatibility. | Wallet lead |
-| 2/9 | Observability | Connect consensus and accounting measurements. Verify alert delivery, acknowledgement, escalation, and independent monitoring of the monitoring service. | SRE lead |
-| 2/10 | Backup and recovery | Restore state and validator operation under approved recovery objectives. Verify supply, finalized history, and signer exclusivity after each recovery. | Storage/SRE leads |
-| 3/11 | Economic lifecycle | Qualify complete signed transactions, stake changes, rewards, fees, penalties, governance, treasury controls, restart, and full supply reconciliation. | Runtime/QA leads |
-| 3/12 | PQC capacity | Measure representative sustained and peak load in isolated staging. Set safe limits from observed saturation and recovery. | Performance lead |
-| 3/13 | Economic and governance review | Review concentration, parameter bounds, rounding, custody, and authority. Record invariant checks and independent review. | Economics/security leads |
-| 3/14 | Upgrade and security qualification | Qualify a controlled RC1-to-RC2 upgrade. Review affected code and deployment controls. Close all critical findings. | Release/security leads |
-| 3/15 | Candidate freeze | Freeze source, binaries, images, parameters, genesis template, automation, documentation, monitoring, and runbooks. All required test suites must pass. | Release lead |
+| Task | Content | State and record |
+|---|---|---|
+| E01 | PQC source boundary | Done ([E01 source boundary](../node/docs/mainnet/e01-source-boundary.md)) |
+| E02 | Helper ownership under AppArmor | Done ([E02 helper ownership](../node/docs/mainnet/e02-helper-ownership.md)) |
+| E03 | Negative-peer runner | Method ready; the runs are on the staging hosts ([E03 method](../node/docs/mainnet/e03-negative-peer-method.md)) |
+| E04 | Protocol and economic gaps | All 20 gaps closed ([E04 triage](../node/docs/mainnet/e04-requirement-triage.md)) |
+| E05 | Genesis from approved inputs | Built; seven capacity values and the launch records open ([E05 intake](E05_INTAKE.md), [genesis builder](../node/docs/mainnet/e05-genesis-builder.md)) |
+| E06 | Reproducible release | Built; the candidate is frozen after the staging runs ([release](../release/README.md)) |
 
 **Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)): the founder holds every owner role, except that five people hold the root key kits, one each, since 7 October 2026 ([approval](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)). Where this plan asks for independent engineers, operators, auditors or custodians, the `acceptance_profile` in [LAUNCH_GATES.json](LAUNCH_GATES.json) defines what satisfies it: a 30-day public review with a DGT bug bounty, a separate review labeled as AI and the founder's sign-off, with the launch labeled unaudited until a human audit is funded. An AI assessment is always labeled as AI and never presented as an independent human review.
 
@@ -73,10 +58,10 @@ A launch-blocking failure invalidates the affected evidence. Stop progression, f
 
 ## Evidence and status rules
 
-Each test record identifies the source revision, binary/image digest, genesis digest, configuration digest, environment, operators, start/end times, command or procedure, result, raw evidence digest, reviewer, and unresolved defects.
+Each test record identifies the source revision, release manifest and binary digests, genesis digest, configuration digest, environment, operators, start/end times, command or procedure, result, raw evidence digest, reviewer, and unresolved defects.
 
-At each actual day end, produce DAY_X_STATUS.md with the fields in USER_LAUNCH_REQUIREMENTS.txt. At each actual week end, produce WEEK_X_MAINNET_REPORT.md. Do not create future completion reports in advance. See DAY_0_STATUS.md for this assessment session.
+Since Day 0 ([DAY_0_STATUS.md](DAY_0_STATUS.md), historical), progress has been recorded in the dated approval records, the decision register and the gate list rather than in daily or weekly status files. Do not create future completion reports in advance.
 
 Readiness percentage means formally accepted gates divided by 35. Read current counts from LAUNCH_GATES.json. MAINNET_GATE_MASTER.md is its generated view. OPEN, PARTIAL and READY FOR ACCEPTANCE do not count as PASS. Gate progress and engineering effort remain separate from formal acceptance.
 
-No production deployment, genesis, keys, allocations, release tag, or launch approval was created by this plan. No recurring automation is scheduled.
+This plan creates no production deployment, genesis, keys, allocations, release tag or launch approval.

@@ -1,3 +1,5 @@
+> **Historical record.** The artifact gap report captured on 10 September 2026, with the batch reports that followed. It is kept as it was and no longer maintained: where it differs from the current documents, they are right. Current readiness is the [gate list](MAINNET_GATE_MASTER.md); production values are in the [E05 intake](E05_INTAKE.md), and the release set in the [release](../release/README.md). Paths in backticks under `decision-register/`, `batch-*/`, `evidence/`, `snapshots/` and `assessment/` name launch records held outside this repository. (Marked 10 October 2026, [launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json).)
+
 # Mainnet artifact gap report
 
 Captured: 2026-09-10T22:42:44.476667+00:00
@@ -32,19 +34,19 @@ Source references use exact commits from `evidence/REPOSITORY_MANIFEST.json`. Lo
 
 ## Batch 10 local transaction admission
 
-[Batch 10 implementation](batch-10/REPORT.md) rejects already processed signed transactions during admission, recheck and proposal selection. Full workspace: **1013 passed, 3 failed, 2 ignored**. New failures: **0**. The six-node network checks durable rejection before and after restart, with zero later transaction inclusions. Nonce and fee-balance admission policy remain unchanged. Complete engine evidence coverage and production penalty rules remain open. Mainnet remains **NO GO**.
+Batch 10 implementation (`batch-10/REPORT.md`) rejects already processed signed transactions during admission, recheck and proposal selection. Full workspace: **1013 passed, 3 failed, 2 ignored**. New failures: **0**. The six-node network checks durable rejection before and after restart, with zero later transaction inclusions. Nonce and fee-balance admission policy remain unchanged. Complete engine evidence coverage and production penalty rules remain open. Mainnet remains **NO GO**.
 
 ## Batch 9 local penalty custody and withdrawals
 
-[Batch 9 implementation](batch-9/REPORT.md) adds local duplicate-vote accounting, H+2 penalty settlement, a separate penalty reserve, and owner withdrawals with recovery checks. Full workspace: **1010 passed, 3 failed, 2 ignored**. New failures: **0**. The six-node network checks ordinary validator changes and withdrawals with zero engine evidence. Synthetic accounting tests do not qualify cryptographic engine faults. Production penalty rules, complete evidence coverage and transaction admission filtering remain open. Mainnet remains **NO GO**.
+Batch 9 implementation (`batch-9/REPORT.md`) adds local duplicate-vote accounting, H+2 penalty settlement, a separate penalty reserve, and owner withdrawals with recovery checks. Full workspace: **1010 passed, 3 failed, 2 ignored**. New failures: **0**. The six-node network checks ordinary validator changes and withdrawals with zero engine evidence. Synthetic accounting tests do not qualify cryptographic engine faults. Production penalty rules, complete evidence coverage and transaction admission filtering remain open. Mainnet remains **NO GO**.
 
 ## Batch 8 local validator lifecycle
 
-[Batch 8 implementation](batch-8/implementation/REPORT.md) implements the seven approved validator lifecycle rules. It adds permissioned registration, exact stake power, H+2 activation, key rotation, owner-specific unbonding and atomic recovery. Full workspace: **986 passed, 3 failed, 2 ignored**. New failures: **0**. The changing-validator local network test passes. Withdrawals remain disabled until evidence and penalty settlement are qualified. Production values remain unset. Mainnet remains **NO GO**.
+Batch 8 implementation (`batch-8/implementation/REPORT.md`) implements the seven approved validator lifecycle rules. It adds permissioned registration, exact stake power, H+2 activation, key rotation, owner-specific unbonding and atomic recovery. Full workspace: **986 passed, 3 failed, 2 ignored**. New failures: **0**. The changing-validator local network test passes. Withdrawals remain disabled until evidence and penalty settlement are qualified. Production values remain unset. Mainnet remains **NO GO**.
 
 ## Batch 7 local consensus integration
 
-[Batch 7](batch-7/REPORT.md) is complete for its approved local scope. CometBFT v0.40.0 now drives atomic block, issuance and reward commits through a Rust application. The four-validator test passes agreement, quorum loss, restart and recovery checks. Verified signed headers confirm four saved application hashes.
+Batch 7 (`batch-7/REPORT.md`) is complete for its approved local scope. CometBFT v0.40.0 now drives atomic block, issuance and reward commits through a Rust application. The four-validator test passes agreement, quorum loss, restart and recovery checks. Verified signed headers confirm four saved application hashes.
 
 Full workspace: **950 passed, 3 failed, 2 ignored**. Focused adapter checks: **12 passed**. Go tool tests pass. There are **22 additional passes** and **0 new failures**. The three baseline failures remain open. Source SHA-256: `e31e8294e7dad3ed76f56f1db8935ee9f0f76a619b5fb72f11ec77adb8a11f19`.
 
@@ -52,7 +54,7 @@ Mainnet remains **NO GO**. The fixture has a static validator set and synthetic 
 
 ## Historical Batch 6 issuance timing follow-up
 
-[The issuance timing follow-up](batch-6/issuance-timing/REPORT.md) implements the approved epoch-to-block rules in the development adapter. It joins controller transitions, observations, all four issuance pools, staking rewards, claims, supply and block records in one atomic write. Full workspace: **928 passed, 3 failed, 2 ignored**. Focused checks: **227 passed**. New failures: **0**.
+The issuance timing follow-up (`batch-6/issuance-timing/REPORT.md`) implements the approved epoch-to-block rules in the development adapter. It joins controller transitions, observations, all four issuance pools, staking rewards, claims, supply and block records in one atomic write. Full workspace: **928 passed, 3 failed, 2 ignored**. Focused checks: **227 passed**. New failures: **0**.
 
 Epoch length and epoch-zero budget require explicit genesis inputs. Later epochs require a completed-parent-epoch observation. The adapter rejects missing or invalid observations before writes. It schedules only each block's share and retains separate issuance, staking rounding and inactive reserves. No reserve has sweep authority. Legacy issuance methods and the node timer cannot activate this mode.
 
@@ -60,41 +62,41 @@ Production numerical parameters, consensus finality, authenticated observations,
 
 ## Historical Batch 6 claim recovery follow-up — locally checked; production open
 
-[The claim recovery follow-up](batch-6/claim-recovery/REPORT.md) adds two signed-claim failure/reopen/retry tests and prepared adaptive journal writes with five tests. Final focused checks: **199 passed**. Full workspace: **900 passed, 3 failed, 2 ignored**. New failures: **0**. Current baseline failures: **B1-T002, B1-T003, B1-T009**. Original legacy staking source and test remain unchanged.
+The claim recovery follow-up (`batch-6/claim-recovery/REPORT.md`) adds two signed-claim failure/reopen/retry tests and prepared adaptive journal writes with five tests. Final focused checks: **199 passed**. Full workspace: **900 passed, 3 failed, 2 ignored**. New failures: **0**. Current baseline failures: **B1-T002, B1-T003, B1-T009**. Original legacy staking source and test remain unchanged.
 
 The journal preparation preserves controller behavior and binary encoding. It adds no minting or issuance integration. The economic mapping decision remains pending. Production finality and epoch-to-block issuance remain undefined or unqualified. Mainnet remains **NO GO**. Batch 6 production qualification is open; Batch 7 has not started. Source digest: `ac6c18e16535f3cb26bdf5229f5f4ebb941227381baba7503c11f727de775c73`.
 
 ## Historical Batch 6 integration follow-up
 
-The user approved the three reward implementation recommendations after requesting a small-stake rounding measurement. [The follow-up](batch-6/integration-followup/REPORT.md) records the approval, measurement and development adapter work. Focused checks report **189 passed**. The full workspace reports **893 passed, 3 failed, 2 ignored**, with no new failures. There are 42 additional passes against the prior result. B1-T009 and the two timing failures remain. Original legacy reward source and test are unchanged. Source digest: `2f01f19cd021597da0813486930ff5617c05e4fed4016a1c97d2cd5731e53969`.
+The user approved the three reward implementation recommendations after requesting a small-stake rounding measurement. The follow-up (`batch-6/integration-followup/REPORT.md`) records the approval, measurement and development adapter work. Focused checks report **189 passed**. The full workspace reports **893 passed, 3 failed, 2 ignored**, with no new failures. There are 42 additional passes against the prior result. B1-T009 and the two timing failures remain. Original legacy reward source and test are unchanged. Source digest: `2f01f19cd021597da0813486930ff5617c05e4fed4016a1c97d2cd5731e53969`.
 
 The approved rules use each finalized block and its parent-state eligible stake. They assign funded bonded stake to its owner, exclude inactive or jailed validators, retain inactive-period budgets and reject unconverted legacy reward state. Current implementation uses an explicit development fixture adapter. It does not establish consensus finality. Production activation remains disabled. The selected adaptive controller's mapping from epoch issuance to block budgets remains undefined. Mainnet remains **NO GO**; Batch 7 has not started.
 
 ## Historical Batch 6 component result
 
-[Batch 6](batch-6/REPORT.md) implements the four [approved items](batch-6/APPROVAL.json): six-decimal native units, exact allocation from supplied stake snapshots, a separate rounding reserve and explicit vesting inputs. Native conversion and genesis parsing use the shared units. The new local reward ledger has no production caller or token-transfer authority. The native importer rejects supplied unsupported lock schedules.
+Batch 6 (`batch-6/REPORT.md`) implements the four approved items (`batch-6/APPROVAL.json`): six-decimal native units, exact allocation from supplied stake snapshots, a separate rounding reserve and explicit vesting inputs. Native conversion and genesis parsing use the shared units. The new local reward ledger has no production caller or token-transfer authority. The native importer rejects supplied unsupported lock schedules.
 
 Full workspace: **851 passed, 3 failed, 2 ignored**; no new failures. Three legacy genesis fixtures now pass. B1-T009 and two timing failures remain. Batch 6 is not complete; Batch 7 has not started. Production snapshot, storage and payout integration remain open. Current source digest: `b67fa6ccd5445126deac2f2b16af072a82b553af1a8b9b8c4def44d4ed656c04`. Mainnet remains NO GO.
 
 ## Batch 5 eligibility follow-up
 
-[The follow-up](batch-5/eligibility-followup/REPORT.md) implements the user-approved bonded-stake-only rule. All five local governance failures pass. Current workspace: **827 passed, 6 failed, 2 ignored**. Production gates remain open.
+The follow-up (`batch-5/eligibility-followup/REPORT.md`) implements the user-approved bonded-stake-only rule. All five local governance failures pass. Current workspace: **827 passed, 6 failed, 2 ignored**. Production gates remain open.
 
 ## Batch 5 governance implementation
 
-[Batch 5](batch-5/BATCH_5_REPORT.md) repairs four governance failures. One awaits an [eligibility decision](batch-5/GOVERNANCE_DECISION.md). Full default workspace: **825 passed, 7 failed, 2 ignored**. Artifact states and mainnet gates remain unchanged.
+Batch 5 (`batch-5/BATCH_5_REPORT.md`) repairs four governance failures. One awaits an eligibility decision (`batch-5/GOVERNANCE_DECISION.md`). Full default workspace: **825 passed, 7 failed, 2 ignored**. Artifact states and mainnet gates remain unchanged.
 
 ## Batch 4 implementation
 
-[Batch 4](batch-4/BATCH_4_REPORT.md) implements queue admission repairs. All five optimized performance tests pass at unchanged limits. The default workspace reports **816 passed, 11 failed, 2 ignored**; two debug timing failures remain open. Artifact states and mainnet gates remain unchanged.
+Batch 4 (`batch-4/BATCH_4_REPORT.md`) implements queue admission repairs. All five optimized performance tests pass at unchanged limits. The default workspace reports **816 passed, 11 failed, 2 ignored**; two debug timing failures remain open. Artifact states and mainnet gates remain unchanged.
 
 ## Batch 3 implementation
 
-[Batch 3](batch-3/BATCH_3_REPORT.md) resolves three local baseline failures. The fresh workspace reports **812 passed, 11 failed, one ignored**. Five source files changed; no new failure appeared. Artifact states and mainnet qualification gates remain unchanged.
+Batch 3 (`batch-3/BATCH_3_REPORT.md`) resolves three local baseline failures. The fresh workspace reports **812 passed, 11 failed, one ignored**. Five source files changed; no new failure appeared. Artifact states and mainnet qualification gates remain unchanged.
 
 ## Batch 2 decision package
 
-[Batch 2](batch-2/BATCH_2_REPORT.md) supplies concrete consensus, identity, economic and genesis drafts. The [decision index](batch-2/DECISION_REVIEW.md) lists approval dependencies. Drafts and local tool checks do not close production gates.
+Batch 2 (`batch-2/BATCH_2_REPORT.md`) supplies concrete consensus, identity, economic and genesis drafts. The decision index (`batch-2/DECISION_REVIEW.md`) lists approval dependencies. Drafts and local tool checks do not close production gates.
 
 ## Approved allocation input
 
@@ -128,7 +130,7 @@ Historical assessments and GitHub findings predate this user clarification. Thei
 
 The selected fast-node source commits blocks with a local timer. No integrated distributed consensus or finality certificate was established. Mandatory staking, liquid reward claims and governance remain absent or disabled in this selected path. The corrected adaptive controller now drives the explicit development issuance adapter. Production activation remains disabled. Production scope cannot substitute deferred governance or scheduled issuance for the user-required model.
 
-Fresh Batch 1 node tests report **801 passed, 14 failed, 1 ignored**. The 14 failure names match the prior baseline. Supporting checks passed within the scopes in [the test report](batch-1/TEST_BASELINE.md). The active register now specifies seven full launches and all final checkpoints. Historical local run-002 passed two prerequisites and blocked 18; it did not execute a full launch.
+Fresh Batch 1 node tests report **801 passed, 14 failed, 1 ignored**. The 14 failure names match the prior baseline. Supporting checks passed within the scopes in the test report (`batch-1/TEST_BASELINE.md`). The active register now specifies seven full launches and all final checkpoints. Historical local run-002 passed two prerequisites and blocked 18; it did not execute a full launch.
 
 ## Required final files
 

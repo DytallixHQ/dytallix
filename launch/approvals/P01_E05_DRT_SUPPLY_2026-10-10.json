@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-10-10-E05-DRT-SUPPLY",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "DRT bootstrap amount and supply cap, found in the launch records reconciliation"
+  },
+  "reason": "The records disagreed on the bootstrap amount: the register and E05 values hold the 30 September approval of 1,000,000 DRT, while the genesis framework and the solo launch record's unset list called the amount open. No record decided whether DRT has a total supply cap.",
+  "design_ref": "../GENESIS_FRAMEWORK.md#1-tokens",
+  "decisions": [
+    {
+      "question": "D08-Q02, D08-Q03",
+      "selected": "1,000,000 DRT stands",
+      "rule": "The genesis DRT bootstrap is 1,000,000 DRT (1,000,000,000,000 udrt), as approved on 30 September 2026 (approvals/P01_E05_VALUES_2_2026-09-30.json). Only the per-account rows remain open (D08-Q03), including whether the five root key holders' accounts receive a share."
+    },
+    {
+      "question": "D05-Q01, D01-Q01",
+      "selected": "No cap, record it",
+      "rule": "DRT has no total supply cap. Supply is the genesis bootstrap plus emitted minus burned: issuance follows the approved controller, between 500 and 1,000 DRT a block, and every transaction fee is burned at the end of its block. Changing this needs an upgrade."
+    }
+  ],
+  "unset": [
+    "The DRT bootstrap rows (D08-Q03)"
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

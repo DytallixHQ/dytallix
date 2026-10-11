@@ -1,4 +1,15 @@
 {
+  "historical_record": {
+    "marked": "2026-10-10",
+    "approval_record": "approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json",
+    "record": "The September 2026 genesis planning manifest. Kept as it was and no longer maintained; where it differs from the current documents, they are right.",
+    "current": [
+      "../node/docs/mainnet/e05-genesis-builder.md",
+      "genesis/IDENTITY.json",
+      "E05_VALUES.json",
+      "../node/docs/mainnet/root-genesis-signing.md"
+    ]
+  },
   "schema_version": 1,
   "status": "DRAFT_INCOMPLETE",
   "valid_for_mainnet": false,

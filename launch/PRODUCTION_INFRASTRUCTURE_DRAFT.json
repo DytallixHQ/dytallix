@@ -1,4 +1,16 @@
 {
+  "historical_record": {
+    "marked": "2026-10-10",
+    "approval_record": "approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json",
+    "record": "The production infrastructure draft of September 2026; candidate_architecture.launch_profile and the solo_launch notes stay current and are checked by tests. Kept as it was and no longer maintained; where it differs from the current documents, they are right.",
+    "current": [
+      "GENESIS_FRAMEWORK.md",
+      "../node/docs/architecture/host-setup-v1.md",
+      "../node/docs/architecture/disaster-recovery-v1.md",
+      "../node/docs/architecture/monitoring-v1.md",
+      "operations/OBJECTIVES.json"
+    ]
+  },
   "document_type": "production_infrastructure_draft",
   "schema_version": "1.0.0",
   "status": "DRAFT_NOT_APPROVED_NOT_IMPLEMENTED",

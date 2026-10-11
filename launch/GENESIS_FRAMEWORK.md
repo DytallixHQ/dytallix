@@ -12,7 +12,7 @@ differ, the approval governs. It does not authorize a launch.
 | **Chain** | `dytallix-mainnet-1`, shown as Dytallix ([chain identity](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json)) |
 | **Cryptography** | ML-DSA-65 for accounts, validators and peers; ML-KEM-768 peer encryption; SLH-DSA-SHAKE-256s root keys. Nothing classical. |
 | **DGT** | 1,000,000,000, all issued at genesis, never minted again |
-| **DRT** | The fee token, issued over time; a liquid bootstrap at genesis (amount open) |
+| **DRT** | The fee token, issued over time with no supply cap; a liquid bootstrap of 1,000,000 DRT at genesis |
 | **Root controls** | Five key kits held by five people, one each; any three act ([root key holders](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)) |
 | **Network** | One validator, one sentry (the archive) and one endpoint ([solo launch](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
 | **Disclosure** | The [trust model](TRUST_MODEL.md) states every concentration of control |
@@ -48,10 +48,13 @@ protocol; penalized DGT goes to an escrow nothing can spend (D05-Q02,
 - **Issuance** is adaptive and split each epoch: validators 40%, stakers
   30%, treasury 30%. The epoch is 17,280 blocks, about a day
   ([values](E05_VALUES.json)).
-- **Bootstrap** (D08-Q02, approved in principle): ordinary, transferable DRT
-  in the genesis supply, assigned to named accounts so the first fees,
-  bonds and claims can be paid. The amount and the accounts are open
-  (D08-Q03).
+- **No supply cap** ([P01, 10 October 2026](approvals/P01_E05_DRT_SUPPLY_2026-10-10.json)): supply is
+  the bootstrap plus emitted minus burned. Issuance stays between 500 and
+  1,000 DRT a block, and every transaction fee is burned.
+- **Bootstrap** (D08-Q02, approved): ordinary, transferable DRT in the
+  genesis supply, assigned to named accounts so the first fees, bonds and
+  claims can be paid. The amount is 1,000,000 DRT (P01, 30 September 2026,
+  confirmed 10 October); the accounts are open (D08-Q03).
 - **Proposed, not approved:** include each root key holder's account in the
   bootstrap, since a holder needs a little DRT to move or stake their DGT.
 
@@ -95,12 +98,10 @@ kit's single 32-byte secret. The node refuses a key that holds two roles.
   ([control signing](../node/docs/mainnet/control-signing.md)).
 - **Losing a kit.** Each kit is on one fob with no backup. A lost fob, or a
   holder who leaves, still leaves four kits. **Kit replacement** (approved
-  8 October 2026, to be built before launch): three kits' upgrade keys sign
+  8 October 2026, built): three kits' upgrade keys sign
   one control that installs a new kit for one seat; it takes effect after
   seven days' notice under a new authority epoch, and the old kit's keys
   then stop working ([root kit replacement](../node/docs/architecture/root-kit-replacement-v1.md)).
-  Until it exists the key sets are fixed in the genesis-bound
-  configuration.
 
 ### The key ceremony
 
@@ -189,7 +190,7 @@ More validators join later through on-chain registration.
 | --- | --- | --- |
 | Kit replacement control | D10-Q03, D11-Q03 | Design approved 8 October 2026; built (K1 to K4) |
 | Custody packet model for five holders | D10-Q03 | Public disclosure, approved 10 October 2026 ([approval](approvals/P01_E05_HOLDER_DISCLOSURE_2026-10-10.json)) |
-| DRT bootstrap amount and accounts, holders included | D08-Q03 | Open |
+| DRT bootstrap accounts, holders included | D08-Q03 | Amount 1,000,000 DRT, confirmed 10 October 2026 ([approval](approvals/P01_E05_DRT_SUPPLY_2026-10-10.json)); accounts open |
 | Recipient rows, wallet addresses and any vesting | D08-Q01 | Holder grants approved; addresses open |
 | Treasury reward recipient and custody | D02-Q02 | Open |
 | Validator self-bond amount | D09-Q02 | Open |

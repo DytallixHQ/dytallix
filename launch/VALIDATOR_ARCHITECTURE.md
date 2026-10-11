@@ -1,14 +1,12 @@
-> Current PQC profile: use ML-DSA-65 for validator and peer authentication roles. Use ML-KEM-768 for P2P key establishment. Use separate SLH-DSA root authorization. Active upstream P2P remains unqualified. Mainnet remains NO GO. See [PQC architecture](PQC_ARCHITECTURE.md). This notice supersedes conflicting algorithm selections below.
-
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
+> **Historical record.** The validator architecture draft prepared on 9 September 2026. It is kept as it was and no longer maintained: where it differs from the current documents, they are right. The launch topology is the [trust model](TRUST_MODEL.md) and the [genesis framework](GENESIS_FRAMEWORK.md#5-network-at-genesis); the validator lifecycle is [validator lifecycle and retention](../node/docs/architecture/validator-lifecycle-retention.md) and [penalties v1](../node/docs/architecture/penalties-v1.md); signing, custody and fencing are [host setup v1](../node/docs/architecture/host-setup-v1.md) and [production activation v1](../node/docs/architecture/production-activation-v1.md). Paths in backticks under `decision-register/`, `batch-*/`, `evidence/`, `snapshots/` and `assessment/` name launch records held outside this repository. (Marked 10 October 2026, [launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json).)
 
 # Validator architecture
 
-Current local extension: [Batch 10](batch-10/REPORT.md) filters durable transaction receipts during admission and proposal selection. It preserves execution, custody and production policy. Earlier admission-gap statements are historical for this narrow receipt-filtering behavior.
+Current local extension: Batch 10 (`batch-10/REPORT.md`) filters durable transaction receipts during admission and proposal selection. It preserves execution, custody and production policy. Earlier admission-gap statements are historical for this narrow receipt-filtering behavior.
 
-Current local extension: [Batch 9](batch-9/REPORT.md) adds historical principal tracking, duplicate-vote metadata accounting, H+2 penalty settlement and local owner withdrawals. Production evidence coverage and penalty policy remain unqualified.
+Current local extension: Batch 9 (`batch-9/REPORT.md`) adds historical principal tracking, duplicate-vote metadata accounting, H+2 penalty settlement and local owner withdrawals. Production evidence coverage and penalty policy remain unqualified.
 
-Current validator policy: B8-01 through B8-07 are approved. See the [Batch 8 implementation](batch-8/implementation/REPORT.md) for local behavior and tests. Production qualification and inputs remain open. The older design sections below are historical or draft where they conflict with the approved rules.
+Current validator policy: B8-01 through B8-07 are approved. See the Batch 8 implementation (`batch-8/implementation/REPORT.md`) for local behavior and tests. Production qualification and inputs remain open. The older design sections below are historical or draft where they conflict with the approved rules.
 
 Status: **DRAFT — NOT FROZEN — NOT APPROVED FOR LAUNCH**.
 Prepared: 9 September 2026.
@@ -21,7 +19,7 @@ The consensus and genesis source assessment, with source references and blocker 
 
 ## Required protocol decision
 
-Production consensus approval remains open. [Batch 7](batch-7/ARCHITECTURE.md) implements the local CometBFT v0.40.0 candidate. Four synthetic ML-DSA-65 validator keys have fixed power 10 each. The local test verifies real commit signatures, application agreement, quorum loss and restart recovery. All four processes run on one host under one operator; this does not establish operator or infrastructure independence.
+Production consensus approval remains open. Batch 7 (`batch-7/ARCHITECTURE.md`) implements the local CometBFT v0.40.0 candidate. Four synthetic ML-DSA-65 validator keys have fixed power 10 each. The local test verifies real commit signatures, application agreement, quorum loss and restart recovery. All four processes run on one host under one operator; this does not establish operator or infrastructure independence.
 
 The Rust application prepares finalized blocks and commits monetary state atomically. Development block writers reject its database. This fixture does not implement validator changes or qualify production signing. The earlier timer path remains separate.
 

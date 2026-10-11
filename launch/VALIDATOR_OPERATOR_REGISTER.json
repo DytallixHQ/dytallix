@@ -1,4 +1,15 @@
 {
+  "historical_record": {
+    "marked": "2026-10-10",
+    "approval_record": "approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json",
+    "record": "The validator operator register draft prepared on 9 September 2026. Kept as it was and no longer maintained; where it differs from the current documents, they are right.",
+    "current": [
+      "MAINNET_DECISION_REGISTER.json",
+      "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+      "TRUST_MODEL.md",
+      "GENESIS_FRAMEWORK.md"
+    ]
+  },
   "schema_version": "draft-1",
   "document_status": "DRAFT_NOT_FROZEN",
   "launch_approval": "NOT_APPROVED",
