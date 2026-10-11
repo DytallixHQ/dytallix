@@ -22,12 +22,13 @@ document is the design; the tools and the runbook follow (see
   newest snapshot and uploads it to object storage at a second provider,
   with an upload key that can add objects but never read or delete them.
   The founder downloads the latest copy to their own drive each month.
-- **The validator and the sentry run at different hosting providers.**
-  With one validator, losing the validator and the sentry together loses
-  every block after the last copy, and the chain could not resume without
-  rolling history back. At two providers, no single provider or account
-  failure takes both, so each committed block survives on the other host
-  (a constraint on the provider choice, D12-Q03).
+- **The validator and the sentry run in different countries, at one
+  provider** ([hosting](../../../launch/approvals/P01_E05_HOSTING_2026-10-11.json)). This replaced the rule that
+  put them at different providers. A host or data-center loss still leaves
+  every committed block on the other host. A provider-wide failure or an
+  account suspension takes both, halts the chain and can lose the blocks
+  committed since the last copy at the second provider; the trust model
+  discloses it.
 
 [Restore approval](../../../launch/approvals/P01_E05_DISASTER_RECOVERY_RESTORE_2026-10-07.json):
 
