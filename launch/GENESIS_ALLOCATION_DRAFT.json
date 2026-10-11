@@ -1,4 +1,13 @@
 {
+  "historical_record": {
+    "marked": "2026-10-10",
+    "approval_record": "approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json",
+    "record": "The genesis allocation review draft of September 2026. Kept as it was and no longer maintained; where it differs from the current documents, they are right.",
+    "current": [
+      "GENESIS_FRAMEWORK.md",
+      "E05_VALUES.json"
+    ]
+  },
   "schema_version": "allocation-review-draft-v3",
   "status": "USER_APPROVED_SOURCE_ALLOCATION_INCOMPLETE_GENESIS",
   "valid_for_mainnet": false,

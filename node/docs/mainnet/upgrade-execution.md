@@ -1,6 +1,6 @@
 # Chain-atomic upgrade execution
 
-This implementation qualifies one real state-schema migration inside the current root-bound candidate. Production activation remains disabled. It does not replace executable files or qualify cross-binary upgrades.
+This implementation qualifies one real state-schema migration inside the current root-bound candidate. A production configuration carries the upgrade control at schema 2, and a production chain runs only from a root genesis signed three of five ([production activation v1](../architecture/production-activation-v1.md)). It does not replace executable files or qualify cross-binary upgrades.
 
 ## Authority and execution
 

@@ -5,9 +5,10 @@ exocognosis/dytallix, separate from the testnet and product code there, and
 moved here with its history on 5 October 2026
 ([release/MOVE.md](release/MOVE.md)).
 
-**Status: NO GO.** Mainnet is not launched and no launch is authorized. See
-[launch/MAINNET_READINESS_REPORT.md](launch/MAINNET_READINESS_REPORT.md) and
-[launch/LAUNCH_GATES.json](launch/LAUNCH_GATES.json) for the 35 launch gates.
+**Status: NO GO.** Mainnet is not launched and no launch is authorized. The
+35 launch gates are in [launch/MAINNET_GATE_MASTER.md](launch/MAINNET_GATE_MASTER.md),
+the decisions in [launch/DECISIONS_REQUIRED.md](launch/DECISIONS_REQUIRED.md)
+and the order of work in [launch/GENESIS_FRAMEWORK.md](launch/GENESIS_FRAMEWORK.md).
 
 ## Layout
 
@@ -18,7 +19,7 @@ moved here with its history on 5 October 2026
 | [pqc/](pqc/) | PQC primitives (ML-DSA, SLH-DSA, ML-KEM, FN-DSA). The node is the qualification authority. |
 | [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry. Not part of the consensus build; nothing here runs on the chain. |
 | [docs/](docs/) | Public documentation source (MkDocs). Mostly written for the public testnet; the tokenomics, security model, CLI reference, contract quickstart and whitepaper errata pages describe the mainnet candidate. |
-| [launch/](launch/) | Mainnet specification, tokenomics, genesis drafts, launch gates, decision register |
+| [launch/](launch/) | Launch gates, decision register and P01 approvals, genesis framework, trust model, production values, custody, host and operations records, specifications and tokenomics |
 | [release/](release/) | Reproducible release build, release manifest writer and the repository move |
 
 The consensus build has no contract runtime and no cross-chain bridge. It
@@ -36,7 +37,7 @@ over TLS, and mainnet has no faucet.
 
 ## Build
 
-Toolchains: Rust 1.88.0 (pinned by `rust-toolchain.toml`) and Go 1.25.
+Toolchains: Rust 1.88.0 (pinned by each workspace's `rust-toolchain.toml`) and Go 1.25.
 
 From this folder:
 
@@ -55,7 +56,8 @@ go test -mod=readonly ./...
 
 See `node/consensus/cometbft/README.md` and `PQC_ENGINE_INTEGRATION.md` there.
 
-CI runs all of the above on every change (`.github/workflows/mainnet.yml`),
+CI runs all of the above on every change except documentation-only ones
+(`.github/workflows/mainnet.yml`),
 and [release/README.md](release/README.md) describes the reproducible release
 build.
 
@@ -69,19 +71,22 @@ at your option; third-party code keeps its own license.
 
 ## Launch documents
 
-`launch/` is a snapshot of the top-level documents from the local launch
-tracking workspace. Some of them link into `assessment/`, `batch-*/`,
-`decision-register/`, `evidence/` and `snapshots/`. Those directories are local
-evidence archives (about 9 GB of source snapshots, logs and binaries) and are not
-included here.
+`launch/` holds the launch records ([index](launch/README.md)). They began
+as a snapshot of a local launch workspace and are maintained here. Records
+marked historical keep their September 2026 content. They and the gate data
+name evidence under `assessment/`, `batch-*/`, `decision-register/`,
+`evidence/` and `snapshots/`: local archives (about 9 GB of source
+snapshots, logs and binaries) not included here.
 
 Start with:
 
-- [launch/USER_LAUNCH_REQUIREMENTS.txt](launch/USER_LAUNCH_REQUIREMENTS.txt): launch requirements
-- [launch/MAINNET_V1_SPEC.md](launch/MAINNET_V1_SPEC.md): protocol specification (draft, stale in part; see its notice)
-- [launch/DECISIONS_REQUIRED.md](launch/DECISIONS_REQUIRED.md): open decisions
-- [launch/DGT_TOKENOMICS.md](launch/DGT_TOKENOMICS.md), [launch/DRT_TOKENOMICS.md](launch/DRT_TOKENOMICS.md): token models
-- [launch/GENESIS_SPEC.md](launch/GENESIS_SPEC.md): genesis requirements
+- [launch/GENESIS_FRAMEWORK.md](launch/GENESIS_FRAMEWORK.md): what genesis contains and the order of work
+- [launch/TRUST_MODEL.md](launch/TRUST_MODEL.md): what you trust at launch
+- [launch/MAINNET_GATE_MASTER.md](launch/MAINNET_GATE_MASTER.md): the 35 launch gates
+- [launch/DECISIONS_REQUIRED.md](launch/DECISIONS_REQUIRED.md): decisions and required records
+- [launch/E05_INTAKE.md](launch/E05_INTAKE.md): production values and records
+- [launch/MAINNET_V1_SPEC.md](launch/MAINNET_V1_SPEC.md), [launch/DGT_TOKENOMICS.md](launch/DGT_TOKENOMICS.md), [launch/DRT_TOKENOMICS.md](launch/DRT_TOKENOMICS.md): specification and token models (being brought up to date)
+- [launch/USER_LAUNCH_REQUIREMENTS.txt](launch/USER_LAUNCH_REQUIREMENTS.txt): the original launch requirements
 
 ## Provenance
 

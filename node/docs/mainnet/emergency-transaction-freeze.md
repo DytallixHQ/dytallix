@@ -1,6 +1,6 @@
 # Emergency transaction freeze
 
-This implementation supports the approved default emergency action: freeze user transactions while consensus continues. Production activation remains disabled. The separate [full-halt procedure](../operations/halt.md) applies when consensus, deterministic execution or cryptographic integrity is unsafe.
+This implementation supports the approved default emergency action: freeze user transactions while consensus continues. A production configuration carries the freeze control at schema 2, and a production chain runs only from a root genesis signed three of five ([production activation v1](../architecture/production-activation-v1.md)). The separate [full-halt procedure](../operations/halt.md) applies when consensus, deterministic execution or cryptographic integrity is unsafe.
 
 ## Authorization and state
 

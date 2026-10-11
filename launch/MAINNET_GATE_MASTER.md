@@ -1,26 +1,26 @@
 # Dytallix mainnet master gate list
 
-Canonical data: [LAUNCH_GATES.json](LAUNCH_GATES.json). This document is generated from that file. Edit the JSON, then regenerate this view. Separate packages are evidence archives.
+Canonical data: [LAUNCH_GATES.json](LAUNCH_GATES.json). This document is generated from that file by `node/tools/mainnet-preparation/gate_master.py --write`: edit the JSON, then regenerate this view. Separate packages are evidence archives.
 
-Links into `decision-register/` and `batch-*/` name launch evidence records held outside this repository; they do not resolve here.
+Paths shown as text rather than links, under `decision-register/`, `batch-*/`, `evidence/` and `snapshots/`, name launch evidence records held outside this repository.
 
 Launch: **NO GO**. Formal acceptance: **0/35**. Production records accepted: **0/8**. Final simulations completed: **0/7**.
 
-**Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)). The founder launches alone. Where a gate asks for independent, named, operator, reviewer or custodian acceptance, `acceptance_profile` in the JSON defines it:
-
-- **Independent review or acceptance:** a 30-day public review of the frozen candidate with a DGT bug bounty, every finding fixed or answered on the record, a separate AI review labeled as AI, and the founder's sign-off. The launch is labeled unaudited until a human audit is funded.
-- **Independent reproduction:** a clean GitHub Actions runner and a fresh local container reproduce the release and the genesis files byte for byte.
-- **Operator acceptance and genesis hash verification:** the founder, the only operator, on every host.
-- **Custodians and signers:** the founder's five key kits, stored in separate places; any three act.
-- **Independent monitoring:** a free hosted uptime checker, separate from the hosts.
-- **On-call:** the founder, paged 24/7, best effort, against the published goals in [operations objectives](operations/OBJECTIVES.md).
-- **Staging and simulations:** the production hosts before genesis, with rehearsal chain IDs and throwaway keys, then wiped.
-
 Current counts: 0 OPEN, 35 PARTIAL, 0 READY FOR ACCEPTANCE, 0 PASS. Partial progress can consist of preparation, implementation or local tests. It is not a percentage of completed acceptance criteria.
 
-The gate IDs retain their original repository meanings. The [conversation crosswalk](decision-register/gate-consolidation-20260912/CONVERSATION_CROSSWALK.json) maps the proposed work list without renumbering gates.
+**Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)). The founder launches alone. Where a gate asks for independent, named, operator, reviewer or custodian acceptance, these terms apply. Gate requirements are otherwise unchanged, and each concentration of control is disclosed in TRUST_MODEL.md.
 
-Use the [reconciliation report](decision-register/gate-consolidation-20260912/RECONCILIATION_REPORT.md) for source drift, superseded claims and validation limits. The [evidence index](decision-register/gate-consolidation-20260912/PRIMARY_EVIDENCE_INDEX.json) preserves all indexed supporting records. Do not add overlapping test counts.
+- **Independent review or acceptance:** A 30-day public review of the frozen candidate (GitHub issues, with a bug bounty paid in DGT), every finding fixed or answered on the record, a separate adversarial AI review labeled as AI, and the founder's sign-off. The launch is labeled unaudited until a human audit is funded.
+- **Independent reproduction:** A clean GitHub Actions runner and a fresh container on the founder's machine each reproduce the release and the genesis files byte for byte.
+- **Operator acceptance and genesis hash verification:** The founder, the only operator, records acceptance and verifies the genesis hash on every host.
+- **Custodians and signers:** The founder holds every genesis, upgrade and emergency key in five key kits stored in separate places; any three act.
+- **Independent monitoring:** A free hosted uptime checker, separate from the hosts, with phone push alerts.
+- **On-call coverage:** The founder, paged 24/7, best effort, against the published goals in operations/OBJECTIVES.json.
+- **Staging and simulations:** The production hosts before genesis, with rehearsal chain IDs and throwaway keys, then wiped and re-provisioned.
+
+The gate IDs retain their original repository meanings. The conversation crosswalk (`decision-register/gate-consolidation-20260912/CONVERSATION_CROSSWALK.json`) maps the proposed work list without renumbering gates.
+
+Use the reconciliation report (`decision-register/gate-consolidation-20260912/RECONCILIATION_REPORT.md`) for source drift, superseded claims and validation limits. The evidence index (`decision-register/gate-consolidation-20260912/PRIMARY_EVIDENCE_INDEX.json`) preserves all indexed supporting records. Do not add overlapping test counts.
 
 | Gate | Requirement category | Status |
 |---|---|---|
@@ -65,7 +65,7 @@ Use the [reconciliation report](decision-register/gate-consolidation-20260912/RE
 - **OPEN:** No credited implementation or preparation evidence for the requirement.
 - **PARTIAL:** Credited implementation, tests or preparation exist; required implementation, qualification or acceptance is incomplete.
 - **READY FOR ACCEPTANCE:** All implementation and candidate qualification evidence is complete; only authorized formal acceptance remains.
-- **PASS:** Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance. Under the solo launch profile, independent acceptance has the meaning above.
+- **PASS:** Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance. Under the solo launch profile, independent acceptance has the meaning in acceptance_profile.
 
 All 35 gates and eight production records must be accepted for the final compatible candidate set. Complete seven valid simulations under MAINNET_EXECUTION_PLAN.md and obtain explicit launch authorization. No gate status alone authorizes deployment.
 
@@ -89,46 +89,46 @@ All 35 gates and eight production records must be accepted for the final compati
 
 **Evidence**
 
-- [batch-7/APPROVAL.json](batch-7/APPROVAL.json)
-- [batch-7/REPORT.md](batch-7/REPORT.md)
-- [batch-7/TEST_RESULTS.json](batch-7/TEST_RESULTS.json)
-- [batch-7/VALIDATION.json](batch-7/VALIDATION.json)
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json](decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/REPORT.md](decision-register/gate-closure-implementation/engine-runtime/REPORT.md)
-- [decision-register/gate-closure-implementation/engine-runtime/RESULTS.json](decision-register/gate-closure-implementation/engine-runtime/RESULTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json](decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json)
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/production-integration/pqc/ipc-runtime/RESULTS.json](decision-register/production-integration/pqc/ipc-runtime/RESULTS.json)
-- [decision-register/production-integration/pqc/ipc-runtime/REPORT.md](decision-register/production-integration/pqc/ipc-runtime/REPORT.md)
-- [decision-register/production-integration/evidence/FINAL_SOURCE_CHECK.json](decision-register/production-integration/evidence/FINAL_SOURCE_CHECK.json)
-- [decision-register/production-integration/linux/retry/RESULTS.json](decision-register/production-integration/linux/retry/RESULTS.json)
-- [decision-register/production-integration/linux/retry/REPORT.md](decision-register/production-integration/linux/retry/REPORT.md)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/production-boundary-qualification/linux-x86/REPORT.md](decision-register/production-boundary-qualification/linux-x86/REPORT.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/consensus/RESULTS.json](decision-register/emergency-upgrade-execution/consensus/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/integration/RESULTS.json](decision-register/emergency-upgrade-execution/integration/RESULTS.json)
+- `batch-7/APPROVAL.json`
+- `batch-7/REPORT.md`
+- `batch-7/TEST_RESULTS.json`
+- `batch-7/VALIDATION.json`
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/REPORT.md`
+- `decision-register/gate-closure-implementation/engine-runtime/RESULTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json`
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/production-integration/pqc/ipc-runtime/RESULTS.json`
+- `decision-register/production-integration/pqc/ipc-runtime/REPORT.md`
+- `decision-register/production-integration/evidence/FINAL_SOURCE_CHECK.json`
+- `decision-register/production-integration/linux/retry/RESULTS.json`
+- `decision-register/production-integration/linux/retry/REPORT.md`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/production-boundary-qualification/linux-x86/REPORT.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/consensus/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/integration/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -158,7 +158,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1349–1378](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -177,27 +177,27 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-10/REPORT.md](batch-10/REPORT.md)
-- [batch-10/TEST_RESULTS.json](batch-10/TEST_RESULTS.json)
-- [batch-10/VALIDATION.json](batch-10/VALIDATION.json)
-- [batch-7/APPROVAL.json](batch-7/APPROVAL.json)
-- [batch-7/REPORT.md](batch-7/REPORT.md)
-- [batch-7/TEST_RESULTS.json](batch-7/TEST_RESULTS.json)
-- [batch-7/VALIDATION.json](batch-7/VALIDATION.json)
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [batch-9/REPORT.md](batch-9/REPORT.md)
-- [batch-9/TEST_RESULTS.json](batch-9/TEST_RESULTS.json)
-- [batch-9/VALIDATION.json](batch-9/VALIDATION.json)
-- [decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json](decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/REPORT.md](decision-register/gate-closure-implementation/engine-runtime/REPORT.md)
-- [decision-register/gate-closure-implementation/engine-runtime/RESULTS.json](decision-register/gate-closure-implementation/engine-runtime/RESULTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json](decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json)
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/launch-preparation-workstreams/security/REPORT.md](decision-register/launch-preparation-workstreams/security/REPORT.md)
-- [decision-register/launch-preparation-workstreams/security/RESULTS.json](decision-register/launch-preparation-workstreams/security/RESULTS.json)
+- `batch-10/REPORT.md`
+- `batch-10/TEST_RESULTS.json`
+- `batch-10/VALIDATION.json`
+- `batch-7/APPROVAL.json`
+- `batch-7/REPORT.md`
+- `batch-7/TEST_RESULTS.json`
+- `batch-7/VALIDATION.json`
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `batch-9/REPORT.md`
+- `batch-9/TEST_RESULTS.json`
+- `batch-9/VALIDATION.json`
+- `decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/REPORT.md`
+- `decision-register/gate-closure-implementation/engine-runtime/RESULTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json`
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/launch-preparation-workstreams/security/REPORT.md`
+- `decision-register/launch-preparation-workstreams/security/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -227,7 +227,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1211–1295](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1381–1513](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Use saved package source and executable hashes for credited results. The active implementation tree has later changes; SOURCE_DRIFT.json records the inspected differences. Changed source needs new qualification.
 
@@ -255,89 +255,89 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/engine-wallet-qualification/ACCEPTANCE.json](decision-register/engine-wallet-qualification/ACCEPTANCE.json)
-- [decision-register/engine-wallet-qualification/APPROVAL.json](decision-register/engine-wallet-qualification/APPROVAL.json)
-- [decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json](decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/engine-wallet-qualification/REPORT.md](decision-register/engine-wallet-qualification/REPORT.md)
-- [decision-register/engine-wallet-qualification/TEST_RESULTS.json](decision-register/engine-wallet-qualification/TEST_RESULTS.json)
-- [decision-register/engine-wallet-qualification/VALIDATION.json](decision-register/engine-wallet-qualification/VALIDATION.json)
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/gate-closure-implementation/pqc/REPORT.md](decision-register/gate-closure-implementation/pqc/REPORT.md)
-- [decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json](decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json)
-- [decision-register/gate-closure-implementation/root/REPORT.md](decision-register/gate-closure-implementation/root/REPORT.md)
-- [decision-register/gate-closure-implementation/root/RESULTS.json](decision-register/gate-closure-implementation/root/RESULTS.json)
-- [decision-register/pqc-profile/ACCEPTANCE.json](decision-register/pqc-profile/ACCEPTANCE.json)
-- [decision-register/pqc-profile/APPROVAL.json](decision-register/pqc-profile/APPROVAL.json)
-- [decision-register/pqc-profile/REPORT.md](decision-register/pqc-profile/REPORT.md)
-- [decision-register/pqc-profile/TEST_RESULTS.json](decision-register/pqc-profile/TEST_RESULTS.json)
-- [decision-register/pqc-profile/VALIDATION.json](decision-register/pqc-profile/VALIDATION.json)
-- [decision-register/pqc-transport-integration/ACCEPTANCE.json](decision-register/pqc-transport-integration/ACCEPTANCE.json)
-- [decision-register/pqc-transport-integration/EVIDENCE_DIGESTS.json](decision-register/pqc-transport-integration/EVIDENCE_DIGESTS.json)
-- [decision-register/pqc-transport-integration/REPORT.md](decision-register/pqc-transport-integration/REPORT.md)
-- [decision-register/pqc-transport-integration/TEST_RESULTS.json](decision-register/pqc-transport-integration/TEST_RESULTS.json)
-- [decision-register/pqc-transport-integration/VALIDATION.json](decision-register/pqc-transport-integration/VALIDATION.json)
-- [decision-register/production-integration/root/RESULTS.json](decision-register/production-integration/root/RESULTS.json)
-- [decision-register/production-integration/root/REPORT.md](decision-register/production-integration/root/REPORT.md)
-- [decision-register/production-integration/pqc/QUALIFICATION.json](decision-register/production-integration/pqc/QUALIFICATION.json)
-- [decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json](decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json)
-- [decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json](decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/root/RESULTS.json](decision-register/production-boundary-qualification/root/RESULTS.json)
-- [decision-register/production-boundary-qualification/root/REPORT.md](decision-register/production-boundary-qualification/root/REPORT.md)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/production-profile-finalization/REPORT.md](decision-register/production-profile-finalization/REPORT.md)
-- [decision-register/production-profile-finalization/RESULTS.json](decision-register/production-profile-finalization/RESULTS.json)
-- [decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json](decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json)
-- [decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json](decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json)
-- [decision-register/production-profile-finalization/crypto/RESULTS.json](decision-register/production-profile-finalization/crypto/RESULTS.json)
-- [decision-register/production-profile-finalization/evidence/ARTIFACT_INSPECTION.json](decision-register/production-profile-finalization/evidence/ARTIFACT_INSPECTION.json)
-- [decision-register/production-profile-finalization/evidence/APPLICATION_CHECKS.json](decision-register/production-profile-finalization/evidence/APPLICATION_CHECKS.json)
-- [decision-register/production-profile-finalization/integration/native01/RUNTIME.json](decision-register/production-profile-finalization/integration/native01/RUNTIME.json)
-- [decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md](decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/root/REPORT.md](decision-register/linux-release-authority-qualification/root/REPORT.md)
-- [decision-register/linux-release-authority-qualification/root/RESULTS.json](decision-register/linux-release-authority-qualification/root/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/linux/RESULTS.json](decision-register/linux-release-authority-qualification/linux/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/providers/REPORT.md](decision-register/linux-release-authority-qualification/providers/REPORT.md)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/root-helper/REPORT.md](decision-register/native-staging-production-closure/root-helper/REPORT.md)
-- [decision-register/native-staging-production-closure/root-helper/RESULTS.json](decision-register/native-staging-production-closure/root-helper/RESULTS.json)
-- [decision-register/native-staging-production-closure/review/ROOT_HELPER_REVIEW.json](decision-register/native-staging-production-closure/review/ROOT_HELPER_REVIEW.json)
-- [decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md](decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/verifier/REPORT.md](decision-register/emergency-transaction-freeze/verifier/REPORT.md)
-- [decision-register/emergency-transaction-freeze/verifier/RESULTS.json](decision-register/emergency-transaction-freeze/verifier/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/state/REPORT.md](decision-register/emergency-transaction-freeze/state/REPORT.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/linux/REPORT.md](decision-register/emergency-release-staging/linux/REPORT.md)
-- [decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json](decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json)
-- [decision-register/emergency-release-staging/policy/APPROVAL.json](decision-register/emergency-release-staging/policy/APPROVAL.json)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/emergency/RESULTS.json](decision-register/emergency-upgrade-execution/emergency/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/verifier/RESULTS.json](decision-register/emergency-upgrade-execution/verifier/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/review/VALIDATION.json](decision-register/emergency-upgrade-execution/review/VALIDATION.json)
+- `decision-register/engine-wallet-qualification/ACCEPTANCE.json`
+- `decision-register/engine-wallet-qualification/APPROVAL.json`
+- `decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/engine-wallet-qualification/REPORT.md`
+- `decision-register/engine-wallet-qualification/TEST_RESULTS.json`
+- `decision-register/engine-wallet-qualification/VALIDATION.json`
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/gate-closure-implementation/pqc/REPORT.md`
+- `decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json`
+- `decision-register/gate-closure-implementation/root/REPORT.md`
+- `decision-register/gate-closure-implementation/root/RESULTS.json`
+- `decision-register/pqc-profile/ACCEPTANCE.json`
+- `decision-register/pqc-profile/APPROVAL.json`
+- `decision-register/pqc-profile/REPORT.md`
+- `decision-register/pqc-profile/TEST_RESULTS.json`
+- `decision-register/pqc-profile/VALIDATION.json`
+- `decision-register/pqc-transport-integration/ACCEPTANCE.json`
+- `decision-register/pqc-transport-integration/EVIDENCE_DIGESTS.json`
+- `decision-register/pqc-transport-integration/REPORT.md`
+- `decision-register/pqc-transport-integration/TEST_RESULTS.json`
+- `decision-register/pqc-transport-integration/VALIDATION.json`
+- `decision-register/production-integration/root/RESULTS.json`
+- `decision-register/production-integration/root/REPORT.md`
+- `decision-register/production-integration/pqc/QUALIFICATION.json`
+- `decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json`
+- `decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/root/RESULTS.json`
+- `decision-register/production-boundary-qualification/root/REPORT.md`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/production-profile-finalization/REPORT.md`
+- `decision-register/production-profile-finalization/RESULTS.json`
+- `decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json`
+- `decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json`
+- `decision-register/production-profile-finalization/crypto/RESULTS.json`
+- `decision-register/production-profile-finalization/evidence/ARTIFACT_INSPECTION.json`
+- `decision-register/production-profile-finalization/evidence/APPLICATION_CHECKS.json`
+- `decision-register/production-profile-finalization/integration/native01/RUNTIME.json`
+- `decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/root/REPORT.md`
+- `decision-register/linux-release-authority-qualification/root/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/linux/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/providers/REPORT.md`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/root-helper/REPORT.md`
+- `decision-register/native-staging-production-closure/root-helper/RESULTS.json`
+- `decision-register/native-staging-production-closure/review/ROOT_HELPER_REVIEW.json`
+- `decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/verifier/REPORT.md`
+- `decision-register/emergency-transaction-freeze/verifier/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/state/REPORT.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/linux/REPORT.md`
+- `decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json`
+- `decision-register/emergency-release-staging/policy/APPROVAL.json`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/emergency/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/verifier/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/review/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -367,7 +367,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 535–613](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1297–1378](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -387,27 +387,27 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/APPROVAL.json](batch-6/APPROVAL.json)
-- [batch-6/REPORT.md](batch-6/REPORT.md)
-- [batch-6/TEST_RESULTS.json](batch-6/TEST_RESULTS.json)
-- [batch-6/VALIDATION.json](batch-6/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/genesis/DEPENDENCIES.json](decision-register/launch-preparation-workstreams/genesis/DEPENDENCIES.json)
-- [decision-register/launch-preparation-workstreams/genesis/REPORT.md](decision-register/launch-preparation-workstreams/genesis/REPORT.md)
-- [decision-register/launch-preparation-workstreams/genesis/RESULTS.json](decision-register/launch-preparation-workstreams/genesis/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/genesis/evidence/CONSUMER_CHECK.json](decision-register/launch-preparation-workstreams/genesis/evidence/CONSUMER_CHECK.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
-- [decision-register/production-integration/records/bindings/RESULTS.json](decision-register/production-integration/records/bindings/RESULTS.json)
-- [decision-register/production-integration/records/bindings/REPORT.md](decision-register/production-integration/records/bindings/REPORT.md)
-- [decision-register/production-integration/records/bindings/CONSUMER_RECONCILIATION/RESULTS.json](decision-register/production-integration/records/bindings/CONSUMER_RECONCILIATION/RESULTS.json)
-- [decision-register/production-integration/records/RECORD_CHECK.json](decision-register/production-integration/records/RECORD_CHECK.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/records/RESULTS.json](decision-register/production-boundary-qualification/records/RESULTS.json)
-- [decision-register/production-boundary-qualification/records/DECISION_QUEUE.md](decision-register/production-boundary-qualification/records/DECISION_QUEUE.md)
+- `batch-6/APPROVAL.json`
+- `batch-6/REPORT.md`
+- `batch-6/TEST_RESULTS.json`
+- `batch-6/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/genesis/DEPENDENCIES.json`
+- `decision-register/launch-preparation-workstreams/genesis/REPORT.md`
+- `decision-register/launch-preparation-workstreams/genesis/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/genesis/evidence/CONSUMER_CHECK.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
+- `decision-register/production-integration/records/bindings/RESULTS.json`
+- `decision-register/production-integration/records/bindings/REPORT.md`
+- `decision-register/production-integration/records/bindings/CONSUMER_RECONCILIATION/RESULTS.json`
+- `decision-register/production-integration/records/RECORD_CHECK.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/records/RESULTS.json`
+- `decision-register/production-boundary-qualification/records/DECISION_QUEUE.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -436,7 +436,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 615–679](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Latest selected source and saved snapshots were verified in decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json. Earlier results remain bound to their original saved artifacts. The new builds and runtime checks are local qualification, not a production release freeze.
 
@@ -456,20 +456,20 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/APPROVAL.json](batch-6/APPROVAL.json)
-- [batch-6/REPORT.md](batch-6/REPORT.md)
-- [batch-6/TEST_RESULTS.json](batch-6/TEST_RESULTS.json)
-- [batch-6/VALIDATION.json](batch-6/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/genesis/DEPENDENCIES.json](decision-register/launch-preparation-workstreams/genesis/DEPENDENCIES.json)
-- [decision-register/launch-preparation-workstreams/genesis/REPORT.md](decision-register/launch-preparation-workstreams/genesis/REPORT.md)
-- [decision-register/launch-preparation-workstreams/genesis/RESULTS.json](decision-register/launch-preparation-workstreams/genesis/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/genesis/evidence/CONSUMER_CHECK.json](decision-register/launch-preparation-workstreams/genesis/evidence/CONSUMER_CHECK.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
-- [decision-register/production-integration/records/bindings/RESULTS.json](decision-register/production-integration/records/bindings/RESULTS.json)
-- [decision-register/production-integration/records/bindings/REPORT.md](decision-register/production-integration/records/bindings/REPORT.md)
-- [decision-register/production-integration/records/REPORT.md](decision-register/production-integration/records/REPORT.md)
+- `batch-6/APPROVAL.json`
+- `batch-6/REPORT.md`
+- `batch-6/TEST_RESULTS.json`
+- `batch-6/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/genesis/DEPENDENCIES.json`
+- `decision-register/launch-preparation-workstreams/genesis/REPORT.md`
+- `decision-register/launch-preparation-workstreams/genesis/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/genesis/evidence/CONSUMER_CHECK.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
+- `decision-register/production-integration/records/bindings/RESULTS.json`
+- `decision-register/production-integration/records/bindings/REPORT.md`
+- `decision-register/production-integration/records/REPORT.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -500,7 +500,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 615–679](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g06"></a>
 ## G06 — Binary reproducibility
@@ -525,75 +525,75 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/gate-closure-implementation/pqc/REPORT.md](decision-register/gate-closure-implementation/pqc/REPORT.md)
-- [decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json](decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json)
-- [decision-register/gate-closure-implementation/wallet/REPORT.md](decision-register/gate-closure-implementation/wallet/REPORT.md)
-- [decision-register/gate-closure-implementation/wallet/RESULTS.json](decision-register/gate-closure-implementation/wallet/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json](decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json)
-- [decision-register/launch-preparation-workstreams/release/REPORT.md](decision-register/launch-preparation-workstreams/release/REPORT.md)
-- [decision-register/launch-preparation-workstreams/release/RESULTS.json](decision-register/launch-preparation-workstreams/release/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
-- [decision-register/pqc-build-boundary/ACCEPTANCE.json](decision-register/pqc-build-boundary/ACCEPTANCE.json)
-- [decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json](decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json)
-- [decision-register/pqc-build-boundary/REPORT.md](decision-register/pqc-build-boundary/REPORT.md)
-- [decision-register/pqc-build-boundary/TEST_RESULTS.json](decision-register/pqc-build-boundary/TEST_RESULTS.json)
-- [decision-register/pqc-build-boundary/VALIDATION.json](decision-register/pqc-build-boundary/VALIDATION.json)
-- [decision-register/production-integration/pqc/QUALIFICATION.json](decision-register/production-integration/pqc/QUALIFICATION.json)
-- [decision-register/production-integration/pqc/http-adapter/RESULTS.json](decision-register/production-integration/pqc/http-adapter/RESULTS.json)
-- [decision-register/production-integration/root/RESULTS.json](decision-register/production-integration/root/RESULTS.json)
-- [decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json](decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json)
-- [decision-register/production-integration/linux/retry/RESULTS.json](decision-register/production-integration/linux/retry/RESULTS.json)
-- [decision-register/production-integration/linux/retry/evidence/BUILD_TOOLCHAIN.json](decision-register/production-integration/linux/retry/evidence/BUILD_TOOLCHAIN.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json](decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/linux-x86/REPORT.md](decision-register/production-boundary-qualification/linux-x86/REPORT.md)
-- [decision-register/production-boundary-qualification/rust/RESULTS.json](decision-register/production-boundary-qualification/rust/RESULTS.json)
-- [decision-register/production-boundary-qualification/sdk/RESULTS.json](decision-register/production-boundary-qualification/sdk/RESULTS.json)
-- [decision-register/production-profile-finalization/REPORT.md](decision-register/production-profile-finalization/REPORT.md)
-- [decision-register/production-profile-finalization/RESULTS.json](decision-register/production-profile-finalization/RESULTS.json)
-- [decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json](decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json)
-- [decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json](decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json)
-- [decision-register/production-profile-finalization/evidence/PINNED_NATIVE_ARCHIVES.json](decision-register/production-profile-finalization/evidence/PINNED_NATIVE_ARCHIVES.json)
-- [decision-register/production-profile-finalization/evidence/BUILT_ARTIFACT.json](decision-register/production-profile-finalization/evidence/BUILT_ARTIFACT.json)
-- [decision-register/production-profile-finalization/evidence/LOCAL_TOOLS.json](decision-register/production-profile-finalization/evidence/LOCAL_TOOLS.json)
-- [decision-register/production-profile-finalization/evidence/APPLICATION_CHECKS.json](decision-register/production-profile-finalization/evidence/APPLICATION_CHECKS.json)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/linux/REPORT.md](decision-register/linux-release-authority-qualification/linux/REPORT.md)
-- [decision-register/linux-release-authority-qualification/linux/RESULTS.json](decision-register/linux-release-authority-qualification/linux/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/sdk/REPORT.md](decision-register/linux-release-authority-qualification/sdk/REPORT.md)
-- [decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md](decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/staging/REPORT.md](decision-register/native-staging-production-closure/staging/REPORT.md)
-- [decision-register/native-staging-production-closure/root-helper/REPORT.md](decision-register/native-staging-production-closure/root-helper/REPORT.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/linux/REPORT.md](decision-register/emergency-release-staging/linux/REPORT.md)
-- [decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json](decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json)
-- [decision-register/emergency-release-staging/linux/VALIDATION.json](decision-register/emergency-release-staging/linux/VALIDATION.json)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/integration/RESULTS.json](decision-register/emergency-upgrade-execution/integration/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/review/SOURCE_SNAPSHOT.json](decision-register/emergency-upgrade-execution/review/SOURCE_SNAPSHOT.json)
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/gate-closure-implementation/pqc/REPORT.md`
+- `decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json`
+- `decision-register/gate-closure-implementation/wallet/REPORT.md`
+- `decision-register/gate-closure-implementation/wallet/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json`
+- `decision-register/launch-preparation-workstreams/release/REPORT.md`
+- `decision-register/launch-preparation-workstreams/release/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
+- `decision-register/pqc-build-boundary/ACCEPTANCE.json`
+- `decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json`
+- `decision-register/pqc-build-boundary/REPORT.md`
+- `decision-register/pqc-build-boundary/TEST_RESULTS.json`
+- `decision-register/pqc-build-boundary/VALIDATION.json`
+- `decision-register/production-integration/pqc/QUALIFICATION.json`
+- `decision-register/production-integration/pqc/http-adapter/RESULTS.json`
+- `decision-register/production-integration/root/RESULTS.json`
+- `decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json`
+- `decision-register/production-integration/linux/retry/RESULTS.json`
+- `decision-register/production-integration/linux/retry/evidence/BUILD_TOOLCHAIN.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/linux-x86/REPORT.md`
+- `decision-register/production-boundary-qualification/rust/RESULTS.json`
+- `decision-register/production-boundary-qualification/sdk/RESULTS.json`
+- `decision-register/production-profile-finalization/REPORT.md`
+- `decision-register/production-profile-finalization/RESULTS.json`
+- `decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json`
+- `decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json`
+- `decision-register/production-profile-finalization/evidence/PINNED_NATIVE_ARCHIVES.json`
+- `decision-register/production-profile-finalization/evidence/BUILT_ARTIFACT.json`
+- `decision-register/production-profile-finalization/evidence/LOCAL_TOOLS.json`
+- `decision-register/production-profile-finalization/evidence/APPLICATION_CHECKS.json`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/linux/REPORT.md`
+- `decision-register/linux-release-authority-qualification/linux/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/sdk/REPORT.md`
+- `decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/staging/REPORT.md`
+- `decision-register/native-staging-production-closure/root-helper/REPORT.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/linux/REPORT.md`
+- `decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json`
+- `decision-register/emergency-release-staging/linux/VALIDATION.json`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/integration/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/review/SOURCE_SNAPSHOT.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -622,7 +622,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 719–755](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1297–1347](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -649,66 +649,66 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/services/REPORT.md](decision-register/gate-closure-implementation/services/REPORT.md)
-- [decision-register/gate-closure-implementation/services/RESULTS.json](decision-register/gate-closure-implementation/services/RESULTS.json)
-- [decision-register/gate-closure-implementation/services/VALIDATION.json](decision-register/gate-closure-implementation/services/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/ordinary-client-compatibility/ACCEPTANCE.json](decision-register/ordinary-client-compatibility/ACCEPTANCE.json)
-- [decision-register/ordinary-client-compatibility/APPROVAL.json](decision-register/ordinary-client-compatibility/APPROVAL.json)
-- [decision-register/ordinary-client-compatibility/REPORT.md](decision-register/ordinary-client-compatibility/REPORT.md)
-- [decision-register/ordinary-client-compatibility/TEST_RESULTS.json](decision-register/ordinary-client-compatibility/TEST_RESULTS.json)
-- [decision-register/ordinary-client-compatibility/VALIDATION.json](decision-register/ordinary-client-compatibility/VALIDATION.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
-- [decision-register/production-integration/linux/retry/RESULTS.json](decision-register/production-integration/linux/retry/RESULTS.json)
-- [decision-register/production-integration/linux/retry/REPORT.md](decision-register/production-integration/linux/retry/REPORT.md)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json](decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json)
-- [decision-register/production-integration/records/ROLE_NOMINATIONS.json](decision-register/production-integration/records/ROLE_NOMINATIONS.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/production-boundary-qualification/integration/linux02/RUNTIME.json](decision-register/production-boundary-qualification/integration/linux02/RUNTIME.json)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/linux-release-authority-qualification/services/RESULTS.json](decision-register/linux-release-authority-qualification/services/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/services/SELECTED_COMPONENT_INPUTS.json](decision-register/linux-release-authority-qualification/services/SELECTED_COMPONENT_INPUTS.json)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/staging/REPORT.md](decision-register/native-staging-production-closure/staging/REPORT.md)
-- [decision-register/native-staging-production-closure/staging/RESULTS.json](decision-register/native-staging-production-closure/staging/RESULTS.json)
-- [decision-register/native-staging-production-closure/staging/native-smoke/RESULT.json](decision-register/native-staging-production-closure/staging/native-smoke/RESULT.json)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/service/REPORT.md](decision-register/emergency-release-staging/service/REPORT.md)
-- [decision-register/emergency-release-staging/service/TEST_RESULTS.json](decision-register/emergency-release-staging/service/TEST_RESULTS.json)
-- [decision-register/emergency-release-staging/staging/REPORT.md](decision-register/emergency-release-staging/staging/REPORT.md)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-admission-native-v1/ADMISSION_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-admission-native-v1/ADMISSION_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-cancel-native-v1/TRIAL_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-cancel-native-v1/TRIAL_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-application-cancel-native-v1/TRIAL_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-application-cancel-native-v1/TRIAL_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-owner-loss-trace-v2-native-v1/TRIAL_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-owner-loss-trace-v2-native-v1/TRIAL_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-application-owner-loss-trace-v2-native-v1/TRIAL_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-application-owner-loss-trace-v2-native-v1/TRIAL_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-timing-diagnostic-v1/DIAGNOSTIC_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-timing-diagnostic-v1/DIAGNOSTIC_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-deadline-stall-native-v1/FAILURE_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-deadline-stall-native-v1/FAILURE_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-method-assessment-2026-09-24/NATIVE_MEASUREMENT_2026-09-24.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-method-assessment-2026-09-24/NATIVE_MEASUREMENT_2026-09-24.json)
+- `decision-register/gate-closure-implementation/services/REPORT.md`
+- `decision-register/gate-closure-implementation/services/RESULTS.json`
+- `decision-register/gate-closure-implementation/services/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/ordinary-client-compatibility/ACCEPTANCE.json`
+- `decision-register/ordinary-client-compatibility/APPROVAL.json`
+- `decision-register/ordinary-client-compatibility/REPORT.md`
+- `decision-register/ordinary-client-compatibility/TEST_RESULTS.json`
+- `decision-register/ordinary-client-compatibility/VALIDATION.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
+- `decision-register/production-integration/linux/retry/RESULTS.json`
+- `decision-register/production-integration/linux/retry/REPORT.md`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json`
+- `decision-register/production-integration/records/ROLE_NOMINATIONS.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/production-boundary-qualification/integration/linux02/RUNTIME.json`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/linux-release-authority-qualification/services/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/services/SELECTED_COMPONENT_INPUTS.json`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/staging/REPORT.md`
+- `decision-register/native-staging-production-closure/staging/RESULTS.json`
+- `decision-register/native-staging-production-closure/staging/native-smoke/RESULT.json`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/service/REPORT.md`
+- `decision-register/emergency-release-staging/service/TEST_RESULTS.json`
+- `decision-register/emergency-release-staging/staging/REPORT.md`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-admission-native-v1/ADMISSION_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-cancel-native-v1/TRIAL_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-application-cancel-native-v1/TRIAL_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-owner-loss-trace-v2-native-v1/TRIAL_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-application-owner-loss-trace-v2-native-v1/TRIAL_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-timing-diagnostic-v1/DIAGNOSTIC_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-deadline-stall-native-v1/FAILURE_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-method-assessment-2026-09-24/NATIVE_MEASUREMENT_2026-09-24.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -738,7 +738,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 757–801](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -762,44 +762,44 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [decision-register/gate-closure-implementation/services/REPORT.md](decision-register/gate-closure-implementation/services/REPORT.md)
-- [decision-register/gate-closure-implementation/services/RESULTS.json](decision-register/gate-closure-implementation/services/RESULTS.json)
-- [decision-register/gate-closure-implementation/services/VALIDATION.json](decision-register/gate-closure-implementation/services/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json](decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json)
-- [decision-register/production-integration/linux/retry/RESULTS.json](decision-register/production-integration/linux/retry/RESULTS.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json](decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/production-boundary-qualification/integration/linux02/RUNTIME.json](decision-register/production-boundary-qualification/integration/linux02/RUNTIME.json)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/linux-release-authority-qualification/services/RESULTS.json](decision-register/linux-release-authority-qualification/services/RESULTS.json)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/integration/RESULTS.json](decision-register/emergency-upgrade-execution/integration/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/custody/RESULTS.json](decision-register/emergency-upgrade-execution/custody/RESULTS.json)
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `decision-register/gate-closure-implementation/services/REPORT.md`
+- `decision-register/gate-closure-implementation/services/RESULTS.json`
+- `decision-register/gate-closure-implementation/services/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json`
+- `decision-register/production-integration/linux/retry/RESULTS.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/production-boundary-qualification/integration/linux02/RUNTIME.json`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/linux-release-authority-qualification/services/RESULTS.json`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/integration/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/custody/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -827,7 +827,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -847,24 +847,24 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/services/REPORT.md](decision-register/gate-closure-implementation/services/REPORT.md)
-- [decision-register/gate-closure-implementation/services/RESULTS.json](decision-register/gate-closure-implementation/services/RESULTS.json)
-- [decision-register/gate-closure-implementation/services/VALIDATION.json](decision-register/gate-closure-implementation/services/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json](decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/integration/REPORT.md](decision-register/emergency-transaction-freeze/integration/REPORT.md)
-- [decision-register/emergency-transaction-freeze/integration/RESULTS.json](decision-register/emergency-transaction-freeze/integration/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/state/REPORT.md](decision-register/emergency-transaction-freeze/state/REPORT.md)
+- `decision-register/gate-closure-implementation/services/REPORT.md`
+- `decision-register/gate-closure-implementation/services/RESULTS.json`
+- `decision-register/gate-closure-implementation/services/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/integration/REPORT.md`
+- `decision-register/emergency-transaction-freeze/integration/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/state/REPORT.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -891,7 +891,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json. Emergency freeze and resume qualification is limited to the recorded development profile and test environment. Production activation and G35 acceptance remain blocked.
 
@@ -916,78 +916,78 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/engine-wallet-qualification/ACCEPTANCE.json](decision-register/engine-wallet-qualification/ACCEPTANCE.json)
-- [decision-register/engine-wallet-qualification/APPROVAL.json](decision-register/engine-wallet-qualification/APPROVAL.json)
-- [decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json](decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/engine-wallet-qualification/REPORT.md](decision-register/engine-wallet-qualification/REPORT.md)
-- [decision-register/engine-wallet-qualification/TEST_RESULTS.json](decision-register/engine-wallet-qualification/TEST_RESULTS.json)
-- [decision-register/engine-wallet-qualification/VALIDATION.json](decision-register/engine-wallet-qualification/VALIDATION.json)
-- [decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json](decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/REPORT.md](decision-register/gate-closure-implementation/engine-runtime/REPORT.md)
-- [decision-register/gate-closure-implementation/engine-runtime/RESULTS.json](decision-register/gate-closure-implementation/engine-runtime/RESULTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json](decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json)
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/gate-closure-implementation/wallet/REPORT.md](decision-register/gate-closure-implementation/wallet/REPORT.md)
-- [decision-register/gate-closure-implementation/wallet/RESULTS.json](decision-register/gate-closure-implementation/wallet/RESULTS.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
-- [decision-register/ordinary-signing-implementation/APPROVAL.json](decision-register/ordinary-signing-implementation/APPROVAL.json)
-- [decision-register/ordinary-signing-implementation/REPORT.md](decision-register/ordinary-signing-implementation/REPORT.md)
-- [decision-register/ordinary-signing-implementation/TEST_RESULTS.json](decision-register/ordinary-signing-implementation/TEST_RESULTS.json)
-- [decision-register/ordinary-signing-implementation/VALIDATION.json](decision-register/ordinary-signing-implementation/VALIDATION.json)
-- [decision-register/pqc-build-boundary/ACCEPTANCE.json](decision-register/pqc-build-boundary/ACCEPTANCE.json)
-- [decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json](decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json)
-- [decision-register/pqc-build-boundary/REPORT.md](decision-register/pqc-build-boundary/REPORT.md)
-- [decision-register/pqc-build-boundary/TEST_RESULTS.json](decision-register/pqc-build-boundary/TEST_RESULTS.json)
-- [decision-register/pqc-build-boundary/VALIDATION.json](decision-register/pqc-build-boundary/VALIDATION.json)
-- [decision-register/recovery-acceptance-followup/ACCEPTANCE_STATUS.json](decision-register/recovery-acceptance-followup/ACCEPTANCE_STATUS.json)
-- [decision-register/recovery-acceptance-followup/REPORT.md](decision-register/recovery-acceptance-followup/REPORT.md)
-- [decision-register/recovery-acceptance-followup/TEST_RESULTS.json](decision-register/recovery-acceptance-followup/TEST_RESULTS.json)
-- [decision-register/recovery-acceptance-followup/VALIDATION.json](decision-register/recovery-acceptance-followup/VALIDATION.json)
-- [decision-register/recovery-fee-implementation/ACCEPTANCE_STATUS.json](decision-register/recovery-fee-implementation/ACCEPTANCE_STATUS.json)
-- [decision-register/recovery-fee-implementation/APPROVAL.json](decision-register/recovery-fee-implementation/APPROVAL.json)
-- [decision-register/recovery-fee-implementation/REPORT.md](decision-register/recovery-fee-implementation/REPORT.md)
-- [decision-register/recovery-fee-implementation/TEST_RESULTS.json](decision-register/recovery-fee-implementation/TEST_RESULTS.json)
-- [decision-register/recovery-fee-implementation/VALIDATION.json](decision-register/recovery-fee-implementation/VALIDATION.json)
-- [decision-register/recovery-signing/APPROVAL.json](decision-register/recovery-signing/APPROVAL.json)
-- [decision-register/recovery-signing/REPORT.md](decision-register/recovery-signing/REPORT.md)
-- [decision-register/recovery-signing/TEST_RESULTS.json](decision-register/recovery-signing/TEST_RESULTS.json)
-- [decision-register/recovery-signing/VALIDATION.json](decision-register/recovery-signing/VALIDATION.json)
-- [decision-register/production-integration/pqc/ipc-runtime/RESULTS.json](decision-register/production-integration/pqc/ipc-runtime/RESULTS.json)
-- [decision-register/production-integration/pqc/ipc-runtime/REPORT.md](decision-register/production-integration/pqc/ipc-runtime/REPORT.md)
-- [decision-register/production-integration/root/RESULTS.json](decision-register/production-integration/root/RESULTS.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json](decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json)
-- [decision-register/production-integration/linux/retry/evidence/COMMITTED_RECEIPT.json](decision-register/production-integration/linux/retry/evidence/COMMITTED_RECEIPT.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/sdk/RESULTS.json](decision-register/production-boundary-qualification/sdk/RESULTS.json)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/linux-release-authority-qualification/services/RESULTS.json](decision-register/linux-release-authority-qualification/services/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md](decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/integration/REPORT.md](decision-register/emergency-transaction-freeze/integration/REPORT.md)
-- [decision-register/emergency-transaction-freeze/integration/RESULTS.json](decision-register/emergency-transaction-freeze/integration/RESULTS.json)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
+- `decision-register/engine-wallet-qualification/ACCEPTANCE.json`
+- `decision-register/engine-wallet-qualification/APPROVAL.json`
+- `decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/engine-wallet-qualification/REPORT.md`
+- `decision-register/engine-wallet-qualification/TEST_RESULTS.json`
+- `decision-register/engine-wallet-qualification/VALIDATION.json`
+- `decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/REPORT.md`
+- `decision-register/gate-closure-implementation/engine-runtime/RESULTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json`
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/gate-closure-implementation/wallet/REPORT.md`
+- `decision-register/gate-closure-implementation/wallet/RESULTS.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
+- `decision-register/ordinary-signing-implementation/APPROVAL.json`
+- `decision-register/ordinary-signing-implementation/REPORT.md`
+- `decision-register/ordinary-signing-implementation/TEST_RESULTS.json`
+- `decision-register/ordinary-signing-implementation/VALIDATION.json`
+- `decision-register/pqc-build-boundary/ACCEPTANCE.json`
+- `decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json`
+- `decision-register/pqc-build-boundary/REPORT.md`
+- `decision-register/pqc-build-boundary/TEST_RESULTS.json`
+- `decision-register/pqc-build-boundary/VALIDATION.json`
+- `decision-register/recovery-acceptance-followup/ACCEPTANCE_STATUS.json`
+- `decision-register/recovery-acceptance-followup/REPORT.md`
+- `decision-register/recovery-acceptance-followup/TEST_RESULTS.json`
+- `decision-register/recovery-acceptance-followup/VALIDATION.json`
+- `decision-register/recovery-fee-implementation/ACCEPTANCE_STATUS.json`
+- `decision-register/recovery-fee-implementation/APPROVAL.json`
+- `decision-register/recovery-fee-implementation/REPORT.md`
+- `decision-register/recovery-fee-implementation/TEST_RESULTS.json`
+- `decision-register/recovery-fee-implementation/VALIDATION.json`
+- `decision-register/recovery-signing/APPROVAL.json`
+- `decision-register/recovery-signing/REPORT.md`
+- `decision-register/recovery-signing/TEST_RESULTS.json`
+- `decision-register/recovery-signing/VALIDATION.json`
+- `decision-register/production-integration/pqc/ipc-runtime/RESULTS.json`
+- `decision-register/production-integration/pqc/ipc-runtime/REPORT.md`
+- `decision-register/production-integration/root/RESULTS.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json`
+- `decision-register/production-integration/linux/retry/evidence/COMMITTED_RECEIPT.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/sdk/RESULTS.json`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/linux-release-authority-qualification/services/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/integration/REPORT.md`
+- `decision-register/emergency-transaction-freeze/integration/RESULTS.json`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1016,7 +1016,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json. Package reports identify exact build, platform, test and staging scope. Approved policy does not grant production activation or G35 acceptance.
 
@@ -1037,33 +1037,33 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/engine-wallet-qualification/ACCEPTANCE.json](decision-register/engine-wallet-qualification/ACCEPTANCE.json)
-- [decision-register/engine-wallet-qualification/APPROVAL.json](decision-register/engine-wallet-qualification/APPROVAL.json)
-- [decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json](decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/engine-wallet-qualification/REPORT.md](decision-register/engine-wallet-qualification/REPORT.md)
-- [decision-register/engine-wallet-qualification/TEST_RESULTS.json](decision-register/engine-wallet-qualification/TEST_RESULTS.json)
-- [decision-register/engine-wallet-qualification/VALIDATION.json](decision-register/engine-wallet-qualification/VALIDATION.json)
-- [decision-register/gate-closure-implementation/wallet/REPORT.md](decision-register/gate-closure-implementation/wallet/REPORT.md)
-- [decision-register/gate-closure-implementation/wallet/RESULTS.json](decision-register/gate-closure-implementation/wallet/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-3/REPORT.md](decision-register/parallel-tracks-20260912/track-3/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-3/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-3/TEST_RESULTS.json)
-- [decision-register/pqc-build-boundary/ACCEPTANCE.json](decision-register/pqc-build-boundary/ACCEPTANCE.json)
-- [decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json](decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json)
-- [decision-register/pqc-build-boundary/REPORT.md](decision-register/pqc-build-boundary/REPORT.md)
-- [decision-register/pqc-build-boundary/TEST_RESULTS.json](decision-register/pqc-build-boundary/TEST_RESULTS.json)
-- [decision-register/pqc-build-boundary/VALIDATION.json](decision-register/pqc-build-boundary/VALIDATION.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/sdk/RESULTS.json](decision-register/production-boundary-qualification/sdk/RESULTS.json)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/staging/REPORT.md](decision-register/native-staging-production-closure/staging/REPORT.md)
-- [decision-register/native-staging-production-closure/decisions/REPORT.md](decision-register/native-staging-production-closure/decisions/REPORT.md)
+- `decision-register/engine-wallet-qualification/ACCEPTANCE.json`
+- `decision-register/engine-wallet-qualification/APPROVAL.json`
+- `decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/engine-wallet-qualification/REPORT.md`
+- `decision-register/engine-wallet-qualification/TEST_RESULTS.json`
+- `decision-register/engine-wallet-qualification/VALIDATION.json`
+- `decision-register/gate-closure-implementation/wallet/REPORT.md`
+- `decision-register/gate-closure-implementation/wallet/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-3/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-3/TEST_RESULTS.json`
+- `decision-register/pqc-build-boundary/ACCEPTANCE.json`
+- `decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json`
+- `decision-register/pqc-build-boundary/REPORT.md`
+- `decision-register/pqc-build-boundary/TEST_RESULTS.json`
+- `decision-register/pqc-build-boundary/VALIDATION.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/sdk/RESULTS.json`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/staging/REPORT.md`
+- `decision-register/native-staging-production-closure/decisions/REPORT.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1090,7 +1090,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
 
@@ -1108,25 +1108,25 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/engine-wallet-qualification/ACCEPTANCE.json](decision-register/engine-wallet-qualification/ACCEPTANCE.json)
-- [decision-register/engine-wallet-qualification/APPROVAL.json](decision-register/engine-wallet-qualification/APPROVAL.json)
-- [decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json](decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/engine-wallet-qualification/REPORT.md](decision-register/engine-wallet-qualification/REPORT.md)
-- [decision-register/engine-wallet-qualification/TEST_RESULTS.json](decision-register/engine-wallet-qualification/TEST_RESULTS.json)
-- [decision-register/engine-wallet-qualification/VALIDATION.json](decision-register/engine-wallet-qualification/VALIDATION.json)
-- [decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json](decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/REPORT.md](decision-register/gate-closure-implementation/engine-runtime/REPORT.md)
-- [decision-register/gate-closure-implementation/engine-runtime/RESULTS.json](decision-register/gate-closure-implementation/engine-runtime/RESULTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json](decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json)
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
+- `decision-register/engine-wallet-qualification/ACCEPTANCE.json`
+- `decision-register/engine-wallet-qualification/APPROVAL.json`
+- `decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/engine-wallet-qualification/REPORT.md`
+- `decision-register/engine-wallet-qualification/TEST_RESULTS.json`
+- `decision-register/engine-wallet-qualification/VALIDATION.json`
+- `decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/REPORT.md`
+- `decision-register/gate-closure-implementation/engine-runtime/RESULTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json`
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1154,7 +1154,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g13"></a>
 ## G13 — DGT transfers
@@ -1170,17 +1170,17 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/APPROVAL.json](batch-6/APPROVAL.json)
-- [batch-6/REPORT.md](batch-6/REPORT.md)
-- [batch-6/TEST_RESULTS.json](batch-6/TEST_RESULTS.json)
-- [batch-6/VALIDATION.json](batch-6/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/genesis/REPORT.md](decision-register/launch-preparation-workstreams/genesis/REPORT.md)
-- [decision-register/launch-preparation-workstreams/genesis/RESULTS.json](decision-register/launch-preparation-workstreams/genesis/RESULTS.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
+- `batch-6/APPROVAL.json`
+- `batch-6/REPORT.md`
+- `batch-6/TEST_RESULTS.json`
+- `batch-6/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/genesis/REPORT.md`
+- `decision-register/launch-preparation-workstreams/genesis/RESULTS.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1208,7 +1208,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g14"></a>
 ## G14 — DRT supply accounting
@@ -1225,22 +1225,22 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/issuance-timing/APPROVAL.json](batch-6/issuance-timing/APPROVAL.json)
-- [batch-6/issuance-timing/REPORT.md](batch-6/issuance-timing/REPORT.md)
-- [batch-6/issuance-timing/TEST_RESULTS.json](batch-6/issuance-timing/TEST_RESULTS.json)
-- [batch-6/issuance-timing/VALIDATION.json](batch-6/issuance-timing/VALIDATION.json)
-- [batch-7/APPROVAL.json](batch-7/APPROVAL.json)
-- [batch-7/REPORT.md](batch-7/REPORT.md)
-- [batch-7/TEST_RESULTS.json](batch-7/TEST_RESULTS.json)
-- [batch-7/VALIDATION.json](batch-7/VALIDATION.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
+- `batch-6/issuance-timing/APPROVAL.json`
+- `batch-6/issuance-timing/REPORT.md`
+- `batch-6/issuance-timing/TEST_RESULTS.json`
+- `batch-6/issuance-timing/VALIDATION.json`
+- `batch-7/APPROVAL.json`
+- `batch-7/REPORT.md`
+- `batch-7/TEST_RESULTS.json`
+- `batch-7/VALIDATION.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1269,7 +1269,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g15"></a>
 ## G15 — DGT supply accounting
@@ -1286,19 +1286,19 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/APPROVAL.json](batch-6/APPROVAL.json)
-- [batch-6/REPORT.md](batch-6/REPORT.md)
-- [batch-6/TEST_RESULTS.json](batch-6/TEST_RESULTS.json)
-- [batch-6/VALIDATION.json](batch-6/VALIDATION.json)
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [batch-9/REPORT.md](batch-9/REPORT.md)
-- [batch-9/TEST_RESULTS.json](batch-9/TEST_RESULTS.json)
-- [batch-9/VALIDATION.json](batch-9/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/genesis/REPORT.md](decision-register/launch-preparation-workstreams/genesis/REPORT.md)
-- [decision-register/launch-preparation-workstreams/genesis/RESULTS.json](decision-register/launch-preparation-workstreams/genesis/RESULTS.json)
+- `batch-6/APPROVAL.json`
+- `batch-6/REPORT.md`
+- `batch-6/TEST_RESULTS.json`
+- `batch-6/VALIDATION.json`
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `batch-9/REPORT.md`
+- `batch-9/TEST_RESULTS.json`
+- `batch-9/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/genesis/REPORT.md`
+- `decision-register/launch-preparation-workstreams/genesis/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1327,7 +1327,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g16"></a>
 ## G16 — Staking
@@ -1344,19 +1344,19 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/integration-followup/APPROVAL.json](batch-6/integration-followup/APPROVAL.json)
-- [batch-6/integration-followup/REPORT.md](batch-6/integration-followup/REPORT.md)
-- [batch-6/integration-followup/TEST_RESULTS.json](batch-6/integration-followup/TEST_RESULTS.json)
-- [batch-6/integration-followup/VALIDATION.json](batch-6/integration-followup/VALIDATION.json)
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
+- `batch-6/integration-followup/APPROVAL.json`
+- `batch-6/integration-followup/REPORT.md`
+- `batch-6/integration-followup/TEST_RESULTS.json`
+- `batch-6/integration-followup/VALIDATION.json`
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1384,7 +1384,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g17"></a>
 ## G17 — Delegation
@@ -1400,19 +1400,19 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/integration-followup/APPROVAL.json](batch-6/integration-followup/APPROVAL.json)
-- [batch-6/integration-followup/REPORT.md](batch-6/integration-followup/REPORT.md)
-- [batch-6/integration-followup/TEST_RESULTS.json](batch-6/integration-followup/TEST_RESULTS.json)
-- [batch-6/integration-followup/VALIDATION.json](batch-6/integration-followup/VALIDATION.json)
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
+- `batch-6/integration-followup/APPROVAL.json`
+- `batch-6/integration-followup/REPORT.md`
+- `batch-6/integration-followup/TEST_RESULTS.json`
+- `batch-6/integration-followup/VALIDATION.json`
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1440,7 +1440,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g18"></a>
 ## G18 — Undelegation
@@ -1458,27 +1458,27 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-10/REPORT.md](batch-10/REPORT.md)
-- [batch-10/TEST_RESULTS.json](batch-10/TEST_RESULTS.json)
-- [batch-10/VALIDATION.json](batch-10/VALIDATION.json)
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [batch-9/REPORT.md](batch-9/REPORT.md)
-- [batch-9/TEST_RESULTS.json](batch-9/TEST_RESULTS.json)
-- [batch-9/VALIDATION.json](batch-9/VALIDATION.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/behavior/REPORT.md](decision-register/native-staging-production-closure/behavior/REPORT.md)
-- [decision-register/native-staging-production-closure/behavior/RESULTS.json](decision-register/native-staging-production-closure/behavior/RESULTS.json)
+- `batch-10/REPORT.md`
+- `batch-10/TEST_RESULTS.json`
+- `batch-10/VALIDATION.json`
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `batch-9/REPORT.md`
+- `batch-9/TEST_RESULTS.json`
+- `batch-9/VALIDATION.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/behavior/REPORT.md`
+- `decision-register/native-staging-production-closure/behavior/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1507,7 +1507,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
 
@@ -1526,31 +1526,31 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/APPROVAL.json](batch-6/APPROVAL.json)
-- [batch-6/REPORT.md](batch-6/REPORT.md)
-- [batch-6/TEST_RESULTS.json](batch-6/TEST_RESULTS.json)
-- [batch-6/VALIDATION.json](batch-6/VALIDATION.json)
-- [batch-6/claim-recovery/APPROVAL.json](batch-6/claim-recovery/APPROVAL.json)
-- [batch-6/claim-recovery/REPORT.md](batch-6/claim-recovery/REPORT.md)
-- [batch-6/claim-recovery/TEST_RESULTS.json](batch-6/claim-recovery/TEST_RESULTS.json)
-- [batch-6/claim-recovery/VALIDATION.json](batch-6/claim-recovery/VALIDATION.json)
-- [batch-6/integration-followup/APPROVAL.json](batch-6/integration-followup/APPROVAL.json)
-- [batch-6/integration-followup/REPORT.md](batch-6/integration-followup/REPORT.md)
-- [batch-6/integration-followup/TEST_RESULTS.json](batch-6/integration-followup/TEST_RESULTS.json)
-- [batch-6/integration-followup/VALIDATION.json](batch-6/integration-followup/VALIDATION.json)
-- [batch-6/issuance-timing/APPROVAL.json](batch-6/issuance-timing/APPROVAL.json)
-- [batch-6/issuance-timing/REPORT.md](batch-6/issuance-timing/REPORT.md)
-- [batch-6/issuance-timing/TEST_RESULTS.json](batch-6/issuance-timing/TEST_RESULTS.json)
-- [batch-6/issuance-timing/VALIDATION.json](batch-6/issuance-timing/VALIDATION.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
-- [decision-register/ordinary-signing-implementation/APPROVAL.json](decision-register/ordinary-signing-implementation/APPROVAL.json)
-- [decision-register/ordinary-signing-implementation/REPORT.md](decision-register/ordinary-signing-implementation/REPORT.md)
-- [decision-register/ordinary-signing-implementation/TEST_RESULTS.json](decision-register/ordinary-signing-implementation/TEST_RESULTS.json)
-- [decision-register/ordinary-signing-implementation/VALIDATION.json](decision-register/ordinary-signing-implementation/VALIDATION.json)
+- `batch-6/APPROVAL.json`
+- `batch-6/REPORT.md`
+- `batch-6/TEST_RESULTS.json`
+- `batch-6/VALIDATION.json`
+- `batch-6/claim-recovery/APPROVAL.json`
+- `batch-6/claim-recovery/REPORT.md`
+- `batch-6/claim-recovery/TEST_RESULTS.json`
+- `batch-6/claim-recovery/VALIDATION.json`
+- `batch-6/integration-followup/APPROVAL.json`
+- `batch-6/integration-followup/REPORT.md`
+- `batch-6/integration-followup/TEST_RESULTS.json`
+- `batch-6/integration-followup/VALIDATION.json`
+- `batch-6/issuance-timing/APPROVAL.json`
+- `batch-6/issuance-timing/REPORT.md`
+- `batch-6/issuance-timing/TEST_RESULTS.json`
+- `batch-6/issuance-timing/VALIDATION.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
+- `decision-register/ordinary-signing-implementation/APPROVAL.json`
+- `decision-register/ordinary-signing-implementation/REPORT.md`
+- `decision-register/ordinary-signing-implementation/TEST_RESULTS.json`
+- `decision-register/ordinary-signing-implementation/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1579,7 +1579,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g20"></a>
 ## G20 — Fees
@@ -1596,31 +1596,31 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/engine-wallet-qualification/ACCEPTANCE.json](decision-register/engine-wallet-qualification/ACCEPTANCE.json)
-- [decision-register/engine-wallet-qualification/APPROVAL.json](decision-register/engine-wallet-qualification/APPROVAL.json)
-- [decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json](decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/engine-wallet-qualification/REPORT.md](decision-register/engine-wallet-qualification/REPORT.md)
-- [decision-register/engine-wallet-qualification/TEST_RESULTS.json](decision-register/engine-wallet-qualification/TEST_RESULTS.json)
-- [decision-register/engine-wallet-qualification/VALIDATION.json](decision-register/engine-wallet-qualification/VALIDATION.json)
-- [decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json](decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/REPORT.md](decision-register/gate-closure-implementation/engine-runtime/REPORT.md)
-- [decision-register/gate-closure-implementation/engine-runtime/RESULTS.json](decision-register/gate-closure-implementation/engine-runtime/RESULTS.json)
-- [decision-register/ordinary-fee-implementation/APPROVAL.json](decision-register/ordinary-fee-implementation/APPROVAL.json)
-- [decision-register/ordinary-fee-implementation/REPORT.md](decision-register/ordinary-fee-implementation/REPORT.md)
-- [decision-register/ordinary-fee-implementation/TEST_RESULTS.json](decision-register/ordinary-fee-implementation/TEST_RESULTS.json)
-- [decision-register/ordinary-fee-implementation/VALIDATION.json](decision-register/ordinary-fee-implementation/VALIDATION.json)
-- [decision-register/ordinary-runtime-integration/ACCEPTANCE.json](decision-register/ordinary-runtime-integration/ACCEPTANCE.json)
-- [decision-register/ordinary-runtime-integration/APPROVAL.json](decision-register/ordinary-runtime-integration/APPROVAL.json)
-- [decision-register/ordinary-runtime-integration/REPORT.md](decision-register/ordinary-runtime-integration/REPORT.md)
-- [decision-register/ordinary-runtime-integration/TEST_RESULTS.json](decision-register/ordinary-runtime-integration/TEST_RESULTS.json)
-- [decision-register/ordinary-runtime-integration/VALIDATION.json](decision-register/ordinary-runtime-integration/VALIDATION.json)
-- [decision-register/recovery-fee-implementation/ACCEPTANCE_STATUS.json](decision-register/recovery-fee-implementation/ACCEPTANCE_STATUS.json)
-- [decision-register/recovery-fee-implementation/APPROVAL.json](decision-register/recovery-fee-implementation/APPROVAL.json)
-- [decision-register/recovery-fee-implementation/REPORT.md](decision-register/recovery-fee-implementation/REPORT.md)
-- [decision-register/recovery-fee-implementation/TEST_RESULTS.json](decision-register/recovery-fee-implementation/TEST_RESULTS.json)
-- [decision-register/recovery-fee-implementation/VALIDATION.json](decision-register/recovery-fee-implementation/VALIDATION.json)
-- [decision-register/recovery-fee-storage/ACCEPTANCE.json](decision-register/recovery-fee-storage/ACCEPTANCE.json)
-- [decision-register/recovery-fee-storage/VALIDATION.json](decision-register/recovery-fee-storage/VALIDATION.json)
+- `decision-register/engine-wallet-qualification/ACCEPTANCE.json`
+- `decision-register/engine-wallet-qualification/APPROVAL.json`
+- `decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/engine-wallet-qualification/REPORT.md`
+- `decision-register/engine-wallet-qualification/TEST_RESULTS.json`
+- `decision-register/engine-wallet-qualification/VALIDATION.json`
+- `decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/REPORT.md`
+- `decision-register/gate-closure-implementation/engine-runtime/RESULTS.json`
+- `decision-register/ordinary-fee-implementation/APPROVAL.json`
+- `decision-register/ordinary-fee-implementation/REPORT.md`
+- `decision-register/ordinary-fee-implementation/TEST_RESULTS.json`
+- `decision-register/ordinary-fee-implementation/VALIDATION.json`
+- `decision-register/ordinary-runtime-integration/ACCEPTANCE.json`
+- `decision-register/ordinary-runtime-integration/APPROVAL.json`
+- `decision-register/ordinary-runtime-integration/REPORT.md`
+- `decision-register/ordinary-runtime-integration/TEST_RESULTS.json`
+- `decision-register/ordinary-runtime-integration/VALIDATION.json`
+- `decision-register/recovery-fee-implementation/ACCEPTANCE_STATUS.json`
+- `decision-register/recovery-fee-implementation/APPROVAL.json`
+- `decision-register/recovery-fee-implementation/REPORT.md`
+- `decision-register/recovery-fee-implementation/TEST_RESULTS.json`
+- `decision-register/recovery-fee-implementation/VALIDATION.json`
+- `decision-register/recovery-fee-storage/ACCEPTANCE.json`
+- `decision-register/recovery-fee-storage/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1649,7 +1649,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g21"></a>
 ## G21 — Slashing
@@ -1666,22 +1666,22 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-10/REPORT.md](batch-10/REPORT.md)
-- [batch-10/TEST_RESULTS.json](batch-10/TEST_RESULTS.json)
-- [batch-10/VALIDATION.json](batch-10/VALIDATION.json)
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [batch-9/REPORT.md](batch-9/REPORT.md)
-- [batch-9/TEST_RESULTS.json](batch-9/TEST_RESULTS.json)
-- [batch-9/VALIDATION.json](batch-9/VALIDATION.json)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/behavior/REPORT.md](decision-register/native-staging-production-closure/behavior/REPORT.md)
-- [decision-register/native-staging-production-closure/behavior/RESULTS.json](decision-register/native-staging-production-closure/behavior/RESULTS.json)
+- `batch-10/REPORT.md`
+- `batch-10/TEST_RESULTS.json`
+- `batch-10/VALIDATION.json`
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `batch-9/REPORT.md`
+- `batch-9/TEST_RESULTS.json`
+- `batch-9/VALIDATION.json`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/behavior/REPORT.md`
+- `decision-register/native-staging-production-closure/behavior/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1709,7 +1709,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
 
@@ -1730,37 +1730,37 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-5/BATCH_5_REPORT.md](batch-5/BATCH_5_REPORT.md)
-- [batch-5/TEST_RESULTS.json](batch-5/TEST_RESULTS.json)
-- [batch-5/VALIDATION.json](batch-5/VALIDATION.json)
-- [batch-5/eligibility-followup/APPROVAL.json](batch-5/eligibility-followup/APPROVAL.json)
-- [batch-5/eligibility-followup/REPORT.md](batch-5/eligibility-followup/REPORT.md)
-- [batch-5/eligibility-followup/TEST_RESULTS.json](batch-5/eligibility-followup/TEST_RESULTS.json)
-- [batch-5/eligibility-followup/VALIDATION.json](batch-5/eligibility-followup/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/security/REPORT.md](decision-register/launch-preparation-workstreams/security/REPORT.md)
-- [decision-register/launch-preparation-workstreams/security/RESULTS.json](decision-register/launch-preparation-workstreams/security/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/policy/APPROVAL.json](decision-register/emergency-transaction-freeze/policy/APPROVAL.json)
-- [decision-register/emergency-transaction-freeze/policy/DECISION_AMENDMENT.json](decision-register/emergency-transaction-freeze/policy/DECISION_AMENDMENT.json)
-- [decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md](decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md)
-- [decision-register/emergency-transaction-freeze/integration/REPORT.md](decision-register/emergency-transaction-freeze/integration/REPORT.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/policy/APPROVAL.json](decision-register/emergency-release-staging/policy/APPROVAL.json)
-- [decision-register/emergency-release-staging/policy/DECISION_AMENDMENT.json](decision-register/emergency-release-staging/policy/DECISION_AMENDMENT.json)
-- [decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md](decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/emergency/RESULTS.json](decision-register/emergency-upgrade-execution/emergency/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/upgrade/RESULTS.json](decision-register/emergency-upgrade-execution/upgrade/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/custody/REPORT.md](decision-register/emergency-upgrade-execution/custody/REPORT.md)
+- `batch-5/BATCH_5_REPORT.md`
+- `batch-5/TEST_RESULTS.json`
+- `batch-5/VALIDATION.json`
+- `batch-5/eligibility-followup/APPROVAL.json`
+- `batch-5/eligibility-followup/REPORT.md`
+- `batch-5/eligibility-followup/TEST_RESULTS.json`
+- `batch-5/eligibility-followup/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/security/REPORT.md`
+- `decision-register/launch-preparation-workstreams/security/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/policy/APPROVAL.json`
+- `decision-register/emergency-transaction-freeze/policy/DECISION_AMENDMENT.json`
+- `decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md`
+- `decision-register/emergency-transaction-freeze/integration/REPORT.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/policy/APPROVAL.json`
+- `decision-register/emergency-release-staging/policy/DECISION_AMENDMENT.json`
+- `decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/emergency/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/upgrade/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/custody/REPORT.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1790,7 +1790,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -1809,18 +1809,18 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-6/issuance-timing/APPROVAL.json](batch-6/issuance-timing/APPROVAL.json)
-- [batch-6/issuance-timing/REPORT.md](batch-6/issuance-timing/REPORT.md)
-- [batch-6/issuance-timing/TEST_RESULTS.json](batch-6/issuance-timing/TEST_RESULTS.json)
-- [batch-6/issuance-timing/VALIDATION.json](batch-6/issuance-timing/VALIDATION.json)
-- [decision-register/gate-closure-implementation/root/REPORT.md](decision-register/gate-closure-implementation/root/REPORT.md)
-- [decision-register/gate-closure-implementation/root/RESULTS.json](decision-register/gate-closure-implementation/root/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-2/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-2/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-2/REPORT.md](decision-register/parallel-tracks-20260912/track-2/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-2/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-2/TEST_RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
+- `batch-6/issuance-timing/APPROVAL.json`
+- `batch-6/issuance-timing/REPORT.md`
+- `batch-6/issuance-timing/TEST_RESULTS.json`
+- `batch-6/issuance-timing/VALIDATION.json`
+- `decision-register/gate-closure-implementation/root/REPORT.md`
+- `decision-register/gate-closure-implementation/root/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-2/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-2/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-2/TEST_RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1850,7 +1850,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Use saved package source and executable hashes for credited results. The active implementation tree has later changes; SOURCE_DRIFT.json records the inspected differences. Changed source needs new qualification.
 
@@ -1876,62 +1876,62 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/root/REPORT.md](decision-register/gate-closure-implementation/root/REPORT.md)
-- [decision-register/gate-closure-implementation/root/RESULTS.json](decision-register/gate-closure-implementation/root/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json](decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json)
-- [decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json](decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json)
-- [decision-register/launch-preparation-workstreams/release/REPORT.md](decision-register/launch-preparation-workstreams/release/REPORT.md)
-- [decision-register/launch-preparation-workstreams/release/RESULTS.json](decision-register/launch-preparation-workstreams/release/RESULTS.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/rust/REPORT.md](decision-register/production-boundary-qualification/rust/REPORT.md)
-- [decision-register/production-profile-finalization/REPORT.md](decision-register/production-profile-finalization/REPORT.md)
-- [decision-register/production-profile-finalization/RESULTS.json](decision-register/production-profile-finalization/RESULTS.json)
-- [decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json](decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json)
-- [decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json](decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json)
-- [decision-register/production-profile-finalization/storage/RESULTS.json](decision-register/production-profile-finalization/storage/RESULTS.json)
-- [decision-register/production-profile-finalization/storage/fresh-native-archives.json](decision-register/production-profile-finalization/storage/fresh-native-archives.json)
-- [decision-register/production-profile-finalization/integration/native01/RUNTIME.json](decision-register/production-profile-finalization/integration/native01/RUNTIME.json)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/linux/REPORT.md](decision-register/linux-release-authority-qualification/linux/REPORT.md)
-- [decision-register/linux-release-authority-qualification/linux/RESULTS.json](decision-register/linux-release-authority-qualification/linux/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/root/REPORT.md](decision-register/linux-release-authority-qualification/root/REPORT.md)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md](decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md)
-- [decision-register/native-staging-production-closure/root/RESULTS.json](decision-register/native-staging-production-closure/root/RESULTS.json)
-- [decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md](decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/state/REPORT.md](decision-register/emergency-transaction-freeze/state/REPORT.md)
-- [decision-register/emergency-transaction-freeze/integration/REPORT.md](decision-register/emergency-transaction-freeze/integration/REPORT.md)
-- [decision-register/emergency-transaction-freeze/review/REVIEW.md](decision-register/emergency-transaction-freeze/review/REVIEW.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/upgrade/EXECUTOR_DESIGN.md](decision-register/emergency-release-staging/upgrade/EXECUTOR_DESIGN.md)
-- [decision-register/emergency-release-staging/upgrade/ACCEPTANCE_MATRIX.md](decision-register/emergency-release-staging/upgrade/ACCEPTANCE_MATRIX.md)
-- [decision-register/emergency-release-staging/upgrade/RESULTS.json](decision-register/emergency-release-staging/upgrade/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/upgrade/REPORT.md](decision-register/emergency-upgrade-execution/upgrade/REPORT.md)
-- [decision-register/emergency-upgrade-execution/consensus/REPORT.md](decision-register/emergency-upgrade-execution/consensus/REPORT.md)
-- [decision-register/emergency-upgrade-execution/integration/RESULTS.json](decision-register/emergency-upgrade-execution/integration/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/review/REVIEW.md](decision-register/emergency-upgrade-execution/review/REVIEW.md)
+- `decision-register/gate-closure-implementation/root/REPORT.md`
+- `decision-register/gate-closure-implementation/root/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json`
+- `decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json`
+- `decision-register/launch-preparation-workstreams/release/REPORT.md`
+- `decision-register/launch-preparation-workstreams/release/RESULTS.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/rust/REPORT.md`
+- `decision-register/production-profile-finalization/REPORT.md`
+- `decision-register/production-profile-finalization/RESULTS.json`
+- `decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json`
+- `decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json`
+- `decision-register/production-profile-finalization/storage/RESULTS.json`
+- `decision-register/production-profile-finalization/storage/fresh-native-archives.json`
+- `decision-register/production-profile-finalization/integration/native01/RUNTIME.json`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/linux/REPORT.md`
+- `decision-register/linux-release-authority-qualification/linux/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/root/REPORT.md`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md`
+- `decision-register/native-staging-production-closure/root/RESULTS.json`
+- `decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/state/REPORT.md`
+- `decision-register/emergency-transaction-freeze/integration/REPORT.md`
+- `decision-register/emergency-transaction-freeze/review/REVIEW.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/upgrade/EXECUTOR_DESIGN.md`
+- `decision-register/emergency-release-staging/upgrade/ACCEPTANCE_MATRIX.md`
+- `decision-register/emergency-release-staging/upgrade/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/upgrade/REPORT.md`
+- `decision-register/emergency-upgrade-execution/consensus/REPORT.md`
+- `decision-register/emergency-upgrade-execution/integration/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/review/REVIEW.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -1959,7 +1959,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1211–1295](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1515–1553](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -1985,67 +1985,67 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/engine-wallet-qualification/ACCEPTANCE.json](decision-register/engine-wallet-qualification/ACCEPTANCE.json)
-- [decision-register/engine-wallet-qualification/APPROVAL.json](decision-register/engine-wallet-qualification/APPROVAL.json)
-- [decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json](decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/engine-wallet-qualification/REPORT.md](decision-register/engine-wallet-qualification/REPORT.md)
-- [decision-register/engine-wallet-qualification/TEST_RESULTS.json](decision-register/engine-wallet-qualification/TEST_RESULTS.json)
-- [decision-register/engine-wallet-qualification/VALIDATION.json](decision-register/engine-wallet-qualification/VALIDATION.json)
-- [decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json](decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/REPORT.md](decision-register/gate-closure-implementation/engine-runtime/REPORT.md)
-- [decision-register/gate-closure-implementation/engine-runtime/RESULTS.json](decision-register/gate-closure-implementation/engine-runtime/RESULTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json](decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json)
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/gate-closure-implementation/pqc/REPORT.md](decision-register/gate-closure-implementation/pqc/REPORT.md)
-- [decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json](decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json)
-- [decision-register/ordinary-client-compatibility/ACCEPTANCE.json](decision-register/ordinary-client-compatibility/ACCEPTANCE.json)
-- [decision-register/ordinary-client-compatibility/APPROVAL.json](decision-register/ordinary-client-compatibility/APPROVAL.json)
-- [decision-register/ordinary-client-compatibility/REPORT.md](decision-register/ordinary-client-compatibility/REPORT.md)
-- [decision-register/ordinary-client-compatibility/TEST_RESULTS.json](decision-register/ordinary-client-compatibility/TEST_RESULTS.json)
-- [decision-register/ordinary-client-compatibility/VALIDATION.json](decision-register/ordinary-client-compatibility/VALIDATION.json)
-- [decision-register/pqc-build-boundary/ACCEPTANCE.json](decision-register/pqc-build-boundary/ACCEPTANCE.json)
-- [decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json](decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json)
-- [decision-register/pqc-build-boundary/REPORT.md](decision-register/pqc-build-boundary/REPORT.md)
-- [decision-register/pqc-build-boundary/TEST_RESULTS.json](decision-register/pqc-build-boundary/TEST_RESULTS.json)
-- [decision-register/pqc-build-boundary/VALIDATION.json](decision-register/pqc-build-boundary/VALIDATION.json)
-- [decision-register/production-integration/pqc/QUALIFICATION.json](decision-register/production-integration/pqc/QUALIFICATION.json)
-- [decision-register/production-integration/pqc/PQC_IMPLEMENTATION_REPORT.md](decision-register/production-integration/pqc/PQC_IMPLEMENTATION_REPORT.md)
-- [decision-register/production-integration/pqc/http-adapter/RESULTS.json](decision-register/production-integration/pqc/http-adapter/RESULTS.json)
-- [decision-register/production-integration/pqc/ipc-runtime/RESULTS.json](decision-register/production-integration/pqc/ipc-runtime/RESULTS.json)
-- [decision-register/production-integration/linux/retry/RESULTS.json](decision-register/production-integration/linux/retry/RESULTS.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json](decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/production-boundary-qualification/sdk/RESULTS.json](decision-register/production-boundary-qualification/sdk/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/linux-release-authority-qualification/services/RESULTS.json](decision-register/linux-release-authority-qualification/services/RESULTS.json)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/behavior/REPORT.md](decision-register/native-staging-production-closure/behavior/REPORT.md)
-- [decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md](decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/consensus/REPORT.md](decision-register/emergency-upgrade-execution/consensus/REPORT.md)
-- [decision-register/emergency-upgrade-execution/integration/RESULTS.json](decision-register/emergency-upgrade-execution/integration/RESULTS.json)
+- `decision-register/engine-wallet-qualification/ACCEPTANCE.json`
+- `decision-register/engine-wallet-qualification/APPROVAL.json`
+- `decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/engine-wallet-qualification/REPORT.md`
+- `decision-register/engine-wallet-qualification/TEST_RESULTS.json`
+- `decision-register/engine-wallet-qualification/VALIDATION.json`
+- `decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/REPORT.md`
+- `decision-register/gate-closure-implementation/engine-runtime/RESULTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json`
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/gate-closure-implementation/pqc/REPORT.md`
+- `decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json`
+- `decision-register/ordinary-client-compatibility/ACCEPTANCE.json`
+- `decision-register/ordinary-client-compatibility/APPROVAL.json`
+- `decision-register/ordinary-client-compatibility/REPORT.md`
+- `decision-register/ordinary-client-compatibility/TEST_RESULTS.json`
+- `decision-register/ordinary-client-compatibility/VALIDATION.json`
+- `decision-register/pqc-build-boundary/ACCEPTANCE.json`
+- `decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json`
+- `decision-register/pqc-build-boundary/REPORT.md`
+- `decision-register/pqc-build-boundary/TEST_RESULTS.json`
+- `decision-register/pqc-build-boundary/VALIDATION.json`
+- `decision-register/production-integration/pqc/QUALIFICATION.json`
+- `decision-register/production-integration/pqc/PQC_IMPLEMENTATION_REPORT.md`
+- `decision-register/production-integration/pqc/http-adapter/RESULTS.json`
+- `decision-register/production-integration/pqc/ipc-runtime/RESULTS.json`
+- `decision-register/production-integration/linux/retry/RESULTS.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_SYSTEMD_QUALIFICATION.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/production-boundary-qualification/sdk/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/linux-release-authority-qualification/services/RESULTS.json`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/behavior/REPORT.md`
+- `decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/consensus/REPORT.md`
+- `decision-register/emergency-upgrade-execution/integration/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2075,7 +2075,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–951](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1095–1149](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -2093,13 +2093,13 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-4/BATCH_4_REPORT.md](batch-4/BATCH_4_REPORT.md)
-- [batch-4/TEST_RESULTS.json](batch-4/TEST_RESULTS.json)
-- [batch-4/VALIDATION.json](batch-4/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/performance/REPORT.md](decision-register/launch-preparation-workstreams/performance/REPORT.md)
-- [decision-register/launch-preparation-workstreams/performance/RESULTS.json](decision-register/launch-preparation-workstreams/performance/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/performance/TEST_RESULTS.json](decision-register/launch-preparation-workstreams/performance/TEST_RESULTS.json)
-- [decision-register/launch-preparation-workstreams/performance/VALIDATION.json](decision-register/launch-preparation-workstreams/performance/VALIDATION.json)
+- `batch-4/BATCH_4_REPORT.md`
+- `batch-4/TEST_RESULTS.json`
+- `batch-4/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/performance/REPORT.md`
+- `decision-register/launch-preparation-workstreams/performance/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/performance/TEST_RESULTS.json`
+- `decision-register/launch-preparation-workstreams/performance/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2127,7 +2127,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1095–1149](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1593–1649](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g27"></a>
 ## G27 — Monitoring
@@ -2145,23 +2145,23 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/gate-closure-implementation/pqc/REPORT.md](decision-register/gate-closure-implementation/pqc/REPORT.md)
-- [decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json](decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
-- [decision-register/launch-preparation-workstreams/runbook/REPORT.md](decision-register/launch-preparation-workstreams/runbook/REPORT.md)
-- [decision-register/launch-preparation-workstreams/runbook/RESULTS.json](decision-register/launch-preparation-workstreams/runbook/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/behavior/REPORT.md](decision-register/native-staging-production-closure/behavior/REPORT.md)
-- [decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md](decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md)
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/gate-closure-implementation/pqc/REPORT.md`
+- `decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json`
+- `decision-register/launch-preparation-workstreams/runbook/REPORT.md`
+- `decision-register/launch-preparation-workstreams/runbook/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/behavior/REPORT.md`
+- `decision-register/native-staging-production-closure/decisions/DECISION_REQUESTS.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2189,7 +2189,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 859–951](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
 
@@ -2207,12 +2207,12 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
-- [decision-register/launch-preparation-workstreams/runbook/REPORT.md](decision-register/launch-preparation-workstreams/runbook/REPORT.md)
-- [decision-register/launch-preparation-workstreams/runbook/RESULTS.json](decision-register/launch-preparation-workstreams/runbook/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json`
+- `decision-register/launch-preparation-workstreams/runbook/REPORT.md`
+- `decision-register/launch-preparation-workstreams/runbook/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2240,7 +2240,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 859–951](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g29"></a>
 ## G29 — Backup procedures
@@ -2256,17 +2256,17 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/services/REPORT.md](decision-register/gate-closure-implementation/services/REPORT.md)
-- [decision-register/gate-closure-implementation/services/RESULTS.json](decision-register/gate-closure-implementation/services/RESULTS.json)
-- [decision-register/gate-closure-implementation/services/VALIDATION.json](decision-register/gate-closure-implementation/services/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json](decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json)
-- [decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json](decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json)
-- [decision-register/launch-preparation-workstreams/release/REPORT.md](decision-register/launch-preparation-workstreams/release/REPORT.md)
-- [decision-register/launch-preparation-workstreams/release/RESULTS.json](decision-register/launch-preparation-workstreams/release/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/runbook/REPORT.md](decision-register/launch-preparation-workstreams/runbook/REPORT.md)
-- [decision-register/launch-preparation-workstreams/runbook/RESULTS.json](decision-register/launch-preparation-workstreams/runbook/RESULTS.json)
+- `decision-register/gate-closure-implementation/services/REPORT.md`
+- `decision-register/gate-closure-implementation/services/RESULTS.json`
+- `decision-register/gate-closure-implementation/services/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json`
+- `decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json`
+- `decision-register/launch-preparation-workstreams/release/REPORT.md`
+- `decision-register/launch-preparation-workstreams/release/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/runbook/REPORT.md`
+- `decision-register/launch-preparation-workstreams/runbook/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2293,7 +2293,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g30"></a>
 ## G30 — Disaster recovery
@@ -2309,14 +2309,14 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/services/REPORT.md](decision-register/gate-closure-implementation/services/REPORT.md)
-- [decision-register/gate-closure-implementation/services/RESULTS.json](decision-register/gate-closure-implementation/services/RESULTS.json)
-- [decision-register/gate-closure-implementation/services/VALIDATION.json](decision-register/gate-closure-implementation/services/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/operations/REPORT.md](decision-register/launch-preparation-workstreams/operations/REPORT.md)
-- [decision-register/launch-preparation-workstreams/operations/RESULTS.json](decision-register/launch-preparation-workstreams/operations/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json](decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json)
-- [decision-register/launch-preparation-workstreams/runbook/REPORT.md](decision-register/launch-preparation-workstreams/runbook/REPORT.md)
-- [decision-register/launch-preparation-workstreams/runbook/RESULTS.json](decision-register/launch-preparation-workstreams/runbook/RESULTS.json)
+- `decision-register/gate-closure-implementation/services/REPORT.md`
+- `decision-register/gate-closure-implementation/services/RESULTS.json`
+- `decision-register/gate-closure-implementation/services/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/operations/REPORT.md`
+- `decision-register/launch-preparation-workstreams/operations/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/operations/evidence/ENGINE_OPERATIONS.json`
+- `decision-register/launch-preparation-workstreams/runbook/REPORT.md`
+- `decision-register/launch-preparation-workstreams/runbook/RESULTS.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2344,7 +2344,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1431–1513](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g31"></a>
 ## G31 — Security
@@ -2372,81 +2372,81 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/gate-closure-implementation/pqc/REPORT.md](decision-register/gate-closure-implementation/pqc/REPORT.md)
-- [decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json](decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json)
-- [decision-register/gate-closure-implementation/root/REPORT.md](decision-register/gate-closure-implementation/root/REPORT.md)
-- [decision-register/gate-closure-implementation/root/RESULTS.json](decision-register/gate-closure-implementation/root/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/security/REPORT.md](decision-register/launch-preparation-workstreams/security/REPORT.md)
-- [decision-register/launch-preparation-workstreams/security/RESULTS.json](decision-register/launch-preparation-workstreams/security/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-2/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-2/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-2/REPORT.md](decision-register/parallel-tracks-20260912/track-2/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-2/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-2/TEST_RESULTS.json)
-- [decision-register/production-integration/root/INTERNAL_REVIEW.md](decision-register/production-integration/root/INTERNAL_REVIEW.md)
-- [decision-register/production-integration/root/INTERNAL_RUST_REVIEW.json](decision-register/production-integration/root/INTERNAL_RUST_REVIEW.json)
-- [decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json](decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json)
-- [decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json](decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json)
-- [decision-register/production-integration/REVIEW_HANDOFF.md](decision-register/production-integration/REVIEW_HANDOFF.md)
-- [decision-register/production-integration/records/ROLE_NOMINATIONS.json](decision-register/production-integration/records/ROLE_NOMINATIONS.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json](decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_LINKED_PROVIDERS.json](decision-register/production-integration/linux/retry/evidence/LINUX_LINKED_PROVIDERS.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/review/RUST_PROFILE_REVIEW.md](decision-register/production-boundary-qualification/review/RUST_PROFILE_REVIEW.md)
-- [decision-register/production-boundary-qualification/review/SDK_SUPERVISOR_REVIEW.md](decision-register/production-boundary-qualification/review/SDK_SUPERVISOR_REVIEW.md)
-- [decision-register/production-boundary-qualification/review/LINUX_RUNNER_REVIEW.md](decision-register/production-boundary-qualification/review/LINUX_RUNNER_REVIEW.md)
-- [decision-register/production-profile-finalization/REPORT.md](decision-register/production-profile-finalization/REPORT.md)
-- [decision-register/production-profile-finalization/RESULTS.json](decision-register/production-profile-finalization/RESULTS.json)
-- [decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json](decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json)
-- [decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json](decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json)
-- [decision-register/production-profile-finalization/review/INTERNAL_CORRECTNESS_REVIEW.json](decision-register/production-profile-finalization/review/INTERNAL_CORRECTNESS_REVIEW.json)
-- [decision-register/production-profile-finalization/review/REVIEW_RESOLUTIONS.json](decision-register/production-profile-finalization/review/REVIEW_RESOLUTIONS.json)
-- [decision-register/production-profile-finalization/records/RESULTS.json](decision-register/production-profile-finalization/records/RESULTS.json)
-- [decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md](decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/providers/REPORT.md](decision-register/linux-release-authority-qualification/providers/REPORT.md)
-- [decision-register/linux-release-authority-qualification/review/DEVELOPMENT_INTENT_INTERNAL_REVIEW.json](decision-register/linux-release-authority-qualification/review/DEVELOPMENT_INTENT_INTERNAL_REVIEW.json)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/linux-release-authority-qualification/review/SYSTEMD_HARNESS_INTERNAL_REVIEW.json](decision-register/linux-release-authority-qualification/review/SYSTEMD_HARNESS_INTERNAL_REVIEW.json)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/review/ROOT_HELPER_REVIEW.json](decision-register/native-staging-production-closure/review/ROOT_HELPER_REVIEW.json)
-- [decision-register/native-staging-production-closure/root/BOUNDARY_REVIEW.json](decision-register/native-staging-production-closure/root/BOUNDARY_REVIEW.json)
-- [decision-register/native-staging-production-closure/behavior/REPORT.md](decision-register/native-staging-production-closure/behavior/REPORT.md)
-- [decision-register/native-staging-production-closure/staging/REPORT.md](decision-register/native-staging-production-closure/staging/REPORT.md)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/review/REVIEW.md](decision-register/emergency-transaction-freeze/review/REVIEW.md)
-- [decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md](decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md)
-- [decision-register/emergency-transaction-freeze/integration/REPORT.md](decision-register/emergency-transaction-freeze/integration/REPORT.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/policy/VALIDATOR_IMPLEMENTATION.json](decision-register/emergency-release-staging/policy/VALIDATOR_IMPLEMENTATION.json)
-- [decision-register/emergency-release-staging/linux/REPORT.md](decision-register/emergency-release-staging/linux/REPORT.md)
-- [decision-register/emergency-release-staging/staging/REPORT.md](decision-register/emergency-release-staging/staging/REPORT.md)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/review/VALIDATION.json](decision-register/emergency-upgrade-execution/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/review/REVIEW.md](decision-register/emergency-upgrade-execution/review/REVIEW.md)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-timing-diagnostic-v1/DIAGNOSTIC_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-timing-diagnostic-v1/DIAGNOSTIC_RECORD.json)
-- [decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-deadline-stall-native-v1/FAILURE_RECORD.json](decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-deadline-stall-native-v1/FAILURE_RECORD.json)
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/gate-closure-implementation/pqc/REPORT.md`
+- `decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json`
+- `decision-register/gate-closure-implementation/root/REPORT.md`
+- `decision-register/gate-closure-implementation/root/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/security/REPORT.md`
+- `decision-register/launch-preparation-workstreams/security/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-2/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-2/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-2/TEST_RESULTS.json`
+- `decision-register/production-integration/root/INTERNAL_REVIEW.md`
+- `decision-register/production-integration/root/INTERNAL_RUST_REVIEW.json`
+- `decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json`
+- `decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json`
+- `decision-register/production-integration/REVIEW_HANDOFF.md`
+- `decision-register/production-integration/records/ROLE_NOMINATIONS.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_LINKED_PROVIDERS.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/review/RUST_PROFILE_REVIEW.md`
+- `decision-register/production-boundary-qualification/review/SDK_SUPERVISOR_REVIEW.md`
+- `decision-register/production-boundary-qualification/review/LINUX_RUNNER_REVIEW.md`
+- `decision-register/production-profile-finalization/REPORT.md`
+- `decision-register/production-profile-finalization/RESULTS.json`
+- `decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json`
+- `decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json`
+- `decision-register/production-profile-finalization/review/INTERNAL_CORRECTNESS_REVIEW.json`
+- `decision-register/production-profile-finalization/review/REVIEW_RESOLUTIONS.json`
+- `decision-register/production-profile-finalization/records/RESULTS.json`
+- `decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/providers/REPORT.md`
+- `decision-register/linux-release-authority-qualification/review/DEVELOPMENT_INTENT_INTERNAL_REVIEW.json`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/linux-release-authority-qualification/review/SYSTEMD_HARNESS_INTERNAL_REVIEW.json`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/review/ROOT_HELPER_REVIEW.json`
+- `decision-register/native-staging-production-closure/root/BOUNDARY_REVIEW.json`
+- `decision-register/native-staging-production-closure/behavior/REPORT.md`
+- `decision-register/native-staging-production-closure/staging/REPORT.md`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/review/REVIEW.md`
+- `decision-register/emergency-transaction-freeze/policy/POLICY_CONTRACT.md`
+- `decision-register/emergency-transaction-freeze/integration/REPORT.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/policy/VALIDATOR_IMPLEMENTATION.json`
+- `decision-register/emergency-release-staging/linux/REPORT.md`
+- `decision-register/emergency-release-staging/staging/REPORT.md`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/review/REVIEW.md`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-deadline-timing-diagnostic-v1/DIAGNOSTIC_RECORD.json`
+- `decision-register/cross-binary-release/native-launch-owner/execution-policy/production-owner-integration-v1/helper-candidate15-supervisor-deadline-stall-native-v1/FAILURE_RECORD.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2475,7 +2475,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1211–1295](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1857–1909](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -2502,70 +2502,70 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/services/REPORT.md](decision-register/gate-closure-implementation/services/REPORT.md)
-- [decision-register/gate-closure-implementation/services/RESULTS.json](decision-register/gate-closure-implementation/services/RESULTS.json)
-- [decision-register/gate-closure-implementation/services/VALIDATION.json](decision-register/gate-closure-implementation/services/VALIDATION.json)
-- [decision-register/gate-closure-implementation/wallet/REPORT.md](decision-register/gate-closure-implementation/wallet/REPORT.md)
-- [decision-register/gate-closure-implementation/wallet/RESULTS.json](decision-register/gate-closure-implementation/wallet/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/genesis/REPORT.md](decision-register/launch-preparation-workstreams/genesis/REPORT.md)
-- [decision-register/launch-preparation-workstreams/genesis/RESULTS.json](decision-register/launch-preparation-workstreams/genesis/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json](decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json)
-- [decision-register/launch-preparation-workstreams/release/REPORT.md](decision-register/launch-preparation-workstreams/release/REPORT.md)
-- [decision-register/launch-preparation-workstreams/release/RESULTS.json](decision-register/launch-preparation-workstreams/release/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
-- [decision-register/launch-preparation-workstreams/runbook/REPORT.md](decision-register/launch-preparation-workstreams/runbook/REPORT.md)
-- [decision-register/launch-preparation-workstreams/runbook/RESULTS.json](decision-register/launch-preparation-workstreams/runbook/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
-- [decision-register/production-integration/REVIEW_HANDOFF.md](decision-register/production-integration/REVIEW_HANDOFF.md)
-- [decision-register/production-integration/records/REPORT.md](decision-register/production-integration/records/REPORT.md)
-- [decision-register/production-integration/records/ROLE_NOMINATIONS.md](decision-register/production-integration/records/ROLE_NOMINATIONS.md)
-- [decision-register/production-integration/records/bindings/CONSUMER_RECONCILIATION/ASSESSMENT.md](decision-register/production-integration/records/bindings/CONSUMER_RECONCILIATION/ASSESSMENT.md)
-- [decision-register/production-integration/linux/retry/REPORT.md](decision-register/production-integration/linux/retry/REPORT.md)
-- [decision-register/production-integration/linux/retry/SERVICE_SOURCE_AFTER.json](decision-register/production-integration/linux/retry/SERVICE_SOURCE_AFTER.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/rust/RESULTS.json](decision-register/production-boundary-qualification/rust/RESULTS.json)
-- [decision-register/production-boundary-qualification/integration/REPORT.md](decision-register/production-boundary-qualification/integration/REPORT.md)
-- [decision-register/production-boundary-qualification/records/DECISION_QUEUE.md](decision-register/production-boundary-qualification/records/DECISION_QUEUE.md)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/documentation/CHANGES.json](decision-register/linux-release-authority-qualification/documentation/CHANGES.json)
-- [decision-register/linux-release-authority-qualification/records/REPORT.md](decision-register/linux-release-authority-qualification/records/REPORT.md)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/root-helper/REPORT.md](decision-register/native-staging-production-closure/root-helper/REPORT.md)
-- [decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md](decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md)
-- [decision-register/native-staging-production-closure/decisions/REPORT.md](decision-register/native-staging-production-closure/decisions/REPORT.md)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/evidence/parent-sources/emergency-transaction-freeze.md](decision-register/emergency-transaction-freeze/evidence/parent-sources/emergency-transaction-freeze.md)
-- [decision-register/emergency-transaction-freeze/evidence/parent-sources/full-consensus-halt-procedure.draft.md](decision-register/emergency-transaction-freeze/evidence/parent-sources/full-consensus-halt-procedure.draft.md)
-- [decision-register/emergency-transaction-freeze/policy/PROGRESS_ASSESSMENT.md](decision-register/emergency-transaction-freeze/policy/PROGRESS_ASSESSMENT.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/service/REPORT.md](decision-register/emergency-release-staging/service/REPORT.md)
-- [decision-register/emergency-release-staging/upgrade/DOCUMENT_CHANGES.json](decision-register/emergency-release-staging/upgrade/DOCUMENT_CHANGES.json)
-- [decision-register/emergency-release-staging/records/REPORT.md](decision-register/emergency-release-staging/records/REPORT.md)
-- [decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md](decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/custody/INTAKE.md](decision-register/emergency-upgrade-execution/custody/INTAKE.md)
-- [decision-register/emergency-upgrade-execution/review/REVIEW.md](decision-register/emergency-upgrade-execution/review/REVIEW.md)
+- `decision-register/gate-closure-implementation/services/REPORT.md`
+- `decision-register/gate-closure-implementation/services/RESULTS.json`
+- `decision-register/gate-closure-implementation/services/VALIDATION.json`
+- `decision-register/gate-closure-implementation/wallet/REPORT.md`
+- `decision-register/gate-closure-implementation/wallet/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/genesis/REPORT.md`
+- `decision-register/launch-preparation-workstreams/genesis/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/release/EVIDENCE_DIGESTS.json`
+- `decision-register/launch-preparation-workstreams/release/REPORT.md`
+- `decision-register/launch-preparation-workstreams/release/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json`
+- `decision-register/launch-preparation-workstreams/runbook/REPORT.md`
+- `decision-register/launch-preparation-workstreams/runbook/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
+- `decision-register/production-integration/REVIEW_HANDOFF.md`
+- `decision-register/production-integration/records/REPORT.md`
+- `decision-register/production-integration/records/ROLE_NOMINATIONS.md`
+- `decision-register/production-integration/records/bindings/CONSUMER_RECONCILIATION/ASSESSMENT.md`
+- `decision-register/production-integration/linux/retry/REPORT.md`
+- `decision-register/production-integration/linux/retry/SERVICE_SOURCE_AFTER.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/rust/RESULTS.json`
+- `decision-register/production-boundary-qualification/integration/REPORT.md`
+- `decision-register/production-boundary-qualification/records/DECISION_QUEUE.md`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/documentation/CHANGES.json`
+- `decision-register/linux-release-authority-qualification/records/REPORT.md`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/root-helper/REPORT.md`
+- `decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md`
+- `decision-register/native-staging-production-closure/decisions/REPORT.md`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/evidence/parent-sources/emergency-transaction-freeze.md`
+- `decision-register/emergency-transaction-freeze/evidence/parent-sources/full-consensus-halt-procedure.draft.md`
+- `decision-register/emergency-transaction-freeze/policy/PROGRESS_ASSESSMENT.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/service/REPORT.md`
+- `decision-register/emergency-release-staging/upgrade/DOCUMENT_CHANGES.json`
+- `decision-register/emergency-release-staging/records/REPORT.md`
+- `decision-register/emergency-release-staging/policy/CURRENT_APPROVAL_STATUS.md`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/custody/INTAKE.md`
+- `decision-register/emergency-upgrade-execution/review/REVIEW.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2595,7 +2595,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1297–1347](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 2063–2113](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -2619,55 +2619,55 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/engine-wallet-qualification/ACCEPTANCE.json](decision-register/engine-wallet-qualification/ACCEPTANCE.json)
-- [decision-register/engine-wallet-qualification/APPROVAL.json](decision-register/engine-wallet-qualification/APPROVAL.json)
-- [decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json](decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/engine-wallet-qualification/REPORT.md](decision-register/engine-wallet-qualification/REPORT.md)
-- [decision-register/engine-wallet-qualification/TEST_RESULTS.json](decision-register/engine-wallet-qualification/TEST_RESULTS.json)
-- [decision-register/engine-wallet-qualification/VALIDATION.json](decision-register/engine-wallet-qualification/VALIDATION.json)
-- [decision-register/gate-closure-implementation/wallet/REPORT.md](decision-register/gate-closure-implementation/wallet/REPORT.md)
-- [decision-register/gate-closure-implementation/wallet/RESULTS.json](decision-register/gate-closure-implementation/wallet/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/runbook/REPORT.md](decision-register/launch-preparation-workstreams/runbook/REPORT.md)
-- [decision-register/launch-preparation-workstreams/runbook/RESULTS.json](decision-register/launch-preparation-workstreams/runbook/RESULTS.json)
-- [decision-register/ordinary-client-compatibility/ACCEPTANCE.json](decision-register/ordinary-client-compatibility/ACCEPTANCE.json)
-- [decision-register/ordinary-client-compatibility/APPROVAL.json](decision-register/ordinary-client-compatibility/APPROVAL.json)
-- [decision-register/ordinary-client-compatibility/REPORT.md](decision-register/ordinary-client-compatibility/REPORT.md)
-- [decision-register/ordinary-client-compatibility/TEST_RESULTS.json](decision-register/ordinary-client-compatibility/TEST_RESULTS.json)
-- [decision-register/ordinary-client-compatibility/VALIDATION.json](decision-register/ordinary-client-compatibility/VALIDATION.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/sdk/RESULTS.json](decision-register/production-boundary-qualification/sdk/RESULTS.json)
-- [decision-register/production-boundary-qualification/sdk/REPORT.md](decision-register/production-boundary-qualification/sdk/REPORT.md)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/sdk/REPORT.md](decision-register/linux-release-authority-qualification/sdk/REPORT.md)
-- [decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md](decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md)
-- [decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_USE_QUALIFICATION.json](decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_USE_QUALIFICATION.json)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/staging/REPORT.md](decision-register/native-staging-production-closure/staging/REPORT.md)
-- [decision-register/native-staging-production-closure/staging/RESULTS.json](decision-register/native-staging-production-closure/staging/RESULTS.json)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/integration/RESULTS.json](decision-register/emergency-upgrade-execution/integration/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/consensus/REPORT.md](decision-register/emergency-upgrade-execution/consensus/REPORT.md)
+- `decision-register/engine-wallet-qualification/ACCEPTANCE.json`
+- `decision-register/engine-wallet-qualification/APPROVAL.json`
+- `decision-register/engine-wallet-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/engine-wallet-qualification/REPORT.md`
+- `decision-register/engine-wallet-qualification/TEST_RESULTS.json`
+- `decision-register/engine-wallet-qualification/VALIDATION.json`
+- `decision-register/gate-closure-implementation/wallet/REPORT.md`
+- `decision-register/gate-closure-implementation/wallet/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/runbook/REPORT.md`
+- `decision-register/launch-preparation-workstreams/runbook/RESULTS.json`
+- `decision-register/ordinary-client-compatibility/ACCEPTANCE.json`
+- `decision-register/ordinary-client-compatibility/APPROVAL.json`
+- `decision-register/ordinary-client-compatibility/REPORT.md`
+- `decision-register/ordinary-client-compatibility/TEST_RESULTS.json`
+- `decision-register/ordinary-client-compatibility/VALIDATION.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/sdk/RESULTS.json`
+- `decision-register/production-boundary-qualification/sdk/REPORT.md`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/sdk/REPORT.md`
+- `decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_REPORT.md`
+- `decision-register/linux-release-authority-qualification/sdk/LINUX_BUNDLE_USE_QUALIFICATION.json`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/staging/REPORT.md`
+- `decision-register/native-staging-production-closure/staging/RESULTS.json`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/integration/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/consensus/REPORT.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2696,7 +2696,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 2115–2155](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
 
@@ -2720,48 +2720,48 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [batch-8/implementation/APPROVAL.json](batch-8/implementation/APPROVAL.json)
-- [batch-8/implementation/REPORT.md](batch-8/implementation/REPORT.md)
-- [batch-8/implementation/TEST_RESULTS.json](batch-8/implementation/TEST_RESULTS.json)
-- [batch-8/implementation/VALIDATION.json](batch-8/implementation/VALIDATION.json)
-- [decision-register/gate-closure-implementation/services/REPORT.md](decision-register/gate-closure-implementation/services/REPORT.md)
-- [decision-register/gate-closure-implementation/services/RESULTS.json](decision-register/gate-closure-implementation/services/RESULTS.json)
-- [decision-register/gate-closure-implementation/services/VALIDATION.json](decision-register/gate-closure-implementation/services/VALIDATION.json)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
-- [decision-register/launch-preparation-workstreams/runbook/REPORT.md](decision-register/launch-preparation-workstreams/runbook/REPORT.md)
-- [decision-register/launch-preparation-workstreams/runbook/RESULTS.json](decision-register/launch-preparation-workstreams/runbook/RESULTS.json)
-- [decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json](decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json)
-- [decision-register/parallel-tracks-20260912/track-4/REPORT.md](decision-register/parallel-tracks-20260912/track-4/REPORT.md)
-- [decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json](decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json)
-- [decision-register/production-integration/records/ROLE_NOMINATIONS.json](decision-register/production-integration/records/ROLE_NOMINATIONS.json)
-- [decision-register/production-integration/records/bindings/RESULTS.json](decision-register/production-integration/records/bindings/RESULTS.json)
-- [decision-register/production-integration/records/discovery/REPORT.md](decision-register/production-integration/records/discovery/REPORT.md)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/records/RESULTS.json](decision-register/production-boundary-qualification/records/RESULTS.json)
-- [decision-register/production-boundary-qualification/records/DECISION_QUEUE.md](decision-register/production-boundary-qualification/records/DECISION_QUEUE.md)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/production-profile-finalization/REPORT.md](decision-register/production-profile-finalization/REPORT.md)
-- [decision-register/production-profile-finalization/RESULTS.json](decision-register/production-profile-finalization/RESULTS.json)
-- [decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json](decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json)
-- [decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json](decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json)
-- [decision-register/production-profile-finalization/records/DECISION_QUEUE.md](decision-register/production-profile-finalization/records/DECISION_QUEUE.md)
-- [decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md](decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md)
-- [decision-register/production-profile-finalization/records/RESULTS.json](decision-register/production-profile-finalization/records/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/records/REPORT.md](decision-register/linux-release-authority-qualification/records/REPORT.md)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/staging/REPORT.md](decision-register/native-staging-production-closure/staging/REPORT.md)
-- [decision-register/native-staging-production-closure/decisions/REPORT.md](decision-register/native-staging-production-closure/decisions/REPORT.md)
+- `batch-8/implementation/APPROVAL.json`
+- `batch-8/implementation/REPORT.md`
+- `batch-8/implementation/TEST_RESULTS.json`
+- `batch-8/implementation/VALIDATION.json`
+- `decision-register/gate-closure-implementation/services/REPORT.md`
+- `decision-register/gate-closure-implementation/services/RESULTS.json`
+- `decision-register/gate-closure-implementation/services/VALIDATION.json`
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json`
+- `decision-register/launch-preparation-workstreams/runbook/REPORT.md`
+- `decision-register/launch-preparation-workstreams/runbook/RESULTS.json`
+- `decision-register/parallel-tracks-20260912/track-4/EVIDENCE_MANIFEST.json`
+- `decision-register/parallel-tracks-20260912/track-4/REPORT.md`
+- `decision-register/parallel-tracks-20260912/track-4/TEST_RESULTS.json`
+- `decision-register/production-integration/records/ROLE_NOMINATIONS.json`
+- `decision-register/production-integration/records/bindings/RESULTS.json`
+- `decision-register/production-integration/records/discovery/REPORT.md`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/records/RESULTS.json`
+- `decision-register/production-boundary-qualification/records/DECISION_QUEUE.md`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/production-profile-finalization/REPORT.md`
+- `decision-register/production-profile-finalization/RESULTS.json`
+- `decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json`
+- `decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json`
+- `decision-register/production-profile-finalization/records/DECISION_QUEUE.md`
+- `decision-register/production-profile-finalization/records/ROOT_AUTHORITY_CONTRACT.md`
+- `decision-register/production-profile-finalization/records/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/records/REPORT.md`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/staging/REPORT.md`
+- `decision-register/native-staging-production-closure/decisions/REPORT.md`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2791,7 +2791,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 757–801](USER_LAUNCH_REQUIREMENTS.txt)
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
 
@@ -2824,112 +2824,112 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Evidence**
 
-- [decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json](decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/REPORT.md](decision-register/gate-closure-implementation/engine-runtime/REPORT.md)
-- [decision-register/gate-closure-implementation/engine-runtime/RESULTS.json](decision-register/gate-closure-implementation/engine-runtime/RESULTS.json)
-- [decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json](decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json)
-- [decision-register/gate-closure-implementation/pqc/CANDIDATE.json](decision-register/gate-closure-implementation/pqc/CANDIDATE.json)
-- [decision-register/gate-closure-implementation/pqc/REPORT.md](decision-register/gate-closure-implementation/pqc/REPORT.md)
-- [decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json](decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json)
-- [decision-register/gate-closure-implementation/root/REPORT.md](decision-register/gate-closure-implementation/root/REPORT.md)
-- [decision-register/gate-closure-implementation/root/RESULTS.json](decision-register/gate-closure-implementation/root/RESULTS.json)
-- [decision-register/gate-closure-implementation/wallet/REPORT.md](decision-register/gate-closure-implementation/wallet/REPORT.md)
-- [decision-register/gate-closure-implementation/wallet/RESULTS.json](decision-register/gate-closure-implementation/wallet/RESULTS.json)
-- [decision-register/launch-preparation-workstreams/security/REPORT.md](decision-register/launch-preparation-workstreams/security/REPORT.md)
-- [decision-register/launch-preparation-workstreams/security/RESULTS.json](decision-register/launch-preparation-workstreams/security/RESULTS.json)
-- [decision-register/pqc-build-boundary/ACCEPTANCE.json](decision-register/pqc-build-boundary/ACCEPTANCE.json)
-- [decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json](decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json)
-- [decision-register/pqc-build-boundary/REPORT.md](decision-register/pqc-build-boundary/REPORT.md)
-- [decision-register/pqc-build-boundary/TEST_RESULTS.json](decision-register/pqc-build-boundary/TEST_RESULTS.json)
-- [decision-register/pqc-build-boundary/VALIDATION.json](decision-register/pqc-build-boundary/VALIDATION.json)
-- [decision-register/pqc-only-launch-gate/APPROVAL.json](decision-register/pqc-only-launch-gate/APPROVAL.json)
-- [decision-register/pqc-only-launch-gate/REPORT.md](decision-register/pqc-only-launch-gate/REPORT.md)
-- [decision-register/pqc-only-launch-gate/VALIDATION.json](decision-register/pqc-only-launch-gate/VALIDATION.json)
-- [decision-register/pqc-profile/ACCEPTANCE.json](decision-register/pqc-profile/ACCEPTANCE.json)
-- [decision-register/pqc-profile/APPROVAL.json](decision-register/pqc-profile/APPROVAL.json)
-- [decision-register/pqc-profile/REPORT.md](decision-register/pqc-profile/REPORT.md)
-- [decision-register/pqc-profile/TEST_RESULTS.json](decision-register/pqc-profile/TEST_RESULTS.json)
-- [decision-register/pqc-profile/VALIDATION.json](decision-register/pqc-profile/VALIDATION.json)
-- [decision-register/pqc-transport-integration/ACCEPTANCE.json](decision-register/pqc-transport-integration/ACCEPTANCE.json)
-- [decision-register/pqc-transport-integration/EVIDENCE_DIGESTS.json](decision-register/pqc-transport-integration/EVIDENCE_DIGESTS.json)
-- [decision-register/pqc-transport-integration/REPORT.md](decision-register/pqc-transport-integration/REPORT.md)
-- [decision-register/pqc-transport-integration/TEST_RESULTS.json](decision-register/pqc-transport-integration/TEST_RESULTS.json)
-- [decision-register/pqc-transport-integration/VALIDATION.json](decision-register/pqc-transport-integration/VALIDATION.json)
-- [decision-register/production-integration/pqc/QUALIFICATION.json](decision-register/production-integration/pqc/QUALIFICATION.json)
-- [decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json](decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json)
-- [decision-register/production-integration/pqc/http-adapter/RESULTS.json](decision-register/production-integration/pqc/http-adapter/RESULTS.json)
-- [decision-register/production-integration/pqc/ipc-runtime/RESULTS.json](decision-register/production-integration/pqc/ipc-runtime/RESULTS.json)
-- [decision-register/production-integration/root/RESULTS.json](decision-register/production-integration/root/RESULTS.json)
-- [decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json](decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json)
-- [decision-register/production-integration/evidence/FINAL_SOURCE_CHECK.json](decision-register/production-integration/evidence/FINAL_SOURCE_CHECK.json)
-- [decision-register/production-integration/linux/retry/RESULTS.json](decision-register/production-integration/linux/retry/RESULTS.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json](decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json)
-- [decision-register/production-integration/linux/retry/evidence/LINUX_LINKED_PROVIDERS.json](decision-register/production-integration/linux/retry/evidence/LINUX_LINKED_PROVIDERS.json)
-- [decision-register/production-integration/linux/retry/attempt-minimal-feature/RUST_BUILD.json](decision-register/production-integration/linux/retry/attempt-minimal-feature/RUST_BUILD.json)
-- [decision-register/production-boundary-qualification/REPORT.md](decision-register/production-boundary-qualification/REPORT.md)
-- [decision-register/production-boundary-qualification/RESULTS.json](decision-register/production-boundary-qualification/RESULTS.json)
-- [decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json](decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json](decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/production-boundary-qualification/rust/RESULTS.json](decision-register/production-boundary-qualification/rust/RESULTS.json)
-- [decision-register/production-boundary-qualification/sdk/RESULTS.json](decision-register/production-boundary-qualification/sdk/RESULTS.json)
-- [decision-register/production-boundary-qualification/linux-x86/REPORT.md](decision-register/production-boundary-qualification/linux-x86/REPORT.md)
-- [decision-register/production-boundary-qualification/integration/RESULTS.json](decision-register/production-boundary-qualification/integration/RESULTS.json)
-- [decision-register/production-boundary-qualification/review/RUST_PROFILE_REVIEW.md](decision-register/production-boundary-qualification/review/RUST_PROFILE_REVIEW.md)
-- [decision-register/production-profile-finalization/REPORT.md](decision-register/production-profile-finalization/REPORT.md)
-- [decision-register/production-profile-finalization/RESULTS.json](decision-register/production-profile-finalization/RESULTS.json)
-- [decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json](decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json)
-- [decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json](decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json)
-- [decision-register/production-profile-finalization/crypto/RESULTS.json](decision-register/production-profile-finalization/crypto/RESULTS.json)
-- [decision-register/production-profile-finalization/crypto/selected-graph.json](decision-register/production-profile-finalization/crypto/selected-graph.json)
-- [decision-register/production-profile-finalization/crypto/selected-linux-graph.json](decision-register/production-profile-finalization/crypto/selected-linux-graph.json)
-- [decision-register/production-profile-finalization/evidence/ARTIFACT_INSPECTION.json](decision-register/production-profile-finalization/evidence/ARTIFACT_INSPECTION.json)
-- [decision-register/production-profile-finalization/evidence/PINNED_NATIVE_ARCHIVES.json](decision-register/production-profile-finalization/evidence/PINNED_NATIVE_ARCHIVES.json)
-- [decision-register/production-profile-finalization/integration/native01/RUNTIME.json](decision-register/production-profile-finalization/integration/native01/RUNTIME.json)
-- [decision-register/production-profile-finalization/records/DECISION_QUEUE.md](decision-register/production-profile-finalization/records/DECISION_QUEUE.md)
-- [decision-register/linux-release-authority-qualification/REPORT.md](decision-register/linux-release-authority-qualification/REPORT.md)
-- [decision-register/linux-release-authority-qualification/RESULTS.json](decision-register/linux-release-authority-qualification/RESULTS.json)
-- [decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json](decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json)
-- [decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json](decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json)
-- [decision-register/linux-release-authority-qualification/linux/REPORT.md](decision-register/linux-release-authority-qualification/linux/REPORT.md)
-- [decision-register/linux-release-authority-qualification/sdk/REPORT.md](decision-register/linux-release-authority-qualification/sdk/REPORT.md)
-- [decision-register/linux-release-authority-qualification/providers/REPORT.md](decision-register/linux-release-authority-qualification/providers/REPORT.md)
-- [decision-register/linux-release-authority-qualification/services/REPORT.md](decision-register/linux-release-authority-qualification/services/REPORT.md)
-- [decision-register/linux-release-authority-qualification/root/REPORT.md](decision-register/linux-release-authority-qualification/root/REPORT.md)
-- [decision-register/native-staging-production-closure/REPORT.md](decision-register/native-staging-production-closure/REPORT.md)
-- [decision-register/native-staging-production-closure/RESULTS.json](decision-register/native-staging-production-closure/RESULTS.json)
-- [decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json](decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json)
-- [decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json](decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json)
-- [decision-register/native-staging-production-closure/staging/REPORT.md](decision-register/native-staging-production-closure/staging/REPORT.md)
-- [decision-register/native-staging-production-closure/root-helper/REPORT.md](decision-register/native-staging-production-closure/root-helper/REPORT.md)
-- [decision-register/native-staging-production-closure/behavior/REPORT.md](decision-register/native-staging-production-closure/behavior/REPORT.md)
-- [decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md](decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md)
-- [decision-register/native-staging-production-closure/decisions/REPORT.md](decision-register/native-staging-production-closure/decisions/REPORT.md)
-- [decision-register/emergency-transaction-freeze/REPORT.md](decision-register/emergency-transaction-freeze/REPORT.md)
-- [decision-register/emergency-transaction-freeze/RESULTS.json](decision-register/emergency-transaction-freeze/RESULTS.json)
-- [decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json](decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json](decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-transaction-freeze/verifier/REPORT.md](decision-register/emergency-transaction-freeze/verifier/REPORT.md)
-- [decision-register/emergency-transaction-freeze/integration/REPORT.md](decision-register/emergency-transaction-freeze/integration/REPORT.md)
-- [decision-register/emergency-transaction-freeze/review/REVIEW.md](decision-register/emergency-transaction-freeze/review/REVIEW.md)
-- [decision-register/emergency-release-staging/REPORT.md](decision-register/emergency-release-staging/REPORT.md)
-- [decision-register/emergency-release-staging/RESULTS.json](decision-register/emergency-release-staging/RESULTS.json)
-- [decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json](decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json](decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-release-staging/linux/REPORT.md](decision-register/emergency-release-staging/linux/REPORT.md)
-- [decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json](decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json)
-- [decision-register/emergency-release-staging/service/REPORT.md](decision-register/emergency-release-staging/service/REPORT.md)
-- [decision-register/emergency-release-staging/native/REPORT.md](decision-register/emergency-release-staging/native/REPORT.md)
-- [decision-register/emergency-release-staging/native/RESULTS.json](decision-register/emergency-release-staging/native/RESULTS.json)
-- [decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md](decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md)
-- [decision-register/emergency-release-staging/review/VALIDATION.json](decision-register/emergency-release-staging/review/VALIDATION.json)
-- [decision-register/emergency-upgrade-execution/REPORT.md](decision-register/emergency-upgrade-execution/REPORT.md)
-- [decision-register/emergency-upgrade-execution/RESULTS.json](decision-register/emergency-upgrade-execution/RESULTS.json)
-- [decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json](decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json)
-- [decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json](decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json)
-- [decision-register/emergency-upgrade-execution/emergency/REPORT.md](decision-register/emergency-upgrade-execution/emergency/REPORT.md)
-- [decision-register/emergency-upgrade-execution/verifier/REPORT.md](decision-register/emergency-upgrade-execution/verifier/REPORT.md)
-- [decision-register/emergency-upgrade-execution/upgrade/REPORT.md](decision-register/emergency-upgrade-execution/upgrade/REPORT.md)
-- [decision-register/emergency-upgrade-execution/review/VALIDATION.json](decision-register/emergency-upgrade-execution/review/VALIDATION.json)
+- `decision-register/gate-closure-implementation/engine-runtime/EVIDENCE_DIGESTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/REPORT.md`
+- `decision-register/gate-closure-implementation/engine-runtime/RESULTS.json`
+- `decision-register/gate-closure-implementation/engine-runtime/evidence/ENGINE_RUNTIME.json`
+- `decision-register/gate-closure-implementation/pqc/CANDIDATE.json`
+- `decision-register/gate-closure-implementation/pqc/REPORT.md`
+- `decision-register/gate-closure-implementation/pqc/TEST_RESULTS.json`
+- `decision-register/gate-closure-implementation/root/REPORT.md`
+- `decision-register/gate-closure-implementation/root/RESULTS.json`
+- `decision-register/gate-closure-implementation/wallet/REPORT.md`
+- `decision-register/gate-closure-implementation/wallet/RESULTS.json`
+- `decision-register/launch-preparation-workstreams/security/REPORT.md`
+- `decision-register/launch-preparation-workstreams/security/RESULTS.json`
+- `decision-register/pqc-build-boundary/ACCEPTANCE.json`
+- `decision-register/pqc-build-boundary/EVIDENCE_DIGESTS.json`
+- `decision-register/pqc-build-boundary/REPORT.md`
+- `decision-register/pqc-build-boundary/TEST_RESULTS.json`
+- `decision-register/pqc-build-boundary/VALIDATION.json`
+- `decision-register/pqc-only-launch-gate/APPROVAL.json`
+- `decision-register/pqc-only-launch-gate/REPORT.md`
+- `decision-register/pqc-only-launch-gate/VALIDATION.json`
+- `decision-register/pqc-profile/ACCEPTANCE.json`
+- `decision-register/pqc-profile/APPROVAL.json`
+- `decision-register/pqc-profile/REPORT.md`
+- `decision-register/pqc-profile/TEST_RESULTS.json`
+- `decision-register/pqc-profile/VALIDATION.json`
+- `decision-register/pqc-transport-integration/ACCEPTANCE.json`
+- `decision-register/pqc-transport-integration/EVIDENCE_DIGESTS.json`
+- `decision-register/pqc-transport-integration/REPORT.md`
+- `decision-register/pqc-transport-integration/TEST_RESULTS.json`
+- `decision-register/pqc-transport-integration/VALIDATION.json`
+- `decision-register/production-integration/pqc/QUALIFICATION.json`
+- `decision-register/production-integration/pqc/PROVIDER_SOURCE_REVIEW.json`
+- `decision-register/production-integration/pqc/http-adapter/RESULTS.json`
+- `decision-register/production-integration/pqc/ipc-runtime/RESULTS.json`
+- `decision-register/production-integration/root/RESULTS.json`
+- `decision-register/production-integration/evidence/CURRENT_RUST_ARTIFACT_SCREEN.json`
+- `decision-register/production-integration/evidence/FINAL_SOURCE_CHECK.json`
+- `decision-register/production-integration/linux/retry/RESULTS.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_APPLICATION_INVENTORY.json`
+- `decision-register/production-integration/linux/retry/evidence/LINUX_LINKED_PROVIDERS.json`
+- `decision-register/production-integration/linux/retry/attempt-minimal-feature/RUST_BUILD.json`
+- `decision-register/production-boundary-qualification/REPORT.md`
+- `decision-register/production-boundary-qualification/RESULTS.json`
+- `decision-register/production-boundary-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/production-boundary-qualification/rust/RESULTS.json`
+- `decision-register/production-boundary-qualification/sdk/RESULTS.json`
+- `decision-register/production-boundary-qualification/linux-x86/REPORT.md`
+- `decision-register/production-boundary-qualification/integration/RESULTS.json`
+- `decision-register/production-boundary-qualification/review/RUST_PROFILE_REVIEW.md`
+- `decision-register/production-profile-finalization/REPORT.md`
+- `decision-register/production-profile-finalization/RESULTS.json`
+- `decision-register/production-profile-finalization/EVIDENCE_DIGESTS.json`
+- `decision-register/production-profile-finalization/evidence/SOURCE_CHECK.json`
+- `decision-register/production-profile-finalization/crypto/RESULTS.json`
+- `decision-register/production-profile-finalization/crypto/selected-graph.json`
+- `decision-register/production-profile-finalization/crypto/selected-linux-graph.json`
+- `decision-register/production-profile-finalization/evidence/ARTIFACT_INSPECTION.json`
+- `decision-register/production-profile-finalization/evidence/PINNED_NATIVE_ARCHIVES.json`
+- `decision-register/production-profile-finalization/integration/native01/RUNTIME.json`
+- `decision-register/production-profile-finalization/records/DECISION_QUEUE.md`
+- `decision-register/linux-release-authority-qualification/REPORT.md`
+- `decision-register/linux-release-authority-qualification/RESULTS.json`
+- `decision-register/linux-release-authority-qualification/EVIDENCE_DIGESTS.json`
+- `decision-register/linux-release-authority-qualification/evidence/SOURCE_CHECK.json`
+- `decision-register/linux-release-authority-qualification/linux/REPORT.md`
+- `decision-register/linux-release-authority-qualification/sdk/REPORT.md`
+- `decision-register/linux-release-authority-qualification/providers/REPORT.md`
+- `decision-register/linux-release-authority-qualification/services/REPORT.md`
+- `decision-register/linux-release-authority-qualification/root/REPORT.md`
+- `decision-register/native-staging-production-closure/REPORT.md`
+- `decision-register/native-staging-production-closure/RESULTS.json`
+- `decision-register/native-staging-production-closure/EVIDENCE_DIGESTS.json`
+- `decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json`
+- `decision-register/native-staging-production-closure/staging/REPORT.md`
+- `decision-register/native-staging-production-closure/root-helper/REPORT.md`
+- `decision-register/native-staging-production-closure/behavior/REPORT.md`
+- `decision-register/native-staging-production-closure/root/INTEGRATION_CONTRACT.md`
+- `decision-register/native-staging-production-closure/decisions/REPORT.md`
+- `decision-register/emergency-transaction-freeze/REPORT.md`
+- `decision-register/emergency-transaction-freeze/RESULTS.json`
+- `decision-register/emergency-transaction-freeze/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-transaction-freeze/verifier/REPORT.md`
+- `decision-register/emergency-transaction-freeze/integration/REPORT.md`
+- `decision-register/emergency-transaction-freeze/review/REVIEW.md`
+- `decision-register/emergency-release-staging/REPORT.md`
+- `decision-register/emergency-release-staging/RESULTS.json`
+- `decision-register/emergency-release-staging/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-release-staging/linux/REPORT.md`
+- `decision-register/emergency-release-staging/linux/evidence/ARTIFACT_HANDOFF.json`
+- `decision-register/emergency-release-staging/service/REPORT.md`
+- `decision-register/emergency-release-staging/native/REPORT.md`
+- `decision-register/emergency-release-staging/native/RESULTS.json`
+- `decision-register/emergency-release-staging/review/NATIVE_TOOL_REVIEW.md`
+- `decision-register/emergency-release-staging/review/VALIDATION.json`
+- `decision-register/emergency-upgrade-execution/REPORT.md`
+- `decision-register/emergency-upgrade-execution/RESULTS.json`
+- `decision-register/emergency-upgrade-execution/EVIDENCE_DIGESTS.json`
+- `decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json`
+- `decision-register/emergency-upgrade-execution/emergency/REPORT.md`
+- `decision-register/emergency-upgrade-execution/verifier/REPORT.md`
+- `decision-register/emergency-upgrade-execution/upgrade/REPORT.md`
+- `decision-register/emergency-upgrade-execution/review/VALIDATION.json`
 
 Exact SHA-256 values are in this gate's JSON evidence entries. Package result records identify commands, source/artifact hashes, logs and execution limits.
 
@@ -2959,9 +2959,9 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Requirement sources**
 
-- [decision-register/pqc-profile/GATE_SPEC.json /requirement](decision-register/pqc-profile/GATE_SPEC.json)
+- `decision-register/pqc-profile/GATE_SPEC.json /requirement`
 - [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
-- [decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps](decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json)
+- `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Exact G35 required evidence**
 

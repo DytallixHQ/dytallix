@@ -1,4 +1,14 @@
 {
+  "historical_record": {
+    "marked": "2026-10-10",
+    "approval_record": "approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json",
+    "record": "The artifact inventory captured on 11 September 2026. Kept as it was and no longer maintained; where it differs from the current documents, they are right.",
+    "current": [
+      "LAUNCH_GATES.json",
+      "E05_INTAKE.md",
+      "../release/README.md"
+    ]
+  },
   "schema_version": 1,
   "captured_at_utc": "2026-09-11T13:57:45.695821+00:00",
   "decision": "NO_GO",

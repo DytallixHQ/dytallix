@@ -1,3 +1,5 @@
+> **Historical record.** The Day 0 status of 9 September 2026. It is kept as it was and no longer maintained: where it differs from the current documents, they are right. Current readiness is the [gate list](MAINNET_GATE_MASTER.md), decisions are in the [decision register](DECISIONS_REQUIRED.md), and the order of work is the [genesis framework, order of work](GENESIS_FRAMEWORK.md#6-order-of-work). Paths in backticks under `decision-register/`, `batch-*/`, `evidence/`, `snapshots/` and `assessment/` name launch records held outside this repository. (Marked 10 October 2026, [launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json).)
+
 # Day 0 status
 
 Date: 9 September 2026, America/Phoenix.

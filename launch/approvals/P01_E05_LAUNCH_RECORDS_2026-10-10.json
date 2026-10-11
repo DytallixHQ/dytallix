@@ -1,0 +1,38 @@
+{
+  "decision_id": "P01-2026-10-10-E05-LAUNCH-RECORDS",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Bringing the launch records up to date before the public review"
+  },
+  "reason": "The gate tracker was last reconciled on 24 September 2026, before E04 closed, and several launch documents describe that earlier state. The public reviewers read these records, and G32 requires contradictory historical statements to be resolved.",
+  "design_ref": "../README.md",
+  "decisions": [
+    {
+      "question": "G32, D14-Q02",
+      "selected": "Reconcile in place",
+      "rule": "The readable gate list is generated in this repository from LAUNCH_GATES.json by node/tools/mainnet-preparation/gate_master.py, and CI checks that the two match. Each gate's completed work, remaining work and blocker are rewritten against the current main branch, crediting in-repository documents and pull requests. Every gate stays PARTIAL; the earlier outside evidence entries stay as history. A gate's status changes only by a separate acceptance step."
+    },
+    {
+      "question": "G32",
+      "selected": "Mark historical in place",
+      "rule": "Superseded reports, drafts and registers keep their paths, so links and gate references still resolve, and each carries a dated banner naming the current document that serves its role. Living documents (the READMEs, specifications, architecture, tokenomics and trust model) are rewritten to the current state."
+    },
+    {
+      "question": "G32",
+      "selected": "Keep in records, drop from guides",
+      "rule": "References to records held outside this repository (decision-register/, batch-*/, evidence/, snapshots/) stay where they serve as hashed evidence, in the gate data and the historical reports, shown as text rather than links. Living documents drop them, linking in-repository equivalents where they exist."
+    }
+  ],
+  "unset": [
+    "Formal acceptance of any gate",
+    "The public review guide and issue templates (next step)"
+  ],
+  "does_not_authorize": [
+    "a change to any gate's status",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
