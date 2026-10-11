@@ -1,0 +1,41 @@
+{
+  "decision_id": "P01-2026-10-11-E05-HOSTING",
+  "approved": "2026-10-11",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Where the three hosts run and how large they are"
+  },
+  "reason": "The founder's existing servers are all at one provider, Hetzner Cloud, each with 4 GB of memory, below the service's approved 6 GiB limit; a cloud server cannot hold further virtual machines, so the endpoint cannot share the founder's web server.",
+  "design_ref": "../../node/docs/architecture/disaster-recovery-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q03, D12-Q02",
+      "selected": "Accept Hetzner for both",
+      "rule": "All three hosts run on one provider, Hetzner Cloud, with the validator and the sentry in different countries. This replaces the disaster recovery rule that put the validator and the sentry at different providers. The sentry's encrypted backups still go to object storage at a second provider. A host or data-center loss leaves every committed block on the other host; a provider-wide failure or an account suspension halts the chain and can lose the blocks committed since the last copy at the second provider. The trust model discloses this."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "Dedicated vCPU for the validator",
+      "rule": "Each role (validator, sentry, endpoint) runs on a cloud server of its own with at least 8 GB of memory, the service's approved 6 GiB limit plus the operating system. The validator uses a dedicated-vCPU type, so other tenants cannot slow block production or signature checks; the sentry and the endpoint use shared-vCPU types, and the sentry has an attached volume that grows with the archive. The capacity runs (T05) confirm the sizes."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "Own small server; drop the exception",
+      "rule": "The endpoint runs on its own cloud server and does not share the founder's web server; the exception proposed for running it as a virtual machine there is not adopted, since a cloud server cannot hold further virtual machines."
+    }
+  ],
+  "supersedes": [
+    "Disaster recovery, D12-Q03 'the validator and the sentry run at different hosting providers' (P01_E05_DISASTER_RECOVERY_2026-10-07): now one provider, different countries."
+  ],
+  "unset": [
+    "Host records: the servers, their addresses and regions (outside the repository)",
+    "The final sizes and disk, from the capacity runs (T05)"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

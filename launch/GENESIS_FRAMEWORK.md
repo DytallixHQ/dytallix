@@ -157,14 +157,13 @@ two copies in two separate places of their own
 
 - **Validator:** private, at one hosting provider, reachable only from its
   sentry.
-- **Sentry:** at a different provider from the validator; the archive of
+- **Sentry:** in a different country from the validator, at the same
+  provider ([hosting](approvals/P01_E05_HOSTING_2026-10-11.json)); the archive of
   every block; writes a daily snapshot (with the light blocks a restore
   needs, being built) and pushes it encrypted to object storage at a second
   provider.
 - **Endpoint:** serves clients over the post-quantum client channel and a
-  public status page. It may run as a virtual machine of its own on the
-  founder's web server, beside the websites' machine
-  ([simulation plan](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)).
+  public status page.
 - **Hosts:** Ubuntu 24.04, each host's public address on its own interface,
   installed from sealed bundles
   ([hosts](approvals/P01_E05_HOSTS_2026-10-06.json)).
