@@ -1054,6 +1054,13 @@ mod tests {
             max_probe_response_bytes: 65536,
         }
     }
+    /// For checks that should pass: they return as soon as the listener is
+    /// ready, so the budget only bounds a failure, and a slow CI runner must
+    /// not turn a pass into a deadline failure (7 and 11 October 2026).
+    #[cfg(target_os = "linux")]
+    fn passing_limits() -> ProcessLimits {
+        ProcessLimits { startup_millis: 10_000, ..limits() }
+    }
     fn status_body(chain: &str, height: u64) -> Vec<u8> {
         serde_json::to_vec(&serde_json::json!({"jsonrpc":"2.0","id":-1,"result":{
             "node_info":{"network":chain},"sync_info":{"latest_block_height":height.to_string(),"catching_up":false}}})).unwrap()
@@ -1348,7 +1355,7 @@ mod tests {
             std::process::id(),
             "chain",
             4,
-            &limits(),
+            &passing_limits(),
             || Ok(()),
         );
         release.send(()).unwrap();
@@ -1411,7 +1418,7 @@ mod tests {
             std::process::id(),
             "chain",
             Some(&prior),
-            &limits(),
+            &passing_limits(),
             None,
             || Ok(()),
         )
@@ -1454,7 +1461,9 @@ mod tests {
                     return;
                 }
                 let mut request = vec![0; u32::from_be_bytes(prefix) as usize];
-                std::io::Read::read_exact(&mut stream, &mut request).unwrap();
+                if std::io::Read::read_exact(&mut stream, &mut request).is_err() {
+                    return;
+                }
                 let body = if String::from_utf8_lossy(&request).contains("/status") {
                     statuses += 1;
                     let mut status: Value = serde_json::from_slice(&status_body("chain", 10)).unwrap();
@@ -1464,8 +1473,11 @@ mod tests {
                     app_body(10, &[8; 32])
                 };
                 let raw=serde_json::to_vec(&serde_json::json!({"version":1,"status":200,"headers":{"Content-Type":"application/json"},"body_base64":STANDARD.encode(body)})).unwrap();
-                stream.write_all(&(raw.len() as u32).to_be_bytes()).unwrap();
-                stream.write_all(&raw).unwrap();
+                // A client whose budget ran out closes mid-exchange (the
+                // expiry case below), which is not a fixture failure.
+                if stream.write_all(&(raw.len() as u32).to_be_bytes()).is_err() || stream.write_all(&raw).is_err() {
+                    return;
+                }
             }
         });
         (dir, path, task)
@@ -1518,7 +1530,7 @@ mod tests {
         );
         let start = Instant::now();
         let mut health_checks = 0;
-        let result = verify_adapter(address, std::process::id(), "chain", 4, &limits(), || {
+        let result = verify_adapter(address, std::process::id(), "chain", 4, &passing_limits(), || {
             health_checks += 1;
             Ok(())
         });
