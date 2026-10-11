@@ -1,77 +1,62 @@
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
-
 # DGT tokenomics
 
-**DRAFT NOT FROZEN. This document does not approve mainnet activation.**
+Status: NOT FROZEN, NO GO. Current as of 10 October 2026; it freezes with the release candidate (E06), and the 30-day public review covers it. The [decision register](DECISIONS_REQUIRED.md) and the dated P01 [approvals](approvals/) are authoritative where wording differs. The September draft, with its proposals and batch history, is in this file's history.
 
-APPROVED means the user selected the rule within the recorded scope. OBSERVED means the inspected source or evidence contains the rule. PROPOSED means an engineering recommendation awaits approval. MISSING means the required decision or evidence has not been supplied. Approval of a policy does not prove implementation.
+DGT is the fixed-supply token: it stakes, secures the validator set and votes in governance. Fees and rewards are paid in DRT ([DRT tokenomics](DRT_TOKENOMICS.md)).
 
-## Approved allocation
+## Supply
 
-**APPROVED — EC-01.** The fixed DGT total is 1,000,000,000 DGT. The user designated the [tokenomics page](https://dytallix.com/developers/tokenomics) as the allocation source. [The saved page record](evidence/TOKENOMICS_APPROVED_SOURCE.json) records the approval scope and retrieval time.
+- **Fixed total.** 1,000,000,000 DGT at six decimals: `1,000,000,000,000,000 udgt` ([token unit contract](../node/docs/mainnet/token-unit-contract.md)).
+- **All at genesis** (D05-Q02, P01, 29 September 2026). The canonical genesis issues the whole total. Nothing mints DGT later: the runtime mint path is removed, and genesis import is the only DGT credit, capped at the total. The binding review refuses a production genesis that does not issue the whole total. No governance parameter changes it; changing the total needs an upgrade.
+- **No burn.** No DGT is burned in the initial protocol. Penalized DGT goes to a penalty escrow that nothing can spend (D09-Q04, [penalties v1](../node/docs/architecture/penalties-v1.md)).
+- **No extra stake.** No DGT is created for validators on top of the total: initial stake moves or encumbers existing units.
 
-| Category | Approved share | Approved DGT amount | Approved udgt amount at six decimals |
-|---|---:|---:|---:|
-| Ecosystem growth | 30% | 300,000,000 | 300,000,000,000,000 |
-| Team and advisors | 20% | 200,000,000 | 200,000,000,000,000 |
-| Public sale | 15% | 150,000,000 | 150,000,000,000,000 |
-| Private sale | 15% | 150,000,000 | 150,000,000,000,000 |
-| Reserve | 20% | 200,000,000 | 200,000,000,000,000 |
-| Total | 100% | 1,000,000,000 | 1,000,000,000,000,000 |
+Fully issued does not mean circulating: almost all DGT starts in the founder's bucket accounts.
 
-**APPROVED — EC-02 decimal scale.** Both DGT and DRT use six decimal places. The fixed DGT total is 1,000,000,000,000,000 base units (`udgt`). The [Batch 6 approval record](batch-6/APPROVAL.json) approves this scale separately from the earlier webpage allocation approval. The table combines these two approvals. It does not approve full issuance at genesis.
+## Allocation at genesis
 
-**PROPOSED — remaining EC-02 encoding rules.** Use lowercase `udgt` and `udrt` in serialized amounts. Reject fractional base units. This matches the selected accounting path. It requires conversion or rejection of other formats. Do not interpret an unlabelled legacy integer as a native amount.
+The shares come from the approved tokenomics source (EC-01). The accounts are the solo launch profile's, with the root key holders' grants ([genesis framework](GENESIS_FRAMEWORK.md#1-tokens)).
 
-**APPROVED — EC-03 (D05-Q02, P01, 29 September 2026).** Issue the complete approved DGT total in the canonical genesis. Disable every post-genesis DGT mint path. Do not burn DGT in the initial protocol. Transfer slashed DGT into a separate penalty escrow until the approved penalty rule assigns its destination. This preserves the fixed total. Fully issued does not mean liquid, transferable, or circulating.
+| Bucket | Share | DGT | udgt | At genesis |
+|---|---:|---:|---:|---|
+| Ecosystem growth | 30% | 300,000,000 | 300,000,000,000,000 | The founder's bucket account. The validator's self-bond and the public review's bug bounty come from it. |
+| Team and advisors | 20% | 200,000,000 | 200,000,000,000,000 | 199,900,000 DGT in the founder's bucket account; 20,000 DGT to each of the five root key holders, unlocked |
+| Public sale | 15% | 150,000,000 | 150,000,000,000,000 | The founder's bucket account |
+| Private sale | 15% | 150,000,000 | 150,000,000,000,000 | The founder's bucket account |
+| Reserve | 20% | 200,000,000 | 200,000,000,000,000 | The founder's bucket account |
+| **Total** | **100%** | **1,000,000,000** | **1,000,000,000,000,000** | |
 
-**IMPLEMENTED — EC-03.** The runtime DGT mint path (`State::mint_dgt`) is removed; genesis import is the only DGT credit, capped at the fixed total. The mainnet-preparation binding review reports `full_dgt_issuance` as missing unless genesis issues the whole total. Governance has no parameter that changes it (governance v1). D09-Q04 (P01, 30 September 2026) keeps penalized DGT in that escrow, which nothing can spend (penalties v1).
+- **Bucket accounts.** Each is the founder's, publicly listed with its purpose, with its key in the founder's own custody, outside the root key kits ([root key holders](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)). A bucket's name does not lock it; every movement out of a bucket is a public on-chain transfer.
+- **Holder grants.** 100,000 DGT in all (0.01% of supply), moved from Team and advisors inside the fixed total. Each holder's account key is on a separate wallet fob, never on their kit, and the accounts are listed as "kit holder 1" to "kit holder 5", never by name.
+- **No vesting at launch.** Production vesting is neither approved nor built, and the native importer accepts only unlocked balances. If vesting is added later, locked DGT may bond and earn only when its vesting policy permits staking, and the lock is kept through bonding and unbonding (approved rule for locked principal).
+- **Concentration.** The founder holds 99.99% of DGT at genesis. The [trust model](TRUST_MODEL.md) discloses it.
 
-## Custody, vesting, and stake
+Amounts are serialized as integer strings in `udgt`; the genesis importer accepts base units only and refuses whole-token aliases, fractions and a supplied schedule it cannot enforce.
 
-**APPROVED — EC-05 explicit-input requirement only.** Production beneficiary vesting schedules are required explicit inputs. Do not copy historical schedules into production genesis. The [Batch 6 approval](batch-6/APPROVAL.json) does not select schedule values, release functions, custody or beneficiaries.
+## Staking
 
-**PROPOSED — EC-04.** Record every base unit in exactly one custody category from [TOKEN_SUPPLY_MODEL.md](TOKEN_SUPPLY_MODEL.md). Keep allocation category, beneficiary, treasury ownership, and vesting conditions as separate metadata. A label does not lock funds.
+- Owners bond DGT to a validator with ordinary transactions; the staking pool pays owners with no commission.
+- At most 16 active validators (governed between 4 and 32), each with a 100,000 DGT minimum self-bond (governed between 10,000 and 1,000,000 DGT). Validator power is bonded stake ([validator lifecycle](../node/docs/architecture/validator-lifecycle-retention.md)).
+- An unbond matures after the 14-day evidence age plus a 1-hour margin and is withdrawable once no penalty on it is unsettled (D09-Q03, D09-Q05).
+- A validator's first duplicate vote deducts 5% from all DGT bonded to it at that height, self-bond and delegators alike, and removes it for good (D09-Q04).
+- Bonded DGT earns DRT: the staking share of issuance, pro rata to bonded stake ([DRT tokenomics](DRT_TOKENOMICS.md#rewards)).
 
-**PROPOSED — EC-05.** Each allocation recipient must have a reviewed amount, beneficiary, control policy, lock schedule, and ownership evidence. Use a signed custody record for each recipient. Use multiple independent custodians for shared reserves and treasury operations. The signing threshold and people remain unapproved.
+## Governance
 
-**PROPOSED — EC-05.** Use linear release after the cliff, with no release before the cliff. For grant `A`, approved cliff time `c`, and end time `e > c`, set vested to zero at or before `c`, to `floor(A*(t-c)/(e-c))` between `c` and `e`, and to `A` at or after `e`. Use finalized consensus time. Enforce `0 <= vested <= grant` and monotonic cumulative release. Test before, at, and after the cliff and final release. Do not copy historical durations into mainnet terms.
+Governance v1 ([governance v1](../node/docs/architecture/governance-v1.md), D11-Q01, D11-Q02):
 
-**APPROVED — reward eligibility for locked principal.** The [integration follow-up approval](batch-6/integration-followup/APPROVAL.json) permits locked DGT to bond and earn only when its explicit vesting policy permits staking. Otherwise reject the bond. Preserve the lock through bonding and unbonding. Count each funded bonded unit once for its owner. Exclude liquid balances, unbonding and unrelated deposits. The eligible validator must be active and not jailed in the parent-state snapshot. Actual schedules, recipients and custody records remain missing.
+- **Weight.** Bonded DGT only, at the finalized parent block, by stable account ID. Each owner votes its own bond; there is no vote delegation, validators have no special vote, and liquid DGT carries no vote.
+- **Thresholds.** Quorum 33.4%, approval 50%, veto 33.4% (basis points 3,340, 5,000 and 3,340).
+- **Deposit and periods.** A 10,000 DGT deposit, escrowed and refunded at every outcome; 7-day deposit and voting periods; a 2-day timelock before execution.
+- **Scope.** Parameter changes (the ordinary fee profile, `min_self_bond` and `max_active`, within genesis bounds) and the validator registry. Upgrades stay root-signed only, and treasury spending is POST MAINNET.
 
-**PROPOSED — remaining EC-05 custody detail.** Return still-locked principal to locked custody after unbonding. The complete custody schema and production lock enforcement remain unqualified.
+Since the founder holds 99.99% of DGT at genesis, the founder can outvote every other holder by bonding, until DGT is distributed.
 
-**APPROVED — root key holder grants (D08-Q01, P01, 7 October 2026).** Each of the five root key holders receives 20,000 DGT at genesis from the Team and advisors bucket, unlocked: 100,000 DGT in all (0.01% of supply), leaving 199,900,000 DGT in the bucket account. The grants move existing units inside the fixed total; nothing is minted. Each holder's account key is on a separate wallet fob, never on their kit ([root key holders](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json), [genesis framework](GENESIS_FRAMEWORK.md)). The five addresses, and the DRT each holder needs for fees (D08-Q03), remain missing.
+## Still open
 
-**MISSING — EC-05.** Recipient addresses, beneficiary identities, custody signatures, vesting amounts and dates, initial delegations, commissions, unbonding duration, penalties, and named approvers remain absent. Do not generate substitute identities or infer vesting from the five allocation categories.
+- The bucket, treasury and holder account addresses (D08-Q01) and the treasury record (D02-Q02).
+- The validator's self-bond amount (D09-Q02).
+- The bug bounty tiers and amounts, paid after genesis.
+- Qualification on the staging hosts: DGT transfers, staking, delegation and supply reconciliation (G13, G15, G16, G17).
 
-## Governance dependency
-
-**APPROVED — launch scope.** Full initial governance, staking, delegation, slashing, rewards, and treasury controls are required. The instruction does not approve the current dormant governance defaults.
-
-**APPROVED — bonded-stake-only eligibility.** The user approved voting power from bonded stake only, excluding liquid DGT. The [Batch 5 approval record](batch-5/eligibility-followup/APPROVAL.json) records the exact question and answer. This approval does not select snapshot timing, validator eligibility, delegated-vote ownership, thresholds, deposits or timelocks.
-
-**PROPOSED — remaining EC-10 snapshot and ownership rules.** Use one finalized, immutable eligible-stake snapshot when voting opens. Use the same snapshot for voter weight and quorum denominator. Count each bonded base unit once. Exclude unbonding funds and governance deposits. Let the beneficiary vote directly; do not also count the validator's delegated weight. Any delegated-vote fallback needs a separate override rule and tests.
-
-**PROPOSED — EC-10.** With no eligible stake, no proposal can pass. Reject zero participation. Use checked integer cross-products for threshold comparisons. Define quorum over all snapshot stake; include abstentions for quorum and exclude them from the approval denominator. Use a veto comparison only after the participation check. Apply approved parameter changes once after a timelock. Persist deposit settlement, state changes, and events atomically.
-
-**MISSING — EC-10.** Exact eligible-validator rules, deposit amount, voting and deposit durations, quorum, approval and veto thresholds, boundary operators, timelock, emergency authority, and parameter domains need approval. Stake-only voting reduces liquid-balance inconsistency. It does not establish resistance to concentrated ownership or capture. Model control concentration across custodians and beneficiaries before approval.
-
-## Repair dependencies
-
-**OBSERVED.** Batch 1 found three core genesis failures and five governance failures. The source input hash was `c78c5181af276c2f61e7553af085caacda9adb55336f4df0e749624c360107e8`. [TEST_FAILURES.json](batch-1/TEST_FAILURES.json) retains the exact errors. These are baseline failures, not fresh Batch 2 results.
-
-| Baseline cases | Required repair order | Closure evidence |
-|---|---|---|
-| B1-T011 through B1-T013: genesis total, transfer permission, vesting | Apply the approved six-decimal scale; approve remaining EC-03/05 terms; isolate historical core fixtures; generate native fixtures from one versioned allocation manifest; enforce custody and locks | Exact total and five shares; before/at/after vesting boundaries; stake debit once; wrong-unit rejection; import and restart equality |
-| B1-T004 through B1-T008: governance | Approve EC-10; integrate validator-backed stake; persist snapshots; reconcile tally, block hooks, execution, and events | All five failed cases; zero stake and zero participation; threshold edges; deposit conservation; duplicate execution and restart |
-
-The approved Batch 5 eligibility follow-up closes the five historical development governance failures. Finalized snapshots, canonical eligibility, atomic settlement and the remaining mainnet governance terms still require implementation and qualification.
-
-The six-decimal scale is approved. Historical fixtures must still identify their own units and schedules. That repair does not close mainnet genesis qualification. Never change an expected amount only to make a test pass.
-
-## Source references
-
-**OBSERVED.** Batch 1 preserved exact source bytes in [NODE_TEST_INPUT.tar.gz](batch-1/evidence/NODE_TEST_INPUT.tar.gz) and mapped hashes in [SOURCE_PIN.json](batch-1/evidence/SOURCE_PIN.json). Relevant archive paths are `dytallix-fast-launch/node/src/transaction_cost.rs`, `state/mod.rs`, `genesis.rs`, `runtime/staking.rs`, `runtime/governance.rs`, and `blockchain-core/src/genesis.rs` and `genesis_integration.rs`. The core genesis examples use inconsistent legacy unit assumptions and allocation labels. They are not the approved manifest.
-
-**MISSING.** Named economics owner, independent reviewer, signed decision record, executable genesis, and release qualification remain required. See [ECONOMIC_DECISIONS.json](batch-2/ECONOMIC_DECISIONS.json).
+Further detail: [DGT supply contract](../node/docs/mainnet/dgt-supply-contract.md), [token supply model](TOKEN_SUPPLY_MODEL.md).

@@ -1,88 +1,64 @@
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
-
 # DRT tokenomics
 
-**DRAFT NOT FROZEN. This document does not approve mainnet activation.**
+Status: NOT FROZEN, NO GO. Current as of 10 October 2026; it freezes with the release candidate (E06), and the 30-day public review covers it. The [decision register](DECISIONS_REQUIRED.md) and the dated P01 [approvals](approvals/) are authoritative where wording differs. The September draft, with its proposals and batch history, is in this file's history.
 
-APPROVED means the user selected the rule within the recorded scope. OBSERVED means the inspected source or evidence contains the rule. PROPOSED means an engineering recommendation awaits approval. MISSING means the required decision or evidence has not been supplied. Approval of a policy does not prove implementation.
+DRT is the fee and reward token. Every fee is paid in DRT and burned; DRT is issued to validators, stakers and the treasury each block. DGT is the fixed-supply staking and governance token ([DGT tokenomics](DGT_TOKENOMICS.md)).
 
-## Issuance and allocation
+## Supply
 
-**APPROVED — EC-06.** Keep the selected corrected adaptive controller. D01 records the user selection on 9 September 2026. The selected model is not the website's piecewise-linear display and not the development percentage schedule.
+- **Six decimals:** `1 DRT = 1,000,000 udrt` ([token unit contract](../node/docs/mainnet/token-unit-contract.md)).
+- **Bootstrap** (D08-Q02). Genesis creates 1,000,000 DRT of ordinary, transferable DRT, counted in supply and assigned to named accounts in the genesis manifest, so the first fees, bonds and claims can be paid: reward pools alone cannot pay them, since bonding and claiming are themselves paid transactions. The amount was approved on 30 September 2026 and confirmed on 10 October; the per-account rows are open (D08-Q03).
+- **No cap** ([DRT supply](approvals/P01_E05_DRT_SUPPLY_2026-10-10.json)). Supply is the bootstrap plus emitted minus burned. Issuance stays between 500 and 1,000 DRT a block and every transaction fee is burned, which offsets it. Changing this needs an upgrade.
 
-**OBSERVED — EC-06.** The candidate `docs/mainnet/adaptive-emission-v1.md` defines integer udrt per epoch, a finite error window, soft and hard regimes, damping, and a command for the next epoch. The controller returns a command; it does not mint by itself. The issuance timing development path stages that command with block issuance and settlement. Legacy scheduled issuance remains a separate development path. The controller's economic operating domain and production integration remain unqualified.
+## Issuance
 
-**MISSING — EC-06.** Approve the corrected specification version, initial state and first-epoch command, observation contract, calibrated gains, input domain, bounds, and governance migration. Complete the conditional proof obligations and independent review. A clipped output does not prove system stability. No numerical controller defaults become mainnet parameters here.
+The selected corrected adaptive controller ([adaptive emission v1](../node/docs/mainnet/adaptive-emission-v1.md), D01-Q01) sets each epoch's issuance command from the previous epoch's utilization. The controller returns a command; it does not mint by itself.
 
-**APPROVED — EC-07.** DRT reward shares are validators 40%, stakers 30%, and treasury 30%. The [saved approved-source record](evidence/TOKENOMICS_APPROVED_SOURCE.json) supports these shares. The native 60/25/10/5 pools conflict with this policy. Additional AI or bridge reward pools cannot be added to a total that already equals 100%.
+| Setting | Value |
+|---|---|
+| Epoch | 17,280 finalized blocks, about a day at 5-second blocks (D03-Q01) |
+| Base and ceiling | 1,000 DRT a block (17,280,000 DRT an epoch, about 6.31 billion DRT a year) |
+| Floor | 500 DRT a block |
+| Utilization target | 50% |
+| First command (`E0`) | 17,280,000 DRT, equal to the base, set in genesis |
+| Response | One-day linear: window 1, proportional gain 17,280,000,000,000 in both regimes, integral and derivative 0, integral limits 0, shock and volatility thresholds 1,000,000 ppm |
 
-**APPROVED — EC-02 decimal scale.** Both tokens use six decimal places: `1 DRT = 1,000,000 udrt`. The [Batch 6 approval record](batch-6/APPROVAL.json) approves the scale. It does not approve initial DRT supply or issuance settings.
+Issuance stays at 1,000 DRT a block up to 50% utilization and falls linearly to 500 at full blocks, so launch issuance equals the published base and never exceeds it. The gain is rescaled if the capacity tests (T05) show blocks cannot fill completely ([E05 values](E05_VALUES.json)).
 
-**MISSING — EC-11.** Initial DRT amount, recipients, custody and total-supply limit remain undecided. The burn policy is fees v1 (every fee burned). Do not infer a zero initial supply, infinite supply, or a perpetual mint floor from existing defaults.
+**Observation** (D01-Q02, observation contract v1). Every validator derives the epoch's observation from committed blocks: the epoch's transaction bytes, excluding its own observation, over `epoch_blocks × max_block_bytes`, in parts per million; volatility is 0. CheckTx refuses submitted observations, the proposer inserts the derived one, and execution rejects a mismatch. There is no external oracle, so no input can be missing.
 
-**APPROVED — EC-11 (D08-Q02, P01, 29 September 2026).** The bootstrap is ordinary, transferable DRT, counted in genesis supply, assigned to named accounts (validator operators and custody accounts) in the genesis manifest. Fund a measured liquid DRT bootstrap at genesis. Derive the amount from the approved fee schedule, startup transactions, required operators, and recovery allowance. Allocate it through the approved custody manifest. The amount is deliberately unset. Reward pools alone cannot pay the first fees: bonding and claiming are themselves paid transactions.
+**Commands.** `E0` is an issuance command, not liquid supply. Each later command derives from the completed previous epoch's observation, bound to the expected parent state.
 
-## Reward settlement
+## Rewards
 
-**APPROVED — EC-07 epoch split.** The [issuance timing approval](batch-6/issuance-timing/APPROVAL.json) adopts `V = floor(4E/10)`, `S = floor(3E/10)` and `T = floor(3E/10)` for integer epoch command `E`. Record `R = E - V - S - T` in the separate `issuance_reserve` reserve. Then `0 <= R <= 2 udrt`. Use checked arithmetic. These four budgets sum exactly to `E`. The reserve has no automatic recipient or sweep authority. It is separate from staking-recipient rounding and inactive-period reserves.
+**Epoch split** (EC-07). For epoch command `E`: validators `V = floor(4E/10)`, stakers `S = floor(3E/10)`, treasury `T = floor(3E/10)`, and the remainder `R = E − V − S − T` (0 to 2 udrt) to the separate issuance reserve, with checked arithmetic. No AI or bridge pools exist.
 
-**APPROVED — EC-08 interval allocation arithmetic.** Allocate each interval budget `B` against its supplied eligible-stake snapshot. For total eligible weight `W > 0` and recipient weight `w_i`, assign `q_i = floor(B*w_i/W)` using checked wide arithmetic. A sole eligible recipient receives all of `B`. Keep `B - sum(q_i)` in a separately recorded reward-pool reserve. This reserve has no automatic recipient or sweep authority. The [Batch 6 approval](batch-6/APPROVAL.json) covers these rules only.
+**Per block.** Each bucket's epoch budget `B` is paid as `floor(B/N)` a block, with one more udrt in each of the first `B mod N` blocks, so an epoch's block allocations sum exactly to its command. Issuance, reward state, supply counters and block settlement commit in one storage batch; a failed commit changes none of them.
 
-**APPROVED — EC-08 interval timing and identity.** The [integration follow-up approval](batch-6/integration-followup/APPROVAL.json) adopts one finalized block per interval. Use eligible stake from the parent block's finalized state. In-block changes affect the next interval. Use chain identity, genesis digest, rule version and height to identify the interval. Record it once with finalization. Reject conflicting retry inputs.
+**Validator pool** (D02-Q01, [fees v1](../node/docs/architecture/fees-v1.md)). Each block's validator budget is divided by voting power among the active validators at block start and credited to each operator's owner. The rounding remainder, and the budget of a block with no eligible validator, stay in the pool's reserve.
 
-**APPROVED — epoch-to-block budget mapping.** Set a positive epoch length `N` explicitly in finalized blocks. For each bucket budget `B`, including `issuance_reserve`, allocate `floor(B/N)` per block. Add one udrt to each of the first `B mod N` blocks. Apply this schedule separately to all four buckets. An epoch's block allocations sum exactly to its command. Old reward liabilities remain backed and do not become new interval budgets.
+**Staking pool** (EC-08). Each block is one interval, using eligible stake from the parent block's finalized state. Eligible stake is funded bonded DGT on an active validator; liquid balances, unbonding DGT and deposits are excluded, each bonded unit counts once for its owner, and there is no commission. For budget `B`, total weight `W > 0` and owner weight `w_i`, the owner gets `floor(B × w_i / W)`; a sole eligible owner gets all of `B`; the remainder stays in the pool's reserve. If no stake is eligible, the interval's budget goes to a separate inactive-period reserve that later entrants do not receive.
 
-**APPROVED — initial and later commands.** Supply the epoch-zero command `E0` explicitly in genesis configuration. Derive each later command from the completed previous epoch's observation, bound to the expected parent state. `E0` is an issuance command, not initial liquid DRT supply. No production value for `N`, `E0` or controller parameters is selected by this approval.
+**Claims.** One `RewardClaim` pays an owner's staking and validator rewards from the backed pools; a claim moves DRT from a pool to the owner's balance and mints nothing. For each pool, held plus claimed equals issued. Per-block floors can leave a very small stake with no payout; no carry or minimum stake was added.
 
-**PROPOSED — EC-08.** Record each integer entitlement against a backed reward pool before a stake change. A claim moves custody from that pool to the beneficiary's liquid account. It does not mint. A claim must authenticate the beneficiary, consume the claim identifier once, and persist the debit and credit atomically. Retain the entitlement after exit or key rotation under the approved account authorization policy.
+**Treasury.** The treasury share accrues to the treasury pool; the treasury account is the founder's, and spending is POST MAINNET (D07-Q01). The reserves have no recipient and no sweep authority.
 
-**APPROVED — EC-08 staking-pool eligibility and ownership.** Use funded bonded DGT delegated to an active, non-jailed validator in the snapshot. Exclude liquid balances, unbonding and other-purpose deposits. Credit the owner of each bonded unit once. Include validator self-stake only through that owner record. Add no validator aggregate weight and deduct no staking-pool commission. Locked principal requires explicit permission to stake and must retain its lock. These rules do not qualify the separate validator reward pool.
-
-**APPROVED — EC-08 inactive staking intervals.** If no stake is eligible, retain the interval budget in a separate inactive-period reserve. Later entrants receive none automatically. Assign no spending authority. The [follow-up approval](batch-6/integration-followup/APPROVAL.json) adds this rule; it was not part of the original rounding-reserve approval.
-
-**MISSING — remaining EC-07/08 terms.** Future reserve spending, separate validator-pool qualification and treasury custody remain open. Canonical validator status and stake backing require production implementation and evidence. No production validator set or custody record is approved by the eligibility rule.
-
-**OBSERVED.** B1-T009 returned 249999 udrt when the sole-delegator fixture expected 250000. The fixed-point index has more than one rounding step. A fixture change alone cannot close this accounting question.
-
-**PROPOSED — repair order.** Implement the approved EC-08 arithmetic and separate reserve. Specify entitlement and reserve state. Replace or reconcile the two-stage index arithmetic. Keep remaining EC-07/08 decisions open. Test a sole beneficiary, unequal weights, sub-unit shares, stake changes, zero-stake periods, exit, failed claims, duplicate claims, and restart. Verify every residual in custody. Keep the reward test separate from the approved change from legacy pool shares to 40/30/30.
-
-**APPROVED — versioned activation contract.** Bind reward version, unit scale and eligibility parameters into approved fresh genesis. Begin at the first finalized post-genesis block. Reject unconverted legacy reward state; do not erase or reinterpret index claims. A migration needs a separate reviewed conversion plan. Production activation requires qualified finality, claims, backing, duplicate handling, bounded resources, recovery, launch rehearsals and final authorization. The current development implementation combines explicit issuance timing with the reward adapter. It does not qualify production activation or close the original legacy reward failure. Final issuance timing evidence belongs in its separate follow-up.
-
-**OBSERVED — small-stake measurement.** [Synthetic measurements](batch-6/integration-followup/measurement/REPORT.md) confirm that per-block floors can leave positive stakes with zero payout indefinitely under fixed inputs. A synthetic 0.3 DRT staking budget and one billion eligible DGT need 3,333.333334 DGT for one base DRT per block. Neither input is a production forecast. No fractional carry, longer interval, minimum stake or reserve redistribution was added by this measurement.
-
-## Timebase and inputs
-
-**APPROVED — EC-09 block-count timebase.** Use explicit `N` finalized blocks per epoch. Do not infer a production value or substitute wall-clock time. The earlier 100-slot, two-second calibration candidate remains unapproved. It does not define `N` or production block duration.
-
-**PROPOSED — EC-09.** Count finalized used capacity against the fixed scheduled capacity for the whole epoch. Empty slots contribute zero used capacity. Use a deterministic capacity definition and finalized input record. State the controller's window as an exact sample count. A timebase change requires recalibration because gains act per sample.
-
-**APPROVED — strict development boundary.** Reject the development epoch-boundary block if the required completed-parent-epoch observation is missing, invalid or bound to the wrong parent. Generate no substitute observation or catch-up issuance. Commit no partial controller, issuance, reward, supply or block changes. This is the development rejection contract, not a production pause-and-resume policy.
-
-**PROPOSED — production EC-06/09 handling.** If a required observation is invalid or unavailable, pause new emission commands and issuance. Do not fabricate a zero observation, use a local network response, or mint skipped commands later. Existing token transfers can continue if consensus and fee rules permit them. Because the candidate rejects skipped epoch identifiers, resumption needs an approved state migration and input rule. That transition is missing and blocks activation.
-
-**APPROVED — atomic issuance settlement.** Stage the controller journal, command consumption, four bucket credits, reward state, supply counters and block settlement in one storage batch. Commit all changes together. A failed commit changes none of them. The development implementation follows this boundary; production finality, observation authentication and aggregation, recovery qualification and activation remain open.
+**Activation.** Reward version, unit scale and eligibility parameters are bound into the fresh genesis, and rewards begin at the first finalized block after it. No legacy reward state is converted.
 
 ## Fees and burn
 
-**SUPERSEDED — EC-12, by [fees v1](../node/docs/architecture/fees-v1.md) (P01, 27 September 2026).** The EC-12 proposals below are kept as history and do not apply. The fees v1 rule:
+Fees v1 (P01, 27 September 2026; D04, D05-Q01):
 
 - Fees are paid in udrt by the transaction's actor, with no tips.
-- The charge is `max(measured gas, minimum gas) × gas price`, one price on a combined gas total, paid also by failed and out-of-gas transactions. There is no separate bandwidth charge, so a bandwidth-only burn does not exist.
-- Every transaction fee (ordinary, governance and sponsored recovery) is burned when charged: the payer's udrt falls and `supply:drt_burned` rises by the charge. Fees collect in the withheld counter during a block and burn at the block's end; the counter is zero at every commit. The account creation fee is burned too.
-- No fee goes to a validator or block proposer. The validator share of issuance (40%) is divided every block by voting power among the active validators and credited to each operator's owner, claimed with `RewardClaim`.
-- No DGT fees and no DGT burn.
-- Governance sets fee values within genesis bounds; changing where fees go needs an upgrade. Production fee values are E05 inputs.
+- The charge is `max(measured gas, minimum gas) × gas price`, one price on a combined gas total, paid also by failed and out-of-gas transactions.
+- Gas price 10 and minimum gas 100,000 set a 1 DRT floor; a basic Send uses about 47,600 gas and pays the floor. Per-resource costs: overhead 10,000, receipt 1,000, wire byte 2, read byte 0, write byte 1, signature or proof 20,000, action 5,000. Governance may change the fee profile within genesis bounds that keep a reference basic Send between 0.1 and 10 DRT, with the gas price between 1 and 100.
+- Creating an account costs 10 DRT, governed between 1 and 100 DRT.
+- Every fee, ordinary, governance, sponsored recovery and account creation, is burned: fees collect while a block runs and move to `supply:drt_burned` at its end, so the withheld counter is zero at every commit.
+- No fee goes to a validator or proposer, and no fee is paid in DGT. Changing where fees go needs an upgrade.
 
-**PROPOSED — EC-12 (superseded).** Use DRT for fees. Separate compute charge, bandwidth charge, and explicit tip. Reserve one maximum liability before execution. Charge metered accepted work within that maximum. Refund unused liability. Require the same versioned calculation in admission and settlement. Unaccepted invalid transactions create no on-chain fee debit; accepted execution failures retain only their approved metered charge.
+## Still open
 
-**PROPOSED — EC-12 (superseded).** Burn the bandwidth charge from DRT custody. Pay the compute charge and tip to the eligible block reward recipient. Define `maximum_reservation = refund + compute + bandwidth + tip`. Use integer prices in udrt per metered unit. This recommended destination rule is separate from issuance shares and remains unapproved.
+- The bootstrap rows (D08-Q03), including whether the root key holders' accounts receive a share.
+- Qualification on the staging hosts: DRT transfers, issuance, rewards, claims, fees and supply reconciliation (G12, G14, G19, G20).
 
-**PROPOSED — EC-12 (superseded).** Commit fee debit, refund, recipient credit, burn counter, supply reduction, and receipt in one state transition. A failed state commit changes none of them. Do not label a diagnostic fee percentage as a token burn. Do not burn DGT to settle a DRT liability.
-
-**MISSING — EC-12 (superseded).** Meter definitions, price bounds, minimum charge, recipient eligibility, failed-execution rules, fee update limits, and governance authority need approval and tests. Current scalar gas and diagnostic burn defaults do not approve this proposal.
-
-## Evidence and activation
-
-**OBSERVED.** Baseline evidence uses node source SHA256 `c78c5181af276c2f61e7553af085caacda9adb55336f4df0e749624c360107e8`. The [source archive](batch-1/evidence/NODE_TEST_INPUT.tar.gz) contains `crates/adaptive-emission`, `docs/mainnet/adaptive-emission-v1.md`, `docs/mainnet/specification-decisions.md`, and `dytallix-fast-launch/node/src/{block_lifecycle.rs,execution.rs,settlement.rs,supply.rs,runtime/staking.rs,runtime/fee_burn.rs}`. [TEST_FAILURES.json](batch-1/TEST_FAILURES.json) records the failed reward case. These are Batch 1 observations, not a claim that Batch 2 has repaired the runtime.
-
-**MISSING.** Signed economic decisions, integrated consensus and governance, complete custody settlement, economic calibration, independent review, and release qualification remain required. [TOKEN_SUPPLY_MODEL.md](TOKEN_SUPPLY_MODEL.md) defines the proposed accounting invariants.
+Further detail: [DRT supply contract](../node/docs/mainnet/drt-supply-contract.md), [issuance timing contract](../node/docs/mainnet/issuance-timing-contract.md), [token supply model](TOKEN_SUPPLY_MODEL.md).

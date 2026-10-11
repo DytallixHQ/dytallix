@@ -1,124 +1,94 @@
-> Decision status: use [the current decision register](DECISIONS_REQUIRED.md). This technical draft contains historical proposals and implementation statements. The current register supersedes conflicting status statements. Original text is preserved in the prior records (`decision-register/evidence/prior-launch-records/`). Those records, and the links into `batch-*/` and `evidence/`, are launch evidence held outside this repository.
-
 # Token supply model
 
-**DRAFT NOT FROZEN. This document does not approve mainnet activation.**
+Status: NOT FROZEN, NO GO. Current as of 10 October 2026; it freezes with the release candidate (E06). This is the accounting model behind [DGT tokenomics](DGT_TOKENOMICS.md) and [DRT tokenomics](DRT_TOKENOMICS.md); the [decision register](DECISIONS_REQUIRED.md) is authoritative where wording differs. The September draft, with its proposals and batch history, is in this file's history.
 
-APPROVED means the user selected the rule within the recorded scope. OBSERVED means the inspected source or evidence contains the rule. PROPOSED means an engineering recommendation awaits approval. MISSING means the required decision or evidence has not been supplied. Approval of a policy does not prove implementation.
+## Units
 
-## Units and custody
+Both tokens have six decimals: `1 DGT = 1,000,000 udgt` and `1 DRT = 1,000,000 udrt` ([token unit contract](../node/docs/mainnet/token-unit-contract.md)). Amounts are nonnegative integers in base units, serialized as decimal strings. Arithmetic is checked: overflow is refused, and no balance uses floating point or silent saturation.
 
-**APPROVED — EC-01.** Fixed total: 1,000,000,000 DGT. Allocation shares: 30/20/15/15/20. DRT reward shares: 40/30/30.
+## Custody
 
-**APPROVED — EC-02 decimal scale.** Both tokens use six decimals. The fixed DGT total is `10^15 udgt`. The [Batch 6 approval](batch-6/APPROVAL.json) approves the scale separately from the earlier allocation approval. Full issuance at genesis remains unapproved.
+Each base unit belongs to exactly one custody category of its token. Ownership, bucket names and vesting are metadata, not extra balances.
 
-**PROPOSED — remaining EC-02 encoding rules.** Serialize nonnegative integer amounts as canonical decimal strings. Use checked arithmetic for multiplication, addition, and subtraction. Reject overflow. Do not use floating-point balances or saturation that silently loses value.
-
-**PROPOSED — EC-04.** Partition custody as follows. Each base unit belongs to exactly one row for its denomination. Ownership and vesting restrictions are metadata, not additional balances.
-
-| Token | Symbol | Exclusive custody category |
+| Token | Symbol | Custody category |
 |---|---|---|
 | DGT | Lg | Liquid accounts |
-| DGT | Kg | Locked, not bonded or unbonding |
+| DGT | Kg | Locked, not bonded or unbonding (none at launch: no vesting) |
 | DGT | Bg | Bonded stake, including any permitted locked stake |
-| DGT | Ug | Unbonding stake, including any permitted locked stake |
+| DGT | Ug | Unbonding stake |
 | DGT | Gg | Governance deposit escrow |
-| DGT | Pg | Penalty escrow pending approved disposition |
-| DRT | Lr | Liquid accounts, including liquid treasury accounts |
-| DRT | Kr | Locked accounts outside reward or fee custody |
-| DRT | Fr | Fees moved into committed settlement escrow |
-| DRT | Vr, Sr, Tr | Validator, staker, and treasury reward pools |
-| DRT | Xir | Separate issuance-split reserve |
-| DRT | Xsr | Separate staking-recipient rounding reserve |
-| DRT | Zr | Inactive-period reward reserves |
+| DGT | Pg | Penalty escrow, which nothing can spend |
+| DRT | Lr | Liquid accounts, including the treasury account |
+| DRT | Kr | Locked accounts outside reward or fee custody (none at launch) |
+| DRT | Fr | Fees withheld while a block runs; zero at every commit |
+| DRT | Vr, Sr, Tr | Validator, staking and treasury reward pools, each net of its reserves |
+| DRT | Xvr | Validator pool reserve: rounding, and blocks with no eligible validator |
+| DRT | Xir | Issuance-split reserve |
+| DRT | Xsr | Staking pool rounding reserve |
+| DRT | Zr | Inactive-period staking reserve |
 
-**PROPOSED — EC-04.** A mempool reservation is a restriction on a liquid balance. It is not a second custody balance. A committed transfer to fee escrow moves the balance from `Lr` to `Fr`. Reward claim records are liabilities backed by `Vr`, `Sr`, or `Tr`; do not add them to supply again. Treasury ownership can describe `Lr` or `Tr`, but never adds another balance. The controller's uncommitted command is neither issuance nor custody.
+A mempool reservation restricts a liquid balance; it is not a second balance. Reward entitlements are liabilities backed by `Vr` and `Sr`, never added to supply again. The controller's uncommitted command is neither issuance nor custody. A monetary transition that cannot map to this partition is refused; new custody needs a schema migration and new invariants.
 
-**PROPOSED — EC-04.** Reject any monetary transition that cannot map to this versioned partition. New token custody requires an approved schema migration and new invariants. Do not hide unexplained balances in an unrestricted other-custody category.
+## Conservation
 
-## Conservation equations
-
-**PROPOSED — EC-03/04.** At every committed height `h`, with all values in base units:
+At every committed height `h`, in base units:
 
 ```text
 Cg(h) = Lg + Kg + Bg + Ug + Gg + Pg
 Cg(h) = Ig + Mg(h) - Dg(h)
 
-Cr(h) = Lr + Kr + Fr + Vr + Sr + Tr + Xir + Xsr + Zr
+Cr(h) = Lr + Kr + Fr + Vr + Sr + Tr + Xvr + Xir + Xsr + Zr
 Cr(h) = Ir + Mr(h) - Dr(h)
 ```
 
-`I` means genesis-issued supply. `M` means cumulative recognized post-genesis minting. `D` means cumulative recognized destruction. A transfer, lock, delegation, unbonding, deposit, or reward claim leaves supply unchanged. Burn counters are historical counters and are not live custody.
+`I` is genesis-issued supply, `M` cumulative post-genesis issuance and `D` cumulative destruction. A transfer, lock, bond, unbond, deposit or reward claim leaves supply unchanged. Burn counters are history, not live custody.
 
-**PROPOSED — EC-03.** Use `Ig = 10^15 udgt`, `Mg = 0`, and `Dg = 0` after approval of the remaining EC-03 issuance and burn rules. The generic DGT equation exposes prohibited changes. It does not authorize DGT minting or burning. **MISSING — EC-11.** `Ir` and any DRT supply limit need approval.
+| Term | Value | Source |
+|---|---|---|
+| `Ig` | `10^15` udgt, the whole fixed total | D05-Q02 |
+| `Mg`, `Dg` | 0: no DGT mint and no DGT burn | D05-Q02; penalties go to `Pg` |
+| `Ir` | `10^12` udrt, the 1,000,000 DRT bootstrap | D08-Q02, [DRT supply](approvals/P01_E05_DRT_SUPPLY_2026-10-10.json) |
+| `Mr` | The controller's issuance, 500 to 1,000 DRT a block | D01-Q01 |
+| `Dr` | Every fee, burned at the end of its block | D05-Q01, [fees v1](../node/docs/architecture/fees-v1.md) |
 
-**PROPOSED — EC-04.** Genesis category totals and custody totals must independently equal `Ig`. The five category totals partition beneficiaries; the custody categories partition state. Do not add those two views together. Derive each view from the same allocation records.
+DRT has no supply cap. Genesis bucket totals and genesis custody totals must each equal `Ig` independently: the buckets partition beneficiaries and the categories partition state, so the two views are never added together.
 
-**APPROVED — EC-08 recipient allocation arithmetic.** For each supplied interval budget and eligible-stake snapshot with total weight greater than zero, use `floor(budget * weight / total_weight)` with checked wide arithmetic. A sole eligible recipient receives the entire budget. Record the unallocated integer remainder in a separate reward-pool reserve. Do not assign an automatic recipient or sweep authority. The [later integration approval](batch-6/integration-followup/APPROVAL.json) adds finalized-block timing, parent-state eligibility, owner entitlements, inactive-period retention and rejection of unconverted legacy state. It does not authorize a legacy conversion plan or production activation.
-
-**APPROVED — EC-07 epoch budget distribution.** The [issuance timing approval](batch-6/issuance-timing/APPROVAL.json) adopts an explicit positive finalized-block count `N` and explicit epoch-zero command `E0`. Split each command `E` into `floor(4E/10)`, `floor(3E/10)`, `floor(3E/10)` and the remaining `issuance_reserve` budget. Schedule each of the four budgets as `floor(B/N)` per block plus one base DRT unit in the first `B mod N` blocks. The four complete block schedules sum to `E`. Later commands use the completed previous epoch's observation bound to the expected parent. Numeric production inputs remain unselected.
-
-**SUPERSEDED — EC-12, by [fees v1](../node/docs/architecture/fees-v1.md) (P01, 27 September 2026).** Every transaction fee (ordinary, governance and sponsored recovery) is paid in udrt, with no tips, and burned when charged: the payer's `Lr` falls and `Dr` rises by the charge. Fees collect in the withheld counter (`Fr`) during a block and burn at the block's end, so `Fr` is zero at every commit. The account creation fee is burned too. No fee goes to a recipient; validators are paid from `Vr`, divided every block by voting power. DRT supply is `genesis + emitted − burned`. The EC-12 fee equation and the fee example below are kept as history and do not apply.
-
-**PROPOSED — remaining EC-08/12 transition model.** The first two equations below express approved budget conservation. The remaining custody and fee model still requires its stated approvals:
+## Transitions
 
 ```text
-epoch E = sum(block_validator_credit + block_staker_credit + block_treasury_credit + block_issuance_reserve_credit)
-pool budget B = sum(new integer entitlements) + pool_rounding_credit
-fee reservation = refund + fee_recipient_credits + burn + retained_fee_credit   (EC-12, superseded by fees v1)
-claim pool debit = liquid beneficiary credit
-bond liquid_or_locked_debit = bonded_credit
-unbond bonded_debit = unbonding_credit
-exit unbonding_debit = liquid_credit + still_locked_credit
-governance deposit debit = governance_escrow_credit
-penalty stake debit = penalty_escrow_credit
+epoch E = Σ(block validator + staker + treasury + issuance reserve credits)
+pool budget B = Σ(new integer entitlements) + pool rounding credit
+fee charge: payer Lr debit = Fr credit; at block end Fr debit = Dr increase
+claim: pool debit = owner liquid credit
+bond: liquid (or permitted locked) debit = bonded credit
+unbond: bonded debit = unbonding credit
+withdraw: unbonding debit = liquid credit (+ still-locked credit)
+governance deposit: liquid debit = escrow credit; refund reverses it
+penalty: bonded or unbonding debit = penalty escrow credit
 ```
 
-Keep `issuance_reserve`, staking-recipient rounding and inactive staking reserves separate. None has an automatic recipient or sweep authority. In this disjoint model, `Sr` excludes `Xsr` and `Zr`. If a stored staking pool contains all three, reconcile its balance as unpaid entitlement backing plus the two staking reserves. Do not add the reserves to that stored balance again.
+The pool budget is a block's new allocation, not all funds in a pool that also backs older entitlements; recording entitlements does not credit the pool again, and a pool-to-pool move does not mint. A burn debits custody and raises the destruction counter by the same amount. For each reward pool, held plus claimed equals issued.
 
-The pool budget is the new interval allocation, not all funds in a pool that also backs old entitlements. The pool-budget equation assigns liabilities within existing pool custody. Recording entitlements must not credit the pool a second time. A burn debits custody and increments the destruction counter by the same amount. A pool-to-pool move does not mint.
+## Atomic commit
 
-## Atomic commit and authority
+Each block commits the controller journal, epoch and block identity, command consumption, the four bucket credits, reward state, supply counters and block settlement in one storage batch. A duplicate command cannot mint again; a refused or failed commit leaves all state unchanged; replay and restart preserve custody, counters and receipts. The node's supply checks enforce these equations per pool and at every commit, and the monitor job raises a severity 1 alert on a supply invariant violation ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
 
-**PROPOSED — EC-04.** Each transition record includes chain identifier, genesis digest, protocol version, height, transaction or epoch identifier, denomination, source and destination custody identifiers, amount, supply delta, authorization reference, and receipt. Record residuals with their source interval and policy version. Authenticate claim ownership through the approved account policy.
-
-**APPROVED — EC-04/06 atomic issuance boundary.** Commit controller journal, accepted epoch and block identity, command consumption, four bucket credits, reward state, supply counters and block settlement in one storage batch. A duplicate command cannot mint again. A rejected or failed commit leaves all state unchanged. Replay and restart must preserve custody, counters and receipts. Production qualification remains open.
-
-**APPROVED — development observation failure.** Reject the epoch-boundary block when the required previous-epoch observation is missing, invalid or bound to the wrong parent. Use no substitute input or catch-up issuance. Production oracle authentication, aggregation and pause-and-resume rules remain unapproved.
-
-**PROPOSED — EC-10/12.** Governance can change only approved parameters within reviewed domains. Use a timelock and an effective height. A model or timebase change needs an explicit state migration. Do not let an ordinary configuration update rewrite old reward entitlements, create custody, or change the fixed DGT total. Full initial governance remains required.
+The epoch observation is derived from committed blocks by every validator (D01-Q02), so there is no substitute input and no catch-up issuance. Governance changes only the approved parameters within genesis bounds, after its timelock; it cannot rewrite reward entitlements, create custody or change the DGT total.
 
 ## Integer examples
 
-**PROPOSED — arithmetic illustrations only.** These inputs are not genesis parameters or emission settings.
+Arithmetic illustrations, not genesis parameters:
 
-| Case | Expected result |
+| Case | Result |
 |---|---|
-| Issuance E = 1 udrt | V=0, S=0, T=0, issuance_reserve=1 |
-| Issuance E = 7 udrt | V=2, S=2, T=2, issuance_reserve=1 |
-| Issuance E = 10 udrt | V=4, S=3, T=3, issuance_reserve=0 |
-| Pool B = 250000 udrt, one eligible weight | Entitlement 250000; payout residual 0 |
-| Pool B = 7 udrt, eligible weights 1 and 2 | Entitlements 2 and 4; payout residual 1 |
-| Pool B = 7 udrt, no eligible weight | Inactive-period reserve 7; entitlement 0 |
-| Fee reservation 100 udrt; compute 40, bandwidth 15, tip 5 (EC-12, superseded) | Under fees v1 there is no tip or split: the whole charge is burned and supply falls by it |
+| Issuance `E` = 1 udrt | V 0, S 0, T 0, issuance reserve 1 |
+| Issuance `E` = 7 udrt | V 2, S 2, T 2, issuance reserve 1 |
+| Issuance `E` = 10 udrt | V 4, S 3, T 3, issuance reserve 0 |
+| Pool `B` = 250,000 udrt, one eligible owner | Entitlement 250,000; remainder 0 |
+| Pool `B` = 7 udrt, eligible weights 1 and 2 | Entitlements 2 and 4; remainder 1 to the reserve |
+| Pool `B` = 7 udrt, no eligible weight | Inactive-period reserve 7 |
+| Fee charge 1,000,000 udrt (a basic Send) | Payer debited 1,000,000; burned at block end; supply falls by 1,000,000 |
 
-**APPROVED — EC-08 reward-pool remainder only.** The unallocated integer remainder stays in a separately recorded reward-pool reserve. It has no automatic recipient or sweep authority.
+## Still open
 
-**APPROVED — inactive staking reserve.** The integration follow-up retains budgets for intervals with no eligible stake in a separate reserve. It has no automatic recipient or spending authority.
-
-**APPROVED — EC-07 issuance-split reserve.** Retain the epoch split remainder in `issuance_reserve`. Schedule it across blocks by the same even-distribution rule as the other three buckets. It has no automatic recipient or sweep authority. The complete custody model and storage-growth qualification remain open.
-
-**OBSERVED — integration status.** The development implementation combines the explicit epoch budget schedules with reward liability changes, pool debits, account credits and the controller journal. It does not establish production consensus finality or select numeric production parameters. Final issuance timing evidence remains separate from earlier follow-up results. The unchanged legacy reward failure remains open.
-
-## Repair and acceptance order
-
-**OBSERVED.** [Batch 1 failure evidence](batch-1/TEST_FAILURES.json) has nine economic cases: three genesis, five governance, and one staking reward. Their count is a subset of the 14 workspace failures.
-
-1. **MISSING:** Assign the economics owner and independent reviewer. Approve the remaining EC-02/03/05/07/08/09/10/11/12 terms with exact values where required. Batch 6 and its follow-ups approve the recorded unit, reward, eligibility, reserve, issuance timing and atomic settlement rules. Production values and other economic terms remain open.
-2. **PROPOSED:** Generate one native allocation and custody fixture from those approved rules. Keep historical core fixtures visibly separate.
-3. **PROPOSED:** Implement custody transitions and checked unit conversion. Reconcile governance snapshots and reward allocation against the reference rules.
-4. **PROPOSED:** Re-run all nine baseline cases. Test exact conservation, overflow rejection, duplicate settlement, empty participation, stake changes, vesting boundaries, failed commits, and restart.
-5. **PROPOSED:** Compare independent reconstructions of all custody sums against supply counters. Bind the results to source, genesis, and binary digests.
-6. **MISSING:** Complete economic model qualification, production integration, independent assurance, and the seven full launch rehearsals. Local arithmetic or repaired fixtures do not satisfy these gates.
-
-**OBSERVED.** Batch 2 arithmetic checks cover the approved category totals and the illustrative settlement equations only. [ECONOMIC_ARITHMETIC.json](batch-2/evidence/ECONOMIC_ARITHMETIC.json) records results. [ECONOMIC_DECISIONS.json](batch-2/ECONOMIC_DECISIONS.json) records decision dependencies and source hashes. No native runtime repair or launch approval follows from this model.
+Qualification on the staging hosts: independent reconstruction of every custody sum against the supply counters, bound to the source, genesis and release digests, through the seven simulation runs (G05, G14, G15).
