@@ -13,7 +13,7 @@ Inputs, all public:
   --plan     the pin plan
   --keys     LABEL.keys.json for each host, from the offline key step: the
              host's public keys and the SHA-256 of each secret file; and, for
-             the endpoint, LABEL.channel-pin.json
+             each host serving clients, LABEL.channel-pin.json
   --values   launch/E05_VALUES.json; --setup launch/hosts/SETUP_VALUES.json
 
 For each host, OUT/LABEL/ holds every file it installs, under its absolute
@@ -55,8 +55,8 @@ LIGHT_BLOCKS = '/var/lib/dytallix/light-blocks'
 # A one-time restore reads the opened off-host copy here (disaster recovery v1, R5).
 RESTORE = '/var/lib/dytallix/restore'
 SCRATCH = '/var/lib/dytallix/scratch'
-# The adapter's loopback listener on the endpoint, behind its client channel
-# and status page; reachable only on the host.
+# The adapter's loopback listener on a host serving clients, behind its
+# client channel and status page; reachable only on the host.
 ADAPTER_LISTEN = '127.0.0.1:26671'
 # The journal on disk for 90 days, the operations objectives' log retention.
 JOURNALD = '/etc/systemd/journald.conf.d/dytallix.conf'
@@ -308,10 +308,21 @@ def monitor_values(approved):
     return thresholds, ceiling
 
 
+def serves_clients(label, plan_host):
+    """Whether the host serves the client channel: every endpoint does, the
+    sentry may, as the one public node of two seats (P01, 11 October 2026),
+    and a validator never does."""
+    serves = plan_host.get('channel') is not None
+    require(serves or plan_host['role'] != 'endpoint', f'{label}: every endpoint serves clients')
+    require(not serves or plan_host['role'] != 'validator', f'{label}: a validator never serves clients')
+    return serves
+
+
 def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     """Every file of one host, by absolute path, and its install manifest."""
     role = plan_host['role']
     require(role in ROLES, f'{label}: unknown role {role}')
+    serves = serves_clients(label, plan_host)
     require(plan_host['home'] == HOME, f'{label}: the plan home must be {HOME} (host-setup-v1)')
     manifest_raw = release['manifest']
     catalog = json.loads(manifest_raw)
@@ -356,7 +367,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     require(len(validator_public) == 1952, f'{label}: the validator key is not ML-DSA-65')
     secrets = key['secret_files']
     expected = {'config/pqc_peer_seed.bin', 'config/priv_validator_key.json', 'data/priv_validator_state.json'}
-    if role == 'endpoint':
+    if serves:
         expected.add('config/client_channel_seed.bin')
     # The sentry may carry the backup secrets (both or neither).
     backup = any(path.startswith('backup/') for path in secrets)
@@ -383,7 +394,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
         'root-signatures.json': chain['root-signatures.json'],
         'binding.json': binding,
     }
-    if role == 'endpoint':
+    if serves:
         etc_files['channel-pin.json'] = keys['pins'][label]
     readonly = sorted([f'{etc}/{name}' for name in etc_files] +
                       [f'{etc}/{name}' for name in ('admission.json', 'root-config.json',
@@ -526,7 +537,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
                                 'light_blocks': SNAPSHOT_LIGHT_BLOCKS}
     if plan_host.get('state_sync') is not None:
         service['state_sync'] = {'light_blocks': [LIGHT_BLOCKS]}
-    if role == 'endpoint':
+    if serves:
         service['adapter_listen'] = ADAPTER_LISTEN
         # The connection limits keep the adapter's listeners within the engine
         # socket's 32 connections (P01, 10 October 2026); the other adapter
@@ -572,8 +583,8 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
         'metrics': METRICS, 'data_disk': '/var/lib/dytallix', 'node_unit': f'{UNIT}.service',
         'settings': f'{MONITOR_ETC}/webhooks.json', 'state': MONITOR_STATE,
         'backup_state': f'{BACKUP_STATE}/last-uploaded' if backup else None,
-        # The endpoint times one request to its own public status page.
-        'status_url': f'http://{plan_host["status"]}/status' if role == 'endpoint' and plan_host.get('status') else None,
+        # A host serving clients times one request to its own public status page.
+        'status_url': f'http://{plan_host["status"]}/status' if serves and plan_host.get('status') else None,
         'curl': CURL, 'systemctl': SYSTEMCTL,
         'thresholds': thresholds, 'emission_ceiling_udrt_per_block': ceiling,
         # Each finished day is encrypted under the history code and uploaded (M4b).
@@ -639,7 +650,7 @@ def generate(release_dir, chain_dir, hosts_dir, plan, keys_dir, values, setup):
     for plan_host in plan['hosts']:
         label = plan_host['label']
         keys[label] = read_json(Path(keys_dir) / f'{label}.keys.json')
-        if plan_host['role'] == 'endpoint':
+        if serves_clients(label, plan_host):
             keys['pins'][label] = (Path(keys_dir) / f'{label}.channel-pin.json').read_bytes()
     out = {}
     for plan_host in plan['hosts']:

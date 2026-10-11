@@ -26,8 +26,11 @@ class PlanTests(unittest.TestCase):
         hosts = {h['label']: h for h in plan['hosts']}
         self.assertEqual(hosts['validator-1']['p2p'], '10.77.0.1:26656')
         self.assertEqual(hosts['sentry-1']['p2p'], '10.77.0.11:26656')
-        self.assertEqual((hosts['endpoint-1']['channel'], hosts['endpoint-1']['status']),
-                         ('10.77.0.12:26670', '10.77.0.12:8080'))
+        # Two seats (P01, 11 October 2026): the sentry is the public node.
+        self.assertEqual(set(hosts), {'validator-1', 'sentry-1'})
+        self.assertEqual((hosts['sentry-1']['channel'], hosts['sentry-1']['status']),
+                         ('10.77.0.11:26670', '10.77.0.11:8080'))
+        self.assertEqual(sn.VMS, (sn.PUBLIC,))
 
     def test_the_paths_match_the_host_files(self):
         import host_files

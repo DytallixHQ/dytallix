@@ -114,15 +114,16 @@ jobs:
         if: ${{ always() && steps.install.conclusion != 'skipped' }}
         run: sudo python3 node/tools/mainnet-preparation/staging_host.py wipe --work "$RUNNER_TEMP/staging"
 
-  # H4 for the sentry and the endpoint: the validator on the runner, the
-  # sentry and the endpoint in two KVM VMs on a private bridge, each with its
-  # own address on its own interface, each installed from its own bundle.
-  # The sentry syncs from the validator, the endpoint through the sentry; the
-  # endpoint's status page answers; the sentry snapshots (a staging interval
-  # of 10 blocks) and its backup job uploads an encrypted copy to a stand-in
-  # store inside its VM, which the runner opens with the backup code.
+  # H4 for the two seats (P01, 11 October 2026): the validator on the
+  # runner, and the sentry, the one public node that also serves the client
+  # channel and the status page, in a KVM VM on a private bridge, each with
+  # its own address on its own interface, each installed from its own bundle.
+  # The sentry syncs from the validator; its status page answers; it
+  # snapshots (a staging interval of 10 blocks) and its backup job uploads an
+  # encrypted copy to a stand-in store inside its VM, which the runner opens
+  # with the backup code.
   network:
-    name: Staging network (H4 sentry and endpoint)
+    name: Staging network (H4 two seats)
     needs: install
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -179,13 +180,13 @@ jobs:
             --release "$RUNNER_TEMP/release" --work "$RUNNER_TEMP/network"
       - name: Bridge
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py network-up --work "$RUNNER_TEMP/network"
-      - name: Sentry and endpoint VMs
+      - name: Sentry VM
         run: |
           sudo python3 node/tools/mainnet-preparation/staging_network.py vms-up \
             --work "$RUNNER_TEMP/network" --image "$RUNNER_TEMP/cloud.img"
-      # The VMs install before the validator, whose firewall replaces the
-      # runner's rules and with them the VMs' route out.
-      - name: Install the sentry and the endpoint
+      # The VM installs before the validator, whose firewall replaces the
+      # runner's rules and with them the VM's route out.
+      - name: Install the sentry
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py install-vms --work "$RUNNER_TEMP/network"
       - name: Install, start and verify the validator
         run: |
@@ -193,14 +194,14 @@ jobs:
             --work "$RUNNER_TEMP/network/net" --height 3 --timeout 300
       - name: Network run (sync, status page, snapshot, backup)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py run --work "$RUNNER_TEMP/network"
-      # The rehearsal wallets transact over the endpoint's client channel: a
+      # The rehearsal wallets transact over the sentry's client channel: a
       # DRT transfer creating an account, a DGT transfer, a bond and a reward
       # claim, with the supply rule before and after (simulation plan, T1).
       - name: Wallet drill (T1)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py wallet-drill --work "$RUNNER_TEMP/network"
       - name: Restore drill (disaster recovery R6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
-      # Seat 5's kit replaced with the release's tools over the endpoint's
+      # Seat 5's kit replaced with the release's tools over the sentry's
       # client channel; after a staging-only notice of 20 blocks the old kit
       # is refused and the new kit freezes and resumes the chain (root kit
       # replacement K4; P01, 8 October 2026).

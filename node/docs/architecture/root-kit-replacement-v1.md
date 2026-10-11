@@ -167,7 +167,7 @@ The node admits a replacement only if:
   `staging_network.py kit-drill`). The staging chain's freeze, resume and
   upgrade keys come from five throwaway kits made as the key ceremony makes
   them, and its upgrade and handover notice is a staging-only 20 blocks.
-  From the runner, with the release's tools, over the endpoint's client
+  From the runner, with the release's tools, over the sentry's client
   channel:
   - pin the chain (`dytallix config pin-chain`);
   - a new kit for seat 5;
@@ -243,5 +243,5 @@ genesis keys, and every window, notice and size bound in the configuration.
   node wrote; assembly refuses a key outside the epoch in force, a missing
   proof and a request for another epoch.
 - K4: the staging network drill in CI, with the release's binaries,
-  bundles and root helper on three hosts (the validator on the runner, the
-  sentry and the endpoint in VMs).
+  bundles and root helper on the two seats (the validator on the runner,
+  the sentry, serving clients, in a VM; P01, 11 October 2026).

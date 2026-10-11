@@ -155,8 +155,9 @@ pub struct NativeServiceConfig {
 
 /// A production node's role (production activation v1, design F).
 /// Validators hold a genesis validator key and run no listener but P2P;
-/// endpoints run the HTTP adapter and its client channel; sentries run
-/// neither. Sentries and endpoints carry a key outside the genesis set.
+/// endpoints run the HTTP adapter and its client channel; a sentry may run
+/// them too, as the one public node of two seats (P01, 11 October 2026).
+/// Sentries and endpoints carry a key outside the genesis set.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum NodeRole {
@@ -1068,14 +1069,20 @@ impl NativeServiceConfig {
             || self.adapter_limits.is_some()
             || self.adapter_channel.is_some()
             || self.adapter_status_listen.is_some();
+        let complete = self.adapter_listen.is_some() && self.adapter_channel.is_some();
         match role {
             NodeRole::Endpoint => ensure!(
-                self.adapter_listen.is_some() && self.adapter_channel.is_some(),
+                complete,
                 "An endpoint runs the HTTP adapter and its client channel"
             ),
-            NodeRole::Validator | NodeRole::Sentry => ensure!(
+            // A sentry serving clients is the public node of two seats.
+            NodeRole::Sentry => ensure!(
+                !serves || complete,
+                "A sentry serving clients runs the HTTP adapter and its client channel"
+            ),
+            NodeRole::Validator => ensure!(
                 !serves,
-                "Validators and sentries run no adapter or channel listener"
+                "Validators run no adapter or channel listener"
             ),
         }
         Ok(())
@@ -1764,15 +1771,27 @@ mod tests {
             production(role).validate_settings().unwrap();
             let mut serving = production(role);
             serving.adapter_listen = Some("127.0.0.1:8545".into());
-            assert!(serving.validate_settings().is_err(), "{role:?} with an adapter");
+            assert!(serving.validate_settings().is_err(), "{role:?} with an adapter alone");
         }
+        let channel = || -> AdapterChannel {
+            serde_json::from_value(serde_json::json!({
+                "listen":"203.0.113.9:26670","pin":{"path":"/p","sha256":"0".repeat(64),"max_bytes":1}})).unwrap()
+        };
         let mut endpoint = production(NodeRole::Endpoint);
         assert!(endpoint.validate_settings().is_err(), "endpoint without its listeners");
         endpoint.adapter_listen = Some("127.0.0.1:8545".into());
         assert!(endpoint.validate_settings().is_err(), "endpoint without its channel");
-        endpoint.adapter_channel = Some(serde_json::from_value(serde_json::json!({
-            "listen":"203.0.113.9:26670","pin":{"path":"/p","sha256":"0".repeat(64),"max_bytes":1}})).unwrap());
+        endpoint.adapter_channel = Some(channel());
         endpoint.validate_settings().unwrap();
+        // The public node of two seats: a sentry with the adapter and its
+        // channel (P01, 11 October 2026); a validator never serves.
+        let mut public = production(NodeRole::Sentry);
+        public.adapter_channel = Some(channel());
+        assert!(public.validate_settings().is_err(), "sentry with a channel alone");
+        public.adapter_listen = Some("127.0.0.1:8545".into());
+        public.validate_settings().unwrap();
+        public.role = Some(NodeRole::Validator);
+        assert!(public.validate_settings().is_err(), "validator serving clients");
         // The status page is optional on an endpoint and absent elsewhere,
         // and comes with its head age.
         endpoint.adapter_status_listen = Some("203.0.113.9:8080".into());
@@ -1798,9 +1817,12 @@ mod tests {
             serving.adapter_status_max_head_age_seconds = Some(60);
             assert!(
                 serving.validate_settings().is_err(),
-                "{role:?} with a status page"
+                "{role:?} with a status page and no channel"
             );
         }
+        let mut public = endpoint.clone();
+        public.role = Some(NodeRole::Sentry);
+        public.validate_settings().unwrap();
         // Every production setting is required, and bounded.
         for change in [
             (|c: &mut NativeServiceConfig| c.role = None) as fn(&mut NativeServiceConfig),
@@ -1963,10 +1985,12 @@ mod tests {
             assert!(loopback(bad, "127.0.0.1:").is_err());
         }
     }
-    /// The host setup generator's configurations for a three-host staging
-    /// network (`tools/mainnet-preparation/host_files.py`, whose Python tests
-    /// regenerate this fixture byte for byte) parse with the supervisor's and
-    /// the application's types, and each role runs what production requires.
+    /// The host setup generator's configurations for a staging network of
+    /// the launch's two seats, with the sentry serving clients (P01, 11
+    /// October 2026), and an endpoint (`tools/mainnet-preparation/host_files.py`,
+    /// whose Python tests regenerate this fixture byte for byte) parse with the
+    /// supervisor's and the application's types, and each role runs what
+    /// production requires.
     #[test]
     fn host_setup_generator_configurations_parse() {
         let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -1981,6 +2005,7 @@ mod tests {
                 serde_json::from_slice(&read("service.json")).unwrap();
             assert!(service.production());
             assert_eq!(service.role, Some(role));
+            assert_eq!(service.adapter_channel.is_some(), role != NodeRole::Validator);
             service.validate_settings().unwrap();
             service.process.bounds().unwrap();
             service

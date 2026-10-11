@@ -9,8 +9,10 @@ For each host in the pin plan, in a new staging node home STAGING/LABEL:
   - the peer seed (dytallix-peer-seed generate);
   - the validator key and its fresh signing state (dytallix-validator-key
     generate);
-  - on the endpoint, the client channel seed and its public pin
-    (dytallix-channel-key generate and pin, for the plan's channel address).
+  - on each host serving clients (every endpoint, and the sentry that is
+    the one public node of two seats), the client channel seed and its
+    public pin (dytallix-channel-key generate and pin, for the plan's channel
+    address).
 Then `dytallix-root-sign seal` seals the host's secret files under a new
 seal code and prints its paper line. Write it on paper twice; the founder
 types it back from the paper and `seal-check` confirms it opens the keys.
@@ -28,8 +30,8 @@ hosts' metric history (the same fields), sealed with every host's keys. The
 history code opens only history; the backup code stays on the sentry.
 
 OUT receives only public files: LABEL.keys.json (dytallix.host-keys.v1: the
-public keys and each secret file's SHA-256), LABEL.sealed.json, the
-endpoint's LABEL.channel-pin.json, and PIN_PLAN.json, the plan with the
+public keys and each secret file's SHA-256), LABEL.sealed.json, each
+serving host's LABEL.channel-pin.json, and PIN_PLAN.json, the plan with the
 public keys filled in. --bin holds the release binaries. Keep STAGING in
 memory (the live session's /tmp) and power the machine off afterwards; the
 sealed records are the keys' backup.
@@ -142,6 +144,8 @@ def history_secrets(home, history):
 def host_keys(plan, plan_host, bin_dir, staging, out, show=print, upload=None, read_line=sys.stdin.readline,
               history=None):
     label, role = plan_host['label'], plan_host['role']
+    require(role != 'endpoint' or plan_host.get('channel'), f'{label}: the endpoint needs its channel address in the plan')
+    require(role != 'validator' or not plan_host.get('channel'), f'{label}: a validator never serves clients')
     home = Path(staging) / label
     require(not home.exists(), f'{home} exists; use a new staging directory')
     for directory in (home, home / 'config', home / 'data'):
@@ -152,8 +156,7 @@ def host_keys(plan, plan_host, bin_dir, staging, out, show=print, upload=None, r
                      '--key-file', str(home / 'config' / 'priv_validator_key.json'),
                      '--state-file', str(home / 'data' / 'priv_validator_state.json'))
     secrets = list(SECRETS)
-    if role == 'endpoint':
-        require(plan_host.get('channel'), f'{label}: the endpoint needs its channel address in the plan')
+    if plan_host.get('channel'):
         tool(bin_dir, 'dytallix-channel-key', 'generate', '--seed-file', str(home / CHANNEL_SEED))
         tool(bin_dir, 'dytallix-channel-key', 'pin', '--seed-file', str(home / CHANNEL_SEED),
              '--network', plan['chain_id'], '--address', plan_host['channel'],
@@ -190,7 +193,7 @@ def run(plan_path, bin_dir, staging, out, show=print, backup_upload=None, read_l
     upload = read_upload(backup_upload) if backup_upload else None
     require(upload is None or any(h['role'] == 'sentry' for h in plan['hosts']), 'backups need a sentry in the plan')
     history_key = read_upload(history_upload) if history_upload else None
-    # A separate key (P01, 10 October 2026): the validator and endpoint
+    # A separate key (P01, 10 October 2026): the validator and any endpoint
     # never hold the sentry's backup upload key.
     require(history_key is None or upload is None or history_key['access_key_id'] != upload['access_key_id'],
             'the history upload key must be a separate key from the backup upload key')

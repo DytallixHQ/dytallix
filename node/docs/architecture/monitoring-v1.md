@@ -107,6 +107,10 @@ Targets and severities are the
 
 ### The status page
 
+With two seats the sentry serves the status page and the client channel as
+an endpoint does (P01, 11 October 2026, [two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)); "the endpoint"
+here is whichever host serves clients.
+
 The endpoint's `/status` answers 503, with the same JSON body, when the
 engine's newest block time is more than `status_max_head_age_seconds` old:
 60 seconds (P01, 10 October 2026,
@@ -141,7 +145,7 @@ the monitor job (M4a).
 | Signature verification failures; PQC signing and verification time | App: `signature_verifications_total{scheme, result}`, `signature_verification_seconds{scheme}`; engine: `privval_sign_seconds` |
 | Node restarts | Monitor: `systemctl` restart count |
 | CPU, memory, disk, disk growth, network traffic | Monitor: `/proc`, `statvfs` |
-| RPC latency and error rate | Monitor on the endpoint: a local timed status request; uptime checker from outside |
+| RPC latency and error rate | Monitor on each host serving clients (the sentry, with two seats): a local timed status request; uptime checker from outside |
 
 ### Alerts (G28, Day 9)
 
@@ -154,7 +158,7 @@ do for each is in the [monitoring runbook](../operations/monitoring.md).
 | Validator outage | The validator's heartbeat missing for 3 minutes | 1 | Alerting service |
 | Abnormal missed blocks | 5 or more missed in 10 minutes | 2 | Validator |
 | Disk exhaustion | Data disk under 15% free (2), under 5% (1) | 2, 1 | All hosts |
-| RPC outage | Status page not 200 for 3 minutes; local status request failing | 2 | Uptime checker; endpoint |
+| RPC outage | Status page not 200 for 3 minutes; local status request failing | 2 | Uptime checker; each host serving clients |
 | Supply invariant violation | DRT total differs from genesis plus emitted minus burned; DGT issued changes | 1 | Validator, sentry |
 | Unexpected mint or burn | Emitted beyond the issuance schedule; burned without fees | 1 | Validator, sentry |
 | Abnormal staking event | Staked DGT changes by more than 5% in an hour | 2 | Validator |

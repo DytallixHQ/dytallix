@@ -81,8 +81,8 @@ exercised on the production hosts (M6).
   the next run, and the heartbeat carries the count; at most 200 wait.
 - `/var/lib/dytallix-monitor/history/`: one line per minute (height, CPU,
   memory, disk, network, peers, mempool, missed blocks, signature failures,
-  staked DGT, emitted and burned DRT, restarts, the endpoint's status
-  request, firing rules); finished days are compressed, 396 days are kept.
+  staked DGT, emitted and burned DRT, restarts, the status request on a
+  host serving clients, firing rules); finished days are compressed, 396 days are kept.
 - **History off the host.** Each finished day is encrypted under the
   chain's history code and uploaded to the store, oldest first, one per run;
   `history_pending` in the job's line and the heartbeat says how many wait,
@@ -130,7 +130,8 @@ fills: follow [resource-exhaustion.md](resource-exhaustion.md) now.
 
 ### RPC failing
 
-Severity 2, endpoint: the endpoint's own status request failing or not 200
+Severity 2, each host serving clients (with two seats, the sentry;
+[two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)): its own status request failing or not 200
 for 3 minutes (503 means a stale head; see the halt alert). The outside
 uptime checker alerts on the same page.
 
@@ -163,8 +164,8 @@ check it against the expected proposals.
 ### Signature failures
 
 Severity 2, every host: 10 or more invalid signature verifications in 10
-minutes. Usually a broken or hostile client; check the endpoint's request
-logs and the scheme in `dytallix_app_signature_verifications_total`.
+minutes. Usually a broken or hostile client; check the request logs of the
+host serving clients and the scheme in `dytallix_app_signature_verifications_total`.
 
 ### Restart loop
 

@@ -60,7 +60,7 @@
       "catch_up": "the approved catch_up_millis (6 hours)"
     },
     "restore_drills": "quarterly, on staging",
-    "endpoint_rto_basis": "one endpoint, rebuilt from the published files and state sync like a sentry"
+    "endpoint_rto_basis": "the sentry, which serves clients (two seats, P01, 11 October 2026), rebuilt as a sentry is"
   },
   "approval_records": [
     "approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json",

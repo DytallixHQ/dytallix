@@ -33,7 +33,8 @@ class SoloLaunchProfileTests(unittest.TestCase):
 
     def test_the_topology_and_objectives_match(self):
         infra = load('PRODUCTION_INFRASTRUCTURE_DRAFT.json')['candidate_architecture']
-        self.assertEqual((infra['launch_profile']['hosts'], infra['validators']['count'], infra['sentries']['count_per_validator']), (3, 1, 1))
+        # Two seats (P01, 11 October 2026): the sentry also serves clients.
+        self.assertEqual((infra['launch_profile']['hosts'], infra['validators']['count'], infra['sentries']['count_per_validator']), (2, 1, 1))
         objectives = load('operations/OBJECTIVES.json')
         self.assertEqual(objectives['approval_record'], SOLO)
         self.assertEqual(objectives['recovery']['rto_minutes']['endpoint_service'], 240)

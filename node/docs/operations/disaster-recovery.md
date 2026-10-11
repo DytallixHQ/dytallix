@@ -1,16 +1,20 @@
 # Disaster recovery (F19)
 
-A sentry or the endpoint is lost: destroyed, unreachable for good, or its
-disk failed. It is rebuilt from its bundle and restored from the newest
-off-host copy, then it catches up from the validator
+The sentry, or an endpoint if one is added, is lost: destroyed,
+unreachable for good, or its disk failed. It is rebuilt from its bundle and
+restored from the newest off-host copy, then it catches up from the
+validator
 ([disaster recovery v1](../architecture/disaster-recovery-v1.md#restore)).
-The approved recovery time is 4 hours for the sentry and for the endpoint
-([operations objectives](../../../launch/operations/OBJECTIVES.md)).
+The approved recovery time is 4 hours
+([operations objectives](../../../launch/operations/OBJECTIVES.md)). With
+two seats the sentry is also the public node
+([two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)): while it is down the validator keeps the chain running,
+but no client can reach it.
 
 | Lost | Procedure |
 | --- | --- |
 | The sentry, the validator alive | This page |
-| The endpoint | This page |
+| An endpoint, if one is added | This page |
 | The validator only | [Validator recovery](validator-recovery.md) (F17): the sentry holds every block |
 | The validator and the sentry together | An incident decision first ([incident response](README.md)), then this page for both, the validator with `--accept-history-loss` |
 
@@ -34,7 +38,7 @@ The approved recovery time is 4 hours for the sentry and for the endpoint
   `--accept-history-loss` is given; give it only once the incident decision
   is recorded.
 - **If in doubt, wait.** The validator keeps the chain running while the
-  sentry or the endpoint is down.
+  sentry is down.
 
 ## You need
 
@@ -50,9 +54,10 @@ The approved recovery time is 4 hours for the sentry and for the endpoint
 
 1. **Declare** the incident and note the time.
 2. **Confirm** the host is lost: the provider console shows it down or
-   gone. For the sentry, the endpoint's height has stopped
+   gone. For the sentry, its status page no longer answers, while the
+   validator's height keeps rising
    (`grep '^dytallix_app_height' /var/lib/dytallix/metrics/dytallix-app.prom`
-   twice, a minute apart); the validator's keeps rising.
+   at the validator's console, twice, a minute apart).
 3. **Fence.** Delete the old server, or reinstall its operating system, in
    the provider console, and wait until it shows so.
 4. **Provision** the replacement: Ubuntu 24.04 with the host base setup
@@ -98,8 +103,8 @@ The approved recovery time is 4 hours for the sentry and for the endpoint
    - on both, `dytallix-operator-rpc --home /var/lib/dytallix/node status`
      shows the same block and application hash at the same height;
    - a restored sentry writes its next snapshot and its backup uploads it
-     (`journalctl -u dytallix-backup`); a restored endpoint's status page
-     answers.
+     (`journalctl -u dytallix-backup`), and the status page of a restored
+     host serving clients answers.
 9. **Delete the copy** from the host (`rm /root/copy.bin`); `restore.sh`
    already removed the opened one.
 10. **Record** the times (declared, fenced, installed, restored, caught up),

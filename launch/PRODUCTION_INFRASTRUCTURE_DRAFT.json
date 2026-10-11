@@ -60,7 +60,7 @@
       "status": "APPROVED_SOLO_LAUNCH",
       "count_per_validator": 1,
       "proposal": "At least two reachable sentry paths per validator with approved independent failure domains; exact count and routing require approval.",
-      "solo_launch": "One sentry, also the archive node. The earlier proposal of two sentry paths per validator gives way to the three-host budget."
+      "solo_launch": "One sentry, also the archive node and the node serving clients. The earlier proposal of two sentry paths per validator gives way to the two-host budget (P01, 11 October 2026)."
     },
     "rpc": {
       "status": "PROPOSED",
@@ -72,7 +72,7 @@
         "websocket": "REQUIRES_SPECIFICATION",
         "grpc": "UNRESOLVED_SCOPE_DECISION"
       },
-      "solo_launch": "One endpoint, rebuilt within 4 hours; no failover."
+      "solo_launch": "The sentry serves the client channel (two seats, P01, 11 October 2026), rebuilt within 4 hours; no failover."
     },
     "observability": {
       "status": "PROPOSED",
@@ -116,9 +116,9 @@
       "id": "SOLO_LAUNCH_V1",
       "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
       "disclosure_ref": "TRUST_MODEL.md",
-      "hosts": 3,
+      "hosts": 2,
       "operators": 1,
-      "note": "One operator, the founder: one validator, one sentry (also the archive node) and one endpoint. Before genesis the same hosts are the staging environment."
+      "note": "One operator, the founder: one validator and one sentry, also the archive node and, since the two seats decision (P01, 11 October 2026, approvals/P01_E05_TWO_SEATS_2026-10-11.json), the one node serving clients. Before genesis the same hosts are the staging environment."
     }
   },
   "recovery_objectives": [
@@ -148,7 +148,7 @@
       "approved_by": "P01",
       "approval_record_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
       "evidence_ref": null,
-      "note": "One endpoint (solo launch): rebuilt from the published files and state sync like a sentry, within 4 hours."
+      "note": "The sentry serves clients (two seats, P01, 11 October 2026): rebuilt like a sentry, within 4 hours."
     },
     {
       "service": "observability",

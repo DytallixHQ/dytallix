@@ -287,8 +287,8 @@ class HostBundleTests(HostNetwork):
     def test_key_step_writes_public_records_and_a_filled_plan(self):
         self.assertEqual(sorted(self.summaries), sorted(test_host_files.HOSTS))
         for label, summary in self.summaries.items():
-            role = test_host_files.HOSTS[label][0]
-            expected = set(host_keys.SECRETS) | ({host_keys.CHANNEL_SEED} if role == 'endpoint' else set())
+            serves = test_host_files.HOSTS[label][3]
+            expected = set(host_keys.SECRETS) | ({host_keys.CHANNEL_SEED} if serves else set())
             self.assertEqual(set(summary['secret_files']), expected)
             for path, digest in summary['secret_files'].items():
                 self.assertEqual(hashlib.sha256((self.staging / label / path).read_bytes()).hexdigest(), digest)
@@ -299,7 +299,7 @@ class HostBundleTests(HostNetwork):
             self.assertEqual(host['validator_public_key_base64'], summary['validator_public_key_base64'])
         # Only public records leave the staging directory.
         self.assertEqual(sorted(p.name for p in self.keys.iterdir()), sorted(
-            ['PIN_PLAN.json', 'endpoint-1.channel-pin.json'] +
+            ['PIN_PLAN.json', 'endpoint-1.channel-pin.json', 'sentry-1.channel-pin.json'] +
             [f'{label}.{kind}.json' for label in test_host_files.HOSTS for kind in ('keys', 'sealed')]))
         with self.assertRaises(host_keys.Invalid):
             host_keys.host_keys(self.plan, self.plan['hosts'][0], self.tools, self.staging, self.tmp, show=lambda _: None)
@@ -648,7 +648,7 @@ class MonitorHostTests(HostNetwork):
             self.assertEqual((config['label'], config['role']), (label, manifest['role']))
             self.assertEqual(config['thresholds'], {name: values['monitor.' + name] for name in host_files.MONITOR_VALUES})
             self.assertEqual(config['emission_ceiling_udrt_per_block'], 1_000_000_000)
-            self.assertEqual(config['status_url'] is not None, manifest['role'] == 'endpoint')
+            self.assertEqual(config['status_url'] is not None, test_host_files.HOSTS[label][3])
             self.assertIsNone(config['backup_state'])
         unit = (self.host_files / 'validator-1' / 'etc/systemd/system/dytallix-monitor.service').read_text()
         self.assertIn('CapabilityBoundingSet=\n', unit)

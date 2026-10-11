@@ -1,8 +1,9 @@
 # Disaster recovery v1 (F19)
 
 Engineering task E05, artifact F19. How the chain's history and state
-survive losing hosts, under the solo launch profile: one validator, one
-sentry (the archive) and one endpoint, reached only by console. The
+survive losing hosts, under the solo launch profile: one validator and one
+sentry, the archive and, since the [two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json) decision, the node
+serving clients, reached only by console. The
 approved objectives fix the rules
 ([operations objectives](../../../launch/operations/OBJECTIVES.md), D12-Q02):
 no committed block is ever lost (RPO zero), a restore never rolls history
@@ -173,7 +174,7 @@ days of its loss.
   archive history comes back with the snapshot's block records.
 - **Validator lost:** [validator recovery](../operations/validator-recovery.md)
   (F17). The sentry holds every block.
-- **Endpoint lost:** rebuild and restore as above.
+- **Endpoint lost** (if one is added): rebuild and restore as above.
 - **Validator and sentry lost together:** only possible if both providers
   fail at once. Rebuild the validator and restore it from the newest copy;
   blocks after it are lost, and the chain resumes only after an incident

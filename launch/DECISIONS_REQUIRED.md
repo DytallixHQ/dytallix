@@ -51,6 +51,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [Capacity values](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json) (10 October): the seven proposed capacity values are approved: engine mempool 2,100 transactions and 16,000,000 bytes, peer rates 5,120,000 bytes a second, client channel 16 connections and 2 per address, loopback adapter 4; T05 confirms them (D06-Q02, D12-Q01) ([E05 values](E05_VALUES.json)).
 - [Simulation plan](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json) (11 October): the seven runs' pass criteria; shortened timings in R01 to R06 and exact ones in R07; a staging-only signed agent on the console-only hosts; load from several small machines; a statistical campaign during staging (3,000 attempts per attack type with zero successes, repeated faults, a 15-day endurance run at production values); and a task-driven launch with no calendar (D14-Q02) ([simulation plan](../node/docs/mainnet/launch-rehearsals.md)).
 - [Hosting](approvals/P01_E05_HOSTING_2026-10-11.json) (11 October): all three hosts on one provider, Hetzner Cloud, the validator and the sentry in different countries, replacing the rule that put them at different providers; the backup bucket stays at another provider and the single-provider risk is disclosed in the trust model; each role on a cloud server of its own with at least 8 GB, the validator on a dedicated-vCPU type, the sentry with a growing volume (D12-Q01, D12-Q02, D12-Q03) ([disaster recovery v1](../node/docs/architecture/disaster-recovery-v1.md)).
+- [Two seats](approvals/P01_E05_TWO_SEATS_2026-10-11.json) (11 October): two hosts, with no new server: the private validator and the sentry, the one public node, which also serves the client channel and the status page, replacing the separate endpoint and each role on its own 8 GB server; the founder's 4 GB servers with the node's memory limit at 3 GiB and no dedicated vCPU, resized only if the capacity runs (T05) prove them too small; the shared public node is disclosed in the trust model (D12-Q01) ([host setup v1](../node/docs/architecture/host-setup-v1.md)).
 - [Alert rules](approvals/P01_E05_ALERT_RULES_2026-10-10.json) (10 October): the fourteen alert rules of monitoring v1 and their severities as proposed, escalation of a severity 1 alert after 15 minutes and 396 days of metric history (E05 values monitor.*); each host uploads its daily history encrypted under a separate history code and upload key, so the backup code stays on the sentry (M4b); the webhook settings are installed and replaced by the installer's monitor-settings command, root-only and never in the bundle, instead of being sealed with the node keys (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
 - [Metric set](approvals/P01_E05_METRIC_SET_2026-10-10.json) (10 October): the metric set gains transactions by kind and result, gas used, validator evidence, root controls by kind, signature verifications and their time, and the engine's PQC signing time, without per-peer or per-account labels (D12-Q02) ([metrics v1](../node/docs/architecture/metrics-v1.md)).
 - [Status page head age](approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json) (10 October): the endpoint's status page answers 503 when the newest block is more than 60 seconds old (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
@@ -559,9 +560,9 @@ Gate references: G01, G07, G08, G09, G24, G25, G26, G27, G28, G29, G30, G31, G32
 
 What resources, regions, account separation, peer topology, access controls and capacity budget apply?
 
-**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): one operator, the founder, with one validator, one sentry (also the archive node) and one endpoint.
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): one operator, the founder, with one validator, one sentry (also the archive node) and one endpoint. Replaced (P01, 11 October 2026, [two seats](approvals/P01_E05_TWO_SEATS_2026-10-11.json)): the sentry also serves the client channel, with no separate endpoint.
 
-Approved portion (P01, 30 September 2026): validators are private and peer only with their own sentries, pinned by full key; sentries face the network; separate endpoint nodes serve the client channel. Validator hosts run no RPC and no management port, and operator access is console-only.
+Approved portion (P01, 30 September 2026): validators are private and peer only with their own sentries, pinned by full key; sentries face the network; separate endpoint nodes serve the client channel. Validator hosts run no RPC and no management port, and operator access is console-only. Replaced in part (P01, 11 October 2026, [two seats](approvals/P01_E05_TWO_SEATS_2026-10-11.json)): a sentry may serve the client channel, and at launch the one sentry does; an endpoint on its own server stays possible.
 
 Recorded approval: [30 September operations approvals](approvals/P01_E04_OPERATIONS_2026-09-30.json).
 
@@ -580,6 +581,8 @@ Host settings (P01, 2 October 2026), from the [E05 values, fourth set](approvals
 Endpoint connections ([P01, 10 October 2026](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json)): the client channel takes 16 connections and 2 per address, and the loopback adapter 4, which with the status page's fixed 8 stay within the engine client socket's 32.
 
 Hosting ([P01, 11 October 2026](approvals/P01_E05_HOSTING_2026-10-11.json)): all three hosts on one provider, Hetzner Cloud, each role on a server of its own with at least 8 GB of memory; the validator on a dedicated-vCPU type, the sentry and the endpoint on shared-vCPU types, the sentry with an attached volume that grows with the archive; the validator and the sentry in different countries.
+
+Two seats ([P01, 11 October 2026](approvals/P01_E05_TWO_SEATS_2026-10-11.json)): two hosts, the private validator and the sentry, which also serves the client channel and the status page; every endpoint serves clients, a sentry may and a validator never does. The founder's two 4 GB servers, with the node's memory limit at 3 GiB (6 GiB above) and no dedicated vCPU, replace the 8 GB servers above; the capacity runs (T05) resize a server only if it proves too small. One provider, with the validator and the sentry in different countries, stands.
 
 Remaining inputs: the host records (D12-Q03), and the final host sizes and disk from the capacity runs (T05).
 
@@ -614,7 +617,7 @@ Evidence: [PRODUCTION_INFRASTRUCTURE_DRAFT.json](PRODUCTION_INFRASTRUCTURE_DRAFT
 
 Which exact assets, operators, account owners and funded commitments implement the topology?
 
-**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): three hosts (validator, sentry that is also the archive node, endpoint); before genesis they are the staging environment for E03, the measurements and the seven simulations, then wiped and re-provisioned.
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): three hosts (validator, sentry that is also the archive node, endpoint); before genesis they are the staging environment for E03, the measurements and the seven simulations, then wiped and re-provisioned. Replaced (P01, 11 October 2026, [two seats](approvals/P01_E05_TWO_SEATS_2026-10-11.json)): two hosts, the validator and the sentry, which also serves clients.
 
 Required output: Approved infrastructure inventory.
 

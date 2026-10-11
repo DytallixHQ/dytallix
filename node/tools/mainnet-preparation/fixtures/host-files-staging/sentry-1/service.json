@@ -15,7 +15,7 @@
   },
   "root_config": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/root-config.json",
-    "sha256": "e304c3c66c028096a5338e6f38a1ae2ddccc43672dc4ecd16ae39ab8c8b942fe",
+    "sha256": "822a5a2d378943d91c0f5fecdf2043c34659d36c85e43c885235ebc5b11e0aab",
     "max_bytes": 65536
   },
   "root_public_inputs": [
@@ -32,7 +32,7 @@
   ],
   "emergency_verifier_config": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/emergency-verifier.json",
-    "sha256": "b5558fae5df43d97486d94df3a40609d25a5f3bf617ebd522bae2c061bc69b99",
+    "sha256": "1f72b3628b63bcd6f9db8d14a232dce723be3a7eec0737a63a8d108049898981",
     "max_bytes": 65536
   },
   "candidate_config": {
@@ -42,7 +42,7 @@
   },
   "process_admission": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/admission.json",
-    "sha256": "49876d8ac5b0392808bc42281e2263ee5d2e4bc4bcdf8d7094ca06d1a2d97008",
+    "sha256": "973667f1b0323339f50672525ab251fb55e403c468cadc37b39e1f15ee3445a8",
     "max_bytes": 65536
   },
   "observation_pause": {
@@ -107,5 +107,21 @@
     "interval_blocks": 17280,
     "keep": 3,
     "light_blocks": "/var/lib/dytallix/snapshot-light-blocks"
-  }
+  },
+  "adapter_listen": "127.0.0.1:26671",
+  "adapter_limits": {
+    "max_connections": 4
+  },
+  "adapter_channel": {
+    "listen": "10.20.0.11:26670",
+    "pin": {
+      "path": "/etc/dytallix/f2cc05f54bc3c6ec/channel-pin.json",
+      "sha256": "0f07bf83aa3aa52be53ee8f974ebf9a5c9ffdb4f5c4b4752a1b7678726ed5821",
+      "max_bytes": 8192
+    },
+    "max_connections": 16,
+    "max_connections_per_address": 2
+  },
+  "adapter_status_listen": "10.20.0.11:8080",
+  "adapter_status_max_head_age_seconds": 60
 }

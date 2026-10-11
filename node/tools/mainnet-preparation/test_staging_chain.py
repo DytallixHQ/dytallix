@@ -20,8 +20,11 @@ class StagingChainTests(unittest.TestCase):
         addresses = {h['label']: h['p2p'].rsplit(':', 1)[0] for h in self.plan['hosts']}
         self.assertEqual(addresses['validator-1'], '10.1.0.7')
         self.assertEqual(len(set(addresses.values())), len(addresses))
-        endpoint = next(h for h in self.plan['hosts'] if h['role'] == 'endpoint')
-        self.assertTrue(endpoint['channel'].startswith(addresses['endpoint-1'] + ':'))
+        # Two seats (P01, 11 October 2026): the sentry serves the client channel.
+        self.assertEqual(sorted(h['role'] for h in self.plan['hosts']), ['sentry', 'validator'])
+        public = next(h for h in self.plan['hosts'] if h['channel'])
+        self.assertEqual(public['label'], 'sentry-1')
+        self.assertTrue(public['channel'].startswith(addresses['sentry-1'] + ':'))
         self.assertTrue(all(a == '10.1.0.7' or a.startswith('192.0.2.') for a in addresses.values()))
 
     def test_records_carry_the_plans_validators(self):

@@ -1,0 +1,40 @@
+{
+  "decision_id": "P01-2026-10-11-E05-TWO-SEATS",
+  "approved": "2026-10-11",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Which server layout the plan uses, and how the servers are sized"
+  },
+  "reason": "The founder pays for two servers in Europe, which become the mainnet hosts, and one web server in the United States, which keeps the websites, and has no budget for another server. Two seats on the two European servers need no new server; their 4 GB of memory is below the 8 GB the hosting record required.",
+  "design_ref": "../../node/docs/architecture/host-setup-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q01",
+      "selected": "Two seats, no new server",
+      "rule": "The chain runs on two hosts: the validator, private, and the sentry, the one public node, which also serves the client channel and the status page as an endpoint does. The validator still peers only with its own sentry and runs no listener but P2P; the sentry stays the archive, the source of snapshots and the host that makes the off-host backups. The tools still accept an endpoint on a server of its own, so one can be added later without a release. Every endpoint serves clients, a sentry may, and a validator never does. The trade-off: client traffic, the archive and the validator's only peer share one server. A flood or fault there can cut the validator off from the network until the sentry recovers; the validator keeps committing alone, and clients see a stalled status page. The host that holds the backup code and its upload key also faces client traffic. The capacity runs (T05) and the statistical campaign measure this, and the trust model discloses it."
+    },
+    {
+      "question": "D12-Q01",
+      "selected": "Measure first, resize if needed",
+      "rule": "Staging starts on the founder's current 4 GB servers with the node's memory limit at 3 GiB (launch/hosts/SETUP_VALUES.json unit.memory_max_bytes 3,221,225,472), leaving the rest for the operating system and the host jobs. No dedicated-vCPU type is required. The capacity runs (T05) measure what the node uses; a server is resized, and the limit raised by a new approval, only if that proves too small."
+    }
+  ],
+  "supersedes": [
+    "Private validators behind sentries, D12-Q01 'separate endpoint nodes serve the client channel' (P01_E04_OPERATIONS_2026-09-30): a sentry may serve the client channel, and at launch the one sentry does.",
+    "Solo launch, 'three hosts (validator, sentry that is also the archive node, endpoint)' (P01_E05_SOLO_LAUNCH_2026-10-03): two hosts, the sentry also serving clients.",
+    "Hosting, D12-Q01 'each role on a cloud server of its own with at least 8 GB, the validator on a dedicated-vCPU type' and 'the endpoint runs on its own cloud server' (P01_E05_HOSTING_2026-10-11): two shared-vCPU servers of 4 GB, measured by T05. One provider, with the validator and the sentry in different countries, stands.",
+    "Host values, unit memory 6 GiB (P01_E05_HOST_VALUES_2026-10-06): 3 GiB.",
+    "Monitoring, the RPC outage rule on the endpoint (P01_E05_MONITORING_2026-10-09, P01_E05_ALERT_RULES_2026-10-10): on every host serving clients, here the sentry."
+  ],
+  "unset": [
+    "Host records: the servers, their addresses and regions (outside the repository)",
+    "The final sizes and disk, from the capacity runs (T05)"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

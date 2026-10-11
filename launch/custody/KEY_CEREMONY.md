@@ -226,7 +226,7 @@ pin plan. The session needs `python3` on the live USB.
    chain.
 
 `/mnt/public/node-keys` then holds only public files: each host's key
-summary and sealed keys, the endpoint's channel pin and `PIN_PLAN.json` with
+summary and sealed keys, the sentry's channel pin and `PIN_PLAN.json` with
 the public keys filled in, for the host files and the genesis.
 
 ## Rehearse first
