@@ -162,7 +162,9 @@ two copies in two separate places of their own
   needs, being built) and pushes it encrypted to object storage at a second
   provider.
 - **Endpoint:** serves clients over the post-quantum client channel and a
-  public status page.
+  public status page. It may run as a virtual machine of its own on the
+  founder's web server, beside the websites' machine
+  ([simulation plan](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)).
 - **Hosts:** Ubuntu 24.04, each host's public address on its own interface,
   installed from sealed bundles
   ([hosts](approvals/P01_E05_HOSTS_2026-10-06.json)).
@@ -178,7 +180,7 @@ More validators join later through on-chain registration.
 4. Fill and check the emergency, upgrade and genesis custody packets.
 5. Rent the hosts; the node key session; the staging runs on the
    production hosts (E03, the T suites, the capacity measurements, the kit
-   drills) with rehearsal identities.
+   drills and the statistical campaign) with rehearsal identities.
 6. Freeze the release candidate (E06); Hashlock's audit and the 30-day
    public review; fixes, re-checked by Hashlock; the final candidate. Until
    the freeze, engineering prepares the review: a review guide, issue
@@ -186,7 +188,7 @@ More validators join later through on-chain registration.
    ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json),
    [audit](approvals/P01_E06_AUDIT_2026-10-10.json)).
 7. The seven simulation runs on the final candidate, on the production
-   hosts; wipe.
+   hosts ([simulation plan](../node/docs/mainnet/launch-rehearsals.md)); wipe.
 8. Final input freeze: the allocation ledger (bucket, holder, validator and
    DRT bootstrap rows) and the genesis time.
 9. Reproduce, sign (three of five), install, start.

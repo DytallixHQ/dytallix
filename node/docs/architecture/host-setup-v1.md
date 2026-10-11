@@ -174,7 +174,7 @@ supervisor's report goes to the journal.
 - The journal kept on disk for 90 days (`Storage=persistent`,
   `MaxRetentionSec=90d`, in `/etc/systemd/journald.conf.d/dytallix.conf`,
   which the generator writes), the operations objectives' log retention.
-- Nothing else runs on the host.
+- Nothing else runs on the host. The one exception is the endpoint, which may be a virtual machine on the founder's web server beside a separate virtual machine for the websites: that virtual machine is then the host, runs nothing but Dytallix, has its own public IPv4 on its interface and shares no disk or network with the websites, and the physical machine is managed only through the provider's console. The validator and the sentry always have hosts of their own ([simulation plan approval](../../../launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)).
 
 ## Host values (P01, 6 October 2026)
 
