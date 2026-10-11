@@ -4,7 +4,7 @@
   "approved_by": "P01",
   "approval_source": {
     "kind": "user_reply",
-    "question_set": "The seven simulation runs: pass thresholds, timings, host access and load source"
+    "question_set": "The seven simulation runs and the statistical campaign: pass thresholds, timings, host access, load source; the endpoint host"
   },
   "reason": "The seven runs had requirements but no plan: no pass criteria, no way to drive the console-only hosts, no load source, and approved timings longer than a 24-hour run.",
   "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
@@ -33,12 +33,24 @@
       "question": "D14-Q02",
       "selected": "Several small load machines",
       "rule": "The load for R03 and R06 comes from four to eight small rented machines, each with its own address, outside the hosts' providers, so the endpoint's production connection limits stay unchanged and the public client channel path is the one tested. They are rented for the load runs only and hold only rehearsal keys."
+    },
+    {
+      "question": "D14-Q02",
+      "selected": "Add the statistical campaign",
+      "rule": "During staging, before the freeze, the production hosts run a statistical campaign with rehearsal identities: every listed attack type on the core functions attempted at least 3,000 times with zero successes (by the rule of three, a success rate below 1 in 1,000 at 95% confidence); each connection- or network-level attack and each quick fault repeated about 30 times, and each heavy fault (host rebuild, snapshot restore, validator recovery) 3 to 5 times, with recovery times recorded; and an endurance run of at least 15 days at the exact production values, inside which the attack and fault campaigns interleave, covering the full unbonding, governance and upgrade notice lifecycles and at least 15 epochs. Any successful attack is a defect fixed before the freeze. The campaign's report goes to Hashlock with the frozen candidate. The seven pass/fail runs stay as they are."
+    },
+    {
+      "question": "D12-Q01, D12-Q03",
+      "selected": "Endpoint seat only",
+      "rule": "The endpoint, and only the endpoint, may run as a virtual machine on the founder's existing web server, beside a separate virtual machine for the founder's websites. The endpoint's virtual machine is then its host: it runs nothing but Dytallix, has its own public IPv4 on its interface, and shares no disk or network with the websites' machine beyond the provider's uplink; the physical machine runs only the two virtual machines and is managed only through the provider's console. The validator and the sentry run on hosts of their own, at different providers. An exception to 'nothing else runs on the host' for the endpoint seat only."
     }
   ],
   "unset": [
     "The exact shortened timing values, fixed when the rehearsal genesis is built",
     "The staging command key and the agent's allowlist, built and proven in CI",
-    "The load machines' provider"
+    "The load machines' provider",
+    "The campaign's attack list and counts per type, fixed when the tools are built",
+    "The endpoint virtual machine's additional IPv4 at the web server's provider"
   ],
   "does_not_authorize": [
     "any run on a real host",

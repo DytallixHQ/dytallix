@@ -7,6 +7,7 @@ Status: planned; no run has passed. Seven full launch simulations (R01 to R07) m
 - **Where.** The three production hosts (validator, sentry, endpoint), before genesis, under the solo launch profile. Every tool is first built and proven in the CI staging network ([host install workflow](../../../.github/workflows/host-install.yml)).
 - **When.** Task-driven: after Hashlock's audit fixes, on the final candidate, one run after another ([audit approval](../../../launch/approvals/P01_E06_AUDIT_2026-10-10.json), [order of work](../../../launch/GENESIS_FRAMEWORK.md#6-order-of-work)). The staging runs before the freeze (E03, the T suites, the capacity measurements, the kit drills) come first and find defects early.
 - **Length.** Each run operates for 24 hours after its genesis; R07 spans T−6h to T+24h. No checkpoint is compressed.
+- **Before the runs.** During staging, a [statistical campaign](#statistical-campaign-staging) of about 15 to 21 days of host time measures attacks, faults, performance and endurance with confidence.
 
 ## Every run
 
@@ -67,6 +68,29 @@ The launch has one validator, so some of the brief's network scenarios mean some
 - **Latency and packet loss** change propagation and how fresh the endpoint is, not consensus.
 - **A second copy of the validator key** is the catastrophic case. A duplicate vote removes the validator for good and ends the chain, and an isolated copy would finalize its own fork. Nothing automatic stops it: today only the fence-first rule ([validator recovery](../operations/validator-recovery.md)) and the pinned peer addresses stand in the way. R05 checks that a second copy at another address cannot reach the network, and the residual risk is recorded.
 
+## Statistical campaign (staging)
+
+The seven runs are pass/fail qualification. Before them, during staging and before the freeze, the production hosts run a longer campaign that measures behavior with statistical confidence ([simulation plan approval](../../../launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)). It uses rehearsal identities, the tools below, and its results go to Hashlock with the frozen candidate.
+
+| Part | Rule | Host time |
+|---|---|---|
+| **Attacks on core functions** | Each attack type is attempted at least 3,000 times with zero successes. By the rule of three, that bounds its success rate below 1 in 1,000 at 95% confidence. Connection- and network-level attacks are repeated about 30 times each. | About 2 to 4 days in all |
+| **Faults and recovery** | Each quick fault (process kill, peer drop, partition, latency, endpoint restart) about 30 times; each heavy fault (host rebuild, snapshot restore, validator recovery) 3 to 5 times; recovery times recorded as distributions | About 3 to 5 days in all |
+| **Performance** | Block intervals, inclusion delay and response times: a day gives about 17,280 blocks, enough for the median, p95 and p99; p99.9 comes from the whole endurance run | Within the endurance run |
+| **Endurance** | At least 15 days continuous at the exact production values, with background load and periodic half-capacity periods: full unbonding (14 days), governance deposit and voting (7 + 7 days), a release handover after its 7-day notice, at least 15 epochs and snapshots, and state and memory growth | At least 15 days; the attack and fault campaigns interleave inside it |
+
+The attack types cover every core function:
+
+- **Transactions:** invalid, wrong-key and truncated ML-DSA-65 signatures; malformed, non-canonical and oversized envelopes; the wrong chain or network; expired transactions; stale, future and conflicting nonces; duplicate bytes and re-signed copies of a pending intent; fee caps below the minimum; spending more than the eligible balance; too many actions.
+- **Staking:** bonds below the minimum or to an unknown validator; unbonding more than is bonded; early withdrawal; repeated reward claims; validator registration with a bad possession proof or a reused key.
+- **Governance:** proposals below the deposit; votes without a bond, repeated or after the period; replayed execution; parameter changes outside the genesis bounds.
+- **Root controls:** too few signatures; keys from the wrong epoch; a replayed sequence; an expired window; non-canonical encoding; a kit replacement while frozen.
+- **Recovery:** replayed and wrong-key recovery transactions.
+- **Endpoint and RPC:** oversized bodies, header and connection floods beyond the limits, slow clients, invalid handshakes, a wrong pin, methods outside the allowlist.
+- **Network:** latency, packet loss, partitions and peer instability; wrong-key and malformed peers come from the E03 runner.
+
+Any successful attack is a defect, fixed before the freeze. Simulation cannot cover events rarer than about once a day with confidence; the audit and the public review cover those. The exact attack list and counts per type are fixed when the tools are built.
+
 ## The runs
 
 Each run starts from [Every run](#every-run) and operates for its full period. The brief's full list of required actions is in [launch-rehearsals.json](launch-rehearsals.json).
@@ -111,7 +135,7 @@ Each is proven in the CI staging network before it touches a real host.
 | **T8** Upgrade drill | Builds RC2's bundles for an existing chain and runs the handover and upgrade end to end on the hosts | the kit drill's control flow, `stage.sh` and `switch.sh`, the signed handover process tests |
 | **T9** Validator recovery drill | Fence, set aside the consensus WAL, reinstall, block-sync, time against the target | [validator recovery](../operations/validator-recovery.md), the restore drill |
 
-The capacity measurements (T05) use T3 and T6.
+The capacity measurements (T05) use T3 and T6, and the statistical campaign uses T2 to T6 with a campaign driver that schedules and counts the attempts.
 
 ## Scenario register
 
