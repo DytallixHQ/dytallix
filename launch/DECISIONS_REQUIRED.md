@@ -4,7 +4,7 @@ Gate readiness has one source: [LAUNCH_GATES.json](LAUNCH_GATES.json), rendered 
 
 Links into `decision-register/`, `batch-*/`, `evidence/` and `snapshots/` name launch evidence records held outside this repository; they do not resolve here.
 
-The current register contains no OPEN policy questions, 13 PARTIALLY_APPROVED policy questions, 13 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
+The current register contains no OPEN policy questions, 12 PARTIALLY_APPROVED policy questions, 14 APPROVED policy questions and eight OPEN required records. APPROVED means P01 approved the policy rule the question asks for; production values, named owners, reviewer acceptance and gate qualification remain separate. Explicit approval records identify the accepted portions. Unset production values, assignees and reviewers remain unset.
 
 Current evidence includes the emergency controls and upgrade execution package (historical record decision-register/emergency-upgrade-execution/REPORT.md, not in this repository). The master credits implementation and qualification within each report's stated scope. Production acceptance remains incomplete.
 
@@ -49,6 +49,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [DRT supply](approvals/P01_E05_DRT_SUPPLY_2026-10-10.json) (10 October): the genesis DRT bootstrap stays at 1,000,000 DRT as approved on 30 September, with only its per-account rows open; DRT has no total supply cap, since issuance stays between 500 and 1,000 DRT a block and every fee is burned (D08-Q02, D05-Q01) ([genesis framework](GENESIS_FRAMEWORK.md#1-tokens)).
 - [Audit](approvals/P01_E06_AUDIT_2026-10-10.json) (10 October): Hashlock audits the frozen release candidate (the node application, the PQC CometBFT fork, the root authorization tools and the CLI wallet) alongside the 30-day public review and the AI review; the launch is labeled unaudited until its report is published; the seven simulation runs move after the audit's fixes, onto the final candidate (D14-Q01, D14-Q02, D14-Q03) ([genesis framework](GENESIS_FRAMEWORK.md#6-order-of-work)).
 - [Capacity values](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json) (10 October): the seven proposed capacity values are approved: engine mempool 2,100 transactions and 16,000,000 bytes, peer rates 5,120,000 bytes a second, client channel 16 connections and 2 per address, loopback adapter 4; T05 confirms them (D06-Q02, D12-Q01) ([E05 values](E05_VALUES.json)).
+- [Simulation plan](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json) (11 October): the seven runs' pass criteria; shortened timings in R01 to R06 and exact ones in R07; a staging-only signed agent on the console-only hosts; load from several small machines; and a task-driven launch with no calendar (D14-Q02) ([simulation plan](../node/docs/mainnet/launch-rehearsals.md)).
 - [Alert rules](approvals/P01_E05_ALERT_RULES_2026-10-10.json) (10 October): the fourteen alert rules of monitoring v1 and their severities as proposed, escalation of a severity 1 alert after 15 minutes and 396 days of metric history (E05 values monitor.*); each host uploads its daily history encrypted under a separate history code and upload key, so the backup code stays on the sentry (M4b); the webhook settings are installed and replaced by the installer's monitor-settings command, root-only and never in the bundle, instead of being sealed with the node keys (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
 - [Metric set](approvals/P01_E05_METRIC_SET_2026-10-10.json) (10 October): the metric set gains transactions by kind and result, gas used, validator evidence, root controls by kind, signature verifications and their time, and the engine's PQC signing time, without per-peer or per-account labels (D12-Q02) ([metrics v1](../node/docs/architecture/metrics-v1.md)).
 - [Status page head age](approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json) (10 October): the endpoint's status page answers 503 when the newest block is more than 60 seconds old (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
@@ -686,7 +687,7 @@ Proposed owner role: Release and QA leads with independent reviewers. Named assi
 
 Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_GATES.json](LAUNCH_GATES.json), batch-10/REPORT.md (historical record, not in this repository).
 
-### D14-Q02 — PARTIALLY_APPROVED
+### D14-Q02 — APPROVED
 
 What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?
 
@@ -700,7 +701,9 @@ Simulation order ([P01, 10 October 2026](approvals/P01_E06_AUDIT_2026-10-10.json
 
 Approved portion (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release, and the root signers sign only after the P02 review, E06 release acceptance and gate acceptance ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
-Remaining inputs: workload, finality, recovery and acceptance thresholds, and the calendar.
+Simulation plan ([P01, 11 October 2026](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)): the seven runs' pass criteria are approved: integrity (no conflicting blocks, one app hash, exact supply, no committed block lost; a failure stops the run), liveness (median block interval at most 6 s, 99th percentile at most 10 s), inclusion (99% within 2 blocks at half capacity, none lost at full capacity), recovery within the approved targets, and R06's load (full capacity 1 hour, half 6 hours, 1,000 wallets). R01 to R06 use a recorded set of shortened timings and R07 the exact values; a staging-only signed agent drives the console-only hosts; the load comes from several small machines ([simulation plan](../node/docs/mainnet/launch-rehearsals.md)).
+
+Calendar ([P01, 11 October 2026](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)): the launch is task-driven, not date-driven; each step starts when the steps it depends on are done, and only the genesis time is set in advance, at the final input freeze.
 
 Required output: Qualification and launch acceptance plan.
 

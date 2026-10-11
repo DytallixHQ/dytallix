@@ -27,18 +27,20 @@ Every policy question and required record is in the [decision register](DECISION
 
 **Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)): the founder holds every owner role, except that five people hold the root key kits, one each, since 7 October 2026 ([approval](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)). Where this plan asks for independent engineers, operators, auditors or custodians, the `acceptance_profile` in [LAUNCH_GATES.json](LAUNCH_GATES.json) defines what satisfies it: Hashlock's independent audit of the frozen candidate, a 30-day public review with a DGT bug bounty, a separate review labeled as AI and the founder's sign-off, with the launch labeled unaudited until Hashlock's report is published ([audit](approvals/P01_E06_AUDIT_2026-10-10.json)). An AI assessment is always labeled as AI and never presented as an independent human review.
 
-## Week gates
+## Stage gates
 
-- Week 1: one unambiguous specification. A review labeled as AI checks it for a single interpretation, and the public review of the frozen candidate reopens it (solo launch profile). Approval includes quantities, units, authority, limits, and upgrade rules.
-- Week 2: the operator (the founder) recovers required infrastructure failures using written procedures. State integrity and signing safety survive recovery.
-- Week 3: the exact candidate passes consensus, PQC, wallet, supply, staking, rewards, fees, governance, upgrade, recovery, load, and security qualification. No unresolved P0 or absolute launch blocker remains.
-- Week 4: seven valid simulations pass. No shortened local test earns simulation credit.
+The stages a candidate passes, in order; each starts when the one before it is done (task-driven, [simulation plan approval](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)).
+
+- Stage 1: one unambiguous specification. A review labeled as AI checks it for a single interpretation, and the public review of the frozen candidate reopens it (solo launch profile). Approval includes quantities, units, authority, limits, and upgrade rules.
+- Stage 2: the operator (the founder) recovers required infrastructure failures using written procedures. State integrity and signing safety survive recovery.
+- Stage 3: the exact candidate passes consensus, PQC, wallet, supply, staking, rewards, fees, governance, upgrade, recovery, load, and security qualification. No unresolved P0 or absolute launch blocker remains.
+- Stage 4: seven valid simulations pass. No shortened local test earns simulation credit.
 
 ## Seven simulation runs
 
-The runs happen after the audit's fixes, on the final candidate (P01, 10 October 2026, [audit](approvals/P01_E06_AUDIT_2026-10-10.json)). Every run starts from clean, isolated staging infrastructure. Under the solo launch profile, that is the three production hosts before genesis, rebuilt clean for each run and wiped before the production ceremony. Use the frozen production architecture, protocol rules, allocation amounts, validator weights, release artifacts, deployment automation, and operational procedures. Record the exact configuration and all approved rehearsal substitutions.
+The runs happen after the audit's fixes, on the final candidate ([audit](approvals/P01_E06_AUDIT_2026-10-10.json)). The [simulation plan](../node/docs/mainnet/launch-rehearsals.md) sets each run's procedure, the tools and the approved pass criteria. Every run starts from clean, isolated staging infrastructure. Under the solo launch profile, that is the three production hosts before genesis, rebuilt clean for each run and wiped before the production ceremony. Use the frozen production architecture, protocol rules, allocation amounts, validator weights, release artifacts, deployment automation, and operational procedures. Record the exact configuration and all approved rehearsal substitutions.
 
-Use a separate rehearsal chain identity and fresh rehearsal keys. Do not use production signing keys. Record a deterministic mapping from approved allocation recipients to rehearsal accounts. The allowed identity, endpoint, and timestamp substitutions need explicit review. They must not alter consensus, economics, resource limits, or timing rules. Production genesis remains a separate ceremony.
+Use a separate rehearsal chain identity and fresh rehearsal keys. Do not use production signing keys. Record a deterministic mapping from approved allocation recipients to rehearsal accounts. The allowed identity, endpoint, and timestamp substitutions need explicit review. They must not alter consensus, economics, resource limits, or timing rules, except the recorded set of shortened timings in runs 1 to 6, so each lifecycle completes inside its run; run 7 uses the exact production values. Production genesis remains a separate ceremony.
 
 | Run | Required emphasis | Evidence |
 |---|---|---|

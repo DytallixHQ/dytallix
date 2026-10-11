@@ -1,0 +1,49 @@
+{
+  "decision_id": "P01-2026-10-11-T06-SIMULATION-PLAN",
+  "approved": "2026-10-11",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The seven simulation runs: pass thresholds, timings, host access and load source"
+  },
+  "reason": "The seven runs had requirements but no plan: no pass criteria, no way to drive the console-only hosts, no load source, and approved timings longer than a 24-hour run.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "D14-Q02",
+      "selected": "Approve as proposed",
+      "rule": "Integrity, in every run: zero conflicting finalized blocks; the same app hash on every node at every checkpoint; supply that reconciles exactly (DRT genesis plus emitted minus burned, DGT unchanged); no committed block lost in any recovery. An integrity failure stops the run. Liveness, outside injected faults: median block interval at most 6 s and 99th percentile at most 10 s. Inclusion: at half capacity, 99% of valid transactions committed within 2 blocks; at full capacity, no valid transaction lost (each is committed or refused at admission). Recovery, within the approved targets: blocks again within 5 minutes of a validator process restart, sentry and endpoint caught up within 2 minutes of a network heal, a destroyed sentry or endpoint rebuilt within 4 hours, a lost validator host within 8 hours, and every injected fault raising its alert and resolving after recovery. Load (R06): full capacity, about 180 basic Sends a block, held for 1 hour and half capacity for 6 hours, across 1,000 wallets. A missed threshold fails the run, and the affected runs are rerun on the next candidate."
+    },
+    {
+      "question": "D14-Q02",
+      "selected": "Task-driven, no calendar",
+      "rule": "The launch is task-driven, not date-driven: each step starts when the steps it depends on are done, and no calendar dates are set. The only time chosen in advance is the genesis time, set at the final input freeze by the approved rule (a weekday at 14:00:00 UTC, at least 72 hours after the final build)."
+    },
+    {
+      "question": "D14-Q02",
+      "selected": "Short in R01-R06, exact in R07",
+      "rule": "R01 to R06 run with a recorded set of shortened timings, so each lifecycle (upgrade and handover notice, governance deposit and voting periods and timelock, unbonding maturity, snapshot interval) completes inside its 24-hour run. Every other value is the production value, and each shortened value is listed with its production value in the run record. R07, the dress rehearsal, uses the exact production values."
+    },
+    {
+      "question": "D12-Q01, D14-Q02",
+      "selected": "Staging-only signed agent",
+      "rule": "While the production hosts serve as staging, each runs a small agent that pulls command files from the backup bucket over the host's curl, runs a command only if the founder's ML-DSA-65 staging command key signed it and it is on a fixed allowlist of simulation steps, and uploads the results encrypted. TLS stays transport only. The agent is never part of a release, and the wipe before the production install removes it; production hosts stay console-only."
+    },
+    {
+      "question": "D14-Q02",
+      "selected": "Several small load machines",
+      "rule": "The load for R03 and R06 comes from four to eight small rented machines, each with its own address, outside the hosts' providers, so the endpoint's production connection limits stay unchanged and the public client channel path is the one tested. They are rented for the load runs only and hold only rehearsal keys."
+    }
+  ],
+  "unset": [
+    "The exact shortened timing values, fixed when the rehearsal genesis is built",
+    "The staging command key and the agent's allowlist, built and proven in CI",
+    "The load machines' provider"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

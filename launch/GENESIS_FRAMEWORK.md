@@ -186,7 +186,7 @@ More validators join later through on-chain registration.
    ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json),
    [audit](approvals/P01_E06_AUDIT_2026-10-10.json)).
 7. The seven simulation runs on the final candidate, on the production
-   hosts; wipe.
+   hosts ([simulation plan](../node/docs/mainnet/launch-rehearsals.md)); wipe.
 8. Final input freeze: the allocation ledger (bucket, holder, validator and
    DRT bootstrap rows) and the genesis time.
 9. Reproduce, sign (three of five), install, start.

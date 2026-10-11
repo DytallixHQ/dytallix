@@ -157,7 +157,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 273–341](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1349–1378](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -226,7 +226,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1211–1295](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1381–1513](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Use saved package source and executable hashes for credited results. The active implementation tree has later changes; SOURCE_DRIFT.json records the inspected differences. Changed source needs new qualification.
@@ -366,7 +366,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 535–613](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1297–1378](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -435,7 +435,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 615–679](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Latest selected source and saved snapshots were verified in decision-register/production-boundary-qualification/evidence/SOURCE_CHECK.json. Earlier results remain bound to their original saved artifacts. The new builds and runtime checks are local qualification, not a production release freeze.
@@ -499,7 +499,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 615–679](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g06"></a>
@@ -621,7 +621,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 719–755](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1297–1347](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -737,7 +737,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 757–801](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -826,7 +826,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -890,7 +890,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/emergency-transaction-freeze/evidence/SOURCE_CHECK.json. Emergency freeze and resume qualification is limited to the recorded development profile and test environment. Production activation and G35 acceptance remain blocked.
@@ -1015,7 +1015,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 535–613](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/emergency-release-staging/evidence/SOURCE_CHECK.json. Package reports identify exact build, platform, test and staging scope. Approved policy does not grant production activation or G35 acceptance.
@@ -1089,7 +1089,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
@@ -1153,7 +1153,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g13"></a>
@@ -1207,7 +1207,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g14"></a>
@@ -1268,7 +1268,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g15"></a>
@@ -1326,7 +1326,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g16"></a>
@@ -1383,7 +1383,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g17"></a>
@@ -1439,7 +1439,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g18"></a>
@@ -1506,7 +1506,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
@@ -1578,7 +1578,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g20"></a>
@@ -1648,7 +1648,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g21"></a>
@@ -1708,7 +1708,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
@@ -1789,7 +1789,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 273–341](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1033–1093](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -1849,7 +1849,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 419–533](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1151–1209](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Use saved package source and executable hashes for credited results. The active implementation tree has later changes; SOURCE_DRIFT.json records the inspected differences. Changed source needs new qualification.
@@ -1958,7 +1958,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1211–1295](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1515–1553](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -2074,7 +2074,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 273–341](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–951](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1095–1149](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -2126,7 +2126,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1095–1149](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1593–1649](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g27"></a>
@@ -2188,7 +2188,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 859–951](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
@@ -2239,7 +2239,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 859–951](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g29"></a>
@@ -2292,7 +2292,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g30"></a>
@@ -2343,7 +2343,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 953–1025](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1431–1513](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 <a id="g31"></a>
@@ -2474,7 +2474,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1211–1295](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1857–1909](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -2594,7 +2594,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 757–801](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 1297–1347](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 2063–2113](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -2695,7 +2695,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - [USER_LAUNCH_REQUIREMENTS.txt lines 273–341](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 803–857](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 2115–2155](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.
@@ -2790,7 +2790,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - [USER_LAUNCH_REQUIREMENTS.txt lines 343–417](USER_LAUNCH_REQUIREMENTS.txt)
 - [USER_LAUNCH_REQUIREMENTS.txt lines 757–801](USER_LAUNCH_REQUIREMENTS.txt)
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Current source boundary:** Current source and saved evidence are checked in decision-register/native-staging-production-closure/evidence/SOURCE_CHECK.json. The root-helper change has native local tests; the prior Linux application predates it. Native Hetzner qualification in this queue covers strict CLI startup only. No full native validator staging or production acceptance is claimed.
@@ -2960,7 +2960,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Requirement sources**
 
 - `decision-register/pqc-profile/GATE_SPEC.json /requirement`
-- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Week gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
+- [MAINNET_EXECUTION_PLAN.md: Evidence and status rules; Stage gates; Seven simulation runs](MAINNET_EXECUTION_PLAN.md)
 - `decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json /steps`
 
 **Exact G35 required evidence**

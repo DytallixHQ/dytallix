@@ -1,171 +1,134 @@
-# Mainnet launch rehearsals
+# Mainnet launch simulations
 
-Status: required before launch. The user requires seven full launch simulations in Week 4.
-Authority: `USER_LAUNCH_REQUIREMENTS.txt` in the launch assessment package.
-No launch rehearsal has passed yet. Component checks do not qualify a launch.
+Status: planned; no run has passed. Seven full launch simulations (R01 to R07) must pass on the final candidate before genesis (T06). Component checks do not qualify a launch. The decisions are in the [simulation plan approval](../../../launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json); the requirements are the launch brief's, kept verbatim in [launch-rehearsals.json](launch-rehearsals.json) (`full_launch_runs`), and the run definitions in the [execution plan](../../../launch/MAINNET_EXECUTION_PLAN.md#seven-simulation-runs).
 
-Use this register with `launch-rehearsals.json`. Keep every required scenario visible.
-Record a missing implementation as blocked. Record an available but unexecuted check
-as not run. Never count either state as a pass.
+## Where and when
 
-## Execution order
+- **Where.** The three production hosts (validator, sentry, endpoint), before genesis, under the solo launch profile. Every tool is first built and proven in the CI staging network ([host install workflow](../../../.github/workflows/host-install.yml)).
+- **When.** Task-driven: after Hashlock's audit fixes, on the final candidate, one run after another ([audit approval](../../../launch/approvals/P01_E06_AUDIT_2026-10-10.json), [order of work](../../../launch/GENESIS_FRAMEWORK.md#6-order-of-work)). The staging runs before the freeze (E03, the T suites, the capacity measurements, the kit drills) come first and find defects early.
+- **Length.** Each run operates for 24 hours after its genesis; R07 spans T−6h to T+24h. No checkpoint is compressed.
 
-1. Run local reference and component checks during implementation.
-2. Freeze the protocol rules and integrate consensus, account authorization, and economics.
-3. Build the distributed rehearsal harness against the selected release binary.
-4. Run isolated launch simulations with synthetic balances and disposable signing keys.
-5. Complete seven fresh full launch runs in Week 4 with the exact production architecture and procedures.
-6. Complete all operating periods, including the final T-6h through T+24h checkpoints.
-7. Reconcile the evidence and obtain the launch decision.
+## Every run
 
-Use distinct rehearsal chain IDs, network identifiers, ports, and storage paths.
-Generate disposable keys for each fresh launch. Never copy production secrets into a
-rehearsal. Preserve production protocol rules, timing, allocation logic, and workload
-structure. Record all differences from the proposed production configuration.
+1. **Clean hosts.** Each host is rebuilt from the provider's Ubuntu 24.04 image and installed from its sealed rehearsal bundle (`install.sh`).
+2. **Rehearsal identity.** A fresh rehearsal chain ID per run (never one naming mainnet), fresh throwaway node keys, and a rehearsal root authority, three of five, from throwaway kits; never production keys.
+3. **Spendable rehearsal genesis.** The production allocation (buckets, treasury, holder grants, validator self-bond, DRT bootstrap) mapped deterministically to rehearsal accounts whose keys the harness holds, plus wallet accounts for the load. The mapping is recorded.
+4. **Values.** Every production value, except R01 to R06's recorded timing set (below).
+5. **Services.** The real alerting and uptime services, the backup bucket, the staging agent on each host, and, for R03 and R06, the load machines.
+6. **Evidence.** Recorded as in [Evidence](#evidence) and hashed.
 
-## Required scenario register
+### Shortened timings (R01 to R06 only)
 
-Each row is mandatory. Detailed cases, fixtures, and drivers must be added before its
-first qualifying run. A plan entry is not an implemented test.
+So that each lifecycle completes inside a 24-hour run, these production values are shortened and listed, with their production values, in every run record. The exact set is fixed when the rehearsal genesis is built, together with every value derived from them: for example, the state-sync trust period must stay below the evidence age.
 
-| ID | Scenario | Acceptance evidence | Current dependency | Owner role |
-|---|---|---|---|---|
-| L01 | Local reference checks | Exact adaptive and address vectors match; module boundaries pass | Runnable in current worktree | Runtime |
-| L02 | Local component tests | Adaptive, address, and persistent record suites execute with zero failures | Runnable in current worktree | Runtime |
-| L03 | Release baseline | All required workspace, feature, platform, client, crypto vector, and interoperability checks pass on exact candidate; binaries match provenance | Release failures and candidate definition | Release |
-| L04 | Genesis ceremony | Independent operators reproduce genesis digest, approved allocations, stake, and initial state; changed inputs fail startup | Approved recipient/custody/vesting records, DRT initial supply, identity, and validator specification | Protocol and operations |
-| L05 | Cold network launch | Empty nodes start from the same bundle and agree on first finalized checkpoint; late starts synchronize | Distributed consensus and peer synchronization | Consensus |
-| L06 | Client transactions | SDK and wallet submit valid transfers through public interfaces; balances, fees, nonces, and receipts match an independent reference | Client format and account authorization | Client and runtime |
-| L07 | Account key lifecycle | Creation, authorized rotation, recovery, and restart preserve account identity and balances; obsolete keys cannot authorize later writes | Atomic account authorization and rotation | Identity |
-| L08 | Adaptive economics | Selected corrected adaptive controller, approved 40/30/30 reward allocation, issuance, fees, burns, and supply reconcile at every transition; reference vectors cover boundaries and unavailable observations | D01 specification and qualification, site curve reconciliation, approved parameters, and atomic economic integration | Tokenomics |
-| L09 | Validator lifecycle | Delegation, rewards, residuals, unbonding, validator changes, and specified slashing preserve accounting and finality rules | Approved stake lifecycle | Consensus and runtime |
-| L10 | Contract and governance lifecycle | Required initial governance and treasury controls pass proposal, vote, outcome execution, authorization, persistence, and upgrade checks; every enabled contract module passes its lifecycle checks | Required initial governance implementation and approved authority/parameter rules; approved optional contract boundary | Runtime |
-| L11 | Node outage and rejoin | Planned process and host loss preserve finalized history; restarted nodes catch up within approved recovery target | Distributed harness and recovery target | Operations |
-| L12 | Network interruption and restoration | Controlled isolation and delay preserve safety; normal progress resumes under the approved synchrony and stake assumptions | Consensus fault model and isolated network harness | Consensus |
-| L13 | Consensus fault-model qualification | Independent review and bounded model tests cover the approved faulty-validator assumptions; no conflicting finalization within the model | Final consensus specification and independent review | Consensus and assurance |
-| L14 | Storage recovery | Controlled interruption at commit boundaries, full storage, backup restoration, and snapshot synchronization preserve finalized state | Distributed persistence integration and recovery procedures | Storage and operations |
-| L15 | Upgrade and abort | Supported mixed-version period and activation preserve state; pre-activation abort succeeds; post-finality recovery follows the approved protocol | Version compatibility and recovery rules | Release and consensus |
-| L16 | Capacity and sustained load | Specified workload meets approved finality and throughput targets; queue, disk, memory, and CPU stay within declared limits | Distributed candidate and launch demand forecast | Performance |
-| L17 | Operator response | Monitoring detects injected service failures; operators execute restore, disposable-key rotation, and emergency update procedures within targets | Independent operators, custody, alerts, and runbooks | Operations |
-| L18 | Repeated full launch | Seven fresh full launch runs R01-R07 pass in Week 4 using the production architecture, token model, validator model, genesis, deployment, upgrade procedures, and runbooks | L03-L17 integrated qualification and mandatory seven-run harness | QA and operations |
-| L19 | Frozen-candidate qualification | Recorded frozen candidate passes all seven full-run operating periods, including R07 checkpoints from T-6h through T+24h; no unapproved configuration shortcuts | R01-R07 evidence and approved workload, finality, recovery, and operating-period criteria | QA |
-| L20 | Final launch decision | All mandatory evidence passes; independent mathematical and security reviews close; release and genesis digests agree; named authorities sign | All earlier scenarios and G0-G8 gate evidence | Protocol, security, and operations |
-
-L13 specifies assurance requirements only. It does not provide an exploit driver.
-Simulation cannot prove safety outside the stated model or economic market stability.
-Continue the partial Codex Security coverage and independent review as separate work.
-
-## Seven required full launch runs
-
-Weeks 1 through 3 cover engineering, protocol freeze, and release qualification.
-Week 4 consists of these seven runs. Start each run from clean infrastructure and fresh
-genesis. Use the exact production architecture, token model, validator model, genesis
-process, deployment, upgrade procedures, and runbooks. Use isolated rehearsal identities
-and disposable keys. Record each substitution. Unapproved functional shortcuts invalidate
-qualification. All required initial features remain in scope, including governance,
-treasury controls, staking, delegation, undelegation, slashing, rewards, and both tokens.
-
-The JSON `full_launch_runs` register retains every simulation instruction from the user
-brief. Its scenario mappings identify the focused checks. Each run also includes the
-common initial scope. L01 and L02 are local prerequisites. They are not full launch runs.
-L18 requires seven successful runs. L19 checks the frozen candidate and operating periods.
-L20 records the final decision. No full run has passed.
-
-| Run | Context | Focused scenario mapping |
+| Value | Production | Rehearsal (proposed) |
 |---|---|---|
-| R01 | Clean Genesis | L04, L05, L06, L08, L09, L17 |
-| R02 | Infrastructure Failure | L11, L12, L14, L17 |
-| R03 | Adversarial Network | L06, L12, L13, L16 |
-| R04 | Production Upgrade | L10, L15 |
-| R05 | Operator Error | L03, L04, L05, L07, L11, L14, L15, L17 |
-| R06 | Production Load And Economic Activity | L06, L07, L08, L09, L10, L16 |
-| R07 | Final Mainnet Dress Rehearsal | L03, L04, L05, L06, L07, L08, L09, L10, L11, L12, L13, L14, L15, L16, L17, L19, L20 |
+| Upgrade and handover notice (also the kit replacement notice) | 120,960 blocks | 720 blocks |
+| Governance deposit and voting periods | 120,960 blocks each | 720 blocks each |
+| Governance timelock | 34,560 blocks | 360 blocks |
+| Evidence age and margin (unbond maturity) | 241,920 + 720 blocks | 1,440 + 120 blocks |
+| Snapshot interval | 17,280 blocks | 720 blocks |
 
-R01 covers the complete clean launch and initial economic lifecycle. R02 covers validator,
-RPC, node, snapshot, peer, and connectivity restoration. R03 specifies isolated fault and
-invalid-input coverage. It does not implement an exploit driver. R04 covers the production
-upgrade and post-upgrade state, governance, wallet, and token checks. R05 covers wrong
-configuration, binaries, networks, genesis, keys, snapshots, fees, peers, and versions.
-R06 covers sustained production load, economic activity, governance, and resource limits.
-R07 repeats the exact production launch procedure with these required checkpoints:
+R07 uses the exact production values.
 
-| Checkpoint | Required checks |
+### The staging agent
+
+The production hosts are console-only. While they serve as staging, each runs a small agent:
+
+- It polls the backup bucket over the host's `curl`, outbound only, for command files.
+- It runs a command only if the founder's ML-DSA-65 staging command key signed it and the command is on a fixed allowlist: the run steps below, such as start, stop, fault injection and status capture.
+- It uploads each result encrypted, like the metric history. TLS stays transport only.
+- It is never part of a release, and the wipe before the production install removes it.
+
+### The load machines
+
+Four to eight small rented machines, outside the hosts' providers, each with its own address. They reach the chain only through the endpoint's public client channel, within its production limits (16 connections, 2 per address), and hold only rehearsal keys.
+
+## Pass criteria
+
+Approved thresholds (D14-Q02):
+
+| Area | Criterion |
 |---|---|
-| T MINUS 6 HOURS | Verify binaries. Verify checksums. Verify release commit. Verify genesis. Verify all genesis allocations. Verify DRT supply. Verify DGT supply. Verify validators. Verify validator keys. Verify infrastructure. Verify networking. Verify DNS. Verify RPC. Verify monitoring. Verify alerts. Verify backups. Verify recovery procedures. |
-| T MINUS 1 HOUR | Confirm validator coordination. Confirm genesis hash. Confirm binary hash. Confirm peers. Confirm system clocks. Confirm validator keys. Confirm configuration. Confirm token allocations. Confirm network parameters. |
-| T ZERO | Start validators. Confirm consensus. Confirm block production. Verify expected validator participation. |
-| T PLUS 15 MINUTES | Verify RPC. Verify wallet connectivity. Execute canonical PQC transaction. Execute DRT transaction. Execute DGT transaction. Create delegation. Verify fee accounting. Verify finalization. |
-| T PLUS 1 HOUR | Verify state consistency across validators. Verify wallets. Verify staking. Verify rewards. Verify token supply. Verify monitoring. Verify RPC infrastructure. |
-| T PLUS 6 HOURS | Review telemetry. Review logs. Review validator participation. Review token accounting. Review transaction statistics. Review security alerts. Review staking activity. |
-| T PLUS 24 HOURS | Perform full supply reconciliation. Perform full validator review. Perform final state consistency review. |
+| **Integrity** (every run; a failure stops the run) | Zero conflicting finalized blocks. The same app hash on every node at every checkpoint. Supply reconciles exactly: DRT genesis plus emitted minus burned, DGT unchanged, and the account totals equal the supply counters. No committed block lost in any recovery. |
+| **Liveness** (outside injected faults) | Median block interval at most 6 s; 99th percentile at most 10 s. |
+| **Inclusion** | At half capacity, 99% of valid transactions committed within 2 blocks. At full capacity, no valid transaction lost: each is committed or refused at admission. |
+| **Recovery** | Blocks again within 5 minutes of a validator process restart; sentry and endpoint caught up within 2 minutes of a network heal; a destroyed sentry or endpoint rebuilt within 4 hours; a lost validator host within 8 hours. Every injected fault raises its alert and resolves after recovery. |
+| **Load** (R06) | Full capacity, about 180 basic Sends a block, for 1 hour; half capacity for 6 hours; across 1,000 wallets. |
 
-Complete `FINAL_MAINNET_SIMULATION_REPORT.md` after the final reconciliation.
-Use actual elapsed time for R07. Resolve calendar placement before scheduling its
-30-hour T-6h through T+24h span. Do not compress these checkpoints to fit one date.
-Define the other full operating periods before execution. The brief specifies no
-30-day mandatory soak. The earlier three-run and 30-day proposals are superseded.
+A missed threshold fails the run. A failure is fixed in a new candidate, with a documented diff, and the affected runs are rerun on it; all seven must pass on the final candidate.
 
-## Approved allocations and open economic decisions
+## One validator
 
-The user identified the tokenomics page as the approved allocation source.
-DGT totals 1,000,000,000 tokens. The shares are ecosystem growth 30%, team and advisors
-20%, public sale 15%, private sale 15%, and reserve 20%. DRT reward shares are validators
-40%, stakers 30%, and treasury 30%. These replace conflicting testnet allocations.
-Recipient accounts, custody, vesting, locks, initial stake, and initial DRT remain open.
+The launch has one validator, so some of the brief's network scenarios mean something specific:
 
-Keep D01: the selected corrected adaptive controller. The site's piecewise-linear
-emission curve differs from D01. Allocation approval does not replace the controller.
-Resolve this discrepancy before protocol freeze. These document changes do not change
-runtime values or activate the controller.
+- **Stopping the validator halts the chain.** Every host raises a halt alert. A restart resumes it with no procedure, since the double-sign startup check is 0 while there is one validator. The unit does not restart itself, so a crashed validator needs the console (or the agent, in staging).
+- **A validator partition does not halt it.** Holding all the power, the validator keeps committing alone. The sentry and endpoint stall, and the status page answers 503 after 60 seconds. On reconnect they redial within 60 seconds and catch up.
+- **Latency and packet loss** change propagation and how fresh the endpoint is, not consensus.
+- **A second copy of the validator key** is the catastrophic case. A duplicate vote removes the validator for good and ends the chain, and an isolated copy would finalize its own fork. Nothing automatic stops it: today only the fence-first rule ([validator recovery](../operations/validator-recovery.md)) and the pinned peer addresses stand in the way. R05 checks that a second copy at another address cannot reach the network, and the residual risk is recorded.
 
-## Unapproved quantitative proposals
+## The runs
 
-Four independent operators, three failure domains, two restore/upgrade exercises,
-capacity at twice forecast peak, and 99.9% normal-load finality remain proposals.
-They are not approved launch thresholds. Define transaction mix, payload sizes,
-stake distribution, hardware, network conditions, peak forecast, finality deadline,
-recovery deadline, and acceptable data loss before qualification. Approve operator
-and performance criteria. Zero conflicting finalized checkpoints and zero unexplained
-state or accounting differences remain mandatory integrity conditions.
+Each run starts from [Every run](#every-run) and operates for its full period. The brief's full list of required actions is in [launch-rehearsals.json](launch-rehearsals.json).
 
-## Evidence for every run
+| Run | What it does | Tools it needs |
+|---|---|---|
+| **R01 Clean genesis** | The full launch with rehearsal identities: genesis built and verified, bundles installed, validator, sentry and endpoint started; wallets connect, accounts created and funded, DGT bonded to the validator, DRT and DGT transfers, fees burned, rewards accrued and claimed; supply reconciled at each checkpoint | T1, T3, T6, T7 |
+| **R02 Infrastructure failure** | Validator process killed and restarted (the chain halts and resumes); endpoint stopped and restored; peer connections dropped and redialed; sentry destroyed and restored from its snapshot; endpoint rebuilt by state sync; network cut and restored; the validator host lost and recovered by the fence-first procedure. Each fault alerts and resolves, and continuity, state, supply, staking, rewards and wallets are checked after each | T2, T5, T6, T9 |
+| **R03 Adversarial network** | Latency, packet loss and a validator partition at the host; malformed and non-canonical transactions, invalid ML-DSA-65 signatures, bad nonces, duplicates and re-signed copies, oversized requests, invalid serialization, request and transaction floods from the load machines; peer instability. Consensus, state, signature checks, the queue, RPC stability, recovery time and accounting are measured | T2, T3, T4, T5, T6 |
+| **R04 Production upgrade** | Normal operation with transactions, staking and rewards; then a real release handover and state upgrade from RC1 to RC2: prepared, signed three of five with the rehearsal kits, admitted, staged on every host, activated at its height, switched; consensus resumes, and state, balances, staking, rewards, governance, RPC, wallets, transactions and supply are checked before and after | T1, T3, T6, T8 |
+| **R05 Operator error** | Wrong configuration, binary, network, genesis and genesis hash; a misconfigured and an offline validator; endpoint loss; an old snapshot restore; a second copy of the validator key; wrong peers, network settings, fees and environment; incompatible versions. Each must be refused, or stay harmless, with the documented response | T2, T6 |
+| **R06 Load and economic activity** | 1,000 wallets with fresh ML-DSA-65 keys; funding, DRT and DGT transfers, bonding, unbonding to maturity, reward claims, governance proposals, deposits and votes; sustained load and the load thresholds; block, queue, RPC and signature-check limits pushed; malformed traffic mixed in. Safe and peak throughput, saturation, host utilization, wallet reliability and fees are measured | T1, T3, T4, T6 |
+| **R07 Final dress rehearsal** | The exact production launch procedure with production values and the checkpoints below | T1, T2, T3, T6, T7 |
 
-Record the scenario ID, run ID, start and end time, status, owner, and reviewer.
-Record repository commits, working changes, toolchain, dependency locks, build flags,
-artifact digests, protocol version, genesis digest, configuration digest, and random seed.
-Record node identities, operator ownership, stake weights, hardware, failure domains,
-workload, injected service failures, and timing. Store public identities only.
+R07's checkpoints, from the brief:
 
-Keep per-node finalized checkpoints and state roots, supply reconciliations, client
-receipts, resource metrics, event logs, expected results, actual results, and assertions.
-Attach an independent reference result where applicable. Hash the evidence files.
-Do not infer success from process exit alone for a distributed rehearsal.
+| Checkpoint | Checks |
+|---|---|
+| T−6h | Binaries, checksums and release commit; genesis and every allocation; DRT and DGT supply; validators and keys; infrastructure, networking and addresses; RPC, monitoring, alerts, backups and recovery procedures |
+| T−1h | Genesis hash, binary hash, peers, clocks, keys, configuration, allocations and network parameters |
+| T0 | Start; consensus and block production; validator participation |
+| T+15m | RPC, wallet connection, a PQC transaction, a DRT and a DGT transaction, a delegation, fee accounting, finality |
+| T+1h | State consistency across nodes; wallets, staking, rewards, supply, monitoring, RPC |
+| T+6h | Telemetry, logs, participation, accounting, transaction statistics, alerts, staking activity |
+| T+24h | Full supply reconciliation, validator review, final state consistency review |
 
-Stop a run on conflicting finality or unexplained accounting divergence. Preserve
-the evidence. Resolve the cause, then rerun affected scenarios and their dependencies.
-Changes to consensus, economics, cryptography, or persistence invalidate affected
-candidate results and restart the affected qualification window. Record the decision.
-Never use a testnet database reset as a mainnet recovery procedure.
+`FINAL_MAINNET_SIMULATION_REPORT.md` is written after R07's final reconciliation.
 
-## Current runner
+## Tools to build (A3)
 
-`scripts/run_launch_rehearsals.py` runs local prerequisites only. It does not launch
-a network. It records blocked distributed scenarios in the same report. Its process
-exit code describes selected local checks, not mainnet readiness. The report always
-sets `mainnet_ready` to false. This tool cannot grant launch approval.
+Each is proven in the CI staging network before it touches a real host.
 
-From the node repository, use Python 3.11 or later:
+| Tool | Purpose | Builds on |
+|---|---|---|
+| **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
+| **T2** Staging agent and real-host harness | Signed, allowlisted commands on console-only hosts; the existing drills' assertions against real addresses | `staging_network.py` (`run`, `restore-drill`, `kit-drill`, `monitor-drill`), `staging_host.py`, the host scripts |
+| **T3** Load generator and wallet fleet | Persistent workers that sign locally, track nonces and generate the transaction mix through the client channel | SDK `CometClient`, ordinary v2 and v3 `prepare` and `sign`, `submit_sync`, `wait_for_receipt` |
+| **T4** Adversarial generator | Invalid signatures, bad encodings, bad nonces, duplicates, oversized requests, floods | `CometClient::relay`, the client channel crate, the admission and consensus test cases |
+| **T5** Fault injector | Latency, loss and partition (`tc netem`, an nftables table), peer drops, process kills, host loss, each with recovery timing | `staging_network.py` network setup, the monitor drill's fire-and-resolve pattern |
+| **T6** Reconciliation report | At a height: every node's app hash and supply buckets compared; genesis plus emitted minus burned; fees against burns; tracked accounts summed against the totals; `dytallix-state-check` on a stopped copy | `restore-drill`'s comparison, the monitor's supply rules, the status view, `dytallix-state-check` |
+| **T7** Checkpoint recorder | Runs each checkpoint's checks and writes digest-bound evidence | `scripts/run_launch_rehearsals.py`, the drills' JSON evidence, the monitor history |
+| **T8** Upgrade drill | Builds RC2's bundles for an existing chain and runs the handover and upgrade end to end on the hosts | the kit drill's control flow, `stage.sh` and `switch.sh`, the signed handover process tests |
+| **T9** Validator recovery drill | Fence, set aside the consensus WAL, reinstall, block-sync, time against the target | [validator recovery](../operations/validator-recovery.md), the restore drill |
+
+The capacity measurements (T05) use T3 and T6.
+
+## Scenario register
+
+`launch-rehearsals.json` keeps the twenty mandatory scenarios (L01 to L20) that the runs cover and the brief's verbatim instructions. L01 and L02 are local prerequisites (`scripts/run_launch_rehearsals.py`); L18 is the seven runs; L19 the frozen candidate's operating periods; L20 the launch decision. Under the solo launch profile, "independent operators" and "independent reviewers" mean what the gate data's `acceptance_profile` says.
+
+## Evidence
+
+Each run records: the run ID, start and end, status and the founder's sign-off; the source revision, the release manifest and binary digests, the genesis and configuration digests, the rehearsal chain ID and the shortened timing set; the node identities (public only), the workload, the injected faults and their timing; per-node finalized heights, app hashes and supply reconciliations; client receipts, resource metrics, alerts and logs; expected and actual results and every assertion. The evidence files are hashed. Success is never inferred from a process exiting.
+
+A run stops on conflicting finality or an unexplained accounting difference: the evidence is preserved, the cause fixed, and the affected runs rerun. A change to consensus, economics, cryptography or persistence invalidates the affected results. A testnet-style database reset is never a mainnet recovery procedure.
+
+## Local prerequisites
+
+`scripts/run_launch_rehearsals.py` runs the local prerequisites only (L01, L02) and records the distributed scenarios as blocked; its report always sets `mainnet_ready` to false.
 
 ```sh
 python3 scripts/run_launch_rehearsals.py --profile components --output /absolute/path/outside/repository/new-run
 ```
 
-Use `--profile preflight` for reference and module checks only. Use a new output
-directory per run. Cargo runs with the dependency lock and offline mode. Missing
-cached dependencies cause a failed prerequisite. The runner hashes tracked and
-nonignored untracked files before and after execution. Source changes invalidate
-the run. Ignored build caches and external system libraries are outside that digest.
-
-A local prerequisite run is evidence for its recorded working tree. It is not release evidence.
-The address patch remains unfinished. The SDK still needs the same address format.
-L03-L20 need implementation, decisions, operator work, or independent approval.
+Use `--profile preflight` for the reference and module checks only, and a new output directory per run. Cargo runs locked and offline. The runner hashes tracked and non-ignored untracked files before and after; a source change invalidates the run.

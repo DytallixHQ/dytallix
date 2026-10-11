@@ -33,8 +33,8 @@
       "id": "L04",
       "name": "Genesis ceremony",
       "mandatory": true,
-      "acceptance": "Independent operators reproduce genesis digest, approved allocations, stake, and initial state; changed inputs fail startup",
-      "dependency": "Approved recipient/custody/vesting records, DRT initial supply, identity, and validator specification",
+      "acceptance": "A clean CI runner and a fresh container reproduce the genesis digest, approved allocations, stake and initial state (the acceptance profile); changed inputs fail startup",
+      "dependency": "The spendable rehearsal genesis (T1); for production, the final input freeze records",
       "owner_role": "Protocol and operations",
       "implementation": "pending"
     },
@@ -114,8 +114,8 @@
       "id": "L13",
       "name": "Consensus fault-model qualification",
       "mandatory": true,
-      "acceptance": "Independent review and bounded model tests cover the approved faulty-validator assumptions; no conflicting finalization within the model",
-      "dependency": "Final consensus specification and independent review",
+      "acceptance": "Hashlock's audit and the public review cover the approved fault assumption (less than one third faulty; with one validator, none tolerated); no conflicting finalization in any run",
+      "dependency": "The audit of the frozen candidate",
       "owner_role": "Consensus and assurance",
       "implementation": "pending"
     },
@@ -150,8 +150,8 @@
       "id": "L17",
       "name": "Operator response",
       "mandatory": true,
-      "acceptance": "Monitoring detects injected service failures; operators execute restore, disposable-key rotation, and emergency update procedures within targets",
-      "dependency": "Independent operators, custody, alerts, and runbooks",
+      "acceptance": "Monitoring detects every injected service failure and resolves after recovery; the operator executes restore, validator recovery and root control procedures within the approved targets",
+      "dependency": "The real alerting and uptime services, the staging agent (T2), the rehearsal kits and the runbooks",
       "owner_role": "Operations",
       "implementation": "pending"
     },
@@ -159,8 +159,8 @@
       "id": "L18",
       "name": "Repeated full launch",
       "mandatory": true,
-      "acceptance": "Seven fresh full launch runs R01-R07 pass in Week 4 using the production architecture, token model, validator model, genesis, deployment, upgrade procedures, and runbooks",
-      "dependency": "L03-L17 integrated qualification and mandatory seven-run harness",
+      "acceptance": "Seven fresh full launch runs R01-R07 pass on the final candidate, after the audit fixes, on the production hosts before genesis, with the production architecture, token model, validator model, genesis, deployment, upgrade procedures and runbooks",
+      "dependency": "L03-L17 and the simulation tools T1-T9",
       "owner_role": "QA and operations",
       "implementation": "pending"
     },
@@ -177,21 +177,22 @@
       "id": "L20",
       "name": "Final launch decision",
       "mandatory": true,
-      "acceptance": "All mandatory evidence passes; independent mathematical and security reviews close; release and genesis digests agree; named authorities sign",
+      "acceptance": "All mandatory evidence passes; Hashlock's report is published and its findings fixed or answered; release and genesis digests agree; three of the five genesis keys sign and the founder signs off",
       "dependency": "All earlier scenarios and G0-G8 gate evidence",
       "owner_role": "Protocol, security, and operations",
       "implementation": "pending"
     }
   ],
   "authority": {
-    "launch_brief": "USER_LAUNCH_REQUIREMENTS.txt, Week 4 and final review",
+    "launch_brief": "USER_LAUNCH_REQUIREMENTS.txt (the seven runs and the final review)",
     "allocation_reference": "https://dytallix.com/developers/tokenomics",
     "allocation_record": "evidence/TOKENOMICS_APPROVED_SOURCE.json",
-    "precedence": "User launch brief and later allocation approval supersede earlier proposals. Preserve D01 corrected adaptive controller selection."
+    "precedence": "User launch brief and later allocation approval supersede earlier proposals. Preserve D01 corrected adaptive controller selection.",
+    "plan_approval": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json"
   },
   "qualification": {
     "required_full_runs": 7,
-    "schedule": "Week 4, after engineering and qualification gates in Weeks 1 through 3",
+    "schedule": "Task-driven: after the audit fixes, on the final candidate, on the production hosts before genesis, one run after another",
     "successful_full_runs": 0,
     "launch_suite_status": "blocked",
     "production_configuration_required": true,
@@ -221,7 +222,8 @@
       "Developer and validator onboarding"
     ],
     "isolated_rehearsal_identity": "Use isolated chain IDs, network identifiers, ports, storage, synthetic balances, and disposable keys. Preserve approved production rules and procedures. Record all identity substitutions and configuration differences. Unapproved functional differences invalidate qualification.",
-    "simulation_duration": "Set full operating periods before execution. Run 7 requires actual T-6h through T+24h checkpoints. No approved 30-day mandatory gate exists."
+    "simulation_duration": "Set full operating periods before execution. Run 7 requires actual T-6h through T+24h checkpoints. No approved 30-day mandatory gate exists.",
+    "approval_record": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json"
   },
   "full_launch_runs": [
     {
@@ -230,7 +232,7 @@
       "name": "Clean Genesis",
       "mandatory": true,
       "status": "blocked",
-      "implementation": "pending_distributed_harness",
+      "implementation": "planned: simulation tools T1-T9 (launch-rehearsals.md)",
       "prerequisite_scenarios": [
         "L01",
         "L02",
@@ -275,7 +277,7 @@
       "name": "Infrastructure Failure",
       "mandatory": true,
       "status": "blocked",
-      "implementation": "pending_distributed_harness",
+      "implementation": "planned: simulation tools T1-T9 (launch-rehearsals.md)",
       "prerequisite_scenarios": [
         "L01",
         "L02",
@@ -315,7 +317,7 @@
       "name": "Adversarial Network",
       "mandatory": true,
       "status": "blocked",
-      "implementation": "pending_distributed_harness",
+      "implementation": "planned: simulation tools T1-T9 (launch-rehearsals.md)",
       "prerequisite_scenarios": [
         "L01",
         "L02",
@@ -361,7 +363,7 @@
       "name": "Production Upgrade",
       "mandatory": true,
       "status": "blocked",
-      "implementation": "pending_distributed_harness",
+      "implementation": "planned: simulation tools T1-T9 (launch-rehearsals.md)",
       "prerequisite_scenarios": [
         "L01",
         "L02",
@@ -401,7 +403,7 @@
       "name": "Operator Error",
       "mandatory": true,
       "status": "blocked",
-      "implementation": "pending_distributed_harness",
+      "implementation": "planned: simulation tools T1-T9 (launch-rehearsals.md)",
       "prerequisite_scenarios": [
         "L01",
         "L02",
@@ -446,7 +448,7 @@
       "name": "Production Load And Economic Activity",
       "mandatory": true,
       "status": "blocked",
-      "implementation": "pending_distributed_harness",
+      "implementation": "planned: simulation tools T1-T9 (launch-rehearsals.md)",
       "prerequisite_scenarios": [
         "L01",
         "L02",
@@ -499,7 +501,7 @@
       "name": "Final Mainnet Dress Rehearsal",
       "mandatory": true,
       "status": "blocked",
-      "implementation": "pending_distributed_harness",
+      "implementation": "planned: simulation tools T1-T9 (launch-rehearsals.md)",
       "prerequisite_scenarios": [
         "L01",
         "L02",
@@ -721,16 +723,19 @@
     "emission_controller": "D01 selected corrected adaptive controller; not the website piecewise-linear curve",
     "emission_conflict_status": "blocker before protocol freeze; allocation approval does not replace D01"
   },
-  "unapproved_proposals": {
-    "operator_count": 4,
-    "failure_domains": 3,
-    "restore_and_upgrade_exercises": 2,
-    "capacity_multiple_of_forecast_peak": 2,
-    "normal_load_finality_target_percent": 99.9,
-    "status": "proposals only; obtain approved capacity, finality, recovery, hardware, network, and operator criteria before qualification"
-  },
   "superseded_proposals": [
     "Three complete fresh launches: replaced by seven mandatory Week 4 runs.",
-    "At least 30 consecutive days: not an approved mandatory launch requirement. Retained only in archived prior text."
-  ]
+    "At least 30 consecutive days: not an approved mandatory launch requirement. Retained only in archived prior text.",
+    "Four independent operators, three failure domains, two restore/upgrade exercises, twice forecast peak and 99.9% normal-load finality: replaced by the solo launch profile and the approved thresholds (simulation plan approval).",
+    "Week 4 placement of the seven runs: replaced by task-driven placement after the audit fixes, on the final candidate."
+  ],
+  "approved_thresholds": {
+    "approval_record": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
+    "integrity": "Zero conflicting finalized blocks; the same app hash on every node at every checkpoint; exact supply reconciliation; no committed block lost in any recovery. A failure stops the run.",
+    "liveness": "Outside injected faults, median block interval at most 6 s and 99th percentile at most 10 s.",
+    "inclusion": "At half capacity, 99% of valid transactions committed within 2 blocks; at full capacity, no valid transaction lost.",
+    "recovery": "Validator restart 5 minutes; network heal 2 minutes; sentry or endpoint rebuilt 4 hours; validator host 8 hours; every injected fault alerts and resolves.",
+    "load": "R06: full capacity (about 180 basic Sends a block) for 1 hour and half capacity for 6 hours, across 1,000 wallets.",
+    "timings": "R01-R06 use a recorded set of shortened timings so each lifecycle completes inside its run; R07 uses the exact production values."
+  }
 }
