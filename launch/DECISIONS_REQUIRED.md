@@ -43,6 +43,8 @@ P01 approved these engineering designs. Each document records the options and th
 - [Kit replacement during a freeze](approvals/P01_E05_KIT_REPLACEMENT_FREEZE_2026-10-08.json) (8 October): a kit replacement is not admitted while the chain is frozen or in a block with an emergency control, as upgrades and handovers signed by the same keys are not; one already admitted still takes effect at its effect height (D10-Q03, D11-Q03) ([root kit replacement v1](../node/docs/architecture/root-kit-replacement-v1.md)).
 - [Five holders' custody packets](approvals/P01_E05_HOLDER_DISCLOSURE_2026-10-10.json) (10 October): the five key holders' emergency, upgrade and genesis packets carry no independence review; the public disclosure in TRUST_MODEL.md stands in for it, as under the solo profile (D10-Q03) ([key ceremony](custody/KEY_CEREMONY.md)).
 - [Role logs](approvals/P01_E05_ROLE_LOGS_2026-10-10.json) (10 October): the engine, bridge and adapter keep their log levels, the engine at info; their output in the node's journal, kept 90 days, meets the approved log policy (D12-Q02) ([host setup v1](../node/docs/architecture/host-setup-v1.md)).
+- [Queue bounds](approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json) (10 October): the ordinary admission queue holds at most 2,000 pending transactions, 10,000,000 envelope bytes and 2,000 signature checks, about ten full blocks each, as proposed; T05 measures them. The seven other capacity values (engine mempool, peer rates and client connection limits) are proposed for review and stay open (D06-Q02, D12-Q01) ([mempool v1](../node/docs/architecture/mempool-v1.md)).
+- [Review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json) (10 October): the release candidate is frozen after the holders' kits, the custody packets and the staging runs, as the order of work says; until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered before the freeze (D14-Q01, D14-Q02) ([genesis framework](GENESIS_FRAMEWORK.md#6-order-of-work)).
 - [Alert rules](approvals/P01_E05_ALERT_RULES_2026-10-10.json) (10 October): the fourteen alert rules of monitoring v1 and their severities as proposed, escalation of a severity 1 alert after 15 minutes and 396 days of metric history (E05 values monitor.*); each host uploads its daily history encrypted under a separate history code and upload key, so the backup code stays on the sentry (M4b); the webhook settings are installed and replaced by the installer's monitor-settings command, root-only and never in the bundle, instead of being sealed with the node keys (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
 - [Metric set](approvals/P01_E05_METRIC_SET_2026-10-10.json) (10 October): the metric set gains transactions by kind and result, gas used, validator evidence, root controls by kind, signature verifications and their time, and the engine's PQC signing time, without per-peer or per-account labels (D12-Q02) ([metrics v1](../node/docs/architecture/metrics-v1.md)).
 - [Status page head age](approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json) (10 October): the endpoint's status page answers 503 when the newest block is more than 60 seconds old (D12-Q02) ([monitoring v1](../node/docs/architecture/monitoring-v1.md)).
@@ -263,7 +265,9 @@ Operating values (P01, 2 October 2026, [E05 values, fourth set](approvals/P01_E0
 
 Fault assumptions ([P01, 3 October 2026](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json)): less than one third of voting power is faulty at any time; with one validator at launch, no fault is tolerated.
 
-Remaining inputs: measured mempool size and bytes, send and receive rates and the admission queue (T05), and the state-sync trust source and snapshot peers (records).
+Queue bounds ([P01, 10 October 2026](approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json)): the ordinary admission queue holds at most 2,000 pending transactions, 10,000,000 envelope bytes and 2,000 signature checks, about ten blocks of the approved capacity; a full queue refuses and never evicts. T05 measures them and can return one for a new approval.
+
+Remaining inputs: the mempool size and bytes and the send and receive rates (proposed for review in [E05_VALUES.json](E05_VALUES.json); T05 measures them), and the state-sync trust source and snapshot peers (records).
 
 Required output: Consensus operating specification.
 
@@ -662,6 +666,8 @@ Release libraries ([P01, 5 October 2026](approvals/P01_E06_STATIC_RELEASE_2026-1
 
 Repository ([P01, 5 October 2026](approvals/P01_E06_REPOSITORY_2026-10-05.json)): DytallixHQ/dytallix is MIT OR Apache-2.0, with third-party code under its own license; outside contributions are signed off under the DCO, with no CLA; the history moves with the founder's GitHub noreply address; afterwards mainnet/ in exocognosis/dytallix becomes a pointer. The move was made on 5 October 2026 ([the move](../release/MOVE.md)).
 
+Review order ([P01, 10 October 2026](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)): the release candidate is frozen after the holders' kits, the custody packets and the staging runs on the production hosts ([order of work](GENESIS_FRAMEWORK.md#6-order-of-work)). Until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered on the record before the freeze. The bounty tiers and amounts remain a later decision.
+
 Required output: Release and review specification.
 
 Proposed owner role: Release and QA leads with independent reviewers. Named assignment and reviewer remain as recorded in the structured register.
@@ -673,6 +679,8 @@ Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_
 What workload, finality, recovery and acceptance thresholds, calendar and launch authority apply?
 
 **Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the P02 precondition for root signing becomes the 30-day public review and the founder's sign-off; the E03 runs, measurements and seven simulations run on the production hosts before genesis.
+
+Review order ([P01, 10 October 2026](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)): the order of work stands, so the 30-day review starts at an E06 freeze that follows the staging runs.
 
 Approved portion (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release, and the root signers sign only after the P02 review, E06 release acceptance and gate acceptance ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 

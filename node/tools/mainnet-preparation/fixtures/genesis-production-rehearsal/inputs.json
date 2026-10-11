@@ -249,9 +249,9 @@
     "max_state_bytes": 64000000,
     "max_transaction_gas": 2000000,
     "minimum_gas": 100000,
-    "queue_max_entries": 10000,
-    "queue_max_signature_work": 10000,
-    "queue_max_wire_bytes": 64000000,
+    "queue_max_entries": 2000,
+    "queue_max_signature_work": 2000,
+    "queue_max_wire_bytes": 10000000,
     "read_byte_cost": 0,
     "receipt_metadata_cost": 1000,
     "signature_costs": {

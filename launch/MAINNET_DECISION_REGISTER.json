@@ -994,9 +994,9 @@
             "approvals/P01_E05_VALUES_4_2026-10-02.json",
             "approvals/P01_E05_PINNED_REDIAL_2026-10-02.json"
           ],
-          "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing (P01, 30 September 2026): about 5-second blocks. Snapshots (P01, 30 September 2026): every 17,280 blocks, keeping three. Capacity, fault assumptions and the remaining synchronization values remain open. Operating values (P01, 2 October 2026): the genesis capacity, transaction format, state and retention limits (about 180 basic Sends a 5 s block; T05 tests these values and can return one for a new approval), the engine consensus deltas with empty blocks every 5 s, a double-sign startup check of 10 blocks on validators, and the networking, mempool and state-sync settings (peers to the 64-pin bound, state-sync trust period 168h). Pinned peers (P01, 2 October 2026): the engine redials a persistent peer for as long as it runs, at most 60 s apart (persistent_peers_max_dial_period).",
+          "approved_portion": "The implemented mempool rule is normative (mempool v1, P01, 30 September 2026). Timing (P01, 30 September 2026): about 5-second blocks. Snapshots (P01, 30 September 2026): every 17,280 blocks, keeping three. Capacity, fault assumptions and the remaining synchronization values remain open. Operating values (P01, 2 October 2026): the genesis capacity, transaction format, state and retention limits (about 180 basic Sends a 5 s block; T05 tests these values and can return one for a new approval), the engine consensus deltas with empty blocks every 5 s, a double-sign startup check of 10 blocks on validators, and the networking, mempool and state-sync settings (peers to the 64-pin bound, state-sync trust period 168h). Pinned peers (P01, 2 October 2026): the engine redials a persistent peer for as long as it runs, at most 60 s apart (persistent_peers_max_dial_period). Queue bounds (P01, 10 October 2026): the ordinary admission queue holds at most 2,000 pending transactions, 10,000,000 envelope bytes and 2,000 signature checks, about ten full blocks each; T05 measures them and can return one for a new approval.",
           "remaining_choices": [
-            "Measured mempool size and bytes, send and receive rates, and the ordinary admission queue (T05)",
+            "Measured mempool size and bytes and send and receive rates (proposed 10 October 2026 for P01 review, E05_VALUES.json; T05)",
             "State-sync trust source and snapshot peers (records)"
           ],
           "approval_records": [
@@ -1006,7 +1006,8 @@
             "approvals/P01_E05_VALUES_4_2026-10-02.json",
             "approvals/P01_E05_PINNED_REDIAL_2026-10-02.json",
             "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json",
-            "approvals/P01_E05_SOLO_VALIDATOR_RESTART_2026-10-06.json"
+            "approvals/P01_E05_SOLO_VALIDATOR_RESTART_2026-10-06.json",
+            "approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json"
           ]
         }
       ],
@@ -3082,14 +3083,15 @@
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
           "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
-          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte. E06 (P01, 5 October 2026): Linux x86_64 release, the wallet also from source; a published builder image and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release and the upgrade keys approve later ones, with no separate release key. Release libraries (P01, 5 October 2026): every release binary is a static executable, so the release manifest lists no runtime libraries and host updates never change what the node runs. Repository (P01, 5 October 2026): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; after the move, mainnet/ in exocognosis/dytallix becomes a pointer.",
+          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte. E06 (P01, 5 October 2026): Linux x86_64 release, the wallet also from source; a published builder image and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release and the upgrade keys approve later ones, with no separate release key. Release libraries (P01, 5 October 2026): every release binary is a static executable, so the release manifest lists no runtime libraries and host updates never change what the node runs. Repository (P01, 5 October 2026): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; after the move, mainnet/ in exocognosis/dytallix becomes a pointer. Review order (P01, 10 October 2026): the release candidate is frozen after the holders' kits, the custody packets and the staging runs on the production hosts (genesis framework, order of work); until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered before the freeze.",
           "remaining_choices": [],
           "approval_records": [
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
             "approvals/P01_E06_RELEASE_2026-10-05.json",
             "approvals/P01_E06_STATIC_RELEASE_2026-10-05.json",
-            "approvals/P01_E06_REPOSITORY_2026-10-05.json"
+            "approvals/P01_E06_REPOSITORY_2026-10-05.json",
+            "approvals/P01_E06_REVIEW_ORDER_2026-10-10.json"
           ]
         },
         {
@@ -3125,7 +3127,7 @@
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "../node/docs/architecture/production-activation-v1.md"
           ],
-          "approved_portion": "Launch authority (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release; root signers sign only after the P02 review, E06 release acceptance and gate acceptance. Solo launch (P01, 3 October 2026): the P02 precondition for root signing becomes the 30-day public review and the founder's sign-off; the E03 runs, measurements and seven simulations run on the production hosts before genesis.",
+          "approved_portion": "Launch authority (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release; root signers sign only after the P02 review, E06 release acceptance and gate acceptance. Solo launch (P01, 3 October 2026): the P02 precondition for root signing becomes the 30-day public review and the founder's sign-off; the E03 runs, measurements and seven simulations run on the production hosts before genesis. Review order (P01, 10 October 2026): the order of work stands, so the 30-day review starts at an E06 freeze that follows the staging runs.",
           "remaining_choices": [
             "Workload, finality, recovery and acceptance thresholds",
             "Calendar"
@@ -3133,7 +3135,8 @@
           "approval_records": [
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
-            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json"
+            "approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json",
+            "approvals/P01_E06_REVIEW_ORDER_2026-10-10.json"
           ]
         },
         {
@@ -4363,6 +4366,41 @@
         "D12-Q02"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-10-10-E05-QUEUE-BOUNDS",
+      "approved": "2026-10-10",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json",
+      "decisions": [
+        "D06-Q02: the ordinary admission queue holds at most 2,000 pending transactions, 10,000,000 envelope bytes and 2,000 signature checks, as proposed; T05 measures them.",
+        "D06-Q02, D12-Q01: the seven remaining capacity values (engine mempool size and bytes, peer send and receive rates, adapter and channel connection limits) are proposed for P01 review and stay open."
+      ],
+      "question_refs": [
+        "D06-Q02",
+        "D12-Q01"
+      ],
+      "unset": [
+        "The seven proposed capacity values",
+        "The T05 capacity measurements on the staging hosts"
+      ]
+    },
+    {
+      "id": "P01-2026-10-10-E06-REVIEW-ORDER",
+      "approved": "2026-10-10",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E06_REVIEW_ORDER_2026-10-10.json",
+      "decisions": [
+        "D14-Q01, D14-Q02: the release candidate is frozen after the holders' kits, the custody packets and the staging runs, as the order of work says; until then engineering prepares the public review (review guide, issue templates and the AI review labeled as AI)."
+      ],
+      "question_refs": [
+        "D14-Q01",
+        "D14-Q02"
+      ],
+      "unset": [
+        "Bug bounty tiers and amounts",
+        "The release candidate commit and tag (E06 freeze)"
+      ]
     },
     {
       "id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",

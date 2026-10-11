@@ -28,6 +28,13 @@ class ResolverTests(unittest.TestCase):
 
     def entry(self, name): return next(v for v in self.values['values'] if v['name'] == name)
 
+    def reopen(self, name):
+        # Every genesis value is approved; reopen one, with a labeled proposal, to test the proposal rules.
+        entry = self.entry(name)
+        entry['status'] = 'OPEN'
+        self.proposals['values'][name] = {'value': entry.pop('approved'), 'status': 'MEASURE_PLACEHOLDER', 'basis': 'test'}
+        del entry['approval_record']
+
     def test_the_committed_rehearsal_is_current(self):
         inputs, report = self.resolve()
         self.assertEqual(r.render(inputs), (REHEARSAL/'inputs.json').read_text(), 'rerun resolve_genesis_inputs.py')
@@ -101,7 +108,8 @@ class ResolverTests(unittest.TestCase):
         self.assertEqual(inputs['issuance']['controller']['soft']['proportional'], 17280000000000)
         source = {v['name']: v['source'] for v in report['values']}
         self.assertEqual(source['ordinary_minimum_gas'], 'APPROVED')
-        self.assertEqual(source['queue_max_entries'], 'MEASURE_PLACEHOLDER')
+        self.assertEqual(source['queue_max_entries'], 'APPROVED')
+        self.assertEqual(inputs['ordinary']['queue_max_entries'], 2000)
 
     def test_every_genesis_value_is_resolved_or_derived(self):
         for v in self.values['values']:
@@ -114,6 +122,7 @@ class ResolverTests(unittest.TestCase):
         self.refused('proposals for approved values')
 
     def test_an_open_value_needs_a_proposal(self):
+        self.reopen('queue_max_entries')
         del self.proposals['values']['queue_max_entries']
         self.refused('queue_max_entries: open with no proposal')
 
@@ -125,10 +134,12 @@ class ResolverTests(unittest.TestCase):
         self.refused('does not use')
 
     def test_a_proposal_carries_a_label(self):
+        self.reopen('queue_max_entries')
         self.proposals['values']['queue_max_entries']['status'] = 'APPROVED'
         self.refused('proposal status')
 
     def test_values_keep_their_types(self):
+        self.reopen('queue_max_entries')
         self.proposals['values']['queue_max_entries']['value'] = 'ten thousand'
         self.refused('queue_max_entries')
         self.proposals['values']['queue_max_entries']['value'] = 10000

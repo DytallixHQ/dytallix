@@ -1174,11 +1174,13 @@
       "fixture_ref": "node/dytallix-fast-launch/node/src/ordinary_test_support.rs:164",
       "decision": "D06-Q02",
       "couplings": "Full queue refuses, never evicts (node/docs/architecture/mempool-v1.md rule 5).",
-      "notes": "Proposed 10 October 2026 for P01 review, derived from the approved capacity; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
+      "notes": "Approved 10 October 2026 as proposed (P01), derived from the approved capacity. T05 measures it on dedicated staging hosts and can return a value for a new approval. Fixture value only, not a recommendation.",
       "tier": "measure",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": 2000,
-      "basis": "About eleven blocks of basic Sends at the approved capacity (about 180 a block), so a full queue drains in under a minute of full blocks; a 20-minute expiry (240 blocks) never needs a longer backlog, and a full queue refuses rather than evicts."
+      "basis": "About eleven blocks of basic Sends at the approved capacity (about 180 a block), so a full queue drains in under a minute of full blocks; a 20-minute expiry (240 blocks) never needs a longer backlog, and a full queue refuses rather than evicts.",
+      "approved": 2000,
+      "approval_record": "approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json"
     },
     {
       "name": "queue_max_wire_bytes",
@@ -1190,11 +1192,13 @@
       "fixture_ref": "node/dytallix-fast-launch/node/src/ordinary_test_support.rs:165",
       "decision": "D06-Q02",
       "couplings": "Not checked >= limits.max_wire_bytes.",
-      "notes": "Proposed 10 October 2026 for P01 review, derived from the approved capacity; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
+      "notes": "Approved 10 October 2026 as proposed (P01), derived from the approved capacity. T05 measures it on dedicated staging hosts and can return a value for a new approval. Fixture value only, not a recommendation.",
       "tier": "measure",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": 10000000,
-      "basis": "Ten blocks of the approved 1,000,000 transaction bytes a block; far above one transaction's wire bound, and about 10 MB of memory."
+      "basis": "Ten blocks of the approved 1,000,000 transaction bytes a block; far above one transaction's wire bound, and about 10 MB of memory.",
+      "approved": 10000000,
+      "approval_record": "approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json"
     },
     {
       "name": "queue_max_signature_work",
@@ -1206,11 +1210,13 @@
       "fixture_ref": "node/dytallix-fast-launch/node/src/ordinary_test_support.rs:166",
       "decision": "D06-Q02",
       "couplings": "",
-      "notes": "Proposed 10 October 2026 for P01 review, derived from the approved capacity; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
+      "notes": "Approved 10 October 2026 as proposed (P01), derived from the approved capacity. T05 measures it on dedicated staging hosts and can return a value for a new approval. Fixture value only, not a recommendation.",
       "tier": "measure",
-      "status": "OPEN",
+      "status": "APPROVED",
       "proposed": 2000,
-      "basis": "Ten blocks of the approved 200 signature checks a block. Every pending transaction is checked again after each block, so this bounds that work: 2,000 ML-DSA-65 verifications, a fraction of a 5-second block on one core. T05 measures signature_verification_seconds to confirm."
+      "basis": "Ten blocks of the approved 200 signature checks a block. Every pending transaction is checked again after each block, so this bounds that work: 2,000 ML-DSA-65 verifications, a fraction of a 5-second block on one core. T05 measures signature_verification_seconds to confirm.",
+      "approved": 2000,
+      "approval_record": "approvals/P01_E05_QUEUE_BOUNDS_2026-10-10.json"
     },
     {
       "name": "template_timing_version",
@@ -2932,11 +2938,11 @@
       "fixture_ref": "node/consensus/cometbft/upstream/config/config.go:1029; node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204",
       "decision": "D06-Q02",
       "couplings": "",
-      "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Mempool type flood with recheck is code-fixed (node/consensus/cometbft/internal/enginepqc/engine.go:126-131). Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review; the measure tier sets it from T05 on dedicated staging hosts. Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Mempool type flood with recheck is code-fixed (node/consensus/cometbft/internal/enginepqc/engine.go:126-131). Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 2100,
+      "basis": "The approved queue's 2,000 transactions plus room for 100. Root controls (freeze, resume, upgrade, handover and kit replacement) skip the application's queue, so the engine's mempool must hold more than the queue, or a full queue would also shut out an emergency freeze; only correctly signed controls can use the room. With the engine larger, a full queue refuses with the application's own reason."
     },
     {
       "name": "mempool_max_txs_bytes",
@@ -2948,11 +2954,11 @@
       "fixture_ref": "node/consensus/cometbft/upstream/config/config.go:1030; node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204",
       "decision": "D06-Q02",
       "couplings": "",
-      "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Mempool type flood with recheck is code-fixed (node/consensus/cometbft/internal/enginepqc/engine.go:126-131). Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review; the measure tier sets it from T05 on dedicated staging hosts. Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Mempool type flood with recheck is code-fixed (node/consensus/cometbft/internal/enginepqc/engine.go:126-131). Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 16000000,
+      "basis": "The engine counts raw transaction bytes, which carry the binary envelope in base64 inside JSON: the queue's 10,000,000 envelope bytes are about 13.4 MB raw. The rest, about 2.6 MB, is room for root controls, which skip the queue (at most 262,144 bytes each, about nine). So the queue refuses first, and an emergency freeze still fits when the queue is full."
     },
     {
       "name": "mempool_cache_size",
@@ -3054,11 +3060,11 @@
       "fixture_ref": "node/consensus/cometbft/upstream/config/config.go:716; node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204",
       "decision": "D06-Q02",
       "couplings": "",
-      "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review; the measure tier sets it from T05 on dedicated staging hosts. Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 5120000,
+      "basis": "The upstream default, 5,120,000 bytes a second per peer. A full 1 MiB block reaches a peer in about 0.2 s, well inside the 3 s propose timeout, and the busiest steady load (a full block and the gossip of the same transactions every 5 s, about 420 KB/s) uses under a tenth of it. A joining node block-syncs at up to this rate from each peer. T05 checks the sentry's link with all its peers."
     },
     {
       "name": "p2p_recv_rate",
@@ -3070,11 +3076,11 @@
       "fixture_ref": "node/consensus/cometbft/upstream/config/config.go:717; node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204",
       "decision": "D06-Q02",
       "couplings": "",
-      "notes": "Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review; the measure tier sets it from T05 on dedicated staging hosts. Fixture uses cfg.DefaultConfig() (node/consensus/cometbft/cmd/dytallix-comet-fixture/main.go:204) and does not override this field, so the value shown is the upstream default. Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 5120000,
+      "basis": "Equal to the send rate (5,120,000 bytes a second per peer), so neither end of a connection throttles the other."
     },
     {
       "name": "p2p_max_packet_msg_payload_size",
@@ -3590,11 +3596,11 @@
       "fixture_ref": "node/crates/native-supervisor/src/config.rs:961",
       "decision": "D12-Q01 (rate limits)",
       "couplings": "Compiled ceilings: 32 connections, 1 MiB request, 1.5 MB response, 64 headers / 64 KiB, 10 s deadline; max_header_bytes >= 8192 (rpc-controls-v1.md:62-77).",
-      "notes": "Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 4,
+      "basis": "The engine's client socket takes 32 connections and closes the rest, and three adapter listeners forward into it: the client channel (16), this loopback listener (4) and the status page (8, fixed). 16 + 4 + 8 = 28 leaves 4 for local readers such as the supervisor's readiness check, so public load can't shut the status page out. The loopback listener serves only tools on the endpoint host itself."
     },
     {
       "name": "adapter_max_request_body_bytes",
@@ -3696,11 +3702,11 @@
       "fixture_ref": "node/crates/native-supervisor/src/config.rs:998",
       "decision": "D12-Q01",
       "couplings": "",
-      "notes": "Fixture value only, not a recommendation.",
+      "notes": "Proposed 10 October 2026 for P01 review; the measure tier sets it from T05 on dedicated staging hosts. Fixture value only, not a recommendation.",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 16,
+      "basis": "Sized with the loopback listener (4) and the status page (8) to stay within the engine client socket's 32 connections, leaving 4 spare (see adapter_max_connections). Each connection carries one request, so 16 public requests can be in flight: ample at launch. T05's load test measures it and can propose more, up to the compiled ceiling of 64."
     },
     {
       "name": "channel_max_connections_per_address",
@@ -3712,11 +3718,11 @@
       "fixture_ref": null,
       "decision": "D12-Q01",
       "couplings": "",
-      "notes": "No positive fixture value found (0 is shown refused at node/crates/native-supervisor/src/config.rs:1021).",
+      "notes": "Proposed 10 October 2026 for P01 review; the measure tier sets it from T05 on dedicated staging hosts. No positive fixture value found (0 is shown refused at node/crates/native-supervisor/src/config.rs:1021).",
       "tier": "measure",
       "status": "OPEN",
-      "proposed": null,
-      "basis": null
+      "proposed": 2,
+      "basis": "A wallet sends one request per connection, one at a time; 2 lets a client overlap a submission with a read. Filling the 16 connections then takes eight addresses rather than four at the ceiling of 4. Per-address rates are D12-Q01's, at the host firewall."
     },
     {
       "name": "status_max_head_age_seconds",
