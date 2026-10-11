@@ -2,8 +2,12 @@
 
 Engineering task E05. How a bare server becomes a running Dytallix node of
 one role (validator, sentry or endpoint) under the solo launch profile:
-three hosts, the founder alone, console access only
-([solo launch](../../../launch/approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)).
+the founder alone, console access only
+([solo launch](../../../launch/approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)),
+on two hosts: the private validator and the sentry, the one public node,
+which also serves the client channel and the status page
+([two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)). Every endpoint serves clients, a sentry may and a
+validator never does; an endpoint on a server of its own can still be added.
 This is the design. Steps H2 (the generator), H3 (node keys, bundles and
 the installer) and H4 (the CI install) are built; H5 follows.
 
@@ -73,21 +77,21 @@ release, genesis, root sigs ─┘                                              
                                                                              start
 ```
 
-1. **Plan.** The founder writes the pin plan (`PIN_PLAN.json`, the three
+1. **Plan.** The founder writes the pin plan (`PIN_PLAN.json`, the two
    hosts' roles, addresses, ports and pins;
    [host configuration](../mainnet/host-configuration.md)) from
    [`launch/hosts/PIN_PLAN.template.json`](../../../launch/hosts/PIN_PLAN.template.json):
-   the validator pins its sentry, the sentry pins the validator and the
-   endpoint, and the endpoint pins the sentry.
+   the validator and the sentry pin each other, and the sentry's entry names
+   its client channel and status page addresses.
 2. **Node keys, offline.** On the ceremony machine
    ([key ceremony, node keys](../../../launch/custody/KEY_CEREMONY.md#node-keys)),
    `host_keys.py` makes, for each host in the plan: the validator key and its
    fresh signing state (`dytallix-validator-key`), the peer seed
-   (`dytallix-peer-seed`) and, for the endpoint, the client channel seed and
-   its pin (`dytallix-channel-key`). It writes the key summaries, seals each
+   (`dytallix-peer-seed`) and, for each host serving clients (here the
+   sentry), the client channel seed and its pin (`dytallix-channel-key`). It writes the key summaries, seals each
    host's private files (`dytallix-root-sign seal`) and has the founder type
    each printed seal code back from paper (`seal-check`). Its output is
-   public: the summaries, the sealed records, the endpoint's channel pin and
+   public: the summaries, the sealed records, the sentry's channel pin and
    the pin plan with the public keys filled in, which also go into the
    genesis (the validator's key).
 3. **Generate, online.** `dytallix-host-config` writes each host's engine
@@ -146,8 +150,8 @@ The offline key step writes, for each host, `LABEL.keys.json`
 (`dytallix.host-keys.v1`): the label, role, peer and validator public keys,
 and `secret_files`, the SHA-256 of each private file the sealed keys hold
 (`config/pqc_peer_seed.bin`, `config/priv_validator_key.json`,
-`data/priv_validator_state.json` and, on the endpoint,
-`config/client_channel_seed.bin`), and for the endpoint its public
+`data/priv_validator_state.json` and, on a host serving clients,
+`config/client_channel_seed.bin`), and for that host its public
 `LABEL.channel-pin.json`. The generator pins the digests; it never sees a
 private file.
 
@@ -174,7 +178,7 @@ supervisor's report goes to the journal.
 - The journal kept on disk for 90 days (`Storage=persistent`,
   `MaxRetentionSec=90d`, in `/etc/systemd/journald.conf.d/dytallix.conf`,
   which the generator writes), the operations objectives' log retention.
-- Nothing else runs on the host. Each role has a cloud server of its own, with at least 8 GB of memory ([hosting](../../../launch/approvals/P01_E05_HOSTING_2026-10-11.json)).
+- Nothing else runs on the host. Each host is a cloud server of its own at one provider, the validator and the sentry in different countries ([hosting](../../../launch/approvals/P01_E05_HOSTING_2026-10-11.json)); at launch, the founder's two 4 GB servers, resized only if the capacity runs (T05) prove them too small ([two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)).
 
 ## Host values (P01, 6 October 2026)
 
@@ -183,10 +187,10 @@ holds the generator's approved values beyond the engine settings
 ([host values approval](../../../launch/approvals/P01_E05_HOST_VALUES_2026-10-06.json)),
 proposed from the node's tested harnesses:
 
-- **Unit limits,** every host: memory 6 GiB, so 8 GB hosts suffice; 4,096
-  tasks; 65,536 open files.
-- **Ports:** P2P 26656; the endpoint's client channel 26670 and status page
-  8080.
+- **Unit limits,** every host: memory 3 GiB, so 4 GB hosts suffice
+  ([two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json), replacing 6 GiB); 4,096 tasks; 65,536 open files.
+- **Ports:** P2P 26656; on a host serving clients, the client channel 26670
+  and the status page 8080.
 - **Code owners:** root only.
 - **Catalog checks:** manifest and mapping 1 MiB, 32 members, 16 roles and
   runtime profiles, 128 references, 128-byte IDs, 4,096-byte paths, 128 MiB
@@ -231,23 +235,23 @@ founder to type `wipe LABEL` first and keeps the account.
   install` runs the validator's `install.sh` with its seal code, starts the
   unit, waits for the application's height metric, verifies the host and
   `wipe` removes it. The same two commands rehearse a staging host by hand.
-  The workflow's second job runs all three roles (`staging_network.py`):
-  the validator on the runner and the sentry and the endpoint in two KVM
-  virtual machines on a private bridge, each with its own address on its
-  own interface and its own bundle, driven through the QEMU guest agent
-  (their firewalls drop everything else). The sentry syncs from the
-  validator, the endpoint through the sentry, the endpoint's status page
-  answers, the sentry snapshots (a staging interval of 10 blocks) and its
-  backup job uploads an encrypted copy to a stand-in store
-  (`s3_standin.py`), which the runner opens with the backup code and
+  The workflow's second job runs the two seats (`staging_network.py`):
+  the validator on the runner and the sentry, serving clients, in a KVM
+  virtual machine on a private bridge, each with its own address on its
+  own interface and its own bundle, the VM driven through the QEMU guest
+  agent (its firewall drops everything else). The sentry syncs from the
+  validator, its status page answers, it snapshots (a staging interval of
+  10 blocks) and its backup job uploads an encrypted copy to a stand-in
+  store (`s3_standin.py`), which the runner opens with the backup code and
   compares with the snapshot.
 - **H5.** The runbooks that change with it: start and stop, a release switch
-  on a host, validator recovery, rebuilding the endpoint by state sync.
+  on a host, validator recovery, rebuilding a lost sentry or endpoint.
   Built: [host operations](../operations/host.md) (status, start and stop,
   staging wipe, and the release switch: `stage.sh` and `switch.sh` over
-  `host_install.py stage|switch`, P01, 6 October 2026) and
-  [validator recovery](../operations/validator-recovery.md) (F17). Open:
-  disaster recovery (F19) and the endpoint rebuild.
+  `host_install.py stage|switch`, P01, 6 October 2026),
+  [validator recovery](../operations/validator-recovery.md) (F17) and
+  [disaster recovery](../operations/disaster-recovery.md) (F19: a lost host
+  rebuilt from its bundle and restored from the newest off-host copy).
 
 ## Open on staging
 

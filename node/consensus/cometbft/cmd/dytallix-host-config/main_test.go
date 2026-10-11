@@ -294,11 +294,11 @@ func TestThePlanFollowsTheApprovedMeshRules(t *testing.T) {
 		"bad label":           {func(p *plan) { label(p, "sentry-4").Operator = "operator 4" }, "identifiers"},
 		"role":                {func(p *plan) { label(p, "sentry-4").Role = "observer" }, "role must be"},
 		"relative home":       {func(p *plan) { label(p, "sentry-4").Home = "srv/dytallix" }, "clean absolute"},
-		"sentry channel":      {func(p *plan) { c := "198.51.100.21:9443"; label(p, "sentry-2").Channel = &c }, "channel listener"},
-		"endpoint no channel": {func(p *plan) { label(p, "endpoint-1").Channel = nil }, "channel listener"},
+		"validator channel":   {func(p *plan) { c := "192.0.2.11:9443"; label(p, "validator-1").Channel = &c }, "a validator has no channel listener"},
+		"endpoint no channel": {func(p *plan) { label(p, "endpoint-1").Channel = nil }, "every endpoint has a channel listener"},
 		"channel elsewhere":   {func(p *plan) { c := "203.0.113.12:9443"; label(p, "endpoint-1").Channel = &c }, "P2P address on another port"},
 		"channel same port":   {func(p *plan) { c := "203.0.113.11:26656"; label(p, "endpoint-1").Channel = &c }, "P2P address on another port"},
-		"sentry status":       {func(p *plan) { st := "198.51.100.21:8080"; label(p, "sentry-2").Status = &st }, "only an endpoint serves the status page"},
+		"sentry status":       {func(p *plan) { st := "198.51.100.21:8080"; label(p, "sentry-2").Status = &st }, "only a node with a channel listener serves the status page"},
 		"status elsewhere":    {func(p *plan) { st := "203.0.113.12:8080"; label(p, "endpoint-1").Status = &st }, "status page uses the node's P2P address"},
 		"status on channel":   {func(p *plan) { st := "203.0.113.11:9443"; label(p, "endpoint-1").Status = &st }, "status page uses the node's P2P address"},
 		"status on p2p":       {func(p *plan) { st := "203.0.113.11:26656"; label(p, "endpoint-1").Status = &st }, "status page uses the node's P2P address"},
@@ -322,6 +322,36 @@ func TestThePlanFollowsTheApprovedMeshRules(t *testing.T) {
 	if _, err := generateFixture(t, raw); err == nil || !strings.Contains(err.Error(), "missing fields") {
 		t.Errorf("missing field: %v", err)
 	}
+}
+
+// The public node of two seats (P01, 11 October 2026): a sentry may serve
+// the client channel and the status page, and the published firewall opens
+// them on its address.
+func TestASentryMayServeClients(t *testing.T) {
+	p := fixturePlan(t)
+	channel, status := "198.51.100.21:9443", "198.51.100.21:8080"
+	for i := range p.Hosts {
+		if p.Hosts[i].Label == "sentry-2" {
+			p.Hosts[i].Channel, p.Hosts[i].Status = &channel, &status
+		}
+	}
+	files, err := generateFixture(t, encodePlan(t, p))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bindings
+	if err := strict(filesByPath(files)["PIN_PLAN_BINDINGS.json"], &out); err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range out.Hosts {
+		if h.Label == "sentry-2" {
+			if h.Role != "sentry" || strings.Join(h.Firewall.PublicListeners, ",") != channel+","+status {
+				t.Fatalf("sentry-2: role %s, listeners %v", h.Role, h.Firewall.PublicListeners)
+			}
+			return
+		}
+	}
+	t.Fatal("no sentry-2 in the bindings")
 }
 
 // A validator registered after genesis has a key outside the genesis set

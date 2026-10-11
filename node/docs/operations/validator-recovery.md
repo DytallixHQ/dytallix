@@ -20,7 +20,7 @@ Severity 1.
 - **Never restore signing state from a backup.** The replacement starts from
   the sealed bundle's fresh signing state and signs again from the next
   height. The old validator's last votes for that height may still be held
-  by the sentry or the endpoint; step 5 sets them aside so that no node holds
+  by the sentry (or an endpoint, if one is added); step 5 sets them aside so that no node holds
   an old vote and a new one for the same height and round.
 - **If in doubt, wait.** Waiting costs time against the 8 hours; a second
   signer can end the chain.
@@ -47,7 +47,7 @@ Severity 1.
    console shows it deleted or reinstalled. Do not continue until then.
 4. **Record the halt height H**, the sentry's `dytallix_app_height`. The
    replacement block syncs to H from the sentry and signs from H+1.
-5. **Set the old votes aside.** On the sentry, then on the endpoint:
+5. **Set the old votes aside.** On the sentry, then on any endpoint:
 
    ```text
    systemctl stop dytallix-node
@@ -57,7 +57,7 @@ Severity 1.
 
    Neither node signs, so its consensus log is only a record of messages it
    received; setting it aside drops the old validator's last votes. Do not
-   delete it. Leave both nodes stopped.
+   delete it. Leave them stopped.
 6. **Provision** the replacement: Ubuntu 24.04 with the host base setup
    ([host setup v1](../architecture/host-setup-v1.md#host-packages-and-settings)),
    and the old server's public IPv4 address, reassigned to it in the
@@ -69,13 +69,14 @@ Severity 1.
    download the bundle, check its SHA-256, unpack it, run
    `./dytallix-host/install.sh` and type the seal code. Do not start it yet.
 8. **Start in order:** the sentry (`systemctl start dytallix-node`), then
-   the replacement validator, then the endpoint. The validator block syncs
+   the replacement validator, then any endpoint. The validator block syncs
    from the sentry to H, then signs from H+1.
 9. **Verify:**
    - on the validator, `dytallix_app_height` passes H and keeps rising, and
      `python3 -I -B dytallix-host/host_install.py verify` passes;
-   - the sentry's and the endpoint's heights follow;
-   - the endpoint's status view lists the same validator set as before H.
+   - the sentry's height (and any endpoint's) follows;
+   - the status view over the sentry's client channel lists the same
+     validator set as before H.
 10. **Record** the times (declared, fenced, installed, first block after H),
     H and the bundle's SHA-256, against the 8-hour objective. The quarterly
     restore drill runs this procedure on staging and records the same.

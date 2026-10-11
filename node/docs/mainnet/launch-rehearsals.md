@@ -4,7 +4,7 @@ Status: planned; no run has passed. Seven full launch simulations (R01 to R07) m
 
 ## Where and when
 
-- **Where.** The three production hosts (validator, sentry, endpoint), before genesis, under the solo launch profile. Every tool is first built and proven in the CI staging network ([host install workflow](../../../.github/workflows/host-install.yml)).
+- **Where.** The two production hosts (the validator, and the sentry, which also serves clients; [two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)), before genesis, under the solo launch profile. Every tool is first built and proven in the CI staging network ([host install workflow](../../../.github/workflows/host-install.yml)).
 - **When.** Task-driven: after Hashlock's audit fixes, on the final candidate, one run after another ([audit approval](../../../launch/approvals/P01_E06_AUDIT_2026-10-10.json), [order of work](../../../launch/GENESIS_FRAMEWORK.md#6-order-of-work)). The staging runs before the freeze (E03, the T suites, the capacity measurements, the kit drills) come first and find defects early.
 - **Length.** Each run operates for 24 hours after its genesis; R07 spans T−6h to T+24h. No checkpoint is compressed.
 - **Before the runs.** During staging, a [statistical campaign](#statistical-campaign-staging) of about 15 to 21 days of host time measures attacks, faults, performance and endurance with confidence.
@@ -43,7 +43,7 @@ The production hosts are console-only. While they serve as staging, each runs a 
 
 ### The load machines
 
-Four to eight small rented machines, outside the hosts' providers, each with its own address. They reach the chain only through the endpoint's public client channel, within its production limits (16 connections, 2 per address), and hold only rehearsal keys.
+Four to eight small rented machines, outside the hosts' providers, each with its own address. They reach the chain only through the sentry's public client channel, within its production limits (16 connections, 2 per address), and hold only rehearsal keys.
 
 ## Pass criteria
 
@@ -54,7 +54,7 @@ Approved thresholds (D14-Q02):
 | **Integrity** (every run; a failure stops the run) | Zero conflicting finalized blocks. The same app hash on every node at every checkpoint. Supply reconciles exactly: DRT genesis plus emitted minus burned, DGT unchanged, and the account totals equal the supply counters. No committed block lost in any recovery. |
 | **Liveness** (outside injected faults) | Median block interval at most 6 s; 99th percentile at most 10 s. |
 | **Inclusion** | At half capacity, 99% of valid transactions committed within 2 blocks. At full capacity, no valid transaction lost: each is committed or refused at admission. |
-| **Recovery** | Blocks again within 5 minutes of a validator process restart; sentry and endpoint caught up within 2 minutes of a network heal; a destroyed sentry or endpoint rebuilt within 4 hours; a lost validator host within 8 hours. Every injected fault raises its alert and resolves after recovery. |
+| **Recovery** | Blocks again within 5 minutes of a validator process restart; the sentry caught up within 2 minutes of a network heal; a destroyed sentry rebuilt within 4 hours; a lost validator host within 8 hours. Every injected fault raises its alert and resolves after recovery. |
 | **Load** (R06) | Full capacity, about 180 basic Sends a block, for 1 hour; half capacity for 6 hours; across 1,000 wallets. |
 
 A missed threshold fails the run. A failure is fixed in a new candidate, with a documented diff, and the affected runs are rerun on it; all seven must pass on the final candidate.
@@ -64,8 +64,8 @@ A missed threshold fails the run. A failure is fixed in a new candidate, with a 
 The launch has one validator, so some of the brief's network scenarios mean something specific:
 
 - **Stopping the validator halts the chain.** Every host raises a halt alert. A restart resumes it with no procedure, since the double-sign startup check is 0 while there is one validator. The unit does not restart itself, so a crashed validator needs the console (or the agent, in staging).
-- **A validator partition does not halt it.** Holding all the power, the validator keeps committing alone. The sentry and endpoint stall, and the status page answers 503 after 60 seconds. On reconnect they redial within 60 seconds and catch up.
-- **Latency and packet loss** change propagation and how fresh the endpoint is, not consensus.
+- **A validator partition does not halt it.** Holding all the power, the validator keeps committing alone. The sentry stalls, and the status page answers 503 after 60 seconds. On reconnect it redials within 60 seconds and catches up.
+- **Latency and packet loss** change propagation and how fresh the sentry's view for clients is, not consensus.
 - **A second copy of the validator key** is the catastrophic case. A duplicate vote removes the validator for good and ends the chain, and an isolated copy would finalize its own fork. Nothing automatic stops it: today only the fence-first rule ([validator recovery](../operations/validator-recovery.md)) and the pinned peer addresses stand in the way. R05 checks that a second copy at another address cannot reach the network, and the residual risk is recorded.
 
 ## Statistical campaign (staging)
@@ -75,7 +75,7 @@ The seven runs are pass/fail qualification. Before them, during staging and befo
 | Part | Rule | Host time |
 |---|---|---|
 | **Attacks on core functions** | Each attack type is attempted at least 3,000 times with zero successes. By the rule of three, that bounds its success rate below 1 in 1,000 at 95% confidence. Connection- and network-level attacks are repeated about 30 times each. | About 2 to 4 days in all |
-| **Faults and recovery** | Each quick fault (process kill, peer drop, partition, latency, endpoint restart) about 30 times; each heavy fault (host rebuild, snapshot restore, validator recovery) 3 to 5 times; recovery times recorded as distributions | About 3 to 5 days in all |
+| **Faults and recovery** | Each quick fault (process kill, peer drop, partition, latency, sentry restart) about 30 times; each heavy fault (host rebuild, snapshot restore, validator recovery) 3 to 5 times; recovery times recorded as distributions | About 3 to 5 days in all |
 | **Performance** | Block intervals, inclusion delay and response times: a day gives about 17,280 blocks, enough for the median, p95 and p99; p99.9 comes from the whole endurance run | Within the endurance run |
 | **Endurance** | At least 15 days continuous at the exact production values, with background load and periodic half-capacity periods: full unbonding (14 days), governance deposit and voting (7 + 7 days), a release handover after its 7-day notice, at least 15 epochs and snapshots, and state and memory growth | At least 15 days; the attack and fault campaigns interleave inside it |
 
@@ -97,11 +97,11 @@ Each run starts from [Every run](#every-run) and operates for its full period. T
 
 | Run | What it does | Tools it needs |
 |---|---|---|
-| **R01 Clean genesis** | The full launch with rehearsal identities: genesis built and verified, bundles installed, validator, sentry and endpoint started; wallets connect, accounts created and funded, DGT bonded to the validator, DRT and DGT transfers, fees burned, rewards accrued and claimed; supply reconciled at each checkpoint | T1, T3, T6, T7 |
-| **R02 Infrastructure failure** | Validator process killed and restarted (the chain halts and resumes); endpoint stopped and restored; peer connections dropped and redialed; sentry destroyed and restored from its snapshot; endpoint rebuilt by state sync; network cut and restored; the validator host lost and recovered by the fence-first procedure. Each fault alerts and resolves, and continuity, state, supply, staking, rewards and wallets are checked after each | T2, T5, T6, T9 |
+| **R01 Clean genesis** | The full launch with rehearsal identities: genesis built and verified, bundles installed, validator and sentry started; wallets connect, accounts created and funded, DGT bonded to the validator, DRT and DGT transfers, fees burned, rewards accrued and claimed; supply reconciled at each checkpoint | T1, T3, T6, T7 |
+| **R02 Infrastructure failure** | Validator process killed and restarted (the chain halts and resumes); the sentry stopped and restored (clients cut off, then back); peer connections dropped and redialed; sentry destroyed and restored from its snapshot; network cut and restored; the validator host lost and recovered by the fence-first procedure. Each fault alerts and resolves, and continuity, state, supply, staking, rewards and wallets are checked after each | T2, T5, T6, T9 |
 | **R03 Adversarial network** | Latency, packet loss and a validator partition at the host; malformed and non-canonical transactions, invalid ML-DSA-65 signatures, bad nonces, duplicates and re-signed copies, oversized requests, invalid serialization, request and transaction floods from the load machines; peer instability. Consensus, state, signature checks, the queue, RPC stability, recovery time and accounting are measured | T2, T3, T4, T5, T6 |
 | **R04 Production upgrade** | Normal operation with transactions, staking and rewards; then a real release handover and state upgrade from RC1 to RC2: prepared, signed three of five with the rehearsal kits, admitted, staged on every host, activated at its height, switched; consensus resumes, and state, balances, staking, rewards, governance, RPC, wallets, transactions and supply are checked before and after | T1, T3, T6, T8 |
-| **R05 Operator error** | Wrong configuration, binary, network, genesis and genesis hash; a misconfigured and an offline validator; endpoint loss; an old snapshot restore; a second copy of the validator key; wrong peers, network settings, fees and environment; incompatible versions. Each must be refused, or stay harmless, with the documented response | T2, T6 |
+| **R05 Operator error** | Wrong configuration, binary, network, genesis and genesis hash; a misconfigured and an offline validator; the sentry lost; an old snapshot restore; a second copy of the validator key; wrong peers, network settings, fees and environment; incompatible versions. Each must be refused, or stay harmless, with the documented response | T2, T6 |
 | **R06 Load and economic activity** | 1,000 wallets with fresh ML-DSA-65 keys; funding, DRT and DGT transfers, bonding, unbonding to maturity, reward claims, governance proposals, deposits and votes; sustained load and the load thresholds; block, queue, RPC and signature-check limits pushed; malformed traffic mixed in. Safe and peak throughput, saturation, host utilization, wallet reliability and fees are measured | T1, T3, T4, T6 |
 | **R07 Final dress rehearsal** | The exact production launch procedure with production values and the checkpoints below | T1, T2, T3, T6, T7 |
 

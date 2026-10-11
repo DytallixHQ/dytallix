@@ -15,7 +15,9 @@
 // It refuses a plan that breaks the approved mesh rules (P01, 30 September
 // 2026): one IP per node, validators pinned only by their own sentries,
 // endpoints pinned only by sentries, symmetric pins within 64, and no sentry
-// or endpoint key in the genesis validator set. A validator's key may be
+// or endpoint key in the genesis validator set. A validator never serves
+// clients; an endpoint always does, and a sentry may, as the one public node
+// of two seats (P01, 11 October 2026). A validator's key may be
 // outside it: a validator registered after genesis (P01, 3 October 2026).
 // Each host's files must pass the engine's own start checks for the
 // production profile.
@@ -315,8 +317,13 @@ func checkPlan(p plan, genesis *types.GenesisDoc) (map[string]*host, int, error)
 			return nil, 0, fmt.Errorf("%s: shares an IP with %s", h.Label, other)
 		}
 		ips[ip.String()] = h.Label
-		if (h.Role == enginepqc.RoleEndpoint) != (h.Channel != nil) {
-			return nil, 0, fmt.Errorf("%s: only an endpoint, and every endpoint, has a channel listener", h.Label)
+		// Every endpoint serves clients, a sentry may (the public node of two
+		// seats; P01, 11 October 2026), and a validator never does.
+		if h.Role == enginepqc.RoleEndpoint && h.Channel == nil {
+			return nil, 0, fmt.Errorf("%s: every endpoint has a channel listener", h.Label)
+		}
+		if h.Role == enginepqc.RoleValidator && h.Channel != nil {
+			return nil, 0, fmt.Errorf("%s: a validator has no channel listener", h.Label)
 		}
 		if h.Channel != nil {
 			channelIP, channelPort, err := endpoint(h.Label+".channel", *h.Channel)
@@ -327,11 +334,11 @@ func checkPlan(p plan, genesis *types.GenesisDoc) (map[string]*host, int, error)
 				return nil, 0, fmt.Errorf("%s: the channel listener uses the node's P2P address on another port", h.Label)
 			}
 		}
-		// An endpoint may serve the public status page (P01, 3 October 2026)
-		// on the node's address, on a port of its own.
+		// A node serving clients may serve the public status page (P01, 3
+		// October 2026) on the node's address, on a port of its own.
 		if h.Status != nil {
-			if h.Role != enginepqc.RoleEndpoint {
-				return nil, 0, fmt.Errorf("%s: only an endpoint serves the status page", h.Label)
+			if h.Channel == nil {
+				return nil, 0, fmt.Errorf("%s: only a node with a channel listener serves the status page", h.Label)
 			}
 			statusIP, statusPort, err := endpoint(h.Label+".status", *h.Status)
 			if err != nil {

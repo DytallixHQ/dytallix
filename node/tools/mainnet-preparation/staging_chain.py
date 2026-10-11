@@ -9,7 +9,7 @@ Inputs:
   --plan     the pin plan with public keys filled in (host_keys.py writes it);
              a staging chain ID, never the approved network identity
   --keys     host_keys.py's output: each host's key summary, sealed keys and
-             the endpoint's channel pin
+             each serving host's channel pin
   --release  a release build (BUILD_RECORD.json and bin/)
   --tools    production builds of dytallix-genesis-build and
              dytallix-host-config, and dytallix-root-sign

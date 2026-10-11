@@ -8,18 +8,18 @@ capabilities, a read-only system and its own writable state:
 
 Each run reads the node's two metric files, the host's CPU, memory, data
 disk and network counters, the node unit's state and, on the sentry, the
-backup job's last upload, and on the endpoint times one local status
-request. It evaluates the approved alert rules (P01, 10 October 2026), sends
-each change of an alert's state (firing or resolved) to the alert URL, a
-severity 1 alert still firing after the escalation time to the escalation
-URL, and a heartbeat to the heartbeat URL, all with the host's curl. A
-delivery that fails is kept and retried on the next run; the heartbeat
-carries the count. It appends one line to the day's history file and keeps
-the approved number of days. With the history secrets (M4b) it encrypts one
-finished day per run, oldest first, with the release's `dytallix-root-sign
-history-seal` under the chain's history code, and uploads it with curl (AWS
-Signature V4, the write-only upload key on curl's standard input). The URLs
-come from the host's monitor settings
+backup job's last upload, and on a host serving clients times one local
+status request. It evaluates the approved alert rules (P01, 10 October
+2026), sends each change of an alert's state (firing or resolved) to the
+alert URL, a severity 1 alert still firing after the escalation time to the
+escalation URL, and a heartbeat to the heartbeat URL, all with the host's
+curl. A delivery that fails is kept and retried on the next run; the
+heartbeat carries the count. It appends one line to the day's history file
+and keeps the approved number of days. With the history secrets (M4b) it
+encrypts one finished day per run, oldest first, with the release's
+`dytallix-root-sign history-seal` under the chain's history code, and
+uploads it with curl (AWS Signature V4, the write-only upload key on curl's
+standard input). The URLs come from the host's monitor settings
 (/etc/dytallix-monitor/webhooks.json, root 0400, installed by
 `host_install.py monitor-settings`); without them it still records history
 and alert state, and the alerting service, receiving no heartbeat, alerts.
@@ -70,7 +70,9 @@ RULES = {
     'missed_blocks': (2, ('validator',)),
     'disk_low': (2, ROLES),
     'disk_critical': (1, ROLES),
-    'rpc_failing': (2, ('endpoint',)),
+    # On a host serving clients: an endpoint, or the sentry that is the one
+    # public node of two seats (P01, 11 October 2026).
+    'rpc_failing': (2, ('sentry', 'endpoint')),
     'supply_invariant': (1, ('validator', 'sentry')),
     'unexpected_mint_burn': (1, ('validator', 'sentry')),
     'staking_change': (2, ('validator',)),
@@ -274,7 +276,7 @@ def evaluate(config, state, sample, now):
         results['disk_low'] = (free < t['disk_free_warning_percent'], free, t['disk_free_warning_percent'])
         results['disk_critical'] = (free < t['disk_free_critical_percent'], free, t['disk_free_critical_percent'])
 
-    if role == 'endpoint':
+    if config.get('status_url'):
         if sample['rpc_status'] == 200:
             state['rpc_failing_since'] = None
         elif state.get('rpc_failing_since') is None:

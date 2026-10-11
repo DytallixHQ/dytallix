@@ -33,6 +33,7 @@ GENESIS = 50_000_000_000_000
 class MonitorJob(unittest.TestCase):
     role = 'validator'
     label = 'validator-1'
+    serves = False
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -49,7 +50,7 @@ class MonitorJob(unittest.TestCase):
             'chain_id': 'dytallix-staging-1', 'metrics': str(self.metrics), 'data_disk': '/var/lib/dytallix',
             'node_unit': 'dytallix-node.service', 'settings': str(self.settings), 'state': str(self.state),
             'backup_state': str(self.backup) if self.role == 'sentry' else None,
-            'status_url': 'http://10.20.0.12:8080/status' if self.role == 'endpoint' else None,
+            'status_url': 'http://10.20.0.12:8080/status' if self.serves else None,
             'curl': '/usr/bin/curl', 'systemctl': '/usr/bin/systemctl', 'proc': str(self.proc),
             'thresholds': THRESHOLDS, 'emission_ceiling_udrt_per_block': CEILING}))
         self.now = START
@@ -438,10 +439,11 @@ class SentryTests(MonitorJob):
         state = json.loads((self.state / 'state.json').read_bytes())
         self.assertNotIn('missed_blocks', state['alerts'])
         self.assertIn('supply_invariant', state['alerts'])
+        self.assertNotIn('rpc_failing', state['alerts'])
 
 
 class EndpointTests(MonitorJob):
-    role, label = 'endpoint', 'endpoint-1'
+    role, label, serves = 'endpoint', 'endpoint-1', True
 
     def test_rpc_failing_for_three_minutes(self):
         self.tick()
@@ -457,6 +459,25 @@ class EndpointTests(MonitorJob):
         self.assertNotIn('rpc_failing', summary['firing'])
         state = json.loads((self.state / 'state.json').read_bytes())
         self.assertNotIn('supply_invariant', state['alerts'])
+
+
+class PublicSentryTests(MonitorJob):
+    """The one public node of two seats (P01, 11 October 2026): a sentry
+    serving clients times its status page as an endpoint does."""
+    role, label, serves = 'sentry', 'sentry-1', True
+
+    def test_rpc_failing_beside_the_sentry_rules(self):
+        self.tick()
+        self.status = 503
+        for n in range(4):
+            summary, _ = self.tick()
+            self.assertEqual('rpc_failing' in summary['firing'], n == 3)
+        self.status = 200
+        summary, _ = self.tick()
+        self.assertNotIn('rpc_failing', summary['firing'])
+        state = json.loads((self.state / 'state.json').read_bytes())
+        self.assertIn('supply_invariant', state['alerts'])
+        self.assertIn('stale_backup', state['alerts'])
 
 
 if __name__ == '__main__':

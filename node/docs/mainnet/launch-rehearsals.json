@@ -734,7 +734,7 @@
     "integrity": "Zero conflicting finalized blocks; the same app hash on every node at every checkpoint; exact supply reconciliation; no committed block lost in any recovery. A failure stops the run.",
     "liveness": "Outside injected faults, median block interval at most 6 s and 99th percentile at most 10 s.",
     "inclusion": "At half capacity, 99% of valid transactions committed within 2 blocks; at full capacity, no valid transaction lost.",
-    "recovery": "Validator restart 5 minutes; network heal 2 minutes; sentry or endpoint rebuilt 4 hours; validator host 8 hours; every injected fault alerts and resolves.",
+    "recovery": "Validator restart 5 minutes; network heal 2 minutes; sentry rebuilt 4 hours; validator host 8 hours; every injected fault alerts and resolves.",
     "load": "R06: full capacity (about 180 basic Sends a block) for 1 hour and half capacity for 6 hours, across 1,000 wallets.",
     "timings": "R01-R06 use a recorded set of shortened timings so each lifecycle completes inside its run; R07 uses the exact production values."
   },

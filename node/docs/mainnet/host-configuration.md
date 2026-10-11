@@ -65,8 +65,8 @@ public keys and addresses only.
     "role": "validator | sentry | endpoint",
     "home": "/absolute/node/home",
     "p2p": "IP:port",
-    "channel": "IP:port on an endpoint, else null",
-    "status": "IP:port of an endpoint's status page, or null",
+    "channel": "IP:port on a host serving clients, else null",
+    "status": "IP:port of that host's status page, or null",
     "peer_public_key_base64": "from dytallix-peer-seed generate",
     "validator_public_key_base64": "from dytallix-validator-key generate",
     "pins": ["labels of the hosts it peers with"],
@@ -79,10 +79,11 @@ The generator refuses:
 
 - **Addresses.** A P2P or channel address that is not a canonical global
   unicast IP and a port from 1024, two hosts on one IP (one IP per node, P01,
-  30 September 2026), a channel on a sentry or validator or missing on an
-  endpoint, a channel off the node's IP or on its P2P port, a status page on
-  a sentry or validator, off the node's IP or on the P2P or channel port, and
-  pins across
+  30 September 2026), a channel on a validator or missing on an endpoint (a
+  sentry may serve clients, as the one public node of
+  [two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)), a channel off the node's IP or on its P2P port, a
+  status page on a host without a channel, off the node's IP or on the P2P or
+  channel port, and pins across
   address families (the host firewall admits one family).
 - **Keys.** A key that is not canonical base64 of an ML-DSA-65 public key,
   and any key used twice in the plan, as a peer key or a validator key.
@@ -138,8 +139,8 @@ private files it pins without ever holding them.
 ## On each host
 
 1. **Keys.** Made offline on the ceremony machine (host setup v1): the
-   validator key and its fresh signing state, the peer seed and, on the
-   endpoint, the client channel seed. Only their public keys enter the plan;
+   validator key and its fresh signing state, the peer seed and, on a host
+   serving clients, the client channel seed. Only their public keys enter the plan;
    the private files reach the host sealed in its bundle.
 2. **Files.** `host_files.py` writes everything the host installs, and its
    install manifest; the host's bundle carries them.

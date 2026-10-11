@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Run a three-host staging network on one Ubuntu 24.04 CI runner (E05;
-host setup v1, step H4): the validator on the runner itself, the sentry and
-the endpoint in two KVM virtual machines on a private bridge. Each host has
-its own address on its own interface, as host setup v1 requires, and each
-installs from its own bundle with its install.sh. Invented records and
-throwaway keys only.
+"""Run the two-seat staging network on one Ubuntu 24.04 CI runner (E05;
+host setup v1, step H4; P01, 11 October 2026): the validator on the runner
+itself, and the sentry, the one public node that also serves the client
+channel and the status page, in a KVM virtual machine on a private bridge.
+Each host has its own address on its own interface, as host setup v1
+requires, and each installs from its own bundle with its install.sh.
+Invented records and throwaway keys only.
 
   staging_network.py prepare --release DIR --work DIR
   sudo staging_network.py network-up --work DIR
@@ -17,18 +18,18 @@ throwaway keys only.
   sudo staging_network.py monitor-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
-The VMs are driven through the QEMU guest agent (a virtio serial channel):
+The VM is driven through the QEMU guest agent (a virtio serial channel):
 once a node is installed, its firewall drops every other inbound packet.
-The bundles reach them on their cloud-init disk. The VMs install their
-packages and their nodes before the validator's install on the runner
-replaces the runner's firewall rules (and with them the VMs' route out).
+The bundle reaches it on its cloud-init disk. The VM installs its packages
+and its node before the validator's install on the runner replaces the
+runner's firewall rules (and with them the VM's route out).
 
-run starts the sentry and the endpoint and checks that both follow the
-validator, that the endpoint's status page answers, that the sentry takes a
-snapshot (a staging interval of 10 blocks), that its backup job uploads an
-encrypted copy to a stand-in store inside the sentry VM, that the copy
-opens on the runner with the backup code and holds the sentry's snapshot,
-and that both VMs verify against their bundles.
+run starts the sentry and checks that it follows the validator, that its
+status page answers, that it takes a snapshot (a staging interval of 10
+blocks), that its backup job uploads an encrypted copy to a stand-in store
+inside the sentry VM, that the copy opens on the runner with the backup code
+and holds the sentry's snapshot, and that the VM verifies against its
+bundle.
 
 restore-drill is the first restore drill (disaster recovery v1, R6): the
 sentry is lost, so its VM is wiped and reinstalled from its bundle, then
@@ -39,7 +40,7 @@ It prints the measured times.
 
 kit-drill is the kit replacement drill (root kit replacement v1, K4; P01, 8
 October 2026), run as an operator would with the release's own tools from
-the runner, over the endpoint's client channel: seat 5's kit is replaced by
+the runner, over the sentry's client channel: seat 5's kit is replaced by
 a new kit, signed by three kits' upgrade keys and the new kit's three keys.
 After the staging notice of 20 blocks the old kit is refused (by the signer,
 and, signed from a stale key list, by assembly and the node) and the new kit
@@ -73,10 +74,12 @@ sys.path.insert(0, str(HERE))
 import staging_host  # noqa: E402
 
 BRIDGE = 'dytbr0'
-ADDRESSES = {'validator-1': '10.77.0.1', 'sentry-1': '10.77.0.11', 'endpoint-1': '10.77.0.12'}
-VMS = ('sentry-1', 'endpoint-1')
-MACS = {'sentry-1': '52:54:00:77:00:11', 'endpoint-1': '52:54:00:77:00:12'}
-TAPS = {'sentry-1': 'dyttap11', 'endpoint-1': 'dyttap12'}
+ADDRESSES = {'validator-1': '10.77.0.1', 'sentry-1': '10.77.0.11'}
+VMS = ('sentry-1',)
+# The public node of two seats: the client channel and the status page.
+PUBLIC = 'sentry-1'
+MACS = {'sentry-1': '52:54:00:77:00:11'}
+TAPS = {'sentry-1': 'dyttap11'}
 SNAPSHOT_INTERVAL = 10
 STANDIN_PORT = 9000
 UPLOAD = {'schema': 'dytallix.backup-upload.v1', 'endpoint': f'http://127.0.0.1:{STANDIN_PORT}',
@@ -309,7 +312,7 @@ def vms_up(work, image):
 
 def require_kvm():
     if not os.path.exists('/dev/kvm'):
-        raise Failed('this runner has no /dev/kvm; the sentry and endpoint VMs need KVM')
+        raise Failed('this runner has no /dev/kvm; the sentry VM needs KVM')
 
 
 def wait_synchronized(guest, label, timeout=300):
@@ -384,12 +387,12 @@ def run(work, timeout=600):
     target = max(validator, 2 * SNAPSHOT_INTERVAL)
     for label, guest in guests.items():
         wait_height(guest, label, target, timeout)
-    # The endpoint's status page, from the runner.
-    with urllib.request.urlopen(f'http://{ADDRESSES["endpoint-1"]}:8080/status', timeout=10) as response:
+    # The public node's status page, from the runner.
+    with urllib.request.urlopen(f'http://{ADDRESSES[PUBLIC]}:8080/status', timeout=10) as response:
         page = json.loads(response.read())
     if page.get('chain_id') != staging_host.CHAIN_ID or not int(page.get('height', 0)) > 0:
-        raise Failed(f'the endpoint status page is wrong: {page}')
-    say(f'== endpoint status page: {page}')
+        raise Failed(f'the {PUBLIC} status page is wrong: {page}')
+    say(f'== {PUBLIC} status page: {page}')
     for label, guest in guests.items():
         monitor_run(guest, label)
     # The sentry's snapshot and its off-host copy.
@@ -448,7 +451,7 @@ def run(work, timeout=600):
     for label, guest in guests.items():
         _, out, _ = guest.run(['python3', '-I', '-B', '/root/node/dytallix-host/host_install.py', 'verify'])
         say(f'{label}: {out.strip()}')
-    say('== the staging network runs: validator, sentry and endpoint, with an off-host copy')
+    say('== the staging network runs: the validator and the public sentry, with an off-host copy')
 
 
 # The first restore drill (disaster recovery v1, R6)
@@ -551,10 +554,10 @@ def kit_drill(work, timeout=900):
     kits = chain / 'control-kits'
     drill = work / 'kit-drill'
     (drill / 'home').mkdir(parents=True)
-    # The CLI's own home, with the endpoint pinned over its client channel.
+    # The CLI's own home, with the public node pinned over its client channel.
     env = dict(os.environ, HOME=str(drill / 'home'))
     digest = hashlib.sha256((chain / 'chain' / 'native-genesis.json').read_bytes()).hexdigest()
-    tool(bins / 'dytallix', 'config', 'pin-chain', '--endpoint', work / 'net' / 'keys' / 'endpoint-1.channel-pin.json',
+    tool(bins / 'dytallix', 'config', 'pin-chain', '--endpoint', work / 'net' / 'keys' / f'{PUBLIC}.channel-pin.json',
          '--network', 'testnet', '--chain-id', staging_host.CHAIN_ID, '--genesis-digest', digest, env=env)
     saved = iter(range(1, 1_000_000))
 
@@ -726,7 +729,7 @@ def supply_holds(view):
 
 def wallet_drill(work, timeout=300):
     """The rehearsal wallets on the staging chain (simulation plan, T1): over
-    the endpoint's client channel, with the release's CLI, a DRT transfer
+    the public node's client channel, with the release's CLI, a DRT transfer
     that creates an account, a DGT transfer, a bond to the validator and a
     reward claim, each by its committed receipt and proven balances, with the
     supply rule before and after."""
@@ -739,7 +742,7 @@ def wallet_drill(work, timeout=300):
     shutil.copytree(wallets / 'home', drill / 'home')
     env = dict(os.environ, HOME=str(drill / 'home'), DYTALLIX_KEYSTORE_PASSPHRASE_FILE=str(wallets / 'passphrase'))
     digest = hashlib.sha256((chain / 'chain' / 'native-genesis.json').read_bytes()).hexdigest()
-    tool(bins / 'dytallix', 'config', 'pin-chain', '--endpoint', work / 'net' / 'keys' / 'endpoint-1.channel-pin.json',
+    tool(bins / 'dytallix', 'config', 'pin-chain', '--endpoint', work / 'net' / 'keys' / f'{PUBLIC}.channel-pin.json',
          '--network', 'testnet', '--chain-id', staging_host.CHAIN_ID, '--genesis-digest', digest, env=env)
     saved = iter(range(1, 1_000_000))
 

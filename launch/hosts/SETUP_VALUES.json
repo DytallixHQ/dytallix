@@ -2,9 +2,12 @@
   "schema": "dytallix.host-setup-values.v1",
   "status": "APPROVED",
   "approval_record": "../approvals/P01_E05_HOST_VALUES_2026-10-06.json",
+  "amended_by": [
+    "../approvals/P01_E05_TWO_SEATS_2026-10-11.json: unit.memory_max_bytes 3 GiB, so the founder's 4 GB servers suffice; the capacity runs (T05) resize a server only if it proves too small"
+  ],
   "rule": "The host setup generator's inputs beyond the engine values (launch/hosts/PROPOSALS.json, E05_VALUES.json) and the layout (host-setup-v1.md). Every value here is approved; the staging hosts re-check the memory cap and the timeouts before genesis.",
   "unit": {
-    "memory_max_bytes": 6442450944,
+    "memory_max_bytes": 3221225472,
     "tasks_max": 4096,
     "nofile": 65536
   },

@@ -1,7 +1,9 @@
-"""The host file generator on a synthetic three-host staging network: the
-committed production rehearsal genesis, a release manifest from the release
-tool, and synthetic host-config outputs and offline key summaries. No real
-key, host or approval."""
+"""The host file generator on a synthetic staging network: the launch's two
+seats, the validator and the sentry that also serves clients (P01, 11
+October 2026), and an endpoint, as a later seat would add; the committed
+production rehearsal genesis, a release manifest from the release tool, and
+synthetic host-config outputs and offline key summaries. No real key, host
+or approval."""
 import base64
 import copy
 import hashlib
@@ -26,10 +28,10 @@ ROLES = {'consensus_bridge': 'dytallix-comet-bridge', 'consensus_engine': 'dytal
          'consensus_stdio': 'consensus_stdio', 'control_verifier': 'dytallix-root-verify',
          'genesis_bootstrap_verifier': 'dytallix-root-verify', 'http_adapter': 'dytallix-pqc-http-adapter',
          'service_supervisor': 'dytallix-native-supervisor'}
-HOSTS = {  # label: role, address, pins
-    'validator-1': ('validator', '10.20.0.10', ['sentry-1']),
-    'sentry-1': ('sentry', '10.20.0.11', ['endpoint-1', 'validator-1']),
-    'endpoint-1': ('endpoint', '10.20.0.12', ['sentry-1']),
+HOSTS = {  # label: role, address, pins, serves clients
+    'validator-1': ('validator', '10.20.0.10', ['sentry-1'], False),
+    'sentry-1': ('sentry', '10.20.0.11', ['endpoint-1', 'validator-1'], True),
+    'endpoint-1': ('endpoint', '10.20.0.12', ['sentry-1'], True),
 }
 
 
@@ -75,10 +77,10 @@ class HostFilesTests(unittest.TestCase):
         # The plan, host-config's outputs and the offline key summaries.
         self.plan = {'schema': 'dytallix.pin-plan.v1', 'chain_id': CHAIN_ID, 'hosts': []}
         bindings = {'hosts': []}
-        for label, (role, ip, pins) in HOSTS.items():
+        for label, (role, ip, pins, serves) in HOSTS.items():
             plan_host = {'label': label, 'operator': 'founder', 'role': role, 'home': h.HOME,
-                         'p2p': f'{ip}:26656', 'channel': f'{ip}:26670' if role == 'endpoint' else None,
-                         'status': f'{ip}:8080' if role == 'endpoint' else None,
+                         'p2p': f'{ip}:26656', 'channel': f'{ip}:26670' if serves else None,
+                         'status': f'{ip}:8080' if serves else None,
                          'peer_public_key_base64': key('peer-' + label),
                          'validator_public_key_base64': key('validator-' + label), 'pins': pins, 'state_sync': None}
             self.plan['hosts'].append(plan_host)
@@ -91,13 +93,13 @@ class HostFilesTests(unittest.TestCase):
             write(out / 'config.toml', f'moniker = "{label}"\n'.encode())
             write(out / 'pqc_transport.json', transport)
             write(out / 'binding.json', json.dumps({'synthetic_binding': label}).encode())
-            public = [plan_host['channel'], plan_host['status']] if role == 'endpoint' else []
+            public = [plan_host['channel'], plan_host['status']] if serves else []
             bindings['hosts'].append({'label': label, 'firewall': {
                 'transport_sha256': hashlib.sha256(transport).hexdigest(), 'p2p_listen': plan_host['p2p'],
                 'public_listeners': public}})
             secrets = {'config/pqc_peer_seed.bin': 'a' * 64, 'config/priv_validator_key.json': 'b' * 64,
                        'data/priv_validator_state.json': 'c' * 64}
-            if role == 'endpoint':
+            if serves:
                 secrets['config/client_channel_seed.bin'] = 'd' * 64
                 write(self.dirs['keys'] / f'{label}.channel-pin.json', b'{"synthetic":"channel pin"}')
             write(self.dirs['keys'] / f'{label}.keys.json', {
@@ -118,7 +120,7 @@ class HostFilesTests(unittest.TestCase):
         catalog = json.loads((self.dirs['release'] / 'RELEASE_MANIFEST.json').read_bytes())
         helper = next(m for m in catalog['members'] if m['id'] == 'dytallix-root-verify')
         for label, (files, manifest) in generated.items():
-            role = HOSTS[label][0]
+            role, serves = HOSTS[label][0], HOSTS[label][3]
             etc = f'/etc/dytallix/{manifest["release"]}'
             service = json.loads(files[f'{etc}/service.json'])
             # Every pinned public file is the installed bytes.
@@ -143,7 +145,7 @@ class HostFilesTests(unittest.TestCase):
             self.assertEqual({p['path'] for p in service['root_public_inputs']},
                              {root['policy_path'], root['signatures_path']})
             # Roles run what the supervisor requires of them.
-            self.assertEqual('adapter_listen' in service and 'adapter_channel' in service, role == 'endpoint')
+            self.assertEqual('adapter_listen' in service and 'adapter_channel' in service, serves)
             self.assertEqual(service['block_history'], 'archive' if role == 'sentry' else 'window')
             self.assertEqual('snapshots' in service, role == 'sentry')
             # The unit runs the catalog's supervisor as the service account.
@@ -153,22 +155,24 @@ class HostFilesTests(unittest.TestCase):
             self.assertIn('User=41001', unit)
             self.assertIn('Restart=no', unit)
             self.assertIn('AppArmorProfile=' + admission['supervisor_label'], unit)
-            self.assertIn(f'MemoryMax={6 << 30}', unit)
+            self.assertIn(f'MemoryMax={3 << 30}', unit)
             # The profiles and the firewall table.
             profiles = files[f'/etc/apparmor.d/{h.UNIT}'].decode()
             for label_name in manifest['apparmor_profiles']:
                 self.assertIn(f'profile {label_name} {{', profiles)
             rules = files['/etc/nftables.d/dytallix.nft'].decode()
             self.assertIn(f'ip daddr {HOSTS[label][1]} tcp dport 26656 accept', rules)
-            if role == 'endpoint':
-                self.assertIn(f'ip daddr {HOSTS[label][1]} tcp dport 26670 accept', rules)
-                self.assertIn(f'ip daddr {HOSTS[label][1]} tcp dport 8080 accept', rules)
+            for port in (26670, 8080):
+                self.assertEqual(f'ip daddr {HOSTS[label][1]} tcp dport {port} accept' in rules, serves)
+            # A host serving clients times its own status page.
+            monitor = json.loads(files[f'{etc}/monitor.json'])
+            self.assertEqual(monitor['status_url'], f'http://{HOSTS[label][1]}:8080/status' if serves else None)
             # The manifest: every file, the secrets the sealed keys provide, the binaries.
             self.assertEqual({r['path'] for r in manifest['files']}, set(files))
             for row in manifest['files']:
                 self.assertEqual(row['sha256'], hashlib.sha256(files[row['path']]).hexdigest())
                 self.assertEqual(row['owner'], h.USER if row['path'].startswith(h.HOME + '/') else 'root')
-            self.assertEqual(len(manifest['secrets']), 4 if role == 'endpoint' else 3)
+            self.assertEqual(len(manifest['secrets']), 4 if serves else 3)
             self.assertEqual({b['name'] for b in manifest['binaries']}, set(BINARIES))
 
     def test_the_committed_fixture_is_current(self):
@@ -223,6 +227,9 @@ class HostFilesTests(unittest.TestCase):
                 self.generate(plan)
             self.assertIn(message, str(caught.exception))
         refused(lambda p: p['hosts'][0].update(home='/srv/node'), 'plan home')
+        # A validator never serves clients; every endpoint does.
+        refused(lambda p: p['hosts'][0].update(channel='10.20.0.10:26670'), 'a validator never serves clients')
+        refused(lambda p: p['hosts'][2].update(channel=None, status=None), 'every endpoint serves clients')
         refused(lambda p: p['hosts'][1].update(peer_public_key_base64=key('other')), 'differs from the plan')
         # The transport the bindings name must be the one installed.
         transport = self.dirs['hosts'] / 'hosts' / 'sentry-1' / 'pqc_transport.json'

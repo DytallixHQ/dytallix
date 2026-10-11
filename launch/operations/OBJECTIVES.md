@@ -55,7 +55,7 @@ risk, a key compromise and monitoring down.
 | --- | --- |
 | Validator | 8 hours: 2 hours to provision plus the approved 6-hour catch-up. The chain pauses meanwhile. |
 | Sentry | 4 hours |
-| Endpoint service | 4 hours: one endpoint, rebuilt from the published files and state sync |
+| Endpoint service | 4 hours: the sentry, which serves clients ([two seats](../approvals/P01_E05_TWO_SEATS_2026-10-11.json)), rebuilt as a sentry is |
 | Monitoring | 1 hour |
 
 - **Drills.** A restore drill every quarter, recorded with its measured times.

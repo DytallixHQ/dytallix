@@ -14,7 +14,7 @@ differ, the approval governs. It does not authorize a launch.
 | **DGT** | 1,000,000,000, all issued at genesis, never minted again |
 | **DRT** | The fee token, issued over time with no supply cap; a liquid bootstrap of 1,000,000 DRT at genesis |
 | **Root controls** | Five key kits held by five people, one each; any three act ([root key holders](approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json)) |
-| **Network** | One validator, one sentry (the archive) and one endpoint ([solo launch](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
+| **Network** | One validator and one sentry, the archive and the node serving clients: two hosts ([solo launch](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [two seats](approvals/P01_E05_TWO_SEATS_2026-10-11.json)) |
 | **Disclosure** | The [trust model](TRUST_MODEL.md) states every concentration of control |
 
 ## 1. Tokens
@@ -161,12 +161,14 @@ two copies in two separate places of their own
   provider ([hosting](approvals/P01_E05_HOSTING_2026-10-11.json)); the archive of
   every block; writes a daily snapshot (with the light blocks a restore
   needs, being built) and pushes it encrypted to object storage at a second
-  provider.
-- **Endpoint:** serves clients over the post-quantum client channel and a
-  public status page.
+  provider. It also serves clients over the post-quantum client channel and
+  a public status page, as an endpoint does: two seats, no separate endpoint
+  ([two seats](approvals/P01_E05_TWO_SEATS_2026-10-11.json)).
 - **Hosts:** Ubuntu 24.04, each host's public address on its own interface,
   installed from sealed bundles
-  ([hosts](approvals/P01_E05_HOSTS_2026-10-06.json)).
+  ([hosts](approvals/P01_E05_HOSTS_2026-10-06.json)); the founder's two 4 GB
+  servers, the node held to 3 GiB of memory and resized only if the capacity
+  runs prove it too small.
 
 More validators join later through on-chain registration.
 
