@@ -40,6 +40,13 @@ class PlanTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             sn.sync_info(json.dumps({'result': {}}))
 
+    def test_the_wallet_drill_checks_the_supply_rule(self):
+        view = {'supply': {'genesis': '1000000000000', 'emitted': '5000', 'burned': '1200', 'total': '1000000003800'},
+                'dgt_supply': {'issued': str(sn.DGT_TOTAL)}}
+        self.assertTrue(sn.supply_holds(view))
+        self.assertFalse(sn.supply_holds(dict(view, supply=dict(view['supply'], total='1000000003801'))))
+        self.assertFalse(sn.supply_holds(dict(view, dgt_supply={'issued': str(sn.DGT_TOTAL + 1)})))
+
     def test_a_swapped_signature_keeps_the_nodes_canonical_form(self):
         # The node decodes only its canonical form (compact, its key order),
         # so the kit drill's old-kit control must keep it to be refused for

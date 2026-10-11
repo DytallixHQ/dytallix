@@ -16,9 +16,12 @@ Inputs:
 
 It runs the launch pipeline end to end with synthetic records, in the
 release manifest's freeze order:
-  1. records: the committed production rehearsal's synthetic records, with
-     this plan's validators (their keys from the key step), chain ID and
-     genesis time;
+  1. records: the approved production allocation's shape (the five buckets,
+     the treasury, the five root key holders' grants, each validator's
+     operator with its self-bond, and the DRT bootstrap) on spendable
+     rehearsal accounts, whose ML-DSA-65 keys the release's own CLI makes in
+     rehearsal-wallets/ (simulation plan, T1), with this plan's validators
+     (their keys from the key step), chain ID and genesis time;
   2. resolve and build the genesis (production builder);
   3. write the release manifest from the build record and native genesis;
   4. bind root.release_sha512 and build again (the native genesis must not
@@ -33,15 +36,19 @@ release manifest's freeze order:
      (host_bundle.py).
 
 OUT_DIR receives each stage's files and bundles/LABEL.bundle.tar. Its
-root-keys/ and control-kits/ hold the throwaway private keys: this chain is
-for staging and CI only, its records and keys are invented, and nothing here
-may be reused for any network.
+root-keys/, control-kits/ and rehearsal-wallets/ hold the throwaway private
+keys (the wallets' keystore under rehearsal-wallets/home, its passphrase in
+rehearsal-wallets/passphrase, and MAPPING.json naming the production row each
+account stands for): this chain is for staging and CI only, its records and
+keys are invented, and nothing here may be reused for any network.
 """
 import argparse
+import base64
 import copy
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -69,8 +76,29 @@ CONTROL_KITS = 5
 STAGING_NOTICE_BLOCKS = 20
 NOTICE_PATHS = ('upgrade.min_notice_blocks', 'release_handover.v2.min_notice_blocks')
 DRILL_APPROVAL = 'launch/approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json'
-BOUNDARY = ('Staging chain for host setup v1 (H4): the production rehearsal\'s invented records with '
-            'throwaway validator and root keys. Not for any network.')
+BOUNDARY = ('Staging chain for host setup v1 (H4) and the launch simulations: the approved allocation\'s shape on '
+            'throwaway accounts, validator and root keys. Not for any network.')
+DGT, DRT = 10**6, 10**6
+SELF_BOND_DGT = 100_000
+HOLDERS = 5
+HOLDER_GRANT_DGT = 20_000
+# The approved allocation's rows (genesis framework, sections 1 and 2), each on
+# a rehearsal account: label, the production row it stands for, DGT, DRT. The
+# validators' operators (operator-N, each holding its self-bond) are carved out
+# of Ecosystem growth, as the production self-bond is. The DRT bootstrap rows
+# are open in production (D08-Q03): here Ecosystem growth holds what the other
+# rows do not, to fund the simulations' wallets.
+DRT_BOOTSTRAP = 1_000_000
+REHEARSAL_ROWS = (
+    ('ecosystem-growth', 'Ecosystem growth bucket, less the validators\' self-bonds', 300_000_000, None),
+    ('team-and-advisors', 'Team and advisors bucket, less the root key holders\' grants',
+     200_000_000 - HOLDERS * HOLDER_GRANT_DGT, 0),
+    ('public-sale', 'Public sale bucket', 150_000_000, 0),
+    ('private-sale', 'Private sale bucket', 150_000_000, 0),
+    ('reserve', 'Reserve bucket', 200_000_000, 0),
+    ('treasury', 'Treasury account', 0, 1_000),
+) + tuple((f'kit-holder-{n}', f'Root key holder {n}\'s grant', HOLDER_GRANT_DGT, 2_000) for n in range(1, HOLDERS + 1))
+OPERATOR_DRT = 1_000
 
 
 class Invalid(ValueError):
@@ -120,6 +148,77 @@ def staging_records(plan, rehearsal, genesis_time):
     kept = {row['validator_id'] for row in records['validators']}
     records['delegations'] = [d for d in rehearsal['delegations'] if d['validator_id'] in kept]
     return records
+
+
+def rehearsal_labels(validators):
+    """Every rehearsal account, in the records' order."""
+    return [row[0] for row in REHEARSAL_ROWS] + [f'operator-{n}' for n in range(1, validators + 1)]
+
+
+def rehearsal_wallets(cli, out, labels, show):
+    """One encrypted keystore holding an ML-DSA-65 key per rehearsal account,
+    made by the release's own CLI as a user makes a wallet. Returns each
+    label's public key; the private keys stay in the keystore."""
+    wallets = out / 'rehearsal-wallets'
+    home = wallets / 'home'
+    home.mkdir(parents=True, mode=0o700)
+    passphrase = wallets / 'passphrase'
+    passphrase.write_text(hashlib.sha256(os.urandom(32)).hexdigest() + '\n')
+    passphrase.chmod(0o600)
+    env = dict(os.environ, HOME=str(home), DYTALLIX_KEYSTORE_PASSPHRASE_FILE=str(passphrase))
+    for label in labels:
+        show(f'$ dytallix wallet create --name {label}')
+        result = subprocess.run([str(cli), 'wallet', 'create', '--name', label], capture_output=True, text=True, env=env)
+        if result.returncode != 0:
+            raise Invalid(f'dytallix wallet create failed: {(result.stderr or "").strip()}')
+    return keystore_public_keys(home / '.dytallix' / 'keystore.json', labels)
+
+
+def keystore_public_keys(path, labels):
+    """Each label's public key from a keystore, which stores them in the clear."""
+    entries = {e['name']: e for e in read_json(path)['entries']}
+    require(set(labels) <= set(entries), f'the keystore lacks {sorted(set(labels) - set(entries))}')
+    keys = {}
+    for label in labels:
+        raw = bytes(entries[label]['public_key'])
+        require(len(raw) == 1952, f'{label} is not an ML-DSA-65 key')
+        keys[label] = base64.b64encode(raw).decode()
+    return keys
+
+
+def spendable_records(plan, rehearsal, genesis_time, public_keys):
+    """The staging records on spendable accounts: the approved allocation's
+    rows with keys the harness holds, all unlocked, with no delegation."""
+    records = staging_records(plan, rehearsal, genesis_time)
+    validators = len(records['validators'])
+    operators = [f'operator-{n}' for n in range(1, validators + 1)]
+    for n, validator in enumerate(records['validators'], 1):
+        validator['operator'], validator['self_bond_udgt'] = f'operator-{n}', str(SELF_BOND_DGT * DGT)
+    others_drt = sum(drt for _, _, _, drt in REHEARSAL_ROWS if drt is not None) + OPERATOR_DRT * validators
+    rows = [(label, dgt - SELF_BOND_DGT * validators if drt is None else dgt, DRT_BOOTSTRAP - others_drt if drt is None else drt)
+            for label, _, dgt, drt in REHEARSAL_ROWS]
+    rows += [(label, SELF_BOND_DGT, OPERATOR_DRT) for label in operators]
+    records['accounts'] = [{'label': label, 'origin_public_key_base64': public_keys[label], 'udgt': str(dgt * DGT),
+                            'udrt': str(drt * DRT), 'vesting': {'kind': 'unlocked'}} for label, dgt, drt in rows]
+    records['delegations'] = []
+    require(sum(int(a['udgt']) for a in records['accounts']) == 10**9 * DGT, 'the rehearsal accounts do not hold the whole DGT total')
+    require(sum(int(a['udrt']) for a in records['accounts']) == DRT_BOOTSTRAP * DRT, 'the rehearsal accounts do not hold the DRT bootstrap')
+    return records
+
+
+def mapping(records, native_genesis, chain):
+    """Each rehearsal account's address and the production row it stands for."""
+    stands_for = {label: row for label, row, _, _ in REHEARSAL_ROWS}
+    native = native_genesis['accounts']
+    require(len(native) == len(records['accounts']), 'the native genesis has another number of accounts')
+    accounts = []
+    for account, built in zip(records['accounts'], native):
+        label = account['label']
+        row = stands_for[label] if label in stands_for else f"Validator {label.split('-')[1]}'s operator, holding its self-bond"
+        accounts.append({'label': label, 'wallet': label, 'address': built['address'], 'stands_for': row,
+                         'udgt': account['udgt'], 'udrt': account['udrt']})
+    return {'schema': 'dytallix.rehearsal-accounts.v1', 'chain_id': chain, 'boundary': BOUNDARY,
+            'keystore': 'home/.dytallix/keystore.json', 'passphrase': 'passphrase', 'accounts': accounts}
 
 
 def control_kits(tools, out, show):
@@ -223,7 +322,10 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
     out.mkdir(parents=True)
     genesis_time = genesis_time or datetime.now(timezone.utc).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
     chain = plan['chain_id']
-    records = staging_records(plan, read_json(REHEARSAL / 'records.json'), genesis_time)
+    validators = len([h for h in plan['hosts'] if h['role'] == 'validator'])
+    show('== rehearsal wallets (throwaway, spendable)')
+    public_keys = rehearsal_wallets(release_dir / 'bin' / 'dytallix', out, rehearsal_labels(validators), show)
+    records = spendable_records(plan, read_json(REHEARSAL / 'records.json'), genesis_time, public_keys)
     show('== control kits (throwaway, five)')
     records = with_control_kits(records, control_kits(tools, out, show))
 
@@ -245,6 +347,7 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
     genesis = build_genesis(records, out / 'genesis', tools, show)
     require((genesis / 'native-genesis.json').read_bytes() == (first / 'native-genesis.json').read_bytes(),
             'the native genesis changed when the release was bound')
+    write_json(out / 'rehearsal-wallets' / 'MAPPING.json', mapping(records, read_json(genesis / 'native-genesis.json'), chain))
 
     show('== root genesis signatures (throwaway keys, three of five)')
     policy, signatures, bundle = sign_root(chain, genesis, manifest_path, tools, out, show)
