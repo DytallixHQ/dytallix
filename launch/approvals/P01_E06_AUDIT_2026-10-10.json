@@ -1,0 +1,38 @@
+{
+  "decision_id": "P01-2026-10-10-E06-AUDIT",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Launch timeline: the independent audit and when the seven simulation runs happen"
+  },
+  "reason": "An independent human audit of the frozen candidate replaces the solo launch profile's plan to launch unaudited. The seven simulation runs must pass on the final candidate, so running them after the audit's fixes avoids running all of them twice.",
+  "design_ref": "../GENESIS_FRAMEWORK.md#6-order-of-work",
+  "decisions": [
+    {
+      "question": "D14-Q01, D14-Q03",
+      "selected": "Hashlock audit, with the public review kept",
+      "rule": "Hashlock, an independent security firm, audits the frozen release candidate (E06). The scope is the consensus application and its node crates, including the native supervisor and the HTTP adapter with its client channel (node/dytallix-fast-launch, node/crates, node/consensus/pqc-http-adapter); the PQC CometBFT fork (node/consensus/cometbft); the root authorization tools dytallix-root-sign and dytallix-root-verify (node/consensus/root-authorization); and the CLI wallet with the SDK crates it uses (sdk/crates/dytallix-cli). The 30-day public review with a DGT bug bounty and the separate AI review labeled as AI run alongside the audit, starting at the freeze. Every audit finding is fixed, with Hashlock re-checking the fix, or answered on the record. The launch is labeled unaudited until Hashlock's report is published; the founder still signs off."
+    },
+    {
+      "question": "D14-Q02",
+      "selected": "Simulations after the audit fixes",
+      "rule": "The seven simulation runs happen after the audit's fixes, on the final candidate, on the production hosts before genesis. The staging runs before the freeze (E03, the T suites, the capacity measurements and the kit drills) still find defects before the audit. Order of work: staging runs; E06 freeze; the audit and the public review; fixes; the final candidate; the seven simulation runs; the final input freeze; signing and launch."
+    }
+  ],
+  "supersedes": [
+    "Solo launch profile, D14-Q01/D14-Q02/D14-Q03 'Public review, launch unaudited' (P01, 3 October 2026), in part: an independent human audit is added before launch, and the unaudited label is removed when its report is published. The public review, the AI review and the founder's sign-off stay.",
+    "Review order, D14-Q01/D14-Q02 (P01, 10 October 2026), in part: the seven simulation runs move from the staging runs before the freeze to after the audit's fixes."
+  ],
+  "unset": [
+    "Hashlock's engagement: scope confirmation, quote, schedule, contract and funding (founder)",
+    "The bug bounty tiers and amounts",
+    "The simulation runs' pass thresholds and calendar (D14-Q02)"
+  ],
+  "does_not_authorize": [
+    "the E06 freeze or any release tag",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

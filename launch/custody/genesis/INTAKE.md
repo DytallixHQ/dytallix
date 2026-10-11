@@ -76,7 +76,8 @@ original rules.
 - **When they sign** (P01, 30 September 2026): only after the P02 review, E06
   release acceptance and gate acceptance. Signing is the last step. Under the
   solo launch profile the P02 review is the 30-day public review and the
-  founder's sign-off (P01, 3 October 2026).
+  founder's sign-off (P01, 3 October 2026), with Hashlock's audit of the
+  frozen candidate (P01, 10 October 2026).
 
 The node refuses a genesis signer key that also holds an emergency, upgrade or
 handover role. This checker also refuses a shared controller or control group.

@@ -29,10 +29,11 @@ issues that need physical access to a host.
 
 ## Bounty
 
-The frozen release gets a 30-day public review with a bug bounty paid in DGT,
-and the launch is labeled unaudited until an independent human audit is
-funded ([trust model](launch/TRUST_MODEL.md)). The bounty's terms are
-published with the review.
+Hashlock, an independent security firm, audits the frozen release candidate,
+which also gets a 30-day public review with a bug bounty paid in DGT. The
+launch is labeled unaudited until Hashlock's report is published
+([trust model](launch/TRUST_MODEL.md)). The bounty's terms are published with
+the review.
 
 ## Disclosure
 

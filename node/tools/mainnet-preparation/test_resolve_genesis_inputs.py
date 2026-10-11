@@ -130,6 +130,8 @@ class ResolverTests(unittest.TestCase):
         self.proposals['values']['no_such_value'] = {'value': 1, 'status': 'PROPOSED', 'basis': 'x'}
         self.refused('unknown values')
         del self.proposals['values']['no_such_value']
+        # A host value, reopened: a proposal for an approved one is refused before this check.
+        self.entry('mempool_size')['status'] = 'OPEN'
         self.proposals['values']['mempool_size'] = {'value': 1, 'status': 'PROPOSED', 'basis': 'x'}
         self.refused('does not use')
 

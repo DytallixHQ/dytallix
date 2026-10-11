@@ -1,0 +1,27 @@
+{
+  "decision_id": "P01-2026-10-10-E05-CAPACITY-VALUES",
+  "approved": "2026-10-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Launch timeline: the seven proposed capacity values"
+  },
+  "reason": "The values follow from the approved capacity and the compiled ceilings (proposed in #45). Approving them as starting values lets the host configuration and the staging runs use them; the capacity tests confirm them.",
+  "design_ref": "../../node/docs/architecture/mempool-v1.md",
+  "decisions": [
+    {
+      "question": "D06-Q02, D12-Q01",
+      "selected": "Approve as proposed",
+      "rule": "Engine mempool: 2,100 transactions (mempool_size) and 16,000,000 bytes (mempool_max_txs_bytes), larger than the admission queue so a full queue still admits root controls. Peer rates: 5,120,000 bytes a second each way (p2p_send_rate, p2p_recv_rate). Endpoint connections: the client channel 16 (channel_max_connections) and 2 per address (channel_max_connections_per_address), the loopback adapter 4 (adapter_max_connections), which with the status page's fixed 8 stay within the engine client socket's 32. The host configuration and the endpoint's service configuration carry them. T05 measures them on the staging hosts and can return a value for a new approval."
+    }
+  ],
+  "unset": [
+    "The T05 capacity measurements on the staging hosts"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

@@ -103,13 +103,18 @@
   },
   "catch_up_millis": 21600000,
   "adapter_listen": "127.0.0.1:26671",
+  "adapter_limits": {
+    "max_connections": 4
+  },
   "adapter_channel": {
     "listen": "10.20.0.12:26670",
     "pin": {
       "path": "/etc/dytallix/f2cc05f54bc3c6ec/channel-pin.json",
       "sha256": "0f07bf83aa3aa52be53ee8f974ebf9a5c9ffdb4f5c4b4752a1b7678726ed5821",
       "max_bytes": 8192
-    }
+    },
+    "max_connections": 16,
+    "max_connections_per_address": 2
   },
   "adapter_status_listen": "10.20.0.12:8080",
   "adapter_status_max_head_age_seconds": 60
