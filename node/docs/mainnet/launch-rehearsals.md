@@ -125,7 +125,7 @@ Each is proven in the CI staging network before it touches a real host.
 
 | Tool | Purpose | Builds on |
 |---|---|---|
-| **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
+| **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping. **Spendable accounts built** (`staging_chain.py`, proven by the CI `wallet-drill`); the shortened timing profile follows | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
 | **T2** Staging agent and real-host harness | Signed, allowlisted commands on console-only hosts; the existing drills' assertions against real addresses | `staging_network.py` (`run`, `restore-drill`, `kit-drill`, `monitor-drill`), `staging_host.py`, the host scripts |
 | **T3** Load generator and wallet fleet | Persistent workers that sign locally, track nonces and generate the transaction mix through the client channel | SDK `CometClient`, ordinary v2 and v3 `prepare` and `sign`, `submit_sync`, `wait_for_receipt` |
 | **T4** Adversarial generator | Invalid signatures, bad encodings, bad nonces, duplicates, oversized requests, floods | `CometClient::relay`, the client channel crate, the admission and consensus test cases |

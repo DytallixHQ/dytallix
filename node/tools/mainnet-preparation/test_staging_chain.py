@@ -75,6 +75,69 @@ class StagingChainTests(unittest.TestCase):
             self.assertEqual(after['approval_record'], sc.DRILL_APPROVAL)
             self.assertTrue((sc.MAINNET / sc.DRILL_APPROVAL).is_file())
 
+    def keys(self, validators=1):
+        return {label: f'key-{label}' for label in sc.rehearsal_labels(validators)}
+
+    def test_spendable_records_hold_the_approved_allocation(self):
+        records = sc.spendable_records(self.plan, self.rehearsal, '2026-10-06T12:00:00Z', self.keys())
+        accounts = {a['label']: a for a in records['accounts']}
+        self.assertEqual([a['label'] for a in records['accounts']], sc.rehearsal_labels(1))
+        dgt = {label: int(a['udgt']) // sc.DGT for label, a in accounts.items()}
+        drt = {label: int(a['udrt']) // sc.DRT for label, a in accounts.items()}
+        self.assertEqual(sum(dgt.values()), 1_000_000_000)
+        self.assertEqual(sum(drt.values()), 1_000_000)
+        # The validator's self-bond comes out of Ecosystem growth, the holders'
+        # grants out of Team and advisors (genesis framework, section 1).
+        self.assertEqual((dgt['ecosystem-growth'], dgt['operator-1'], dgt['team-and-advisors']),
+                         (299_900_000, 100_000, 199_900_000))
+        self.assertEqual([dgt[f'kit-holder-{n}'] for n in range(1, 6)], [20_000] * 5)
+        self.assertEqual((dgt['public-sale'], dgt['private-sale'], dgt['reserve'], dgt['treasury']),
+                         (150_000_000, 150_000_000, 200_000_000, 0))
+        self.assertEqual(drt['ecosystem-growth'], 1_000_000 - 1_000 - 5 * 2_000 - 1_000)
+        self.assertTrue(all(a['vesting'] == {'kind': 'unlocked'} for a in records['accounts']))
+        self.assertTrue(all(a['origin_public_key_base64'] == f'key-{a["label"]}' for a in records['accounts']))
+        self.assertEqual(records['delegations'], [])
+        self.assertEqual([(v['validator_id'], v['operator'], v['self_bond_udgt']) for v in records['validators']],
+                         [('validator-1', 'operator-1', str(100_000 * sc.DGT))])
+
+    def test_each_validator_has_an_operator_carved_from_ecosystem_growth(self):
+        plan = json.loads(json.dumps(self.plan))
+        extra = dict(next(h for h in plan['hosts'] if h['role'] == 'validator'), label='validator-2')
+        plan['hosts'].append(extra)
+        records = sc.spendable_records(plan, self.rehearsal, '2026-10-06T12:00:00Z', self.keys(2))
+        accounts = {a['label']: int(a['udgt']) // sc.DGT for a in records['accounts']}
+        self.assertEqual((accounts['ecosystem-growth'], accounts['operator-1'], accounts['operator-2']),
+                         (299_800_000, 100_000, 100_000))
+        self.assertEqual(sum(accounts.values()), 1_000_000_000)
+
+    def test_public_keys_come_from_the_keystore(self):
+        import base64
+        import tempfile
+        from pathlib import Path
+        raw = bytes(range(256)) * 7 + bytes(160)
+        self.assertEqual(len(raw), 1952)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'keystore.json'
+            path.write_text(json.dumps({'version': 2, 'entries': [{'name': 'reserve', 'public_key': list(raw)}]}))
+            self.assertEqual(sc.keystore_public_keys(path, ['reserve']), {'reserve': base64.b64encode(raw).decode()})
+            with self.assertRaises(sc.Invalid):
+                sc.keystore_public_keys(path, ['reserve', 'treasury'])
+            path.write_text(json.dumps({'entries': [{'name': 'reserve', 'public_key': list(raw[:64])}]}))
+            with self.assertRaises(sc.Invalid):
+                sc.keystore_public_keys(path, ['reserve'])
+
+    def test_the_mapping_names_the_row_each_account_stands_for(self):
+        records = sc.spendable_records(self.plan, self.rehearsal, '2026-10-06T12:00:00Z', self.keys())
+        native = {'accounts': [{'address': f'tdytallix1{a["label"]}'} for a in records['accounts']]}
+        result = sc.mapping(records, native, 'dytallix-staging-1')
+        rows = {a['label']: a for a in result['accounts']}
+        self.assertEqual(rows['kit-holder-3']['stands_for'], "Root key holder 3's grant")
+        self.assertIn('self-bond', rows['operator-1']['stands_for'])
+        self.assertEqual(rows['treasury']['address'], 'tdytallix1treasury')
+        self.assertIn('Not for any network', result['boundary'])
+        with self.assertRaises(sc.Invalid):
+            sc.mapping(records, {'accounts': native['accounts'][:-1]}, 'dytallix-staging-1')
+
 
 if __name__ == '__main__':
     unittest.main()

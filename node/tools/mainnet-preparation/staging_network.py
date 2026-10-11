@@ -710,6 +710,111 @@ FILL = '/var/lib/dytallix-drill-fill'
 FILL_FREE_PERCENT = 3
 
 
+# Every drill write: a basic transaction uses about 47,600 gas and pays the
+# 1 DRT floor; the cap bounds what a write may be charged.
+WALLET_WRITE = ('--gas-limit', '200000', '--maximum-fee-udrt', '20000000')
+DGT_TOTAL = 10**15
+
+
+def supply_holds(view):
+    """The supply rule in a status view: DRT total is genesis plus emitted
+    minus burned, and every DGT is issued and none minted."""
+    drt, dgt = view['supply'], view['dgt_supply']
+    return (int(drt['total']) == int(drt['genesis']) + int(drt['emitted']) - int(drt['burned'])
+            and int(dgt['issued']) == DGT_TOTAL)
+
+
+def wallet_drill(work, timeout=300):
+    """The rehearsal wallets on the staging chain (simulation plan, T1): over
+    the endpoint's client channel, with the release's CLI, a DRT transfer
+    that creates an account, a DGT transfer, a bond to the validator and a
+    reward claim, each by its committed receipt and proven balances, with the
+    supply rule before and after."""
+    work = Path(work)
+    bins, chain = work / 'release-bin', work / 'net' / 'chain'
+    wallets = chain / 'rehearsal-wallets'
+    accounts = {a['label']: a for a in json.loads((wallets / 'MAPPING.json').read_bytes())['accounts']}
+    drill = work / 'wallet-drill'
+    drill.mkdir(parents=True)
+    shutil.copytree(wallets / 'home', drill / 'home')
+    env = dict(os.environ, HOME=str(drill / 'home'), DYTALLIX_KEYSTORE_PASSPHRASE_FILE=str(wallets / 'passphrase'))
+    digest = hashlib.sha256((chain / 'chain' / 'native-genesis.json').read_bytes()).hexdigest()
+    tool(bins / 'dytallix', 'config', 'pin-chain', '--endpoint', work / 'net' / 'keys' / 'endpoint-1.channel-pin.json',
+         '--network', 'testnet', '--chain-id', staging_host.CHAIN_ID, '--genesis-digest', digest, env=env)
+    saved = iter(range(1, 1_000_000))
+
+    def cli(*args):
+        return json.loads(tool(bins / 'dytallix', *args, env=env, quiet=True).stdout)
+
+    def status():
+        path = drill / f'status-{next(saved)}.json'
+        tool(bins / 'dytallix', 'control', 'status', '--out', path, env=env, quiet=True)
+        return json.loads(path.read_bytes())
+
+    def write(*args):
+        report = cli(*args, *WALLET_WRITE)
+        if not (report.get('committed') and report.get('status') == 'success'):
+            raise Failed(f'{args[0]} did not commit successfully: {report.get("status")}')
+        say(f'== {" ".join(args[:2])}: committed, charged {report["charge_udrt"]} udrt')
+        return report
+
+    def balance(target):
+        flag = ('--wallet', target) if target in accounts or target == 'drill-new' else (target,)
+        return cli('balance', *flag)
+
+    before = status()
+    if not supply_holds(before):
+        raise Failed(f'the supply rule fails before the drill at height {before["height"]}')
+
+    # A transfer to an address with no account creates it (account model v2).
+    tool(bins / 'dytallix', 'wallet', 'create', '--name', 'drill-new', env=env, quiet=True)
+    fresh = balance('drill-new')
+    if fresh['account_exists']:
+        raise Failed('the new wallet already has an account')
+    write('send', '--to', fresh['address'], '--amount', '100', '--token', 'drt', '--wallet', 'ecosystem-growth')
+    created = balance('drill-new')
+    if not created['account_exists'] or created['udrt'] != str(100 * 10**6):
+        raise Failed(f'the new account holds {created["udrt"]} udrt, not 100 DRT')
+
+    holder = accounts['kit-holder-1']
+    start = balance('kit-holder-1')
+    write('send', '--to', holder['address'], '--amount', '1000', '--token', 'dgt', '--wallet', 'ecosystem-growth')
+    if int(balance('kit-holder-1')['udgt']) != int(start['udgt']) + 1000 * 10**6:
+        raise Failed('kit-holder-1 did not receive 1,000 DGT')
+
+    validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
+    write('stake', 'bond', '--validator', validator, '--amount', '1000', '--wallet', 'kit-holder-1')
+
+    # A bond joins the set at H+2; then it earns its share of each block's
+    # staking budget, which a claim pays.
+    deadline = time.monotonic() + timeout
+    while True:
+        summary = cli('stake', 'status', '--wallet', 'kit-holder-1')
+        if int(summary['bonded_udgt']) >= 1000 * 10**6 and int(summary['claimable_rewards_udrt']) > 0:
+            break
+        if time.monotonic() > deadline:
+            raise Failed(f'kit-holder-1 has bonded {summary["bonded_udgt"]} udgt and '
+                         f'{summary["claimable_rewards_udrt"]} udrt claimable')
+        time.sleep(5)
+    liquid = int(summary['liquid_udrt'])
+    claim = write('stake', 'claim', '--wallet', 'kit-holder-1')
+    claimed = cli('stake', 'status', '--wallet', 'kit-holder-1')
+    if int(claimed['liquid_udrt']) <= liquid - int(claim['charge_udrt']):
+        raise Failed('the reward claim paid nothing')
+
+    after = status()
+    if not supply_holds(after):
+        raise Failed(f'the supply rule fails after the drill at height {after["height"]}')
+    burned = int(after['supply']['burned']) - int(before['supply']['burned'])
+    if burned < 10 * 10**6:
+        raise Failed(f'only {burned} udrt was burned; the account creation fee alone is 10 DRT')
+    evidence = {'from_height': before['height'], 'to_height': after['height'], 'burned_udrt': str(burned),
+                'emitted_udrt': str(int(after['supply']['emitted']) - int(before['supply']['emitted'])),
+                'new_account': created['address'], 'supply_rule': 'holds'}
+    (drill / 'evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')
+    say(json.dumps(evidence, indent=2))
+
+
 def parse_events(raw):
     """The stand-in service's events; a line still being written is skipped."""
     events = []
@@ -921,7 +1026,8 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'restore-drill', 'kit-drill', 'monitor-drill', 'diagnostics'):
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'restore-drill', 'kit-drill', 'monitor-drill',
+                 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     v = commands.add_parser('vms-up')
     v.add_argument('--work', type=Path, required=True)
@@ -940,6 +1046,8 @@ def main():
             install_vms(args.work)
         elif args.command == 'run':
             run(args.work)
+        elif args.command == 'wallet-drill':
+            wallet_drill(args.work)
         elif args.command == 'restore-drill':
             restore_drill(args.work)
         elif args.command == 'kit-drill':
