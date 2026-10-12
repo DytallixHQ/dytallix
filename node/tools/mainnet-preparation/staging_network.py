@@ -46,10 +46,11 @@ instead: from the load's first status view, against its ledger, with every
 account the load created tracked too; its evidence is reconcile-load/evidence.json.
 
 load is the load generator (simulation plan, T3; load.py), a short CI run:
-16 load wallets, a governance proposer, depositor and voter, and 8 spare
-keys, made with the release's CLI and funded from the ecosystem growth
-account; 1 transaction a second for 2 minutes in the default mix over the
-sentry's client channel, with the governance steps beside it. Anything but
+16 load wallets, a governance proposer, depositor and voter, 8 spare keys
+and 2 distributors, made with the release's CLI and funded from the
+ecosystem growth account through the distributors; 1 transaction a second
+for 2 minutes in the default mix over the sentry's client channel, with the
+governance steps beside it and one reward sweep back to the funder. Anything but
 PASS fails the step; the evidence is load/run/evidence.json.
 
 restore-drill is the first restore drill (disaster recovery v1, R6): the
@@ -912,14 +913,17 @@ def reconcile_network(work, after='wallet-drill', timeout=300):
 
 # A short, low-rate run for one CI runner: one address, so two channel
 # connections. The capacity runs (T05) use load.py from the load machines.
-LOAD_CI = {'wallets': 16, 'voters': 1, 'spares': 8, 'rate': 1.0, 'duration': 120}
+LOAD_CI = {'wallets': 16, 'voters': 1, 'spares': 8, 'distributors': 2, 'rate': 1.0, 'duration': 120,
+           'sweep_interval': 60, 'sweep_from': ('operator-1', 'kit-holder-1')}
 
 
 def load_drill(work):
     """The load generator on the staging network: the fleet made with the
-    release's CLI, funded from the ecosystem growth account, then a short
-    paced run of the default mix over the sentry's client channel with the
-    governance steps beside it. Every transaction must be committed or
+    release's CLI, funded from the ecosystem growth account through two
+    distributors and primed, then a short paced run of the default mix over
+    the sentry's client channel with the governance steps beside it, and
+    one sweep of the operator's and kit-holder-1's rewards back to the
+    funder. Every transaction must be committed or
     refused at admission (none may be refused here), 99% within 2 blocks,
     and the burns must match the run's ledger. The evidence's digests are
     checked again from its files."""
@@ -929,13 +933,14 @@ def load_drill(work):
     env = pinned_cli(work, out)
     cli = work / 'release-bin' / 'dytallix'
     load_generator.make_fleet(cli, staging_host.CHAIN_ID, out / 'fleet', LOAD_CI['wallets'], LOAD_CI['voters'],
-                              LOAD_CI['spares'])
+                              LOAD_CI['spares'], LOAD_CI['distributors'])
     validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
     settings = load_generator.Settings(rate=LOAD_CI['rate'], duration=LOAD_CI['duration'], governance=True,
-                                       max_refused=0)
+                                       max_refused=0, sweep_interval=LOAD_CI['sweep_interval'])
     record = load_generator.run_load(cli, env['HOME'], out / 'fleet', out / 'run', chain / 'chain' / 'application-config.json',
                                      'ecosystem-growth', validator, settings, show=say,
-                                     passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+                                     passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'],
+                                     sweep_from=LOAD_CI['sweep_from'])
     load_generator.report(record, show=say)
     checked = load_generator.verify(json.loads((out / 'run' / 'evidence.json').read_bytes()),
                                     (out / 'run' / 'transactions.jsonl').read_bytes())

@@ -361,7 +361,7 @@ class Chain:
             account_id = ADDRESSES[path.rsplit('/', 1)[1]]
             account = self.accounts[account_id]
             return {'nonce': str(account['nonce']), 'liquid_udrt': str(account['liquid']), 'context': context,
-                    'bonded_udgt': str(100 * load.UNIT)}
+                    'bonded_udgt': str(100 * load.UNIT), 'claimable_rewards_udrt': str(account.get('claimable', 0))}
         if path.startswith('/governance/proposal/'):
             proposal = self.proposals.get(int(path.rsplit('/', 1)[1]))
             if proposal and getattr(self, 'opens', None) and height >= self.opens:
@@ -445,6 +445,18 @@ class SimulatedLoad(load.Load):
                     chain.votes[(int(args[3]), wallet.account_id)] = args[5]
             tx['governance'] = effect
             row.update(nonce=nonce, expiry_height=self.rpc.chain.height() + 21)
+        elif args[:2] == ('stake', 'claim'):
+            def effect(chain):
+                account = chain.accounts[wallet.account_id]
+                account['liquid'], account['claimable'] = account['liquid'] + account.get('claimable', 0), 0
+            tx['governance'] = effect
+        elif args[0] == 'send' and wallet.role == 'sweeper':
+            amount = int(args[4].replace('.', ''))
+
+            def effect(chain):
+                chain.accounts[wallet.account_id]['liquid'] -= amount
+                chain.accounts[ADDRESSES[args[2]]]['liquid'] += amount
+            tx['governance'] = effect
         code, log = self.rpc.chain.admit(tx)
         row.update(id=tx['id'], code=code, log=log, status='admitted' if code == 0 else 'refused',
                    broadcast_ms=1.0, submitted_at=time.time())
@@ -454,33 +466,43 @@ class SimulatedLoad(load.Load):
 
 
 class WholeRunTests(unittest.TestCase):
-    def run_load(self, drop=(), governance=True, rate=60.0, vote=False):
+    def run_load(self, drop=(), governance=True, rate=60.0, vote=False, distributors=0, sweep=False):
         fleet = {'_dir': '.', 'chain_id': CHAIN, 'wallets': []}
-        for label, role in load.fleet_labels(6, 1, 4):
+        for label, role in load.fleet_labels(6, 1, 4, distributors):
             w = wallet(label, role)
             ADDRESSES[w.address] = w.account_id
             fleet['wallets'].append({'label': label, 'role': role, 'address': w.address, 'account_id': w.account_id,
                                      'key_file': f'keys/{label}.json'})
         funder = wallet('ecosystem-growth', 'funder')
         ADDRESSES[funder.address] = funder.account_id
-        chain = Chain(0.05, [funder.account_id], drop=drop)
+        operator = wallet('operator-1', 'sweeper')
+        ADDRESSES[operator.address] = operator.account_id
+        chain = Chain(0.05, [funder.account_id, operator.account_id], drop=drop)
+        chain.accounts[operator.account_id].update(liquid=1000 * load.UNIT, claimable=500 * load.UNIT)
+        sweepers = [{'label': operator.label, 'address': operator.address, 'account_id': operator.account_id}]
         config = {'ordinary': {'fee_profile': {'account_creation_fee_udrt': str(Chain.FEE), 'gas_price': '10'}},
                   'lifecycle': {'max_active': 16}, 'governance': {'deposit': {'minimum_deposit_udgt': 10**10}}}
         settings = load.Settings(rate=rate, duration=1.0, block_time=0.05, poll_interval=0.02, governance=governance, max_refused=0,
-                                 governance_vote=vote, fund_drt=100 * load.UNIT, fund_dgt=100 * load.UNIT)
+                                 governance_vote=vote, fund_drt=100 * load.UNIT, fund_dgt=100 * load.UNIT,
+                                 sweep_keep=100 * load.UNIT)
         with tempfile.TemporaryDirectory() as out:
             run = SimulatedLoad(ChainRpc(chain), ChainSigner(), {}, 'dytallix', fleet, out, settings,
                                 {'label': funder.label, 'address': funder.address, 'account_id': funder.account_id},
-                                'validator-1', config, show=lambda m: None)
+                                'validator-1', config, show=lambda m: None, sweepers=sweepers if sweep else ())
             before = load.status_reading(run.status('s'))
             run.fund()
             run.first_spends()
             thread = threading.Thread(target=run.run_governance) if governance else None
             if thread:
                 thread.start()
+            sweeper = threading.Thread(target=lambda: run.sweeps.append(run.sweep(run.s.sweep_keep))) if sweep else None
+            if sweeper:
+                sweeper.start()
             window = run.window()
             if thread:
                 thread.join(10)
+            if sweeper:
+                sweeper.join(10)
             while chain.height() < max(r['block_height'] or 0 for r in run.rows) + 2:
                 time.sleep(0.05)
             after = load.status_reading(run.status('s'))
@@ -511,6 +533,34 @@ class WholeRunTests(unittest.TestCase):
         created = load.created_addresses(run.rows, run.wallets)
         self.assertEqual(len(created), 9 + sum(r['kind'] == 'create' for r in run.rows if r['phase'] == 'run'))
         self.assertEqual(load.verify(json.loads(json.dumps(record)), raw), load.PASS)
+
+    def test_distributors_fan_the_funding_out_and_rewards_go_back(self):
+        run, record, raw = self.run_load(governance=False, rate=20.0, distributors=2, sweep=True)
+        self.assertEqual(record['status'], load.PASS, json.dumps(record['checks'], indent=1))
+        funding = [r for r in run.rows if r['kind'] == 'fund']
+        by_payer = {}
+        for r in funding:
+            by_payer.setdefault(r['wallet'], []).extend(r['recipients'])
+        self.assertEqual(by_payer['ecosystem-growth'], ['distributor-01', 'distributor-02'])
+        self.assertEqual(sorted(by_payer['distributor-01'] + by_payer['distributor-02']),
+                         [f'load-{n:04}' for n in range(1, 7)])
+        # The distributors primed before paying: their first spends are setup rows.
+        primed = {r['wallet'] for r in run.rows if r['kind'] == 'first_spend'}
+        self.assertTrue({'distributor-01', 'distributor-02'} <= primed)
+        # The operator claimed its 500 DRT and sent all but 100 DRT back.
+        swept = [r for r in run.rows if r['phase'] == 'sweep']
+        self.assertEqual([r['kind'] for r in swept], ['sweep_claim', 'sweep_return'])
+        self.assertEqual(run.sweeps, [{'operator-1': str(1399 * load.UNIT)}])
+        self.assertTrue(all(r['status'] == 'committed' for r in swept))
+        self.assertNotIn('sweep', record['summary']['run_by_kind'])
+        self.assertEqual(load.verify(json.loads(json.dumps(record)), raw), load.PASS)
+
+    def test_a_distributor_needs_its_share_fees_and_caps(self):
+        run, _, _ = self.run_load(governance=False, rate=5.0)
+        share = [(None, 100 * load.UNIT, 50 * load.UNIT)] * 9  # 18 transfers: two transactions
+        drt, dgt = run.distributor_needs(share)
+        self.assertEqual(dgt, 450 * load.UNIT)
+        self.assertEqual(drt, 900 * load.UNIT + 9 * Chain.FEE + 2 * load.FUNDING_GAS_LIMIT * 10 + run.cap + load.UNIT)
 
     def test_with_the_vote_the_voters_wait_for_it(self):
         _, record, raw = self.run_load(vote=True, rate=20.0)

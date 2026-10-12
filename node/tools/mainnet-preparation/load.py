@@ -24,9 +24,13 @@ and the funder's keystore (its passphrase in DYTALLIX_KEYSTORE_PASSPHRASE_FILE):
      (broadcast_tx_sync, abci_query, abci_info, header) goes through it over
      the release's client channel, with no process per transaction;
   2. funds the fleet from the funder, sixteen transfers a transaction, which
-     creates their accounts;
-  3. makes each wallet's first spend through the CLI's online path (a load
-     wallet sends 1 DRT; a governance wallet bonds);
+     creates their accounts; with distributors in the fleet it fans out
+     (P01, 12 October 2026): the funder pays each distributor its share's
+     needs, and the distributors, primed, pay their shares in parallel;
+  3. primes each wallet with its first spend through the CLI's online path
+     (a load wallet sends 1 DRT; a governance wallet bonds). Funding and
+     priming are the warm-up: timed in the record, outside the load
+     metrics;
   4. runs the measured window: wallets are paced at --rate for --duration,
      each choosing a kind from --mix; each transaction is signed offline with
      the release CLI (`ordinary prepare`, `sign --key-file`, `transport`) at
@@ -41,7 +45,11 @@ and the funder's keystore (its passphrase in DYTALLIX_KEYSTORE_PASSPHRASE_FILE):
      timings), and vote. v3 has no receipts yet, so each charge is the fall
      in the wallet's liquid DRT around its spent nonce (these wallets
      receive nothing during the run);
-  6. drains, reads the status view again and the block headers, and writes
+  6. with --sweep-from, every --sweep-interval seconds (about hourly) each
+     named keystore account (the operators, the stakers) claims its rewards
+     and sends its liquid DRT above --sweep-keep back to the funder, so the
+     genesis allocation stays the production one;
+  7. drains, reads the status view again and the block headers, and writes
      transactions.jsonl (one row per transaction), ledger.json (the
      reconciliation's ledger, dytallix.reconcile-ledger.v1) and evidence.json
      (digest-bound: SHA-256 of its canonical form and of both other files).
@@ -177,23 +185,26 @@ def make_wallet(cli, label, keys, scratch, passphrase):
         shutil.rmtree(home, ignore_errors=True)
 
 
-def fleet_labels(wallets, voters, spares):
+def fleet_labels(wallets, voters, spares, distributors=0):
     return ([(f'load-{n:04}', 'load') for n in range(1, wallets + 1)] +
+            [(f'distributor-{n:02}', 'distributor') for n in range(1, distributors + 1)] +
             [('gov-proposer', 'proposer'), ('gov-depositor', 'depositor')] +
             [(f'gov-voter-{n}', 'voter') for n in range(1, voters + 1)] +
             [(f'spare-{n:04}', 'spare') for n in range(1, spares + 1)])
 
 
-def make_fleet(cli, chain_id, out, wallets, voters=1, spares=0, workers=4, show=say):
+def make_fleet(cli, chain_id, out, wallets, voters=1, spares=0, distributors=0, workers=4, show=say):
     """The fleet's key files in out/keys (0700) and out/fleet.json, the
-    public record: each wallet's label, role, address and account ID."""
+    public record: each wallet's label, role, address and account ID. The
+    distributors fan the funding out (P01, 12 October 2026: 25 paying 40
+    each for 1,000 wallets)."""
     out = Path(out)
     keys, scratch = out / 'keys', out / 'scratch'
     keys.mkdir(parents=True, mode=0o700)
     scratch.mkdir(mode=0o700)
     passphrase = scratch / 'passphrase'
     private_file(passphrase, (sha256(os.urandom(32)) + '\n').encode())
-    labels = fleet_labels(wallets, voters, spares)
+    labels = fleet_labels(wallets, voters, spares, distributors)
     show(f'== the fleet: {len(labels)} wallets made with dytallix wallet create and export')
     started = time.monotonic()
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -609,6 +620,9 @@ class Settings:
         self.fund_dgt = 500 * UNIT
         self.governance = False
         self.governance_vote = False
+        # Reward sweeps: about hourly, keeping this much liquid DRT.
+        self.sweep_interval = 3600.0
+        self.sweep_keep = 100 * UNIT
         self.governance_bond = 100 * UNIT
         self.seed = 1
         self.min_within_2 = 0.99
@@ -623,7 +637,7 @@ class Load:
     """The fleet's wallets, the views they sign against and the record."""
 
     def __init__(self, rpc, signer, cli_env, cli, fleet, out, settings, funder, validator, config, show=say,
-                 clock=time.monotonic, sleep=time.sleep):
+                 clock=time.monotonic, sleep=time.sleep, sweepers=()):
         self.rpc, self.signer, self.env, self.cli = rpc, signer, cli_env, cli
         self.out, self.s, self.validator, self.show = Path(out), settings, validator, show
         self.clock, self.sleep = clock, sleep
@@ -635,6 +649,12 @@ class Load:
         self.funder = Wallet(funder['label'], 'funder', funder['address'], funder['account_id'],
                              keystore_name=funder['label'])
         self.wallets[self.funder.label] = self.funder
+        # Keystore accounts whose rewards go back to the funder.
+        self.sweepers = [Wallet(a['label'], 'sweeper', a['address'], a['account_id'], keystore_name=a['label'])
+                         for a in sweepers]
+        for wallet in self.sweepers:
+            self.wallets[wallet.label] = wallet
+        self.sweeps = []
         self.rows, self.rows_lock = [], threading.Lock()
         self.tracker = Tracker(rpc, self.wallets)
         self.rng = random.Random(settings.seed)
@@ -713,43 +733,99 @@ class Load:
     # Setup
 
     def fund(self):
-        """The funder pays every load wallet (and, with --governance, each
-        governance wallet), sixteen transfers a transaction, one transaction
-        at a time. The transfers create the accounts."""
+        """Funds the load wallets (and, with --governance, the governance
+        wallets). Without distributors the funder pays them all, sixteen
+        transfers a transaction, one transaction at a time. With them it
+        fans out (P01, 12 October 2026): the funder pays each distributor
+        what its share needs, each distributor makes its priming spend, then
+        every distributor pays its share at once, one transaction in flight
+        each. The transfers create the accounts."""
         self.refresh_profile()
         self.sync([self.funder])
         plan = [(w, self.s.fund_drt, self.s.fund_dgt) for w in self.role('load')]
         if self.s.governance:
             plan += [(w, self.s.fund_drt, self.s.governance_bond) for w in self.role('proposer', 'voter')]
             plan += [(w, self.s.fund_drt, self.s.governance_bond + self.minimum_deposit) for w in self.role('depositor')]
+        distributors = self.role('distributor')
+        if not distributors:
+            self.show(f'== funding {len(plan)} wallets from {self.funder.label}')
+            self.pay({self.funder: plan})
+            return
+        shares = {d: plan[n::len(distributors)] for n, d in enumerate(distributors)}
+        self.show(f'== funding {len(plan)} wallets through {len(distributors)} distributors '
+                  f'(up to {max(len(v) for v in shares.values())} each)')
+        self.pay({self.funder: [(d, *self.distributor_needs(share)) for d, share in shares.items()]})
+        self.prime([(d, ('send', '--to', self.funder.address, '--amount', '1', '--token', 'drt'))
+                    for d in distributors])
+        self.pay({d: share for d, share in shares.items() if share})
+
+    def distributor_needs(self, share):
+        """What a distributor needs to pay its share: the transfers, each
+        created account's fee, a full fee cap for each of its transactions
+        and its priming spend (1 DRT and its cap)."""
+        transactions = -(-2 * len(share) // FUNDING_ACTIONS)
+        drt = (sum(d for _, d, _ in share) + len(share) * self.creation_fee
+               + transactions * FUNDING_GAS_LIMIT * self.gas_price + self.cap + UNIT)
+        return drt, sum(g for _, _, g in share)
+
+    def pay(self, plan, timeout=None):
+        """Each payer pays its recipients [(wallet, udrt, udgt)], sixteen
+        transfers a transaction; the payers run in parallel, one transaction
+        in flight each, broadcast together."""
+        timeout = timeout or self.s.block_time * (self.s.expiry_blocks + 6) * (
+            1 + max(-(-2 * len(r) // FUNDING_ACTIONS) for r in plan.values()))
         per_tx = FUNDING_ACTIONS // 2
-        self.show(f'== funding {len(plan)} wallets from {self.funder.label}, {per_tx} a transaction')
-        for start in range(0, len(plan), per_tx):
-            chunk = plan[start:start + per_tx]
-            actions = [a for w, drt, dgt in chunk for a in
-                       (send_action(w.account_id, 'udrt', drt), send_action(w.account_id, 'udgt', dgt))]
-            if self.profile_stale():
-                self.refresh_profile()
-            row = self.record(new_row('setup', 'fund', self.funder))
-            row['created_accounts'], row['recipients'] = len(chunk), [w.label for w, _, _ in chunk]
-            _, tx = self.sign(row, self.funder, actions, FUNDING_GAS_LIMIT)
-            broadcast(self.rpc, [(row, tx)], 'setup')
-            if row['status'] != 'admitted':
-                raise Failed(f'the funding transaction was refused: {row["log"]}')
-            self.wait([row], self.s.block_time * (self.s.expiry_blocks + 6))
-            for wallet, drt, dgt in chunk:
-                wallet.drt, wallet.dgt = drt, dgt
+        queues = {payer: deque(recipients[n:n + per_tx] for n in range(0, len(recipients), per_tx))
+                  for payer, recipients in plan.items()}
+        pending, deadline = {}, self.clock() + timeout
+        with ThreadPoolExecutor(max_workers=self.s.signers) as pool:
+            while any(queues.values()) or pending:
+                if self.clock() > deadline:
+                    raise Failed(f'funding unfinished after {timeout} s: {len(pending)} in flight')
+                ready = [p for p in queues if queues[p] and p not in pending]
+                if ready:
+                    if self.profile_stale():
+                        self.refresh_profile()
+                    jobs = []
+                    for payer in ready:
+                        chunk = queues[payer].popleft()
+                        actions = [a for w, drt, dgt in chunk for a in
+                                   (send_action(w.account_id, 'udrt', drt), send_action(w.account_id, 'udgt', dgt))]
+                        row = self.record(new_row('setup', 'fund', payer))
+                        row['created_accounts'], row['recipients'] = len(chunk), [w.label for w, _, _ in chunk]
+                        row['_chunk'] = chunk
+                        jobs.append(pool.submit(self.sign, row, payer, actions, FUNDING_GAS_LIMIT))
+                    signed = [job.result() for job in jobs]
+                    for n in range(0, len(signed), MAX_BATCH - 1):
+                        batch = signed[n:n + MAX_BATCH - 1]
+                        broadcast(self.rpc, batch, 'setup')
+                        for row, _ in batch:
+                            if row['status'] != 'admitted':
+                                raise Failed(f'a funding transaction was refused: {row["log"]}')
+                            self.tracker.add(row)
+                            pending[self.wallets[row['wallet']]] = row
+                resolved = self.tracker.poll(self.tracker.due(self.tracker.head))
+                for row in resolved:
+                    if row['status'] != 'committed' or row['outcome'] != 'success':
+                        raise Failed(f'a funding transaction failed: {row}')
+                    pending.pop(self.wallets[row['wallet']])
+                    for wallet, drt, dgt in row.pop('_chunk'):
+                        wallet.drt, wallet.dgt = wallet.drt + drt, wallet.dgt + dgt
+                if not resolved:
+                    self.sleep(self.s.poll_interval)
 
     def online(self, wallet, args, phase='setup', kind=None):
         """One write through the CLI's online path, holding a channel slot
-        for the whole call: a wallet's first spend, or a governance
-        transaction. Without the signed body in its report, the row's expiry
-        is bounded from the head read after the call."""
+        for the whole call: a wallet's first spend, a governance transaction
+        or a reward sweep. A keystore wallet signs with --wallet. Without the
+        signed body in its report, the row's expiry is bounded from the head
+        read after the call."""
         row = self.record(new_row(phase, kind or args[0], wallet, path='online'))
         row['submit_height'] = self.tracker.head
+        signer = ('--wallet', wallet.keystore_name) if wallet.keystore_name else ('--key-file', str(wallet.key_file))
         started = self.clock()
         with self.rpc.slots:
-            result = subprocess.run([str(self.cli), *map(str, args), '--key-file', str(wallet.key_file),
+            result = subprocess.run([str(self.cli), *map(str, args), *signer,
                                      '--gas-limit', str(GAS_LIMIT), '--maximum-fee-udrt', str(self.cap),
                                      '--expiry-blocks', str(self.s.expiry_blocks), '--wait-seconds', '0'],
                                     capture_output=True, text=True, env=self.env)
@@ -771,19 +847,10 @@ class Load:
             row['expiry_height'] = head + 1 + self.s.expiry_blocks
         return row
 
-    def first_spends(self):
-        """Each wallet's first spend through the CLI's online path: a load
-        wallet sends 1 DRT to the next one, a governance wallet bonds."""
-        loads = self.role('load')
-        if len(loads) < 2:
-            raise Failed('the run needs at least two load wallets')
-        jobs = [(w, ('send', '--to', loads[(n + 1) % len(loads)].address, '--amount', '1', '--token', 'drt'))
-                for n, w in enumerate(loads)]
-        if self.s.governance:
-            bond = f'{self.s.governance_bond / UNIT:.6f}'
-            jobs += [(w, ('stake', 'bond', '--validator', self.validator, '--amount', bond))
-                     for w in self.role('proposer', 'depositor', 'voter')]
-        self.show(f'== {len(jobs)} first spends through the online path')
+    def prime(self, jobs):
+        """Each wallet's first spend through the CLI's online path, before
+        the measured window, then its account view."""
+        self.show(f'== {len(jobs)} priming spends through the online path')
         self.tracker.head = head_height(self.rpc.one('head', 'abci_info', {}))
         with ThreadPoolExecutor(max_workers=self.rpc.connections) as pool:
             rows = list(pool.map(lambda job: self.online(job[0], job[1], kind='first_spend'), jobs))
@@ -796,13 +863,70 @@ class Load:
             wallet.drt -= int(row['charge_udrt'])
             if args[0] == 'send':
                 wallet.drt -= UNIT
-                loads[(loads.index(wallet) + 1) % len(loads)].drt += UNIT
+                recipient = next((w for w in self.wallets.values() if w.address == args[2]), None)
+                if recipient:
+                    recipient.drt += UNIT
             else:
                 wallet.dgt -= self.s.governance_bond
                 wallet.bonded, wallet.bond_height = self.s.governance_bond, row['block_height']
         self.sync([w for w, _ in jobs])
+        return rows
+
+    def first_spends(self):
+        """The priming spends: a load wallet sends 1 DRT to the next one, a
+        governance wallet bonds."""
+        loads = self.role('load')
+        if len(loads) < 2:
+            raise Failed('the run needs at least two load wallets')
+        jobs = [(w, ('send', '--to', loads[(n + 1) % len(loads)].address, '--amount', '1', '--token', 'drt'))
+                for n, w in enumerate(loads)]
+        if self.s.governance:
+            bond = f'{self.s.governance_bond / UNIT:.6f}'
+            jobs += [(w, ('stake', 'bond', '--validator', self.validator, '--amount', bond))
+                     for w in self.role('proposer', 'depositor', 'voter')]
+        self.prime(jobs)
         if self.s.governance:
             self.wait_bonded(self.role('proposer', 'depositor', 'voter'))
+
+    # Reward sweeps (P01, 12 October 2026): the genesis allocation stays the
+    # production one, so the operators' and stakers' rewards go back to the
+    # funder about hourly.
+
+    def sweep(self, keep):
+        """Each sweeper claims its rewards, then sends its liquid DRT above
+        `keep` to the funder, both through the CLI's online path. Returns
+        what each returned."""
+        returned = {}
+        for wallet in self.sweepers:
+            if int(self.summary(wallet)['claimable_rewards_udrt']) > 0:
+                self.follow(self.online(wallet, ('stake', 'claim'), phase='sweep', kind='sweep_claim'))
+            surplus = int(self.summary(wallet)['liquid_udrt']) - keep
+            if surplus > 0:
+                row = self.follow(self.online(wallet, ('send', '--to', self.funder.address, '--amount',
+                                                       f'{surplus / UNIT:.6f}', '--token', 'drt'),
+                                              phase='sweep', kind='sweep_return'))
+                row['amount_udrt'] = str(surplus)
+                returned[wallet.label] = str(surplus)
+        return returned
+
+    def follow(self, row, timeout=None):
+        """An online row to its receipt."""
+        if row['status'] != 'admitted':
+            raise Failed(f'{row["wallet"]}\'s {row["kind"]} was refused: {row["log"]}')
+        deadline = self.clock() + (timeout or self.s.block_time * (self.s.expiry_blocks + 6))
+        wallet = self.wallets[row['wallet']]
+        while True:
+            receipt = query(self.rpc, 'sweep', f'/ordinary/receipt/{row["id"]}')
+            if receipt is not None:
+                apply_receipt(row, receipt, wallet.account_id)
+                if row['outcome'] != 'success':
+                    raise Failed(f'{row["wallet"]}\'s {row["kind"]} failed: {receipt.get("rule_code")}')
+                return row
+            head = head_height(self.rpc.one('head', 'abci_info', {}))
+            if head >= row['expiry_height'] or self.clock() > deadline:
+                row['status'] = 'lost'
+                raise Failed(f'{row["wallet"]}\'s {row["kind"]} was lost')
+            self.sleep(self.s.poll_interval)
 
     def wait_bonded(self, wallets, timeout=None):
         """A bond joins the set two blocks after it commits; a proposer and a
@@ -1235,8 +1359,16 @@ def rows_jsonl(rows):
 
 # The whole run
 
+def keystore_account(entries, label, chain_id):
+    """A keystore wallet's label, address and account ID on this chain."""
+    if label not in entries:
+        raise Failed(f'{label} is not in the keystore')
+    account_id, address = config_checks.origin_account(TESTNET, chain_id, bytes(entries[label]['public_key']))
+    return {'label': label, 'address': address, 'account_id': account_id.hex()}
+
+
 def run_load(cli, home, fleet_dir, out, application_config, funder_label, validator, settings, show=say,
-             port=0, passphrase=None):
+             port=0, passphrase=None, sweep_from=()):
     """Funding, first spends, the measured window (with governance beside
     it), then the evidence. Returns the evidence record. The funder's
     keystore passphrase file is `passphrase` or the environment's
@@ -1251,17 +1383,16 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
     fleet['_dir'] = str(fleet_dir)
     chain_id = fleet['chain_id']
     entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
-    if funder_label not in entries:
-        raise Failed(f'the funder {funder_label} is not in the keystore')
-    account_id, address = config_checks.origin_account(TESTNET, chain_id, bytes(entries[funder_label]['public_key']))
-    funder = {'label': funder_label, 'address': address, 'account_id': account_id.hex()}
+    funder = keystore_account(entries, funder_label, chain_id)
+    sweepers = [keystore_account(entries, label, chain_id) for label in sweep_from]
     started = now_utc()
     gateway = Gateway(cli, env, out / 'gateway.log', port)
     show(f'== the gateway relays to {gateway.endpoint} at {gateway.url}')
     try:
         rpc = Rpc(gateway.url, settings.connections)
         signer = Signer(cli, env, out / 'scratch')
-        load = Load(rpc, signer, env, cli, fleet, out, settings, funder, validator, config, show=show)
+        load = Load(rpc, signer, env, cli, fleet, out, settings, funder, validator, config, show=show,
+                    sweepers=sweepers)
         before_view = load.status('status')
         if not supply_rule(before_view):
             raise Failed(f'the supply rule fails before the run at height {before_view["height"]}')
@@ -1269,8 +1400,30 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
         before = status_reading(before_view)
         show(f'== the ledger starts at height {before["height"]}')
         try:
+            # Warm-up: funding and the priming spends, outside the load metrics.
+            mark = time.monotonic()
             load.fund()
+            warmup = {'funding_s': round(time.monotonic() - mark, 1)}
+            mark = time.monotonic()
+            if load.sweepers:
+                load.sync(load.sweepers)
             load.first_spends()
+            warmup['priming_s'] = round(time.monotonic() - mark, 1)
+            show(f'== warm-up: {warmup}')
+            stop, sweep_error = threading.Event(), []
+
+            def sweeping():
+                while not stop.wait(settings.sweep_interval):
+                    try:
+                        returned = load.sweep(settings.sweep_keep)
+                        load.sweeps.append({'height': load.tracker.head, 'returned_udrt': returned})
+                        show(f'== rewards swept to {load.funder.label}: {returned}')
+                    except (Failed, KeyError, ValueError) as error:
+                        sweep_error.append(str(error))
+                        return
+            sweep_thread = threading.Thread(target=sweeping, daemon=True) if load.sweepers else None
+            if sweep_thread:
+                sweep_thread.start()
             gov_thread, gov_error = None, []
             if settings.governance:
                 def governance():
@@ -1281,6 +1434,11 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
                 gov_thread = threading.Thread(target=governance, daemon=True)
                 gov_thread.start()
             window = load.window()
+            if sweep_thread:
+                stop.set()
+                sweep_thread.join(settings.block_time * 60)
+                if sweep_error:
+                    raise Failed(f'the reward sweep failed: {sweep_error[0]}')
             if gov_thread:
                 # With the vote, this waits for the deposit period to close.
                 gov_thread.join(None if settings.governance_vote else settings.block_time * 200)
@@ -1313,7 +1471,8 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
         fleet_record = {'wallets': Counter(w['role'] for w in fleet['wallets']),
                         'addresses': [w['address'] for w in fleet['wallets']], 'funder': funder['address']}
         window_record = {'duration_s': round(window['ended'] - window['started'], 1),
-                         'skipped_launches': window['skipped_launches'],
+                         'skipped_launches': window['skipped_launches'], 'warmup': warmup,
+                         'sweeps': load.sweeps,
                          'gateway_endpoint': gateway.endpoint,
                          'read_ms': {label: distribution(values) for label, values in sorted(rpc.latency.items())}}
         settings_record = {'rate': settings.rate, 'duration': settings.duration, 'mix': settings.mix,
@@ -1321,6 +1480,8 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
                            'expiry_blocks': settings.expiry_blocks, 'fund_drt': settings.fund_drt,
                            'fund_dgt': settings.fund_dgt, 'governance': settings.governance,
                            'governance_vote': settings.governance_vote, 'seed': settings.seed,
+                           'sweep_from': list(sweep_from), 'sweep_interval': settings.sweep_interval,
+                           'distributors': sum(w['role'] == 'distributor' for w in fleet['wallets']),
                            'min_within_2': settings.min_within_2, 'max_refused': settings.max_refused}
         record = evidence(chain_id, settings_record, fleet_record, rows_bytes, ledger_record, before, after,
                           block_times, load.governance, window_record, started, now_utc())
@@ -1352,6 +1513,7 @@ def main():
     f.add_argument('--wallets', type=int, required=True)
     f.add_argument('--voters', type=int, default=1)
     f.add_argument('--spares', type=int, default=0)
+    f.add_argument('--distributors', type=int, default=0, help='fan the funding out (25 for 1,000 wallets)')
     f.add_argument('--workers', type=int, default=4)
     r = commands.add_parser('run')
     r.add_argument('--cli', type=Path, required=True)
@@ -1372,6 +1534,10 @@ def main():
     r.add_argument('--fund-dgt', type=int, default=500, help='DGT per wallet')
     r.add_argument('--governance', action='store_true', help='propose and deposit beside the load')
     r.add_argument('--governance-vote', action='store_true', help='then wait for the vote to open, and vote')
+    r.add_argument('--sweep-from', action='append', default=[],
+                   help='a keystore wallet (an operator, a staker) whose rewards go back to the funder')
+    r.add_argument('--sweep-interval', type=float, default=3600)
+    r.add_argument('--sweep-keep', type=int, default=100, help='DRT each sweeper keeps')
     r.add_argument('--seed', type=int, default=1)
     r.add_argument('--min-within-2', type=float, default=0.99)
     r.add_argument('--max-refused', type=int)
@@ -1381,7 +1547,8 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'fleet':
-            make_fleet(args.cli, args.chain_id, args.out, args.wallets, args.voters, args.spares, args.workers)
+            make_fleet(args.cli, args.chain_id, args.out, args.wallets, args.voters, args.spares, args.distributors,
+                       args.workers)
         elif args.command == 'run':
             if not 2 <= args.batch <= MAX_BATCH:
                 raise Failed(f'--batch is 2 to {MAX_BATCH}: the head height rides in each request')
@@ -1390,9 +1557,10 @@ def main():
                                 expiry_blocks=args.expiry_blocks, fund_drt=args.fund_drt * UNIT,
                                 fund_dgt=args.fund_dgt * UNIT, governance=args.governance or args.governance_vote,
                                 governance_vote=args.governance_vote, seed=args.seed,
+                                sweep_interval=args.sweep_interval, sweep_keep=args.sweep_keep * UNIT,
                                 min_within_2=args.min_within_2, max_refused=args.max_refused)
             record = run_load(args.cli, args.home, args.fleet, args.out, args.application_config, args.funder,
-                              args.validator, settings, port=args.port)
+                              args.validator, settings, port=args.port, sweep_from=args.sweep_from)
             report(record)
             return 0 if record['status'] == PASS else 1
         else:
