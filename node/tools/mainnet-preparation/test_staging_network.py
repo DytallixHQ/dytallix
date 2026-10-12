@@ -153,7 +153,8 @@ class StandinTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.server = ThreadingHTTPServer(('127.0.0.1', 0), s3_standin.handler(self.tmp.name, 'STANDIN'))
+        self.server = ThreadingHTTPServer(('127.0.0.1', 0), s3_standin.handler(self.tmp.name, ['STANDIN', 'STANDINHISTORY'],
+                                                                                 'STANDINREAD'))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.shutdown)
         self.base = f'http://127.0.0.1:{self.server.server_address[1]}'
@@ -178,6 +179,26 @@ class StandinTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as refused:
             self.put('/copies/staging/chain/1.bin', b'other', signed)
         self.assertEqual(refused.exception.code, 409)
+        # A second upload key (the history's) is accepted too.
+        self.assertEqual(self.put('/copies/history/1.bin', b'day', signed.replace('STANDIN/', 'STANDINHISTORY/')), 200)
+
+    def get(self, path, authorization):
+        request = urllib.request.Request(self.base + path, headers={'Authorization': authorization} if authorization else {})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.read()
+
+    def test_serves_signed_gets_to_the_read_key_only(self):
+        (Path(self.tmp.name) / 'copies/commands').mkdir(parents=True)
+        (Path(self.tmp.name) / 'copies/commands/1.json').write_bytes(b'{}')
+        read = 'AWS4-HMAC-SHA256 Credential=STANDINREAD/20261012/auto/s3/aws4_request, SignedHeaders=host, Signature=ab'
+        self.assertEqual(self.get('/copies/commands/1.json', read), b'{}')
+        for path, authorization, code in (('/copies/commands/2.json', read, 404),
+                                          ('/copies/commands/1.json', read.replace('STANDINREAD/', 'STANDIN/'), 403),
+                                          ('/copies/commands/1.json', None, 403),
+                                          ('/copies/../x', read, 400)):
+            with self.assertRaises(urllib.error.HTTPError) as refused:
+                self.get(path, authorization)
+            self.assertEqual(refused.exception.code, code, path)
 
 
 

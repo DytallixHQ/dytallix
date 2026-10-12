@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """A stand-in for the off-host store in staging runs (E05; disaster recovery
 v1, H4): an S3-shaped HTTP server on a loopback port that accepts only
-signed PUTs (AWS Signature V4 from the expected key ID) and writes each
-object under ROOT/BUCKET/KEY. It does not check the signature itself; the
-backup job's curl must send one. Standard library only. Never for a real
-store.
+signed PUTs (AWS Signature V4 from an expected key ID) and writes each
+object under ROOT/BUCKET/KEY, and, for the staging agent's command store
+(T2), signed GETs from the read key ID. It does not check the signature
+itself; the jobs' curl must send one. Standard library only. Never for a
+real store.
 
-  s3_standin.py --root DIR --port PORT --access-key-id ID
+  s3_standin.py --root DIR --port PORT --access-key-id ID [--access-key-id ID ...] [--read-key-id ID]
 """
 import argparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -17,7 +18,19 @@ from urllib.parse import unquote, urlsplit
 MAX_OBJECT_BYTES = 8 << 30
 
 
-def handler(root, access_key_id):
+def signed_by(headers, key_ids):
+    authorization = headers.get('Authorization', '')
+    return any(authorization.startswith(f'AWS4-HMAC-SHA256 Credential={key}/') for key in key_ids)
+
+
+def object_path(root, raw_path):
+    parts = PurePosixPath(unquote(urlsplit(raw_path).path)).parts[1:]
+    if len(parts) < 2 or any(p in ('.', '..') for p in parts):
+        return None
+    return Path(root).joinpath(*parts)
+
+
+def handler(root, access_key_ids, read_key_id=None):
     class Handler(BaseHTTPRequestHandler):
         # curl sends Expect: 100-continue for large uploads.
         protocol_version = 'HTTP/1.1'
@@ -29,18 +42,29 @@ def handler(root, access_key_id):
             self.end_headers()
             self.wfile.write(body)
 
-        def do_PUT(self):
-            authorization = self.headers.get('Authorization', '')
-            if not authorization.startswith(f'AWS4-HMAC-SHA256 Credential={access_key_id}/'):
+        def do_GET(self):
+            if read_key_id is None or not signed_by(self.headers, [read_key_id]):
                 return self.refuse(403, 'unsigned request')
-            path = PurePosixPath(unquote(urlsplit(self.path).path))
-            parts = path.parts[1:]
-            if len(parts) < 2 or any(p in ('.', '..') for p in parts):
+            target = object_path(root, self.path)
+            if target is None:
+                return self.refuse(400, 'bucket and key required')
+            if not target.is_file():
+                return self.refuse(404, 'no such key')
+            body = target.read_bytes()
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_PUT(self):
+            if not signed_by(self.headers, access_key_ids):
+                return self.refuse(403, 'unsigned request')
+            target = object_path(root, self.path)
+            if target is None:
                 return self.refuse(400, 'bucket and key required')
             length = int(self.headers.get('Content-Length', '-1'))
             if not 0 <= length <= MAX_OBJECT_BYTES:
                 return self.refuse(411, 'length required')
-            target = Path(root).joinpath(*parts)
             if target.exists():
                 return self.refuse(409, 'objects are never replaced')
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -69,10 +93,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--root', type=Path, required=True)
     parser.add_argument('--port', type=int, required=True)
-    parser.add_argument('--access-key-id', required=True)
+    parser.add_argument('--access-key-id', action='append', required=True)
+    parser.add_argument('--read-key-id')
     args = parser.parse_args()
     args.root.mkdir(parents=True, exist_ok=True)
-    server = ThreadingHTTPServer(('127.0.0.1', args.port), handler(args.root, args.access_key_id))
+    server = ThreadingHTTPServer(('127.0.0.1', args.port), handler(args.root, args.access_key_id, args.read_key_id))
     print(f'stand-in store on 127.0.0.1:{args.port}, {args.root}', flush=True)
     server.serve_forever()
 
