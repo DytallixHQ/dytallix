@@ -5,8 +5,10 @@ name: Host install
 # (key step, genesis, release manifest, 3-of-5 root signatures, host files,
 # bundles), and the validator's bundle installed with its install.sh on an
 # Ubuntu 24.04 runner, started under systemd, AppArmor and nftables, verified,
-# then stopped and started (a lone validator must rejoin), and wiped.
-# Invented records and throwaway keys only.
+# then stopped and started (a lone validator must rejoin), and wiped. That
+# chain uses R01 to R06's rehearsal timing profile (T1b), so the shortened
+# timings build, pass the host checks and run on every change; the staging
+# network uses the ci profile. Invented records and throwaway keys only.
 on:
   push:
     branches: [main]
@@ -16,6 +18,7 @@ on:
       - 'launch/E05_VALUES.json'
       - 'launch/genesis/**'
       - 'launch/hosts/**'
+      - 'launch/simulations/TIMINGS.json'
       - '!**/*.md'
       - '.github/workflows/host-install.yml'
   pull_request:
@@ -25,6 +28,7 @@ on:
       - 'launch/E05_VALUES.json'
       - 'launch/genesis/**'
       - 'launch/hosts/**'
+      - 'launch/simulations/TIMINGS.json'
       - '!**/*.md'
       - '.github/workflows/host-install.yml'
   workflow_dispatch:
@@ -101,10 +105,23 @@ jobs:
         # progressing mirror finish.
         timeout-minutes: 20
         run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y strace bpftrace auditd
-      - name: Staging chain and bundles
+      # The rehearsal timing profile (launch/simulations/TIMINGS.json; P01,
+      # 12 October 2026): R01 to R06's shortened timings.
+      - name: Staging chain and bundles (rehearsal timings)
         run: |
           python3 node/tools/mainnet-preparation/staging_host.py prepare \
-            --release "$RUNNER_TEMP/release" --work "$RUNNER_TEMP/staging"
+            --release "$RUNNER_TEMP/release" --work "$RUNNER_TEMP/staging" --timings rehearsal
+          python3 - "$RUNNER_TEMP/staging/chain" <<'PY'
+          import json, sys
+          from pathlib import Path
+          chain = Path(sys.argv[1])
+          summary = json.loads((chain / 'STAGING.json').read_text())
+          assert summary['timings']['profile'] == 'rehearsal', summary['timings']
+          genesis = json.loads((chain / 'chain' / 'genesis.json').read_text())
+          evidence = genesis['consensus_params']['evidence']
+          assert int(evidence['max_age_num_blocks']) == 2880 and evidence['max_age_duration'] == '14400000000000', evidence
+          print(json.dumps(summary['timings'], indent=2))
+          PY
       - name: Install, start and verify the validator
         id: install
         run: |

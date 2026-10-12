@@ -736,7 +736,7 @@
     "inclusion": "At half capacity, 99% of valid transactions committed within 2 blocks; at full capacity, no valid transaction lost.",
     "recovery": "Validator restart 5 minutes; network heal 2 minutes; sentry rebuilt 4 hours; validator host 8 hours; every injected fault alerts and resolves.",
     "load": "R06: full capacity (about 180 basic Sends a block) for 1 hour and half capacity for 6 hours, across 1,000 wallets.",
-    "timings": "R01-R06 use a recorded set of shortened timings so each lifecycle completes inside its run; R07 uses the exact production values."
+    "timings": "R01-R06 use the rehearsal timing profile (launch/simulations/TIMINGS.json; P01, 12 October 2026, launch/approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json): notice 720 blocks; governance deposit and voting 720 blocks each, timelock 360; evidence age 2,880 blocks and 14,400 s plus a 120-block, 600 s margin; snapshot interval 720 blocks; state sync trust period 1 hour. R07 uses the exact production values."
   },
   "statistical_campaign": {
     "approval_record": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",

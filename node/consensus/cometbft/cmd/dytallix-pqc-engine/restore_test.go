@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeCopy(t *testing.T, metadata string, chunks ...[]byte) string {
@@ -63,5 +64,23 @@ func TestReadCopyRefusesAnotherChainOrAnEmptySnapshot(t *testing.T) {
 		if _, err := readCopy(dir, "dytallix-staging-1"); err == nil {
 			t.Fatal("accepted", name)
 		}
+	}
+}
+
+// A restore trusts the copy for the evidence age less a fourteenth: one day
+// off the production 14 days, and in proportion for the rehearsals' 4 hours
+// (P01, 8 and 12 October 2026).
+func TestRestoreTrustsTheEvidenceAgeLessAFourteenth(t *testing.T) {
+	for evidence, want := range map[time.Duration]time.Duration{
+		14 * 24 * time.Hour: 13 * 24 * time.Hour,
+		4 * time.Hour:       4*time.Hour - 4*time.Hour/14,
+	} {
+		got, err := restoreTrustPeriod(evidence)
+		if err != nil || got != want || got >= evidence {
+			t.Errorf("evidence %s: trust %s, %v; want %s", evidence, got, err, want)
+		}
+	}
+	if _, err := restoreTrustPeriod(13 * time.Nanosecond); err == nil {
+		t.Error("an evidence age too short for any margin was accepted")
 	}
 }
