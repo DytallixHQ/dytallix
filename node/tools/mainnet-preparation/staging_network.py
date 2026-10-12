@@ -869,7 +869,7 @@ def reconcile_network(work, timeout=300):
     addresses.append(json.loads((drill / 'evidence.json').read_bytes())['new_account'])
     record = reconcile.collect(
         staging_host.CHAIN_ID, hosts, (chain / 'chain' / 'native-genesis.json').read_bytes(), client=client,
-        addresses=addresses, since=reconcile.since_reading(json.loads((drill / 'status-1.json').read_bytes())),
+        addresses=addresses, since=json.loads((drill / 'status-1.json').read_bytes()),
         ledger=json.loads((drill / 'ledger.json').read_bytes()), state_check_host=PUBLIC, timeout=timeout, say=say)
     path = out / 'evidence.json'
     path.write_text(json.dumps(record, indent=2) + '\n')

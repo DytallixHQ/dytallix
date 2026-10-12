@@ -52,11 +52,19 @@ OPERATOR_STATUS = ('sh', '-c', 'exec /opt/dytallix/*/bin/dytallix-operator-rpc -
 RELEASE_BIN = re.compile(r'/opt/dytallix/([A-Za-z0-9._-]+)/bin/')
 DRT = ('genesis', 'emitted', 'burned', 'total', 'liquid', 'withheld_fees')
 DGT = ('issued', 'liquid', 'staked', 'pending_bonded', 'unbonding', 'penalty_reserve', 'governance_escrow')
+# The status view's DGT buckets the node leaves out (supply.rs,
+# DgtSupplyResponse): penalty_reserve when "0", governance_escrow before
+# governance accounting. The metrics file always writes every bucket.
+DGT_OMITTED = ('penalty_reserve', 'governance_escrow')
 PASS, FAIL, INCONCLUSIVE = 'PASS', 'FAIL', 'INCONCLUSIVE'
 
 
 class Failed(Exception):
     pass
+
+
+class Missing(Failed):
+    """A reading without a field its schema requires: never a pass."""
 
 
 def digest(data):
@@ -70,34 +78,54 @@ def canonical(value):
 # Readings
 
 def metrics_supply(text):
-    """The application's height and supply buckets from its metrics file."""
+    """The application's height and supply buckets from its metrics file
+    (app_metrics.rs: `dytallix_app_height`, `dytallix_app_supply_udrt` and
+    `_udgt` by `bucket`, every bucket always written); None before the first
+    commit writes them."""
     samples = monitor.parse_metrics(text)
     height = monitor.value(samples, 'dytallix_app_height')
-    if height is None:
-        return None
     supply = {'udrt': {}, 'udgt': {}}
     for (name, labels), amount in samples.items():
         for denomination in supply:
             if name == f'dytallix_app_supply_{denomination}':
-                supply[denomination][dict(labels)['bucket']] = str(amount)
-    if not all(b in supply['udrt'] for b in DRT) or not all(b in supply['udgt'] for b in DGT):
+                supply[denomination][dict(labels).get('bucket', '')] = str(amount)
+    if height is None and not any(supply.values()):
         return None
+    missing = ([] if height is not None else ['dytallix_app_height'])
+    missing += [f'udrt {b}' for b in DRT if b not in supply['udrt']]
+    missing += [f'udgt {b}' for b in DGT if b not in supply['udgt']]
+    if missing:
+        raise Missing(f'the metrics file has no {", ".join(missing)}')
     return int(height), supply
 
 
+def field(record, name, where):
+    if not isinstance(record, dict) or name not in record or record[name] is None:
+        raise Missing(f'{where} has no {name}')
+    return record[name]
+
+
 def view_supply(view):
-    """The same buckets from a status view (`supply` and `dgt_supply`)."""
-    drt, dgt = view['supply'], view['dgt_supply']
-    udrt = {b: str(int(drt[b])) for b in DRT}
-    udrt.update({f'pool_{k}': str(int(v)) for k, v in drt.get('pools', {}).items()})
-    udgt = {b: str(int(dgt[b] or 0)) for b in DGT}
+    """The same buckets from a status view (consensus_settlement.rs
+    query_validated: `supply`, a SupplyResponse, and `dgt_supply`, a
+    DgtSupplyResponse, whose omitted buckets are 0)."""
+    drt, dgt = field(view, 'supply', 'the status view'), field(view, 'dgt_supply', 'the status view')
+    udrt = {b: str(int(field(drt, b, 'the status view\'s supply'))) for b in DRT}
+    udrt.update({f'pool_{k}': str(int(v)) for k, v in field(drt, 'pools', 'the status view\'s supply').items()})
+    udgt = {b: str(int(dgt.get(b) or 0)) if b in DGT_OMITTED else str(int(field(dgt, b, 'the status view\'s dgt_supply')))
+            for b in DGT}
     return {'udrt': udrt, 'udgt': udgt}
 
 
 def engine_status(raw):
-    """(height, block hash, header application hash) from the operator status."""
-    info = json.loads(raw)['result']['sync_info']
-    return int(info['latest_block_height']), info['latest_block_hash'].lower(), info['latest_app_hash'].lower()
+    """(height, block hash, header application hash) from the operator status.
+    CometBFT writes the hashes in upper-case hex; the application's hash is
+    lower-case hex of the same 32 bytes (the bridge's parseHash)."""
+    try:
+        info = json.loads(raw)['result']['sync_info']
+        return int(info['latest_block_height']), info['latest_block_hash'].lower(), info['latest_app_hash'].lower()
+    except (KeyError, TypeError, ValueError, AttributeError) as error:
+        raise Missing(f'the operator status has no sync_info height and hashes ({error!r})') from None
 
 
 def genesis_totals(native_genesis):
@@ -175,9 +203,13 @@ def common_height(observations):
 def evaluate(observations, genesis):
     checks = Checks()
     hosts = observations['hosts']
+    unreadable = observations.get('unreadable', [])
+    checks.add('readings', INCONCLUSIVE if unreadable else PASS,
+               '; '.join(unreadable) if unreadable else 'every reading had its schema\'s fields')
     height = common_height(observations)
     if height is None:
-        checks.add('common_height', INCONCLUSIVE, 'no height was read from every node')
+        checks.add('common_height', INCONCLUSIVE, 'no height was read from every node'
+                   + (f' ({"; ".join(unreadable)})' if unreadable else ''))
     else:
         checks.add('common_height', PASS, f'height {height} read from {", ".join(sorted(hosts))}')
 
@@ -298,7 +330,10 @@ def state_check(checks, observations):
         checks.add('state_check', FAIL, f'{recorded["host"]}: {result.get("result")} '
                    f'{result.get("class")}: {result.get("error")}')
         return
-    height, value = int(result['height']), result['app_hash'].lower()
+    if not isinstance(result.get('height'), int) or not isinstance(result.get('app_hash'), str):
+        checks.add('state_check', INCONCLUSIVE, f'{recorded["host"]} passed without a height and application hash')
+        return
+    height, value = result['height'], result['app_hash'].lower()
     known = app_hashes(observations).get(height, {})
     if not known:
         checks.add('state_check', INCONCLUSIVE, f'{recorded["host"]} passed at {height}, '
@@ -376,15 +411,33 @@ class Client:
         return json.loads(self.call('balance', address))
 
 
+BALANCE = ('address', 'height', 'account_exists', 'udrt', 'udgt', 'app_hash')
+
+
 def reading(view):
-    return {'height': int(view['height']), 'app_hash': view['app_hash'], 'supply': view_supply(view)}
+    """A status view's height, application hash and supply buckets."""
+    return {'height': int(field(view, 'height', 'the status view')),
+            'app_hash': str(field(view, 'app_hash', 'the status view')), 'supply': view_supply(view)}
+
+
+def balance_reading(balance):
+    """`dytallix balance`'s fields (balance.rs) that the accounts check reads."""
+    return {k: field(balance, k, 'a balance') for k in BALANCE}
 
 
 class Collector:
     def __init__(self, hosts, client=None, clock=time.monotonic, sleep=time.sleep, say=print):
         self.hosts, self.client, self.clock, self.sleep, self.say = hosts, client, clock, sleep, say
         self.observations = {'hosts': {label: {'engine': {}, 'metrics': {}} for label in hosts},
-                             'views': {}, 'client': client is not None}
+                             'views': {}, 'client': client is not None, 'unreadable': []}
+
+    def unreadable(self, source, error):
+        """A reading without its schema's fields: recorded once, and the result
+        can then be at best INCONCLUSIVE."""
+        message = f'{source}: {error}'
+        if message not in self.observations['unreadable']:
+            self.observations['unreadable'].append(message)
+            self.say(f'== unreadable: {message}')
 
     def sample(self, labels=None):
         """One reading of each node. A node that cannot be read (stopped,
@@ -397,10 +450,15 @@ class Collector:
                 if code == 0:
                     height, block, app = engine_status(raw)
                     record['engine'][str(height)] = {'block_hash': block, 'header_app_hash': app}
+            except Missing as error:
+                self.unreadable(f'{label} engine', error)
             except Exception as error:  # noqa: BLE001 - any transport's failure
                 self.say(f'{label}: no engine reading ({error})')
             try:
                 found = metrics_supply(host.read(METRICS).decode('utf-8', errors='replace'))
+            except Missing as error:
+                self.unreadable(f'{label} metrics', error)
+                found = None
             except Exception:  # noqa: BLE001 - a missing file, any transport's failure
                 found = None
             if found:
@@ -408,7 +466,10 @@ class Collector:
         if self.client and labels is None:
             try:
                 view = reading(self.client.status())
-            except Failed as error:
+            except Missing as error:
+                self.unreadable('client', error)
+                return
+            except (Failed, ValueError) as error:
                 self.say(f'client: no status view ({error})')
                 return
             self.observations['views'][str(view['height'])] = {'app_hash': view['app_hash'], 'supply': view['supply']}
@@ -432,12 +493,13 @@ class Collector:
 
     def accounts(self, addresses, attempts=3):
         for _ in range(attempts):
-            before = reading(self.client.status())
-            balances = []
-            for address in addresses:
-                b = self.client.balance(address)
-                balances.append({k: b[k] for k in ('address', 'height', 'account_exists', 'udrt', 'udgt', 'app_hash')})
-            after = reading(self.client.status())
+            try:
+                before = reading(self.client.status())
+                balances = [balance_reading(self.client.balance(address)) for address in addresses]
+                after = reading(self.client.status())
+            except Missing as error:
+                self.unreadable('client accounts', error)
+                return False
             self.observations['accounts'] = {'before': before, 'after': after, 'balances': balances}
             quiet = (before['supply']['udrt']['liquid'], before['supply']['udgt']['liquid']) == \
                 (after['supply']['udrt']['liquid'], after['supply']['udgt']['liquid'])
@@ -495,7 +557,10 @@ def collect(chain_id, hosts, genesis_bytes, client=None, addresses=(), since=Non
         collector.until_common(timeout)
     observations = collector.observations
     if since is not None:
-        observations['since'] = since
+        try:
+            observations['since'] = since_reading(since)
+        except Missing as error:
+            collector.unreadable('the earlier reading', error)
     if ledger is not None:
         observations['ledger'] = ledger
     finished = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -506,7 +571,8 @@ def since_reading(record):
     """The earlier reading a ledger starts from: an earlier reconciliation or a
     saved status view."""
     if record.get('schema') == SCHEMA:
-        return {'height': int(record['height']), 'supply': record['supply']}
+        return {'height': int(field(record, 'height', 'the earlier reconciliation')),
+                'supply': field(record, 'supply', 'the earlier reconciliation')}
     view = reading(record)
     return {'height': view['height'], 'supply': view['supply']}
 

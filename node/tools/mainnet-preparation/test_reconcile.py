@@ -35,10 +35,20 @@ def operator_status(height, block, app):
 
 
 def view(height, app_hash, s):
-    """A status view as the node writes it."""
-    drt = {k: v for k, v in s['udrt'].items() if not k.startswith('pool_')}
-    drt['pools'] = {k[5:]: v for k, v in s['udrt'].items() if k.startswith('pool_')}
-    return {'version': 2, 'height': height, 'app_hash': app_hash, 'supply': drt, 'dgt_supply': dict(s['udgt'])}
+    """A status view as the node serializes it (consensus_settlement.rs
+    query_validated; supply.rs SupplyResponse and DgtSupplyResponse):
+    penalty_reserve is left out when "0" and governance_escrow when there is
+    no governance accounting, and each response has fields the report does
+    not read."""
+    drt = {'accounting_version': 2, 'denomination': 'udrt', 'height': height,
+           **{k: v for k, v in s['udrt'].items() if not k.startswith('pool_')},
+           'pools': {k[5:]: v for k, v in s['udrt'].items() if k.startswith('pool_')},
+           'issuance_timing': {'epoch': 1}, 'staking_reward_liabilities': {'total': '0'}}
+    dgt = {'accounting_version': 1, 'denomination': 'udgt', 'height': height, 'cap': '1000000000000000',
+           **{k: v for k, v in s['udgt'].items() if not (k in rc.DGT_OMITTED and v == '0')}}
+    return {'version': 2, 'height': height, 'app_hash': app_hash, 'engine_hash': 'e' * 64,
+            'issuance_timing': drt['issuance_timing'], 'supply': drt, 'dgt_supply': dgt,
+            'last_commit_validators': [], 'effective_validators': [], 'next_validators': []}
 
 
 def observations():
@@ -65,20 +75,59 @@ class ReadingTests(unittest.TestCase):
         height, found = rc.metrics_supply('# TYPE x gauge\n' + prom(11, supply()))
         self.assertEqual((height, found), (11, supply()))
 
-    def test_metrics_without_a_bucket_are_no_reading(self):
+    def test_the_metrics_as_the_application_writes_them(self):
+        # app_metrics.rs: TYPE lines, other metrics, every bucket always.
+        text = ('# TYPE dytallix_app_height gauge\ndytallix_app_height 11\n'
+                'dytallix_app_retained_from_height 1\n# TYPE dytallix_app_supply_udrt gauge\n'
+                + prom(11, supply()).split('\n', 1)[1] + 'dytallix_app_gas_used_total 100\n')
+        self.assertEqual(rc.metrics_supply(text), (11, supply()))
+        self.assertIsNone(rc.metrics_supply('# before the first commit\ndytallix_app_retained_from_height 0\n'))
+
+    def test_metrics_without_a_bucket_are_unreadable(self):
         s = supply()
         del s['udgt']['unbonding']
-        self.assertIsNone(rc.metrics_supply(prom(11, s)))
-        self.assertIsNone(rc.metrics_supply('dytallix_app_supply_udrt{bucket="total"} 1\n'))
+        with self.assertRaisesRegex(rc.Missing, 'udgt unbonding'):
+            rc.metrics_supply(prom(11, s))
+        with self.assertRaisesRegex(rc.Missing, 'dytallix_app_height'):
+            rc.metrics_supply('dytallix_app_supply_udrt{bucket="total"} 1\n')
 
-    def test_a_status_view_gives_the_same_buckets(self):
+    def test_a_status_view_as_the_node_serializes_it(self):
+        # The CI run that found this: dgt_supply without penalty_reserve.
         v = view(11, 'aa', supply())
-        v['dgt_supply']['governance_escrow'] = None
-        v['supply']['staking_reward_liabilities'] = {'x': '1'}
+        self.assertNotIn('penalty_reserve', v['dgt_supply'])
+        self.assertNotIn('governance_escrow', v['dgt_supply'])
         self.assertEqual(rc.view_supply(v), supply())
+        reserved = supply()
+        reserved['udgt'].update(penalty_reserve='7', governance_escrow='3', liquid='890')
+        self.assertEqual(rc.view_supply(view(11, 'aa', reserved)), reserved)
+        escrow_none = view(11, 'aa', supply())
+        escrow_none['dgt_supply']['governance_escrow'] = None
+        self.assertEqual(rc.view_supply(escrow_none), supply())
+
+    def test_a_status_view_without_a_required_field_is_unreadable(self):
+        for part, name in (('dgt_supply', 'staked'), ('supply', 'burned'), ('supply', 'pools')):
+            v = view(11, 'aa', supply())
+            del v[part][name]
+            with self.assertRaisesRegex(rc.Missing, name):
+                rc.view_supply(v)
+        v = view(11, 'aa', supply())
+        del v['app_hash']
+        with self.assertRaisesRegex(rc.Missing, 'app_hash'):
+            rc.reading(v)
 
     def test_the_engine_status_is_lower_case(self):
         self.assertEqual(rc.engine_status(operator_status(7, 'AB', 'CD')), (7, 'ab', 'cd'))
+        with self.assertRaises(rc.Missing):
+            rc.engine_status(json.dumps({'result': {'node_info': {}}}))
+
+    def test_a_balance_as_the_cli_prints_it(self):
+        # balance.rs: the fields the report keeps, and the ones it drops.
+        printed = {'address': 'a', 'height': 11, 'account_exists': True, 'udgt': '5', 'udrt': '6', 'dgt': '0.000005',
+                   'drt': '0.000006', 'proof_verified': True, 'app_hash': 'ab', 'app_hash_source': 'next_header'}
+        self.assertEqual(set(rc.balance_reading(printed)), set(rc.BALANCE))
+        del printed['height']
+        with self.assertRaisesRegex(rc.Missing, 'height'):
+            rc.balance_reading(printed)
 
     def test_the_genesis_totals_are_the_account_sums(self):
         self.assertEqual(TOTALS, {'udrt': '1000', 'udgt': '1000'})
@@ -370,6 +419,34 @@ class CollectorTests(unittest.TestCase):
         with self.assertRaises(rc.Failed):
             collector.state_check('sentry-1', '/var/tmp/copy', wait=1)
         self.assertFalse(hosts['sentry-1'].stopped)
+
+    def test_collect_with_the_client_and_its_real_views_passes(self):
+        hosts = {'validator-1': FakeHost(), 'sentry-1': FakeHost()}
+        genesis = json.dumps({'accounts': [{'address': 'a', 'balances': {'udrt': '1000', 'udgt': '1000'}}]}).encode()
+        record = rc.collect('c', hosts, genesis, client=FakeClient(hosts['sentry-1']),
+                            since=view(5, 'aa', supply()), timeout=30, say=lambda _: None)
+        self.assertEqual(record['status'], rc.PASS, record['checks'])
+        self.assertEqual(record['observations']['since']['height'], 5)
+
+    def test_a_view_missing_a_required_field_is_inconclusive_not_a_traceback(self):
+        hosts = {'validator-1': FakeHost(), 'sentry-1': FakeHost()}
+        client = FakeClient(hosts['sentry-1'])
+        real = client.status
+
+        def without_staked():
+            v = real()
+            del v['dgt_supply']['staked']
+            return v
+        client.status = without_staked
+        genesis = json.dumps({'accounts': [{'address': 'a', 'balances': {'udrt': '1000', 'udgt': '1000'}}]}).encode()
+        record = rc.collect('c', hosts, genesis, client=client, addresses=['a'], since={'height': 5},
+                            timeout=5, say=lambda _: None)
+        self.assertEqual(record['status'], rc.INCONCLUSIVE)
+        readings = next(r for r in record['checks'] if r['check'] == 'readings')
+        self.assertEqual(readings['status'], rc.INCONCLUSIVE)
+        self.assertIn('client: the status view\'s dgt_supply has no staked', readings['detail'])
+        self.assertIn('the earlier reading: the status view has no app_hash', readings['detail'])
+        self.assertEqual(rc.verify(json.loads(json.dumps(record)), genesis), rc.INCONCLUSIVE)
 
     def test_collect_records_a_pass(self):
         hosts = {'validator-1': FakeHost(), 'sentry-1': FakeHost()}
