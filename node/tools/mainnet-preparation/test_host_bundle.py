@@ -318,6 +318,8 @@ class HostBundleTests(HostNetwork):
             self.assertEqual(members[f'dytallix-host/bin/{binary["name"]}'].mode, 0o755)
         self.assertEqual(members['dytallix-host/install.sh'].mode, 0o755)
         self.assertTrue(all(m.uid == 0 and m.mtime == 0 for m in members.values()))
+        # The staging agent (T2) is never in a bundle.
+        self.assertFalse([name for name in members if 'agent' in name])
         with self.assertRaises(host_bundle.Invalid):
             self.bundle('endpoint-1')  # never overwritten
 
@@ -370,6 +372,18 @@ class HostBundleTests(HostNetwork):
             hi.install(bundle, host, out=lambda _: None)
             self.assertEqual(hi.verify(bundle, host), [])
 
+    def test_wipe_removes_the_staging_agent(self):
+        bundle, host, _, _ = self.install('sentry-1')
+        for tree in hi.AGENT_TREES:
+            host.path(tree).mkdir()
+        host.path(f'{hi.AGENT_TREES[0]}/agent.py').write_text('# agent')
+        for path in hi.AGENT_FILES:
+            host.path(path).write_text('[Unit]\n')
+        self.assertEqual(hi.existing(host)[-5:], list(hi.AGENT_TREES + hi.AGENT_FILES))
+        hi.wipe(bundle, host, confirm=lambda _: 'wipe sentry-1', out=lambda _: None)
+        self.assertEqual(hi.existing(host), [])
+        self.assertIn(['systemctl', 'disable', '--now', 'dytallix-agent.timer'], host.commands)
+
     def test_verify_reports_changes(self):
         bundle, host, manifest, _ = self.install('sentry-1')
         service = next(r['path'] for r in manifest['files'] if r['path'].endswith('/service.json'))
@@ -394,6 +408,8 @@ class HostBundleTests(HostNetwork):
             'ufw is enabled': lambda h: ufw_conf(h, 'yes'),
             'firewalld is active': lambda h: setattr(h, 'run', active_unit('firewalld', h.run)),
             'already has': lambda h: h.path('/etc/dytallix').mkdir(),
+            # A staging agent left behind (simulation plan, T2).
+            r'install \(/opt/dytallix-agent\)': lambda h: h.path('/opt/dytallix-agent').mkdir(),
             'root-owned without group or other write': lambda h: os.chmod(h.path('/opt'), 0o777),
         }
         for index, (message, change) in enumerate(cases.items()):

@@ -1,0 +1,88 @@
+{
+  "schema": "dytallix.staging-agent-allowlist.v1",
+  "commands": {
+    "status": {
+      "purpose": "Capture the node's state: unit, operator status, application metrics, disk, memory and clock",
+      "args": {},
+      "timeout_seconds": 60,
+      "steps": [
+        ["systemctl", "is-active", "dytallix-node.service"],
+        ["{bin}/dytallix-operator-rpc", "--home", "/var/lib/dytallix/node", "status"],
+        ["cat", "/var/lib/dytallix/metrics/dytallix-app.prom"],
+        ["df", "-B1", "/var/lib/dytallix"],
+        ["free", "-b"],
+        ["timedatectl", "show", "-p", "NTPSynchronized", "--value"]
+      ]
+    },
+    "journal": {
+      "purpose": "The node's newest journal lines",
+      "args": {"lines": {"type": "int", "min": 1, "max": 5000}},
+      "timeout_seconds": 60,
+      "steps": [
+        ["journalctl", "-u", "dytallix-node.service", "-o", "cat", "--no-pager", "-n", "{lines}"]
+      ]
+    },
+    "start": {
+      "purpose": "Start the node",
+      "args": {},
+      "timeout_seconds": 120,
+      "steps": [
+        ["systemctl", "start", "dytallix-node.service"],
+        ["systemctl", "is-active", "dytallix-node.service"]
+      ]
+    },
+    "stop": {
+      "purpose": "Stop the node",
+      "args": {},
+      "timeout_seconds": 120,
+      "steps": [
+        ["systemctl", "stop", "dytallix-node.service"]
+      ]
+    },
+    "monitor-run": {
+      "purpose": "Run the monitor job once",
+      "args": {},
+      "timeout_seconds": 180,
+      "steps": [
+        ["systemctl", "start", "dytallix-monitor.service"]
+      ]
+    },
+    "backup-run": {
+      "purpose": "Run the sentry's backup job once",
+      "args": {},
+      "timeout_seconds": 900,
+      "steps": [
+        ["systemctl", "start", "dytallix-backup.service"]
+      ]
+    },
+    "fault-kill": {
+      "purpose": "Kill the node's processes (simulation plan, T5: process kill)",
+      "args": {},
+      "timeout_seconds": 60,
+      "steps": [
+        ["systemctl", "kill", "--signal=SIGKILL", "dytallix-node.service"]
+      ]
+    },
+    "fault-netem": {
+      "purpose": "Latency and loss on the host's interface (T5 builds it)",
+      "args": {"delay_ms": {"type": "int", "min": 0, "max": 5000}, "loss_percent": {"type": "int", "min": 0, "max": 100}},
+      "timeout_seconds": 60,
+      "stub": true,
+      "steps": []
+    },
+    "fault-partition": {
+      "purpose": "Cut the host off from its peers (T5 builds it)",
+      "args": {},
+      "timeout_seconds": 60,
+      "stub": true,
+      "steps": []
+    },
+    "fault-clear": {
+      "purpose": "Remove every injected network fault (T5 builds it)",
+      "args": {},
+      "timeout_seconds": 60,
+      "stub": true,
+      "steps": []
+    }
+  }
+}

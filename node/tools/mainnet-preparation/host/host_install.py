@@ -33,8 +33,9 @@ from the unpacked bundle, through install.sh and wipe.sh:
            are never in the bundle and change without touching the keys.
   wipe     removes the node from the host (staging before production):
            /opt/dytallix, /etc/dytallix, /var/lib/dytallix, the unit, the
-           profiles, the firewall table, the journal setting and the
-           monitor and backup units and their state. It keeps the account.
+           profiles, the firewall table, the journal setting, the monitor
+           and backup units and their state, and the staging agent (T2),
+           which an install refuses. It keeps the account.
 
 Standard library only; Ubuntu 24.04's python3.
 """
@@ -71,6 +72,12 @@ MONITOR_UNIT = 'dytallix-monitor'
 SINGLE_FILES = (UNIT_FILE, PROFILE_FILE, FIREWALL_FILE, JOURNALD_FILE,
                 f'/etc/systemd/system/{BACKUP_UNIT}.service', f'/etc/systemd/system/{BACKUP_UNIT}.timer',
                 f'/etc/systemd/system/{MONITOR_UNIT}.service', f'/etc/systemd/system/{MONITOR_UNIT}.timer')
+# The staging agent (simulation plan, T2; staging-agent-v1.md) is outside the
+# host layout, so no bundle can carry it: an install refuses a host that
+# still has it, and wipe removes it.
+AGENT_UNIT = 'dytallix-agent'
+AGENT_TREES = ('/opt/dytallix-agent', '/etc/dytallix-agent', '/var/lib/dytallix-agent')
+AGENT_FILES = (f'/etc/systemd/system/{AGENT_UNIT}.service', f'/etc/systemd/system/{AGENT_UNIT}.timer')
 # The monitor settings (dytallix.monitor-settings.v1): each URL https, or
 # plain http only to a stand-in on the host, and safe inside curl's quotes.
 SETTINGS_SCHEMA = 'dytallix.monitor-settings.v1'
@@ -244,7 +251,7 @@ def preflight(host):
 
 
 def existing(host):
-    return [path for path in TREES + SINGLE_FILES if os.path.lexists(host.path(path))]
+    return [path for path in TREES + SINGLE_FILES + AGENT_TREES + AGENT_FILES if os.path.lexists(host.path(path))]
 
 
 def etc(release):
@@ -660,12 +667,13 @@ def wipe(bundle, host, confirm=input, out=say):
     require(manifest.get('schema') == SCHEMA, 'not a host install manifest')
     label = manifest['label']
     out(f'This removes the Dytallix node from this host: {", ".join(TREES)} (its node keys and chain data), '
-        f'the unit, the AppArmor profiles, the firewall table, the journal setting and the monitor and any '
-        f'backup unit.')
+        f'the unit, the AppArmor profiles, the firewall table, the journal setting, the monitor and any '
+        f'backup unit, and any staging agent.')
     answer = confirm(f'Type "wipe {label}" to continue: ').strip()
     require(answer == f'wipe {label}', 'not confirmed; nothing removed')
     host.run(['systemctl', 'disable', '--now', f'{UNIT}.service'], check=False)
-    for unit in (f'{BACKUP_UNIT}.timer', f'{BACKUP_UNIT}.service', f'{MONITOR_UNIT}.timer', f'{MONITOR_UNIT}.service'):
+    for unit in (f'{AGENT_UNIT}.timer', f'{AGENT_UNIT}.service', f'{BACKUP_UNIT}.timer', f'{BACKUP_UNIT}.service',
+                 f'{MONITOR_UNIT}.timer', f'{MONITOR_UNIT}.service'):
         if os.path.lexists(host.path(f'/etc/systemd/system/{unit}')):
             host.run(['systemctl', 'disable', '--now', unit], check=False)
     opt = host.path('/opt/dytallix')
@@ -676,12 +684,12 @@ def wipe(bundle, host, confirm=input, out=say):
         host.run(['apparmor_parser', '--remove', str(host.path(PROFILE_FILE))], check=False)
     if host.run(['nft', 'list', 'table', *FIREWALL_TABLE], check=False).returncode == 0:
         host.run(['nft', 'delete', 'table', *FIREWALL_TABLE])
-    for path in SINGLE_FILES:
+    for path in SINGLE_FILES + AGENT_FILES:
         if os.path.lexists(host.path(path)):
             os.unlink(host.path(path))
     host.run(['systemctl', 'daemon-reload'])
     host.run(['systemctl', 'restart', 'systemd-journald'], check=False)
-    for tree in TREES:
+    for tree in TREES + AGENT_TREES:
         if os.path.lexists(host.path(tree)):
             host.remove_tree(tree)
     remaining = existing(host)
