@@ -13,6 +13,8 @@ Invented records and throwaway keys only.
   sudo staging_network.py install-vms --work DIR
   sudo staging_host.py install --work DIR/net --label validator-1 ...
   sudo staging_network.py run --work DIR
+  sudo staging_network.py wallet-drill --work DIR
+  sudo staging_network.py reconcile --work DIR
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
   sudo staging_network.py monitor-drill --work DIR
@@ -30,6 +32,13 @@ blocks), that its backup job uploads an encrypted copy to a stand-in store
 inside the sentry VM, that the copy opens on the runner with the backup code
 and holds the sentry's snapshot, and that the VM verifies against its
 bundle.
+
+reconcile is the reconciliation report (simulation plan, T6; reconcile.py)
+after the wallet drill: both nodes' block and application hashes and supply
+at a common height, every rehearsal account summed against the liquid
+totals, the burns against the drill's ledger, and the sentry's database
+checked on a stopped copy. Anything but PASS fails the step; the evidence is
+reconcile/evidence.json.
 
 restore-drill is the first restore drill (disaster recovery v1, R6): the
 sentry is lost, so its VM is wiped and reinstalled from its bundle, then
@@ -71,6 +80,7 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import reconcile  # noqa: E402
 import staging_host  # noqa: E402
 
 BRIDGE = 'dytbr0'
@@ -456,7 +466,7 @@ def run(work, timeout=600):
 
 # The first restore drill (disaster recovery v1, R6)
 
-OPERATOR_STATUS = ('sh', '-c', 'exec /opt/dytallix/*/bin/dytallix-operator-rpc --home /var/lib/dytallix/node status')
+OPERATOR_STATUS = reconcile.OPERATOR_STATUS
 
 
 def sync_info(raw):
@@ -727,24 +737,38 @@ def supply_holds(view):
             and int(dgt['issued']) == DGT_TOTAL)
 
 
+def pinned_cli(work, directory):
+    """A CLI home with the rehearsal wallets, pinned to the public node's
+    client channel and the staging genesis: the environment to run it in."""
+    work, directory = Path(work), Path(directory)
+    chain = work / 'net' / 'chain'
+    wallets = chain / 'rehearsal-wallets'
+    directory.mkdir(parents=True)
+    shutil.copytree(wallets / 'home', directory / 'home')
+    env = dict(os.environ, HOME=str(directory / 'home'), DYTALLIX_KEYSTORE_PASSPHRASE_FILE=str(wallets / 'passphrase'))
+    digest = hashlib.sha256((chain / 'chain' / 'native-genesis.json').read_bytes()).hexdigest()
+    tool(work / 'release-bin' / 'dytallix', 'config', 'pin-chain', '--endpoint',
+         work / 'net' / 'keys' / f'{PUBLIC}.channel-pin.json', '--network', 'testnet', '--chain-id',
+         staging_host.CHAIN_ID, '--genesis-digest', digest, env=env)
+    return env
+
+
 def wallet_drill(work, timeout=300):
     """The rehearsal wallets on the staging chain (simulation plan, T1): over
     the public node's client channel, with the release's CLI, a DRT transfer
     that creates an account, a DGT transfer, a bond to the validator and a
     reward claim, each by its committed receipt and proven balances, with the
-    supply rule before and after."""
+    supply rule before and after. It keeps the ledger of its writes, from the
+    status view saved before the first (status-1.json), for the
+    reconciliation (T6)."""
     work = Path(work)
     bins, chain = work / 'release-bin', work / 'net' / 'chain'
     wallets = chain / 'rehearsal-wallets'
     accounts = {a['label']: a for a in json.loads((wallets / 'MAPPING.json').read_bytes())['accounts']}
     drill = work / 'wallet-drill'
-    drill.mkdir(parents=True)
-    shutil.copytree(wallets / 'home', drill / 'home')
-    env = dict(os.environ, HOME=str(drill / 'home'), DYTALLIX_KEYSTORE_PASSPHRASE_FILE=str(wallets / 'passphrase'))
-    digest = hashlib.sha256((chain / 'chain' / 'native-genesis.json').read_bytes()).hexdigest()
-    tool(bins / 'dytallix', 'config', 'pin-chain', '--endpoint', work / 'net' / 'keys' / f'{PUBLIC}.channel-pin.json',
-         '--network', 'testnet', '--chain-id', staging_host.CHAIN_ID, '--genesis-digest', digest, env=env)
+    env = pinned_cli(work, drill)
     saved = iter(range(1, 1_000_000))
+    ledger = []
 
     def cli(*args):
         return json.loads(tool(bins / 'dytallix', *args, env=env, quiet=True).stdout)
@@ -754,11 +778,13 @@ def wallet_drill(work, timeout=300):
         tool(bins / 'dytallix', 'control', 'status', '--out', path, env=env, quiet=True)
         return json.loads(path.read_bytes())
 
-    def write(*args):
+    def write(*args, created=0):
         report = cli(*args, *WALLET_WRITE)
         if not (report.get('committed') and report.get('status') == 'success'):
             raise Failed(f'{args[0]} did not commit successfully: {report.get("status")}')
         say(f'== {" ".join(args[:2])}: committed, charged {report["charge_udrt"]} udrt')
+        ledger.append({'what': ' '.join(args[:2]), 'charge_udrt': str(report['charge_udrt']),
+                       'created_accounts': created})
         return report
 
     def balance(target):
@@ -774,7 +800,8 @@ def wallet_drill(work, timeout=300):
     fresh = balance('drill-new')
     if fresh['account_exists']:
         raise Failed('the new wallet already has an account')
-    write('send', '--to', fresh['address'], '--amount', '100', '--token', 'drt', '--wallet', 'ecosystem-growth')
+    write('send', '--to', fresh['address'], '--amount', '100', '--token', 'drt', '--wallet', 'ecosystem-growth',
+          created=1)
     created = balance('drill-new')
     if not created['account_exists'] or created['udrt'] != str(100 * 10**6):
         raise Failed(f'the new account holds {created["udrt"]} udrt, not 100 DRT')
@@ -815,7 +842,42 @@ def wallet_drill(work, timeout=300):
                 'emitted_udrt': str(int(after['supply']['emitted']) - int(before['supply']['emitted'])),
                 'new_account': created['address'], 'supply_rule': 'holds'}
     (drill / 'evidence.json').write_text(json.dumps(evidence, indent=2) + '\n')
+    fee = json.loads((chain / 'chain' / 'application-config.json').read_bytes())['ordinary']['fee_profile']
+    (drill / 'ledger.json').write_text(json.dumps({
+        'schema': reconcile.LEDGER_SCHEMA, 'from_height': before['height'],
+        'account_creation_fee_udrt': str(fee['account_creation_fee_udrt']), 'entries': ledger}, indent=2) + '\n')
     say(json.dumps(evidence, indent=2))
+
+
+# The reconciliation report (simulation plan, T6)
+
+def reconcile_network(work, timeout=300):
+    """The reconciliation of the staging network after the wallet drill: the
+    validator on the runner and the sentry through its guest agent, the
+    client over the sentry's client channel, every rehearsal account and the
+    drill's new one tracked, the burns since the drill's first status view
+    against its ledger, and the sentry's database checked on a stopped copy.
+    Nothing transacts between the drill and this step."""
+    work = Path(work)
+    chain, drill = work / 'net' / 'chain', work / 'wallet-drill'
+    out = work / 'reconcile'
+    env = pinned_cli(work, out)
+    client = reconcile.Client(work / 'release-bin' / 'dytallix', env, out)
+    hosts = {'validator-1': reconcile.LocalHost(), **{label: agent(work, label) for label in VMS}}
+    mapping = json.loads((chain / 'rehearsal-wallets' / 'MAPPING.json').read_bytes())
+    addresses = [a['address'] for a in mapping['accounts']]
+    addresses.append(json.loads((drill / 'evidence.json').read_bytes())['new_account'])
+    record = reconcile.collect(
+        staging_host.CHAIN_ID, hosts, (chain / 'chain' / 'native-genesis.json').read_bytes(), client=client,
+        addresses=addresses, since=reconcile.since_reading(json.loads((drill / 'status-1.json').read_bytes())),
+        ledger=json.loads((drill / 'ledger.json').read_bytes()), state_check_host=PUBLIC, timeout=timeout, say=say)
+    path = out / 'evidence.json'
+    path.write_text(json.dumps(record, indent=2) + '\n')
+    for row in record['checks']:
+        say(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+    say(f'== reconciliation at height {record["height"]}: {record["status"]} (evidence sha256 {record["sha256"]})')
+    if record['status'] != reconcile.PASS:
+        raise Failed(f'the reconciliation is {record["status"]}')
 
 
 def parse_events(raw):
@@ -1029,8 +1091,8 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'restore-drill', 'kit-drill', 'monitor-drill',
-                 'diagnostics'):
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'reconcile', 'restore-drill', 'kit-drill',
+                 'monitor-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     v = commands.add_parser('vms-up')
     v.add_argument('--work', type=Path, required=True)
@@ -1051,6 +1113,8 @@ def main():
             run(args.work)
         elif args.command == 'wallet-drill':
             wallet_drill(args.work)
+        elif args.command == 'reconcile':
+            reconcile_network(args.work)
         elif args.command == 'restore-drill':
             restore_drill(args.work)
         elif args.command == 'kit-drill':
@@ -1059,7 +1123,7 @@ def main():
             monitor_drill(args.work)
         else:
             diagnostics(args.work)
-    except (Failed, staging_host.Failed, OSError, KeyError, ValueError) as error:
+    except (Failed, staging_host.Failed, reconcile.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0

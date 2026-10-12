@@ -199,6 +199,12 @@ jobs:
       # claim, with the supply rule before and after (simulation plan, T1).
       - name: Wallet drill (T1)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py wallet-drill --work "$RUNNER_TEMP/network"
+      # Both nodes' block and application hashes and supply at a common
+      # height, every rehearsal account against the liquid totals, the burns
+      # against the drill's ledger, and the sentry's database checked on a
+      # stopped copy; anything but PASS fails (simulation plan, T6).
+      - name: Reconciliation (T6)
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py reconcile --work "$RUNNER_TEMP/network"
       - name: Restore drill (disaster recovery R6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
       # Seat 5's kit replaced with the release's tools over the sentry's
