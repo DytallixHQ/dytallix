@@ -4,7 +4,7 @@ Status: planned; no run has passed. Seven full launch simulations (R01 to R07) m
 
 ## Where and when
 
-- **Where.** The two production hosts (the validator, and the sentry, which also serves clients; [two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)), before genesis, under the solo launch profile. Every tool is first built and proven in the CI staging network ([host install workflow](../../../.github/workflows/host-install.yml)).
+- **Where.** The two production hosts (the validator in Finland, and the sentry in Germany, which also serves clients; [two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)), before genesis, under the solo launch profile. Every tool is first built and proven in the CI staging network ([host install workflow](../../../.github/workflows/host-install.yml)).
 - **When.** Task-driven: after Hashlock's audit fixes, on the final candidate, one run after another ([audit approval](../../../launch/approvals/P01_E06_AUDIT_2026-10-10.json), [order of work](../../../launch/GENESIS_FRAMEWORK.md#6-order-of-work)). The staging runs before the freeze (E03, the T suites, the capacity measurements, the kit drills) come first and find defects early.
 - **Length.** Each run operates for 24 hours after its genesis; R07 spans T−6h to T+24h. No checkpoint is compressed.
 - **Before the runs.** During staging, a [statistical campaign](#statistical-campaign-staging) of about 15 to 21 days of host time measures attacks, faults, performance and endurance with confidence.
@@ -15,7 +15,7 @@ Status: planned; no run has passed. Seven full launch simulations (R01 to R07) m
 2. **Rehearsal identity.** A fresh rehearsal chain ID per run (never one naming mainnet), fresh throwaway node keys, and a rehearsal root authority, three of five, from throwaway kits; never production keys.
 3. **Spendable rehearsal genesis.** The production allocation (buckets, treasury, holder grants, validator self-bond, DRT bootstrap) mapped deterministically to rehearsal accounts whose keys the harness holds, plus wallet accounts for the load. The mapping is recorded.
 4. **Values.** Every production value, except R01 to R06's recorded timing set (below).
-5. **Services.** The real alerting and uptime services, the backup bucket, the staging agent on each host, and, for R03 and R06, the load machines.
+5. **Services.** The real alerting and uptime services (Healthchecks.io and Better Stack), the backup bucket (Backblaze B2, which also carries the agent's command files; [providers](../../../launch/approvals/P01_E05_PROVIDERS_2026-10-12.json)), the staging agent on each host, and, for R03 and R06, the load machines.
 6. **Evidence.** Recorded as in [Evidence](#evidence) and hashed.
 
 ### Shortened timings (R01 to R06 only)

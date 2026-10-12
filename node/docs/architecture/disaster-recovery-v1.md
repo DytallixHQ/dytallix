@@ -188,9 +188,16 @@ Every restore is drilled quarterly on staging, with its measured times.
   installs the sentry in a VM, runs its backup job against a stand-in store
   (`s3_standin.py`) and opens the copy on the runner; its first green run
   copied and opened the snapshot of height 20 (8 October 2026).
-- **The second provider and the hosting providers** (D12-Q03), and the
-  storage account. A free tier must hold the copies: the snapshot grows with
-  history.
+- **The second provider and the hosting providers** (D12-Q03): chosen
+  ([providers](../../../launch/approvals/P01_E05_PROVIDERS_2026-10-12.json)),
+  Hetzner Cloud for the hosts (the validator in Finland, the sentry in
+  Germany) and Backblaze B2 for the copies, through its S3-compatible API.
+  Open: the storage account and its keys. B2 accepts the job's upload as it
+  is: a path-style URL (`https://s3.REGION.backblazeb2.com/BUCKET/NAME`),
+  the region as the Signature V4 region, and a write-only application key
+  restricted to the bucket and the prefix. Each copy goes up in one request,
+  so a copy must stay under B2's 5 GB single-upload limit; the snapshot
+  grows with history, and a larger copy would need multipart upload.
 - **Runbook:** written ([disaster recovery](../operations/disaster-recovery.md)).
 
 ## Steps

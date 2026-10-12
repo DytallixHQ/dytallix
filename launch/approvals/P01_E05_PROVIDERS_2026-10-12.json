@@ -1,0 +1,47 @@
+{
+  "decision_id": "P01-2026-10-12-E05-PROVIDERS",
+  "approved": "2026-10-12",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The storage provider, the alerting and uptime services, and which country each host is in"
+  },
+  "reason": "Staging on the production hosts needs the off-host store (backups, metric history and the staging agent's command files) and the alerting services before the first run on a real host. The hosts are the founder's existing Hetzner Cloud servers in Finland and Germany.",
+  "design_ref": "../../node/docs/architecture/disaster-recovery-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q03, D12-Q02",
+      "selected": "Backblaze B2",
+      "rule": "The second provider, beside Hetzner Cloud, is Backblaze B2, used through its S3-compatible API with AWS Signature V4, as the backup job and the monitor's history upload already do. One private bucket holds the sentry's backup copies, each host's metric history and, during staging only, the staging agent's command files and results. Every key sealed onto a host is a B2 application key restricted to that bucket and to its own prefix, with write-only access, so it can add objects but not list, read or delete them (disaster recovery v1). The founder's download key is separate and never reaches a host. The bucket keeps every version; the founder prunes by hand, keeping at least one copy a month."
+    },
+    {
+      "question": "D12-Q02, D14-Q03",
+      "selected": "Healthchecks.io for heartbeats",
+      "rule": "Each host's heartbeat URL is a Healthchecks.io check of its own, with a one-minute period and a two-minute grace, so a missing heartbeat alerts after three minutes (the validator outage and monitoring down rules)."
+    },
+    {
+      "question": "D12-Q02, D14-Q03",
+      "selected": "Better Stack for uptime and escalation",
+      "rule": "Better Stack is the independent uptime checker: it polls the sentry's plain-HTTP status page and treats anything but 200 as down (the consensus halt and RPC outage rules). Its on-call escalation sends a severity 1 alert not acknowledged within 15 minutes to the backup person, so a host's escalation URL stays null."
+    },
+    {
+      "question": "D12-Q03",
+      "selected": "The validator in Finland, the sentry in Germany",
+      "rule": "The validator runs on the founder's Hetzner Cloud server in Finland and the sentry on the one in Germany, the different countries the hosting decision requires. Only the countries enter the repository; the servers, their locations and addresses stay in the host records outside it."
+    }
+  ],
+  "unset": [
+    "The B2, Healthchecks.io and Better Stack accounts, keys and URLs (outside the repository)",
+    "Which service receives each host's alert URL: one Healthchecks.io check holds one up or down state, so it cannot keep the fourteen rules' separate states from one URL; a Better Stack incoming webhook keyed by host and condition is proposed and is checked when the accounts are made",
+    "The uptime checker's polling interval on the chosen plan (the rules assume each minute)",
+    "The backup person's identity and contact, held outside the repository",
+    "Host records: the servers, their locations and addresses (outside the repository)",
+    "Live alert delivery, acknowledgement and escalation on the production hosts"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

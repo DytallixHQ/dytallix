@@ -178,7 +178,7 @@ supervisor's report goes to the journal.
 - The journal kept on disk for 90 days (`Storage=persistent`,
   `MaxRetentionSec=90d`, in `/etc/systemd/journald.conf.d/dytallix.conf`,
   which the generator writes), the operations objectives' log retention.
-- Nothing else runs on the host. Each host is a cloud server of its own at one provider, the validator and the sentry in different countries ([hosting](../../../launch/approvals/P01_E05_HOSTING_2026-10-11.json)); at launch, the founder's two 4 GB servers, resized only if the capacity runs (T05) prove them too small ([two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)).
+- Nothing else runs on the host. Each host is a cloud server of its own at one provider, the validator and the sentry in different countries ([hosting](../../../launch/approvals/P01_E05_HOSTING_2026-10-11.json)): Hetzner Cloud, the validator in Finland and the sentry in Germany ([providers](../../../launch/approvals/P01_E05_PROVIDERS_2026-10-12.json)); at launch, the founder's two 4 GB servers, resized only if the capacity runs (T05) prove them too small ([two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)).
 
 ## Host values (P01, 6 October 2026)
 

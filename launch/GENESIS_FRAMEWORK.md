@@ -155,13 +155,14 @@ two copies in two separate places of their own
 
 ## 5. Network at genesis
 
-- **Validator:** private, at one hosting provider, reachable only from its
-  sentry.
-- **Sentry:** in a different country from the validator, at the same
-  provider ([hosting](approvals/P01_E05_HOSTING_2026-10-11.json)); the archive of
+- **Validator:** private, at Hetzner Cloud in Finland, reachable only from
+  its sentry.
+- **Sentry:** at the same provider in Germany
+  ([hosting](approvals/P01_E05_HOSTING_2026-10-11.json),
+  [providers](approvals/P01_E05_PROVIDERS_2026-10-12.json)); the archive of
   every block; writes a daily snapshot (with the light blocks a restore
   needs, being built) and pushes it encrypted to object storage at a second
-  provider. It also serves clients over the post-quantum client channel and
+  provider, Backblaze B2. It also serves clients over the post-quantum client channel and
   a public status page, as an endpoint does: two seats, no separate endpoint
   ([two seats](approvals/P01_E05_TWO_SEATS_2026-10-11.json)).
 - **Hosts:** Ubuntu 24.04, each host's public address on its own interface,
@@ -174,7 +175,9 @@ More validators join later through on-chain registration.
 
 ## 6. Order of work
 
-1. Choose the hosting providers and the storage provider (D12-Q03).
+1. Choose the hosting providers and the storage provider (D12-Q03): done,
+   Hetzner Cloud and Backblaze B2
+   ([providers](approvals/P01_E05_PROVIDERS_2026-10-12.json)).
 2. Confirm the four other holders (kit replacement is built).
 3. Rehearse the ceremony; each holder makes their kit and wallet fob on the
    fobs the founder supplies.
@@ -205,7 +208,7 @@ More validators join later through on-chain registration.
 | Treasury reward recipient and custody | D02-Q02 | Open |
 | Validator self-bond amount | D09-Q02 | Open |
 | Where the founder keeps the bucket and treasury keys | — | Open |
-| Hosting and storage providers | D12-Q03 | Open |
+| Hosting and storage providers | D12-Q03 | Hetzner Cloud (validator in Finland, sentry in Germany) and Backblaze B2, approved 12 October 2026 ([approval](approvals/P01_E05_PROVIDERS_2026-10-12.json)); host records outside the repository |
 
 ## 8. What is public and what is not
 

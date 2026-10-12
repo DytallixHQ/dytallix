@@ -42,8 +42,8 @@ but no client can reach it.
 
 ## You need
 
-- Provider console access, and the storage provider's console for the
-  copies.
+- Provider console access, and the storage provider's (Backblaze B2)
+  console or download key for the copies.
 - The host's bundle for the release the chain runs, and its SHA-256.
 - One of the two paper copies of the host's seal code.
 - One of the two paper copies of the chain's backup code

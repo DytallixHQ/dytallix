@@ -2773,7 +2773,8 @@
             "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json",
             "approvals/P01_E05_METRIC_SET_2026-10-10.json",
             "approvals/P01_E05_ALERT_RULES_2026-10-10.json",
-            "approvals/P01_E05_ROLE_LOGS_2026-10-10.json"
+            "approvals/P01_E05_ROLE_LOGS_2026-10-10.json",
+            "approvals/P01_E05_PROVIDERS_2026-10-12.json"
           ]
         },
         {
@@ -2810,8 +2811,11 @@
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D12-Q03.json",
           "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
-          "solo_launch_profile": "Solo launch (P01, 3 October 2026): three hosts (validator, sentry that is also the archive node, endpoint); before genesis they are the staging environment for E03, the measurements and the seven simulations, then wiped and re-provisioned. Replaced (P01, 11 October 2026, two seats): two hosts, the validator and the sentry, which also serves clients.",
-          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json"
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026): three hosts (validator, sentry that is also the archive node, endpoint); before genesis they are the staging environment for E03, the measurements and the seven simulations, then wiped and re-provisioned. Replaced (P01, 11 October 2026, two seats): two hosts, the validator and the sentry, which also serves clients. Providers (P01, 12 October 2026): the validator in Finland and the sentry in Germany, at Hetzner Cloud; the second provider, for the backups, the metric history and the staging command files, is Backblaze B2. The host records stay outside the repository.",
+          "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
+          "approval_records": [
+            "approvals/P01_E05_PROVIDERS_2026-10-12.json"
+          ]
         }
       ],
       "work": {
@@ -3186,7 +3190,8 @@
           "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "approval_records": [
             "approvals/P01_E05_MONITORING_2026-10-09.json",
-            "approvals/P01_E06_AUDIT_2026-10-10.json"
+            "approvals/P01_E06_AUDIT_2026-10-10.json",
+            "approvals/P01_E05_PROVIDERS_2026-10-12.json"
           ]
         }
       ],
@@ -4535,6 +4540,29 @@
       "unset": [
         "Host records (outside the repository)",
         "Final sizes from T05"
+      ]
+    },
+    {
+      "id": "P01-2026-10-12-E05-PROVIDERS",
+      "approved": "2026-10-12",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E05_PROVIDERS_2026-10-12.json",
+      "decisions": [
+        "D12-Q03, D12-Q02: the second provider is Backblaze B2 (S3-compatible, AWS Signature V4): one private bucket for the backup copies, the metric history and, in staging only, the staging agent's command files; every key on a host is restricted to the bucket and its prefix and write-only; the founder's download key never reaches a host.",
+        "D12-Q02, D14-Q03: Healthchecks.io receives each host's heartbeat, one check per host, alerting after three minutes without one.",
+        "D12-Q02, D14-Q03: Better Stack is the independent uptime checker on the sentry's status page and escalates an unacknowledged severity 1 alert to the backup person after 15 minutes; the hosts' escalation URL stays null.",
+        "D12-Q03: the validator in Finland and the sentry in Germany; only the countries enter the repository."
+      ],
+      "question_refs": [
+        "D12-Q02",
+        "D12-Q03",
+        "D14-Q03"
+      ],
+      "unset": [
+        "The accounts, keys and URLs (outside the repository)",
+        "Which service receives the alert URL (a Better Stack incoming webhook is proposed)",
+        "The uptime checker's polling interval on the chosen plan",
+        "Host records (outside the repository)"
       ]
     },
     {

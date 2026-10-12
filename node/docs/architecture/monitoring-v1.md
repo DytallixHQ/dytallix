@@ -41,7 +41,15 @@ Targets and severities are the
    backup person, a root key holder named outside this repository.
 4. **Vendor-neutral delivery.** Heartbeats and alerts go to webhook URLs held
    in each host's settings. The founder chooses the free services and
-   creates their accounts later (artifact A22).
+   creates their accounts later (artifact A22). Chosen on 12 October 2026
+   ([providers](../../../launch/approvals/P01_E05_PROVIDERS_2026-10-12.json)):
+   each host's heartbeat URL is a Healthchecks.io check of its own (period
+   one minute, grace two), and Better Stack polls the status page and
+   escalates to the backup person, so the escalation URL stays null. One
+   Healthchecks.io check holds one up or down state, so it cannot keep the
+   fourteen rules apart from one alert URL; the alert URL's service, a
+   Better Stack incoming webhook keyed by host and condition as proposed,
+   is set with the accounts. The code stays vendor-neutral.
 
 ## Decisions (P01, 10 October 2026)
 

@@ -9,7 +9,9 @@ approved E05 values `monitor.*` (P01, 10 October 2026,
 
 These are preparation documents. They authorize no live halt, restart, key
 operation or state change; the [rules for every incident](README.md#rules-for-every-incident)
-apply. The services and accounts (A22) and the backup person are unset.
+apply. The services are Healthchecks.io (heartbeats) and Better Stack (the
+outside check and escalation) ([providers](../../../launch/approvals/P01_E05_PROVIDERS_2026-10-12.json)); their
+accounts (A22) and the backup person are unset.
 
 ## Severities
 

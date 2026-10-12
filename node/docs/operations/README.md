@@ -10,7 +10,8 @@ D12-Q02), and the root keys are held in key kits
 ([key ceremony](../../../launch/custody/KEY_CEREMONY.md)). The following are
 unset inputs:
 - the named roles (D14-Q03);
-- the alerting and uptime services and their accounts (artifact A22); the
+- the alerting and uptime services' accounts (artifact A22; Healthchecks.io
+  and Better Stack, [providers](../../../launch/approvals/P01_E05_PROVIDERS_2026-10-12.json)); the
   alert rules and thresholds are approved and each alert's response is in
   [monitoring.md](monitoring.md) ([monitoring v1](../architecture/monitoring-v1.md));
 - the authenticated incident channel.
