@@ -190,13 +190,12 @@ def app_hashes(observations):
 
 
 def common_height(observations):
-    """The newest height read from every host's engine and metrics (and the
-    client's status view, if one was read)."""
+    """The newest height read from every host's engine and metrics. The
+    client's views are compared wherever their heights meet the nodes'; a
+    CLI call takes about a block, so they are not required to."""
     sets = []
     for host in observations['hosts'].values():
         sets += [set(host['engine']), set(host['metrics'])]
-    if observations.get('views') is not None and observations.get('client'):
-        sets.append(set(observations['views']))
     common = set.intersection(*sets) if sets else set()
     return max(map(int, common)) if common else None
 
@@ -431,10 +430,15 @@ def balance_reading(balance):
 
 
 class Collector:
+    # The client's status view is read at most this often, so that the
+    # nodes, read in well under a block, are read every round.
+    CLIENT_EVERY = 10
+
     def __init__(self, hosts, client=None, clock=time.monotonic, sleep=time.sleep, say=print):
         self.hosts, self.client, self.clock, self.sleep, self.say = hosts, client, clock, sleep, say
         self.observations = {'hosts': {label: {'engine': {}, 'metrics': {}} for label in hosts},
                              'views': {}, 'client': client is not None, 'unreadable': []}
+        self.client_read = None
 
     def unreadable(self, source, error):
         """A reading without its schema's fields: recorded once, and the result
@@ -468,7 +472,9 @@ class Collector:
                 found = None
             if found:
                 record['metrics'][str(found[0])] = found[1]
-        if self.client and labels is None:
+        now = self.clock()
+        if self.client and labels is None and (self.client_read is None or now - self.client_read >= self.CLIENT_EVERY):
+            self.client_read = now
             try:
                 view = reading(self.client.status())
             except Missing as error:
@@ -479,7 +485,7 @@ class Collector:
                 return
             self.observations['views'][str(view['height'])] = {'app_hash': view['app_hash'], 'supply': view['supply']}
 
-    def until_common(self, timeout, period=1.0, above=None):
+    def until_common(self, timeout, period=0.5, above=None):
         """Read until every node has been read at one height (above `above`)."""
         deadline = self.clock() + timeout
         while True:

@@ -181,10 +181,14 @@ class EvaluateTests(unittest.TestCase):
         obs['common_above'] = 10
         self.assertEqual(rows(obs)['common_height']['status'], rc.PASS)
 
-    def test_the_client_view_must_share_the_height(self):
+    def test_the_client_view_need_not_share_the_height(self):
+        # A CLI call takes about a block (the third CI run never met the
+        # nodes' heights); views are compared where they meet them.
         obs = observations()
         obs['views'] = {'9': obs['views']['10']}
-        self.assertEqual(rc.common_height(obs), None)
+        self.assertEqual(rc.common_height(obs), 11)
+        obs['views']['11'] = {'app_hash': 'a11', 'supply': supply(emitted=54)}
+        self.assertEqual(rows(obs)['supply_equal']['status'], rc.FAIL)
 
     def test_two_blocks_at_one_height_fail(self):
         obs = observations()
@@ -389,6 +393,19 @@ class CollectorTests(unittest.TestCase):
         collector, _ = self.collector()
         self.assertEqual(collector.until_common(30), 11)
         self.assertEqual(set(collector.observations['hosts']['sentry-1']['engine']), {'11'})
+
+    def test_the_client_is_read_at_its_own_pace(self):
+        collector, hosts = self.collector(client=True)
+        calls = []
+        real = collector.client.status
+        collector.client.status = lambda: calls.append(1) or real()
+        collector.burst(list(hosts), 0)
+        for _ in range(30):
+            collector.sample()
+        # The fake clock ticks once per call: 30 rounds, about 60 ticks.
+        self.assertLessEqual(len(calls), 60 // rc.Collector.CLIENT_EVERY + 1)
+        self.assertGreaterEqual(len(calls), 2)
+        self.assertEqual(len(collector.observations['hosts']['sentry-1']['engine']), 30)
 
     def test_a_node_that_never_answers_gives_no_height(self):
         collector, hosts = self.collector()
