@@ -222,6 +222,21 @@ jobs:
       # stopped copy; anything but PASS fails (simulation plan, T6).
       - name: Reconciliation (T6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py reconcile --work "$RUNNER_TEMP/network"
+      # The load generator (simulation plan, T3): a fleet of fresh wallets
+      # funded and first spent, then 1 transaction a second for 2 minutes in
+      # the default mix (DRT and DGT sends, account creation, bond, unbond,
+      # claim) signed offline at locally tracked nonces and sent in batches
+      # through the release's gateway over the sentry's client channel, with
+      # a governance proposal, deposit and vote beside it. Nothing lost, 99%
+      # within 2 blocks, block intervals, supply and burns; evidence digest-
+      # bound. One runner is one address: two channel connections.
+      - name: Load generator (T3)
+        timeout-minutes: 20
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py load --work "$RUNNER_TEMP/network"
+      # T6 over the load: from its first status view against its ledger,
+      # with every fleet account tracked.
+      - name: Reconciliation after the load (T6)
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py reconcile --after load --work "$RUNNER_TEMP/network"
       - name: Restore drill (disaster recovery R6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
       # Seat 5's kit replaced with the release's tools over the sentry's
