@@ -3,6 +3,7 @@ package blocksync
 import (
 	"fmt"
 	"math"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -66,11 +67,23 @@ func (p testPeer) simulateInput(input inputData) {
 		}
 	}
 	err := input.pool.AddBlock(input.request.PeerID, block, extCommit, 123)
-	require.NoError(input.t, err)
+	// Dytallix: reported with Errorf, since FailNow is invalid off the test
+	// goroutine, and without the one refusal a malicious peer earns.
+	if err != nil && !lateFromBannedPeer(input.pool, p.malicious, p.id, err) {
+		input.t.Errorf("peer %v: %v", p.id, err)
+	}
 	// TODO: uncommenting this creates a race which is detected by:
 	// https://github.com/golang/go/blob/2bd767b1022dd3254bcec469f0ee164024726486/src/testing/testing.go#L854-L856
 	// see: https://github.com/tendermint/tendermint/issues/3390#issue-418379890
 	// input.t.Logf("Added block from peer %v (height: %v)", input.request.PeerID, input.request.Height)
+}
+
+// lateFromBannedPeer reports the one error a malicious test peer may cause
+// legitimately (Dytallix): its reply was in flight when the pool banned it
+// and handed its requests to other peers, so the pool refuses the block from
+// it, as a node would.
+func lateFromBannedPeer(pool *BlockPool, malicious bool, peerID p2p.ID, err error) bool {
+	return malicious && pool.IsPeerBanned(peerID) && strings.HasPrefix(err.Error(), "requested block #")
 }
 
 type testPeers map[p2p.ID]*testPeer
@@ -446,7 +459,9 @@ func TestBlockPoolMaliciousNode(t *testing.T) {
 	for {
 		select {
 		case err := <-errorsCh:
-			t.Error(err)
+			if peer := peers[err.peerID]; peer == nil || !lateFromBannedPeer(pool, peer.malicious, err.peerID, err.err) {
+				t.Error(err)
+			}
 		case request := <-requestsCh:
 			// Process request
 			peers[request.PeerID].inputChan <- inputData{t, pool, request}

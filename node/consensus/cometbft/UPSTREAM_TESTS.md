@@ -104,6 +104,24 @@ the real PQC transport.
   above every base. `pool.go` is unchanged upstream code. In a node, the same
   state makes `IsCaughtUp` true, so the reactor would switch to consensus
   rather than hang.
+- `blocksync`: `TestBlockPoolMaliciousNode` failed in CI (PR #56): "requested
+  block #20 from [], not bad". When the pool bans the malicious peer it hands
+  that peer's requests to others, and a reply of the peer's that was already
+  in flight then arrives. `AddBlock` refuses it, both returning the error and
+  sending it to `errorsCh`, and the test treated either as a failure. The test
+  now accepts that one refusal, from the malicious peer once banned, at both
+  points; every other error still fails it, and the peer reports through
+  `Errorf` instead of `require` off the test goroutine. Delivering the
+  malicious peer's fake blocks 1.5 s late failed the test at both points
+  with CI's error before the fix (2 of 2 runs) and passed after it (2 of 2).
+  `TestBlockPoolMaliciousNodeMaxInt64` already ignored the malicious peer's
+  `errorsCh` entries and shares the peer's filter. A block that arrives after
+  its height was committed ("already committed block", which `AddBlock`
+  returns without reporting) still fails a test, as upstream; CI has not
+  shown it. `pool.go` is unchanged upstream code, and upstream
+  `main` has the same test. In a node, the reactor stops a peer for an
+  `errorsCh` entry only if it is still connected, so a banned peer's late
+  block changes nothing.
 - `light/store/db`: `Test_Concurrency` hung in CI for its 10-minute timeout
   (#344). `Prune` wrote its batch with its iterator still open. A MemDB
   iterator holds the database's read lock until it is closed and buffers 64
