@@ -77,7 +77,7 @@
     "observability": {
       "status": "PROPOSED",
       "proposal": "Independent collection and alert delivery; monitor collector failure; restricted metrics access; centralized redacted logs with approved retention.",
-      "solo_launch": "A free hosted uptime checker, separate from the hosts, with phone push alerts to the founder; retention per operations/OBJECTIVES.json."
+      "solo_launch": "A free hosted uptime checker, separate from the hosts, checking every 3 minutes and alerting by e-mail, and a free heartbeat service alerting the founder's phone (P01, 12 October 2026); retention per operations/OBJECTIVES.json."
     },
     "backups": {
       "status": "PROPOSED",

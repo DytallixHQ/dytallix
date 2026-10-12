@@ -1,0 +1,33 @@
+{
+  "decision_id": "P01-2026-10-12-E05-MONITORING-SERVICES",
+  "approved": "2026-10-12",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the outside monitoring works"
+  },
+  "reason": "The founder set up the outside services, as the monitoring decision left to them. The free plans check every 3 minutes and alert by e-mail; one-minute checks, phone calls and SMS cost about $29 to $34 a month, which the founder's budget does not cover.",
+  "design_ref": "../../node/docs/architecture/monitoring-v1.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "Free: 3-minute checks, phone alerts through the heartbeat service",
+      "rule": "The uptime checker is Better Stack's free plan: it checks the public status page and the websites every 3 minutes and alerts by e-mail, which the founder receives on their phone. The alerting service is Healthchecks.io's free plan: one heartbeat check per host, alerting when a heartbeat is missing for 3 minutes (a 1-minute period and a 2-minute grace), to the founder's phone through a messaging integration. Nothing costs money. A halt shows on the status page after 60 seconds and reaches the founder within about 4 minutes, instead of about 2 with one-minute checks. A paid plan can replace either service later without a code change, since each host's webhook settings are replaceable."
+    }
+  ],
+  "supersedes": [
+    "Monitoring v1, 'the independent uptime checker polls it each minute' (P01_E05_MONITORING_2026-10-09, monitoring-v1.md): every 3 minutes.",
+    "Solo launch, 'a free hosted uptime checker ... with phone push alerts' (P01_E05_SOLO_LAUNCH_2026-10-03): the uptime checker alerts by e-mail; the heartbeat service alerts the phone."
+  ],
+  "unset": [
+    "Where each host's alert URL (the monitor job's firing and resolved alerts) points",
+    "How the 15-minute escalation reaches the backup person (the hosts' escalation URL)",
+    "The status page monitor, once the sentry has its final address"
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

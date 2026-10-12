@@ -14,7 +14,7 @@ Current counts: 0 OPEN, 35 PARTIAL, 0 READY FOR ACCEPTANCE, 0 PASS. Partial prog
 - **Independent reproduction:** A clean GitHub Actions runner and a fresh container on the founder's machine each reproduce the release and the genesis files byte for byte.
 - **Operator acceptance and genesis hash verification:** The founder, the only operator, records acceptance and verifies the genesis hash on every host.
 - **Custodians and signers:** Five people, the founder and four others, hold the five key kits, one each; kit N holds key N of each role (genesis, upgrade, freeze, resume), any three act, and no holder sees another's kit secret (P01, 7 October 2026).
-- **Independent monitoring:** A free hosted uptime checker, separate from the hosts, with phone push alerts.
+- **Independent monitoring:** A free hosted uptime checker, separate from the hosts, checking every 3 minutes and alerting by e-mail; a free heartbeat service alerts the founder's phone when a host goes quiet (P01, 12 October 2026).
 - **On-call coverage:** The founder, paged 24/7, best effort, against the published goals in operations/OBJECTIVES.json.
 - **Staging and simulations:** The production hosts before genesis, with rehearsal chain IDs and throwaway keys, then wiped and re-provisioned.
 

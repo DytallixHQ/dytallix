@@ -3,7 +3,7 @@
 setup v1, step H4: node/docs/architecture/host-setup-v1.md). CI runs it on
 an Ubuntu 24.04 runner; it also rehearses a staging host by hand.
 
-  staging_host.py prepare --release DIR --work DIR [--address IP]
+  staging_host.py prepare --release DIR --work DIR [--address IP] [--timings ci|rehearsal|production]
   sudo staging_host.py install --work DIR [--label validator-1] [--height N] [--timeout S]
   sudo staging_host.py wipe --work DIR [--label validator-1]
 
@@ -11,7 +11,8 @@ prepare (as a normal user) writes a staging pin plan from the template
 (chain dytallix-staging-1; this host's address for the validator, RFC 5737
 documentation addresses for the others), runs the offline key step with the
 release's tools and types each seal code back, and builds the staging
-chain and every host's bundle (staging_chain.py). The seal codes go to
+chain and every host's bundle (staging_chain.py, with the timing profile:
+ci by default, rehearsal for R01 to R06's shortened timings). The seal codes go to
 WORK/seal-codes.json (mode 0600): this chain is throwaway.
 
 install (as root) unpacks the host's bundle and runs its install.sh,
@@ -71,7 +72,7 @@ def staging_plan(address):
 
 
 def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot_interval=None,
-            history_upload=None):
+            history_upload=None, timings='ci'):
     """The key step and the staging chain. Without a plan, this host is the
     validator and the others have documentation addresses."""
     release, work = Path(release), Path(work)
@@ -115,6 +116,7 @@ def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot
                '--keys', str(work / 'keys'), '--release', str(release), '--tools', str(tools), '--out', str(work / 'chain')]
     if snapshot_interval:
         command += ['--snapshot-interval', str(snapshot_interval)]
+    command += ['--timings', timings]
     result = subprocess.run(command)
     if result.returncode != 0:
         raise Failed('the staging chain build failed')
@@ -393,6 +395,8 @@ def main():
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
     p.add_argument('--address', help="this host's address (default: the address it routes from)")
+    p.add_argument('--timings', choices=('ci', 'rehearsal', 'production'), default='ci',
+                   help='the timing profile (launch/simulations/TIMINGS.json; default ci)')
     for name in ('install', 'wipe'):
         c = commands.add_parser(name)
         c.add_argument('--work', type=Path, required=True)
@@ -403,7 +407,8 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'prepare':
-            print(json.dumps(prepare(args.release, args.work, args.address or host_address()), indent=2))
+            print(json.dumps(prepare(args.release, args.work, args.address or host_address(), timings=args.timings),
+                             indent=2))
         elif args.command == 'install':
             install(args.work, args.label, args.height, args.timeout)
         else:

@@ -162,8 +162,10 @@ and before the node's first start, with `restore.sh COPY` from its bundle
    started at or above H, `restore.sh` removes the drop-in and the opened
    copy; later starts are ordinary.
 
-A restore trusts the copy's header for the evidence age less one day:
-13 days with the approved 14 (P01, 8 October 2026), just under the bound
+A restore trusts the copy's header for the evidence age less a
+fourteenth of it: 13 days with the approved 14 (P01, 8 October 2026; the
+fourteenth, P01, 12 October 2026, [approval](../../../launch/approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json), keeps restores working
+under the rehearsals' 4-hour evidence age), just under the bound
 the engine requires of any trust period. Peer state sync joins keep their
 approved 168 hours. The validator keeps its blocks for at least the
 evidence horizon (241,920 blocks, about 14 days), and the newest copy is

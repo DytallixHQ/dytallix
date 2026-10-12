@@ -20,15 +20,18 @@ Status: planned; no run has passed. Seven full launch simulations (R01 to R07) m
 
 ### Shortened timings (R01 to R06 only)
 
-So that each lifecycle completes inside a 24-hour run, these production values are shortened and listed, with their production values, in every run record. The exact set is fixed when the rehearsal genesis is built, together with every value derived from them: for example, the state-sync trust period must stay below the evidence age.
+So that each lifecycle completes inside a 24-hour run, these production values are shortened and listed, with their production values, in every run record ([approval](../../../launch/approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json), P01, 12 October 2026). The set is the `rehearsal` profile in [TIMINGS.json](../../../launch/simulations/TIMINGS.json); `staging_chain.py --timings rehearsal` builds a chain with it, and the CI install job does so on every change.
 
-| Value | Production | Rehearsal (proposed) |
+| Value | Production | Rehearsal |
 |---|---|---|
-| Upgrade and handover notice (also the kit replacement notice) | 120,960 blocks | 720 blocks |
+| Upgrade and handover notice (also the kit replacement notice) | 120,960 blocks | 720 blocks (1 hour) |
 | Governance deposit and voting periods | 120,960 blocks each | 720 blocks each |
 | Governance timelock | 34,560 blocks | 360 blocks |
-| Evidence age and margin (unbond maturity) | 241,920 + 720 blocks | 1,440 + 120 blocks |
+| Evidence age and margin (unbond maturity) | 241,920 + 720 blocks; 14 days + 1 hour | 2,880 + 120 blocks; 4 hours + 10 minutes |
 | Snapshot interval | 17,280 blocks | 720 blocks |
+| State sync trust period | 168 hours | 1 hour |
+
+The tools derive and check the rest before building: the trust period stays below the evidence age; a restore trusts a copy for the evidence age less a fourteenth (about 3 hours 43 minutes), longer than the newest backup copy can be (a snapshot interval plus the hourly backup and its 15-minute delay, about 2 hours 15 minutes); block and second ages agree at 5-second blocks; and unbonding (about 4 hours 10 minutes), a full governance cycle (2 hours 30 minutes) and the notice fit in the run. A restore's trust counts from the copy's header, so in R01 to R06 a lost host must be restored within about 88 minutes of the loss in the worst case (production: about 12 days); R02's restore runs inside that, and its 4-hour rebuild target is checked at production timings (the CI restore drill and the campaign's heavy faults).
 
 R07 uses the exact production values.
 
@@ -127,7 +130,7 @@ Each is proven in the CI staging network before it touches a real host.
 
 | Tool | Purpose | Builds on |
 |---|---|---|
-| **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping. **Spendable accounts built** (`staging_chain.py`, proven by the CI `wallet-drill`); the shortened timing profile follows | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
+| **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping. **Spendable accounts built** (`staging_chain.py`, proven by the CI `wallet-drill`); **the timing profiles built** (`--timings`, [TIMINGS.json](../../../launch/simulations/TIMINGS.json); the CI install job runs the rehearsal profile) | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
 | **T2** Staging agent and real-host harness | Signed, allowlisted commands on console-only hosts; the existing drills' assertions against real addresses. **Agent built** ([staging agent v1](../architecture/staging-agent-v1.md): `staging-agent/agent.py`, `staging_command.py`, proven by the CI `agent-drill`); the fault commands are stubs for T5, and the real-host harness follows | `staging_network.py` (`run`, `restore-drill`, `kit-drill`, `monitor-drill`), `staging_host.py`, the host scripts |
 | **T3** Load generator and wallet fleet | Persistent workers that sign locally, track nonces and generate the transaction mix through the client channel | SDK `CometClient`, ordinary v2 and v3 `prepare` and `sign`, `submit_sync`, `wait_for_receipt` |
 | **T4** Adversarial generator | Invalid signatures, bad encodings, bad nonces, duplicates, oversized requests, floods | `CometClient::relay`, the client channel crate, the admission and consensus test cases |

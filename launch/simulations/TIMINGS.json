@@ -1,0 +1,45 @@
+{
+  "schema": "dytallix.rehearsal-timings.v1",
+  "rule": "The timing profiles a staging chain is built with (node/tools/mainnet-preparation/staging_chain.py --timings). Each profile replaces only the E05 values it lists; every other value is the production value. A run record lists its profile, each replaced value beside its production value, and the derived values.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "block_seconds": 5,
+  "block_seconds_basis": "The approved 5-second block target, from which the evidence and margin seconds follow (E05 values lifecycle.*).",
+  "backup_interval_seconds": 4500,
+  "backup_interval_basis": "The sentry's backup timer runs hourly with up to 15 minutes' random delay (host_files.py BACKUP_TIMER), so the newest off-host copy can be a snapshot interval plus 75 minutes old.",
+  "restore_trust_divisor": 14,
+  "restore_trust_basis": "A restore trusts the copy's header for the evidence age less a fourteenth of it (dytallix-pqc-engine restore.go; P01, 8 and 12 October 2026).",
+  "run_seconds": 86400,
+  "profiles": {
+    "production": {
+      "use": "R07, the dress rehearsal, and production: the exact approved values.",
+      "approval_record": null,
+      "values": {}
+    },
+    "rehearsal": {
+      "use": "R01 to R06, so each lifecycle completes inside its 24-hour run.",
+      "approval_record": "launch/approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json",
+      "fits_in_run": true,
+      "values": {
+        "upgrade.min_notice_blocks": 720,
+        "release_handover.v2.min_notice_blocks": 720,
+        "governance.deposit.deposit_period_blocks": 720,
+        "governance.ballot.voting_period_blocks": 720,
+        "governance.ballot.timelock_blocks": 360,
+        "lifecycle.evidence_max_age_blocks": 2880,
+        "lifecycle.evidence_max_age_seconds": 14400,
+        "lifecycle.processing_margin_blocks": 120,
+        "lifecycle.processing_margin_seconds": 600,
+        "service.snapshots.interval_blocks": 720,
+        "config.toml [statesync] trust_period": "1h"
+      }
+    },
+    "ci": {
+      "use": "The CI staging network's kit replacement drill: a notice of 20 blocks; its snapshot interval is given on the command line.",
+      "approval_record": "launch/approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json",
+      "values": {
+        "upgrade.min_notice_blocks": 20,
+        "release_handover.v2.min_notice_blocks": 20
+      }
+    }
+  }
+}

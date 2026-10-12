@@ -4,6 +4,8 @@ workflow."""
 import json
 import unittest
 
+import resolve_genesis_inputs
+import resolve_host_values
 import staging_chain as sc
 import staging_host as sh
 
@@ -67,16 +69,82 @@ class StagingChainTests(unittest.TestCase):
             self.assertEqual(kept, {k: v for k, v in records['root'][section].items()
                                     if k not in ('freeze', 'resume', 'authority')})
 
-    def test_only_the_notice_is_a_staging_value(self):
+    def changed(self, profile, snapshot_interval=None):
         approved = sc.read_json(sc.E05_VALUES)['values']
-        staging = sc.genesis_values()['values']
-        changed = [(a, b) for a, b in zip(approved, staging) if a != b]
-        self.assertEqual(len(approved), len(staging))
-        self.assertEqual(sorted(b['path'] for _, b in changed), sorted(sc.NOTICE_PATHS))
-        for before, after in changed:
-            self.assertEqual((before['approved'], after['approved']), (120960, sc.STAGING_NOTICE_BLOCKS))
-            self.assertEqual(after['approval_record'], sc.DRILL_APPROVAL)
-            self.assertTrue((sc.MAINNET / sc.DRILL_APPROVAL).is_file())
+        values, record = sc.timing_values(profile, snapshot_interval)
+        self.assertEqual(len(approved), len(values['values']))
+        changed = {b['path']: (a, b) for a, b in zip(approved, values['values']) if a != b}
+        self.assertEqual(sorted(changed), sorted(c['path'] for c in record['changed']))
+        for c in record['changed']:
+            before, after = changed[c['path']]
+            self.assertEqual((before['approved'], after['approved']), (c['production'], c['value']))
+            self.assertEqual(type(before['approved']), type(after['approved']))
+            self.assertEqual(after['approval_record'], record['approval_record'])
+            self.assertTrue((sc.MAINNET / record['approval_record']).is_file())
+        return changed, record
+
+    def test_the_ci_profile_replaces_only_the_notice_and_the_snapshot_interval(self):
+        changed, _ = self.changed('ci', 10)
+        self.assertEqual(sorted(changed), sorted(['upgrade.min_notice_blocks', 'release_handover.v2.min_notice_blocks',
+                                                  sc.SNAPSHOT_PATH]))
+        self.assertEqual(changed['upgrade.min_notice_blocks'][1]['approved'], 20)
+        self.assertEqual(sorted(self.changed('ci')[0]), ['release_handover.v2.min_notice_blocks', 'upgrade.min_notice_blocks'])
+
+    def test_the_production_profile_replaces_nothing(self):
+        values, record = sc.timing_values('production')
+        self.assertEqual(values, sc.read_json(sc.E05_VALUES))
+        self.assertEqual((record['changed'], record['approval_record']), ([], None))
+        with self.assertRaises(sc.Invalid):
+            sc.timing_values('production', 10)
+
+    def test_the_rehearsal_profile_fits_each_lifecycle_in_a_run(self):
+        # P01, 12 October 2026: R01 to R06's shortened timings.
+        changed, record = self.changed('rehearsal')
+        self.assertEqual(len(changed), 11)
+        self.assertEqual(changed['lifecycle.evidence_max_age_blocks'][1]['approved'], '2880')
+        self.assertEqual(changed['config.toml [statesync] trust_period'][1]['approved'], '1h')
+        derived = record['derived']
+        self.assertEqual((derived['unbond_maturity_seconds'], derived['governance_cycle_seconds']), (15000, 9000))
+        self.assertLess(derived['newest_copy_max_age_seconds'], derived['restore_trust_seconds'])
+        # In the worst case a rehearsal restore must start within about 88 minutes of the loss.
+        self.assertEqual(derived['restore_deadline_after_loss_seconds'], 13372 - 8100)
+        self.assertLess(derived['state_sync_trust_seconds'], 14400)
+
+    def test_the_rehearsal_values_resolve_for_the_builder_and_the_hosts(self):
+        values, _ = sc.timing_values('rehearsal')
+        records = sc.read_json(sc.REHEARSAL / 'records.json')
+        inputs, _ = resolve_genesis_inputs.resolve(values, sc.read_json(sc.GENESIS_PROPOSALS), records, mode='production')
+        text = json.dumps(inputs)
+        for needle in ('"evidence_max_age_blocks": 2880', '"evidence_max_age_seconds": 14400',
+                       '"processing_margin_blocks": 120', '"voting_period_blocks": 720', '"timelock_blocks": 360'):
+            self.assertIn(needle, text)
+        host, _ = resolve_host_values.resolve(values, sc.read_json(sc.HOST_PROPOSALS))
+        self.assertIn('"trust_period": "1h"', json.dumps(host))
+
+    def test_the_timings_match_the_tools_they_describe(self):
+        timings = sc.read_json(sc.TIMINGS)
+        # The backup timer: hourly, up to 15 minutes late.
+        self.assertIn(b'OnCalendar=hourly', sc.host_files.BACKUP_TIMER)
+        self.assertIn(b'RandomizedDelaySec=15m', sc.host_files.BACKUP_TIMER)
+        self.assertEqual(timings['backup_interval_seconds'], 3600 + 900)
+        # The engine's restore margin.
+        restore = (sc.MAINNET / 'node' / 'consensus' / 'cometbft' / 'cmd' / 'dytallix-pqc-engine' / 'restore.go').read_text()
+        self.assertIn(f'restoreTrustDivisor = {timings["restore_trust_divisor"]}\n', restore)
+
+    def test_a_profile_that_breaks_a_rule_is_refused(self):
+        def refused(change, message):
+            timings = sc.read_json(sc.TIMINGS)
+            change(timings['profiles']['rehearsal']['values'])
+            with self.assertRaises(sc.Invalid) as caught:
+                sc.timing_values('rehearsal', timings=timings)
+            self.assertIn(message, str(caught.exception))
+        refused(lambda v: v.update({'config.toml [statesync] trust_period': '4h'}), 'trust period')
+        refused(lambda v: v.update({'service.snapshots.interval_blocks': 2000}), 'newest copy')
+        refused(lambda v: v.update({'lifecycle.evidence_max_age_seconds': 14000}), 'evidence age is 2880 blocks')
+        refused(lambda v: v.update({'governance.ballot.voting_period_blocks': 17000}), 'governance_cycle_seconds')
+        refused(lambda v: v.update({'monitor.nonexistent': 1}), 'not an approved E05 value')
+        with self.assertRaises(sc.Invalid):
+            sc.timing_values('fast')
 
     def keys(self, validators=1):
         return {label: f'key-{label}' for label in sc.rehearsal_labels(validators)}

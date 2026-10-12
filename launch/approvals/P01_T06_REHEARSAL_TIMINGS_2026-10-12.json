@@ -1,0 +1,33 @@
+{
+  "decision_id": "P01-2026-10-12-T06-REHEARSAL-TIMINGS",
+  "approved": "2026-10-12",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The exact shortened timings for R01 to R06, and restores under them"
+  },
+  "reason": "The simulation plan approved shortened timings for R01 to R06 but left the exact set open. The proposed 2-hour evidence age also left no restore: the engine trusted a restored copy for the evidence age less a fixed day, and an hourly backup of an hourly snapshot can be over 2 hours old.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "D14-Q02",
+      "selected": "Approve, with 4-hour evidence",
+      "rule": "R01 to R06 run with the rehearsal timing profile (launch/simulations/TIMINGS.json): the upgrade, handover and kit replacement notice 720 blocks; the governance deposit and voting periods 720 blocks each and the timelock 360; the evidence age 2,880 blocks and 14,400 seconds with a processing margin of 120 blocks and 600 seconds, so unbonded stake matures in about 4 hours 10 minutes; the snapshot interval 720 blocks; the state sync trust period 1 hour, below the evidence age. Backups stay hourly. Every other value is the production value, R07 uses the exact production values, and each run's record lists every replaced value beside its production value and the derived values. The staging tools refuse a profile whose trust period reaches the evidence age, whose newest backup copy can outlive a restore's trust, whose block and second ages disagree at 5-second blocks, or, for R01 to R06, whose unbonding, governance cycle or notice does not fit in a 24-hour run."
+    },
+    {
+      "question": "D12-Q02",
+      "selected": "Engine uses 1/14 of the period",
+      "rule": "A restore trusts the copy's header for the evidence age less a fourteenth of it, instead of less one fixed day. At the approved 14-day evidence age that is exactly one day off, 13 days, as approved on 8 October 2026, so production is unchanged; under the rehearsal profile's 4 hours it is about 3 hours 43 minutes, longer than the newest copy's age (at most about 2 hours 15 minutes), so R02 keeps its restore. The trust counts from the copy's header, so in the worst case a rehearsal restore must start within about 88 minutes of the loss; production keeps about 12 days."
+    }
+  ],
+  "supersedes": [
+    "Restore (P01_E05_RESTORE_2026-10-08), the form of the rule 'the evidence age less one day': now the evidence age less a fourteenth, the same 13 days at the approved 14-day evidence age."
+  ],
+  "unset": [],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

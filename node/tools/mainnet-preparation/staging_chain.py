@@ -3,7 +3,8 @@
 (E05; host setup v1, step H4: node/docs/architecture/host-setup-v1.md).
 
   staging_chain.py --plan PIN_PLAN.json --keys KEYS_DIR --release RELEASE_DIR \
-                   --tools TOOLS_DIR --out OUT_DIR [--genesis-time TIME]
+                   --tools TOOLS_DIR --out OUT_DIR [--genesis-time TIME] \
+                   [--timings ci|rehearsal|production] [--snapshot-interval N]
 
 Inputs:
   --plan     the pin plan with public keys filled in (host_keys.py writes it);
@@ -13,6 +14,13 @@ Inputs:
   --release  a release build (BUILD_RECORD.json and bin/)
   --tools    production builds of dytallix-genesis-build and
              dytallix-host-config, and dytallix-root-sign
+  --timings  the timing profile (launch/simulations/TIMINGS.json): ci (the
+             default; the kit replacement drill's 20-block notice, and with
+             --snapshot-interval a short snapshot interval), rehearsal (R01
+             to R06's shortened timings) or production (R07: none replaced).
+             It is checked before anything is built, and STAGING.json
+             records it: each replaced value beside its production value,
+             and the derived values.
 
 It runs the launch pipeline end to end with synthetic records, in the
 release manifest's freeze order:
@@ -29,8 +37,9 @@ release manifest's freeze order:
   5. make five throwaway root genesis keys and sign three of five;
      (before step 1, five throwaway key kits replace the rehearsal's
      freeze, resume and upgrade keys, which nothing can sign for, so that
-     the kit replacement drill can sign controls; the upgrade and handover
-     notice is a staging-only 20 blocks: P01, 8 October 2026)
+     the kit replacement drill can sign controls; under the ci profile the
+     upgrade and handover notice is a staging-only 20 blocks: P01, 8
+     October 2026)
   6. resolve the host values and run dytallix-host-config;
   7. generate every host's files (host_files.py) and bundle them
      (host_bundle.py).
@@ -50,6 +59,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -71,11 +81,14 @@ SETUP_VALUES = MAINNET / 'launch' / 'hosts' / 'SETUP_VALUES.json'
 ROOT_KEYS = 5
 ROOT_SIGNERS = (1, 3, 5)
 CONTROL_KITS = 5
-# Staging only (P01, 8 October 2026, the kit replacement drill): a CI run
-# cannot wait 120,960 blocks for a kit replacement to take effect.
-STAGING_NOTICE_BLOCKS = 20
-NOTICE_PATHS = ('upgrade.min_notice_blocks', 'release_handover.v2.min_notice_blocks')
-DRILL_APPROVAL = 'launch/approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json'
+# The timing profiles (launch-rehearsals.md): ci for the CI staging network's
+# kit replacement drill (P01, 8 October 2026), rehearsal for R01 to R06 (P01,
+# 12 October 2026) and production for R07. Each replaces only the values it
+# lists.
+TIMINGS = MAINNET / 'launch' / 'simulations' / 'TIMINGS.json'
+TIMINGS_SCHEMA = 'dytallix.rehearsal-timings.v1'
+PROFILES = ('ci', 'rehearsal', 'production')
+SNAPSHOT_PATH = 'service.snapshots.interval_blocks'
 BOUNDARY = ('Staging chain for host setup v1 (H4) and the launch simulations: the approved allocation\'s shape on '
             'throwaway accounts, validator and root keys. Not for any network.')
 DGT, DRT = 10**6, 10**6
@@ -252,21 +265,77 @@ def with_control_kits(records, authorities):
     return records
 
 
-def genesis_values():
-    """The approved E05 values with the staging-only notice."""
+def duration_seconds(text):
+    """Seconds in a Go duration of whole hours, minutes and seconds ("168h", "1h30m")."""
+    parts = re.findall(r'(\d+)([hms])', text)
+    require(parts and ''.join(n + u for n, u in parts) == text, f'unsupported duration {text!r}')
+    return sum(int(n) * {'h': 3600, 'm': 60, 's': 1}[u] for n, u in parts)
+
+
+def timing_checks(rows, timings, profile):
+    """The values the timings derive and the rules they must keep, or Invalid."""
+    value = lambda path: rows[path]['approved']
+    block = timings['block_seconds']
+    evidence = (int(value('lifecycle.evidence_max_age_blocks')), int(value('lifecycle.evidence_max_age_seconds')))
+    margin = (int(value('lifecycle.processing_margin_blocks')), int(value('lifecycle.processing_margin_seconds')))
+    # Maturity needs both the block and the time age, so each pair keeps the block target.
+    for name, (blocks, seconds) in (('evidence age', evidence), ('processing margin', margin)):
+        require(blocks * block == seconds, f'{profile}: the {name} is {blocks} blocks but {seconds} s')
+    trust = duration_seconds(value('config.toml [statesync] trust_period'))
+    require(trust < evidence[1], f'{profile}: the state sync trust period must be below the evidence age')
+    restore_trust = evidence[1] - evidence[1] // timings['restore_trust_divisor']
+    newest_copy = int(value(SNAPSHOT_PATH)) * block + timings['backup_interval_seconds']
+    require(newest_copy < restore_trust,
+            f'{profile}: a restore trusts a copy for {restore_trust} s, but the newest copy can be {newest_copy} s old')
+    derived = {'unbond_maturity_seconds': evidence[1] + margin[1],
+               'governance_cycle_seconds': sum(int(value(f'governance.{p}')) for p in (
+                   'deposit.deposit_period_blocks', 'ballot.voting_period_blocks', 'ballot.timelock_blocks')) * block,
+               'upgrade_notice_seconds': int(value('upgrade.min_notice_blocks')) * block,
+               'restore_trust_seconds': restore_trust, 'newest_copy_max_age_seconds': newest_copy,
+               # The trust counts from the copy's header, so in the worst case
+               # a lost host must be restored within this long of its loss.
+               'restore_deadline_after_loss_seconds': restore_trust - newest_copy,
+               'state_sync_trust_seconds': trust}
+    if timings['profiles'][profile].get('fits_in_run'):
+        for name in ('unbond_maturity_seconds', 'governance_cycle_seconds', 'upgrade_notice_seconds'):
+            require(derived[name] < timings['run_seconds'], f'{profile}: {name} does not fit in a run')
+    return derived
+
+
+def timing_values(profile, snapshot_interval=None, timings=None):
+    """The approved E05 values under a timing profile, and the record of what
+    it changed: each replaced value beside its production value, and the
+    derived values."""
+    require(profile in PROFILES, f'the timing profile is one of {", ".join(PROFILES)}')
+    timings = read_json(TIMINGS) if timings is None else timings
+    require(timings.get('schema') == TIMINGS_SCHEMA, 'not a timings file')
+    spec = timings['profiles'][profile]
+    replaced = dict(spec['values'])
+    if snapshot_interval is not None:
+        # A CI run cannot wait a day (17,280 blocks) for the sentry's first snapshot.
+        require(profile == 'ci', 'only the ci profile takes a snapshot interval')
+        require(1 <= snapshot_interval <= 17280, 'the staging snapshot interval is 1 to 17,280 blocks')
+        replaced[SNAPSHOT_PATH] = snapshot_interval
     values = read_json(E05_VALUES)
-    rows = [row for row in values['values'] if row.get('path') in NOTICE_PATHS]
-    require(len(rows) == len(NOTICE_PATHS), 'the notice values are missing')
-    for row in rows:
-        row['approved'], row['approval_record'] = STAGING_NOTICE_BLOCKS, DRILL_APPROVAL
-    return values
+    rows = {row['path']: row for row in values['values'] if 'path' in row}
+    changed = []
+    for path, value in replaced.items():
+        row = rows.get(path)
+        require(row is not None and row['status'] == 'APPROVED', f'{path} is not an approved E05 value')
+        production = row['approved']
+        row['approved'] = str(value) if isinstance(production, str) else value
+        row['approval_record'] = spec['approval_record']
+        changed.append({'path': path, 'production': production, 'value': row['approved']})
+    record = {'profile': profile, 'approval_record': spec['approval_record'], 'changed': changed,
+              'derived': timing_checks(rows, timings, profile)}
+    return values, record
 
 
-def build_genesis(records, out, tools, show):
+def build_genesis(records, values, out, tools, show):
     """Resolve the inputs and run the production builder into out/."""
     out.mkdir()
     write_json(out / 'records.json', records)
-    write_json(out / 'values.json', genesis_values())
+    write_json(out / 'values.json', values)
     run([sys.executable, '-B', HERE / 'resolve_genesis_inputs.py', '--mode', 'production',
          '--values', out / 'values.json', '--proposals', GENESIS_PROPOSALS, '--records', out / 'records.json',
          '--inputs', out / 'inputs.json', '--resolution', out / 'resolution.json'], show)
@@ -304,18 +373,8 @@ def sign_root(chain, genesis, manifest_path, tools, out, show):
     return policy, signatures, bundle
 
 
-def staging_values(snapshot_interval=None):
-    """The approved E05 values, with a staging-only snapshot interval: a CI run
-    cannot wait a day (17,280 blocks) for the sentry's first snapshot."""
-    values = read_json(E05_VALUES)
-    if snapshot_interval is not None:
-        require(1 <= snapshot_interval <= 17280, 'the staging snapshot interval is 1 to 17,280 blocks')
-        row = next(r for r in values['values'] if r.get('path') == 'service.snapshots.interval_blocks')
-        row['approved'] = snapshot_interval
-    return values
-
-
-def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=print, snapshot_interval=None):
+def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=print, snapshot_interval=None,
+          timings='ci'):
     plan_path, keys_dir, release_dir, tools, out = map(Path, (plan_path, keys_dir, release_dir, tools, out))
     plan = read_json(plan_path)
     require(not out.exists(), f'{out} exists; use a new directory')
@@ -323,6 +382,10 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
     genesis_time = genesis_time or datetime.now(timezone.utc).replace(microsecond=0).strftime('%Y-%m-%dT%H:%M:%SZ')
     chain = plan['chain_id']
     validators = len([h for h in plan['hosts'] if h['role'] == 'validator'])
+    values, timing = timing_values(timings, snapshot_interval)
+    show(f'== timing profile {timing["profile"]}: ' + ', '.join(f'{c["path"]} {c["value"]} (production {c["production"]})'
+                                                              for c in timing['changed']))
+    write_json(out / 'values.json', values)
     show('== rehearsal wallets (throwaway, spendable)')
     public_keys = rehearsal_wallets(release_dir / 'bin' / 'dytallix', out, rehearsal_labels(validators), show)
     records = spendable_records(plan, read_json(REHEARSAL / 'records.json'), genesis_time, public_keys)
@@ -330,7 +393,7 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
     records = with_control_kits(records, control_kits(tools, out, show))
 
     show('== genesis, first build')
-    first = build_genesis(records, out / 'genesis-first', tools, show)
+    first = build_genesis(records, values, out / 'genesis-first', tools, show)
     show('== release manifest')
     release = out / 'release'
     release.mkdir()
@@ -344,7 +407,7 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
 
     show('== genesis, bound to the release')
     records['root']['release_sha512'] = release_sha512
-    genesis = build_genesis(records, out / 'genesis', tools, show)
+    genesis = build_genesis(records, values, out / 'genesis', tools, show)
     require((genesis / 'native-genesis.json').read_bytes() == (first / 'native-genesis.json').read_bytes(),
             'the native genesis changed when the release was bound')
     write_json(out / 'rehearsal-wallets' / 'MAPPING.json', mapping(records, read_json(genesis / 'native-genesis.json'), chain))
@@ -359,13 +422,13 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
     shutil.copyfile(signatures, chain_dir / 'root-signatures.json')
 
     show('== host configuration')
-    run([sys.executable, '-B', HERE / 'resolve_host_values.py', '--values', E05_VALUES, '--proposals', HOST_PROPOSALS,
+    run([sys.executable, '-B', HERE / 'resolve_host_values.py', '--values', out / 'values.json', '--proposals', HOST_PROPOSALS,
          '--host-values', out / 'host-values.json', '--resolution', out / 'host-values-resolution.json'], show)
     run([tools / 'dytallix-host-config', '--plan', plan_path, '--values', out / 'host-values.json',
          '--genesis', chain_dir / 'genesis.json', '--out', out / 'hosts'], show)
 
     show('== host files and bundles')
-    generated = host_files.generate(release, chain_dir, out / 'hosts', plan, keys_dir, staging_values(snapshot_interval),
+    generated = host_files.generate(release, chain_dir, out / 'hosts', plan, keys_dir, values,
                                     read_json(SETUP_VALUES))
     host_files.write(out / 'host-files', generated)
     bundles = out / 'bundles'
@@ -377,7 +440,7 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
         show(f'{label}: {built[label]["bundle"]} sha256 {built[label]["sha256"]}')
     summary = {'status': 'STAGING_CHAIN_BUILT', 'chain_id': chain, 'genesis_time': genesis_time,
                'release_sha512': release_sha512, 'root_bundle_sha512': bundle,
-               'validators': [v['validator_id'] for v in records['validators']],
+               'validators': [v['validator_id'] for v in records['validators']], 'timings': timing,
                'bundles': {label: {'path': b['bundle'], 'sha256': b['sha256'], 'role': b['role']}
                            for label, b in built.items()},
                'boundary': BOUNDARY}
@@ -390,11 +453,13 @@ def main():
     for name in ('plan', 'keys', 'release', 'tools', 'out'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--genesis-time', help='UTC, whole seconds (default: now)')
-    parser.add_argument('--snapshot-interval', type=int, help='staging only: the sentry snapshot interval in blocks')
+    parser.add_argument('--snapshot-interval', type=int, help='ci profile only: the sentry snapshot interval in blocks')
+    parser.add_argument('--timings', choices=PROFILES, default='ci',
+                        help='the timing profile (launch/simulations/TIMINGS.json; default ci)')
     args = parser.parse_args()
     try:
         summary = build(args.plan, args.keys, args.release, args.tools, args.out, args.genesis_time,
-                        snapshot_interval=args.snapshot_interval)
+                        snapshot_interval=args.snapshot_interval, timings=args.timings)
     except (Invalid, host_files.Invalid, host_bundle.Invalid, OSError, KeyError, ValueError) as error:
         print(f'staging_chain: {error}', file=sys.stderr)
         return 2
