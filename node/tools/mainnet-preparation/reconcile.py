@@ -190,14 +190,39 @@ def app_hashes(observations):
 
 
 def common_height(observations):
-    """The newest height read from every host's engine and metrics. The
-    client's views are compared wherever their heights meet the nodes'; a
-    CLI call takes about a block, so they are not required to."""
-    sets = []
-    for host in observations['hosts'].values():
-        sets += [set(host['engine']), set(host['metrics'])]
+    """The newest height read from every node's engine, which is read every
+    block. The client's views are compared wherever their heights meet the
+    nodes'; a CLI call takes about a block, so they are not required to."""
+    sets = [set(host['engine']) for host in observations['hosts'].values()]
     common = set.intersection(*sets) if sets else set()
     return max(map(int, common)) if common else None
+
+
+def attested_supply(observations):
+    """Each node's newest supply reading at a height whose application hash
+    every node's header recorded, all the same: (height, supply) or None.
+
+    The application writes its metrics file on a timer (consensus_stdio.rs,
+    service.metrics.interval_seconds, 15 s approved), not at each commit, and
+    each node's timer runs on its own phase, so two nodes' supply readings
+    need never share a height. Supply is consensus state under the
+    application hash, so a node's supply at a height every node attests is
+    the network's supply there."""
+    hosts = observations['hosts']
+    found = {}
+    for label, host in hosts.items():
+        found[label] = None
+        for h in sorted(map(int, host['metrics']), reverse=True):
+            headers = [other['engine'].get(str(h + 1), {}).get('header_app_hash') for other in hosts.values()]
+            if all(headers) and len(set(headers)) == 1:
+                found[label] = (h, host['metrics'][str(h)])
+                break
+    return found
+
+
+def newest_attested(observations):
+    readings = [r for r in attested_supply(observations).values() if r]
+    return max(readings, key=lambda r: r[0]) if readings else None
 
 
 def evaluate(observations, genesis):
@@ -216,6 +241,19 @@ def evaluate(observations, genesis):
                    f'not after the state check at {above}')
     else:
         checks.add('common_height', PASS, f'height {height} read from {", ".join(sorted(hosts))}')
+
+    # Every node's supply at a height every node's application hash attests.
+    attested = attested_supply(observations)
+    missing = [label for label, r in attested.items() if r is None]
+    early = [f'{label} at {r[0]}' for label, r in attested.items() if r and above is not None and r[0] <= above]
+    if missing or early:
+        checks.add('supply_attested', INCONCLUSIVE,
+                   (f'no supply reading at a height every node attests: {", ".join(missing)}' if missing else '')
+                   + ('; ' if missing and early else '')
+                   + (f'not after the state check at {above}: {", ".join(early)}' if early else ''))
+    else:
+        checks.add('supply_attested', PASS, '; '.join(
+            f'{label} at {r[0]}' for label, r in sorted(attested.items())) + ', each under every node\'s application hash')
 
     # Integrity: one block and one application hash per height, on every node.
     heights = {h for host in hosts.values() for h in host['engine']}
@@ -253,18 +291,18 @@ def evaluate(observations, genesis):
     regress = []
     series = [(f'{label}', sorted(((int(h), s) for h, s in host['metrics'].items())))
               for label, host in hosts.items()]
-    if since and height is not None:
-        first = next(iter(hosts.values()))['metrics'].get(str(height))
-        if first:
-            series.append(('since the earlier reading', [(int(since['height']), since['supply']), (height, first)]))
+    newest = newest_attested(observations)
+    if since and newest:
+        series.append(('since the earlier reading', [(int(since['height']), since['supply']), newest]))
     for source, points in series:
         for (h0, s0), (h1, s1) in zip(points, points[1:]):
             for bucket in ('emitted', 'burned'):
                 if int(s1['udrt'][bucket]) < int(s0['udrt'][bucket]):
                     regress.append(f'{source}: {bucket} fell from {s0["udrt"][bucket]} at {h0} to '
                                    f'{s1["udrt"][bucket]} at {h1}')
-    if since and height is not None and height <= int(since['height']):
-        regress.append(f'height {height} is not after the earlier reading at {since["height"]}')
+    if since and newest and newest[0] <= int(since['height']):
+        regress.append(f'the newest attested supply at {newest[0]} is not after the earlier reading at '
+                       f'{since["height"]}')
     checks.add('monotonic', FAIL if regress else PASS, '; '.join(regress) if regress else 'emitted and burned only grow')
 
     accounts(checks, observations)
@@ -309,19 +347,20 @@ def fees(checks, observations, height):
     since, ledger = observations.get('since'), observations.get('ledger')
     if not ledger:
         return
-    if not since or height is None:
-        checks.add('fees_and_burns', INCONCLUSIVE, 'a ledger needs the earlier reading and a common height')
+    newest = newest_attested(observations)
+    if not since or newest is None:
+        checks.add('fees_and_burns', INCONCLUSIVE, 'a ledger needs the earlier reading and an attested supply')
         return
     if ledger.get('schema') != LEDGER_SCHEMA or int(ledger['from_height']) != int(since['height']):
         checks.add('fees_and_burns', FAIL, f'the ledger does not start at the earlier reading ({since["height"]})')
         return
-    now = next(iter(observations['hosts'].values()))['metrics'][str(height)]
+    at, now = newest
     burned = int(now['udrt']['burned']) - int(since['supply']['udrt']['burned'])
     charged = sum(int(e['charge_udrt']) for e in ledger['entries'])
     created = sum(int(e.get('created_accounts', 0)) for e in ledger['entries'])
     expected = charged + created * int(ledger['account_creation_fee_udrt'])
     checks.add('fees_and_burns', PASS if burned == expected else FAIL,
-               f'{burned} udrt burned from {since["height"]} to {height}; {len(ledger["entries"])} transactions '
+               f'{burned} udrt burned from {since["height"]} to {at}; {len(ledger["entries"])} transactions '
                f'charged {charged} and created {created} accounts, {expected} expected')
 
 
@@ -359,7 +398,9 @@ def evidence(chain_id, observations, genesis_bytes, started, finished):
     if height is not None:
         first = next(iter(observations['hosts'].values()))
         body['block_hash'] = first['engine'][str(height)]['block_hash']
-        body['supply'] = first['metrics'][str(height)]
+    newest = newest_attested(observations)
+    if newest is not None:
+        body['supply_height'], body['supply'] = newest
     return dict(body, sha256=digest(canonical(body)))
 
 
@@ -486,12 +527,17 @@ class Collector:
             self.observations['views'][str(view['height'])] = {'app_hash': view['app_hash'], 'supply': view['supply']}
 
     def until_common(self, timeout, period=0.5, above=None):
-        """Read until every node has been read at one height (above `above`)."""
+        """Read until every node's engine has been read at one height and every
+        node has a supply reading under an application hash every node
+        attests (each above `above`). A node writes its metrics file every
+        metrics interval, so this takes up to about two intervals."""
         deadline = self.clock() + timeout
         while True:
             self.sample()
             height = common_height(self.observations)
-            if height is not None and (above is None or height > above):
+            attested = attested_supply(self.observations).values()
+            if (height is not None and (above is None or height > above)
+                    and all(r is not None and (above is None or r[0] > above) for r in attested)):
                 return height
             if self.clock() > deadline:
                 return None
@@ -588,7 +634,7 @@ def since_reading(record):
     """The earlier reading a ledger starts from: an earlier reconciliation or a
     saved status view."""
     if record.get('schema') == SCHEMA:
-        return {'height': int(field(record, 'height', 'the earlier reconciliation')),
+        return {'height': int(field(record, 'supply_height', 'the earlier reconciliation')),
                 'supply': field(record, 'supply', 'the earlier reconciliation')}
     view = reading(record)
     return {'height': view['height'], 'supply': view['supply']}

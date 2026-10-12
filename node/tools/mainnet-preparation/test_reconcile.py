@@ -170,9 +170,44 @@ class EvaluateTests(unittest.TestCase):
 
     def test_no_common_height_is_inconclusive(self):
         obs = observations()
-        del obs['hosts']['sentry-1']['metrics']['10'], obs['hosts']['sentry-1']['metrics']['11']
+        obs['hosts']['sentry-1']['engine'] = {'9': {'block_hash': 'b9', 'header_app_hash': 'a8'}}
         self.assertEqual(rows(obs)['common_height']['status'], rc.INCONCLUSIVE)
         self.assertEqual(status_of(obs), rc.INCONCLUSIVE)
+
+    def test_a_node_without_attested_supply_is_inconclusive(self):
+        obs = observations()
+        obs['hosts']['sentry-1']['metrics'] = {}
+        row = rows(obs)['supply_attested']
+        self.assertEqual((row['status'], 'sentry-1' in row['detail']), (rc.INCONCLUSIVE, True))
+        # Only the newest metrics height has no header after it yet.
+        obs = observations()
+        del obs['hosts']['sentry-1']['metrics']['10']
+        self.assertEqual(rows(obs)['supply_attested']['status'], rc.INCONCLUSIVE)
+
+    def test_metrics_timers_out_of_phase_still_pass(self):
+        # The fourth CI run: each node writes its metrics every 15 s on its own
+        # phase, so their supply heights never meet; each is attested by every
+        # node's header instead.
+        obs = observations()
+        s9, s10 = supply(emitted=45), supply()
+        obs['hosts']['validator-1']['metrics'] = {'9': s9}
+        obs['hosts']['sentry-1']['metrics'] = {'10': s10}
+        for host in obs['hosts'].values():
+            host['engine']['10']['header_app_hash'] = 'a9'
+        found = rows(obs)
+        self.assertEqual(found['supply_attested']['status'], rc.PASS, found['supply_attested'])
+        self.assertEqual(rc.newest_attested(obs), (10, s10))
+        self.assertEqual(status_of(obs), rc.PASS)
+
+    def test_attested_supply_must_follow_the_state_check(self):
+        obs = observations()
+        obs['common_above'] = 10
+        obs['hosts']['sentry-1']['engine']['12'] = {'block_hash': 'b12', 'header_app_hash': 'a11'}
+        obs['hosts']['validator-1']['engine']['12'] = {'block_hash': 'b12', 'header_app_hash': 'a11'}
+        obs['hosts']['validator-1']['metrics'].pop('11')
+        row = rows(obs)['supply_attested']
+        self.assertEqual(row['status'], rc.INCONCLUSIVE)
+        self.assertIn('validator-1 at 10', row['detail'])
 
     def test_the_height_must_come_after_the_state_check(self):
         obs = observations()
@@ -288,7 +323,7 @@ class FeeTests(unittest.TestCase):
 
     def test_the_earlier_reading_from_a_view_or_evidence(self):
         self.assertEqual(rc.since_reading(view(8, 'aa', supply())), {'height': 8, 'supply': supply()})
-        self.assertEqual(rc.since_reading({'schema': rc.SCHEMA, 'height': 9, 'supply': supply()}),
+        self.assertEqual(rc.since_reading({'schema': rc.SCHEMA, 'height': 12, 'supply_height': 9, 'supply': supply()}),
                          {'height': 9, 'supply': supply()})
 
 
@@ -390,9 +425,11 @@ class CollectorTests(unittest.TestCase):
                             sleep=lambda _: None, say=quiet.append), hosts
 
     def test_it_reads_until_every_node_shares_a_height(self):
+        # Each node's supply at 11 is attested once every header at 12 is read.
         collector, _ = self.collector()
-        self.assertEqual(collector.until_common(30), 11)
-        self.assertEqual(set(collector.observations['hosts']['sentry-1']['engine']), {'11'})
+        self.assertEqual(collector.until_common(30), 12)
+        self.assertEqual(set(collector.observations['hosts']['sentry-1']['engine']), {'11', '12'})
+        self.assertEqual(rc.attested_supply(collector.observations)['sentry-1'][0], 11)
 
     def test_the_client_is_read_at_its_own_pace(self):
         collector, hosts = self.collector(client=True)
