@@ -12,6 +12,8 @@ GENESIS = {'accounts': [{'address': 'a', 'balances': {'udgt': '600', 'udrt': '10
                         {'address': 'b', 'balances': {'udgt': '400', 'udrt': '0'}}]}
 GENESIS_BYTES = json.dumps(GENESIS).encode()
 TOTALS = rc.genesis_totals(GENESIS)
+# A clock that ticks once per reading and never sleeps.
+FAST = {'say': lambda _: None, 'clock': iter(range(10**9)).__next__, 'sleep': lambda _: None}
 
 
 def supply(emitted=50, burned=20, pool=30, liquid_dgt=900, staked=100):
@@ -82,6 +84,11 @@ class ReadingTests(unittest.TestCase):
                 + prom(11, supply()).split('\n', 1)[1] + 'dytallix_app_gas_used_total 100\n')
         self.assertEqual(rc.metrics_supply(text), (11, supply()))
         self.assertIsNone(rc.metrics_supply('# before the first commit\ndytallix_app_retained_from_height 0\n'))
+        # A restarted node writes its height and the supply TYPE lines with no
+        # bucket until its first commit (the CI run that found this).
+        restarted = ('dytallix_app_height 51\n# TYPE dytallix_app_supply_udrt gauge\n'
+                     '# TYPE dytallix_app_supply_udgt gauge\n')
+        self.assertIsNone(rc.metrics_supply(restarted))
 
     def test_metrics_without_a_bucket_are_unreadable(self):
         s = supply()
@@ -166,6 +173,13 @@ class EvaluateTests(unittest.TestCase):
         del obs['hosts']['sentry-1']['metrics']['10'], obs['hosts']['sentry-1']['metrics']['11']
         self.assertEqual(rows(obs)['common_height']['status'], rc.INCONCLUSIVE)
         self.assertEqual(status_of(obs), rc.INCONCLUSIVE)
+
+    def test_the_height_must_come_after_the_state_check(self):
+        obs = observations()
+        obs['common_above'] = 11
+        self.assertEqual(rows(obs)['common_height']['status'], rc.INCONCLUSIVE)
+        obs['common_above'] = 10
+        self.assertEqual(rows(obs)['common_height']['status'], rc.PASS)
 
     def test_the_client_view_must_share_the_height(self):
         obs = observations()
@@ -424,7 +438,7 @@ class CollectorTests(unittest.TestCase):
         hosts = {'validator-1': FakeHost(), 'sentry-1': FakeHost()}
         genesis = json.dumps({'accounts': [{'address': 'a', 'balances': {'udrt': '1000', 'udgt': '1000'}}]}).encode()
         record = rc.collect('c', hosts, genesis, client=FakeClient(hosts['sentry-1']),
-                            since=view(5, 'aa', supply()), timeout=30, say=lambda _: None)
+                            since=view(5, 'aa', supply()), timeout=30, **FAST)
         self.assertEqual(record['status'], rc.PASS, record['checks'])
         self.assertEqual(record['observations']['since']['height'], 5)
 
@@ -440,7 +454,7 @@ class CollectorTests(unittest.TestCase):
         client.status = without_staked
         genesis = json.dumps({'accounts': [{'address': 'a', 'balances': {'udrt': '1000', 'udgt': '1000'}}]}).encode()
         record = rc.collect('c', hosts, genesis, client=client, addresses=['a'], since={'height': 5},
-                            timeout=5, say=lambda _: None)
+                            timeout=5, **FAST)
         self.assertEqual(record['status'], rc.INCONCLUSIVE)
         readings = next(r for r in record['checks'] if r['check'] == 'readings')
         self.assertEqual(readings['status'], rc.INCONCLUSIVE)
@@ -448,10 +462,19 @@ class CollectorTests(unittest.TestCase):
         self.assertIn('the earlier reading: the status view has no app_hash', readings['detail'])
         self.assertEqual(rc.verify(json.loads(json.dumps(record)), genesis), rc.INCONCLUSIVE)
 
+    def test_collect_reports_a_height_after_the_state_check(self):
+        hosts = {'validator-1': FakeHost(), 'sentry-1': FakeHost()}
+        genesis = json.dumps({'accounts': [{'address': 'a', 'balances': {'udrt': '1000', 'udgt': '1000'}}]}).encode()
+        record = rc.collect('c', hosts, genesis, client=FakeClient(hosts['sentry-1']), state_check_host='sentry-1',
+                            timeout=60, **FAST)
+        self.assertEqual(record['observations']['common_above'], 12)
+        self.assertGreater(record['height'], 12)
+        self.assertEqual(record['status'], rc.PASS, record['checks'])
+
     def test_collect_records_a_pass(self):
         hosts = {'validator-1': FakeHost(), 'sentry-1': FakeHost()}
         record = rc.collect('c', hosts, json.dumps({'accounts': [
-            {'address': 'a', 'balances': {'udrt': '1000', 'udgt': '1000'}}]}).encode(), timeout=5, say=lambda _: None)
+            {'address': 'a', 'balances': {'udrt': '1000', 'udgt': '1000'}}]}).encode(), timeout=5, **FAST)
         self.assertEqual(record['status'], rc.PASS, record['checks'])
 
 

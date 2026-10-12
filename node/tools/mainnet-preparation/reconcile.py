@@ -80,8 +80,9 @@ def canonical(value):
 def metrics_supply(text):
     """The application's height and supply buckets from its metrics file
     (app_metrics.rs: `dytallix_app_height`, `dytallix_app_supply_udrt` and
-    `_udgt` by `bucket`, every bucket always written); None before the first
-    commit writes them."""
+    `_udgt` by `bucket`, every bucket written by each commit); None when the
+    process has not committed since it started, which writes the height and
+    no supply buckets."""
     samples = monitor.parse_metrics(text)
     height = monitor.value(samples, 'dytallix_app_height')
     supply = {'udrt': {}, 'udgt': {}}
@@ -89,7 +90,7 @@ def metrics_supply(text):
         for denomination in supply:
             if name == f'dytallix_app_supply_{denomination}':
                 supply[denomination][dict(labels).get('bucket', '')] = str(amount)
-    if height is None and not any(supply.values()):
+    if not any(supply.values()):
         return None
     missing = ([] if height is not None else ['dytallix_app_height'])
     missing += [f'udrt {b}' for b in DRT if b not in supply['udrt']]
@@ -207,9 +208,13 @@ def evaluate(observations, genesis):
     checks.add('readings', INCONCLUSIVE if unreadable else PASS,
                '; '.join(unreadable) if unreadable else 'every reading had its schema\'s fields')
     height = common_height(observations)
+    above = observations.get('common_above')
     if height is None:
         checks.add('common_height', INCONCLUSIVE, 'no height was read from every node'
                    + (f' ({"; ".join(unreadable)})' if unreadable else ''))
+    elif above is not None and height <= above:
+        checks.add('common_height', INCONCLUSIVE, f'every node was read together only at {height}, '
+                   f'not after the state check at {above}')
     else:
         checks.add('common_height', PASS, f'height {height} read from {", ".join(sorted(hosts))}')
 
@@ -474,12 +479,13 @@ class Collector:
                 return
             self.observations['views'][str(view['height'])] = {'app_hash': view['app_hash'], 'supply': view['supply']}
 
-    def until_common(self, timeout, period=1.0):
+    def until_common(self, timeout, period=1.0, above=None):
+        """Read until every node has been read at one height (above `above`)."""
         deadline = self.clock() + timeout
         while True:
             self.sample()
             height = common_height(self.observations)
-            if height is not None:
+            if height is not None and (above is None or height > above):
                 return height
             if self.clock() > deadline:
                 return None
@@ -545,16 +551,21 @@ class Collector:
 
 
 def collect(chain_id, hosts, genesis_bytes, client=None, addresses=(), since=None, ledger=None,
-            state_check_host=None, scratch='/var/tmp/dytallix-reconcile-appdb', timeout=180, say=print):
+            state_check_host=None, scratch='/var/tmp/dytallix-reconcile-appdb', timeout=180, say=print,
+            clock=time.monotonic, sleep=time.sleep):
     """Read every node, then evaluate: the evidence, whatever its status."""
     started = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    collector = Collector(hosts, client, say=say)
+    collector = Collector(hosts, client, clock=clock, sleep=sleep, say=say)
     collector.until_common(timeout)
     if client and addresses:
         collector.accounts(addresses)
     if state_check_host:
-        collector.state_check(state_check_host, scratch)
-        collector.until_common(timeout)
+        result = collector.state_check(state_check_host, scratch)
+        # The report's height comes after the check: the node is back and
+        # every node agrees again.
+        checked = result.get('height') if isinstance(result.get('height'), int) else None
+        collector.observations['common_above'] = checked
+        collector.until_common(timeout, above=checked)
     observations = collector.observations
     if since is not None:
         try:
