@@ -89,20 +89,21 @@ DRILL_APPROVAL = 'launch/approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json
 # completes inside a 24-hour run; ci, the CI staging network's (the drill's
 # notice and a snapshot interval of its choosing).
 PROFILES = ('production', 'rehearsal', 'ci')
-SIMULATION_APPROVAL = 'launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json'
+TIMINGS_APPROVAL = 'launch/approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json'
 REHEARSAL_TIMINGS = {
     'upgrade.min_notice_blocks': 720,
     'release_handover.v2.min_notice_blocks': 720,
     'governance.deposit.deposit_period_blocks': 720,
     'governance.ballot.voting_period_blocks': 720,
     'governance.ballot.timelock_blocks': 360,
-    'lifecycle.evidence_max_age_blocks': 1440,
+    'lifecycle.evidence_max_age_blocks': 2880,
     'lifecycle.processing_margin_blocks': 120,
     'service.snapshots.interval_blocks': 720,
 }
-# A restore trusts the copy's header for the evidence age less this
-# (dytallix-pqc-engine restore.go, restoreTrustMargin; P01, 8 October 2026).
-RESTORE_TRUST_MARGIN_SECONDS = 24 * 3600
+# A restore trusts the copy's header for the evidence age less a fourteenth
+# of it (dytallix-pqc-engine restore.go, restoreTrustMarginDivisor; P01,
+# 12 October 2026): one day with the approved 14-day evidence age.
+RESTORE_TRUST_MARGIN_DIVISOR = 14
 # A stale backup is one older than the snapshot interval and this slack
 # (monitor.backup_max_age_seconds: 26 hours with daily snapshots).
 BACKUP_SLACK_SECONDS = 2 * 3600
@@ -317,6 +318,13 @@ DERIVATION_RULES = {
 }
 
 
+def restore_trust_seconds(evidence):
+    """How long a restore trusts the copy's header, in whole seconds: the
+    engine's evidence age less a fourteenth, in nanoseconds as it divides."""
+    nanos = evidence * 10**9
+    return (nanos - nanos // RESTORE_TRUST_MARGIN_DIVISOR) // 10**9
+
+
 def violations(values, block_seconds, profile):
     """The derived constraints a set of timings breaks (none for a usable set)."""
     found = []
@@ -324,10 +332,10 @@ def violations(values, block_seconds, profile):
     trust = seconds(values['config.toml [statesync] trust_period'])
     if not 0 < trust < evidence:
         found.append(f'the state-sync trust period ({trust} s) is not below the evidence age ({evidence} s)')
-    restore = evidence - RESTORE_TRUST_MARGIN_SECONDS
+    restore = restore_trust_seconds(evidence)
     if restore < values['monitor.backup_max_age_seconds']:
-        found.append(f'a restore trusts a copy for the evidence age less {RESTORE_TRUST_MARGIN_SECONDS} s (the engine\'s '
-                     f'restore margin): {evidence} s leaves {restore} s, less than a backup\'s '
+        found.append(f'a restore trusts a copy for the evidence age less a fourteenth (the engine\'s restore margin): '
+                     f'{evidence} s leaves {restore} s, less than a backup\'s '
                      f'{values["monitor.backup_max_age_seconds"]} s freshness, so the restore drills would be refused')
     if profile == 'rehearsal':
         run_blocks = RUN_SECONDS // block_seconds
@@ -381,16 +389,18 @@ def timing(profile='production', snapshot_interval=None):
     if profile == 'rehearsal':
         chosen.update(REHEARSAL_TIMINGS)
         for path, value in REHEARSAL_TIMINGS.items():
-            change(path, value, 'plan', SIMULATION_APPROVAL, 'shortened timings, R01 to R06')
+            change(path, value, 'plan', TIMINGS_APPROVAL, 'shortened timings, R01 to R06')
         for path, value in derived(chosen, block_seconds).items():
-            change(path, value, 'derived', SIMULATION_APPROVAL, DERIVATION_RULES[path])
+            change(path, value, 'derived', TIMINGS_APPROVAL, DERIVATION_RULES[path])
             chosen[path] = value
     found = [] if profile == 'ci' else violations(chosen, block_seconds, profile)
     require(not found, f'the {profile} timing profile breaks a derived constraint: ' + '; '.join(found))
     record = {'schema': 'dytallix.rehearsal-timing.v1', 'profile': profile,
               'runs': {'production': 'R07, and any run at the exact production values', 'rehearsal': 'R01 to R06',
                        'ci': 'the CI staging network only'}[profile],
-              'block_interval_seconds': block_seconds, 'values': changes, 'boundary': BOUNDARY}
+              'block_interval_seconds': block_seconds, 'values': changes,
+              'restore_trust_seconds': restore_trust_seconds(int(rows['lifecycle.evidence_max_age_seconds']['approved'])),
+              'boundary': BOUNDARY}
     return values, record
 
 

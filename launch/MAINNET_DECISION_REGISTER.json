@@ -2773,7 +2773,8 @@
             "approvals/P01_E05_STATUS_HEAD_AGE_2026-10-10.json",
             "approvals/P01_E05_METRIC_SET_2026-10-10.json",
             "approvals/P01_E05_ALERT_RULES_2026-10-10.json",
-            "approvals/P01_E05_ROLE_LOGS_2026-10-10.json"
+            "approvals/P01_E05_ROLE_LOGS_2026-10-10.json",
+            "approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json"
           ]
         },
         {
@@ -3133,7 +3134,7 @@
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
             "../node/docs/architecture/production-activation-v1.md"
           ],
-          "approved_portion": "Launch authority (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release; root signers sign only after the P02 review, E06 release acceptance and gate acceptance. Solo launch (P01, 3 October 2026): the P02 precondition for root signing becomes the 30-day public review and the founder's sign-off; the E03 runs, measurements and seven simulations run on the production hosts before genesis. Review order (P01, 10 October 2026): the order of work stands, so the 30-day review starts at an E06 freeze that follows the staging runs. Launch records (P01, 10 October 2026): the readable gate list is generated in the repository and checked in CI; each gate's text is reconciled against the current main branch, with every gate still PARTIAL; superseded reports are marked historical in place; references to records held outside the repository stay only in the gate data and historical reports. Simulation order (P01, 10 October 2026): the seven simulation runs happen after the audit's fixes, on the final candidate. Simulation plan (P01, 11 October 2026): the seven runs' pass criteria (integrity, liveness, inclusion, recovery within the approved targets, R06 load); shortened recorded timings in R01-R06 and exact values in R07; a staging-only signed agent; load from several small machines. Calendar (P01, 11 October 2026): the launch is task-driven; only the genesis time is set in advance, at the final input freeze. Statistical campaign (P01, 11 October 2026): during staging, at least 3,000 attempts per attack type with zero successes, repeated faults and a 15-day endurance run at production values.",
+          "approved_portion": "Launch authority (P01, 30 September 2026): a node runs the production profiles only when the root genesis signatures verify over the exact genesis files and release; root signers sign only after the P02 review, E06 release acceptance and gate acceptance. Solo launch (P01, 3 October 2026): the P02 precondition for root signing becomes the 30-day public review and the founder's sign-off; the E03 runs, measurements and seven simulations run on the production hosts before genesis. Review order (P01, 10 October 2026): the order of work stands, so the 30-day review starts at an E06 freeze that follows the staging runs. Launch records (P01, 10 October 2026): the readable gate list is generated in the repository and checked in CI; each gate's text is reconciled against the current main branch, with every gate still PARTIAL; superseded reports are marked historical in place; references to records held outside the repository stay only in the gate data and historical reports. Simulation order (P01, 10 October 2026): the seven simulation runs happen after the audit's fixes, on the final candidate. Simulation plan (P01, 11 October 2026): the seven runs' pass criteria (integrity, liveness, inclusion, recovery within the approved targets, R06 load); shortened recorded timings in R01-R06 and exact values in R07; a staging-only signed agent; load from several small machines. Calendar (P01, 11 October 2026): the launch is task-driven; only the genesis time is set in advance, at the final input freeze. Statistical campaign (P01, 11 October 2026): during staging, at least 3,000 attempts per attack type with zero successes, repeated faults and a 15-day endurance run at production values. Rehearsal timings (P01, 12 October 2026): R01-R06 run with notices of 720 blocks, deposit and voting periods of 720 blocks each, a timelock of 360 blocks, an evidence age and margin of 2,880 + 120 blocks and a snapshot interval of 720 blocks, with the trust period, stale-backup age and restore window derived from them; a restore trusts a copy for the evidence age less a fourteenth (312 hours in production).",
           "remaining_choices": [],
           "approval_records": [
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
@@ -3142,7 +3143,8 @@
             "approvals/P01_E06_REVIEW_ORDER_2026-10-10.json",
             "approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json",
             "approvals/P01_E06_AUDIT_2026-10-10.json",
-            "approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json"
+            "approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
+            "approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json"
           ]
         },
         {
@@ -4536,6 +4538,21 @@
         "Host records (outside the repository)",
         "Final sizes from T05"
       ]
+    },
+    {
+      "id": "P01-2026-10-12-T06-REHEARSAL-TIMINGS",
+      "approved": "2026-10-12",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json",
+      "decisions": [
+        "D12-Q02: a restore trusts the copy's header for the evidence age less a fourteenth of it, replacing the fixed day; 312 hours (13 days) at the approved 14-day evidence age.",
+        "D14-Q02: R01-R06's shortened timings: notices 720 blocks, deposit and voting periods 720 blocks each, timelock 360 blocks, evidence age and margin 2,880 + 120 blocks, snapshot interval 720 blocks; the trust period (2 hours), stale-backup age (10,800 s) and restore window (13,371 s) derived from them."
+      ],
+      "question_refs": [
+        "D12-Q02",
+        "D14-Q02"
+      ],
+      "unset": []
     },
     {
       "id": "P01-2026-10-07-E05-ROOT-KEY-HOLDERS",

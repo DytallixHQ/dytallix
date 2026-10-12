@@ -27,8 +27,10 @@ but no client can reach it.
 - **Restore only into a fresh install.** `restore.sh` refuses a host whose
   node has run; wipe it and install it again.
 - **The copy must be at most 13 days old.** A restore trusts the copy's
-  header for the evidence age less one day (P01, 8 October 2026,
-  [approval](../../../launch/approvals/P01_E05_RESTORE_2026-10-08.json)),
+  header for the evidence age less a fourteenth of it, one day at the
+  approved 14 days (P01, 8 October 2026,
+  [approval](../../../launch/approvals/P01_E05_RESTORE_2026-10-08.json);
+  [margin approval](../../../launch/approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json)),
   and the validator keeps blocks for at least 14 days. The sentry copies
   daily, so the newest copy is at most about a day old: restore a lost
   sentry within about 12 days. A copy older than 13 days does not verify.

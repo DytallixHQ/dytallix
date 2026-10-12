@@ -28,9 +28,10 @@ const (
 	maxRestoreMetadata = 16 << 20
 	// The application's chunk bound (state sync v1, C2).
 	maxRestoreChunk = 4 << 20
-	// A restore trusts the copy's header for the evidence age less one day
-	// (P01, 8 October 2026): 13 days with the approved 14.
-	restoreTrustMargin = 24 * time.Hour
+	// A restore trusts the copy's header for the evidence age less a
+	// fourteenth of it (P01, 12 October 2026): one day, so 13 days, with the
+	// approved 14-day evidence age.
+	restoreTrustMarginDivisor = 14
 )
 
 // copyMetadata is the part of the snapshot's metadata the engine reads; the
@@ -108,17 +109,28 @@ func restoreOption(ctx context.Context, runtime *enginepqc.Runtime, dir string) 
 	if err != nil {
 		return local, "", fmt.Errorf("the copy's light block at %d: %w", local.Height, err)
 	}
-	evidence := runtime.Genesis.ConsensusParams.Evidence.MaxAgeDuration
-	if evidence <= restoreTrustMargin {
-		return local, "", errors.New("the evidence age leaves no restore trust period")
+	period, err := restoreTrustPeriod(runtime.Genesis.ConsensusParams.Evidence.MaxAgeDuration)
+	if err != nil {
+		return local, "", err
 	}
 	sync := runtime.Config.StateSync
 	sync.Enable = true
 	sync.LocalRestore = true
 	sync.TrustHeight = int64(local.Height)
 	sync.TrustHash = hex.EncodeToString(trusted.Hash())
-	sync.TrustPeriod = evidence - restoreTrustMargin
+	sync.TrustPeriod = period
 	// The chunk queue lives under the node's own data, a writable root.
 	sync.TempDir = runtime.Config.DBDir()
 	return local, light, nil
+}
+
+// restoreTrustPeriod is how long a restore trusts the copy's header: the
+// evidence age less a fourteenth of it, below the evidence age as the engine
+// requires of any trust period.
+func restoreTrustPeriod(evidence time.Duration) (time.Duration, error) {
+	period := evidence - evidence/restoreTrustMarginDivisor
+	if period <= 0 || period >= evidence {
+		return 0, errors.New("the evidence age leaves no restore trust period")
+	}
+	return period, nil
 }

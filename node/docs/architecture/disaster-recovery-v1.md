@@ -48,6 +48,8 @@ document is the design; the tools and the runbook follow (see
 [Restore age and the validator](../../../launch/approvals/P01_E05_RESTORE_2026-10-08.json)
 (8 October 2026): a restore accepts a copy up to 13 days old, and on the
 validator only with `--accept-history-loss` after the incident decision.
+The margin is a fourteenth of the evidence age, one day at the approved
+14 days ([margin approval](../../../launch/approvals/P01_T06_REHEARSAL_TIMINGS_2026-10-12.json), 12 October 2026).
 
 ## What is copied
 
@@ -162,9 +164,11 @@ and before the node's first start, with `restore.sh COPY` from its bundle
    started at or above H, `restore.sh` removes the drop-in and the opened
    copy; later starts are ordinary.
 
-A restore trusts the copy's header for the evidence age less one day:
-13 days with the approved 14 (P01, 8 October 2026), just under the bound
-the engine requires of any trust period. Peer state sync joins keep their
+A restore trusts the copy's header for the evidence age less a fourteenth
+of it: 13 days (312 hours) with the approved 14 (P01, 8 October 2026; the
+margin scales with the evidence age since P01, 12 October 2026, so the
+shortened rehearsal timings keep a restore), just under the bound the
+engine requires of any trust period. Peer state sync joins keep their
 approved 168 hours. The validator keeps its blocks for at least the
 evidence horizon (241,920 blocks, about 14 days), and the newest copy is
 at most about a day old, so a lost sentry must be restored within about 12

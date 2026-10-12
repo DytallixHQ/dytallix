@@ -109,34 +109,30 @@ class StagingChainTests(unittest.TestCase):
 
     def test_the_restore_margin_is_the_engines(self):
         source = (sc.NODE / 'consensus' / 'cometbft' / 'cmd' / 'dytallix-pqc-engine' / 'restore.go').read_text()
-        self.assertIn('restoreTrustMargin = 24 * time.Hour', source)
-        self.assertEqual(sc.RESTORE_TRUST_MARGIN_SECONDS, 24 * 3600)
+        self.assertIn('restoreTrustMarginDivisor = 14', source)
+        self.assertIn('evidence - evidence/restoreTrustMarginDivisor', source)
+        self.assertEqual(sc.RESTORE_TRUST_MARGIN_DIVISOR, 14)
+        # 312 hours (13 days) with the approved 14-day evidence age.
+        self.assertEqual(sc.restore_trust_seconds(1_209_600), 312 * 3600)
+        self.assertEqual(sc.timing()[1]['restore_trust_seconds'], 312 * 3600)
 
-    def test_the_rehearsal_set_is_refused_only_for_the_restore_margin(self):
-        # The plan's 1,440-block evidence age is 2 hours; the engine trusts a
-        # restored copy for the evidence age less a day, so none (a P01 decision).
-        with self.assertRaisesRegex(sc.Invalid, 'restore'):
-            sc.timing('rehearsal')
+    def test_the_rehearsal_set_passes_and_a_two_hour_evidence_age_would_not(self):
         chosen = dict(self.production(), **sc.REHEARSAL_TIMINGS)
+        chosen.update(sc.derived(chosen, 5))
+        self.assertEqual(sc.violations(chosen, 5, 'rehearsal'), [])
+        # The plan's first proposal, a 2-hour evidence age, is below a
+        # backup's 3-hour freshness, so a fresh copy could not be restored.
+        chosen = dict(self.production(), **dict(sc.REHEARSAL_TIMINGS, **{'lifecycle.evidence_max_age_blocks': 1440}))
         chosen.update(sc.derived(chosen, 5))
         found = sc.violations(chosen, 5, 'rehearsal')
         self.assertEqual(len(found), 1)
         self.assertIn('restore', found[0])
 
     def test_the_rehearsal_profile_records_every_value_beside_production(self):
-        # Illustrative only: a usable set needs both a restore margin that
-        # scales with the evidence age (one fourteenth, a day in production)
-        # and an evidence age above a backup's freshness (here 4 hours).
-        margin, timings = sc.RESTORE_TRUST_MARGIN_SECONDS, sc.REHEARSAL_TIMINGS
-        sc.RESTORE_TRUST_MARGIN_SECONDS = 14400 // 14
-        sc.REHEARSAL_TIMINGS = dict(timings, **{'lifecycle.evidence_max_age_blocks': 2880})
-        try:
-            values, record = sc.timing('rehearsal')
-        finally:
-            sc.RESTORE_TRUST_MARGIN_SECONDS, sc.REHEARSAL_TIMINGS = margin, timings
+        values, record = sc.timing('rehearsal')
         rows = {r['path']: r for r in record['values']}
         self.assertEqual(record['runs'], 'R01 to R06')
-        self.assertEqual({p for p, r in rows.items() if r['source'] == 'plan'}, set(timings))
+        self.assertEqual({p for p, r in rows.items() if r['source'] == 'plan'}, set(sc.REHEARSAL_TIMINGS))
         self.assertEqual({p for p, r in rows.items() if r['source'] == 'derived'}, set(sc.DERIVATION_RULES))
         self.assertEqual({p: str(r['value']) for p, r in rows.items()}, {
             'upgrade.min_notice_blocks': '720', 'release_handover.v2.min_notice_blocks': '720',
@@ -145,6 +141,8 @@ class StagingChainTests(unittest.TestCase):
             'lifecycle.processing_margin_blocks': '120', 'service.snapshots.interval_blocks': '720',
             'lifecycle.evidence_max_age_seconds': '14400', 'lifecycle.processing_margin_seconds': '600',
             'config.toml [statesync] trust_period': '2h', 'monitor.backup_max_age_seconds': '10800'})
+        # 4 hours less a fourteenth: 3 h 42 min 51 s, above a backup's 3-hour freshness.
+        self.assertEqual(record['restore_trust_seconds'], 13371)
         production = sc.read_json(sc.E05_VALUES)['values']
         approved = {r['path']: r.get('approved') for r in production}
         self.assertTrue(all(r['production'] == approved[p] for p, r in rows.items()))
@@ -152,13 +150,13 @@ class StagingChainTests(unittest.TestCase):
         self.assertEqual(sorted(b['path'] for _, b in self.changed(values)), sorted(rows))
         for before, after in self.changed(values):
             self.assertIs(type(before['approved']), type(after['approved']))
-            self.assertEqual(after['approval_record'], sc.SIMULATION_APPROVAL)
-        self.assertTrue((sc.MAINNET / sc.SIMULATION_APPROVAL).is_file())
+            self.assertEqual(after['approval_record'], sc.TIMINGS_APPROVAL)
+        self.assertTrue((sc.MAINNET / sc.TIMINGS_APPROVAL).is_file())
 
     def test_violations_name_a_trust_period_or_a_lifecycle_too_long(self):
         chosen = dict(self.production(), **sc.REHEARSAL_TIMINGS)
         chosen.update(sc.derived(chosen, 5))
-        chosen['config.toml [statesync] trust_period'] = '2h'
+        chosen['config.toml [statesync] trust_period'] = '4h'
         chosen['governance.ballot.voting_period_blocks'] = 17280
         found = ' '.join(sc.violations(chosen, 5, 'rehearsal'))
         self.assertIn('trust period', found)

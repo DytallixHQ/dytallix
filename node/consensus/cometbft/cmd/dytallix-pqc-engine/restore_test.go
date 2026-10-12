@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func writeCopy(t *testing.T, metadata string, chunks ...[]byte) string {
@@ -64,4 +65,39 @@ func TestReadCopyRefusesAnotherChainOrAnEmptySnapshot(t *testing.T) {
 			t.Fatal("accepted", name)
 		}
 	}
+}
+
+func TestRestoreTrustsTheEvidenceAgeLessAFourteenth(t *testing.T) {
+	cases := []struct{ evidence, want time.Duration }{
+		// The approved 14-day evidence age: exactly one day less, 312 hours.
+		{336 * time.Hour, 312 * time.Hour},
+		// The rehearsal's 4 hours (2,880 blocks at 5 s).
+		{4 * time.Hour, 4*time.Hour - 4*time.Hour/14},
+	}
+	for _, c := range cases {
+		got, err := restoreTrustPeriod(c.evidence)
+		if err != nil || got != c.want {
+			t.Fatalf("restoreTrustPeriod(%s) = %s, %v; want %s", c.evidence, got, err, c.want)
+		}
+		if got >= c.evidence {
+			t.Fatalf("the trust period %s is not below the evidence age %s", got, c.evidence)
+		}
+	}
+	if margin := 336*time.Hour - mustPeriod(t, 336*time.Hour); margin != 24*time.Hour {
+		t.Fatalf("the production margin is %s, not 24h", margin)
+	}
+	for _, evidence := range []time.Duration{0, -time.Second, 13} {
+		if _, err := restoreTrustPeriod(evidence); err == nil {
+			t.Fatalf("restoreTrustPeriod(%d) accepted an evidence age that leaves no trust period", evidence)
+		}
+	}
+}
+
+func mustPeriod(t *testing.T, evidence time.Duration) time.Duration {
+	t.Helper()
+	period, err := restoreTrustPeriod(evidence)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return period
 }

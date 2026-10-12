@@ -1,0 +1,35 @@
+{
+  "decision_id": "P01-2026-10-12-T06-REHEARSAL-TIMINGS",
+  "approved": "2026-10-12",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The shortened timings for R01 to R06, and the restore margin they need"
+  },
+  "reason": "The proposed shortened set was refused by its own checks: a restore trusted a copy for the evidence age less a fixed day, so a 2-hour evidence age left no restore for R02 and R05, while an evidence age over a day kept an unbond from maturing inside R06's 24-hour run. A 2-hour evidence age is also below a backup's 3-hour freshness at a 720-block snapshot interval.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "D12-Q02",
+      "selected": "A restore margin of a fourteenth of the evidence age",
+      "rule": "A restore trusts the copy's header for the evidence age less a fourteenth of it, instead of less a fixed day. With the approved 14-day evidence age this is exactly one day: 312 hours (13 days), unchanged in production. The engine computes it from the genesis evidence age (restore.go) and refuses an evidence age that leaves no trust period. Peer state sync joins keep the approved 168 hours."
+    },
+    {
+      "question": "D14-Q02",
+      "selected": "The shortened set with a 4-hour evidence age",
+      "rule": "R01 to R06 run with: upgrade and handover notice (also the kit replacement notice) 720 blocks; governance deposit and voting periods 720 blocks each; governance timelock 360 blocks; evidence age and margin 2,880 + 120 blocks (4 hours + 10 minutes); snapshot interval 720 blocks. Derived by the rules that give the production values from theirs: the evidence and margin ages in seconds at 5 s a block (14,400 + 600 s), the peer state-sync trust period at half the evidence age (2 hours), the stale-backup age at the snapshot interval plus 2 hours (10,800 s), and the restore window at the evidence age less a fourteenth (13,371 s, above the backup freshness). staging_chain.py --timing rehearsal builds the set and records each value beside its production value; R07 uses the exact production values."
+    }
+  ],
+  "supersedes": [
+    "Restore, D12-Q02 'the evidence age less one day' (P01_E05_RESTORE_2026-10-08), in part: the margin is a fourteenth of the evidence age, which is one day, and so 312 hours, at the approved 14-day evidence age.",
+    "Simulation plan, D14-Q02, the proposed evidence age of 1,440 blocks for R01 to R06 (P01_T06_SIMULATION_PLAN_2026-10-11): 2,880 blocks."
+  ],
+  "unset": [],
+  "does_not_authorize": [
+    "any change to production values",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
