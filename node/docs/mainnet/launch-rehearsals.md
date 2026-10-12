@@ -44,6 +44,8 @@ The production hosts are console-only. While they serve as staging, each runs a 
 - It uploads each result encrypted, like the metric history. TLS stays transport only.
 - It is never part of a release, and the wipe before the production install removes it.
 
+The design, its threat model and the choices still open for P01 are in [staging agent v1](../architecture/staging-agent-v1.md).
+
 ### The load machines
 
 Four to eight small rented machines, outside the hosts' providers, each with its own address. They reach the chain only through the sentry's public client channel, within its production limits (16 connections, 2 per address), and hold only rehearsal keys.
@@ -129,7 +131,7 @@ Each is proven in the CI staging network before it touches a real host.
 | Tool | Purpose | Builds on |
 |---|---|---|
 | **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping. **Spendable accounts built** (`staging_chain.py`, proven by the CI `wallet-drill`); **the timing profiles built** (`--timings`, [TIMINGS.json](../../../launch/simulations/TIMINGS.json); the CI install job runs the rehearsal profile) | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
-| **T2** Staging agent and real-host harness | Signed, allowlisted commands on console-only hosts; the existing drills' assertions against real addresses | `staging_network.py` (`run`, `restore-drill`, `kit-drill`, `monitor-drill`), `staging_host.py`, the host scripts |
+| **T2** Staging agent and real-host harness | Signed, allowlisted commands on console-only hosts; the existing drills' assertions against real addresses. **Agent built** ([staging agent v1](../architecture/staging-agent-v1.md): `staging-agent/agent.py`, `staging_command.py`, proven by the CI `agent-drill`); the fault commands are stubs for T5, and the real-host harness follows | `staging_network.py` (`run`, `restore-drill`, `kit-drill`, `monitor-drill`), `staging_host.py`, the host scripts |
 | **T3** Load generator and wallet fleet | Persistent workers that sign locally, track nonces and generate the transaction mix through the client channel | SDK `CometClient`, ordinary v2 and v3 `prepare` and `sign`, `submit_sync`, `wait_for_receipt` |
 | **T4** Adversarial generator | Invalid signatures, bad encodings, bad nonces, duplicates, oversized requests, floods | `CometClient::relay`, the client channel crate, the admission and consensus test cases |
 | **T5** Fault injector | Latency, loss and partition (`tc netem`, an nftables table), peer drops, process kills, host loss, each with recovery timing | `staging_network.py` network setup, the monitor drill's fire-and-resolve pattern |

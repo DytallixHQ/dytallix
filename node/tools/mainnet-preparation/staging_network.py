@@ -16,6 +16,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
   sudo staging_network.py monitor-drill --work DIR
+  sudo staging_network.py agent-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
 The VM is driven through the QEMU guest agent (a virtio serial channel):
@@ -53,6 +54,14 @@ approved rules. A restart loop (three restarts of its node), a full disk
 a stopped monitor (its timer stopped; only the service sees it) must each
 alert and then resolve, and nothing may be firing after. It prints the
 evidence.
+
+agent-drill is the staging agent drill (simulation plan, T2): the founder's
+staging command key is made with the release's CLI on the runner and the
+agent installed on the sentry beside its node. Signed status and journal
+commands run; a tampered, an unsigned, a replayed, a non-allowlisted and an
+expired command are refused, and the node keeps running. Every result is
+encrypted with the history code, uploaded to the stand-in store and opened
+on the runner. Last, wipe.sh removes the node and the agent together.
 """
 import argparse
 import base64
@@ -71,6 +80,7 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import staging_command  # noqa: E402
 import staging_host  # noqa: E402
 
 BRIDGE = 'dytbr0'
@@ -1000,6 +1010,121 @@ def monitor_drill(work, label='sentry-1'):
     say(f'== {label}: a restart loop, a full disk, a halt and a stopped monitor each alerted and resolved')
 
 
+# The staging agent (simulation plan, T2)
+
+COMMAND_STORE = dict(UPLOAD, prefix='staging-commands/', access_key_id='STANDINREAD', secret_access_key='cmVhZC1vbmx5')
+AGENT_STATE = '/var/lib/dytallix-agent/state.json'
+
+
+def put_file(guest, path, text, mode='0644'):
+    guest.run(['sh', '-c', f'mkdir -p "$(dirname {path})" && umask 077 && cat > {path} && chmod {mode} {path}'], stdin=text)
+
+
+def agent_drill(work, label='sentry-1', timeout=300):
+    """The staging agent (T2) on the sentry: the founder's key made with the
+    release's CLI on the runner, the agent installed beside the node, and
+    signed commands placed in the stand-in store. A signed status and a
+    signed journal run; a tampered, an unsigned, a replayed, a
+    non-allowlisted and an expired command are refused; every result is
+    encrypted, uploaded, and opened on the runner with the history code.
+    Then wipe.sh removes the node and the agent together."""
+    work = Path(work)
+    guest, chain, cli = agent(work, label), staging_host.CHAIN_ID, work / 'release-bin' / 'dytallix'
+    drill = work / 'agent-drill'
+    drill.mkdir()
+    passphrase = drill / 'passphrase'
+    descriptor = os.open(passphrase, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as file:
+        file.write(hashlib.sha256(os.urandom(32)).hexdigest() + '\n')
+    os.environ['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
+    home, key = drill / 'founder', drill / 'key.json'
+    staging_command.make_key(cli, home, key)
+    (drill / 'read.json').write_text(json.dumps(COMMAND_STORE))
+    staging_command.make_settings(key, label, chain, drill / 'read.json', drill / 'settings.json')
+    # One stand-in store for the commands, the results and the backups.
+    guest.run(['systemctl', 'stop', 'dytallix-store-standin'], check=False)
+    guest.run(['systemd-run', '--unit=dytallix-store-standin-agent', 'python3', '/root/s3_standin.py', '--root',
+               '/var/tmp/standin', '--port', str(STANDIN_PORT), '--access-key-id', UPLOAD['access_key_id'],
+               '--access-key-id', HISTORY_UPLOAD['access_key_id'], '--read-key-id', COMMAND_STORE['access_key_id']])
+    time.sleep(2)
+    for name in ('agent.py', 'ALLOWLIST.json'):
+        put_file(guest, f'/root/agent/{name}', (staging_command.AGENT_DIR / name).read_text())
+    put_file(guest, '/root/agent-settings.json', (drill / 'settings.json').read_text(), '0600')
+    _, out, _ = guest.run(['python3', '-I', '-B', '/root/agent/agent.py', 'install', '--settings', '/root/agent-settings.json'])
+    say(out.strip())
+    now = guest_time(guest)
+    public_key = staging_command.load_key(key)
+
+    def make(sequence, command, args=None, not_after=None):
+        body = staging_command.body(chain, label, sequence, command, args or {}, not_after or now + 1800)
+        return staging_command.sign(cli, home, public_key, body)
+
+    status = make(1, 'status')
+    tampered = json.loads(make(2, 'status'))
+    tampered['body']['command'] = 'stop'
+    unsigned = {'body': staging_command.body(chain, label, 3, 'stop', {}, now + 1800)}
+    commands = {1: status, 2: json.dumps(tampered).encode(), 3: json.dumps(unsigned).encode(), 4: status,
+                5: make(5, 'shell'), 6: make(6, 'stop', not_after=now - 60), 7: make(7, 'journal', {'lines': 20})}
+    expected = {1: ('DONE', None), 2: ('REFUSED', 'does not verify'), 3: ('REFUSED', 'not a signed command'),
+                4: ('REFUSED', 'signed as sequence 1, expected 4'), 5: ('REFUSED', 'not on the allowlist'),
+                6: ('REFUSED', 'expired'), 7: ('DONE', None)}
+    store = f'/var/tmp/standin/{COMMAND_STORE["bucket"]}/{COMMAND_STORE["prefix"]}{chain}/{label}'
+    for sequence, raw in commands.items():
+        put_file(guest, f'{store}/{sequence:010}.json', raw.decode())
+    deadline = time.monotonic() + timeout
+    while True:
+        guest.run(['systemctl', 'start', 'dytallix-agent.service'], timeout=600, check=False)
+        state = json.loads(guest.read(AGENT_STATE))
+        _, listing, _ = guest.run(['sh', '-c', f'ls /var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/'
+                                              f'{HISTORY_UPLOAD["prefix"]}{chain}/agent/{label}/ 2>/dev/null'], check=False)
+        copies = sorted(listing.split())
+        if state['next_sequence'] == 8 and len(copies) == len(commands):
+            break
+        if time.monotonic() > deadline:
+            _, journal, _ = guest.run(['journalctl', '-u', 'dytallix-agent', '-o', 'cat', '--no-pager', '-n', '20'])
+            raise Failed(f'the agent handled up to {state["next_sequence"] - 1} with {len(copies)} results:\n{journal}')
+        time.sleep(5)
+    codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
+    paper = drill / 'history-paper.txt'
+    descriptor = os.open(paper, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as file:
+        file.write(codes['history'] + '\n')
+    signer = work / 'release-bin' / 'dytallix-root-sign'
+    evidence = {}
+    for name in copies:
+        copy = drill / name
+        copy.write_bytes(guest.read(f'/var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/{HISTORY_UPLOAD["prefix"]}'
+                                    f'{chain}/agent/{label}/{name}'))
+        sh(str(signer), 'history-open', '-paper', str(paper), '-in', str(copy), '-out', str(copy.with_suffix('.json')))
+        result = json.loads(copy.with_suffix('.json').read_bytes())
+        if result['chain_id'] != chain or result['host'] != label:
+            raise Failed(f'{name} is a result for {result["host"]} on {result["chain_id"]}')
+        evidence[result['sequence']] = result
+    for sequence, (status_expected, reason) in expected.items():
+        result = evidence.get(sequence)
+        if result is None or result['status'] != status_expected or (reason and reason not in (result['reason'] or '')):
+            raise Failed(f'command {sequence}: expected {status_expected} {reason or ""}, got {result}')
+    if evidence[1]['steps'][0]['stdout'].strip() != 'active' or not evidence[7]['steps'][0]['stdout'].strip():
+        raise Failed(f'the status and journal results hold no output: {evidence[1]["steps"][0]}')
+    # Nothing refused ran: the node never stopped.
+    _, active, _ = guest.run(['systemctl', 'is-active', 'dytallix-node'], check=False)
+    if active.strip() != 'active':
+        raise Failed(f'{label}\'s node is {active.strip()} after the refused stop commands')
+    wait_height(guest, label, (guest_height(guest) or 0) + 2, timeout)
+    say(json.dumps({'agent_drill': {str(n): {'status': r['status'], 'command': r['command'], 'reason': r['reason']}
+                                    for n, r in sorted(evidence.items())}}, indent=2))
+    # wipe.sh removes the agent with the node.
+    _, out, _ = guest.run(['/root/node/dytallix-host/wipe.sh'], stdin=f'wipe {label}\n', timeout=300)
+    say(out.strip())
+    _, left, _ = guest.run(['sh', '-c', 'for p in /opt/dytallix-agent /etc/dytallix-agent /var/lib/dytallix-agent '
+                                        '/etc/systemd/system/dytallix-agent.service /etc/systemd/system/dytallix-agent.timer; '
+                                        'do [ -e "$p" ] && echo "$p"; done; true'])
+    if left.strip():
+        raise Failed(f'the wipe left the staging agent behind: {left.split()}')
+    say(f'== {label}: signed commands ran once, the rest were refused, results opened with the history code; '
+        'the wipe removed the agent')
+
+
 def diagnostics(work):
     work = Path(work)
     for label in VMS:
@@ -1014,6 +1139,8 @@ def diagnostics(work):
                          ['journalctl', '-u', 'dytallix-backup', '-o', 'cat', '--no-pager', '-n', '50'],
                          ['journalctl', '-u', 'dytallix-monitor', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['journalctl', '-u', 'dytallix-alert-standin', '-o', 'cat', '--no-pager', '-n', '20'],
+                         ['journalctl', '-u', 'dytallix-agent', '-o', 'cat', '--no-pager', '-n', '20'],
+                         ['journalctl', '-u', 'dytallix-store-standin-agent', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['tail', '-n', '40', EVENTS],
                          ['journalctl', '-k', '--no-pager', '-n', '50', '--grep', 'apparmor'],
                          ['tail', '-n', '40', '/var/log/cloud-init-output.log']):
@@ -1030,7 +1157,7 @@ def main():
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'restore-drill', 'kit-drill', 'monitor-drill',
-                 'diagnostics'):
+                 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     v = commands.add_parser('vms-up')
     v.add_argument('--work', type=Path, required=True)
@@ -1057,6 +1184,8 @@ def main():
             kit_drill(args.work)
         elif args.command == 'monitor-drill':
             monitor_drill(args.work)
+        elif args.command == 'agent-drill':
+            agent_drill(args.work)
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, OSError, KeyError, ValueError) as error:

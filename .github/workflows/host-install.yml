@@ -231,6 +231,13 @@ jobs:
       - name: Monitoring drill (M5)
         timeout-minutes: 35
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py monitor-drill --work "$RUNNER_TEMP/network"
+      # The staging agent (simulation plan, T2) on the sentry: signed status
+      # and journal commands run; tampered, unsigned, replayed,
+      # non-allowlisted and expired ones are refused; the results open with
+      # the history code; and wipe.sh removes the agent with the node.
+      - name: Staging agent drill (T2)
+        timeout-minutes: 15
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py agent-drill --work "$RUNNER_TEMP/network"
       - name: Diagnostics
         if: failure()
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py diagnostics --work "$RUNNER_TEMP/network"
