@@ -15,6 +15,8 @@ Invented records and throwaway keys only.
   sudo staging_network.py run --work DIR
   sudo staging_network.py wallet-drill --work DIR
   sudo staging_network.py reconcile --work DIR
+  sudo staging_network.py load --work DIR
+  sudo staging_network.py reconcile --work DIR --after load
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
   sudo staging_network.py monitor-drill --work DIR
@@ -39,7 +41,16 @@ after the wallet drill: both nodes' block and application hashes and supply
 at a common height, every rehearsal account summed against the liquid
 totals, the burns against the drill's ledger, and the sentry's database
 checked on a stopped copy. Anything but PASS fails the step; the evidence is
-reconcile/evidence.json.
+reconcile/evidence.json. With --after load it reconciles the load step
+instead: from the load's first status view, against its ledger, with every
+account the load created tracked too; its evidence is reconcile-load/evidence.json.
+
+load is the load generator (simulation plan, T3; load.py), a short CI run:
+16 load wallets, a governance proposer, depositor and voter, and 8 spare
+keys, made with the release's CLI and funded from the ecosystem growth
+account; 1 transaction a second for 2 minutes in the default mix over the
+sentry's client channel, with the governance steps beside it. Anything but
+PASS fails the step; the evidence is load/run/evidence.json.
 
 restore-drill is the first restore drill (disaster recovery v1, R6): the
 sentry is lost, so its VM is wiped and reinstalled from its bundle, then
@@ -89,6 +100,7 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import staging_command  # noqa: E402
 import staging_host  # noqa: E402
@@ -861,26 +873,32 @@ def wallet_drill(work, timeout=300):
 
 # The reconciliation report (simulation plan, T6)
 
-def reconcile_network(work, timeout=300):
-    """The reconciliation of the staging network after the wallet drill: the
-    validator on the runner and the sentry through its guest agent, the
-    client over the sentry's client channel, every rehearsal account and the
-    drill's new one tracked, the burns since the drill's first status view
-    against its ledger, and the sentry's database checked on a stopped copy.
-    Nothing transacts between the drill and this step."""
+def reconcile_network(work, after='wallet-drill', timeout=300):
+    """The reconciliation of the staging network after the wallet drill, or
+    after the load step: the validator on the runner and the sentry through
+    its guest agent, the client over the sentry's client channel, every
+    rehearsal account, the drill's new one and (after the load) every account
+    the load created tracked, the burns since the step's first status view against
+    its ledger, and the sentry's database checked on a stopped copy.
+    Nothing transacts between the step and this one."""
     work = Path(work)
     chain, drill = work / 'net' / 'chain', work / 'wallet-drill'
-    out = work / 'reconcile'
-    env = pinned_cli(work, out)
-    client = reconcile.Client(work / 'release-bin' / 'dytallix', env, out)
-    hosts = {'validator-1': reconcile.LocalHost(), **{label: agent(work, label) for label in VMS}}
     mapping = json.loads((chain / 'rehearsal-wallets' / 'MAPPING.json').read_bytes())
     addresses = [a['address'] for a in mapping['accounts']]
     addresses.append(json.loads((drill / 'evidence.json').read_bytes())['new_account'])
+    if after == 'load':
+        out, run = work / 'reconcile-load', work / 'load' / 'run'
+        addresses += json.loads((run / 'accounts.json').read_bytes())['addresses']
+        since, ledger = run / 'status-before.json', run / 'ledger.json'
+    else:
+        out, since, ledger = work / 'reconcile', drill / 'status-1.json', drill / 'ledger.json'
+    env = pinned_cli(work, out)
+    client = reconcile.Client(work / 'release-bin' / 'dytallix', env, out)
+    hosts = {'validator-1': reconcile.LocalHost(), **{label: agent(work, label) for label in VMS}}
     record = reconcile.collect(
         staging_host.CHAIN_ID, hosts, (chain / 'chain' / 'native-genesis.json').read_bytes(), client=client,
-        addresses=addresses, since=json.loads((drill / 'status-1.json').read_bytes()),
-        ledger=json.loads((drill / 'ledger.json').read_bytes()), state_check_host=PUBLIC, timeout=timeout, say=say)
+        addresses=addresses, since=json.loads(since.read_bytes()), ledger=json.loads(ledger.read_bytes()),
+        state_check_host=PUBLIC, timeout=timeout, say=say)
     path = out / 'evidence.json'
     path.write_text(json.dumps(record, indent=2) + '\n')
     for row in record['checks']:
@@ -888,6 +906,41 @@ def reconcile_network(work, timeout=300):
     say(f'== reconciliation at height {record["height"]}: {record["status"]} (evidence sha256 {record["sha256"]})')
     if record['status'] != reconcile.PASS:
         raise Failed(f'the reconciliation is {record["status"]}')
+
+
+# The load generator (simulation plan, T3)
+
+# A short, low-rate run for one CI runner: one address, so two channel
+# connections. The capacity runs (T05) use load.py from the load machines.
+LOAD_CI = {'wallets': 16, 'voters': 1, 'spares': 8, 'rate': 1.0, 'duration': 120}
+
+
+def load_drill(work):
+    """The load generator on the staging network: the fleet made with the
+    release's CLI, funded from the ecosystem growth account, then a short
+    paced run of the default mix over the sentry's client channel with the
+    governance steps beside it. Every transaction must be committed or
+    refused at admission (none may be refused here), 99% within 2 blocks,
+    and the burns must match the run's ledger. The evidence's digests are
+    checked again from its files."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'load'
+    env = pinned_cli(work, out)
+    cli = work / 'release-bin' / 'dytallix'
+    load_generator.make_fleet(cli, staging_host.CHAIN_ID, out / 'fleet', LOAD_CI['wallets'], LOAD_CI['voters'],
+                              LOAD_CI['spares'])
+    validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
+    settings = load_generator.Settings(rate=LOAD_CI['rate'], duration=LOAD_CI['duration'], governance=True,
+                                       max_refused=0)
+    record = load_generator.run_load(cli, env['HOME'], out / 'fleet', out / 'run', chain / 'chain' / 'application-config.json',
+                                     'ecosystem-growth', validator, settings, show=say,
+                                     passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+    load_generator.report(record, show=say)
+    checked = load_generator.verify(json.loads((out / 'run' / 'evidence.json').read_bytes()),
+                                    (out / 'run' / 'transactions.jsonl').read_bytes())
+    if record['status'] != load_generator.PASS or checked != record['status']:
+        raise Failed(f'the load run is {record["status"]} (verified {checked})')
 
 
 def parse_events(raw):
@@ -1218,9 +1271,12 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'reconcile', 'restore-drill', 'kit-drill',
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'restore-drill', 'kit-drill',
                  'monitor-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
+    r = commands.add_parser('reconcile')
+    r.add_argument('--work', type=Path, required=True)
+    r.add_argument('--after', choices=('wallet-drill', 'load'), default='wallet-drill')
     v = commands.add_parser('vms-up')
     v.add_argument('--work', type=Path, required=True)
     v.add_argument('--image', type=Path, required=True)
@@ -1241,7 +1297,9 @@ def main():
         elif args.command == 'wallet-drill':
             wallet_drill(args.work)
         elif args.command == 'reconcile':
-            reconcile_network(args.work)
+            reconcile_network(args.work, args.after)
+        elif args.command == 'load':
+            load_drill(args.work)
         elif args.command == 'restore-drill':
             restore_drill(args.work)
         elif args.command == 'kit-drill':
@@ -1252,7 +1310,7 @@ def main():
             agent_drill(args.work)
         else:
             diagnostics(args.work)
-    except (Failed, staging_host.Failed, reconcile.Failed, OSError, KeyError, ValueError) as error:
+    except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0
