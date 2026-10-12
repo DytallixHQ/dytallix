@@ -67,16 +67,104 @@ class StagingChainTests(unittest.TestCase):
             self.assertEqual(kept, {k: v for k, v in records['root'][section].items()
                                     if k not in ('freeze', 'resume', 'authority')})
 
-    def test_only_the_notice_is_a_staging_value(self):
+    def changed(self, values):
         approved = sc.read_json(sc.E05_VALUES)['values']
-        staging = sc.genesis_values()['values']
-        changed = [(a, b) for a, b in zip(approved, staging) if a != b]
-        self.assertEqual(len(approved), len(staging))
+        self.assertEqual(len(approved), len(values['values']))
+        return [(a, b) for a, b in zip(approved, values['values']) if a != b]
+
+    def test_production_is_the_default_and_changes_nothing(self):
+        values, record = sc.timing()
+        self.assertEqual(values, sc.read_json(sc.E05_VALUES))
+        self.assertEqual((record['profile'], record['values']), ('production', []))
+        self.assertIn('R07', record['runs'])
+
+    def test_ci_changes_only_the_notice_and_the_snapshot_interval(self):
+        values, record = sc.timing('ci')
+        changed = self.changed(values)
         self.assertEqual(sorted(b['path'] for _, b in changed), sorted(sc.NOTICE_PATHS))
         for before, after in changed:
             self.assertEqual((before['approved'], after['approved']), (120960, sc.STAGING_NOTICE_BLOCKS))
             self.assertEqual(after['approval_record'], sc.DRILL_APPROVAL)
             self.assertTrue((sc.MAINNET / sc.DRILL_APPROVAL).is_file())
+        values, record = sc.timing('ci', snapshot_interval=10)
+        self.assertEqual(sorted(r['path'] for r in record['values']),
+                         sorted(sc.NOTICE_PATHS + ('service.snapshots.interval_blocks',)))
+        self.assertEqual(len(self.changed(values)), 3)
+
+    def test_a_snapshot_interval_or_an_unknown_profile_is_refused(self):
+        for profile, interval in (('production', 10), ('rehearsal', 10), ('ci', 0), ('ci', 17281), ('fast', None)):
+            with self.assertRaises(sc.Invalid, msg=(profile, interval)):
+                sc.timing(profile, interval)
+
+    def production(self):
+        rows = sc.read_json(sc.E05_VALUES)['values']
+        return {r['path']: int(r['approved']) if isinstance(r.get('approved'), str) and r['approved'].isdigit()
+                else r.get('approved') for r in rows}
+
+    def test_the_derivation_rules_give_the_approved_production_values(self):
+        production = self.production()
+        for path, value in sc.derived(production, 5).items():
+            self.assertEqual(value, production[path], path)
+        self.assertEqual(sc.violations(production, 5, 'production'), [])
+
+    def test_the_restore_margin_is_the_engines(self):
+        source = (sc.NODE / 'consensus' / 'cometbft' / 'cmd' / 'dytallix-pqc-engine' / 'restore.go').read_text()
+        self.assertIn('restoreTrustMargin = 24 * time.Hour', source)
+        self.assertEqual(sc.RESTORE_TRUST_MARGIN_SECONDS, 24 * 3600)
+
+    def test_the_rehearsal_set_is_refused_only_for_the_restore_margin(self):
+        # The plan's 1,440-block evidence age is 2 hours; the engine trusts a
+        # restored copy for the evidence age less a day, so none (a P01 decision).
+        with self.assertRaisesRegex(sc.Invalid, 'restore'):
+            sc.timing('rehearsal')
+        chosen = dict(self.production(), **sc.REHEARSAL_TIMINGS)
+        chosen.update(sc.derived(chosen, 5))
+        found = sc.violations(chosen, 5, 'rehearsal')
+        self.assertEqual(len(found), 1)
+        self.assertIn('restore', found[0])
+
+    def test_the_rehearsal_profile_records_every_value_beside_production(self):
+        # Illustrative only: a usable set needs both a restore margin that
+        # scales with the evidence age (one fourteenth, a day in production)
+        # and an evidence age above a backup's freshness (here 4 hours).
+        margin, timings = sc.RESTORE_TRUST_MARGIN_SECONDS, sc.REHEARSAL_TIMINGS
+        sc.RESTORE_TRUST_MARGIN_SECONDS = 14400 // 14
+        sc.REHEARSAL_TIMINGS = dict(timings, **{'lifecycle.evidence_max_age_blocks': 2880})
+        try:
+            values, record = sc.timing('rehearsal')
+        finally:
+            sc.RESTORE_TRUST_MARGIN_SECONDS, sc.REHEARSAL_TIMINGS = margin, timings
+        rows = {r['path']: r for r in record['values']}
+        self.assertEqual(record['runs'], 'R01 to R06')
+        self.assertEqual({p for p, r in rows.items() if r['source'] == 'plan'}, set(timings))
+        self.assertEqual({p for p, r in rows.items() if r['source'] == 'derived'}, set(sc.DERIVATION_RULES))
+        self.assertEqual({p: str(r['value']) for p, r in rows.items()}, {
+            'upgrade.min_notice_blocks': '720', 'release_handover.v2.min_notice_blocks': '720',
+            'governance.deposit.deposit_period_blocks': '720', 'governance.ballot.voting_period_blocks': '720',
+            'governance.ballot.timelock_blocks': '360', 'lifecycle.evidence_max_age_blocks': '2880',
+            'lifecycle.processing_margin_blocks': '120', 'service.snapshots.interval_blocks': '720',
+            'lifecycle.evidence_max_age_seconds': '14400', 'lifecycle.processing_margin_seconds': '600',
+            'config.toml [statesync] trust_period': '2h', 'monitor.backup_max_age_seconds': '10800'})
+        production = sc.read_json(sc.E05_VALUES)['values']
+        approved = {r['path']: r.get('approved') for r in production}
+        self.assertTrue(all(r['production'] == approved[p] for p, r in rows.items()))
+        # Each value keeps its form (large integers as strings), and nothing else changes.
+        self.assertEqual(sorted(b['path'] for _, b in self.changed(values)), sorted(rows))
+        for before, after in self.changed(values):
+            self.assertIs(type(before['approved']), type(after['approved']))
+            self.assertEqual(after['approval_record'], sc.SIMULATION_APPROVAL)
+        self.assertTrue((sc.MAINNET / sc.SIMULATION_APPROVAL).is_file())
+
+    def test_violations_name_a_trust_period_or_a_lifecycle_too_long(self):
+        chosen = dict(self.production(), **sc.REHEARSAL_TIMINGS)
+        chosen.update(sc.derived(chosen, 5))
+        chosen['config.toml [statesync] trust_period'] = '2h'
+        chosen['governance.ballot.voting_period_blocks'] = 17280
+        found = ' '.join(sc.violations(chosen, 5, 'rehearsal'))
+        self.assertIn('trust period', found)
+        self.assertIn('governance proposal', found)
+        # The run-length rule is the rehearsal's only.
+        self.assertEqual(sc.violations(self.production(), 5, 'production'), [])
 
     def keys(self, validators=1):
         return {label: f'key-{label}' for label in sc.rehearsal_labels(validators)}

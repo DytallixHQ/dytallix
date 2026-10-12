@@ -32,6 +32,18 @@ So that each lifecycle completes inside a 24-hour run, these production values a
 
 R07 uses the exact production values.
 
+`staging_chain.py --timing rehearsal` builds this set (T1b) and derives, by the rules that give the production values from theirs:
+
+| Derived value | Rule | Production | Rehearsal |
+|---|---|---|---|
+| Evidence age and margin in seconds | blocks × 5 s | 1,209,600 + 3,600 s | 7,200 + 600 s |
+| Peer state-sync trust period | half the evidence age | 168h | 1h |
+| Stale backup age (monitor) | snapshot interval + 2 hours | 93,600 s | 10,800 s |
+
+It refuses a set that breaks a derived constraint: the trust period below the evidence age; a restore able to trust any copy the monitor still calls fresh; each lifecycle inside the run. `TIMING.json` records every changed value beside its production value.
+
+**Open: the proposed set is refused.** A restore trusts the copy's header for the evidence age less 24 hours (the engine's `restoreTrustMargin`, [restore approval](../../../launch/approvals/P01_E05_RESTORE_2026-10-08.json)), so a 2-hour evidence age leaves no restore, and R02 and R05 restore a sentry. An evidence age above 24 hours, though, keeps an unbond from maturing inside a 24-hour run (R06), since maturity needs both the block and the time age. A usable set needs a P01 decision: a restore margin that scales with the evidence age (a fourteenth: one day in production) and an evidence age above a backup's 3-hour freshness, such as 2,880 blocks (4 hours); or longer R02, R05 and R06 runs.
+
 ### The staging agent
 
 The production hosts are console-only. While they serve as staging, each runs a small agent:
@@ -125,7 +137,7 @@ Each is proven in the CI staging network before it touches a real host.
 
 | Tool | Purpose | Builds on |
 |---|---|---|
-| **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping. **Spendable accounts built** (`staging_chain.py`, proven by the CI `wallet-drill`); the shortened timing profile follows | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
+| **T1** Spendable rehearsal genesis | Real keys for every allocation row and the wallet fleet; per-run chain ID; the recorded mapping. **Spendable accounts built** (`staging_chain.py`, proven by the CI `wallet-drill`); the timing profiles built (`--timing`), the rehearsal set refused until the restore margin is decided ([above](#shortened-timings-r01-to-r06-only)) | `genesis_rehearsal_records.py`, `staging_chain.py`, `dytallix wallet create` |
 | **T2** Staging agent and real-host harness | Signed, allowlisted commands on console-only hosts; the existing drills' assertions against real addresses | `staging_network.py` (`run`, `restore-drill`, `kit-drill`, `monitor-drill`), `staging_host.py`, the host scripts |
 | **T3** Load generator and wallet fleet | Persistent workers that sign locally, track nonces and generate the transaction mix through the client channel | SDK `CometClient`, ordinary v2 and v3 `prepare` and `sign`, `submit_sync`, `wait_for_receipt` |
 | **T4** Adversarial generator | Invalid signatures, bad encodings, bad nonces, duplicates, oversized requests, floods | `CometClient::relay`, the client channel crate, the admission and consensus test cases |

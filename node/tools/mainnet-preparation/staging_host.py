@@ -112,7 +112,8 @@ def prepare(release, work, address=None, plan=None, backup_upload=None, snapshot
         json.dump(codes, file, indent=2)
     say('== staging chain')
     command = [sys.executable, '-B', str(HERE / 'staging_chain.py'), '--plan', str(work / 'keys' / 'PIN_PLAN.json'),
-               '--keys', str(work / 'keys'), '--release', str(release), '--tools', str(tools), '--out', str(work / 'chain')]
+               '--keys', str(work / 'keys'), '--release', str(release), '--tools', str(tools), '--out', str(work / 'chain'),
+               '--timing', 'ci']
     if snapshot_interval:
         command += ['--snapshot-interval', str(snapshot_interval)]
     result = subprocess.run(command)
