@@ -1492,6 +1492,82 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
         gateway.stop()
 
 
+def adversary_run(cli, home, fleet_dir, out, application_config, funder_label, validator, settings,
+                  native_genesis, engine_genesis, host, show=say, port=0, passphrase=None):
+    """The adversarial generator (simulation plan, T4): on one funded wallet, send
+    malformed transactions through the client channel and check the node refuses
+    each at admission (an invalid ML-DSA-65 signature, a decode failure, a stale
+    nonce and an oversized request), then a valid control is admitted and
+    committed. Returns the adversary evidence record, which `adversary.verify`
+    re-evaluates. Duplicates, re-signed copies and floods follow with the load
+    machines."""
+    import adversary
+    out, fleet_dir = Path(out), Path(fleet_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, HOME=str(home))
+    if passphrase:
+        env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
+    config = json.loads(Path(application_config).read_bytes())
+    fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
+    fleet['_dir'] = str(fleet_dir)
+    chain_id = fleet['chain_id']
+    entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
+    funder = keystore_account(entries, funder_label, chain_id)
+    gateway = Gateway(cli, env, out / 'gateway.log', port)
+    show(f'== the gateway relays to {gateway.endpoint} at {gateway.url}')
+    try:
+        rpc = Rpc(gateway.url, settings.connections)
+        signer = Signer(cli, env, out / 'scratch')
+        load = Load(rpc, signer, env, cli, fleet, out, settings, funder, validator, config, show=show)
+        # A funded, primed wallet with a committed nonce read from the node.
+        load.fund()
+        load.first_spends()
+        wallet = load.role('load')[0]
+        load.refresh_profile()
+        load.sync([wallet])
+        actions = actions_for('send_drt', recipient_hex=funder['account_id'])
+
+        def signed_at(nonce):
+            """A validly signed transport at `nonce`, leaving the tracked nonce as it was."""
+            keep = wallet.nonce
+            wallet.nonce = nonce
+            try:
+                return load.sign(new_row('adversary', 'base', wallet), wallet, actions)[1]
+            finally:
+                wallet.nonce = keep
+
+        def submit(name, tx):
+            row = new_row('adversary', name, wallet)
+            broadcast(rpc, [(row, tx)], name)
+            # A CheckTx refusal (code > 0) is never block-included, so it cannot commit.
+            outcome = {'name': name, 'code': row.get('code'), 'committed': False, 'log': row.get('log') or ''}
+            show(f'== {name}: code {outcome["code"]}, log {outcome["log"][:120]!r}')
+            return outcome
+
+        base_tx = signed_at(wallet.nonce)
+        cases = [
+            submit('invalid_signature', adversary.corrupt_signature(base_tx)),
+            submit('decode_failure', adversary.corrupt_encoding(base_tx)),
+            submit('oversized', adversary.oversized_envelope(300_000)),
+            submit('stale_nonce', signed_at(0)),
+        ]
+        # The positive control, last: a valid transaction that must commit.
+        control = load.online(wallet, ('send', '--to', funder['address'], '--amount', '1', '--token', 'drt'),
+                              phase='adversary', kind='positive_control')
+        committed = False
+        if control['status'] == 'admitted':
+            load.follow(control)
+            committed = True
+        cases.append({'name': 'positive_control', 'code': control.get('code'),
+                      'committed': committed, 'log': control.get('log') or ''})
+        show(f'== positive_control: code {control.get("code")}, committed {committed}')
+        record = adversary.build_run(chain_id, native_genesis, engine_genesis, cases, host)
+        (out / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
+        return record
+    finally:
+        gateway.stop()
+
+
 def report(record, show=say):
     s = record['summary']
     show(json.dumps({'load': {'status': record['status'], 'by_status': s['by_status'], 'run_by_kind': s['run_by_kind'],
