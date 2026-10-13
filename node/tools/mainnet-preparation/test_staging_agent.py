@@ -176,15 +176,20 @@ class AgentTests(unittest.TestCase):
         self.store.put(10, signed(10, not_after=self.now + agent.MAX_VALIDITY_SECONDS + 1))
         self.store.put(11, signed(11, 'journal', {'lines': 50_000}))
         self.store.put(12, signed(12, 'journal', {'lines': 20}))
-        self.store.put(13, signed(13, 'fault-netem', {'delay_ms': 100, 'loss_percent': 1}))
+        self.store.put(13, signed(13, 'fault-netem', {'delay_ms': 100, 'loss_percent': 10, 'duration_seconds': 30}))
         summary = self.poll()
         self.assertEqual(summary['next_sequence'], 14)
         self.assertEqual(summary['errors'], [])
         results = self.results()
         self.assertEqual(sorted(results), list(range(1, 14)))
-        expected = {1: 'DONE', 12: 'DONE', 13: 'NOT_BUILT'}
+        expected = {1: 'DONE', 12: 'DONE', 13: 'DONE'}
         self.assertEqual({n: r['status'] for n, r in results.items()},
                          {n: expected.get(n, 'REFUSED') for n in range(1, 14)})
+        # fault-netem built its argv from the signed arguments and scheduled its own dead-man clear.
+        self.assertIn(['tc', 'qdisc', 'replace', 'dev', 'eth0', 'root', 'netem', 'delay', '100ms', 'loss', '10%'],
+                      self.host.commands)
+        self.assertIn(['systemd-run', '--on-active=30s', 'tc', 'qdisc', 'del', 'dev', 'eth0', 'root'],
+                      self.host.commands)
         reasons = {n: r['reason'] for n, r in results.items()}
         self.assertIn('does not verify', reasons[2])
         self.assertIn('signed as sequence 1, expected 3', reasons[3])
@@ -274,14 +279,14 @@ class ParsingTests(unittest.TestCase):
                          b'"not_after":5,"schema":"dytallix.staging-command.v1","sequence":1}')
         self.assertEqual(agent.message(body), agent.DOMAIN + hashlib.sha256(agent.canonical(body)).hexdigest())
 
-    def test_the_allowlist_runs_no_shell_and_stubs_run_nothing(self):
+    def test_the_allowlist_runs_no_shell_and_has_no_stubs(self):
         for name, entry in ALLOWLIST['commands'].items():
             for step in entry['steps']:
                 self.assertNotIn(Path(step[0]).name, ('sh', 'bash', 'dash', 'python3', 'env'), name)
             if entry.get('stub'):
                 self.assertEqual(entry['steps'], [], name)
-        self.assertEqual(sorted(n for n, e in ALLOWLIST['commands'].items() if e.get('stub')),
-                         ['fault-clear', 'fault-netem', 'fault-partition'])
+        # The T5 fault commands are built; nothing is a stub any more.
+        self.assertEqual([n for n, e in ALLOWLIST['commands'].items() if e.get('stub')], [])
         bad = json.loads(json.dumps(ALLOWLIST))
         bad['commands']['journal']['steps'][0].append('{unknown}')
         with self.assertRaisesRegex(agent.Failed, 'unknown placeholder'):
