@@ -214,6 +214,15 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(list(self.host.path(f'{agent.STATE}/outbox').iterdir()), [])
         self.assertEqual(self.poll()['handled'], [])
 
+    def test_fault_partition_drops_the_p2p_port_both_ways_and_self_expires(self):
+        self.store.put(1, signed(1, 'fault-partition', {'duration_seconds': 30}))
+        self.poll()
+        self.assertEqual(self.results()[1]['status'], 'DONE')
+        cmds = self.host.commands
+        self.assertIn(['nft', 'add', 'element', 'inet', 'dytallix_fault', 'blocked', '{ 26656 timeout 30s }'], cmds)
+        for chain, match in (('out', 'dport'), ('out', 'sport'), ('in', 'dport'), ('in', 'sport')):
+            self.assertIn(['nft', 'add', 'rule', 'inet', 'dytallix_fault', chain, 'tcp', match, '@blocked', 'drop'], cmds)
+
     def test_a_slot_is_spent_before_its_command_runs(self):
         self.store.put(1, signed(1, 'stop'))
         self.store.fail_uploads = True

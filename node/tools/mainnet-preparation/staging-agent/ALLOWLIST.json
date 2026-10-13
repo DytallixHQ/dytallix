@@ -82,6 +82,8 @@
         ["nft", "add", "chain", "inet", "dytallix_fault", "out", "{ type filter hook output priority 0 ; policy accept ; }"],
         ["nft", "add", "chain", "inet", "dytallix_fault", "in", "{ type filter hook input priority 0 ; policy accept ; }"],
         ["nft", "add", "rule", "inet", "dytallix_fault", "out", "tcp", "dport", "@blocked", "drop"],
+        ["nft", "add", "rule", "inet", "dytallix_fault", "out", "tcp", "sport", "@blocked", "drop"],
+        ["nft", "add", "rule", "inet", "dytallix_fault", "in", "tcp", "dport", "@blocked", "drop"],
         ["nft", "add", "rule", "inet", "dytallix_fault", "in", "tcp", "sport", "@blocked", "drop"],
         ["nft", "add", "element", "inet", "dytallix_fault", "blocked", "{ 26656 timeout {duration_seconds}s }"]
       ]

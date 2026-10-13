@@ -1338,10 +1338,10 @@ def agent_drill(work, label='sentry-1', timeout=300):
 # producing validator.
 FAULT_SCENARIOS = (
     {'name': 'latency', 'command': 'fault-netem',
-     'args': {'delay_ms': 400, 'loss_percent': 5, 'duration_seconds': 30}},
+     'args': {'delay_ms': 400, 'loss_percent': 5, 'duration_seconds': 45}},
     {'name': 'loss', 'command': 'fault-netem',
-     'args': {'delay_ms': 50, 'loss_percent': 40, 'duration_seconds': 30}},
-    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 30}},
+     'args': {'delay_ms': 50, 'loss_percent': 40, 'duration_seconds': 45}},
+    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
     {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
 )
 
@@ -1366,6 +1366,25 @@ def fault_effect(name, guest):
     return {'active': active.strip()}
 
 
+def wait_fault_gone(name, guest, timeout):
+    """Wait for the host's own dead-man to remove a network fault: the netem
+    qdisc (its systemd-run timer) or the partition element (its nftables
+    timeout). This is what protects a console-only host, so letting it be the
+    clear exercises it here."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if name in ('latency', 'loss'):
+            _, qdisc, _ = guest.run(['tc', 'qdisc', 'show', 'dev', 'eth0'], check=False)
+            if 'netem' not in qdisc:
+                return
+        else:
+            _, blocked, _ = guest.run(['nft', 'list', 'set', 'inet', 'dytallix_fault', 'blocked'], check=False)
+            if '26656' not in blocked:
+                return
+        time.sleep(3)
+    raise Failed(f'{name}: the host dead-man did not clear the fault in {timeout} s')
+
+
 def fault_drill(work, label='sentry-1', timeout=300):
     """The fault injector (simulation plan, T5) on the sentry, driven through the
     signed staging agent so the allowlisted fault commands that will run on the
@@ -1378,8 +1397,10 @@ def fault_drill(work, label='sentry-1', timeout=300):
 
     Peer drops and host loss follow in a later PR (they need a VM restart path).
     The network faults self-expire on the host (a netem dead-man timer and an
-    nftables timeout set), so a console-only host cannot be locked out even
-    though here the drill clears them itself."""
+    nftables timeout set), so a console-only host cannot be locked out; the drill
+    waits for that dead-man to be the clear, so the safety net is proven here.
+    The interface is eth0 (the staging guest's; the real-host interface is
+    confirmed with the real-host harness, T2)."""
     work = Path(work)
     guest, chain, cli = agent(work, label), staging_host.CHAIN_ID, work / 'release-bin' / 'dytallix'
     drill = work / 'fault-drill'
@@ -1395,8 +1416,13 @@ def fault_drill(work, label='sentry-1', timeout=300):
     staging_command.make_key(cli, home, key)
     (drill / 'read.json').write_text(json.dumps(COMMAND_STORE))
     staging_command.make_settings(key, label, chain, drill / 'read.json', drill / 'settings.json')
-    guest.run(['systemctl', 'stop', 'dytallix-store-standin', 'dytallix-store-standin-agent'], check=False)
-    guest.run(['systemd-run', '--unit=dytallix-store-standin-agent', 'python3', '/root/s3_standin.py', '--root',
+    store = f'/var/tmp/standin/{COMMAND_STORE["bucket"]}/{COMMAND_STORE["prefix"]}{chain}/{label}'
+    history = f'/var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/{HISTORY_UPLOAD["prefix"]}{chain}/agent/{label}'
+    # A store under this drill's own unit; clear any earlier commands and results
+    # so the agent drill that follows is not confused by a leftover sequence.
+    guest.run(['systemctl', 'stop', 'dytallix-store-standin', 'dytallix-store-standin-fault'], check=False)
+    guest.run(['rm', '-rf', store, history], check=False)
+    guest.run(['systemd-run', '--unit=dytallix-store-standin-fault', 'python3', '/root/s3_standin.py', '--root',
                '/var/tmp/standin', '--port', str(STANDIN_PORT), '--access-key-id', UPLOAD['access_key_id'],
                '--access-key-id', HISTORY_UPLOAD['access_key_id'], '--read-key-id', COMMAND_STORE['access_key_id']])
     time.sleep(2)
@@ -1407,8 +1433,6 @@ def fault_drill(work, label='sentry-1', timeout=300):
                            '--settings', '/root/agent-settings.json'])
     say(out.strip())
     public_key = staging_command.load_key(key)
-    store = f'/var/tmp/standin/{COMMAND_STORE["bucket"]}/{COMMAND_STORE["prefix"]}{chain}/{label}'
-    history = f'/var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/{HISTORY_UPLOAD["prefix"]}{chain}/agent/{label}'
     codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
     paper = drill / 'history-paper.txt'
     descriptor = os.open(paper, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -1445,6 +1469,12 @@ def fault_drill(work, label='sentry-1', timeout=300):
                 return result
         raise Failed(f'no opened result for {command} (sequence {seq})')
 
+    # A probe that exercises tc and nft before the scenarios, so a missing
+    # sch_netem module or nft table support fails in seconds, not after minutes.
+    probe = agent_command('fault-clear', {})
+    if probe['status'] != 'DONE':
+        raise Failed(f'the fault commands do not run on this host (tc/nft): {probe.get("steps")}')
+
     scenarios = []
     for spec in FAULT_SCENARIOS:
         name = spec['name']
@@ -1455,16 +1485,20 @@ def fault_drill(work, label='sentry-1', timeout=300):
             raise Failed(f'{name}: the agent did not run {spec["command"]}: {injected.get("reason")}')
         effect = fault_effect(name, guest)
         injected_at = guest_iso(guest)
-        # Clear the fault and time the catch-up. The validator keeps producing.
+        # The validator keeps producing. For the network faults the host's own
+        # dead-man is the clear, so the safety net is proven here; fault-clear
+        # then removes the empty qdisc or table. Time the catch-up after.
         if spec['command'] == 'fault-kill':
             at_clear = baseline
             clear = {'mechanism': 'restart'}
             guest.run(['systemctl', 'start', 'dytallix-node'], timeout=180)
+            cleared_at = guest_iso(guest)
         else:
+            wait_fault_gone(name, guest, spec['args']['duration_seconds'] + 60)
+            cleared_at = guest_iso(guest)
             at_clear = guest_height(guest) or baseline
             cleared = agent_command('fault-clear', {})
-            clear = {'mechanism': 'fault-clear', 'status': cleared['status']}
-        cleared_at = guest_iso(guest)
+            clear = {'mechanism': 'dead-man', 'status': cleared['status']}
         target = max(staging_host.height() or 0, (at_clear or 0) + 2)
         recovered_height = wait_height(guest, label, target, timeout)
         recovered_at = guest_iso(guest)
@@ -1479,7 +1513,8 @@ def fault_drill(work, label='sentry-1', timeout=300):
     engine = (work / 'net' / 'chain' / 'chain' / 'genesis.json').read_bytes()
     record = faults.build_run(chain, native, engine, scenarios, None, label)
     (drill / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
-    status = faults.verify(record, native, engine)
+    # Re-evaluate from the file, as the docs promise, not from the in-memory record.
+    status = faults.verify(json.loads((drill / 'evidence.json').read_bytes()), native, engine)
     for row in record['scenarios']:
         say(f'== {row["name"]}: {row["status"]} ({row["detail"]})')
     say(json.dumps({'fault_drill': {'host': label, 'status': status,
@@ -1492,7 +1527,8 @@ def fault_drill(work, label='sentry-1', timeout=300):
     wait_height(guest, label, (guest_height(guest) or 0) + 2, timeout)
     _, left, _ = guest.run(['python3', '-I', '-B', '/root/agent/agent.py', 'remove'])
     say(left.strip())
-    guest.run(['systemctl', 'stop', 'dytallix-store-standin-agent'], check=False)
+    guest.run(['systemctl', 'stop', 'dytallix-store-standin-fault'], check=False)
+    guest.run(['rm', '-rf', store, history], check=False)  # leave nothing for the agent drill
     say(f'== {label}: latency, loss, a p2p partition and a process kill each took hold and the sentry caught back up '
         f'(the run is {status}; the recovery target is an open P01 decision)')
 
