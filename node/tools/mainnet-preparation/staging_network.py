@@ -1490,7 +1490,8 @@ def fault_drill(work, label='sentry-1', timeout=300):
         baseline = guest_height(guest)
         injected = agent_command(spec['command'], dict(spec['args']))
         if injected['status'] != 'DONE':
-            raise Failed(f'{name}: the agent did not run {spec["command"]}: {injected.get("reason")}')
+            raise Failed(f'{name}: the agent did not run {spec["command"]} ({injected["status"]}): '
+                         f'{injected.get("reason") or injected.get("steps")}')
         effect = fault_effect(name, guest)
         injected_at = guest_iso(guest)
         # The validator keeps producing. For the network faults the host's own
@@ -1499,6 +1500,7 @@ def fault_drill(work, label='sentry-1', timeout=300):
         if spec['command'] == 'fault-kill':
             at_clear = baseline
             clear = {'mechanism': 'restart'}
+            guest.run(['systemctl', 'reset-failed', 'dytallix-node'], check=False)
             guest.run(['systemctl', 'start', 'dytallix-node'], timeout=180)
             cleared_at = guest_iso(guest)
         else:

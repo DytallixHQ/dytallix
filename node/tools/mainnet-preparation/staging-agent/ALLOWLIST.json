@@ -56,11 +56,11 @@
       ]
     },
     "fault-kill": {
-      "purpose": "Kill the node's processes (simulation plan, T5: process kill)",
+      "purpose": "Kill the node's main process (simulation plan, T5: process kill); only the main process, since the supervisor runs its children in their own PID namespace and signalling the whole control group returns EINVAL. The owner protocol brings the children down with it",
       "args": {},
       "timeout_seconds": 60,
       "steps": [
-        ["systemctl", "kill", "--signal=SIGKILL", "dytallix-node.service"]
+        ["systemctl", "kill", "--kill-whom=main", "--signal=SIGKILL", "dytallix-node.service"]
       ]
     },
     "fault-netem": {
