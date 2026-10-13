@@ -1450,8 +1450,16 @@ def fault_drill(work, label='sentry-1', timeout=300):
         body = staging_command.body(chain, label, seq, command, args, guest_time(guest) + 1800)
         put_file(guest, f'{store}/{seq:010}.json', staging_command.sign(cli, home, public_key, body).decode())
         deadline = time.monotonic() + timeout
-        while json.loads(guest.read(AGENT_STATE))['next_sequence'] <= seq:
+        while True:
+            # Start first: a freshly installed agent writes state.json only on its
+            # first poll, so reading it before the first run would fail.
             guest.run(['systemctl', 'start', 'dytallix-agent.service'], timeout=600, check=False)
+            try:
+                handled = json.loads(guest.read(AGENT_STATE))['next_sequence'] > seq
+            except Failed:
+                handled = False
+            if handled:
+                break
             if time.monotonic() > deadline:
                 raise Failed(f'the agent did not handle {command} (sequence {seq})')
             time.sleep(3)
