@@ -1358,10 +1358,10 @@ def fault_effect(name, guest):
         _, qdisc, _ = guest.run(['tc', 'qdisc', 'show', 'dev', 'eth0'], check=False)
         return {'qdisc': qdisc.strip()}
     if name == 'partition':
-        first = guest_height(guest)
-        time.sleep(15)  # three block intervals; a partitioned sentry does not advance
-        second = guest_height(guest)
-        return {'frozen': first is not None and second == first, 'height': second}
+        # The drop is in place: the p2p port is in the fault set. Deterministic,
+        # unlike watching for a freeze (which races TCP connection teardown).
+        _, blocked, _ = guest.run(['nft', 'list', 'set', 'inet', 'dytallix_fault', 'blocked'], check=False)
+        return {'installed': '26656' in blocked, 'set': blocked.strip()}
     _, active, _ = guest.run(['systemctl', 'is-active', 'dytallix-node'], check=False)
     return {'active': active.strip()}
 

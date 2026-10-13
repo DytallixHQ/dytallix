@@ -25,7 +25,7 @@ def scenario(name='partition', **over):
                     'args': {}, 'status': 'DONE'},
         'clear': {'command': 'fault-clear', 'args': {}, 'status': 'DONE'},
         'baseline_height': 100,
-        'effect': {'frozen': True, 'height': 104} if name == 'partition'
+        'effect': {'installed': True} if name == 'partition'
         else {'qdisc': 'netem delay 200ms'} if name in ('latency', 'loss')
         else {'active': 'inactive'},
         'height_at_clear': 104,
@@ -44,9 +44,10 @@ class Effect(unittest.TestCase):
         self.assertFalse(faults.effect_holds('netem', {'qdisc': 'pfifo_fast'}))
         self.assertFalse(faults.effect_holds('netem', {}))
 
-    def test_partition_effect_needs_a_frozen_height(self):
-        self.assertTrue(faults.effect_holds('partition', {'frozen': True, 'height': 104}))
-        self.assertFalse(faults.effect_holds('partition', {'frozen': False, 'height': 104}))
+    def test_partition_effect_needs_the_drop_installed(self):
+        self.assertTrue(faults.effect_holds('partition', {'installed': True}))
+        self.assertFalse(faults.effect_holds('partition', {'installed': False}))
+        self.assertFalse(faults.effect_holds('partition', {}))
 
     def test_process_effect_needs_a_down_node(self):
         self.assertTrue(faults.effect_holds('process', {'active': 'inactive'}))

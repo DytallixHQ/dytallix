@@ -87,8 +87,9 @@ def effect_holds(scenario_kind, effect):
     if scenario_kind == 'netem':
         return 'netem' in (effect.get('qdisc') or '')
     if scenario_kind == 'partition':
-        # The sentry did not advance while cut off from its only peer.
-        return effect.get('frozen') is True and is_int(effect.get('height'))
+        # The drop is objectively installed (deterministic, unlike watching for a
+        # freeze, which races TCP teardown); recovery then proves it was real.
+        return effect.get('installed') is True
     if scenario_kind == 'process':
         return (effect.get('active') or '') in ('inactive', 'failed', 'deactivating')
     return False
