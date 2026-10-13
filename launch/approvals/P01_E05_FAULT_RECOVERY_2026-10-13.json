@@ -1,0 +1,26 @@
+{
+  "decision_id": "P01-2026-10-13-E05-FAULT-RECOVERY",
+  "approved": "2026-10-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Fault injector (T5): the transient-fault recovery target"
+  },
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "recovery target (launch-rehearsals.json dependency, T5)",
+      "selected": "120 seconds",
+      "rule": "The fault injector's acceptance: after a transient fault clears (latency, loss, a p2p partition or a process kill), the sentry must catch back up to the validator within 120 seconds, or the scenario fails. The staging drill measured 13 to 21 seconds, so 120 is about six times the observed worst case. Recorded in launch/simulations/TIMINGS.json (fault_recovery_target_seconds) and read by the fault drill; faults.py verify judges each recorded recovery time against it."
+    }
+  ],
+  "scope": [
+    "This is the rehearsal acceptance for transient faults only. It is stricter than, and distinct from, the six-hour per-host readiness catch-up budget (E05 catch_up_millis) that the supervisor uses for a node rejoining from far behind; this approval does not change that budget.",
+    "The lean fault set is latency, loss, a p2p partition and a process kill; peer drops and host loss are a later addition and may carry their own targets."
+  ],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

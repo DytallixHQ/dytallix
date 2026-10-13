@@ -8,6 +8,8 @@
   "backup_interval_basis": "The sentry's backup timer runs hourly with up to 15 minutes' random delay (host_files.py BACKUP_TIMER), so the newest off-host copy can be a snapshot interval plus 75 minutes old.",
   "restore_trust_divisor": 14,
   "restore_trust_basis": "A restore trusts the copy's header for the evidence age less a fourteenth of it (dytallix-pqc-engine restore.go; P01, 8 and 12 October 2026).",
+  "fault_recovery_target_seconds": 120,
+  "fault_recovery_target_basis": "The fault injector's acceptance (T5): the sentry must catch back up to the validator within 120 seconds after a transient fault clears. The staging drill measured 13 to 21 seconds, so this is about six times the observed worst case (roughly two dozen 5-second block intervals). This is the rehearsal acceptance for transient faults only; it is stricter than and distinct from the six-hour per-host readiness catch-up budget (E05 catch_up_millis) used by the supervisor for a node rejoining from far behind. P01, 13 October 2026; launch/approvals/P01_E05_FAULT_RECOVERY_2026-10-13.json.",
   "run_seconds": 86400,
   "profiles": {
     "production": {

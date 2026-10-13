@@ -1392,8 +1392,10 @@ def fault_drill(work, label='sentry-1', timeout=300):
     sentry's baseline height, has the agent inject the fault, proves the fault
     took hold, clears it, and times how long the sentry takes to catch back up to
     the validator, which keeps producing throughout. It writes digest-bound
-    evidence that `faults.py verify` re-evaluates; with no approved recovery
-    target yet (an open P01 decision) each scenario is INCONCLUSIVE.
+    evidence that `faults.py verify` re-evaluates; each recovery is judged against
+    the approved recovery target (launch/simulations/TIMINGS.json,
+    fault_recovery_target_seconds), so a scenario PASSES when the sentry catches
+    up within it and FAILS when it does not.
 
     Peer drops and host loss follow in a later PR (they need a VM restart path).
     The network faults self-expire on the host (a netem dead-man timer and an
@@ -1521,7 +1523,9 @@ def fault_drill(work, label='sentry-1', timeout=300):
 
     native = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
     engine = (work / 'net' / 'chain' / 'chain' / 'genesis.json').read_bytes()
-    record = faults.build_run(chain, native, engine, scenarios, None, label)
+    timings = json.loads((Path(__file__).resolve().parents[3] / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())
+    target = timings['fault_recovery_target_seconds']  # the approved T5 recovery target (P01, launch/approvals)
+    record = faults.build_run(chain, native, engine, scenarios, target, label)
     (drill / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
     # Re-evaluate from the file, as the docs promise, not from the in-memory record.
     status = faults.verify(json.loads((drill / 'evidence.json').read_bytes()), native, engine)
@@ -1540,7 +1544,7 @@ def fault_drill(work, label='sentry-1', timeout=300):
     guest.run(['systemctl', 'stop', 'dytallix-store-standin-fault'], check=False)
     guest.run(['rm', '-rf', store, history], check=False)  # leave nothing for the agent drill
     say(f'== {label}: latency, loss, a p2p partition and a process kill each took hold and the sentry caught back up '
-        f'(the run is {status}; the recovery target is an open P01 decision)')
+        f'within the {target} s recovery target (the run is {status})')
 
 
 def diagnostics(work):

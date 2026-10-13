@@ -314,6 +314,13 @@ class FaultDrillTests(unittest.TestCase):
         for scenario in sn.FAULT_SCENARIOS:
             self.assertIn(scenario['name'], self.faults.KINDS)
 
+    def test_the_recovery_target_is_approved_and_wired(self):
+        root = Path(__file__).resolve().parents[3]
+        target = json.loads((root / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())['fault_recovery_target_seconds']
+        self.assertIsInstance(target, int)
+        self.assertGreater(target, 0)
+        self.assertTrue((root / 'launch' / 'approvals' / 'P01_E05_FAULT_RECOVERY_2026-10-13.json').exists())
+
 
 if __name__ == '__main__':
     unittest.main()
