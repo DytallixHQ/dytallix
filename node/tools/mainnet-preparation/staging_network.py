@@ -970,7 +970,8 @@ def checkpoint_network(work, timeout=300):
     native = (chain / 'chain' / 'native-genesis.json').read_bytes()
     engine = (chain / 'chain' / 'genesis.json').read_bytes()
     out = work / 'checkpoint'
-    out.mkdir(parents=True, exist_ok=True)
+    # The client channel's CLI home; pinned_cli creates the directory (as the wallet drill's).
+    env = pinned_cli(work, out)
     # Bind the fresh after-load reconciliation and the load run, kept beside the record.
     shutil.copyfile(work / 'reconcile-load' / 'evidence.json', out / 'reconcile.json')
     shutil.copyfile(work / 'load' / 'run' / 'evidence.json', out / 'load-evidence.json')
@@ -982,7 +983,6 @@ def checkpoint_network(work, timeout=300):
                  'rows': 'load-transactions.jsonl',
                  'rows_sha256': checkpoints.digest((out / 'load-transactions.jsonl').read_bytes())}
     # The client channel: the sentry's height, and a wallet balance it can read.
-    env = pinned_cli(work, out)
     client = reconcile.Client(work / 'release-bin' / 'dytallix', env, out)
     view = client.status()
     address = json.loads((chain / 'rehearsal-wallets' / 'MAPPING.json').read_bytes())['accounts'][0]['address']
