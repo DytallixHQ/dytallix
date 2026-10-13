@@ -56,33 +56,48 @@
       ]
     },
     "fault-kill": {
-      "purpose": "Kill the node's processes (simulation plan, T5: process kill)",
+      "purpose": "Kill the node's main process (simulation plan, T5: process kill); only the main process, since the supervisor runs its children in their own PID namespace and signalling the whole control group returns EINVAL. The owner protocol brings the children down with it",
       "args": {},
       "timeout_seconds": 60,
       "steps": [
-        ["systemctl", "kill", "--signal=SIGKILL", "dytallix-node.service"]
+        ["systemctl", "kill", "--kill-whom=main", "--signal=SIGKILL", "dytallix-node.service"]
       ]
     },
     "fault-netem": {
-      "purpose": "Latency and loss on the host's interface (T5 builds it)",
-      "args": {"delay_ms": {"type": "int", "min": 0, "max": 5000}, "loss_percent": {"type": "int", "min": 0, "max": 100}},
+      "purpose": "Latency and loss on the host's interface (simulation plan, T5), removed by its own dead-man timer after duration_seconds",
+      "args": {"delay_ms": {"type": "int", "min": 50, "max": 1000}, "loss_percent": {"type": "int", "min": 5, "max": 60}, "duration_seconds": {"type": "int", "min": 10, "max": 300}},
       "timeout_seconds": 60,
-      "stub": true,
-      "steps": []
+      "steps": [
+        ["tc", "qdisc", "replace", "dev", "eth0", "root", "netem", "delay", "{delay_ms}ms", "loss", "{loss_percent}%"],
+        ["systemd-run", "--on-active={duration_seconds}s", "tc", "qdisc", "del", "dev", "eth0", "root"]
+      ]
     },
     "fault-partition": {
-      "purpose": "Cut the host off from its peers (T5 builds it)",
-      "args": {},
+      "purpose": "Cut the host off from its peers' p2p port (simulation plan, T5); the drop self-expires after duration_seconds so a console-only host cannot be locked out",
+      "args": {"duration_seconds": {"type": "int", "min": 10, "max": 300}},
       "timeout_seconds": 60,
-      "stub": true,
-      "steps": []
+      "steps": [
+        ["nft", "add", "table", "inet", "dytallix_fault"],
+        ["nft", "add", "set", "inet", "dytallix_fault", "blocked", "{ type inet_service ; flags timeout ; }"],
+        ["nft", "add", "chain", "inet", "dytallix_fault", "out", "{ type filter hook output priority 0 ; policy accept ; }"],
+        ["nft", "add", "chain", "inet", "dytallix_fault", "in", "{ type filter hook input priority 0 ; policy accept ; }"],
+        ["nft", "add", "rule", "inet", "dytallix_fault", "out", "tcp", "dport", "@blocked", "drop"],
+        ["nft", "add", "rule", "inet", "dytallix_fault", "out", "tcp", "sport", "@blocked", "drop"],
+        ["nft", "add", "rule", "inet", "dytallix_fault", "in", "tcp", "dport", "@blocked", "drop"],
+        ["nft", "add", "rule", "inet", "dytallix_fault", "in", "tcp", "sport", "@blocked", "drop"],
+        ["nft", "add", "element", "inet", "dytallix_fault", "blocked", "{ 26656 timeout {duration_seconds}s }"]
+      ]
     },
     "fault-clear": {
-      "purpose": "Remove every injected network fault (T5 builds it)",
+      "purpose": "Remove every injected network fault (simulation plan, T5); idempotent, so it runs whether or not a fault is set",
       "args": {},
       "timeout_seconds": 60,
-      "stub": true,
-      "steps": []
+      "steps": [
+        ["tc", "qdisc", "replace", "dev", "eth0", "root", "netem"],
+        ["tc", "qdisc", "del", "dev", "eth0", "root"],
+        ["nft", "add", "table", "inet", "dytallix_fault"],
+        ["nft", "delete", "table", "inet", "dytallix_fault"]
+      ]
     }
   }
 }

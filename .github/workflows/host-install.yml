@@ -260,6 +260,17 @@ jobs:
       - name: Monitoring drill (M5)
         timeout-minutes: 35
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py monitor-drill --work "$RUNNER_TEMP/network"
+      # The fault injector (simulation plan, T5) on the sentry, through the
+      # signed agent: latency and loss (tc netem), a p2p partition (a
+      # self-expiring nftables table) and a process kill each take hold while
+      # the validator keeps producing, and the sentry catches back up. It
+      # records the recovery times; with no approved recovery target yet the
+      # run is INCONCLUSIVE. It uninstalls the agent (not the node) so the
+      # agent drill installs fresh. Runs after the monitor drill so its one
+      # node restart cannot be read as the monitor's restart loop.
+      - name: Fault injector (T5)
+        timeout-minutes: 20
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py fault-drill --work "$RUNNER_TEMP/network"
       # The staging agent (simulation plan, T2) on the sentry: signed status
       # and journal commands run; tampered, unsigned, replayed,
       # non-allowlisted and expired ones are refused; the results open with

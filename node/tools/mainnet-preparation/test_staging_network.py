@@ -285,5 +285,35 @@ class MonitorDrillTests(unittest.TestCase):
         self.assertEqual(sn.MONITORING_DOWN_SECONDS, 180)
 
 
+class FaultDrillTests(unittest.TestCase):
+    """The fault injector's scenarios stay inside the allowlist the agent will
+    enforce, so no scenario is a no-op or out of range, and each maps to a
+    registered fault kind. The live injection and recovery are proven by the
+    Host install workflow's fault step."""
+
+    def setUp(self):
+        import faults
+        self.faults = faults
+        self.allowlist = json.loads((sn.staging_command.AGENT_DIR / 'ALLOWLIST.json').read_bytes())['commands']
+
+    def test_every_scenario_is_allowlisted_and_in_range(self):
+        for scenario in sn.FAULT_SCENARIOS:
+            entry = self.allowlist[scenario['command']]
+            self.assertFalse(entry.get('stub'), scenario['command'])
+            self.assertEqual(set(scenario['args']), set(entry['args']), scenario['name'])
+            for arg, value in scenario['args'].items():
+                spec = entry['args'][arg]
+                self.assertTrue(spec['min'] <= value <= spec['max'], f'{scenario["name"]}.{arg}')
+
+    def test_netem_scenarios_are_never_a_noop(self):
+        for scenario in sn.FAULT_SCENARIOS:
+            if scenario['command'] == 'fault-netem':
+                self.assertTrue(scenario['args']['delay_ms'] > 0 or scenario['args']['loss_percent'] > 0)
+
+    def test_every_scenario_name_is_a_registered_fault_kind(self):
+        for scenario in sn.FAULT_SCENARIOS:
+            self.assertIn(scenario['name'], self.faults.KINDS)
+
+
 if __name__ == '__main__':
     unittest.main()
