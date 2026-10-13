@@ -53,6 +53,13 @@ for 2 minutes in the default mix over the sentry's client channel, with the
 governance steps beside it and one reward sweep back to the funder. Anything but
 PASS fails the step; the evidence is load/run/evidence.json.
 
+checkpoint is the checkpoint recorder (simulation plan, T7; checkpoints.py)
+after the after-load reconciliation: a short schedule of the R07 checks CI can
+source, recorded against that fresh reconciliation and the load run (each
+bound by digest and re-verified) and the client channel. The record verifies
+to PASS and is refused as the R07 dress rehearsal; its evidence is
+checkpoint/evidence.json.
+
 restore-drill is the first restore drill (disaster recovery v1, R6): the
 sentry is lost, so its VM is wiped and reinstalled from its bundle, then
 restored from the stand-in store's copy with restore.sh and the backup code
@@ -101,6 +108,7 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import checkpoints  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import staging_command  # noqa: E402
@@ -948,6 +956,81 @@ def load_drill(work):
         raise Failed(f'the load run is {record["status"]} (verified {checked})')
 
 
+def checkpoint_network(work, timeout=300):
+    """The checkpoint recorder (simulation plan, T7) on the staging network: a
+    short schedule of the R07 checks CI can source, recorded against the fresh
+    after-load reconciliation (T6) and the load run (T3), with the client
+    channel read for RPC and wallet connectivity and the genesis digest
+    confirmed. The reconciliation and load evidence are bound by digest and
+    re-verified; the record verifies to PASS, and the same record is refused as
+    the R07 dress rehearsal, since this schedule is not R07's. Run after the
+    after-load reconciliation so its evidence is fresh, not the wallet drill's."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    native = (chain / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (chain / 'chain' / 'genesis.json').read_bytes()
+    out = work / 'checkpoint'
+    out.mkdir(parents=True, exist_ok=True)
+    # Bind the fresh after-load reconciliation and the load run, kept beside the record.
+    shutil.copyfile(work / 'reconcile-load' / 'evidence.json', out / 'reconcile.json')
+    shutil.copyfile(work / 'load' / 'run' / 'evidence.json', out / 'load-evidence.json')
+    shutil.copyfile(work / 'load' / 'run' / 'transactions.jsonl', out / 'load-transactions.jsonl')
+    reconcile_bind = {'tool': 'reconcile', 'evidence': 'reconcile.json',
+                      'evidence_sha256': checkpoints.digest((out / 'reconcile.json').read_bytes())}
+    load_bind = {'tool': 'load', 'evidence': 'load-evidence.json',
+                 'evidence_sha256': checkpoints.digest((out / 'load-evidence.json').read_bytes()),
+                 'rows': 'load-transactions.jsonl',
+                 'rows_sha256': checkpoints.digest((out / 'load-transactions.jsonl').read_bytes())}
+    # The client channel: the sentry's height, and a wallet balance it can read.
+    env = pinned_cli(work, out)
+    client = reconcile.Client(work / 'release-bin' / 'dytallix', env, out)
+    view = client.status()
+    address = json.loads((chain / 'rehearsal-wallets' / 'MAPPING.json').read_bytes())['accounts'][0]['address']
+    client.balance(address)
+    readings = {
+        'Verify token supply.': {'bind': reconcile_bind},
+        'Verify state consistency across validators.': {'bind': reconcile_bind},
+        'Confirm block production.': {'bind': load_bind},
+        'Verify finalization.': {'bind': load_bind},
+        'Verify RPC.': {'inputs': {'reachable': True, 'height': int(view['height'])}},
+        'Verify wallet connectivity.': {'inputs': {'reachable': True}},
+    }
+    # One checkpoint, its window opening when the load started, so the fresh
+    # after-load reconciliation and the load run fall in it and the stale
+    # wallet-drill reconciliation (finished earlier) would not.
+    load_started = json.loads((out / 'load-evidence.json').read_bytes())['started']
+    genesis_time = json.loads(engine)['genesis_time']
+    offset = int((checkpoints.instant(load_started) - checkpoints.instant(genesis_time)).total_seconds())
+    schedule = [{'label': 'T ZERO', 'offset_seconds': offset, 'checks': list(readings)}]
+    finished = json.loads((out / 'reconcile.json').read_bytes())['finished']
+    checkpoint = checkpoints.record_checkpoint(schedule, 0, readings, out, native, engine, '', finished)
+    record = checkpoints.build_run('staging-checkpoint', schedule, staging_host.CHAIN_ID, native, engine, [checkpoint])
+    (out / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
+    for row in checkpoint['checks']:
+        say(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+    status = checkpoints.verify(record, out, native, engine)
+    say(f'== checkpoint {checkpoint["label"]}: {status} (evidence sha256 {record["sha256"]})')
+    if status != checkpoints.PASS:
+        raise Failed(f'the checkpoint record is {status}')
+    try:
+        checkpoints.verify(record, out, native, engine, qualifying='R07')
+    except checkpoints.Failed:
+        say('== a short schedule is refused as the R07 dress rehearsal, as it must be')
+    else:
+        raise Failed('a non-R07 schedule was accepted as the dress rehearsal')
+    # The window guard: the stale wallet-drill reconciliation (finished before
+    # the load started) does not count for this checkpoint.
+    shutil.copyfile(work / 'reconcile' / 'evidence.json', out / 'reconcile-stale.json')
+    stale = {'tool': 'reconcile', 'evidence': 'reconcile-stale.json',
+             'evidence_sha256': checkpoints.digest((out / 'reconcile-stale.json').read_bytes())}
+    stale_cp = checkpoints.record_checkpoint(schedule, 0, {'Verify token supply.': {'bind': stale}},
+                                             out, native, engine, '', finished)
+    stale_status = next(r['status'] for r in stale_cp['checks'] if r['check'] == 'Verify token supply.')
+    if stale_status != checkpoints.INCONCLUSIVE:
+        raise Failed(f'the stale reconciliation counted for the checkpoint ({stale_status})')
+    say('== the stale wallet-drill reconciliation does not count for the checkpoint, as it must not')
+
+
 def parse_events(raw):
     """The stand-in service's events; a line still being written is skipped."""
     events = []
@@ -1276,8 +1359,8 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'restore-drill', 'kit-drill',
-                 'monitor-drill', 'agent-drill', 'diagnostics'):
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'checkpoint', 'restore-drill',
+                 'kit-drill', 'monitor-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     r = commands.add_parser('reconcile')
     r.add_argument('--work', type=Path, required=True)
@@ -1305,6 +1388,8 @@ def main():
             reconcile_network(args.work, args.after)
         elif args.command == 'load':
             load_drill(args.work)
+        elif args.command == 'checkpoint':
+            checkpoint_network(args.work)
         elif args.command == 'restore-drill':
             restore_drill(args.work)
         elif args.command == 'kit-drill':
@@ -1315,7 +1400,8 @@ def main():
             agent_drill(args.work)
         else:
             diagnostics(args.work)
-    except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, OSError, KeyError, ValueError) as error:
+    except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
+            OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0
