@@ -237,6 +237,14 @@ jobs:
       # with every fleet account tracked.
       - name: Reconciliation after the load (T6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py reconcile --after load --work "$RUNNER_TEMP/network"
+      # The checkpoint recorder (simulation plan, T7): a short schedule of the
+      # R07 checks CI can source, recorded against the fresh after-load
+      # reconciliation and the load run and the client channel, each bound by
+      # digest and re-verified. The record verifies to PASS, and the same
+      # record is refused as the R07 dress rehearsal because its schedule is
+      # not R07's.
+      - name: Checkpoint recorder (T7)
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py checkpoint --work "$RUNNER_TEMP/network"
       - name: Restore drill (disaster recovery R6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
       # Seat 5's kit replaced with the release's tools over the sentry's
