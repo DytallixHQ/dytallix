@@ -46,6 +46,13 @@ PASS, FAIL, INCONCLUSIVE = reconcile.PASS, reconcile.FAIL, reconcile.INCONCLUSIV
 # the trailing blob of an ordinary_v2 envelope (:576, :763-765).
 MLDSA65_SIGNATURE_BYTES = 3309
 
+# Cases the node refuses before CheckTx. An oversized transaction is caught by
+# the mempool/RPC size limit (max_tx_bytes), returned as a JSON-RPC error, not a
+# CheckTx code. That is a real refusal with a definite "too large" message, so it
+# counts when its expected reason is in the log; every other case must be refused
+# by CheckTx (code > 0). This set is keyed by name so a record cannot opt in.
+TRANSPORT_REFUSAL_OK = {'oversized'}
+
 # Each case's name mapped to what the node must do with it. verify recomputes
 # this from the name, so a record cannot relabel a refuse case as a control.
 EXPECTATION = {
@@ -123,13 +130,19 @@ def evaluate(case):
             return PASS, 'the control transaction was admitted and committed'
         return FAIL, f'the control was not admitted and committed (code {code}, committed {committed})'
     # refuse
-    if not isinstance(code, int) or code < 0:
+    if not isinstance(code, int):
         return FAIL, f'no node refusal (a transport or uncertain outcome, code {code})'
     if code == 0:
         return FAIL, 'the node admitted the transaction'
     if committed:
         return FAIL, 'the transaction committed despite admission refusal'
     reason = case.get('expected_reason')
+    if code < 0:
+        # Refused before CheckTx (the mempool/RPC size limit). Only for the cases
+        # that are expected there, and only with the definite reason in the log.
+        if case['name'] in TRANSPORT_REFUSAL_OK and reason and reason in log:
+            return PASS, f'the node refused it before admission for {reason!r} (code {code})'
+        return FAIL, f'no CheckTx refusal (code {code}): {log[:120]}'
     if reason and reason not in log:
         return FAIL, f'refused (code {code}) but not for the expected reason {reason!r}: {log[:120]}'
     return PASS, f'the node refused it at admission (code {code})'

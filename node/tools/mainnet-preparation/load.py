@@ -1536,20 +1536,21 @@ def adversary_run(cli, home, fleet_dir, out, application_config, funder_label, v
             finally:
                 wallet.nonce = keep
 
-        def submit(name, tx):
+        def submit(name, tx, expected_reason):
             row = new_row('adversary', name, wallet)
             broadcast(rpc, [(row, tx)], name)
-            # A CheckTx refusal (code > 0) is never block-included, so it cannot commit.
-            outcome = {'name': name, 'code': row.get('code'), 'committed': False, 'log': row.get('log') or ''}
+            # A refused transaction is never block-included, so it cannot commit.
+            outcome = {'name': name, 'code': row.get('code'), 'committed': False,
+                       'log': row.get('log') or '', 'expected_reason': expected_reason}
             show(f'== {name}: code {outcome["code"]}, log {outcome["log"][:120]!r}')
             return outcome
 
         base_tx = signed_at(wallet.nonce)
         cases = [
-            submit('invalid_signature', adversary.corrupt_signature(base_tx)),
-            submit('decode_failure', adversary.corrupt_encoding(base_tx)),
-            submit('oversized', adversary.oversized_envelope(300_000)),
-            submit('stale_nonce', signed_at(0)),
+            submit('invalid_signature', adversary.corrupt_signature(base_tx), 'invalid ordinary signature'),
+            submit('decode_failure', adversary.corrupt_encoding(base_tx), 'Malformed ordinary envelope'),
+            submit('oversized', adversary.oversized_envelope(300_000), 'too large'),
+            submit('stale_nonce', signed_at(0), 'Ordinary spending nonce is stale'),
         ]
         # The positive control, last: a valid transaction that must commit.
         control = load.online(wallet, ('send', '--to', funder['address'], '--amount', '1', '--token', 'drt'),

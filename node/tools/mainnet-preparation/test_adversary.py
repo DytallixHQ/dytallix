@@ -78,6 +78,17 @@ class Evaluate(unittest.TestCase):
         self.assertEqual(self.status(case('oversized', code=1, log='ordinary envelope exceeds profile',
                                           expected_reason='exceeds profile')), adversary.PASS)
 
+    def test_oversized_may_be_refused_before_checktx(self):
+        # The mempool/RPC size limit returns a JSON-RPC error (code -1), not CheckTx.
+        self.assertEqual(self.status(case('oversized', code=-1, log='Tx too large. Max size is 262144',
+                                          expected_reason='too large')), adversary.PASS)
+        # A bare transport error (no size reason) does not pass.
+        self.assertEqual(self.status(case('oversized', code=-1, log='connection reset',
+                                          expected_reason='too large')), adversary.FAIL)
+        # Only oversized gets the before-CheckTx allowance.
+        self.assertEqual(self.status(case('invalid_signature', code=-1, log='Tx too large',
+                                          expected_reason='too large')), adversary.FAIL)
+
     def test_an_unregistered_case_is_refused(self):
         with self.assertRaises(adversary.Failed):
             adversary.evaluate(case('mystery'))
