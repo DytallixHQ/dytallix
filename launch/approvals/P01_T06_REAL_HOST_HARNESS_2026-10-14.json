@@ -1,0 +1,39 @@
+{
+  "decision_id": "P01-2026-10-14-T06-REAL-HOST-HARNESS",
+  "approved": "2026-10-14",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The real-host harness (T2): proving a fault, timing recovery, and the state check on console-only hosts"
+  },
+  "reason": "The CI drills read heights, fault effects and node state directly on the test machine. On the console-only production hosts the founder's machine has only the command store, the sentry's public status page and the client channel, and the agent's results arrive about a minute apart.",
+  "design_ref": "../../node/docs/architecture/staging-agent-v1.md",
+  "decisions": [
+    {
+      "question": "How a fault is proven to have taken hold on a real host",
+      "selected": "Read-only proof steps on the fault commands",
+      "rule": "Each fault command ends with one read-only step whose output is the proof, returned in the same signed and sealed result: fault-netem shows the interface's qdisc (tc qdisc show dev eth0), fault-partition lists the fault set (nft list set inet dytallix_fault blocked), and fault-kill waits 2 seconds and reads the unit's state (systemctl show -p ActiveState --value, which exits 0 whatever the state). No new command. This amends the allowlist approved as built in P01_T06_STAGING_AGENT_2026-10-14.json."
+    },
+    {
+      "question": "How recovery is timed on a real host",
+      "selected": "From the public status page",
+      "rule": "The founder's machine reads the sentry's public status page about once a second. A network fault clears at the host's clock when its own dead-man removes it (the injection's finish plus its duration); a process kill clears when the restart command finishes on the host. The sentry has recovered at the first reading, by the founder's clock, that answers 200 with a block made at or after the clear and a height above the one served at the clear. Each scenario records which clock each instant came from. The CI fault drill measures the same way, so the two cannot drift apart."
+    },
+    {
+      "question": "The reconciliation's state check on a real host",
+      "selected": "At the console only",
+      "rule": "Reconciliation through the agent omits the state check (stopping the node, copying its database and running dytallix-state-check), which is optional in the reconciliation report; no agent command can stop a node to copy its database. The founder runs it at the host's console at R07's T+24h and after each restore."
+    }
+  ],
+  "scope": [
+    "The founder's side (staging_founder.py) reaches the hosts only through the command store's S3 API (PUT commands, LIST and GET sealed results, opened with the history code), the status page and the client channel.",
+    "The agent's poll stays a one-minute timer; aligning it to the minute, if the reconciliation needs it, keeps it a one-minute poll."
+  ],
+  "does_not_authorize": [
+    "rebuilding either host or installing the agent on it, each of which needs its own approval",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

@@ -81,11 +81,30 @@ again). The founder opens results with `dytallix-root-sign history-open`.
 | `journal` (`lines` 1 to 5,000) | the node's newest journal lines |
 | `start`, `stop` | the node's unit |
 | `monitor-run`, `backup-run` | one run of the monitor or the sentry's backup job |
-| `fault-kill` | SIGKILL to the node's processes (T5's process kill) |
-| `fault-netem`, `fault-partition`, `fault-clear` | T5's latency and loss (`tc netem`), its self-expiring p2p partition (`inet dytallix_fault`), and their removal |
+| `fault-kill` | SIGKILL to the node's main process (T5's process kill), then, after 2 seconds, the unit's state as its proof |
+| `fault-netem`, `fault-partition`, `fault-clear` | T5's latency and loss (`tc netem`), its self-expiring p2p partition (`inet dytallix_fault`), and their removal; the first two end with a read-only proof (the qdisc, the fault set) |
 
 Nothing that needs a code typed from paper (install, restore, stage,
 switch, wipe, monitor settings) is on it: those stay at the console.
+
+## The founder's side
+
+`staging_founder.py` is the founder's machine's half (the real-host harness,
+[approval](../../../launch/approvals/P01_T06_REAL_HOST_HARNESS_2026-10-14.json)).
+It reaches a console-only host only through public paths: the store's S3 API
+with the founder's own key (PUT a signed command at the next free sequence,
+one past the highest object the store holds for that host, so a planted or
+refused slot is never reused; LIST and GET the sealed results, check each
+copy against the digest in its name, open it with the history code, and
+check its chain, host, sequence and command digest), the sentry's public
+status page, and the client channel. `preflight` reads only and lists the
+checks the founder makes on the real store before the first command: B2
+accepts curl's signing, each host's read key reaches only its own command
+prefix and is remade for each run's chain ID, the history key is write-only,
+and the first command on each host is `fault-clear`, so a different interface
+name fails in seconds. The CI agent and fault drills drive the agent through
+the same module, the stand-in store reached over the network as the real
+store is.
 
 ## Installing
 

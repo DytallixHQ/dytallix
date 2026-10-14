@@ -297,7 +297,7 @@ class FaultDrillTests(unittest.TestCase):
         self.allowlist = json.loads((sn.staging_command.AGENT_DIR / 'ALLOWLIST.json').read_bytes())['commands']
 
     def test_every_scenario_is_allowlisted_and_in_range(self):
-        for scenario in sn.FAULT_SCENARIOS:
+        for scenario in self.faults.SCENARIOS:
             entry = self.allowlist[scenario['command']]
             self.assertFalse(entry.get('stub'), scenario['command'])
             self.assertEqual(set(scenario['args']), set(entry['args']), scenario['name'])
@@ -306,12 +306,12 @@ class FaultDrillTests(unittest.TestCase):
                 self.assertTrue(spec['min'] <= value <= spec['max'], f'{scenario["name"]}.{arg}')
 
     def test_netem_scenarios_are_never_a_noop(self):
-        for scenario in sn.FAULT_SCENARIOS:
+        for scenario in self.faults.SCENARIOS:
             if scenario['command'] == 'fault-netem':
                 self.assertTrue(scenario['args']['delay_ms'] > 0 or scenario['args']['loss_percent'] > 0)
 
     def test_every_scenario_name_is_a_registered_fault_kind(self):
-        for scenario in sn.FAULT_SCENARIOS:
+        for scenario in self.faults.SCENARIOS:
             self.assertIn(scenario['name'], self.faults.KINDS)
 
     def test_the_recovery_target_is_approved_and_wired(self):
