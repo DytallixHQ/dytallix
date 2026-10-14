@@ -11,8 +11,9 @@ R07's checkpoints and their verbatim checks are the brief's, kept in
 (`final_dress_rehearsal_checkpoints`); `schedule('R07')` builds them with the
 offsets below, and only that schedule's digest counts as the dress rehearsal.
 R01 to R06 reconcile "at each checkpoint" but the brief sets no schedule for
-them; that is an open P01 decision, added later as data, so this tool takes a
-schedule as input and never invents one.
+them; P01 approved one on 14 October 2026
+(launch/approvals/P01_T06_SIMULATION_INPUTS_2026-10-14.json), to be added
+later as data, so this tool takes a schedule as input and never invents one.
 
 A checkpoint's status is PASS only when every check is PASS; a FAIL anywhere
 is a FAIL that stops the run (the plan's integrity rule); otherwise, with a
