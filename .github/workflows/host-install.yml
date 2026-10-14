@@ -245,6 +245,14 @@ jobs:
       # not R07's.
       - name: Checkpoint recorder (T7)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py checkpoint --work "$RUNNER_TEMP/network"
+      # The adversarial generator (simulation plan, T4) through the client
+      # channel: an invalid ML-DSA-65 signature, a decode failure, a stale nonce
+      # and an oversized request are each refused at admission, while a valid
+      # control transaction is admitted and committed. After the checkpoint, so
+      # its control commit does not disturb the after-load reconcile it binds.
+      - name: Adversarial generator (T4)
+        timeout-minutes: 15
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py adversary-drill --work "$RUNNER_TEMP/network"
       - name: Restore drill (disaster recovery R6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
       # Seat 5's kit replaced with the release's tools over the sentry's

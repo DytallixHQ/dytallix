@@ -109,6 +109,7 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import adversary  # noqa: E402
 import checkpoints  # noqa: E402
 import faults  # noqa: E402
 import load as load_generator  # noqa: E402
@@ -1330,6 +1331,36 @@ def agent_drill(work, label='sentry-1', timeout=300):
         'the wipe removed the agent')
 
 
+def adversary_drill(work):
+    """The adversarial generator (simulation plan, T4) on the staging network:
+    through the client channel, an invalid ML-DSA-65 signature, a decode failure,
+    a stale nonce and an oversized request are each refused at admission, while a
+    valid control transaction is admitted and committed. Writes digest-bound
+    evidence that `adversary.py verify` re-evaluates. Duplicates, re-signed copies
+    and floods follow with the load machines."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'adversary'
+    env = pinned_cli(work, out)
+    cli = work / 'release-bin' / 'dytallix'
+    load_generator.make_fleet(cli, staging_host.CHAIN_ID, out / 'fleet', 2, voters=0, spares=0, distributors=0)
+    validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
+    native = (chain / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (chain / 'chain' / 'genesis.json').read_bytes()
+    record = load_generator.adversary_run(
+        cli, env['HOME'], out / 'fleet', out / 'run', chain / 'chain' / 'application-config.json',
+        'ecosystem-growth', validator, load_generator.Settings(), native, engine, PUBLIC, show=say,
+        passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+    for row in record['cases']:
+        say(f'== {row["name"]}: {row["status"]} ({row["detail"]})')
+    status = adversary.verify(json.loads((out / 'run' / 'evidence.json').read_bytes()), native, engine)
+    say(json.dumps({'adversary_drill': {'host': PUBLIC, 'status': status,
+                                        'cases': {r['name']: r['status'] for r in record['cases']}}}, indent=2))
+    if status != adversary.PASS:
+        raise Failed(f'the adversarial run is {status}')
+    say(f'== {PUBLIC}: malformed traffic was refused at admission and the valid control committed (the run is {status})')
+
+
 # The fault injector (simulation plan, T5)
 
 # The lean scope: the network and process faults driven through the agent. Each
@@ -1578,8 +1609,8 @@ def main():
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'checkpoint', 'fault-drill',
-                 'restore-drill', 'kit-drill', 'monitor-drill', 'agent-drill', 'diagnostics'):
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'checkpoint', 'adversary-drill',
+                 'fault-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     r = commands.add_parser('reconcile')
     r.add_argument('--work', type=Path, required=True)
@@ -1609,6 +1640,8 @@ def main():
             load_drill(args.work)
         elif args.command == 'checkpoint':
             checkpoint_network(args.work)
+        elif args.command == 'adversary-drill':
+            adversary_drill(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
         elif args.command == 'restore-drill':
@@ -1622,7 +1655,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, adversary.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0
