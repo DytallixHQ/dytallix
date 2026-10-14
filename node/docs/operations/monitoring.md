@@ -9,7 +9,7 @@ approved E05 values `monitor.*` (P01, 10 October 2026,
 
 These are preparation documents. They authorize no live halt, restart, key
 operation or state change; the [rules for every incident](README.md#rules-for-every-incident)
-apply. The services and accounts (A22) and the backup person are unset.
+apply. The services are approved (Better Stack, Healthchecks.io and, for alerts, ntfy.sh); the backup person is unset.
 
 ## Severities
 
@@ -48,9 +48,12 @@ apply. The services and accounts (A22) and the backup person are unset.
    `alert_url` is an ntfy.sh topic whose name is a random 256-bit value,
    pushed to your phone, since every firing and resolved alert goes there
    (a heartbeat ping URL would mark its check up instead); `escalation_url`
-   is the `/fail` URL of the Healthchecks.io check `escalation`, which
-   e-mails the backup person. Both URLs are secrets: keep them only in
-   these settings files.
+   is the `/fail` URL of the host's own Healthchecks.io check
+   (`escalation-validator-1`, `escalation-sentry-1`), which e-mails the
+   backup person. Keep those checks paused with manual resume off; after an
+   incident pause the check again and never send it a success ping (that
+   starts its timeout and later pages the backup person for nothing). Both
+   URLs are secrets: keep them only in these settings files.
 3. At the host console, as root, in the unpacked bundle:
    `./monitor-settings.sh /media/…/validator-1.json`. It checks the label and
    the URLs, installs them root-only (0400) in `/etc/dytallix-monitor/` and

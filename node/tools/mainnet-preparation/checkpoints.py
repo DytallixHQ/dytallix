@@ -12,8 +12,10 @@ R07's checkpoints and their verbatim checks are the brief's, kept in
 offsets below, and only that schedule's digest counts as the dress rehearsal.
 R01 to R06 reconcile "at each checkpoint" but the brief sets no schedule for
 them; P01 approved one on 14 October 2026
-(launch/approvals/P01_T06_SIMULATION_INPUTS_2026-10-14.json), to be added
-later as data, so this tool takes a schedule as input and never invents one.
+(launch/approvals/P01_T06_SIMULATION_INPUTS_2026-10-14.json), not yet built
+here: its event checkpoints follow faults, the upgrade switch and load
+windows rather than fixed offsets, so they need a change to this tool. Until
+then only R07 has a schedule, and this tool never invents one.
 
 A checkpoint's status is PASS only when every check is PASS; a FAIL anywhere
 is a FAIL that stops the run (the plan's integrity rule); otherwise, with a

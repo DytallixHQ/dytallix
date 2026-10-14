@@ -16,8 +16,8 @@
     },
     {
       "question": "P01_E05_MONITORING_SERVICES_2026-10-12, unset: the escalation URL",
-      "selected": "A Healthchecks.io check's failure URL, alerting the backup person by e-mail",
-      "rule": "Each host's escalation_url is the /fail URL of one Healthchecks.io check named escalation, whose integration e-mails the backup person. The monitor job sends a severity 1 alert still firing after 15 minutes there, once; the check goes down and the backup person is e-mailed. There is no acknowledgement: an alert that keeps firing for 15 minutes escalates. Free and no change to the monitor job; the backup person installs nothing. The founder resets the check after the incident."
+      "selected": "A Healthchecks.io check's failure URL, alerting the backup person by e-mail (one check per host)",
+      "rule": "Each host's escalation_url is the /fail URL of that host's own Healthchecks.io escalation check (escalation-validator-1, escalation-sentry-1), whose integration e-mails the backup person; one check per host, so one host's open escalation cannot hide the other's. The monitor job sends a severity 1 alert still firing after 15 minutes there, once; the check goes down and the backup person is e-mailed. There is no acknowledgement: an alert that keeps firing for 15 minutes escalates. The checks are kept paused with manual resume off, so a /fail ping is the only thing that brings one down; after the incident the founder pauses it again and never sends it a success ping, which would start its timeout and, with no further pings, page the backup person with no incident behind it. A test /fail ping at setup confirms the e-mail arrives. Free and no change to the monitor job; the backup person installs nothing."
     }
   ],
   "unset": [
