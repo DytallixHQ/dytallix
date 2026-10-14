@@ -42,6 +42,15 @@ apply. The services and accounts (A22) and the backup person are unset.
    alerts, severity 1). `escalation_url` is null when the alerting service
    escalates by itself; otherwise the job sends a severity 1 alert still
    firing after 15 minutes there, once.
+
+   The approved routing (P01, 14 October 2026,
+   [approval](../../../launch/approvals/P01_E05_ALERT_ROUTING_2026-10-14.json)):
+   `alert_url` is an ntfy.sh topic whose name is a random 256-bit value,
+   pushed to your phone, since every firing and resolved alert goes there
+   (a heartbeat ping URL would mark its check up instead); `escalation_url`
+   is the `/fail` URL of the Healthchecks.io check `escalation`, which
+   e-mails the backup person. Both URLs are secrets: keep them only in
+   these settings files.
 3. At the host console, as root, in the unpacked bundle:
    `./monitor-settings.sh /media/…/validator-1.json`. It checks the label and
    the URLs, installs them root-only (0400) in `/etc/dytallix-monitor/` and

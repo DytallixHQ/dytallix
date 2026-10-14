@@ -31,7 +31,6 @@
     }
   ],
   "unset": [
-    "Where each host's alert URL and escalation URL point (P01_E05_MONITORING_SERVICES_2026-10-12, unset)",
     "The results key itself, made when the collector is built"
   ],
   "does_not_authorize": [
