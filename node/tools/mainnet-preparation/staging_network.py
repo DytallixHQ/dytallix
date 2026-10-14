@@ -1261,7 +1261,7 @@ def founder_channel(work, guest, label, drill, unit):
     # stand-in (absent the table, the port is open anyway).
     guest.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES['validator-1'],
                'tcp', 'dport', str(STANDIN_PORT), 'accept'], check=False)
-    time.sleep(2)
+    wait_standin(guest, unit)
     for name in ('agent.py', 'ALLOWLIST.json'):
         put_file(guest, f'/root/agent/{name}', (staging_command.AGENT_DIR / name).read_text())
     put_file(guest, '/root/agent-settings.json', (drill / 'settings.json').read_text(), '0600')
@@ -1282,6 +1282,28 @@ def founder_channel(work, guest, label, drill, unit):
     store = staging_founder.Store(staging_founder.check_store(FOUNDER_STORE, standin=True), drill / 'store-scratch')
     return staging_founder.Channel(store, staging_host.CHAIN_ID, label, drill / 'results', cli, home, key, paper,
                                    work / 'release-bin' / 'dytallix-root-sign', sleep=poll_now, say=say)
+
+
+def wait_standin(guest, unit, timeout=60):
+    """The stand-in answers on the guest's loopback (where the agent reaches it)
+    and from the runner (where the founder's side does)."""
+    deadline = time.monotonic() + timeout
+    probe = 'import socket, sys; socket.create_connection((sys.argv[1], int(sys.argv[2])), 3)'
+    while True:
+        code, _, _ = guest.run(['python3', '-c', probe, '127.0.0.1', str(STANDIN_PORT)], check=False)
+        if code == 0:
+            break
+        if time.monotonic() > deadline:
+            _, state, _ = guest.run(['systemctl', 'status', '--no-pager', unit], check=False)
+            _, journal, _ = guest.run(['journalctl', '-u', unit, '-o', 'cat', '--no-pager', '-n', '40'], check=False)
+            raise Failed(f'the stand-in store ({unit}) never listened on port {STANDIN_PORT}:\n{state}\n{journal}')
+        time.sleep(1)
+    try:
+        socket.create_connection((ADDRESSES[PUBLIC], STANDIN_PORT), 5).close()
+    except OSError as error:
+        _, rules, _ = guest.run(['nft', 'list', 'ruleset'], check=False)
+        raise Failed(f'the runner cannot reach the stand-in at {ADDRESSES[PUBLIC]}:{STANDIN_PORT} ({error}); '
+                     f'the guest ruleset:\n{rules}')
 
 
 def close_founder_channel(guest, unit):
@@ -1475,6 +1497,7 @@ def diagnostics(work):
                          ['journalctl', '-u', 'dytallix-alert-standin', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['journalctl', '-u', 'dytallix-agent', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['journalctl', '-u', 'dytallix-store-standin-agent', '-o', 'cat', '--no-pager', '-n', '20'],
+                         ['journalctl', '-u', 'dytallix-store-standin-fault', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['tail', '-n', '40', EVENTS],
                          ['journalctl', '-k', '--no-pager', '-n', '50', '--grep', 'apparmor'],
                          ['tail', '-n', '40', '/var/log/cloud-init-output.log']):
