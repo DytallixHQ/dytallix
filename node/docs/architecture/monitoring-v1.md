@@ -120,7 +120,9 @@ block time ahead of the endpoint's clock counts as fresh. The independent
 uptime checker polls it every 3 minutes, its free plan's shortest interval
 (P01, 12 October 2026, [approval](../../../launch/approvals/P01_E05_MONITORING_SERVICES_2026-10-12.json): Better Stack's free plan, alerting
 by e-mail; Healthchecks.io's free plan takes the heartbeats and alerts the
-founder's phone). That one check measures the chain's and the endpoint's
+founder's phone; alerts go to an ntfy.sh topic and escalations to a
+Healthchecks.io check that e-mails the backup person, P01, 14 October 2026,
+[approval](../../../launch/approvals/P01_E05_ALERT_ROUTING_2026-10-14.json)). That one check measures the chain's and the endpoint's
 service targets from outside the hosts.
 
 Built in M2: the adapter's `--status-max-head-age-seconds`, the

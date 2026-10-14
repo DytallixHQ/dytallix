@@ -1,0 +1,40 @@
+{
+  "decision_id": "P01-2026-10-14-T06-STAGING-AGENT",
+  "approved": "2026-10-14",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Staging agent v1: the four choices left open for P01"
+  },
+  "reason": "The staging agent (T2) is built and proven in the CI agent drill, but its key custody, result encryption, store layout and allowlist were proposals. They must be fixed before the agent is installed on the console-only hosts.",
+  "design_ref": "../../node/docs/architecture/staging-agent-v1.md",
+  "decisions": [
+    {
+      "question": "Staging agent v1, open item 1: key custody",
+      "selected": "A dedicated staging command key",
+      "rule": "The staging command key is an ML-DSA-65 key in its own encrypted keystore on the founder's machine, made and used only through the release CLI (dytallix wallet create --name staging-command, dytallix crypto sign). It is never on a fob or with a kit, holds no tokens, and is retired at the wipe before the production install."
+    },
+    {
+      "question": "Staging agent v1, open item 2: result encryption",
+      "selected": "Under the chain's history code",
+      "rule": "The agent's results are sealed like the metric history (dytallix-root-sign history-seal under the chain's history code, bound to the host and day) and opened with history-open. No separate result code and no new dytallix-root-sign command."
+    },
+    {
+      "question": "Staging agent v1, open item 3: store layout",
+      "selected": "The staging bucket, with a read key per host",
+      "rule": "Commands and results use the existing private staging bucket at the storage provider (Backblaze B2): commands under commands/CHAIN/HOST/, results under the agent's results prefix for that chain and host. Keys: the founder's own key, kept only on the founder's machine; one read-only key per host, limited to that host's command prefix, so one host cannot read another's commands; and the existing write-only history key for result uploads. The provider's keys must be limitable to a name prefix and to read-only or write-only use; this is checked when the keys are made."
+    },
+    {
+      "question": "Staging agent v1, open item 4: allowlist and timing",
+      "selected": "The built allowlist, a one-minute poll, a 24-hour validity limit",
+      "rule": "The allowlist is ALLOWLIST.json as built: status, journal, start, stop, monitor-run, backup-run, fault-kill and the fault injector's (T5) fault-netem, fault-partition and fault-clear, which are now real, self-expiring commands. Install, restore, stage, switch, wipe and monitor settings stay at the console. The agent polls once a minute, and a command file is valid for at most 24 hours."
+    }
+  ],
+  "does_not_authorize": [
+    "rebuilding either host or installing the agent on it, each of which needs its own approval",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

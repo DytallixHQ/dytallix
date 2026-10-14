@@ -5,8 +5,9 @@ The production hosts are console-only. While they serve as staging, each
 runs a small agent that carries out the founder's signed commands, so the
 statistical campaign and the seven runs can drive them without a login.
 It is built and proven in the CI staging network (`staging_network.py
-agent-drill`); the decisions below are proposals for P01. The fault
-commands are stubs that T5 fills in.
+agent-drill`). Its open choices were decided by P01 on 14 October 2026
+([approval](../../../launch/approvals/P01_T06_STAGING_AGENT_2026-10-14.json));
+see [Decided by P01](#decided-by-p01). The fault commands are T5's.
 
 ## What it is
 
@@ -81,7 +82,7 @@ again). The founder opens results with `dytallix-root-sign history-open`.
 | `start`, `stop` | the node's unit |
 | `monitor-run`, `backup-run` | one run of the monitor or the sentry's backup job |
 | `fault-kill` | SIGKILL to the node's processes (T5's process kill) |
-| `fault-netem`, `fault-partition`, `fault-clear` | stubs: T5 builds them; they run nothing |
+| `fault-netem`, `fault-partition`, `fault-clear` | T5's latency and loss (`tc netem`), its self-expiring p2p partition (`inet dytallix_fault`), and their removal |
 
 Nothing that needs a code typed from paper (install, restore, stage,
 switch, wipe, monitor settings) is on it: those stay at the console.
@@ -121,15 +122,18 @@ release without the CLI, or a host without the history secrets.
   production install removes everything, wipe removes the agent, and the
   install refuses a host that has it.
 
-## Open for P01
+## Decided by P01
+
+Approved as proposed on 14 October 2026
+([approval](../../../launch/approvals/P01_T06_STAGING_AGENT_2026-10-14.json)):
 
 1. **Key custody:** a dedicated staging command key in its own encrypted
    keystore on the founder's machine, never on a fob or with a kit, retired
    at the final wipe.
 2. **Result encryption under the history code,** as the plan says ("like
-   the metric history"), rather than a separate result code (which would
-   need a new `dytallix-root-sign` command).
-3. **Store layout:** the backup bucket at the second provider with a
-   command prefix; the founder's write key for it, one read-only key for the
-   hosts, and the existing write-only history key for results.
+   the metric history"); no separate result code.
+3. **Store layout:** the staging bucket at the storage provider, commands
+   under `commands/CHAIN/HOST/`; the founder's own key on the founder's
+   machine, **one read-only key per host** limited to that host's command
+   prefix, and the existing write-only history key for results.
 4. **The allowlist** above, a one-minute poll and a 24-hour validity limit.

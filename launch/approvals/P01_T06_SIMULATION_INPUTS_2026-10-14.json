@@ -1,0 +1,43 @@
+{
+  "decision_id": "P01-2026-10-14-T06-SIMULATION-INPUTS",
+  "approved": "2026-10-14",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The simulation plan's remaining inputs: R01 to R06 checkpoints, the results pipeline, the load machines' provider, the campaign's attack counts"
+  },
+  "reason": "The simulation plan approval (P01_T06_SIMULATION_PLAN_2026-10-11) left the load machines' provider and the campaign's attack counts unset; the checkpoint recorder (T7) left R01 to R06's schedule open; and the results pipeline for the launch page had been agreed with the dashboard work but not confirmed by P01.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "R01 to R06 checkpoints (T7)",
+      "selected": "One combined check before genesis, R07's checkpoints after it, and event checkpoints",
+      "rule": "R01 to R06 each run one checkpoint before genesis, at T-1h, carrying both R07's T-6h and T-1h checks (each run starts from rebuilt hosts, so a separate T-6h adds six hours and nothing new). After genesis they run R07's checkpoints at T0, T+15m, T+1h, T+6h and T+24h, never compressed. Each run also reconciles (T6) at an event checkpoint after each fault recovery (R02, R03), after the upgrade switch (R04) and after each load window (R06), so the integrity rule (the same app hash on every node and an exact supply at every checkpoint) covers the moments that put state at risk. Event checkpoints follow events, not fixed offsets from genesis, so the checkpoint recorder needs a change to take them. R07 keeps the brief's schedule exactly."
+    },
+    {
+      "question": "Results pipeline for the launch page",
+      "selected": "Confirmed, signed under a domain prefix",
+      "rule": "The staging agent uploads encrypted results to the staging bucket; the founder pulls and decrypts them, and a collector reduces them to public-safe summaries (counts, percentiles, pass or fail; no addresses, keys or holder names; a successful attack's details embargoed until fixed). The summaries reach the repository by pull request as launch/simulations/results/<run or campaign>/<checkpoint or day>.json, each recording the candidate commit, the binary and genesis digests and the run ID. The dashboard generator derives every value and status from the summaries and the approved targets, never by hand. Each summary has a detached ML-DSA-65 signature from a dedicated results key (never the staging command key, a kit key or a wallet key) over the bytes 'dytallix-launch-results-v1:' followed by the SHA-256 (lowercase hex) of the exact file bytes, the same domain-prefix pattern as the staging command key, made with the release CLI (dytallix crypto sign: pure ML-DSA-65 with an empty FIPS 204 context over the UTF-8 bytes of that text, which is what the site verifies). The results public key is published in the repository and the site verifies with it. Summaries are published at each R07 checkpoint as it passes, at the end of each run, and daily during the campaign."
+    },
+    {
+      "question": "Load machines' provider (D14-Q02, unset)",
+      "selected": "Vultr, hourly",
+      "rule": "The four to eight load machines are Vultr's smallest instances, spread across regions so each has its own address, outside the hosts' provider and the storage provider. They are rented by the hour only for R03, R06 and the campaign's flood runs, hold only rehearsal keys, and are destroyed after each use."
+    },
+    {
+      "question": "The campaign's attack list and counts per type (D14-Q02, unset)",
+      "selected": "One type per listed attack, 3,000 or 30 attempts",
+      "rule": "Each attack listed under the attack types in launch-rehearsals.md is one type. Each type in transactions, staking, governance, root controls and recovery is attempted at least 3,000 times; each endpoint and RPC type and each network type about 30 times. Every type needs zero successes; any success is a defect fixed before the freeze. These are the launch page's campaign targets."
+    }
+  ],
+  "unset": [
+    "The results key itself, made when the collector is built"
+  ],
+  "does_not_authorize": [
+    "renting any load machine before its run",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
