@@ -10,6 +10,13 @@ moved here with its history on 5 October 2026
 the decisions in [launch/DECISIONS_REQUIRED.md](launch/DECISIONS_REQUIRED.md)
 and the order of work in [launch/GENESIS_FRAMEWORK.md](launch/GENESIS_FRAMEWORK.md).
 
+**The public testnet is retired, and all testnet assets with it.** Current
+work is the mainnet simulations (T06): seven pass/fail rehearsal runs, R01 to
+R07, and a statistical attack and fault campaign, run on the production hosts
+as staging with rehearsal keys only. The pass criteria and plan are in
+[launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json](launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)
+and [node/docs/mainnet/launch-rehearsals.md](node/docs/mainnet/launch-rehearsals.md).
+
 ## Layout
 
 | Folder | Contents |
@@ -18,7 +25,7 @@ and the order of work in [launch/GENESIS_FRAMEWORK.md](launch/GENESIS_FRAMEWORK.
 | [sdk/](sdk/) | Rust SDK and `dytallix` CLI, including the ordinary-v2 client and browser crate |
 | [pqc/](pqc/) | PQC primitives (ML-DSA, SLH-DSA, ML-KEM, FN-DSA). The node is the qualification authority. |
 | [contracts/](contracts/) | WASM reference contracts: DGT, DRT, emission, staking, governance, algorithm registry. Not part of the consensus build; nothing here runs on the chain. |
-| [docs/](docs/) | Public documentation source (MkDocs). Mostly written for the public testnet; the tokenomics, security model, CLI reference, contract quickstart and whitepaper errata pages describe the mainnet candidate. |
+| [docs/](docs/) | Public documentation source (MkDocs). Mostly written for the retired public testnet; the tokenomics, security model, CLI reference, contract quickstart and whitepaper errata pages describe the mainnet candidate. |
 | [launch/](launch/) | Launch gates, decision register and P01 approvals, genesis framework, trust model, production values, custody, host and operations records, specifications and tokenomics |
 | [release/](release/) | Reproducible release build, release manifest writer and the repository move |
 
@@ -30,10 +37,10 @@ treasury spending are POST MAINNET (D07-Q01, P01, 29 September 2026).
 `dytallix-comet-bridge` in `node/consensus/cometbft` is the adapter between
 the consensus engine and the application, not a cross-chain bridge.
 
-The testnet faucet moved to
+The testnet faucet code moved to
 [`testnet/faucet`](https://github.com/exocognosis/dytallix/tree/main/testnet/faucet)
-in exocognosis/dytallix on 29 September 2026. It is testnet-only and served
-over TLS, and mainnet has no faucet.
+in exocognosis/dytallix on 29 September 2026. The faucet is retired with the
+testnet, and mainnet has no faucet.
 
 ## Build
 
@@ -68,6 +75,9 @@ under the [Developer Certificate of Origin](DCO). Report vulnerabilities
 privately ([SECURITY.md](SECURITY.md)). Dytallix is dual licensed under the
 [MIT license](LICENSE-MIT) or the [Apache License, Version 2.0](LICENSE-APACHE),
 at your option; third-party code keeps its own license.
+
+The repository is mirrored on [Radicle](https://radicle.dev) as
+`rad:z37xYHhbWJBd5f1WX2gTZWpUjMS8T` (`rad clone rad:z37xYHhbWJBd5f1WX2gTZWpUjMS8T`).
 
 ## Launch documents
 
