@@ -10,10 +10,10 @@ moved here with its history on 5 October 2026
 the decisions in [launch/DECISIONS_REQUIRED.md](launch/DECISIONS_REQUIRED.md)
 and the order of work in [launch/GENESIS_FRAMEWORK.md](launch/GENESIS_FRAMEWORK.md).
 
-**The public testnet is retired, and all testnet assets with it.** Current
-work is the mainnet simulations (T06): seven pass/fail rehearsal runs, R01 to
-R07, and a statistical attack and fault campaign, run on the production hosts
-as staging with rehearsal keys only. The pass criteria and plan are in
+**The public testnet was retired on 4 October 2026, and all testnet assets
+with it.** Current work is the mainnet simulations (T06): seven pass/fail
+rehearsal runs, R01 to R07, and a statistical attack and fault campaign, run
+on the production hosts as staging with rehearsal keys only. The pass criteria and plan are in
 [launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json](launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)
 and [node/docs/mainnet/launch-rehearsals.md](node/docs/mainnet/launch-rehearsals.md).
 
