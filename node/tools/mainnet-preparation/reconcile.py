@@ -18,9 +18,11 @@ success is never inferred from a process exiting.
 The readings come through a host transport: anything with `run(args,
 stdin=None, timeout=600, check=True) -> (code, out, err)` and `read(path) ->
 bytes`. `LocalHost` is the host this process runs on; the staging network's
-guest agent (`staging_network.Agent`) is another; the staging agent (T2) will
-be a third. Clients read the public node through the release's CLI over its
-client channel.
+guest agent (`staging_network.Agent`) is another. A console-only host is read
+through the staging agent (T2) instead: `collect_through_agent` sends its
+read-only reconcile-read to every host for the same minute and evaluates the
+readings its sealed results carry. Clients read the public node through the
+release's CLI over its client channel.
 
 Each host's engine reports its newest block hash and the application hash in
 that block's header, which is the application's hash after the block before;
@@ -618,6 +620,10 @@ def collect(chain_id, hosts, genesis_bytes, client=None, addresses=(), since=Non
         checked = result.get('height') if isinstance(result.get('height'), int) else None
         collector.observations['common_above'] = checked
         collector.until_common(timeout, above=checked)
+    return finish(chain_id, collector, genesis_bytes, started, since, ledger)
+
+
+def finish(chain_id, collector, genesis_bytes, started, since=None, ledger=None):
     observations = collector.observations
     if since is not None:
         try:
@@ -638,6 +644,110 @@ def since_reading(record):
                 'supply': field(record, 'supply', 'the earlier reconciliation')}
     view = reading(record)
     return {'height': view['height'], 'supply': view['supply']}
+
+
+# Through the staging agent (T2)
+
+READ_COMMAND = 'reconcile-read'
+# reconcile-read (staging-agent/ALLOWLIST.json) reads the operator status and
+# the metrics file together 45 times about a second apart: about 50 s, three
+# metrics writes, every block.
+BURST_SECONDS = 50
+# The seconds of the minute in which the founder sends, so that every host's
+# next poll, on the minute by its synchronized clock, finds the command.
+SEND_WINDOW = (5, 40)
+
+
+def iso(seconds):
+    return datetime.fromtimestamp(seconds, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
+def burst_readings(collector, label, result):
+    """One host's reconcile-read result added to the readings: each operator
+    status that answered is an engine reading and each metrics file a supply
+    reading, exactly as the collector reads a host directly."""
+    record = collector.observations['hosts'].setdefault(label, {'engine': {}, 'metrics': {}})
+    if result.get('status') not in ('DONE', 'FAILED'):
+        collector.unreadable(f'{label} agent', f'{READ_COMMAND} is {result.get("status")}: {result.get("reason")}')
+        return
+    for step in result.get('steps') or []:
+        argv, out = step.get('argv') or [], step.get('stdout') or ''
+        if step.get('exit') != 0:
+            continue  # a node stopped or starting gives no reading
+        if out.endswith('\n[truncated]'):
+            collector.unreadable(f'{label} {"engine" if argv[-1:] == ["status"] else "metrics"} (agent)',
+                                 f'the agent kept only the first {64 << 10} bytes')
+            continue
+        if argv[-1:] == ['status']:
+            try:
+                height, block, app = engine_status(out)
+                record['engine'][str(height)] = {'block_hash': block, 'header_app_hash': app}
+            except Missing as error:
+                collector.unreadable(f'{label} engine (agent)', error)
+        elif argv == ['cat', METRICS]:
+            try:
+                found = metrics_supply(out)
+            except Missing as error:
+                collector.unreadable(f'{label} metrics (agent)', error)
+                continue
+            if found:
+                record['metrics'][str(found[0])] = found[1]
+
+
+def collect_through_agent(chain_id, channels, genesis_bytes, live=None, client=None, addresses=(), since=None,
+                          ledger=None, align=True, after_send=None, timeout=600, say=print,
+                          clock=time.monotonic, sleep=time.sleep, wall=time.time):
+    """The reconciliation on console-only hosts (P01, 14 and 20 October 2026):
+    reconcile-read sent through each host's agent channel (anything with
+    `send(command) -> sequence` and `wait(sequences, timeout) -> results`)
+    for the same minute; the client's status view, and any `live` host (the
+    CI validator), read meanwhile as `collect` reads them; then each host's
+    sealed result opened and its readings evaluated as if read directly. The
+    evidence binds each command and result by digest. It has no state check:
+    no agent command can stop a node to copy its database, so that stays at
+    the console."""
+    live = dict(live or {})
+    if set(live) & set(channels):
+        raise Failed(f'read both live and through the agent: {sorted(set(live) & set(channels))}')
+    started = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    if align:
+        second = wall() % 60
+        if not SEND_WINDOW[0] <= second <= SEND_WINDOW[1]:
+            pause = (SEND_WINDOW[0] - second) % 60
+            say(f'== waiting {pause:.0f} s to send inside seconds {SEND_WINDOW[0]} to {SEND_WINDOW[1]} of the minute')
+            sleep(pause)
+    sent, minute = {}, wall() // 60
+    for label, channel in channels.items():
+        sequence = channel.send(READ_COMMAND)
+        sent[label] = {'sequence': sequence, 'sent_at': iso(wall())}
+    if align and (wall() // 60 != minute or wall() % 60 > 58):
+        say('== the commands were sent across a minute: the hosts may read a minute apart (INCONCLUSIVE, never a pass)')
+    if after_send:
+        after_send()
+    # The hosts read from their next poll (the next minute) for BURST_SECONDS.
+    now = wall()
+    until = (now - now % 60 + 60 if align else now) + BURST_SECONDS + 5
+    collector = Collector(live, client, clock=clock, sleep=sleep, say=say)
+    for label in channels:
+        collector.observations['hosts'][label] = {'engine': {}, 'metrics': {}}
+    while wall() < until:
+        collector.sample()
+        sleep(0.5)
+    bound = {}
+    for label, channel in channels.items():
+        sequence = sent[label]['sequence']
+        result = channel.wait([sequence], timeout)[0]
+        burst_readings(collector, label, result)
+        bound[label] = {**sent[label], 'command': result.get('command'), 'status': result.get('status'),
+                        'command_sha256': result.get('command_sha256'), 'received_at': result.get('received_at'),
+                        'finished_at': result.get('finished_at'),
+                        'result': (getattr(channel, 'names', None) or {}).get(sequence)}
+        say(f'== {label}: {READ_COMMAND} {result.get("status")}, '
+            f'{len(collector.observations["hosts"][label]["engine"])} heights read')
+    collector.observations['agent'] = bound
+    if client and addresses:
+        collector.accounts(addresses)
+    return finish(chain_id, collector, genesis_bytes, started, since, ledger)
 
 
 def main():

@@ -18,6 +18,10 @@ passes there passes through the same calls on a real host.
                           [--paper FILE --signer DYTALLIX_ROOT_SIGN --work DIR --wait S]
   staging_founder.py open --store STORE.json --chain ID --host LABEL --paper FILE
                           --signer DYTALLIX_ROOT_SIGN --work DIR
+  staging_founder.py reconcile --store STORE.json --cli DYTALLIX --home DIR --key KEY.json --chain ID
+                               --host LABEL [--host LABEL ...] --paper FILE --signer DYTALLIX_ROOT_SIGN
+                               --work DIR --genesis NATIVE_GENESIS --out EVIDENCE
+                               [--client-home DIR [--addresses FILE]] [--since FILE --ledger FILE]
   staging_founder.py status-page --url URL
   staging_founder.py preflight --store STORE.json --chain ID --host LABEL [--status-url URL]
 
@@ -26,13 +30,18 @@ for the staging bucket, the command prefix and the results prefix (the hosts'
 history upload prefix); it stays on the founder's machine. send signs one
 command with the staging command key at the next free sequence (one past the
 highest the store holds for that host), uploads it, and with --wait opens its
-result. preflight reads, changes nothing, and lists the checks that only the
+result. reconcile is the reconciliation report (T6) on console-only hosts:
+reconcile-read sent to every host for the same minute, the client's status
+view read meanwhile through the pinned CLI home given, and the readings the
+sealed results carry evaluated (reconcile.collect_through_agent); it exits 0
+only on PASS. preflight reads, changes nothing, and lists the checks that only the
 founder can make on the real store and hosts.
 """
 import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -45,6 +54,7 @@ import xml.etree.ElementTree as ElementTree
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import reconcile  # noqa: E402
 import staging_command  # noqa: E402
 agent = staging_command.agent
 
@@ -171,7 +181,8 @@ class Channel:
         self.key = staging_command.load_key(key_path) if key_path else None
         self.scratch, self.paper, self.signer = Path(scratch), paper, signer
         self.clock, self.sleep, self.say = clock, sleep, say
-        self.sent, self.opened = {}, {}
+        # Each opened result's object name and digest, which the evidence binds.
+        self.sent, self.opened, self.names = {}, {}, {}
         self.scratch.mkdir(parents=True, exist_ok=True)
 
     @property
@@ -226,6 +237,7 @@ class Channel:
                     and result.get('sequence') == sequence, f'{key} is a result for {result.get("host")} '
                     f'on {result.get("chain_id")} at {result.get("sequence")}')
             self.opened[sequence] = result
+            self.names[sequence] = {'object': key, 'sha256': found.group(2)}
         return self.opened
 
     def wait(self, sequences, timeout=600, period=10):
@@ -321,6 +333,23 @@ def preflight(store, chain, host, status_url=None, say=print):
     ]))
 
 
+def reconcile_hosts(store, args):
+    channels = {label: Channel(store, args.chain, label, args.work / 'results' / label, args.cli, args.home,
+                               args.key, args.paper, args.signer) for label in args.host}
+    client = None
+    if args.client_home:
+        client = reconcile.Client(args.cli, dict(os.environ, HOME=str(args.client_home)), args.work)
+    load = lambda path: json.loads(path.read_bytes()) if path else None  # noqa: E731
+    record = reconcile.collect_through_agent(
+        args.chain, channels, args.genesis.read_bytes(), client=client, addresses=load(args.addresses) or (),
+        since=load(args.since), ledger=load(args.ledger))
+    args.out.write_text(json.dumps(record, indent=2) + '\n')
+    for row in record['checks']:
+        print(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+    print(f'== reconciliation at height {record["height"]}: {record["status"]} (evidence sha256 {record["sha256"]})')
+    return 0 if record['status'] == reconcile.PASS else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest='command', required=True)
@@ -342,6 +371,15 @@ def main():
             p.add_argument('--wait', type=int, default=0)
         if name == 'preflight':
             p.add_argument('--status-url')
+    r = commands.add_parser('reconcile')
+    for flag in ('--store', '--cli', '--home', '--key', '--paper', '--signer', '--work', '--genesis', '--out'):
+        r.add_argument(flag, type=Path, required=True)
+    r.add_argument('--chain', required=True)
+    r.add_argument('--host', action='append', required=True)
+    r.add_argument('--client-home', type=Path)
+    r.add_argument('--addresses', type=Path, help='a JSON list of the tracked addresses')
+    r.add_argument('--since', type=Path)
+    r.add_argument('--ledger', type=Path)
     s = commands.add_parser('status-page')
     s.add_argument('--url', required=True)
     args = parser.parse_args()
@@ -353,6 +391,8 @@ def main():
         if args.command == 'preflight':
             preflight(store, args.chain, args.host, args.status_url)
             return 0
+        if args.command == 'reconcile':
+            return reconcile_hosts(store, args)
         if args.command == 'send':
             channel = Channel(store, args.chain, args.host, args.work, args.cli, args.home, args.key,
                               args.paper, args.signer)
@@ -364,7 +404,7 @@ def main():
         for sequence, result in sorted(channel.open_all().items()):
             print(json.dumps({'sequence': sequence, 'command': result['command'], 'status': result['status'],
                               'reason': result['reason'], 'finished_at': result.get('finished_at')}))
-    except (Failed, staging_command.Failed, agent.Failed, OSError, KeyError, ValueError,
+    except (Failed, reconcile.Failed, staging_command.Failed, agent.Failed, OSError, KeyError, ValueError,
             subprocess.TimeoutExpired) as error:
         print(f'staging_founder: {error}', file=sys.stderr)
         return 1
