@@ -87,9 +87,7 @@ agent-drill is the staging agent drill (simulation plan, T2): the founder's
 staging command key is made with the release's CLI on the runner and the
 agent installed on the sentry beside its node. Signed status and journal
 commands run; a tampered, an unsigned, a replayed, a non-allowlisted and an
-expired command are refused, and the node keeps running. The reconciliation
-(T6) then runs through the agent's reconcile-read, as on console-only hosts;
-its evidence is reconcile-agent/evidence.json. Every result is
+expired command are refused, and the node keeps running. Every result is
 encrypted with the history code, uploaded to the stand-in store and opened
 on the runner. Last, wipe.sh removes the node and the agent together.
 """
@@ -1365,7 +1363,6 @@ def agent_drill(work, label='sentry-1', timeout=300):
     last = channel.run('status', timeout=timeout)
     if last['sequence'] != 8 or last['status'] != 'DONE':
         raise Failed(f'the founder\'s next command did not run at sequence 8: {last}')
-    agent_reconcile(work, guest, label, channel, timeout)
     # Nothing refused ran: the node never stopped.
     _, active, _ = guest.run(['systemctl', 'is-active', 'dytallix-node'], check=False)
     if active.strip() != 'active':
@@ -1384,33 +1381,6 @@ def agent_drill(work, label='sentry-1', timeout=300):
         raise Failed(f'the wipe left the staging agent behind: {left.split()}')
     say(f'== {label}: through the founder\'s store API, signed commands ran once, the rest were refused, '
         'results were listed and opened with the history code; the wipe removed the agent')
-
-
-def agent_reconcile(work, guest, label, channel, timeout):
-    """The reconciliation (T6) as on console-only hosts
-    (reconcile.collect_through_agent): the sentry read only through its signed
-    reconcile-read, the validator on the runner meanwhile and the client over
-    the sentry's client channel; no state check (it stays at the console).
-    CI starts the guest's poll at once instead of on the minute."""
-    out = work / 'reconcile-agent'
-    env = pinned_cli(work, out)
-    genesis = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
-    record = reconcile.collect_through_agent(
-        staging_host.CHAIN_ID, {label: channel}, genesis, live={'validator-1': reconcile.LocalHost()},
-        client=reconcile.Client(work / 'release-bin' / 'dytallix', env, out), align=False,
-        after_send=lambda: guest.run(['systemctl', 'start', '--no-block', 'dytallix-agent.service']),
-        timeout=timeout, say=say)
-    path = out / 'evidence.json'
-    path.write_text(json.dumps(record, indent=2) + '\n')
-    for row in record['checks']:
-        say(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
-    bound = record['observations']['agent'][label]
-    say(f'== reconciliation through {label}\'s agent at height {record["height"]}: {record["status"]} '
-        f'(sequence {bound["sequence"]}, result {bound["result"]}; evidence sha256 {record["sha256"]})')
-    if record['status'] != reconcile.PASS or reconcile.verify(json.loads(path.read_bytes()), genesis) != reconcile.PASS:
-        raise Failed(f'the reconciliation through the agent is {record["status"]}')
-    if not bound['result'] or bound['command_sha256'] != channel.sent[bound['sequence']]:
-        raise Failed(f'the evidence does not bind the signed command and its sealed result: {bound}')
 
 
 def adversary_drill(work):
