@@ -288,6 +288,22 @@ class ParsingTests(unittest.TestCase):
                          b'"not_after":5,"schema":"dytallix.staging-command.v1","sequence":1}')
         self.assertEqual(agent.message(body), agent.DOMAIN + hashlib.sha256(agent.canonical(body)).hexdigest())
 
+    def test_the_reconciliation_read_only_reads(self):
+        entry = ALLOWLIST['commands']['reconcile-read']
+        read = (['{bin}/dytallix-operator-rpc', '--home', '/var/lib/dytallix/node', 'status'],
+                ['cat', '/var/lib/dytallix/metrics/dytallix-app.prom'])
+        self.assertEqual(entry['args'], {})
+        self.assertEqual(entry['steps'][:2], list(read))
+        self.assertTrue(all(step in read or step == ['sleep', '1'] for step in entry['steps']))
+        self.assertEqual(sum(step == read[0] for step in entry['steps']), 45)
+        self.assertEqual(sum(step == ['sleep', '1'] for step in entry['steps']), 44)
+
+    def test_the_poll_runs_on_the_minute(self):
+        timer = agent.TIMER_TEXT
+        self.assertIn('OnCalendar=*-*-* *:*:00\n', timer)
+        self.assertIn('AccuracySec=1s\n', timer)
+        self.assertNotIn('OnUnitInactiveSec', timer)
+
     def test_the_allowlist_runs_no_shell_and_has_no_stubs(self):
         for name, entry in ALLOWLIST['commands'].items():
             for step in entry['steps']:

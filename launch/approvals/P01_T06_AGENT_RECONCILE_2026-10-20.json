@@ -1,0 +1,34 @@
+{
+  "decision_id": "P01-2026-10-20-T06-AGENT-RECONCILE",
+  "approved": "2026-10-20",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Reconciliation through the staging agent (T6 on console-only hosts) and the load machines' provider"
+  },
+  "reason": "The reconciliation passes only when every node's engine was read at one height and each node's supply at a height every node's header attests. Through the agent a host was read once a poll, the hosts' one-minute polls ran on independent phases, blocks are 5 s and the metrics file is written every 15 s, so single status readings would almost never meet; the operator RPC has no read at a given height. The load machines' provider was chosen again.",
+  "design_ref": "../../node/docs/architecture/staging-agent-v1.md",
+  "decisions": [
+    {
+      "question": "How the agent reads every host at one height for the reconciliation",
+      "selected": "A timed read burst",
+      "rule": "One read-only command, reconcile-read, reads the operator status and the application metrics file together 45 times about a second apart (about 50 s, every block and three metrics writes), as fixed allowlisted steps with no argument (the allowlist's steps are fixed, so the burst's length is too). The agent's poll runs on the minute by the host's synchronized clock (OnCalendar each minute, AccuracySec 1 s), which stays a one-minute poll as P01_T06_REAL_HOST_HARNESS_2026-10-14.json allows. The founder sends the command to every host within seconds 5 to 40 of a minute, so each host's next poll starts it within about a second of the others; the founder reads the client's status view meanwhile, opens each sealed result and evaluates its readings with the reconciliation's own rules (reconcile.collect_through_agent; staging_founder.py reconcile). The evidence binds each signed command and sealed result by digest. Bursts that do not overlap give no common height and so INCONCLUSIVE, never a pass. There is still no state check through the agent; it stays at the console. No release code changes. This adds reconcile-read to the allowlist approved in P01_T06_STAGING_AGENT_2026-10-14.json."
+    },
+    {
+      "question": "The load machines' provider (D14-Q02)",
+      "selected": "DigitalOcean, hourly",
+      "rule": "The four to eight load machines are DigitalOcean's smallest droplets, spread across regions so each has its own address, outside the hosts' provider and the storage provider. They are rented by the hour only for R03, R06 and the campaign's flood runs, hold only rehearsal keys, and are destroyed after each use."
+    }
+  ],
+  "supersedes": [
+    "Load machines' provider, D14-Q02 'Vultr, hourly' (P01_T06_SIMULATION_INPUTS_2026-10-14): now DigitalOcean, hourly, on the same terms."
+  ],
+  "does_not_authorize": [
+    "renting any load machine before its run",
+    "rebuilding either host or installing the agent on it, each of which needs its own approval",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

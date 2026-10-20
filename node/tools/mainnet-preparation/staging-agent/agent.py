@@ -84,13 +84,16 @@ Type=oneshot
 ExecStart=/usr/bin/python3 -I -B {OPT}/agent.py poll
 TimeoutStartSec=3600
 '''
+# On the minute by the host's synchronized clock, so a command sent to every
+# host for one minute starts on each within about a second (reconcile-read;
+# P01, 14 and 20 October 2026). A poll still running at the next minute is
+# not started twice.
 TIMER_TEXT = '''[Unit]
 Description=Poll for signed staging commands every minute
 
 [Timer]
-OnBootSec=60
-OnUnitInactiveSec=60
-AccuracySec=5
+OnCalendar=*-*-* *:*:00
+AccuracySec=1s
 
 [Install]
 WantedBy=timers.target
