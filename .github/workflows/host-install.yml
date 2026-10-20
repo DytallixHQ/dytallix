@@ -253,6 +253,15 @@ jobs:
       - name: Adversarial generator (T4)
         timeout-minutes: 15
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py adversary-drill --work "$RUNNER_TEMP/network"
+      # The validator's host is lost and replaced by the fence-first
+      # procedure (validator recovery F17; simulation plan, T9): the runner's
+      # wipe.sh stands for the provider deleting it, the sentry's old votes
+      # are set aside, the replacement block-syncs to H and signs from H + 1,
+      # judged against the 8-hour objective. Before the restore drill, while
+      # the sentry still holds every block from genesis.
+      - name: Validator recovery drill (T9)
+        timeout-minutes: 20
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py validator-recovery-drill --work "$RUNNER_TEMP/network"
       - name: Restore drill (disaster recovery R6)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py restore-drill --work "$RUNNER_TEMP/network"
       # Seat 5's kit replaced with the release's tools over the sentry's
