@@ -18,7 +18,9 @@ see [Decided by P01](#decided-by-p01). The fault commands are T5's.
 - **On the host** after the node's install: `/opt/dytallix-agent/` (the two
   files, root, read-only), `/etc/dytallix-agent/settings.json` (root, 0400),
   `/var/lib/dytallix-agent/` (state, outbox, scratch; root, 0700) and the
-  `dytallix-agent.{service,timer}` units, a oneshot every minute.
+  `dytallix-agent.{service,timer}` units, a oneshot on every minute by the
+  host's synchronized clock (so a command sent to every host for one minute
+  starts on each within about a second; reconcile-read).
 - **Removed** by `wipe.sh` (`host_install.py wipe`) with the node, or by
   `agent.py remove`. `install.sh` refuses a host that still has any of its
   paths, so a production install cannot happen beside it.
@@ -78,6 +80,7 @@ again). The founder opens results with `dytallix-root-sign history-open`.
 | Command | Steps |
 |---|---|
 | `status` | the unit's state, the operator status, the application metrics, disk, memory, clock sync |
+| `reconcile-read` | the operator status and the application metrics read together 45 times about a second apart (about 50 s), read-only: the reconciliation's readings (T6) |
 | `journal` (`lines` 1 to 5,000) | the node's newest journal lines |
 | `start`, `stop` | the node's unit |
 | `monitor-run`, `backup-run` | one run of the monitor or the sentry's backup job |
@@ -97,7 +100,15 @@ one past the highest object the store holds for that host, so a planted or
 refused slot is never reused; LIST and GET the sealed results, check each
 copy against the digest in its name, open it with the history code, and
 check its chain, host, sequence and command digest), the sentry's public
-status page, and the client channel. `preflight` reads only and lists the
+status page, and the client channel. `reconcile` is the reconciliation report (T6) on console-only hosts:
+it sends reconcile-read to every host within seconds 5 to 40 of one minute,
+so each host's next poll starts it on the minute; reads the client's status
+view meanwhile; then opens each sealed result and evaluates its readings with
+the reconciliation's own rules (`reconcile.collect_through_agent`), the
+evidence binding each command and result by digest. Bursts that do not
+overlap give no common height, so INCONCLUSIVE, never a pass; the state check
+stays at the console ([approval](../../../launch/approvals/P01_T06_AGENT_RECONCILE_2026-10-20.json)).
+`preflight` reads only and lists the
 checks the founder makes on the real store before the first command: B2
 accepts curl's signing, each host's read key reaches only its own command
 prefix and is remade for each run's chain ID, the history key is write-only,
@@ -156,3 +167,8 @@ Approved as proposed on 14 October 2026
    machine, **one read-only key per host** limited to that host's command
    prefix, and the existing write-only history key for results.
 4. **The allowlist** above, a one-minute poll and a 24-hour validity limit.
+
+On 20 October 2026 P01 added `reconcile-read` and put the poll on the minute
+([approval](../../../launch/approvals/P01_T06_AGENT_RECONCILE_2026-10-20.json));
+on 14 October, the fault commands' read-only proof steps
+([approval](../../../launch/approvals/P01_T06_REAL_HOST_HARNESS_2026-10-14.json)).
