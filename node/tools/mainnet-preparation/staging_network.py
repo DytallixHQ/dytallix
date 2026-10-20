@@ -93,7 +93,6 @@ on the runner. Last, wipe.sh removes the node and the agent together.
 """
 import argparse
 import base64
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -115,6 +114,7 @@ import faults  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import staging_command  # noqa: E402
+import staging_founder  # noqa: E402
 import staging_host  # noqa: E402
 
 BRIDGE = 'dytbr0'
@@ -1219,51 +1219,124 @@ def monitor_drill(work, label='sentry-1'):
 # The staging agent (simulation plan, T2)
 
 COMMAND_STORE = dict(UPLOAD, prefix='staging-commands/', access_key_id='STANDINREAD', secret_access_key='cmVhZC1vbmx5')
-AGENT_STATE = '/var/lib/dytallix-agent/state.json'
+# The founder's own key (T2's real-host harness): PUT, GET and LIST, over the
+# network as the founder reaches the real store.
+FOUNDER_STORE = {'schema': staging_founder.STORE_SCHEMA, 'endpoint': f'http://{ADDRESSES["sentry-1"]}:{STANDIN_PORT}',
+                 'bucket': COMMAND_STORE['bucket'], 'region': COMMAND_STORE['region'],
+                 'access_key_id': 'STANDINFOUNDER', 'secret_access_key': 'Zm91bmRlci1vbmx5',
+                 'commands_prefix': COMMAND_STORE['prefix'], 'results_prefix': HISTORY_UPLOAD['prefix']}
 
 
 def put_file(guest, path, text, mode='0644'):
     guest.run(['sh', '-c', f'mkdir -p "$(dirname {path})" && umask 077 && cat > {path} && chmod {mode} {path}'], stdin=text)
 
 
-def agent_drill(work, label='sentry-1', timeout=300):
-    """The staging agent (T2) on the sentry: the founder's key made with the
-    release's CLI on the runner, the agent installed beside the node, and
-    signed commands placed in the stand-in store. A signed status and a
-    signed journal run; a tampered, an unsigned, a replayed, a
-    non-allowlisted and an expired command are refused; every result is
-    encrypted, uploaded, and opened on the runner with the history code.
-    Then wipe.sh removes the node and the agent together."""
-    work = Path(work)
-    guest, chain, cli = agent(work, label), staging_host.CHAIN_ID, work / 'release-bin' / 'dytallix'
-    drill = work / 'agent-drill'
-    drill.mkdir()
+def founder_channel(work, guest, label, drill, unit):
+    """The founder's side of the agent (T2), as on a real host: the staging
+    command key made with the release's CLI, the agent installed beside the
+    node with a read key for its own command prefix, and a channel that
+    reaches the store only through its S3 API (staging_founder.py) with the
+    founder's key. The stand-in store on the guest stands for the real one:
+    the agent and the host's jobs use it on loopback, the founder over the
+    network, which this CI-only rule opens to the runner alone."""
     passphrase = drill / 'passphrase'
     descriptor = os.open(passphrase, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as file:
         file.write(hashlib.sha256(os.urandom(32)).hexdigest() + '\n')
     os.environ['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
-    home, key = drill / 'founder', drill / 'key.json'
+    cli, home, key = work / 'release-bin' / 'dytallix', drill / 'founder', drill / 'key.json'
     staging_command.make_key(cli, home, key)
     (drill / 'read.json').write_text(json.dumps(COMMAND_STORE))
-    staging_command.make_settings(key, label, chain, drill / 'read.json', drill / 'settings.json')
-    # One stand-in store for the commands, the results and the backups.
-    guest.run(['systemctl', 'stop', 'dytallix-store-standin'], check=False)
-    guest.run(['systemd-run', '--unit=dytallix-store-standin-agent', 'python3', '/root/s3_standin.py', '--root',
-               '/var/tmp/standin', '--port', str(STANDIN_PORT), '--access-key-id', UPLOAD['access_key_id'],
-               '--access-key-id', HISTORY_UPLOAD['access_key_id'], '--read-key-id', COMMAND_STORE['access_key_id']])
-    time.sleep(2)
+    staging_command.make_settings(key, label, staging_host.CHAIN_ID, drill / 'read.json', drill / 'settings.json')
+    guest.run(['systemctl', 'stop', 'dytallix-store-standin', 'dytallix-store-standin-agent',
+               'dytallix-store-standin-fault'], check=False)
+    guest.run(['rm', '-rf', f'/var/tmp/standin/{COMMAND_STORE["bucket"]}/{COMMAND_STORE["prefix"]}',
+               f'/var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/{HISTORY_UPLOAD["prefix"]}{staging_host.CHAIN_ID}/agent'],
+              check=False)
+    guest.run(['systemd-run', f'--unit={unit}', 'python3', '/root/s3_standin.py', '--root', '/var/tmp/standin',
+               '--port', str(STANDIN_PORT), '--bind', '0.0.0.0', '--access-key-id', UPLOAD['access_key_id'],
+               '--access-key-id', HISTORY_UPLOAD['access_key_id'], '--read-key-id', COMMAND_STORE['access_key_id'],
+               '--founder-key-id', FOUNDER_STORE['access_key_id']])
+    # The host firewall drops what it does not list; let the runner reach the
+    # stand-in (absent the table, the port is open anyway).
+    guest.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES['validator-1'],
+               'tcp', 'dport', str(STANDIN_PORT), 'accept'], check=False)
+    wait_standin(guest, unit)
     for name in ('agent.py', 'ALLOWLIST.json'):
         put_file(guest, f'/root/agent/{name}', (staging_command.AGENT_DIR / name).read_text())
     put_file(guest, '/root/agent-settings.json', (drill / 'settings.json').read_text(), '0600')
     _, out, _ = guest.run(['python3', '-I', '-B', '/root/agent/agent.py', 'install', '--settings', '/root/agent-settings.json'])
     say(out.strip())
+    codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
+    paper = drill / 'history-paper.txt'
+    descriptor = os.open(paper, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(descriptor, 'w') as file:
+        file.write(codes['history'] + '\n')
+
+    def poll_now(seconds):
+        """CI only: run the agent's poll now instead of waiting for its
+        one-minute timer. The founder never can; the channel just waits."""
+        guest.run(['systemctl', 'start', 'dytallix-agent.service'], timeout=600, check=False)
+        time.sleep(min(seconds, 3))
+
+    store = staging_founder.Store(staging_founder.check_store(FOUNDER_STORE, standin=True), drill / 'store-scratch')
+    return staging_founder.Channel(store, staging_host.CHAIN_ID, label, drill / 'results', cli, home, key, paper,
+                                   work / 'release-bin' / 'dytallix-root-sign', sleep=poll_now, say=say)
+
+
+def wait_standin(guest, unit, timeout=60):
+    """The stand-in answers on the guest's loopback (where the agent reaches it)
+    and from the runner (where the founder's side does)."""
+    deadline = time.monotonic() + timeout
+    probe = 'import socket, sys; socket.create_connection((sys.argv[1], int(sys.argv[2])), 3)'
+    while True:
+        code, _, _ = guest.run(['python3', '-c', probe, '127.0.0.1', str(STANDIN_PORT)], check=False)
+        if code == 0:
+            break
+        if time.monotonic() > deadline:
+            _, state, _ = guest.run(['systemctl', 'status', '--no-pager', unit], check=False)
+            _, journal, _ = guest.run(['journalctl', '-u', unit, '-o', 'cat', '--no-pager', '-n', '40'], check=False)
+            raise Failed(f'the stand-in store ({unit}) never listened on port {STANDIN_PORT}:\n{state}\n{journal}')
+        time.sleep(1)
+    try:
+        socket.create_connection((ADDRESSES[PUBLIC], STANDIN_PORT), 5).close()
+    except OSError as error:
+        _, rules, _ = guest.run(['nft', 'list', 'ruleset'], check=False)
+        raise Failed(f'the runner cannot reach the stand-in at {ADDRESSES[PUBLIC]}:{STANDIN_PORT} ({error}); '
+                     f'the guest ruleset:\n{rules}')
+
+
+def close_founder_channel(guest, unit):
+    guest.run(['systemctl', 'stop', unit], check=False)
+    guest.run(['nft', 'delete', 'rule', 'inet', 'dytallix_node', 'input', 'handle',
+               *founder_rule_handle(guest)], check=False)
+
+
+def founder_rule_handle(guest):
+    _, listing, _ = guest.run(['nft', '-a', 'list', 'chain', 'inet', 'dytallix_node', 'input'], check=False)
+    found = re.search(rf'ip saddr {re.escape(ADDRESSES["validator-1"])} tcp dport {STANDIN_PORT} accept # handle (\d+)',
+                      listing)
+    return [found.group(1)] if found else []
+
+
+def agent_drill(work, label='sentry-1', timeout=300):
+    """The staging agent (T2) on the sentry, driven only through the founder's
+    path (staging_founder.py): signed commands PUT into the store with the
+    founder's key, sealed results LISTed, fetched and opened with the history
+    code. A signed status and a signed journal run; a tampered, an unsigned, a
+    replayed, a non-allowlisted and an expired command are refused. Then
+    wipe.sh removes the node and the agent together."""
+    work = Path(work)
+    guest, chain, cli = agent(work, label), staging_host.CHAIN_ID, work / 'release-bin' / 'dytallix'
+    drill = work / 'agent-drill'
+    drill.mkdir()
+    unit = 'dytallix-store-standin-agent'
+    channel = founder_channel(work, guest, label, drill, unit)
     now = guest_time(guest)
-    public_key = staging_command.load_key(key)
 
     def make(sequence, command, args=None, not_after=None):
         body = staging_command.body(chain, label, sequence, command, args or {}, not_after or now + 1800)
-        return staging_command.sign(cli, home, public_key, body)
+        return staging_command.sign(cli, channel.home, channel.key, body)
 
     status = make(1, 'status')
     tampered = json.loads(make(2, 'status'))
@@ -1274,51 +1347,30 @@ def agent_drill(work, label='sentry-1', timeout=300):
     expected = {1: ('DONE', None), 2: ('REFUSED', 'does not verify'), 3: ('REFUSED', 'not a signed command'),
                 4: ('REFUSED', 'signed as sequence 1, expected 4'), 5: ('REFUSED', 'not on the allowlist'),
                 6: ('REFUSED', 'expired'), 7: ('DONE', None)}
-    store = f'/var/tmp/standin/{COMMAND_STORE["bucket"]}/{COMMAND_STORE["prefix"]}{chain}/{label}'
+    # The hostile objects go in through the same store API a planted object would.
     for sequence, raw in commands.items():
-        put_file(guest, f'{store}/{sequence:010}.json', raw.decode())
-    deadline = time.monotonic() + timeout
-    while True:
-        guest.run(['systemctl', 'start', 'dytallix-agent.service'], timeout=600, check=False)
-        state = json.loads(guest.read(AGENT_STATE))
-        _, listing, _ = guest.run(['sh', '-c', f'ls /var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/'
-                                              f'{HISTORY_UPLOAD["prefix"]}{chain}/agent/{label}/ 2>/dev/null'], check=False)
-        copies = sorted(listing.split())
-        if state['next_sequence'] == 8 and len(copies) == len(commands):
-            break
-        if time.monotonic() > deadline:
-            _, journal, _ = guest.run(['journalctl', '-u', 'dytallix-agent', '-o', 'cat', '--no-pager', '-n', '20'])
-            raise Failed(f'the agent handled up to {state["next_sequence"] - 1} with {len(copies)} results:\n{journal}')
-        time.sleep(5)
-    codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
-    paper = drill / 'history-paper.txt'
-    descriptor = os.open(paper, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, 'w') as file:
-        file.write(codes['history'] + '\n')
-    signer = work / 'release-bin' / 'dytallix-root-sign'
-    evidence = {}
-    for name in copies:
-        copy = drill / name
-        copy.write_bytes(guest.read(f'/var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/{HISTORY_UPLOAD["prefix"]}'
-                                    f'{chain}/agent/{label}/{name}'))
-        sh(str(signer), 'history-open', '-paper', str(paper), '-in', str(copy), '-out', str(copy.with_suffix('.json')))
-        result = json.loads(copy.with_suffix('.json').read_bytes())
-        if result['chain_id'] != chain or result['host'] != label:
-            raise Failed(f'{name} is a result for {result["host"]} on {result["chain_id"]}')
-        evidence[result['sequence']] = result
+        channel.store.put(f'{channel.commands}{sequence:010}.json', raw)
+    if channel.next_sequence() != 8:
+        raise Failed('the founder\'s listing does not show the seven commands')
+    evidence = {r['sequence']: r for r in channel.wait(list(commands), timeout)}
     for sequence, (status_expected, reason) in expected.items():
         result = evidence.get(sequence)
         if result is None or result['status'] != status_expected or (reason and reason not in (result['reason'] or '')):
             raise Failed(f'command {sequence}: expected {status_expected} {reason or ""}, got {result}')
     if evidence[1]['steps'][0]['stdout'].strip() != 'active' or not evidence[7]['steps'][0]['stdout'].strip():
         raise Failed(f'the status and journal results hold no output: {evidence[1]["steps"][0]}')
+    # The founder's own next command takes the next free slot and runs.
+    last = channel.run('status', timeout=timeout)
+    if last['sequence'] != 8 or last['status'] != 'DONE':
+        raise Failed(f'the founder\'s next command did not run at sequence 8: {last}')
     # Nothing refused ran: the node never stopped.
     _, active, _ = guest.run(['systemctl', 'is-active', 'dytallix-node'], check=False)
     if active.strip() != 'active':
         raise Failed(f'{label}\'s node is {active.strip()} after the refused stop commands')
     wait_height(guest, label, (guest_height(guest) or 0) + 2, timeout)
     say(json.dumps({'agent_drill': {str(n): {'status': r['status'], 'command': r['command'], 'reason': r['reason']}
-                                    for n, r in sorted(evidence.items())}}, indent=2))
+                                    for n, r in sorted(channel.opened.items())}}, indent=2))
+    close_founder_channel(guest, unit)
     # wipe.sh removes the agent with the node.
     _, out, _ = guest.run(['/root/node/dytallix-host/wipe.sh'], stdin=f'wipe {label}\n', timeout=300)
     say(out.strip())
@@ -1327,8 +1379,8 @@ def agent_drill(work, label='sentry-1', timeout=300):
                                         'do [ -e "$p" ] && echo "$p"; done; true'])
     if left.strip():
         raise Failed(f'the wipe left the staging agent behind: {left.split()}')
-    say(f'== {label}: signed commands ran once, the rest were refused, results opened with the history code; '
-        'the wipe removed the agent')
+    say(f'== {label}: through the founder\'s store API, signed commands ran once, the rest were refused, '
+        'results were listed and opened with the history code; the wipe removed the agent')
 
 
 def adversary_drill(work):
@@ -1363,200 +1415,53 @@ def adversary_drill(work):
 
 # The fault injector (simulation plan, T5)
 
-# The lean scope: the network and process faults driven through the agent. Each
-# netem fault sets a non-trivial delay and loss (the allowlist forbids a no-op),
-# and every fault is short so the sentry falls only a little behind the still
-# producing validator.
-FAULT_SCENARIOS = (
-    {'name': 'latency', 'command': 'fault-netem',
-     'args': {'delay_ms': 400, 'loss_percent': 5, 'duration_seconds': 45}},
-    {'name': 'loss', 'command': 'fault-netem',
-     'args': {'delay_ms': 50, 'loss_percent': 40, 'duration_seconds': 45}},
-    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
-    {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
-)
-
-
-def guest_iso(guest):
-    """The guest's clock as a UTC ISO instant (faults.py reads it back)."""
-    return datetime.fromtimestamp(guest_time(guest), tz=timezone.utc).isoformat()
-
-
-def fault_effect(name, guest):
-    """Proof the fault took hold, read through the guest agent (its virtio serial
-    survives the fault the network path does not)."""
+def fault_gone(name, guest):
+    """CI only: the host's own dead-man removed the fault (the netem qdisc or the
+    partition element), which is what keeps a console-only host reachable."""
     if name in ('latency', 'loss'):
         _, qdisc, _ = guest.run(['tc', 'qdisc', 'show', 'dev', 'eth0'], check=False)
-        return {'qdisc': qdisc.strip()}
-    if name == 'partition':
-        # The drop is in place: the p2p port is in the fault set. Deterministic,
-        # unlike watching for a freeze (which races TCP connection teardown).
-        _, blocked, _ = guest.run(['nft', 'list', 'set', 'inet', 'dytallix_fault', 'blocked'], check=False)
-        return {'installed': '26656' in blocked, 'set': blocked.strip()}
-    _, active, _ = guest.run(['systemctl', 'is-active', 'dytallix-node'], check=False)
-    return {'active': active.strip()}
-
-
-def wait_fault_gone(name, guest, timeout):
-    """Wait for the host's own dead-man to remove a network fault: the netem
-    qdisc (its systemd-run timer) or the partition element (its nftables
-    timeout). This is what protects a console-only host, so letting it be the
-    clear exercises it here."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if name in ('latency', 'loss'):
-            _, qdisc, _ = guest.run(['tc', 'qdisc', 'show', 'dev', 'eth0'], check=False)
-            if 'netem' not in qdisc:
-                return
-        else:
-            _, blocked, _ = guest.run(['nft', 'list', 'set', 'inet', 'dytallix_fault', 'blocked'], check=False)
-            if '26656' not in blocked:
-                return
-        time.sleep(3)
-    raise Failed(f'{name}: the host dead-man did not clear the fault in {timeout} s')
+        return 'netem' not in qdisc
+    _, blocked, _ = guest.run(['nft', 'list', 'set', 'inet', 'dytallix_fault', 'blocked'], check=False)
+    return '26656' not in blocked
 
 
 def fault_drill(work, label='sentry-1', timeout=300):
-    """The fault injector (simulation plan, T5) on the sentry, driven through the
-    signed staging agent so the allowlisted fault commands that will run on the
-    real hosts are exactly what runs here. For each scenario it reads the
-    sentry's baseline height, has the agent inject the fault, proves the fault
-    took hold, clears it, and times how long the sentry takes to catch back up to
-    the validator, which keeps producing throughout. It writes digest-bound
-    evidence that `faults.py verify` re-evaluates; each recovery is judged against
-    the approved recovery target (launch/simulations/TIMINGS.json,
-    fault_recovery_target_seconds), so a scenario PASSES when the sentry catches
-    up within it and FAILS when it does not.
-
-    Peer drops and host loss follow in a later PR (they need a VM restart path).
-    The network faults self-expire on the host (a netem dead-man timer and an
-    nftables timeout set), so a console-only host cannot be locked out; the drill
-    waits for that dead-man to be the clear, so the safety net is proven here.
-    The interface is eth0 (the staging guest's; the real-host interface is
-    confirmed with the real-host harness, T2)."""
+    """The fault injector (simulation plan, T5) on the sentry, run exactly as on
+    a real host (faults.run_scenarios): each fault through the founder's channel
+    to the signed agent, its proof from the command's read-only last step, and
+    recovery timed on the public status page read from the runner about once a
+    second (P01, 14 October 2026). The validator keeps producing throughout. It
+    writes digest-bound evidence that `faults.py verify` re-evaluates, judged
+    against the approved recovery target (launch/simulations/TIMINGS.json,
+    fault_recovery_target_seconds). CI also checks, outside the evidence, that
+    the host's own dead-man removed each network fault."""
     work = Path(work)
-    guest, chain, cli = agent(work, label), staging_host.CHAIN_ID, work / 'release-bin' / 'dytallix'
+    guest = agent(work, label)
     drill = work / 'fault-drill'
     drill.mkdir()
-    # The founder key, the loopback command store and the installed agent, as the
-    # agent drill (T2) sets them up.
-    passphrase = drill / 'passphrase'
-    descriptor = os.open(passphrase, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, 'w') as file:
-        file.write(hashlib.sha256(os.urandom(32)).hexdigest() + '\n')
-    os.environ['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
-    home, key = drill / 'founder', drill / 'key.json'
-    staging_command.make_key(cli, home, key)
-    (drill / 'read.json').write_text(json.dumps(COMMAND_STORE))
-    staging_command.make_settings(key, label, chain, drill / 'read.json', drill / 'settings.json')
-    store = f'/var/tmp/standin/{COMMAND_STORE["bucket"]}/{COMMAND_STORE["prefix"]}{chain}/{label}'
-    history = f'/var/tmp/standin/{HISTORY_UPLOAD["bucket"]}/{HISTORY_UPLOAD["prefix"]}{chain}/agent/{label}'
-    # A store under this drill's own unit; clear any earlier commands and results
-    # so the agent drill that follows is not confused by a leftover sequence.
-    guest.run(['systemctl', 'stop', 'dytallix-store-standin', 'dytallix-store-standin-fault'], check=False)
-    guest.run(['rm', '-rf', store, history], check=False)
-    guest.run(['systemd-run', '--unit=dytallix-store-standin-fault', 'python3', '/root/s3_standin.py', '--root',
-               '/var/tmp/standin', '--port', str(STANDIN_PORT), '--access-key-id', UPLOAD['access_key_id'],
-               '--access-key-id', HISTORY_UPLOAD['access_key_id'], '--read-key-id', COMMAND_STORE['access_key_id']])
-    time.sleep(2)
-    for name in ('agent.py', 'ALLOWLIST.json'):
-        put_file(guest, f'/root/agent/{name}', (staging_command.AGENT_DIR / name).read_text())
-    put_file(guest, '/root/agent-settings.json', (drill / 'settings.json').read_text(), '0600')
-    _, out, _ = guest.run(['python3', '-I', '-B', '/root/agent/agent.py', 'install',
-                           '--settings', '/root/agent-settings.json'])
-    say(out.strip())
-    public_key = staging_command.load_key(key)
-    codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
-    paper = drill / 'history-paper.txt'
-    descriptor = os.open(paper, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-    with os.fdopen(descriptor, 'w') as file:
-        file.write(codes['history'] + '\n')
-    signer = work / 'release-bin' / 'dytallix-root-sign'
-    state_of = {'seq': 0}
-    opened = {}
-
-    def agent_command(command, args):
-        """Place a signed command, run the agent until it handles it, and return
-        the result opened with the history code."""
-        state_of['seq'] += 1
-        seq = state_of['seq']
-        body = staging_command.body(chain, label, seq, command, args, guest_time(guest) + 1800)
-        put_file(guest, f'{store}/{seq:010}.json', staging_command.sign(cli, home, public_key, body).decode())
-        deadline = time.monotonic() + timeout
-        while True:
-            # Start first: a freshly installed agent writes state.json only on its
-            # first poll, so reading it before the first run would fail.
-            guest.run(['systemctl', 'start', 'dytallix-agent.service'], timeout=600, check=False)
-            try:
-                handled = json.loads(guest.read(AGENT_STATE))['next_sequence'] > seq
-            except Failed:
-                handled = False
-            if handled:
-                break
-            if time.monotonic() > deadline:
-                raise Failed(f'the agent did not handle {command} (sequence {seq})')
-            time.sleep(3)
-        _, listing, _ = guest.run(['sh', '-c', f'ls {history}/ 2>/dev/null'], check=False)
-        for name in sorted(listing.split()):
-            if name in opened:
-                continue
-            copy = drill / name
-            copy.write_bytes(guest.read(f'{history}/{name}'))
-            sh(str(signer), 'history-open', '-paper', str(paper), '-in', str(copy),
-               '-out', str(copy.with_suffix('.opened.json')))
-            opened[name] = json.loads(copy.with_suffix('.opened.json').read_bytes())
-        for result in opened.values():
-            if result['sequence'] == seq:
-                return result
-        raise Failed(f'no opened result for {command} (sequence {seq})')
-
-    # A probe that exercises tc and nft before the scenarios, so a missing
-    # sch_netem module or nft table support fails in seconds, not after minutes.
-    probe = agent_command('fault-clear', {})
+    unit = 'dytallix-store-standin-fault'
+    channel = founder_channel(work, guest, label, drill, unit)
+    # A probe that exercises tc and nft first, so a missing sch_netem module, nft
+    # support or interface fails in seconds, as the first command on a real host.
+    probe = channel.run('fault-clear', timeout=timeout)
     if probe['status'] != 'DONE':
         raise Failed(f'the fault commands do not run on this host (tc/nft): {probe.get("steps")}')
 
-    scenarios = []
-    for spec in FAULT_SCENARIOS:
-        name = spec['name']
-        say(f'== fault scenario: {name}')
-        baseline = guest_height(guest)
-        injected = agent_command(spec['command'], dict(spec['args']))
-        if injected['status'] != 'DONE':
-            raise Failed(f'{name}: the agent did not run {spec["command"]} ({injected["status"]}): '
-                         f'{injected.get("reason") or injected.get("steps")}')
-        effect = fault_effect(name, guest)
-        injected_at = guest_iso(guest)
-        # The validator keeps producing. For the network faults the host's own
-        # dead-man is the clear, so the safety net is proven here; fault-clear
-        # then removes the empty qdisc or table. Time the catch-up after.
-        if spec['command'] == 'fault-kill':
-            at_clear = baseline
-            clear = {'mechanism': 'restart'}
-            guest.run(['systemctl', 'reset-failed', 'dytallix-node'], check=False)
-            guest.run(['systemctl', 'start', 'dytallix-node'], timeout=180)
-            cleared_at = guest_iso(guest)
-        else:
-            wait_fault_gone(name, guest, spec['args']['duration_seconds'] + 60)
-            cleared_at = guest_iso(guest)
-            at_clear = guest_height(guest) or baseline
-            cleared = agent_command('fault-clear', {})
-            clear = {'mechanism': 'dead-man', 'status': cleared['status']}
-        target = max(staging_host.height() or 0, (at_clear or 0) + 2)
-        recovered_height = wait_height(guest, label, target, timeout)
-        recovered_at = guest_iso(guest)
-        scenarios.append({
-            'name': name, 'command': {'command': spec['command'], 'args': spec['args'], 'status': injected['status']},
-            'clear': clear, 'effect': effect, 'baseline_height': baseline, 'height_at_clear': at_clear,
-            'injected_at': injected_at, 'cleared_at': cleared_at,
-            'recovered_at': recovered_at, 'recovered_height': recovered_height})
-        say(f'== {name}: caught back up to height {recovered_height}')
+    def dead_man(name):
+        deadline = time.monotonic() + 60
+        while not fault_gone(name, guest):
+            if time.monotonic() > deadline:
+                raise Failed(f'{name}: the host dead-man did not clear the fault')
+            time.sleep(2)
 
+    url = f'http://{ADDRESSES[PUBLIC]}:8080/status'
+    rows = faults.run_scenarios(channel, lambda: staging_founder.status_page(url), staging_founder.block_instant,
+                                result_timeout=timeout, recovery_timeout=timeout, say=say, on_cleared=dead_man)
     native = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
     engine = (work / 'net' / 'chain' / 'chain' / 'genesis.json').read_bytes()
     timings = json.loads((Path(__file__).resolve().parents[3] / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())
     target = timings['fault_recovery_target_seconds']  # the approved T5 recovery target (P01, launch/approvals)
-    record = faults.build_run(chain, native, engine, scenarios, target, label)
+    record = faults.build_run(staging_host.CHAIN_ID, native, engine, rows, target, label)
     (drill / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
     # Re-evaluate from the file, as the docs promise, not from the in-memory record.
     status = faults.verify(json.loads((drill / 'evidence.json').read_bytes()), native, engine)
@@ -1566,16 +1471,14 @@ def fault_drill(work, label='sentry-1', timeout=300):
                                     'scenarios': {r['name']: r['status'] for r in record['scenarios']}}}, indent=2))
     if status == faults.FAIL:
         raise Failed(f'the fault run is {status}')
-    # A final clear and a health check, then uninstall the agent (not the node)
-    # and stop the stand-in store, so the agent drill (T2) installs fresh.
-    agent_command('fault-clear', {})
+    # Uninstall the agent (not the node) and close the store, so the agent drill
+    # (T2) installs fresh.
     wait_height(guest, label, (guest_height(guest) or 0) + 2, timeout)
     _, left, _ = guest.run(['python3', '-I', '-B', '/root/agent/agent.py', 'remove'])
     say(left.strip())
-    guest.run(['systemctl', 'stop', 'dytallix-store-standin-fault'], check=False)
-    guest.run(['rm', '-rf', store, history], check=False)  # leave nothing for the agent drill
+    close_founder_channel(guest, unit)
     say(f'== {label}: latency, loss, a p2p partition and a process kill each took hold and the sentry caught back up '
-        f'within the {target} s recovery target (the run is {status})')
+        f'within the {target} s recovery target, measured through the public paths only (the run is {status})')
 
 
 def diagnostics(work):
@@ -1594,6 +1497,7 @@ def diagnostics(work):
                          ['journalctl', '-u', 'dytallix-alert-standin', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['journalctl', '-u', 'dytallix-agent', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['journalctl', '-u', 'dytallix-store-standin-agent', '-o', 'cat', '--no-pager', '-n', '20'],
+                         ['journalctl', '-u', 'dytallix-store-standin-fault', '-o', 'cat', '--no-pager', '-n', '20'],
                          ['tail', '-n', '40', EVENTS],
                          ['journalctl', '-k', '--no-pager', '-n', '50', '--grep', 'apparmor'],
                          ['tail', '-n', '40', '/var/log/cloud-init-output.log']):
@@ -1655,7 +1559,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, adversary.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0

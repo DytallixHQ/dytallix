@@ -19,6 +19,25 @@ dependency "recovery target") the scenario is INCONCLUSIVE, which no run counts
 as a pass. The target the record was built with is covered by the digest, so it
 cannot be edited after the fact.
 
+  faults.py run --store STORE.json --chain ID --host LABEL --cli DYTALLIX --home DIR \
+      --key KEY.json --paper FILE --signer DYTALLIX_ROOT_SIGN --work DIR \
+      --status-url URL --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS \
+      --target SECONDS --out FILE
+
+run drives the scenarios on a real host from the founder's machine (T2's
+real-host harness), through only the public paths: signed commands and sealed
+results in the command store (staging_founder.py) and the sentry's public
+status page. The CI fault drill runs the same `run_scenarios`. Each fault
+command's last step is a read-only proof (the qdisc, the nftables set, the
+unit's state) that comes back in the same signed result (P01, 14 October
+2026). Recovery is timed on the status page, polled about once a second from
+the founder's machine (P01, 14 October 2026): the fault clears at the host's
+clock (the injection's finish plus its duration, when the host's own dead-man
+removes it; the restart's finish after a process kill), and the sentry has
+recovered when the page serves a block made at or after that instant, above
+the height it served at the clear, read at the founder's clock. Each
+scenario records which clock each instant came from.
+
 The lean scope is the network and process faults driven through the agent:
 latency and loss (`tc netem`) and a peer partition (an `inet dytallix_fault`
 nftables table, scoped to the p2p port so the agent's own command path stays
@@ -28,11 +47,13 @@ sentry catching back up, read through the guest agent, whose virtio serial
 survives the fault that the network path does not.
 """
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
 import sys
+import threading
+import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
@@ -67,6 +88,20 @@ def instant(text):
 
 def is_int(value):
     return type(value) is int
+
+
+# The scenarios run on the sentry. The network faults self-expire on the host
+# (a netem dead-man timer, an nftables timeout set), so a console-only host is
+# never locked out.
+SCENARIOS = (
+    {'name': 'latency', 'command': 'fault-netem',
+     'args': {'delay_ms': 400, 'loss_percent': 5, 'duration_seconds': 45}},
+    {'name': 'loss', 'command': 'fault-netem',
+     'args': {'delay_ms': 50, 'loss_percent': 40, 'duration_seconds': 45}},
+    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
+    {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
+)
+CLOCKS = {'injected_at': 'host', 'cleared_at': 'host', 'recovered_at': 'reader'}
 
 
 def kind(name):
@@ -124,6 +159,120 @@ def evaluate(scenario, target):
     if seconds <= target:
         return PASS, f'recovered in {seconds:.0f} s, within the {target} s target'
     return FAIL, f'recovered in {seconds:.0f} s, over the {target} s target'
+
+
+# Driving the scenarios through the public paths
+
+def effect_of(name, result):
+    """The proof a fault took hold: its command's last, read-only step, in the
+    same signed result. The shape is the one effect_holds reads."""
+    steps = result.get('steps') or []
+    out = (steps[-1].get('stdout') or '').strip() if steps else ''
+    this = kind(name)
+    if this == 'netem':
+        return {'qdisc': out}
+    if this == 'partition':
+        return {'installed': '26656' in out, 'set': out}
+    return {'active': out}
+
+
+def iso_at(seconds):
+    return datetime.fromtimestamp(seconds, tz=timezone.utc).isoformat()
+
+
+class Timeline:
+    """The status page read about once a second in the background."""
+
+    def __init__(self, read, sleep=time.sleep, period=1.0):
+        self.read, self.sleep, self.period = read, sleep, period
+        self.pages, self.stopped = [], threading.Event()
+        self.thread = threading.Thread(target=self.loop, daemon=True)
+
+    def loop(self):
+        while not self.stopped.is_set():
+            self.pages.append(self.read())
+            self.sleep(self.period)
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.stopped.set()
+        self.thread.join(timeout=30)
+
+    def last_height(self, before=None):
+        """The newest height served (at or before an instant, if given)."""
+        heights = [p['height'] for p in list(self.pages) if isinstance(p.get('height'), int)
+                   and (before is None or instant(p['read_at']).timestamp() <= before)]
+        return heights[-1] if heights else None
+
+    def recovered(self, cleared_at, above, made):
+        """The first page read after the clear that serves a block made at or
+        after it, above the height at the clear: (read_at, height) or None."""
+        for page in list(self.pages):
+            when = made(page)
+            if (page.get('http') == 200 and when is not None and when >= cleared_at
+                    and isinstance(page.get('height'), int) and (above is None or page['height'] > above)
+                    and instant(page['read_at']).timestamp() >= cleared_at):
+                return page['read_at'], page['height']
+        return None
+
+
+def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=600, recovery_timeout=600,
+                  clock=time.time, sleep=time.sleep, say=print, period=1.0, on_cleared=None):
+    """Each scenario through the agent channel, timed on the status page.
+    `read_page()` is one status page reading (staging_founder.status_page);
+    `made(page)` its block time in seconds. `on_cleared(name)`, if given, runs
+    once a network fault's dead-man time has passed (the CI drill checks there
+    that the host removed it). Returns the raw observations."""
+    rows = []
+    for spec in scenarios:
+        name, command, args = spec['name'], spec['command'], dict(spec['args'])
+        say(f'== fault scenario: {name}')
+        with Timeline(read_page, sleep, period) as timeline:
+            began = clock()
+            while timeline.last_height() is None:
+                if clock() > began + recovery_timeout:
+                    raise Failed(f'{name}: the status page served no height')
+                sleep(period)
+            baseline = timeline.last_height()
+            if command == 'fault-kill':
+                kill, restart = channel.send(command, args), channel.send('start')
+                injected, started = channel.wait([kill, restart], result_timeout)
+                cleared_at, clear = started.get('finished_at'), {'mechanism': 'restart', 'status': started['status']}
+            else:
+                injected = channel.wait([channel.send(command, args)], result_timeout)[0]
+                finished = injected.get('finished_at')
+                cleared_at = finished + args['duration_seconds'] if finished is not None else None
+                clear = {'mechanism': 'dead-man'}
+            row = {'name': name, 'command': {'command': command, 'args': args, 'status': injected['status']},
+                   'clear': clear, 'effect': effect_of(name, injected), 'baseline_height': baseline,
+                   'clocks': dict(CLOCKS), 'injected_at': None, 'cleared_at': None, 'height_at_clear': None,
+                   'recovered_at': None, 'recovered_height': None}
+            if injected.get('finished_at') is not None:
+                row['injected_at'] = iso_at(injected['finished_at'])
+            if injected['status'] == 'DONE' and cleared_at is not None:
+                row['cleared_at'] = iso_at(cleared_at)
+                deadline = cleared_at + recovery_timeout
+                while clock() < cleared_at + 2:
+                    sleep(period)
+                row['height_at_clear'] = timeline.last_height(before=cleared_at)
+                if on_cleared and command != 'fault-kill':
+                    on_cleared(name)
+                while True:
+                    found = timeline.recovered(cleared_at, row['height_at_clear'], made)
+                    if found or clock() > deadline:
+                        break
+                    sleep(period)
+                if found:
+                    row['recovered_at'], row['recovered_height'] = found
+        if command != 'fault-kill':
+            # The dead-man already removed it; this removes the empty table.
+            clear['status'] = channel.run('fault-clear', timeout=result_timeout)['status']
+        say(f'== {name}: {"caught back up at " + str(row["recovered_height"]) if row["recovered_at"] else "no recovery"}')
+        rows.append(row)
+    return rows
 
 
 def run_status(statuses):
@@ -194,13 +343,47 @@ def main():
     v.add_argument('--evidence', type=Path, required=True)
     v.add_argument('--genesis', type=Path, required=True, help='native-genesis.json')
     v.add_argument('--engine-genesis', type=Path, required=True, help='the engine genesis.json')
+    r = commands.add_parser('run')
+    for name in ('store', 'cli', 'home', 'key', 'paper', 'signer', 'work', 'genesis', 'engine_genesis', 'out'):
+        r.add_argument(f'--{name.replace("_", "-")}', type=Path, required=True)
+    r.add_argument('--chain', required=True)
+    r.add_argument('--host', required=True)
+    r.add_argument('--status-url', required=True)
+    r.add_argument('--target', type=int, required=True, help='the approved recovery target in seconds')
     args = parser.parse_args()
+    if args.command == 'run':
+        return run_main(args)
     try:
         record = json.loads(args.evidence.read_bytes())
         status = verify(record, args.genesis.read_bytes(), args.engine_genesis.read_bytes())
     except (Failed, reconcile.Failed, OSError, KeyError, ValueError) as error:
         print(f'faults: {error}', file=sys.stderr)
         return 1
+    print(status)
+    return 0 if status == PASS else 1
+
+
+def run_main(args):
+    import staging_founder
+    try:
+        store = staging_founder.Store(staging_founder.load_store(args.store), args.work / 'store-scratch')
+        channel = staging_founder.Channel(store, args.chain, args.host, args.work, args.cli, args.home, args.key,
+                                          args.paper, args.signer)
+        probe = channel.run('fault-clear')
+        if probe['status'] != 'DONE':
+            raise Failed(f'the fault commands do not run on this host (tc, nft or the interface): {probe.get("steps")}')
+        rows = run_scenarios(channel, lambda: staging_founder.status_page(args.status_url),
+                             staging_founder.block_instant)
+        record = build_run(args.chain, args.genesis.read_bytes(), args.engine_genesis.read_bytes(), rows,
+                           args.target, args.host)
+        args.out.write_text(json.dumps(record, indent=2) + '\n')
+        status = verify(json.loads(args.out.read_bytes()), args.genesis.read_bytes(), args.engine_genesis.read_bytes())
+    except (Failed, staging_founder.Failed, staging_founder.staging_command.Failed, OSError, KeyError,
+            ValueError) as error:
+        print(f'faults: {error}', file=sys.stderr)
+        return 1
+    for row in record['scenarios']:
+        print(f'{row["name"]}: {row["status"]} ({row["detail"]})')
     print(status)
     return 0 if status == PASS else 1
 

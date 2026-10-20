@@ -56,24 +56,27 @@
       ]
     },
     "fault-kill": {
-      "purpose": "Kill the node's main process (simulation plan, T5: process kill); only the main process, since the supervisor runs its children in their own PID namespace and signalling the whole control group returns EINVAL. The owner protocol brings the children down with it",
+      "purpose": "Kill the node's main process (simulation plan, T5: process kill); only the main process, since the supervisor runs its children in their own PID namespace and signalling the whole control group returns EINVAL. The owner protocol brings the children down with it. Its last step reads the unit's state as the proof the kill took hold (read-only; P01, 14 October 2026)",
       "args": {},
       "timeout_seconds": 60,
       "steps": [
-        ["systemctl", "kill", "--kill-whom=main", "--signal=SIGKILL", "dytallix-node.service"]
+        ["systemctl", "kill", "--kill-whom=main", "--signal=SIGKILL", "dytallix-node.service"],
+        ["sleep", "2"],
+        ["systemctl", "show", "-p", "ActiveState", "--value", "dytallix-node.service"]
       ]
     },
     "fault-netem": {
-      "purpose": "Latency and loss on the host's interface (simulation plan, T5), removed by its own dead-man timer after duration_seconds",
+      "purpose": "Latency and loss on the host's interface (simulation plan, T5), removed by its own dead-man timer after duration_seconds; its last step shows the qdisc as the proof (read-only; P01, 14 October 2026)",
       "args": {"delay_ms": {"type": "int", "min": 50, "max": 1000}, "loss_percent": {"type": "int", "min": 5, "max": 60}, "duration_seconds": {"type": "int", "min": 10, "max": 300}},
       "timeout_seconds": 60,
       "steps": [
         ["tc", "qdisc", "replace", "dev", "eth0", "root", "netem", "delay", "{delay_ms}ms", "loss", "{loss_percent}%"],
-        ["systemd-run", "--on-active={duration_seconds}s", "tc", "qdisc", "del", "dev", "eth0", "root"]
+        ["systemd-run", "--on-active={duration_seconds}s", "tc", "qdisc", "del", "dev", "eth0", "root"],
+        ["tc", "qdisc", "show", "dev", "eth0"]
       ]
     },
     "fault-partition": {
-      "purpose": "Cut the host off from its peers' p2p port (simulation plan, T5); the drop self-expires after duration_seconds so a console-only host cannot be locked out",
+      "purpose": "Cut the host off from its peers' p2p port (simulation plan, T5); the drop self-expires after duration_seconds so a console-only host cannot be locked out; its last step lists the set as the proof (read-only; P01, 14 October 2026)",
       "args": {"duration_seconds": {"type": "int", "min": 10, "max": 300}},
       "timeout_seconds": 60,
       "steps": [
@@ -85,7 +88,8 @@
         ["nft", "add", "rule", "inet", "dytallix_fault", "out", "tcp", "sport", "@blocked", "drop"],
         ["nft", "add", "rule", "inet", "dytallix_fault", "in", "tcp", "dport", "@blocked", "drop"],
         ["nft", "add", "rule", "inet", "dytallix_fault", "in", "tcp", "sport", "@blocked", "drop"],
-        ["nft", "add", "element", "inet", "dytallix_fault", "blocked", "{ 26656 timeout {duration_seconds}s }"]
+        ["nft", "add", "element", "inet", "dytallix_fault", "blocked", "{ 26656 timeout {duration_seconds}s }"],
+        ["nft", "list", "set", "inet", "dytallix_fault", "blocked"]
       ]
     },
     "fault-clear": {
