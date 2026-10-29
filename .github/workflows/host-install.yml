@@ -303,12 +303,15 @@ jobs:
       - name: Fault injector (T5)
         timeout-minutes: 20
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py fault-drill --work "$RUNNER_TEMP/network"
-      # The upgrade drill's second release staged beside the running one on
-      # both hosts (T8), with the genesis release kept for the root (later
-      # release start). Before the agent drill, whose wipe removes it.
-      - name: Stage the later release (T8)
-        timeout-minutes: 20
-        run: sudo python3 node/tools/mainnet-preparation/staging_network.py stage-later-release --work "$RUNNER_TEMP/network"
+      # The upgrade drill (simulation plan, T8): the upgrade and handover to
+      # the second release with the receipt-index migration, signed three of
+      # five; RC2 staged on both hosts; the paired activation after the
+      # 20-block notice; RC1 stops itself; switch.sh on both; reconciled
+      # before and after. After the kit drill (seat 5 replaced; kits 1 to 3
+      # sign) and before the agent drill, whose wipe ends the network.
+      - name: Upgrade drill (T8)
+        timeout-minutes: 30
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py upgrade-drill --work "$RUNNER_TEMP/network"
       # The staging agent (simulation plan, T2) on the sentry: signed status
       # and journal commands run; tampered, unsigned, replayed,
       # non-allowlisted and expired ones are refused; the results open with
