@@ -1,8 +1,12 @@
 # Starting a later release
 
-Status: **proposed** (P01 decision pending, 28 October 2026). Found while
-mapping the upgrade drill (simulation plan, T8): a production node cannot
-start on a release the chain has committed by handover. Production
+Status: **decided** (P01, 28 October 2026,
+[approval](../../../launch/approvals/P01_E05_LATER_RELEASE_START_2026-10-28.json)).
+Implemented: `ConsensusApplication::admitted_release_sha512`,
+`consensus_stdio`'s owner-context check and `host_files.py
+--genesis-release`. Found while mapping the upgrade drill (simulation plan,
+T8): a production node could not start on a release the chain has committed
+by handover. Production
 handover is "not yet qualified" ([upgrade or handover
 failure](../operations/upgrade-failure.md)); this is the reason it cannot
 qualify.
@@ -47,11 +51,13 @@ which the production supervisor never does.
    `ensure_active_runtime` requires one), the owner context must equal the
    candidate's verified manifest SHA-512, and `ensure_active_runtime`
    already refuses any candidate other than the committed active release
-   (the genesis release before any handover). The check therefore moves
-   from `consensus_stdio`, before the candidate is verified, into
-   `ConsensusApplication::open_with_root_runtime`, after it. Without a
-   runtime candidate, the owner context must still equal the root
-   configuration's release, as now. The two development branches follow
+   (the genesis release before any handover). The check therefore moves in
+   `consensus_stdio` from before the application opens to just after: once
+   opening has verified the candidate against the committed release, and
+   before the application answers anything, the owner context must equal
+   `ConsensusApplication::admitted_release_sha512` ("Running release
+   differs from owner admission"). Without a runtime candidate, that is
+   the root configuration's release, as before. The two development branches follow
    the same rule, and the process tests launch each release with its own
    context, as the supervisor does.
 2. **The root configuration keeps the genesis release in its own file.**

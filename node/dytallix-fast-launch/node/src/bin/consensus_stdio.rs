@@ -578,10 +578,10 @@ fn run() -> Result<()> {
             let root = dytallix_fast_node::root_genesis::RootGenesis::from_config(
                 std::path::Path::new(&path),
             )?;
-            ensure!(
-                ownership::parse_context_sha512(&root.release_manifest_sha512)? == release_context,
-                "Root authorization release differs from owner admission"
-            );
+            // The owner context names the release that runs, checked once the
+            // candidate is verified (later release start): the root keeps
+            // the genesis release after a handover.
+            let root_release = root.release_manifest_sha512.clone();
             admission.check()?;
             let bounded = |path: String| -> Result<Vec<u8>> {
                 let mut bytes = Vec::new();
@@ -597,7 +597,7 @@ fn run() -> Result<()> {
             let candidate = root_candidate_path
                 .map(|path| Ok::<_, anyhow::Error>(serde_json::from_slice(&bounded(path)?)?))
                 .transpose()?;
-            ConsensusApplication::open_with_root_runtime(
+            let app = ConsensusApplication::open_with_root_runtime(
                 std::path::Path::new(&database),
                 config.clone(),
                 genesis,
@@ -606,7 +606,13 @@ fn run() -> Result<()> {
                 verifier,
                 candidate,
                 restart,
-            )?
+            )?;
+            ensure!(
+                ownership::parse_context_sha512(app.admitted_release_sha512(&root_release))?
+                    == release_context,
+                "Running release differs from owner admission"
+            );
+            app
         }
         (None, Some(root_path), Some(verifier_path)) => {
             let bytes = std::fs::read(verifier_path)?;
@@ -618,11 +624,8 @@ fn run() -> Result<()> {
                 dytallix_fast_node::root_genesis::DevelopmentRootGenesis::from_development_config(
                     std::path::Path::new(&root_path),
                 )?;
-            ensure!(
-                ownership::parse_context_sha512(&authorization.release_manifest_sha512)?
-                    == release_context,
-                "Root authorization release differs from owner admission"
-            );
+            // As in production: the owner context names the running release.
+            let root_release = authorization.release_manifest_sha512.clone();
             admission.check()?;
             let candidate = if let Some(path) = candidate_path {
                 let mut bytes = Vec::new();
@@ -641,7 +644,7 @@ fn run() -> Result<()> {
             };
             // The unchanged root consumer verifies the signed manifest digest
             // before opening state. Candidate input cannot authorize a release.
-            ConsensusApplication::open_with_development_runtime_candidate_and_restart(
+            let app = ConsensusApplication::open_with_development_runtime_candidate_and_restart(
                 std::path::Path::new(&database),
                 config.clone(),
                 genesis,
@@ -650,7 +653,13 @@ fn run() -> Result<()> {
                 serde_json::from_slice(&bytes)?,
                 candidate,
                 restart,
-            )?
+            )?;
+            ensure!(
+                ownership::parse_context_sha512(app.admitted_release_sha512(&root_release))?
+                    == release_context,
+                "Running release differs from owner admission"
+            );
+            app
         }
         (None, Some(path), None) => {
             let authorization =

@@ -2,6 +2,7 @@
 """Generate each host's files for host setup v1 (E05; node/docs/architecture/host-setup-v1.md).
 
   host_files.py --release DIR --chain DIR --hosts DIR --plan PIN_PLAN.json --keys DIR
+                [--genesis-release RELEASE_MANIFEST.json]
                 [--values E05_VALUES.json] [--setup SETUP_VALUES.json] --out DIR
 
 Inputs, all public:
@@ -14,6 +15,10 @@ Inputs, all public:
   --keys     LABEL.keys.json for each host, from the offline key step: the
              host's public keys and the SHA-256 of each secret file; and, for
              each host serving clients, LABEL.channel-pin.json
+  --genesis-release  for a later release of the chain (after a handover):
+             the genesis release's RELEASE_MANIFEST.json, which the root
+             configuration keeps (genesis-release-manifest.json); by default
+             the release itself
   --values   launch/E05_VALUES.json; --setup launch/hosts/SETUP_VALUES.json
 
 For each host, OUT/LABEL/ holds every file it installs, under its absolute
@@ -331,6 +336,21 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     etc = f'/etc/dytallix/{release_id}'
     members = {m['id']: m for m in catalog['members']}
     roles = {r['role']: r['member_id'] for r in catalog['roles']}
+    # The root keeps the genesis release after a handover (later release
+    # start, P01, 28 October 2026): a later release of the chain carries the
+    # genesis release's manifest for its root configuration, the same chain
+    # and genesis, and the same root verifier byte for byte.
+    genesis_raw = release.get('genesis_manifest', manifest_raw)
+    genesis_catalog = json.loads(genesis_raw)
+    for field in ('chain_id', 'app_genesis_sha256'):
+        require(genesis_catalog.get(field) == catalog.get(field),
+                f'the genesis release names another {field} than this release')
+    genesis_members = {m['id']: m for m in genesis_catalog['members']}
+    genesis_roles = {r['role']: r['member_id'] for r in genesis_catalog['roles']}
+    genesis_helper = genesis_members.get(genesis_roles.get('genesis_bootstrap_verifier'))
+    require(genesis_helper is not None
+            and genesis_helper['sha256'] == members[roles['genesis_bootstrap_verifier']]['sha256'],
+            'a later release must keep the genesis release\'s root verifier byte for byte')
     record_members = release['record']['members']
     for member_id, member in members.items():
         recorded = record_members.get(member_id)
@@ -387,6 +407,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     # Everything the unit reads outside its writable roots.
     etc_files = {
         'release-manifest.json': manifest_raw,
+        'genesis-release-manifest.json': genesis_raw,
         'mapping.json': mapping_raw,
         'application-config.json': chain['application-config.json'],
         'native-genesis.json': chain['native-genesis.json'],
@@ -456,9 +477,9 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
         'engine_genesis_path': f'{HOME}/config/genesis.json',
         'max_engine_genesis_bytes': root_setup['max_engine_genesis_bytes'],
         'engine_genesis_sha512': hashlib.sha512(engine_genesis).hexdigest(),
-        'release_manifest_path': f'{etc}/release-manifest.json',
+        'release_manifest_path': f'{etc}/genesis-release-manifest.json',
         'max_release_manifest_bytes': root_setup['max_release_manifest_bytes'],
-        'release_manifest_sha512': hashlib.sha512(manifest_raw).hexdigest(),
+        'release_manifest_sha512': hashlib.sha512(genesis_raw).hexdigest(),
     }
     emergency_verifier = {
         'helper_path': helper_path,
@@ -638,11 +659,13 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
     return files, manifest
 
 
-def generate(release_dir, chain_dir, hosts_dir, plan, keys_dir, values, setup):
+def generate(release_dir, chain_dir, hosts_dir, plan, keys_dir, values, setup, genesis_release=None):
     require(setup.get('schema') == SETUP_SCHEMA and setup.get('status') == 'APPROVED', 'the setup values must be approved')
     approved = e05_approved(values)
     release = {'manifest': (Path(release_dir) / 'RELEASE_MANIFEST.json').read_bytes(),
                'record': read_json(Path(release_dir) / 'BUILD_RECORD.json')}
+    if genesis_release is not None:
+        release['genesis_manifest'] = Path(genesis_release).read_bytes()
     chain = {name: (Path(chain_dir) / name).read_bytes() for name in
              ('application-config.json', 'native-genesis.json', 'genesis.json', 'root-policy.json', 'root-signatures.json')}
     hosts = {'dir': Path(hosts_dir), 'bindings': read_json(Path(hosts_dir) / 'PIN_PLAN_BINDINGS.json')}
@@ -676,12 +699,14 @@ def main():
     for name in ('release', 'chain', 'hosts', 'keys', 'out'):
         parser.add_argument('--' + name, type=Path, required=True)
     parser.add_argument('--plan', type=Path, required=True)
+    parser.add_argument('--genesis-release', type=Path,
+                        help="a later release: the chain's genesis RELEASE_MANIFEST.json, which the root keeps")
     parser.add_argument('--values', type=Path, default=HERE.parents[2] / 'launch' / 'E05_VALUES.json')
     parser.add_argument('--setup', type=Path, default=HERE.parents[2] / 'launch' / 'hosts' / 'SETUP_VALUES.json')
     args = parser.parse_args()
     try:
         generated = generate(args.release, args.chain, args.hosts, read_json(args.plan), args.keys,
-                             read_json(args.values), read_json(args.setup))
+                             read_json(args.values), read_json(args.setup), args.genesis_release)
         write(args.out, generated)
     except (Invalid, OSError, KeyError) as error:
         print(f'host_files: {error}', file=sys.stderr)

@@ -250,6 +250,59 @@ class HostFilesTests(unittest.TestCase):
         with self.assertRaisesRegex(h.Invalid, 'max_file_bytes exceeds the root max_helper_bytes'):
             self.generate()
 
+    def release(self, member, raw, chain_id=CHAIN_ID):
+        """This test's release with one member's bytes replaced."""
+        record = json.loads((self.dirs['release'] / 'BUILD_RECORD.json').read_text())
+        record['members'][member] = {'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(),
+                                     'sha512': hashlib.sha512(raw).hexdigest()}
+        write(self.dirs['release'] / 'BUILD_RECORD.json', record)
+        value = release_manifest.manifest(release_manifest.load_record(self.dirs['release'] / 'BUILD_RECORD.json'),
+                                          chain_id, REHEARSAL / 'native-genesis.json')
+        write(self.dirs['release'] / 'RELEASE_MANIFEST.json', release_manifest.encode(value))
+
+    def test_a_later_release_keeps_the_genesis_release_for_the_root(self):
+        # The root keeps the genesis release after a handover (later release
+        # start, P01, 28 October 2026).
+        genesis = (self.dirs['release'] / 'RELEASE_MANIFEST.json').read_bytes()
+        genesis_sha512 = hashlib.sha512(genesis).hexdigest()
+        kept = Path(self.tmp.name) / 'genesis-RELEASE_MANIFEST.json'
+        kept.write_bytes(genesis)
+        # The genesis release: the root names the release itself, from its own file.
+        files, manifest = self.generate()['validator-1']
+        etc = f'/etc/dytallix/{manifest["release"]}'
+        root = json.loads(files[f'{etc}/root-config.json'])
+        self.assertEqual(files[f'{etc}/genesis-release-manifest.json'], genesis)
+        self.assertEqual((root['release_manifest_path'], root['release_manifest_sha512']),
+                         (f'{etc}/genesis-release-manifest.json', genesis_sha512))
+        # RC2: another application binary, the same root verifier.
+        self.release('consensus_stdio', b'release candidate 2')
+        later = h.generate(self.dirs['release'], self.dirs['chain'], self.dirs['hosts'], self.plan, self.dirs['keys'],
+                           self.values, self.setup, genesis_release=kept)
+        for label, (files, manifest2) in later.items():
+            with self.subTest(host=label):
+                etc2 = f'/etc/dytallix/{manifest2["release"]}'
+                self.assertNotEqual(etc2, etc)
+                root = json.loads(files[f'{etc2}/root-config.json'])
+                candidate = json.loads(files[f'{etc2}/candidate.json'])
+                self.assertEqual(files[f'{etc2}/genesis-release-manifest.json'], genesis)
+                self.assertEqual((root['release_manifest_path'], root['release_manifest_sha512']),
+                                 (f'{etc2}/genesis-release-manifest.json', genesis_sha512))
+                self.assertEqual(candidate['manifest_path'], f'{etc2}/release-manifest.json')
+                self.assertEqual(hashlib.sha512(files[f'{etc2}/release-manifest.json']).hexdigest()[:16],
+                                 manifest2['release'])
+        # Refused: a later release with another root verifier, or of another chain.
+        self.release('dytallix-root-verify', b'another root verifier')
+        with self.assertRaisesRegex(h.Invalid, 'root verifier'):
+            h.generate(self.dirs['release'], self.dirs['chain'], self.dirs['hosts'], self.plan, self.dirs['keys'],
+                       self.values, self.setup, genesis_release=kept)
+        other = json.loads(genesis)
+        other['chain_id'] = 'dytallix-other-1'
+        kept.write_bytes(json.dumps(other).encode())
+        self.release('dytallix-root-verify', b'dytallix-root-verify')
+        with self.assertRaisesRegex(h.Invalid, 'another chain_id'):
+            h.generate(self.dirs['release'], self.dirs['chain'], self.dirs['hosts'], self.plan, self.dirs['keys'],
+                       self.values, self.setup, genesis_release=kept)
+
     def test_secrets_and_release_must_match(self):
         keys = self.dirs['keys'] / 'endpoint-1.keys.json'
         summary = json.loads(keys.read_text())
