@@ -265,5 +265,139 @@ class Recording(unittest.TestCase):
         self.assertEqual(len(rows), 7)
 
 
+
+class RunSchedules(unittest.TestCase):
+    """R01 to R06 (P01, 14 October 2026): one T-1h checkpoint with both T-6h's
+    and T-1h's checks, R07's T0 to T+24h, and each run's events."""
+
+    def test_one_checkpoint_before_genesis_then_r07_s_then_the_events(self):
+        r07 = cp.schedule('R07')
+        before = [c for row in r07 if row['offset_seconds'] < 0 for c in row['checks']]
+        after = [row for row in r07 if row['offset_seconds'] >= 0]
+        for run, events in cp.RUN_EVENTS.items():
+            with self.subTest(run=run):
+                rows = cp.schedule(run)
+                self.assertEqual(rows[0]['label'], 'T MINUS 1 HOUR')
+                self.assertEqual(rows[0]['offset_seconds'], -3600)
+                self.assertEqual(rows[0]['checks'], list(dict.fromkeys(before)))
+                self.assertEqual(rows[1:1 + len(after)], after)
+                tail = rows[1 + len(after):]
+                self.assertEqual([row['event']['name'] for row in tail], [e[0] for e in events])
+                self.assertTrue(all(row['checks'] == cp.EVENT_CHECKS for row in tail))
+                self.assertNotEqual(cp.schedule_sha256(rows), cp.schedule_sha256(r07))
+        self.assertEqual([len(cp.RUN_EVENTS[r]) for r in ('R01', 'R02', 'R03', 'R04', 'R05', 'R06')],
+                         [0, 6, 3, 1, 0, 2])
+        with self.assertRaises(cp.Failed):
+            cp.schedule('R08')
+
+    def test_a_fixed_window_ignores_the_events_after_it(self):
+        rows = cp.schedule('R02')
+        last = max(i for i, row in enumerate(rows) if 'event' not in row)
+        self.assertEqual(rows[last]['label'], 'T PLUS 24 HOURS')
+        self.assertIsNone(cp.window_of(rows, last, '2026-10-12T14:00:00Z')[1])
+
+
+def write_event(base, tool, body, name):
+    data = json.dumps(body).encode()
+    (base / name).write_bytes(data)
+    bind = {'tool': tool, 'evidence': name, 'evidence_sha256': sha256(data)}
+    if tool == 'load':
+        (base / 'event-rows.jsonl').write_bytes(b'')
+        bind.update(rows='event-rows.jsonl', rows_sha256=sha256(b''))
+    return bind
+
+
+class EventCheckpoints(unittest.TestCase):
+    """An event checkpoint: the reconciliation within 30 minutes of the end the
+    event's own evidence records. The event tools' verify is stubbed."""
+
+    def setUp(self):
+        self.base = Path(tempfile.mkdtemp())
+        self.schedule = cp.schedule('R02')
+        index = {row['label']: i for i, row in enumerate(self.schedule)}
+        self.host = index['AFTER THE VALIDATOR HOST RECOVERED']
+        self.network = index['AFTER THE NETWORK RESTORED']
+        self.restart = index['AFTER THE VALIDATOR PROCESS RESTARTED']
+        for patch in (mock.patch.object(cp.recovery_tool, 'verify', return_value=cp.PASS),
+                      mock.patch.object(cp.fault_tool, 'verify', return_value=cp.PASS),
+                      mock.patch.object(cp.reconcile, 'verify', return_value=cp.PASS)):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def recovery_bind(self, at='2026-10-12T16:00:00+00:00'):
+        moment = cp.instant(at).timestamp()
+        return write_event(self.base, 'recovery', {'observations': {'instants': {'first_block_after_halt_at': moment}}},
+                           'recovery.json')
+
+    def record(self, index, event_bind, finished, actual=None):
+        readings = {check: {'bind': write_bind(self.base, 'reconcile', finished)} for check in cp.EVENT_CHECKS}
+        return cp.record_checkpoint(self.schedule, index, readings, self.base, NATIVE, ENGINE, '',
+                                    actual or finished, event_bind=event_bind)
+
+    def test_a_reconciliation_within_30_minutes_of_the_recovery_passes(self):
+        checkpoint = self.record(self.host, self.recovery_bind(), '2026-10-12T16:10:00Z')
+        self.assertEqual(checkpoint['status'], cp.PASS, checkpoint)
+        self.assertEqual(checkpoint['window'], ['2026-10-12T16:00:00+00:00', '2026-10-12T16:30:00+00:00'])
+        self.assertEqual(checkpoint['event']['end'], '2026-10-12T16:00:00+00:00')
+
+    def test_a_late_reconciliation_or_an_event_outside_the_run_does_not_count(self):
+        late = self.record(self.host, self.recovery_bind(), '2026-10-12T16:31:00Z', actual='2026-10-12T16:29:00Z')
+        self.assertEqual(late['status'], cp.INCONCLUSIVE)
+        early = self.record(self.host, self.recovery_bind('2026-10-12T13:00:00+00:00'), '2026-10-12T13:10:00Z')
+        self.assertEqual(early['status'], cp.INCONCLUSIVE)
+        self.assertIn('outside the run', early['event']['detail'])
+        after = self.record(self.host, self.recovery_bind('2026-10-13T14:00:01+00:00'), '2026-10-13T14:10:00Z')
+        self.assertEqual(after['status'], cp.INCONCLUSIVE)
+
+    def test_a_fault_s_recovery_is_read_from_its_scenario(self):
+        bind = write_event(self.base, 'faults', {'scenarios': [
+            {'name': 'latency', 'recovered_at': '2026-10-12T15:00:00+00:00'},
+            {'name': 'partition', 'recovered_at': '2026-10-12T15:40:00+00:00'}]}, 'faults.json')
+        checkpoint = self.record(self.network, bind, '2026-10-12T15:45:00Z')
+        self.assertEqual((checkpoint['status'], checkpoint['event']['end']), (cp.PASS, '2026-10-12T15:40:00+00:00'))
+
+    def test_an_event_with_no_tool_yet_waits_and_never_passes(self):
+        checkpoint = self.record(self.restart, None, '2026-10-12T15:00:00Z')
+        self.assertEqual(checkpoint['status'], cp.INCONCLUSIVE)
+        self.assertIn('awaits', checkpoint['event']['detail'])
+        self.assertEqual(checkpoint['window'], [None, None])
+
+    def test_another_tool_s_evidence_is_refused(self):
+        bind = write_event(self.base, 'faults', {'scenarios': []}, 'faults.json')
+        with self.assertRaisesRegex(cp.Failed, 'not recovery'):
+            self.record(self.host, bind, '2026-10-12T16:10:00Z')
+
+    def test_verify_re_derives_the_event(self):
+        checkpoints, prev = [], ''
+        for index in range(len(self.schedule)):
+            if index == self.host:
+                row = self.record(index, self.recovery_bind(), '2026-10-12T16:10:00Z')
+                row = cp.build_checkpoint(self.schedule, index, row['actual_time'], row['checks'], prev,
+                                          '2026-10-12T14:00:00Z', row['event'])
+            else:
+                planned = self.schedule[index]
+                actual = None if 'event' in planned else (
+                    cp.instant('2026-10-12T14:00:00Z') + cp.timedelta(seconds=planned['offset_seconds'] + 5)).isoformat()
+                row = cp.record_checkpoint(self.schedule, index, {}, self.base, NATIVE, ENGINE, prev,
+                                           actual or '2026-10-12T15:00:00Z')
+            checkpoints.append(row)
+            prev = row['sha256']
+        run = cp.build_run('R02', self.schedule, 'dytallix-staging-1', NATIVE, ENGINE, checkpoints)
+        self.assertEqual(cp.verify(run, self.base, NATIVE, ENGINE, qualifying='R02'), cp.INCONCLUSIVE)
+        with self.assertRaisesRegex(cp.Failed, 'not the R07 schedule'):
+            cp.verify(run, self.base, NATIVE, ENGINE, qualifying='R07')
+        # Another event end, re-digested: the evidence decides, not the record.
+        forged = json.loads(json.dumps(run))
+        forged['checkpoints'][self.host]['event']['end'] = '2026-10-12T16:20:00+00:00'
+        body = {k: v for k, v in forged.items() if k != 'sha256'}
+        forged['sha256'] = cp.digest(cp.canonical(body))
+        with self.assertRaisesRegex(cp.Failed, 'does not follow from its evidence'):
+            cp.verify(forged, self.base, NATIVE, ENGINE)
+        # R05 has R01's schedule; the run name tells them apart.
+        r01 = cp.build_run('R05', cp.schedule('R01'), 'c', NATIVE, ENGINE, [])
+        with self.assertRaisesRegex(cp.Failed, 'not the R01 schedule'):
+            cp.verify(r01, self.base, NATIVE, ENGINE, qualifying='R01')
+
+
 if __name__ == '__main__':
     unittest.main()
