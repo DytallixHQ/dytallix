@@ -17,6 +17,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py reconcile --work DIR
   sudo staging_network.py load --work DIR
   sudo staging_network.py reconcile --work DIR --after load
+  sudo staging_network.py validator-recovery-drill --work DIR
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
   sudo staging_network.py monitor-drill --work DIR
@@ -59,6 +60,15 @@ source, recorded against that fresh reconciliation and the load run (each
 bound by digest and re-verified) and the client channel. The record verifies
 to PASS and is refused as the R07 dress rehearsal; its evidence is
 checkpoint/evidence.json.
+
+validator-recovery-drill is the validator recovery drill (simulation plan,
+T9; validator recovery F17): the validator's host is lost, fenced (the
+runner's wipe.sh stands for the provider deleting it), the sentry's old votes
+set aside, and the replacement installed from its bundle; it block-syncs to
+the halt height H from the sentry and signs from H + 1. The evidence
+(recovery.py) is judged against the approved 8-hour objective; it is
+validator-recovery/evidence.json. It runs before restore-drill, while the
+sentry still holds every block from genesis.
 
 restore-drill is the first restore drill (disaster recovery v1, R6): the
 sentry is lost, so its VM is wiped and reinstalled from its bundle, then
@@ -115,6 +125,7 @@ import checkpoints  # noqa: E402
 import faults  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
+import recovery  # noqa: E402
 import staging_command  # noqa: E402
 import staging_founder  # noqa: E402
 import staging_host  # noqa: E402
@@ -562,6 +573,105 @@ def restore_drill(work, timeout=900):
                                       'block_hash': ours[1], 'app_hash': ours[2], **times}}, indent=2))
     say(f'== the sentry was wiped, reinstalled and restored from the copy of height {copy["height"]}, '
         f'and matches the validator at height {ours[0]}')
+
+
+# The validator recovery drill (simulation plan, T9; validator recovery F17)
+
+WAL = '/var/lib/dytallix/node/data/cs.wal'
+
+
+def validator_recovery_drill(work, timeout=900):
+    """The validator's host is lost and replaced by the fence-first procedure
+    (node/docs/operations/validator-recovery.md), timed on the runner's clock:
+    the runner's wipe.sh stands for the provider deleting the old server (the
+    fence); the sentry's height is read twice to confirm the halt at H; on the
+    sentry the old votes are set aside (its consensus log moved, never
+    deleted); the replacement is installed from the same bundle with its seal
+    code typed and not started; the sentry, then the validator, start; the
+    validator block-syncs to H from the sentry and signs from H + 1. It writes
+    digest-bound evidence (recovery.py) judged against the approved 8-hour
+    objective. Runs before the restore drill, while the sentry still holds
+    every block from genesis for the replacement to sync."""
+    work = Path(work)
+    out = work / 'validator-recovery'
+    sentry = agent(work, PUBLIC)
+    codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
+    client = reconcile.Client(work / 'release-bin' / 'dytallix', pinned_cli(work, out), out)
+    validators = lambda view: view.get('effective_validators')  # noqa: E731
+    obs = {'clock': 'the runner', 'instants': {}, 'validators_before': validators(client.status())}
+    instants = obs['instants']
+
+    def engine(host):
+        raw = (host.run(list(OPERATOR_STATUS), check=False)[1] if host else
+               subprocess.run(OPERATOR_STATUS, capture_output=True, text=True).stdout)
+        try:
+            return sync_info(raw)
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    instants['declared_at'] = time.time()
+    say('== the validator\'s host is lost: fence it (wipe.sh stands for the provider deleting it)')
+    staging_host.wipe(work / 'net', 'validator-1')
+    instants['fenced_at'] = time.time()
+    first = engine(sentry)
+    time.sleep(15)
+    second = engine(sentry)
+    obs['halt_readings'] = [r[0] if r else None for r in (first, second)]
+    halt = obs['halt_readings'][-1]
+    say(f'== the sentry stayed at {obs["halt_readings"]}: H = {halt}')
+    say('== on the sentry, set the old votes aside')
+    sentry.run(['systemctl', 'stop', 'dytallix-node'], timeout=120)
+    aside = f'{WAL}.f17-{time.strftime("%Y%m%d%H%M%S", time.gmtime())}'
+    sentry.run(['mv', WAL, aside])
+    sentry.run(['install', '-d', '-o', 'dytallix', '-g', 'dytallix', '-m', '0700', WAL])
+    obs['wal_set_aside'] = {'host': PUBLIC, 'moved_to': aside}
+    instants['wal_set_aside_at'] = time.time()
+    say('== install the replacement from its bundle (typing its seal code); do not start it')
+    bundle = staging_host.unpack(work / 'net', 'validator-1')
+    result = subprocess.run([str(bundle / 'install.sh')], input=codes['validator-1'] + '\n', text=True)
+    if result.returncode != 0:
+        raise Failed('install.sh failed on the replacement')
+    instants['installed_at'] = time.time()
+    sentry.run(['systemctl', 'start', 'dytallix-node'], timeout=120)
+    instants['sentry_started_at'] = time.time()
+    subprocess.run(['systemctl', 'start', 'dytallix-node.service'], check=True)
+    instants['validator_started_at'] = time.time()
+    deadline = time.monotonic() + timeout
+    while True:
+        ours = engine(None)
+        if ours and halt is not None and ours[0] > halt:
+            instants['first_block_after_halt_at'] = time.time()
+            say(f'== the replacement made height {ours[0]}, past H = {halt}')
+            break
+        if time.monotonic() > deadline:
+            raise Failed(f'the replacement did not pass H = {halt} within {timeout} s (it is at {ours})')
+        time.sleep(1)
+    # Signing again, the sentry following, both at one height with one state.
+    target = halt + recovery.AFTER
+    while True:
+        theirs, ours = engine(sentry), engine(None)
+        if ours and theirs and min(ours[0], theirs[0]) >= target and ours[0] == theirs[0]:
+            break
+        if time.monotonic() > deadline:
+            raise Failed(f'the nodes did not both reach {target} together: validator {ours}, sentry {theirs}')
+        time.sleep(0.5)
+    obs['reached'] = {'validator': ours[0], 'sentry': theirs[0]}
+    obs['compared'] = {name: {'height': r[0], 'block_hash': r[1].lower(), 'app_hash': r[2].lower()}
+                       for name, r in (('validator', ours), ('sentry', theirs))}
+    obs['host_verify_exit'] = subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'),
+                                              'verify']).returncode
+    obs['validators_after'] = validators(client.status())
+    genesis = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
+    record = recovery.build(staging_host.CHAIN_ID, genesis, obs, recovery.approved_target())
+    path = out / 'evidence.json'
+    path.write_text(json.dumps(record, indent=2) + '\n')
+    for row in record['checks']:
+        say(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+    took = {f'{a}->{b}': round(instants[b] - instants[a], 1) for a, b in zip(recovery.STEPS, recovery.STEPS[1:])}
+    say(json.dumps({'validator_recovery_drill': {'halt_height': halt, 'status': record['status'], **took}}, indent=2))
+    if record['status'] != recovery.PASS or recovery.verify(json.loads(path.read_bytes()), genesis) != recovery.PASS:
+        raise Failed(f'the validator recovery drill is {record["status"]}')
+    say(f'== the validator was fenced, replaced and signs again past H = {halt}; evidence sha256 {record["sha256"]}')
 
 
 # The kit replacement drill (root kit replacement v1, K4)
@@ -1544,7 +1654,7 @@ def main():
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'checkpoint', 'adversary-drill',
-                 'fault-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'agent-drill', 'diagnostics'):
+                 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     r = commands.add_parser('reconcile')
     r.add_argument('--work', type=Path, required=True)
@@ -1578,6 +1688,8 @@ def main():
             adversary_drill(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
+        elif args.command == 'validator-recovery-drill':
+            validator_recovery_drill(args.work)
         elif args.command == 'restore-drill':
             restore_drill(args.work)
         elif args.command == 'kit-drill':
@@ -1589,7 +1701,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, recovery.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0

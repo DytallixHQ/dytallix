@@ -79,7 +79,9 @@ Severity 1.
      validator set as before H.
 10. **Record** the times (declared, fenced, installed, first block after H),
     H and the bundle's SHA-256, against the 8-hour objective. The quarterly
-    restore drill runs this procedure on staging and records the same.
+    restore drill runs this procedure on staging and records the same; the
+    CI `validator-recovery-drill` (simulation plan, T9; `recovery.py`) runs it
+    on the staging network.
 
 ## Not covered
 
