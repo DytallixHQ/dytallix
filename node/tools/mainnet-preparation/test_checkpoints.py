@@ -356,6 +356,33 @@ class EventCheckpoints(unittest.TestCase):
         checkpoint = self.record(self.network, bind, '2026-10-12T15:45:00Z')
         self.assertEqual((checkpoint['status'], checkpoint['event']['end']), (cp.PASS, '2026-10-12T15:40:00+00:00'))
 
+    def test_a_restore_and_an_upgrade_switch_are_read_from_their_evidence(self):
+        index = {row['label']: i for i, row in enumerate(self.schedule)}
+        moment = cp.instant('2026-10-12T17:00:00+00:00').timestamp()
+        bind = write_event(self.base, 'restore', {'observations': {'instants': {'caught_up_at': moment}}},
+                           'restore.json')
+        with mock.patch.object(cp.restore_tool, 'verify', return_value=cp.PASS):
+            checkpoint = self.record(index['AFTER THE SENTRY RESTORED FROM ITS SNAPSHOT'], bind, '2026-10-12T17:05:00Z')
+        self.assertEqual((checkpoint['status'], checkpoint['event']['end']), (cp.PASS, '2026-10-12T17:00:00+00:00'))
+        # R04: the switch is done when the last host has switched.
+        r04 = cp.schedule('R04')
+        switch = next(i for i, row in enumerate(r04) if 'event' in row)
+        switched = {'validator-1': '2026-10-12T18:00:00Z', 'sentry-1': '2026-10-12T18:00:12Z'}
+        bind = write_event(self.base, 'upgrade', {'observations': {'switched_at': switched}}, 'upgrade.json')
+        readings = {check: {'bind': write_bind(self.base, 'reconcile', '2026-10-12T18:04:00Z')}
+                    for check in cp.EVENT_CHECKS}
+        with mock.patch.object(cp.upgrade_tool, 'verify', return_value=cp.PASS):
+            checkpoint = cp.record_checkpoint(r04, switch, readings, self.base, NATIVE, ENGINE, '',
+                                              '2026-10-12T18:04:00Z', event_bind=bind)
+            self.assertEqual((checkpoint['status'], checkpoint['event']['end']),
+                             (cp.PASS, '2026-10-12T18:00:12+00:00'))
+            # A host with no switch recorded: the switch is not done.
+            bind = write_event(self.base, 'upgrade', {'observations': {'switched_at': {'validator-1': None}}},
+                               'upgrade-2.json')
+            checkpoint = cp.record_checkpoint(r04, switch, readings, self.base, NATIVE, ENGINE, '',
+                                              '2026-10-12T18:04:00Z', event_bind=bind)
+            self.assertEqual(checkpoint['status'], cp.INCONCLUSIVE)
+
     def test_an_event_with_no_tool_yet_waits_and_never_passes(self):
         checkpoint = self.record(self.restart, None, '2026-10-12T15:00:00Z')
         self.assertEqual(checkpoint['status'], cp.INCONCLUSIVE)

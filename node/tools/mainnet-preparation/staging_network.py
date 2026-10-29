@@ -141,6 +141,7 @@ import host_install  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import recovery  # noqa: E402
+import restore_drill as restore_drill_module  # noqa: E402
 import staging_chain  # noqa: E402
 import staging_command  # noqa: E402
 import staging_founder  # noqa: E402
@@ -568,27 +569,22 @@ def restore_drill(work, timeout=900):
     # The copy as the founder fetches it: its manifest and parts in one folder
     # outside the node's trees.
     sentry.run(['cp', '-r', f'/var/tmp/standin/{UPLOAD["bucket"]}/{copy["copy"].rstrip("/")}', '/root/restore-copy'])
-    times, started = {}, time.monotonic()
-
-    def lap(name, since):
-        times[name] = round(time.monotonic() - since, 1)
-        return time.monotonic()
-
+    instants = {'declared_at': time.time()}
     say('== the sentry is lost: wipe it')
     _, out, _ = sentry.run(['/root/node/dytallix-host/wipe.sh'], stdin='wipe sentry-1\n', timeout=300)
     say(out.strip())
-    mark = lap('wipe_seconds', started)
+    instants['wiped_at'] = time.time()
     say('== reinstall it from its bundle (typing its seal code)')
     _, out, _ = sentry.run(['/root/node/dytallix-host/install.sh'], stdin=codes['sentry-1'] + '\n', timeout=900)
     say(out.strip())
-    mark = lap('install_seconds', mark)
+    instants['installed_at'] = time.time()
     say('== restore it from the copy (typing the backup code)')
     code, out, err = sentry.run(['/root/node/dytallix-host/restore.sh', '/root/restore-copy'],
                                 stdin=codes['backup'] + '\n', timeout=timeout, check=False)
     say(out.strip())
     if code != 0:
         raise Failed(f'restore.sh exited {code}: {err.strip()}')
-    mark = lap('restore_and_catch_up_seconds', mark)
+    instants['restored_at'] = time.time()
     # Caught up: the same height, block hash and application hash as the
     # validator, read from both engines' operator status.
     deadline = time.monotonic() + 180
@@ -597,19 +593,35 @@ def restore_drill(work, timeout=900):
         ours = sync_info(raw)
         theirs = sync_info(subprocess.run(OPERATOR_STATUS, capture_output=True, text=True, check=True).stdout)
         if ours[0] == theirs[0]:
-            if ours != theirs:
-                raise Failed(f'the restored sentry differs from the validator at height {ours[0]}: {ours} vs {theirs}')
             break
         if time.monotonic() > deadline:
             raise Failed(f'the restored sentry is at {ours[0]}, the validator at {theirs[0]}')
         time.sleep(1)
-    times['total_seconds'] = round(time.monotonic() - started, 1)
-    _, out, _ = sentry.run(['python3', '-I', '-B', '/root/node/dytallix-host/host_install.py', 'verify'])
+    instants['caught_up_at'] = time.time()
+    verified, out, _ = sentry.run(['python3', '-I', '-B', '/root/node/dytallix-host/host_install.py', 'verify'],
+                                  check=False)
     say(f'sentry-1: {out.strip()}')
-    say(json.dumps({'restore_drill': {'copy_height': copy['height'], 'compared_height': ours[0],
-                                      'block_hash': ours[1], 'app_hash': ours[2], **times}}, indent=2))
+    obs = {'clock': 'the runner', 'instants': instants,
+           'copy': {'height': copy['height'], 'sha256': copy['sha256'], 'parts': copy.get('parts')},
+           'compared': {name: {'height': r[0], 'block_hash': r[1].lower(), 'app_hash': r[2].lower()}
+                        for name, r in (('validator', theirs), ('sentry', ours))},
+           'host_verify_exit': verified}
+    genesis = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
+    record = restore_drill_module.build(staging_host.CHAIN_ID, genesis, obs, restore_drill_module.approved_target())
+    out_dir = work / 'restore-drill'
+    out_dir.mkdir(exist_ok=True)
+    path = out_dir / 'evidence.json'
+    path.write_text(json.dumps(record, indent=2) + '\n')
+    for row in record['checks']:
+        say(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+    took = {f'{a}->{b}': round(instants[b] - instants[a], 1)
+            for a, b in zip(restore_drill_module.STEPS, restore_drill_module.STEPS[1:])}
+    say(json.dumps({'restore_drill': {'copy_height': copy['height'], 'compared_height': ours[0], **took}}, indent=2))
+    if record['status'] != restore_drill_module.PASS or \
+            restore_drill_module.verify(json.loads(path.read_bytes()), genesis) != restore_drill_module.PASS:
+        raise Failed(f'the restore drill is {record["status"]}')
     say(f'== the sentry was wiped, reinstalled and restored from the copy of height {copy["height"]}, '
-        f'and matches the validator at height {ours[0]}')
+        f'and matches the validator at height {ours[0]}; evidence sha256 {record["sha256"]}')
 
 
 # The validator recovery drill (simulation plan, T9; validator recovery F17)
@@ -2032,7 +2044,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, recovery.Failed, upgrade_drill_module.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0
