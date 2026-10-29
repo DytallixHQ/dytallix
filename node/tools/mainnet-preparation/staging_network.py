@@ -1575,7 +1575,10 @@ class Controls:
 
 # Kits 1 to 3: seat 5 is the kit drill's new kit, and any three suffice.
 UPGRADE_SEATS = (1, 2, 3)
-RELEASE_CLASS = re.compile(r'failure_class"\s*:\s*"release"')
+# RC1's refusal of the committed release, as its engine and bridge log it; the
+# supervisor records the engine's exit first and stops the application before
+# it exits with its class, so the class itself is not in the journal.
+RELEASE_REFUSAL = re.compile(r'Committed release requires a different runtime executable')
 
 
 def reconcile_now(work, name, timeout=300):
@@ -1658,6 +1661,8 @@ def upgrade_drill(work, timeout=900):
     # RC1 refuses to propose past the activation, so the validator stops at
     # it; the sentry, which never proposes, stops when the next block reaches
     # it, which needs the validator on RC2. Each host stops before it switches.
+    # The stop: RC1's application refuses, the engine stops itself (the E02
+    # self-term rule) and the supervisor stops the rest.
     sentry = agent(work, PUBLIC)
     exec_start = re.compile(r'^ExecStart=/opt/dytallix/([0-9a-f]{16})/bin/', re.M)
     journal = ['journalctl', '-u', staging_host.UNIT, '-o', 'cat', '--no-pager', '-n', '40']
@@ -1668,7 +1673,7 @@ def upgrade_drill(work, timeout=900):
         PUBLIC: {'run': lambda args: sentry.run(args, check=False)[1],
                  'unit': lambda: sentry.read(UNIT_FILE).decode(), 'bundle': Path('/root/node-later/dytallix-host')},
     }
-    obs['stopped'], obs['units_after'] = {}, {}
+    obs['stopped'], obs['units_after'], obs['switched_at'] = {}, {}, {}
     for label, host in hosts.items():
         say(f'== {label}: RC1 stops itself')
         deadline = time.monotonic() + timeout
@@ -1682,7 +1687,7 @@ def upgrade_drill(work, timeout=900):
             time.sleep(2)
         lines = host['run'](journal)
         say(f'{label} ({state}):\n{lines}')
-        obs['stopped'][label] = {'active': state, 'release_class': bool(RELEASE_CLASS.search(lines))}
+        obs['stopped'][label] = {'active': state, 'release_refusal': bool(RELEASE_REFUSAL.search(lines))}
         if label == 'validator-1':
             obs['halt_height'] = staging_host.height()
         say(f'== {label}: switch to RC2 (switch.sh)')
@@ -1695,6 +1700,7 @@ def upgrade_drill(work, timeout=900):
         say(out.strip())
         if code != 0:
             raise Failed(f'switch.sh failed on {label}: {err.strip()}')
+        obs['switched_at'][label] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
         obs['units_after'][label] = (exec_start.search(host['unit']()) or [None, None])[1]
 
     say('== both nodes run RC2 past the activation')

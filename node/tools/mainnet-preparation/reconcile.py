@@ -50,7 +50,12 @@ LEDGER_SCHEMA = 'dytallix.reconcile-ledger.v1'
 METRICS = '/var/lib/dytallix/metrics/dytallix-app.prom'
 APPDB = '/var/lib/dytallix/node/appdb'
 UNIT = 'dytallix-node'
-OPERATOR_STATUS = ('sh', '-c', 'exec /opt/dytallix/*/bin/dytallix-operator-rpc --home /var/lib/dytallix/node status')
+# The running release's binary, which the node unit's ExecStart names. After a
+# release switch two releases are installed (the previous one stays until the
+# next stage), and a glob over /opt/dytallix would name both (upgrade drill, T8).
+NODE_UNIT_FILE = '/etc/systemd/system/dytallix-node.service'
+OPERATOR_STATUS = ('sh', '-c', 'exec "$(sed -n "s|^ExecStart=\\(/opt/dytallix/[0-9a-f]*/bin\\)/.*|\\1|p" '
+                   + NODE_UNIT_FILE + ')/dytallix-operator-rpc" --home /var/lib/dytallix/node status')
 RELEASE_BIN = re.compile(r'/opt/dytallix/([A-Za-z0-9._-]+)/bin/')
 DRT = ('genesis', 'emitted', 'burned', 'total', 'liquid', 'withheld_fees')
 DGT = ('issued', 'liquid', 'staked', 'pending_bonded', 'unbonding', 'penalty_reserve', 'governance_escrow')

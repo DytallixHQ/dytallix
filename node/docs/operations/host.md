@@ -90,7 +90,12 @@ when the old release stops at the activation height.
    one that changes the node home, is refused. Releases older than the
    running one are removed.
 2. **At activation** the old release stops itself: the committed release is
-   no longer its own (exit class `release`).
+   no longer its own, and `journalctl -u dytallix-node` shows "Committed
+   release requires a different runtime executable" before the unit stops.
+   The validator stops at the activation height, since the old release
+   refuses to propose past it; a host that does not propose (the sentry, an
+   endpoint) stops when the next block reaches it, which needs the validator
+   on the new release. So switch the validator first (upgrade drill, T8).
 3. On each host, from the new bundle: `./dytallix-host/switch.sh`. It
    refuses while the node runs. It installs the staged unit, profiles,
    firewall and journal setting, unloads the old release's profiles,

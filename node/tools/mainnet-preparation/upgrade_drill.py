@@ -19,11 +19,12 @@ Each rule is one check:
 - notice: the activation's first possible height (its anchor plus one) at
   least the admission height plus the notice (the chain's upgrade policy,
   min_notice_blocks);
-- stopped: RC1 stopped itself on each host, with exit class release,
-  before that host switched: the validator at the activation (RC1 refuses
+- stopped: RC1 stopped itself on each host, refusing because the committed
+  release is no longer its own, before that host switched: the validator at the activation (RC1 refuses
   to propose past it), the sentry when the next block reached it from the
   validator on RC2;
-- switched: both units run RC2 after switch.sh;
+- switched: both units run RC2 after switch.sh (the instant of each switch
+  is recorded for the event checkpoint after it, T7);
 - active: the chain's active release RC2 and active schema 1 (the
   receipt-index migration ran: schema 0 to 1 only through it);
 - resumed: both nodes past the activation, the same block and application
@@ -109,9 +110,9 @@ def evaluate(observations):
         add('stopped', INCONCLUSIVE, 'not every host was read after the activation')
     else:
         bad = [f'{h}: {stopped[h]}' for h in HOSTS
-               if stopped[h].get('active') not in ('inactive', 'failed') or not stopped[h].get('release_class')]
+               if stopped[h].get('active') not in ('inactive', 'failed') or not stopped[h].get('release_refusal')]
         add('stopped', FAIL if bad else PASS, '; '.join(bad) if bad else
-            'RC1 stopped itself on both hosts with exit class release')
+            'RC1 stopped itself on both hosts, refusing the committed release')
 
     units = observations.get('units_after') or {}
     if not all(h in units for h in HOSTS) or not target:

@@ -22,8 +22,8 @@ def observations():
         'admitted': {'height': 101, 'upgrade_pending': {'admitted_height': 99, 'plan': {}},
                      'handover_pending': {'plan': {'target_release_sha512': RC2}, 'admitted_height': 100}},
         'activation_anchor_height': 121, 'halt_height': 123,
-        'stopped': {'validator-1': {'active': 'failed', 'release_class': True},
-                    'sentry-1': {'active': 'inactive', 'release_class': True}},
+        'stopped': {'validator-1': {'active': 'failed', 'release_refusal': True},
+                    'sentry-1': {'active': 'inactive', 'release_refusal': True}},
         'units_after': {'validator-1': RC2[:16], 'sentry-1': RC2[:16]},
         'active': {'release': RC2, 'handover_schema': 1, 'upgrade_schema': 1},
         'compared': {'validator': dict(node), 'sentry': dict(node)},
@@ -61,9 +61,9 @@ class UpgradeDrillTests(unittest.TestCase):
                 change(obs)
                 found, status = checks(obs)
                 self.assertEqual((found[check], status), (ud.FAIL, ud.FAIL))
-        # A stop without the release exit class is not the activation's stop.
+        # A stop without RC1's refusal of the committed release is not the activation's.
         obs = observations()
-        obs['stopped']['validator-1']['release_class'] = False
+        obs['stopped']['validator-1']['release_refusal'] = False
         self.assertEqual(checks(obs)[0]['stopped'], ud.FAIL)
         # Resumed, but not past the activation.
         obs = observations()
