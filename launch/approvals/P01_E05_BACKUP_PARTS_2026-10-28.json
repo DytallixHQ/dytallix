@@ -1,0 +1,28 @@
+{
+  "decision_id": "P01-2026-10-28-E05-BACKUP-PARTS",
+  "approved": "2026-10-28",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the sentry uploads an off-host copy larger than one upload to the store"
+  },
+  "reason": "Each daily copy holds the sentry's snapshot with every block record since genesis (block_history archive) and went up as one plain upload, and an S3-compatible store takes at most 5 GB in one upload (Backblaze B2, the staging store). A block carries up to 1,000,000 transaction bytes, so at half capacity the archive grows by about 8.6 GB a day: the copy would pass the limit within about a day of the statistical campaign's load, and in production as history accumulates, and every backup after that would fail.",
+  "design_ref": "../../node/docs/architecture/disaster-recovery-v1.md",
+  "decisions": [
+    {
+      "question": "How a copy larger than one upload reaches the store",
+      "selected": "Parts and a manifest",
+      "rule": "The backup job splits each sealed copy into parts of 1 GiB (the last one shorter) and uploads each as one plain upload with the same write-only key, under PREFIX/CHAIN/{height:020}-{the copy's SHA-256}/part-NNNN.bin; then it uploads manifest.json there (dytallix.backup-parts.v1: the chain, the height, the copy's size and SHA-256, the part size, and each part's name, size and SHA-256), last, so a copy is complete only once its manifest exists. It records the height only after the manifest is uploaded; a failed run leaves an incomplete folder with no manifest, and the next run seals and uploads a new copy. Its scratch directory holds the copy and one part. A restore fetches the manifest and every part it lists into one folder; restore.sh checks every part against the manifest before touching any, appends them in order (the host's disk holds the copy and at most one part beyond it), checks the joined copy's size and SHA-256, and then opens it as before. The copy's format (dytallix.backup.v1), its encryption and the backup code are unchanged. S3 multipart upload was not chosen: three request types, XML parsing on the host, and a write-only key that would have to allow multipart calls."
+    }
+  ],
+  "supersedes": [
+    "Disaster recovery v1's one object per copy, PREFIX/CHAIN/{height:020}-{sha256}.bin: now a folder of that name holding the parts and the manifest."
+  ],
+  "does_not_authorize": [
+    "creating the storage account's keys or any upload to a real store",
+    "rebuilding either host or any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

@@ -567,6 +567,34 @@ class RestoreTests(HostNetwork):
         self.assertIn('at height 20', printed[-1])
         self.assertIn('caught up to height 31', printed[-1])
 
+    def test_restore_joins_a_copy_fetched_in_parts(self):
+        bundle, host, manifest, _ = self.restore_host('sentry-1')
+        copy = b'encrypted copy, in three parts'
+        folder = self.tmp / 'fetched'
+        folder.mkdir()
+        parts = [copy[i:i + 12] for i in range(0, len(copy), 12)]
+        for index, raw in enumerate(parts):
+            (folder / f'part-{index:04}.bin').write_bytes(raw)
+        (folder / 'manifest.json').write_text(json.dumps({
+            'schema': 'dytallix.backup-parts.v1', 'chain_id': manifest['chain_id'], 'height': 20,
+            'copy_bytes': len(copy), 'copy_sha256': hashlib.sha256(copy).hexdigest(), 'part_bytes': 12,
+            'parts': [{'name': f'part-{i:04}.bin', 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
+                      for i, raw in enumerate(parts)]}))
+        host.journal = self.READY
+        _, printed = self.restore(bundle, host, folder)
+        opened = next(c for c in host.commands if c[1:2] == ['backup-open'])
+        self.assertEqual(opened[opened.index('-in') + 1], str(folder.resolve() / 'copy.bin'))
+        self.assertEqual((folder / 'copy.bin').read_bytes(), copy)
+        self.assertIn('Checked the 3 parts', printed[0])
+        # A copy of another chain is refused before any part is joined.
+        bundle, host, _, _ = self.restore_host('endpoint-1')
+        other = self.tmp / 'other'
+        other.mkdir()
+        (other / 'manifest.json').write_text(json.dumps(dict(json.loads((folder / 'manifest.json').read_text()),
+                                                             chain_id='another-chain')))
+        with self.assertRaisesRegex(hi.Refused, 'not of'):
+            self.restore(bundle, host, other)
+
     def test_restore_refuses_unsafe_starts(self):
         # The validator only with --accept-history-loss.
         bundle, host, _, copy = self.restore_host('validator-1')
