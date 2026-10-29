@@ -1,0 +1,29 @@
+{
+  "decision_id": "P01-2026-10-29-T06-EVENT-CHECKPOINTS",
+  "approved": "2026-10-29",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The checkpoint recorder's event checkpoints for R01 to R06 (T7): the window after an event, and how each run's events are fixed"
+  },
+  "reason": "P01_T06_SIMULATION_INPUTS_2026-10-14 approved a reconciliation at an event checkpoint after each fault recovery (R02, R03), the upgrade switch (R04) and each load window (R06), but not how soon after the event it must be taken, nor how a run's events are fixed so that none can be skipped.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "How soon after its event an event checkpoint's reconciliation must finish",
+      "selected": "Within 30 minutes",
+      "rule": "The reconciliation (T6) bound at an event checkpoint counts only if it finishes in [the event's end, 30 minutes later), the end read from the event's own digest-bound evidence (the fault injector's recovery, the validator recovery's first block after the halt, the load window's end), and only for an event that ends between genesis and T+24h."
+    },
+    {
+      "question": "How each run's events are fixed",
+      "selected": "Fixed per run in the schedule",
+      "rule": "Each run's schedule names every event from the run's definition (R02: its six faults; R03: its three network faults; R04: the upgrade switch; R06: the full- and half-capacity load windows; R01 and R05: none), so the schedule's digest covers them and a run cannot skip one. An event whose tool records no end yet is INCONCLUSIVE and names what it awaits; a run qualifies only under its own name and schedule."
+    }
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

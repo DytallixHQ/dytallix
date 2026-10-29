@@ -71,27 +71,34 @@ but no client can reach it.
    the bundle, check its SHA-256, unpack it, run
    `./dytallix-host/install.sh` and type the seal code. Do not start it.
 6. **Fetch the newest copy.** In the storage console, find the newest
-   object under the chain's prefix (`PREFIX/CHAIN/{height:020}-{sha256}.bin`;
-   the height is in the name) and make a short-lived download link. On the
+   complete copy under the chain's prefix: a folder
+   `PREFIX/CHAIN/{height:020}-{sha256}/` (the height is in the name) that
+   holds `manifest.json`. A folder without a manifest is an incomplete
+   upload; skip it. Make a short-lived download link for the manifest and
+   for each part it lists (`part-0000.bin` onwards, 1 GiB each). On the
    replacement:
 
    ```text
-   curl -fsSL -o /root/copy.bin 'DOWNLOAD-LINK'
-   sha256sum /root/copy.bin
+   mkdir /root/copy
+   curl -fsSL -o /root/copy/manifest.json 'MANIFEST-LINK'
+   curl -fsSL -o /root/copy/part-0000.bin 'PART-LINK'
    ```
 
-   The SHA-256 must equal the one in the object's name. The copy is
-   encrypted and authenticated, so the download link is transport only.
+   with one `curl` line for each part. The copy is encrypted and
+   authenticated, so the download links are transport only; `restore.sh`
+   checks every part against the manifest.
 7. **Restore:**
 
    ```text
-   ./dytallix-host/restore.sh /root/copy.bin
+   ./dytallix-host/restore.sh /root/copy
    ```
 
-   and type the backup code from paper. It checks the host, opens the
-   copy, starts the node once to restore it, and waits until the node has
-   restored and caught up. It prints the copy's height and the height the
-   node reached. On the validator, after the incident decision only, add
+   and type the backup code from paper. It checks the host, checks every
+   part's size and SHA-256 against the manifest and joins them into
+   `/root/copy/copy.bin` (a part that does not match is named: fetch it
+   again), opens the copy, starts the node once to restore it, and waits
+   until the node has restored and caught up. It prints the copy's height
+   and the height the node reached. On the validator, after the incident decision only, add
    `--accept-history-loss`.
 
    If it fails: `journalctl -u dytallix-node` shows the supervisor's
@@ -105,15 +112,21 @@ but no client can reach it.
    - a restored sentry writes its next snapshot and its backup uploads it
      (`journalctl -u dytallix-backup`), and the status page of a restored
      host serving clients answers.
-9. **Delete the copy** from the host (`rm /root/copy.bin`); `restore.sh`
+9. **Delete the copy** from the host (`rm -r /root/copy`); `restore.sh`
    already removed the opened one.
 10. **Record** the times (declared, fenced, installed, restored, caught up),
     the copy's height and its age, against the 4-hour objective.
 
 ## Monthly and quarterly
 
-- **Monthly:** download the newest copy to your own drive and check its
-  SHA-256 against its name. Keep at least one copy per month at the storage
+- **Monthly:** download the newest complete copy's folder (its manifest and
+  every part) to your own drive and, in that folder, check every part:
+
+  ```text
+  python3 -c 'import json; [print(p["sha256"] + "  " + p["name"]) for p in json.load(open("manifest.json"))["parts"]]' | shasum -a 256 -c
+  ```
+
+  (`sha256sum -c` on Linux). Keep at least one copy per month at the storage
   provider; prune older ones by hand.
 - **Quarterly:** the restore drill runs this procedure on staging and
   records its times. CI runs it on every change to the host tooling: H4's

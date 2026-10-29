@@ -21,8 +21,10 @@ from the unpacked bundle, through install.sh and wipe.sh:
            installs the staged unit, profiles, firewall and journal setting,
            verifies the host against the new bundle and starts the node.
   restore  on a freshly installed host, before its first start, restores
-           the node from an off-host copy (disaster recovery v1, R5): opens
-           it with the backup code typed from paper, starts the node once
+           the node from an off-host copy (disaster recovery v1, R5): joins
+           its parts, fetched into one folder with their manifest, checking
+           each against the manifest, opens the copy with the backup code
+           typed from paper, starts the node once
            with --restore-snapshot, waits until it has restored and caught
            up, then removes the one-time start and the opened copy. On the
            validator it requires --accept-history-loss.
@@ -582,6 +584,59 @@ def synced(raw):
         return 0, True
 
 
+PARTS_SCHEMA = 'dytallix.backup-parts.v1'
+JOINED = 'copy.bin'
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, 'rb') as file:
+        for block in iter(lambda: file.read(1 << 20), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def join_parts(folder, chain, out=say):
+    """An off-host copy uploaded in parts (backup.py; P01, 28 October 2026),
+    fetched into one folder with its manifest.json. Every part is checked
+    against the manifest before any is touched; then the parts are appended
+    to the first, each removed once appended, so the disk holds the copy and
+    at most one part beyond it. The joined copy, FOLDER/copy.bin, is checked
+    against the copy's size and SHA-256; a later run reuses it."""
+    raw = (folder / 'manifest.json').read_bytes()
+    require(len(raw) <= 4 << 20, 'the manifest is too large')
+    manifest = json.loads(raw)
+    require(manifest.get('schema') == PARTS_SCHEMA, f'{folder}/manifest.json is not a copy\'s manifest')
+    require(manifest.get('chain_id') == chain, f'the copy is not of {chain}')
+    parts = manifest.get('parts')
+    require(isinstance(parts, list) and parts and all(isinstance(p, dict) for p in parts), 'the manifest lists no parts')
+    require([p.get('name') for p in parts] == [f'part-{i:04}.bin' for i in range(len(parts))],
+            'the manifest\'s parts are not part-0000.bin onwards, in order')
+    require(sum(p.get('bytes', -1) for p in parts) == manifest.get('copy_bytes'), 'the parts do not add up to the copy')
+    joined = folder / JOINED
+
+    def matches():
+        return joined.stat().st_size == manifest['copy_bytes'] and sha256_file(joined) == manifest['copy_sha256']
+    if joined.exists():
+        require(matches(), f'{joined} is not the copy the manifest names; remove it and fetch the parts again')
+        return joined
+    for part in parts:
+        path = folder / part['name']
+        require(path.is_file(), f'{part["name"]} is missing: fetch every part the manifest lists')
+        require(path.stat().st_size == part['bytes'] and sha256_file(path) == part['sha256'],
+                f'{part["name"]} does not match the manifest: fetch it again')
+    out(f'Checked the {len(parts)} parts of the copy at height {manifest.get("height")}; joining them.')
+    os.rename(folder / parts[0]['name'], joined)
+    with open(joined, 'ab') as target:
+        for part in parts[1:]:
+            path = folder / part['name']
+            with open(path, 'rb') as source:
+                shutil.copyfileobj(source, target, 1 << 20)
+            path.unlink()
+    require(matches(), 'the joined copy does not match the manifest; fetch the parts again')
+    return joined
+
+
 def restore(bundle, host, copy, accept_history_loss=False, out=say, sleep=time.sleep, clock=time.time,
             timeout=RESTORE_TIMEOUT):
     require(host.is_root(), 'run as root')
@@ -602,7 +657,9 @@ def restore(bundle, host, copy, accept_history_loss=False, out=say, sleep=time.s
                       '(wipe and install it first)')
     require(not os.path.lexists(host.path(RESTORE_COPY)), f'{RESTORE_COPY} is left from an earlier restore; remove it')
     copy = Path(copy).resolve()
-    require(copy.is_file(), f'{copy} is not a copy file')
+    if copy.is_dir():
+        copy = join_parts(copy, chain, out)
+    require(copy.is_file(), f'{copy} is not a copy\'s folder or file')
     signer = str(host.path(f'/opt/dytallix/{release}/bin/{UNSEALER}'))
     out(f'Type the backup code for {chain} from its paper (dytallix-backup-{chain} ...), then press Enter:')
     host.run([signer, 'backup-open', '-paper', '-', '-in', str(copy), '-out', str(host.path(RESTORE_COPY))],
@@ -738,7 +795,7 @@ def main(argv):
     settings = len(argv) == 3 and argv[1] == 'monitor-settings'
     if not (restoring or settings) and (len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch',
                                                                            'wipe')):
-        print('usage: host_install.py install|verify|stage|switch|wipe, restore COPY [--accept-history-loss], '
+        print('usage: host_install.py install|verify|stage|switch|wipe, restore FOLDER [--accept-history-loss], '
               'or monitor-settings FILE', file=sys.stderr)
         return 2
     bundle = Path(__file__).resolve().parent
