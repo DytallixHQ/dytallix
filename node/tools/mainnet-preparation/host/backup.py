@@ -13,6 +13,13 @@ release's `dytallix-root-sign backup-seal` under the chain's backup code, upload
 S3-compatible bucket at a second provider, with a write-only key), records
 the height and removes its scratch copy. The upload key reaches curl on its
 standard input, never on a command line. Standard library only.
+
+The copy holds every block record since genesis, and a store takes at most
+5 GB in one upload (Backblaze B2), so it goes up in parts of 1 GiB
+(P01, 28 October 2026): PREFIX/CHAIN/{height:020}-{sha256}/part-NNNN.bin,
+then manifest.json (dytallix.backup-parts.v1: each part's size and SHA-256,
+the copy's size and SHA-256), last, so a copy is complete only once its
+manifest exists. The scratch directory holds the copy and one part.
 """
 import argparse
 import hashlib
@@ -30,6 +37,9 @@ HEIGHT_DIR = re.compile(r'^[0-9]{20}$')
 # Values that go into curl's configuration unquoted-safe.
 SAFE = re.compile(r'^[A-Za-z0-9._~+/=-]{1,256}$')
 STATE_FILE = 'last-uploaded'
+PARTS_SCHEMA = 'dytallix.backup-parts.v1'
+PART_BYTES = 1 << 30
+MANIFEST = 'manifest.json'
 
 
 class Failed(Exception):
@@ -105,7 +115,31 @@ def curl_config(upload, copy, url):
         '']).encode()
 
 
-def run(config_path, runner=subprocess.run, out=print):
+def put(config, upload, runner, path, name):
+    url = f'{upload["endpoint"].rstrip("/")}/{upload["bucket"]}/{name}'
+    result = runner([config['curl'], '--config', '-'], input=curl_config(upload, path, url), capture_output=True)
+    require(result.returncode == 0,
+            f'the upload failed ({name}): {(result.stderr or b"").decode(errors="replace").strip()}')
+
+
+def split(copy, part, part_bytes):
+    """Yields (index, bytes, sha256) as each part of the copy is written to
+    the one part file."""
+    with open(copy, 'rb') as source:
+        for index in range(max(1, -(-copy.stat().st_size // part_bytes))):
+            digest, size = hashlib.sha256(), 0
+            with open(part, 'wb') as target:
+                while size < part_bytes:
+                    block = source.read(min(1 << 20, part_bytes - size))
+                    if not block:
+                        break
+                    digest.update(block)
+                    target.write(block)
+                    size += len(block)
+            yield index, size, digest.hexdigest()
+
+
+def run(config_path, runner=subprocess.run, out=print, part_bytes=PART_BYTES):
     config, upload = load(config_path)
     chain, snapshots, state = config['chain_id'], config['snapshots'], config['state']
     height = newest_snapshot(snapshots, config['light_blocks'])
@@ -114,7 +148,8 @@ def run(config_path, runner=subprocess.run, out=print):
         return None
     scratch = Path(state) / 'scratch'
     copy = scratch / f'{chain}-{height:020}.bin'
-    for leftover in (copy, copy.with_name(copy.name + '.partial')):
+    part, manifest_file = scratch / 'part.bin', scratch / MANIFEST
+    for leftover in (copy, copy.with_name(copy.name + '.partial'), part, manifest_file):
         if leftover.exists():
             leftover.unlink()
     try:
@@ -123,17 +158,25 @@ def run(config_path, runner=subprocess.run, out=print):
                          '-light-blocks', str(Path(config['light_blocks']) / f'{height:020}'), '-out', str(copy)],
                         capture_output=True, text=True)
         require(result.returncode == 0, f'backup-seal failed: {(result.stderr or "").strip()}')
-        digest = sha256_file(copy)
-        name = f'{upload["prefix"]}{chain}/{height:020}-{digest}.bin'
-        url = f'{upload["endpoint"].rstrip("/")}/{upload["bucket"]}/{name}'
-        result = runner([config['curl'], '--config', '-'], input=curl_config(upload, copy, url),
-                        capture_output=True)
-        require(result.returncode == 0, f'the upload failed: {(result.stderr or b"").decode(errors="replace").strip()}')
+        digest, size = sha256_file(copy), copy.stat().st_size
+        folder = f'{upload["prefix"]}{chain}/{height:020}-{digest}/'
+        parts = []
+        for index, part_size, part_digest in split(copy, part, part_bytes):
+            name = f'part-{index:04}.bin'
+            put(config, upload, runner, part, folder + name)
+            parts.append({'name': name, 'bytes': part_size, 'sha256': part_digest})
+        manifest_file.write_text(json.dumps({
+            'schema': PARTS_SCHEMA, 'chain_id': chain, 'height': height, 'copy_bytes': size, 'copy_sha256': digest,
+            'part_bytes': part_bytes, 'parts': parts}, indent=2) + '\n')
+        # Last: a copy without its manifest is incomplete.
+        put(config, upload, runner, manifest_file, folder + MANIFEST)
         record(state, height)
     finally:
-        if copy.exists():
-            copy.unlink()
-    summary = {'status': 'UPLOADED', 'chain_id': chain, 'height': height, 'object': name, 'sha256': digest}
+        for leftover in (copy, part, manifest_file):
+            if leftover.exists():
+                leftover.unlink()
+    summary = {'status': 'UPLOADED', 'chain_id': chain, 'height': height, 'copy': folder, 'sha256': digest,
+               'bytes': size, 'parts': len(parts)}
     out(json.dumps(summary))
     return summary
 

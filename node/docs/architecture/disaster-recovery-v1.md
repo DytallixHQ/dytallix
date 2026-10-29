@@ -49,6 +49,11 @@ document is the design; the tools and the runbook follow (see
 (8 October 2026): a restore accepts a copy up to 13 days old, and on the
 validator only with `--accept-history-loss` after the incident decision.
 
+[Copies in parts](../../../launch/approvals/P01_E05_BACKUP_PARTS_2026-10-28.json)
+(28 October 2026): a store takes at most 5 GB in one upload (Backblaze B2),
+and the copy holds every block record, so it goes up in parts of 1 GiB with
+a manifest, uploaded last; a restore checks every part, then joins them.
+
 ## What is copied
 
 The sentry runs with `block_history: archive`, so its application keeps
@@ -94,12 +99,21 @@ job takes the newest height with both and copies them together.
   left on failure); `backup-check` opens a copy with the typed code and
   checks every entry without writing; `backup-open` checks the whole copy,
   then extracts it into a new owner-only directory.
-- **Name:** the chain, the height and the SHA-256 of the copy, which
-  `backup-seal` prints.
+- **Name:** a folder named for the chain, the height and the SHA-256 of the
+  copy (which `backup-seal` prints), `PREFIX/CHAIN/{height:020}-{sha256}/`,
+  holding its parts and its manifest.
 - **Upload:** the host's own `curl` with AWS Signature V4 to an
   S3-compatible bucket, over TLS. TLS is transport only, as for the bundle
   download: the copy is already encrypted and authenticated, and no TLS
   library enters a release binary (G35).
+- **Parts** (P01, 28 October 2026): a store takes at most 5 GB in one
+  upload, and at half capacity (1,000,000 transaction bytes a block at most)
+  the archive grows by about 8.6 GB a day. So the copy is cut into parts of
+  1 GiB, `part-0000.bin` onwards (the last one shorter), each one plain
+  upload, then `manifest.json` (`dytallix.backup-parts.v1`: the chain, the
+  height, the copy's size and SHA-256, the part size, and each part's name,
+  size and SHA-256) goes up last. A folder without a manifest is an
+  incomplete copy.
 - **Upload key:** write-only (it can add objects, not list, read or delete
   them), sealed into the sentry's bundle with its node keys, so it reaches
   the host the same way and is never typed or stored in the clear
@@ -112,10 +126,11 @@ job takes the newest height with both and copies them together.
   and `/var/lib/dytallix-backup` as its only writable path. When the newest
   height with a published snapshot and its light blocks is above the last
   height uploaded, it runs
-  `backup-seal` into its scratch directory, uploads with `curl --config -`
-  (the upload key on curl's standard input, never on a command line),
-  records the height and removes the scratch copy. It never touches the
-  node's home or keys.
+  `backup-seal` into its scratch directory, uploads the parts and then the
+  manifest with `curl --config -` (the upload key on curl's standard input,
+  never on a command line), records the height once the manifest is up and
+  removes the scratch copy; the scratch directory holds the copy and one
+  part. It never touches the node's home or keys.
 - **Where the secrets live:** the backup code and upload key are sealed as
   `backup/code` and `backup/upload.json` with the sentry's node keys. The
   installer unseals into a root-only directory and places them in
@@ -123,16 +138,22 @@ job takes the newest height with both and copies them together.
   profiles; `verify` checks them and `wipe` removes them.
 - **Retention at the provider:** the bucket keeps every copy (no deletion
   by the upload key); the founder prunes old copies by hand, keeping at
-  least one per month.
+  least one per month. A failed run leaves a folder without a manifest; the
+  next run uploads a new copy, and pruning removes the incomplete folder.
 
 ## Restore
 
 A rebuilt host restores from the newest copy, as root, after `install.sh`
-and before the node's first start, with `restore.sh COPY` from its bundle
+and before the node's first start, with `restore.sh FOLDER` from its bundle
 (built in R5):
 
-1. **Fetch** the copy to the host (it is encrypted and authenticated, so
-   the download is transport only, like the bundle's).
+1. **Fetch** the copy's `manifest.json` and every part it lists into one
+   folder on the host (they are encrypted and authenticated, so the
+   download is transport only, like the bundle's). `restore.sh FOLDER`
+   checks every part's size and SHA-256 against the manifest before it
+   touches any, appends them in order into `FOLDER/copy.bin` (each part
+   removed once appended, so the disk holds the copy and at most one part
+   beyond it), and checks the joined copy's size and SHA-256.
 2. **Checks.** The installed release is the bundle's, the node is stopped
    and holds no chain state (no engine stores, an empty application
    database), and on the validator the operator added
@@ -229,3 +250,10 @@ Every restore is drilled quarterly on staging, with its measured times.
   [the runbook](../operations/disaster-recovery.md) and
   `staging_network.py restore-drill`, a step of the Host install workflow's
   network job.
+- **R7.** Copies in parts (P01, 28 October 2026). Built: `backup.py`
+  uploads the parts and then the manifest, and `host_install.py restore`
+  (`restore.sh FOLDER`) checks and joins them, with tests
+  (`test_backup_job.py`, `test_host_bundle.py`). H4's network run fetches
+  the manifest and parts from the stand-in store and joins them with the
+  restore's code, and the restore drill restores from the folder. A CI copy
+  is one part; several parts are tested with real files.

@@ -120,9 +120,11 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+sys.path.insert(1, str(HERE / 'host'))
 import adversary  # noqa: E402
 import checkpoints  # noqa: E402
 import faults  # noqa: E402
+import host_install  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import recovery  # noqa: E402
@@ -479,10 +481,17 @@ def run(work, timeout=600):
     copy = uploaded[-1]
     # The restore drill takes the same copy from the store.
     (work / 'backup-uploaded.json').write_text(json.dumps(copy))
-    stored = f'/var/tmp/standin/{UPLOAD["bucket"]}/{copy["object"]}'
-    data = sentry.read(stored)
-    local = work / 'backup-copy.bin'
-    local.write_bytes(data)
+    # Fetched as the founder fetches it: the manifest, then every part it
+    # lists, into one folder, checked and joined by the restore's own code.
+    stored = f'/var/tmp/standin/{UPLOAD["bucket"]}/{copy["copy"]}'
+    fetched = work / 'backup-copy'
+    fetched.mkdir()
+    manifest = sentry.read(f'{stored}manifest.json')
+    (fetched / 'manifest.json').write_bytes(manifest)
+    for part in json.loads(manifest)['parts']:
+        (fetched / part['name']).write_bytes(sentry.read(stored + part['name']))
+    local = host_install.join_parts(fetched, staging_host.CHAIN_ID, say)
+    say(f'== the copy: {copy["parts"]} part(s), {copy["bytes"]} bytes, joined and checked against its manifest')
     codes = json.loads((work / 'net' / 'seal-codes.json').read_bytes())
     paper = work / 'backup-paper.txt'
     descriptor = os.open(paper, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -529,8 +538,9 @@ def restore_drill(work, timeout=900):
     copy = json.loads((work / 'backup-uploaded.json').read_bytes())
     restored = json.loads((work / 'restored' / 'metadata.json').read_bytes())
     say(f'== the copy: height {copy["height"]}, block records from height {restored.get("retained_from")}')
-    # The copy as the founder fetches it: a file outside the node's trees.
-    sentry.run(['cp', f'/var/tmp/standin/{UPLOAD["bucket"]}/{copy["object"]}', '/root/restore-copy.bin'])
+    # The copy as the founder fetches it: its manifest and parts in one folder
+    # outside the node's trees.
+    sentry.run(['cp', '-r', f'/var/tmp/standin/{UPLOAD["bucket"]}/{copy["copy"].rstrip("/")}', '/root/restore-copy'])
     times, started = {}, time.monotonic()
 
     def lap(name, since):
@@ -546,7 +556,7 @@ def restore_drill(work, timeout=900):
     say(out.strip())
     mark = lap('install_seconds', mark)
     say('== restore it from the copy (typing the backup code)')
-    code, out, err = sentry.run(['/root/node/dytallix-host/restore.sh', '/root/restore-copy.bin'],
+    code, out, err = sentry.run(['/root/node/dytallix-host/restore.sh', '/root/restore-copy'],
                                 stdin=codes['backup'] + '\n', timeout=timeout, check=False)
     say(out.strip())
     if code != 0:
