@@ -1,0 +1,40 @@
+{
+  "decision_id": "P01-2026-10-28-T06-UPGRADE-DRILL",
+  "approved": "2026-10-28",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The upgrade drill (simulation plan, T8): what RC2 is in CI, the notice in CI, and the first drill's scope"
+  },
+  "reason": "The upgrade drill had a definition (launch-rehearsals.md, tools table) but no second release to hand over to in CI, no notice for CI, and no scope; mapping it also found that a production node could not start a later release (decided separately, P01_E05_LATER_RELEASE_START_2026-10-28).",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "Order of work",
+      "selected": "Fix first",
+      "rule": "The later release start (P01_E05_LATER_RELEASE_START_2026-10-28) comes before the drill, which proves it end to end."
+    },
+    {
+      "question": "What RC2 is in the CI staging network",
+      "selected": "One-member variant",
+      "rule": "RC2 is the release set with only the application (consensus_stdio) recompiled from the same source, its own crate at another optimization level (build_release.py variant: cargo rustc ... -- -C opt-level=2, reusing the first build's work tree), so it alone differs; the root verifier and the migration registry stay identical. It is for rehearsals only, never a production release. What RC2 is for R04 on the real hosts is decided before R04."
+    },
+    {
+      "question": "The upgrade and handover notice in CI",
+      "selected": "20 blocks in CI",
+      "rule": "The CI timing profile's 20-block notice, approved for the kit replacement drill (P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08), also applies to the upgrade drill in CI only. R01 to R06 keep the rehearsal profile's 720 blocks and R07 the production 120,960."
+    },
+    {
+      "question": "The first drill's scope",
+      "selected": "Handover and migration",
+      "rule": "RC1 to RC2 with the receipt-index migration (receipt-index-v1): the upgrade and handover admissions prepared, signed three of five with the rehearsal kits and admitted; RC2 staged on both hosts; the paired activation after the notice; RC1 stopping with exit class release; the switch on both hosts; a reconciliation before and after. A pre-activation cancel (L15), a late-switched sentry and a return handover follow later."
+    }
+  ],
+  "does_not_authorize": [
+    "any handover, upgrade or run on a real host",
+    "RC2 or any variant as a production release",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

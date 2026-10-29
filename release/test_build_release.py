@@ -121,6 +121,61 @@ class StaticTests(unittest.TestCase):
         self.assertTrue((MAINNET/r.MIGRATION_REGISTRY).is_file())
 
 
+class VariantTests(unittest.TestCase):
+    """The upgrade drill's second release (T8): one member recompiled."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        root = Path(self.tmp.name)
+        self.base, self.out, self.work = root/'base', root/'rc2', root/'work'
+        (self.base/'bin').mkdir(parents=True)
+        members = {}
+        for name in ('consensus_stdio', 'dytallix-root-verify'):
+            (self.base/'bin'/name).write_bytes(name.encode())
+            members[name] = r.digests(self.base/'bin'/name)
+        (self.base/'SHA256SUMS').write_text(r.sums(members, 'sha256'))
+        (self.base/'SBOM.json').write_text('{}')
+        (self.base/'BUILD_RECORD.json').write_text(json.dumps({'schema': r.RECORD_SCHEMA, 'members': members}))
+        self.commands = []
+
+    def variant(self, rebuilt=b'consensus_stdio at opt-level 2', member='consensus_stdio'):
+        def run(command, cwd, env):
+            self.commands.append((command, cwd, env))
+            built = Path(env['CARGO_TARGET_DIR'])/r.RUST_TARGET/'release'/member
+            built.parent.mkdir(parents=True, exist_ok=True)
+            built.write_bytes(rebuilt)
+        with unittest.mock.patch.object(r, 'run', run), unittest.mock.patch.object(r, 'check_static'), \
+                unittest.mock.patch.object(r, 'check_rust_pin'):
+            r.variant(MAINNET, self.base, self.out, self.work, member, False, HERE/'RELEASE_SET.json')
+
+    def test_only_the_member_differs(self):
+        self.variant()
+        (command, cwd, env), = self.commands
+        # cargo rustc: the extra flags reach only the member's own crate, and
+        # the base's target directory and flags are reused.
+        self.assertEqual(command[:2], ['cargo', 'rustc'])
+        self.assertEqual(command[-4:], ['consensus_stdio', '--', '-C', 'opt-level=2'])
+        self.assertIn('dytallix-fast-node', command)
+        self.assertEqual(cwd, MAINNET/'node')
+        self.assertEqual(env['RUSTFLAGS'], ' '.join(r.RUSTFLAGS))
+        self.assertEqual(Path(env['CARGO_TARGET_DIR']), self.work/'cargo'/'node')
+        record = json.loads((self.out/'BUILD_RECORD.json').read_text())
+        base = json.loads((self.base/'BUILD_RECORD.json').read_text())
+        self.assertEqual(record['members']['dytallix-root-verify'], base['members']['dytallix-root-verify'])
+        self.assertEqual(record['members']['consensus_stdio'], r.digests(self.out/'bin'/'consensus_stdio'))
+        self.assertNotEqual(record['members']['consensus_stdio'], base['members']['consensus_stdio'])
+        self.assertEqual(record['variant']['member'], 'consensus_stdio')
+        self.assertEqual((self.out/'bin'/'dytallix-root-verify').read_bytes(), b'dytallix-root-verify')
+        self.assertEqual(r.parse_sums((self.out/'SHA256SUMS').read_text())['bin/consensus_stdio'],
+                         record['members']['consensus_stdio']['sha256'])
+
+    def test_refusals(self):
+        with self.assertRaisesRegex(ValueError, "base's bytes"):
+            self.variant(rebuilt=b'consensus_stdio')
+        with self.assertRaisesRegex(ValueError, 'not a Rust member'):
+            self.variant(member='dytallix-root-verify')
+
+
 class SbomTests(unittest.TestCase):
     def test_the_sbom_lists_every_locked_crate_and_module(self):
         data, _ = r.load_set(HERE/'RELEASE_SET.json')

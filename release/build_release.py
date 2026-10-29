@@ -3,6 +3,7 @@
 
   build_release.py build --src /src --out /out --work /work [--offline]
   build_release.py compare A/SHA256SUMS B/SHA256SUMS
+  build_release.py variant --src /src --base /out --out /out-rc2 --work /work --member NAME
 
 `build` runs inside the pinned builder (builder/Dockerfile) with the mainnet
 tree at --src. It builds every member in RELEASE_SET.json for Linux x86_64
@@ -22,6 +23,13 @@ bytes. `compare` exits 1 when two builds differ.
 
 The release's authority is the root-signed genesis, which binds the release
 manifest's SHA-512 (P01, 5 October 2026); these files are its inputs.
+
+`variant` makes a rehearsal's second release for the upgrade drill
+(simulation plan, T8; P01, 28 October 2026), never a production one: the set
+at --base with one Rust member recompiled from the same source, only its own
+crate at another optimization level, reusing --base's build of everything
+else in --work, so that member alone differs. Its build record names the
+variant.
 """
 import argparse
 import hashlib
@@ -219,6 +227,44 @@ def build(src, out, work, offline, set_path):
                       'sha256sums_sha256': hashlib.sha256((out/'SHA256SUMS').read_bytes()).hexdigest()}))
 
 
+# The variant's only difference: the member's own crate at opt-level 2.
+VARIANT_RUSTC = ('-C', 'opt-level=2')
+
+
+def variant(src, base, out, work, member, offline, set_path):
+    data, _ = load_set(set_path)
+    check_rust_pin(src, data)
+    b = next((b for b in data['builds'] if b['kind'] == 'cargo' and member in b['bins']), None)
+    if b is None: raise ValueError(f'{member} is not a Rust member of the release set')
+    if out.exists() and any(out.iterdir()): raise ValueError(f'{out} must be empty')
+    record = json.loads((base/'BUILD_RECORD.json').read_text())
+    if record.get('schema') != RECORD_SCHEMA or member not in record['members']:
+        raise ValueError(f'{base} is not a release set with {member}')
+    target = work/'cargo'/b['workspace'].replace('/', '_')
+    env = dict(os.environ, CARGO_INCREMENTAL='0', SOURCE_DATE_EPOCH='0', TZ='UTC',
+               CARGO_TARGET_DIR=str(target), RUSTFLAGS=' '.join(RUSTFLAGS))
+    command = ['cargo', 'rustc', '--locked', '--release', '--target', RUST_TARGET]
+    command += (['--offline'] if offline else []) + b['args'] + ['--bin', member, '--', *VARIANT_RUSTC]
+    run(command, src/b['workspace'], env)
+    out.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(base/'bin', out/'bin')
+    path = out/'bin'/member
+    shutil.copyfile(target/RUST_TARGET/'release'/member, path)
+    path.chmod(0o755)
+    check_static(path)
+    members = dict(record['members'], **{member: digests(path)})
+    if members[member]['sha256'] == record['members'][member]['sha256']:
+        raise ValueError(f'the variant of {member} has the base\'s bytes')
+    record = dict(record, members=members, variant={
+        'member': member, 'rustc_args': list(VARIANT_RUSTC),
+        'base_sha256sums_sha256': hashlib.sha256((base/'SHA256SUMS').read_bytes()).hexdigest()})
+    (out/'SHA256SUMS').write_text(sums(members, 'sha256'))
+    (out/'SHA512SUMS').write_text(sums(members, 'sha512'))
+    (out/'BUILD_RECORD.json').write_text(json.dumps(record, indent=2, sort_keys=True) + '\n')
+    shutil.copyfile(base/'SBOM.json', out/'SBOM.json')
+    print(json.dumps({'status': 'BUILT_VARIANT', 'member': member, 'sha256': members[member]['sha256']}))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest='command', required=True)
@@ -228,6 +274,14 @@ def main():
     b.add_argument('--work', type=Path, required=True, help='build caches, outside --out')
     b.add_argument('--offline', action='store_true', help='use only the local crate and module caches')
     b.add_argument('--set', type=Path, default=HERE/'RELEASE_SET.json')
+    v = commands.add_parser('variant', help="a rehearsal's second release: one member recompiled (T8)")
+    v.add_argument('--src', type=Path, required=True, help='the mainnet tree')
+    v.add_argument('--base', type=Path, required=True, help='the release set built from --src')
+    v.add_argument('--out', type=Path, required=True)
+    v.add_argument('--work', type=Path, required=True, help="--base's build caches")
+    v.add_argument('--member', required=True)
+    v.add_argument('--offline', action='store_true', help='use only the local crate and module caches')
+    v.add_argument('--set', type=Path, default=HERE/'RELEASE_SET.json')
     c = commands.add_parser('compare', help='compare two checksum files')
     c.add_argument('a', type=Path)
     c.add_argument('b', type=Path)
@@ -236,6 +290,9 @@ def main():
         found = compare(args.a, args.b)
         print(json.dumps({'status': 'IDENTICAL' if not found else 'DIFFERENT', 'differences': found}))
         return 0 if not found else 1
+    if args.command == 'variant':
+        variant(args.src.resolve(), args.base, args.out, args.work, args.member, args.offline, args.set)
+        return 0
     build(args.src.resolve(), args.out, args.work, args.offline, args.set)
     return 0
 

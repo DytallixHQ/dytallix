@@ -7,7 +7,7 @@ Each host has its own address on its own interface, as host setup v1
 requires, and each installs from its own bundle with its install.sh.
 Invented records and throwaway keys only.
 
-  staging_network.py prepare --release DIR --work DIR
+  staging_network.py prepare --release DIR [--later-release DIR] --work DIR
   sudo staging_network.py network-up --work DIR
   sudo staging_network.py vms-up --work DIR --image UBUNTU_24.04_CLOUD_IMAGE
   sudo staging_network.py install-vms --work DIR
@@ -21,6 +21,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
   sudo staging_network.py monitor-drill --work DIR
+  sudo staging_network.py stage-later-release --work DIR
   sudo staging_network.py agent-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
@@ -113,6 +114,7 @@ import random
 import re
 import shutil
 import socket
+import tarfile
 import subprocess
 import sys
 import time
@@ -126,6 +128,7 @@ import faults  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import recovery  # noqa: E402
+import staging_chain  # noqa: E402
 import staging_command  # noqa: E402
 import staging_founder  # noqa: E402
 import staging_host  # noqa: E402
@@ -298,7 +301,7 @@ def agent(work, label):
 
 # Steps
 
-def prepare(release, work):
+def prepare(release, work, later_release=None):
     work = Path(work)
     work.mkdir(parents=True)
     upload = work / 'upload.json'
@@ -309,8 +312,14 @@ def prepare(release, work):
     descriptor = os.open(history, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as file:
         json.dump(HISTORY_UPLOAD, file)
-    return staging_host.prepare(release, work / 'net', plan=network_plan(), backup_upload=upload,
-                                history_upload=history, snapshot_interval=SNAPSHOT_INTERVAL)
+    summary = staging_host.prepare(release, work / 'net', plan=network_plan(), backup_upload=upload,
+                                   history_upload=history, snapshot_interval=SNAPSHOT_INTERVAL)
+    # The upgrade drill's second release (T8), built now: the sentry VM gets
+    # its bundles only on its seed disk.
+    if later_release:
+        staging_chain.later_release(work / 'net' / 'chain', work / 'net' / 'keys', later_release, work / 'net' / 'later',
+                                    show=say)
+    return summary
 
 
 def network_up(work):
@@ -343,9 +352,13 @@ def vms_up(work, image):
         shutil.copyfile(work / 'net' / 'chain' / 'bundles' / f'{label}.bundle.tar', seed / 'bundle.tar')
         for name in ('s3_standin.py', 'alert_standin.py'):
             shutil.copyfile(HERE / name, seed / name)
+        names = ['user-data', 'meta-data', 'network-config', 'bundle.tar', 's3_standin.py', 'alert_standin.py']
+        later = work / 'net' / 'later' / 'bundles' / f'{label}.bundle.tar'
+        if later.exists():
+            shutil.copyfile(later, seed / 'later-bundle.tar')
+            names.append('later-bundle.tar')
         sh('genisoimage', '-quiet', '-output', str(vm / f'{label}-seed.iso'), '-volid', 'cidata', '-joliet', '-rock',
-           *[str(seed / name) for name in ('user-data', 'meta-data', 'network-config', 'bundle.tar', 's3_standin.py',
-                                                    'alert_standin.py')])
+           *[str(seed / name) for name in names])
         sh('qemu-img', 'create', '-q', '-f', 'qcow2', '-F', 'qcow2', '-b', str(Path(image).resolve()),
            str(vm / f'{label}.qcow2'), '20G')
         sh('qemu-system-x86_64', '-name', label, '-machine', 'q35,accel=kvm', '-cpu', 'host', '-smp', '2', '-m', '4096',
@@ -390,6 +403,8 @@ def install_vms(work):
         wait_synchronized(guest, label)
         guest.run(['sh', '-c', 'mkdir -p /mnt/seed /root/node && mount -o ro /dev/disk/by-label/cidata /mnt/seed '
                    '&& tar -xf /mnt/seed/bundle.tar -C /root/node && cp /mnt/seed/s3_standin.py /mnt/seed/alert_standin.py /root/ '
+                   '&& if [ -f /mnt/seed/later-bundle.tar ]; then mkdir -p /root/node-later '
+                   '&& tar -xf /mnt/seed/later-bundle.tar -C /root/node-later; fi '
                    '&& umount /mnt/seed'])
         say(f'== install {label} (typing its seal code)')
         _, out, err = guest.run(['/root/node/dytallix-host/install.sh'], stdin=codes[label] + '\n', timeout=900)
@@ -1431,6 +1446,51 @@ def founder_rule_handle(guest):
     return [found.group(1)] if found else []
 
 
+# The upgrade drill's second release (simulation plan, T8)
+
+UNIT_FILE = '/etc/systemd/system/dytallix-node.service'
+
+
+def unpack_later(work, label):
+    target = Path(work) / 'net' / f'host-{label}-later'
+    if not target.exists():
+        with tarfile.open(Path(work) / 'net' / 'later' / 'bundles' / f'{label}.bundle.tar') as tar:
+            tar.extractall(target, filter='tar')
+    return target / 'dytallix-host'
+
+
+def stage_later_release(work):
+    """Each host stages the second release beside the running one from its
+    later bundle, as at its console (host_install.py stage): the release's
+    binaries, configuration, unit, profiles and firewall, with the node home
+    and keys kept and nothing unsealed. The genesis release keeps running;
+    the switch follows the handover's activation. Proves the later
+    release's bundles (genesis-release manifest for the root, later release
+    start) pass the installer's checks on both hosts."""
+    work = Path(work)
+    later = json.loads((work / 'net' / 'later' / 'LATER.json').read_bytes())
+    target = later['release_sha512'][:16]
+    running = later['genesis_release_sha512'][:16]
+    sentry = agent(work, PUBLIC)
+    say(f'== {PUBLIC}: stage release {target} beside {running}')
+    _, out, _ = sentry.run(['/root/node-later/dytallix-host/stage.sh'], timeout=900)
+    say(out.strip())
+    say(f'== validator-1: stage release {target} beside {running}')
+    result = subprocess.run([str(unpack_later(work, 'validator-1') / 'stage.sh')], capture_output=True, text=True)
+    say(result.stdout.strip())
+    if result.returncode != 0:
+        raise Failed(f'stage.sh failed on validator-1: {result.stderr.strip()}')
+    # Staged beside, not switched: both units still run the genesis release.
+    units = {PUBLIC: sentry.read(UNIT_FILE).decode(), 'validator-1': Path(UNIT_FILE).read_text()}
+    for label, unit in units.items():
+        if f'ExecStart=/opt/dytallix/{running}/bin/' not in unit:
+            raise Failed(f'{label}: the unit no longer runs the genesis release {running}')
+    _, staged, _ = sentry.run(['ls', f'/opt/dytallix/{target}/bin'])
+    if not staged.split() or not Path(f'/opt/dytallix/{target}/bin').is_dir():
+        raise Failed(f'release {target} is not staged on both hosts')
+    say(f'== release {target} staged on both hosts; both still run {running}')
+
+
 def agent_drill(work, label='sentry-1', timeout=300):
     """The staging agent (T2) on the sentry, driven only through the founder's
     path (staging_founder.py): signed commands PUT into the store with the
@@ -1652,9 +1712,11 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
+    p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'checkpoint', 'adversary-drill',
-                 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'agent-drill', 'diagnostics'):
+                 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'stage-later-release',
+                 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     r = commands.add_parser('reconcile')
     r.add_argument('--work', type=Path, required=True)
@@ -1665,7 +1727,7 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'prepare':
-            prepare(args.release, args.work)
+            prepare(args.release, args.work, args.later_release)
             # The runner opens the backup copy with the release's own signer.
             shutil.copytree(args.release / 'bin', args.work / 'release-bin')
         elif args.command == 'network-up':
@@ -1688,6 +1750,8 @@ def main():
             adversary_drill(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
+        elif args.command == 'stage-later-release':
+            stage_later_release(args.work)
         elif args.command == 'validator-recovery-drill':
             validator_recovery_drill(args.work)
         elif args.command == 'restore-drill':
