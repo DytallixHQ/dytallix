@@ -46,6 +46,7 @@ had reached them.
 | 10 | A SIGKILL leaves Unix sockets behind (`abci/app.sock`, `data/rpc*.sock`). The next start refuses them: the supervisor's state walk and the bridge's existing-path checks. | Fixed (follow-up PR): with both lifecycle leases held (children inherit them, so none can still run), the supervisor removes the three endpoint paths if each is a socket owned by the service user without group or other bits. Anything else there is still refused. |
 | 11 | Sentry snapshots: RocksDB checkpoints hard-link from `appdb` into the snapshot directory, and the profiles grant no `l`. | Unclear. Separate mounts give EXDEV, and RocksDB then copies. Check on the first sentry. |
 | 12 | At the bridge's exec into `S//&W`, AppArmor rechecks the inherited seqpacket launch channel against each profile of the stack, using the other components as bare peer labels. The S profile named the bare A and H components but not W, so the channel was revoked ("failed peer label match") and the bridge exited. The supervisor reported `guard_ready` and ECONNRESET. The profile audit had wrongly called this covered; H4 found it. | Fixed (#15): S names the bare W, and a test requires every stack component to name the others. |
+| 13 | **After a fatal application failure the engine sends itself SIGTERM to stop (E04 gap 15), and S//&W could not receive term from itself: the S component allowed only urg and chld from the workload stack.** The kill failed ("Failed to kill this process"), the engine stayed up after CONSENSUS FAILURE, the application never saw its input end, and the unit stayed active. Every production node would have hung instead of stopping on a fatal failure, and the old release never stopped at a handover. Found by the upgrade drill (T8). | Fixed (#72): the S component lets the workload stack receive term from itself; it still cannot term the supervisor, the application owner or the helper (`test_the_workload_stack_can_terminate_itself_and_nothing_more`). |
 | — | AppArmor `getattr` on the helper's ancestor directories and on `/proc/<pid>/` (proposed by two audits) | Refuted by H4's trace: the ancestor `statx` calls succeeded and no denial was logged. |
 
 ## What E02's native checks never exercise
@@ -55,7 +56,7 @@ Taken from `tools/native-execution-policy/e02_native/run_e02_native.py`:
 - the controlled pause under AppArmor;
 - TERM and KILL through the process group, and parent-death from S;
 - the Rust S→A and S→W ownership handshake;
-- real Go and Rust workloads under `S//&W` and `A//&S` (finding 8);
+- real Go and Rust workloads under `S//&W` and `A//&S` (findings 8 and 13);
 - Unix stream sockets (ABCI, RPC);
 - I/O in the writable roots (locks, RocksDB, metrics, snapshots, light blocks).
 
