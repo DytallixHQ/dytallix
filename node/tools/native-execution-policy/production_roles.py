@@ -211,6 +211,13 @@ def generate(catalog_bytes, mapping, request, unit_identities, *, candidate_only
                 for target in ('application-owner', 'workload', 'helper'):
                     signal('send', ('urg',), labels[target])
                     signal('receive', ('urg',), labels[target])
+                # The engine stops itself when the application fails (its
+                # proxy sends itself SIGTERM; E04 gap 15): the application
+                # then sees its input end and exits with its failure class.
+                # This profile already sends term to the workload stack; it
+                # must also let that stack receive term from itself. The
+                # stack's own profile already allows it.
+                signal('receive', ('term',), labels['workload'])
                 signal('receive', CONTROL + ('term', 'kill', 'exists'),
                        labels['application-owner'])
                 signal('receive', ('chld',), labels['application-owner'])

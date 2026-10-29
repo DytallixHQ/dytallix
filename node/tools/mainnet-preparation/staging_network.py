@@ -7,7 +7,7 @@ Each host has its own address on its own interface, as host setup v1
 requires, and each installs from its own bundle with its install.sh.
 Invented records and throwaway keys only.
 
-  staging_network.py prepare --release DIR --work DIR
+  staging_network.py prepare --release DIR [--later-release DIR] --work DIR
   sudo staging_network.py network-up --work DIR
   sudo staging_network.py vms-up --work DIR --image UBUNTU_24.04_CLOUD_IMAGE
   sudo staging_network.py install-vms --work DIR
@@ -21,6 +21,8 @@ Invented records and throwaway keys only.
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
   sudo staging_network.py monitor-drill --work DIR
+  sudo staging_network.py stage-later-release --work DIR
+  sudo staging_network.py upgrade-drill --work DIR
   sudo staging_network.py agent-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
@@ -70,6 +72,16 @@ the halt height H from the sentry and signs from H + 1. The evidence
 validator-recovery/evidence.json. It runs before restore-drill, while the
 sentry still holds every block from genesis.
 
+upgrade-drill is the upgrade drill (simulation plan, T8): the upgrade and
+handover from the genesis release to the second release built with
+prepare --later-release, with the receipt-index migration. Both admissions
+are signed three of five with the rehearsal kits; the second release is
+staged on both hosts; after the notice the paired activation commits in one
+block; the genesis release stops itself on both hosts; switch.sh moves both
+to the second release; the reconciliation runs before and after. Its
+evidence (upgrade_drill.py) is upgrade-drill/evidence.json. It runs after
+the kit drill and before the agent drill.
+
 restore-drill is the first restore drill (disaster recovery v1, R6): the
 sentry is lost, so its VM is wiped and reinstalled from its bundle, then
 restored from the stand-in store's copy with restore.sh and the backup code
@@ -113,6 +125,7 @@ import random
 import re
 import shutil
 import socket
+import tarfile
 import subprocess
 import sys
 import time
@@ -128,9 +141,11 @@ import host_install  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import recovery  # noqa: E402
+import staging_chain  # noqa: E402
 import staging_command  # noqa: E402
 import staging_founder  # noqa: E402
 import staging_host  # noqa: E402
+import upgrade_drill as upgrade_drill_module  # noqa: E402
 
 BRIDGE = 'dytbr0'
 ADDRESSES = {'validator-1': '10.77.0.1', 'sentry-1': '10.77.0.11'}
@@ -300,7 +315,7 @@ def agent(work, label):
 
 # Steps
 
-def prepare(release, work):
+def prepare(release, work, later_release=None):
     work = Path(work)
     work.mkdir(parents=True)
     upload = work / 'upload.json'
@@ -311,8 +326,14 @@ def prepare(release, work):
     descriptor = os.open(history, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as file:
         json.dump(HISTORY_UPLOAD, file)
-    return staging_host.prepare(release, work / 'net', plan=network_plan(), backup_upload=upload,
-                                history_upload=history, snapshot_interval=SNAPSHOT_INTERVAL)
+    summary = staging_host.prepare(release, work / 'net', plan=network_plan(), backup_upload=upload,
+                                   history_upload=history, snapshot_interval=SNAPSHOT_INTERVAL)
+    # The upgrade drill's second release (T8), built now: the sentry VM gets
+    # its bundles only on its seed disk.
+    if later_release:
+        staging_chain.later_release(work / 'net' / 'chain', work / 'net' / 'keys', later_release, work / 'net' / 'later',
+                                    show=say)
+    return summary
 
 
 def network_up(work):
@@ -345,9 +366,13 @@ def vms_up(work, image):
         shutil.copyfile(work / 'net' / 'chain' / 'bundles' / f'{label}.bundle.tar', seed / 'bundle.tar')
         for name in ('s3_standin.py', 'alert_standin.py'):
             shutil.copyfile(HERE / name, seed / name)
+        names = ['user-data', 'meta-data', 'network-config', 'bundle.tar', 's3_standin.py', 'alert_standin.py']
+        later = work / 'net' / 'later' / 'bundles' / f'{label}.bundle.tar'
+        if later.exists():
+            shutil.copyfile(later, seed / 'later-bundle.tar')
+            names.append('later-bundle.tar')
         sh('genisoimage', '-quiet', '-output', str(vm / f'{label}-seed.iso'), '-volid', 'cidata', '-joliet', '-rock',
-           *[str(seed / name) for name in ('user-data', 'meta-data', 'network-config', 'bundle.tar', 's3_standin.py',
-                                                    'alert_standin.py')])
+           *[str(seed / name) for name in names])
         sh('qemu-img', 'create', '-q', '-f', 'qcow2', '-F', 'qcow2', '-b', str(Path(image).resolve()),
            str(vm / f'{label}.qcow2'), '20G')
         sh('qemu-system-x86_64', '-name', label, '-machine', 'q35,accel=kvm', '-cpu', 'host', '-smp', '2', '-m', '4096',
@@ -392,6 +417,8 @@ def install_vms(work):
         wait_synchronized(guest, label)
         guest.run(['sh', '-c', 'mkdir -p /mnt/seed /root/node && mount -o ro /dev/disk/by-label/cidata /mnt/seed '
                    '&& tar -xf /mnt/seed/bundle.tar -C /root/node && cp /mnt/seed/s3_standin.py /mnt/seed/alert_standin.py /root/ '
+                   '&& if [ -f /mnt/seed/later-bundle.tar ]; then mkdir -p /root/node-later '
+                   '&& tar -xf /mnt/seed/later-bundle.tar -C /root/node-later; fi '
                    '&& umount /mnt/seed'])
         say(f'== install {label} (typing its seal code)')
         _, out, err = guest.run(['/root/node/dytallix-host/install.sh'], stdin=codes[label] + '\n', timeout=900)
@@ -1441,6 +1468,294 @@ def founder_rule_handle(guest):
     return [found.group(1)] if found else []
 
 
+# The upgrade drill's second release (simulation plan, T8)
+
+UNIT_FILE = '/etc/systemd/system/dytallix-node.service'
+
+
+def unpack_later(work, label):
+    target = Path(work) / 'net' / f'host-{label}-later'
+    if not target.exists():
+        with tarfile.open(Path(work) / 'net' / 'later' / 'bundles' / f'{label}.bundle.tar') as tar:
+            tar.extractall(target, filter='tar')
+    return target / 'dytallix-host'
+
+
+def stage_later_release(work):
+    """Each host stages the second release beside the running one from its
+    later bundle, as at its console (host_install.py stage): the release's
+    binaries, configuration, unit, profiles and firewall, with the node home
+    and keys kept and nothing unsealed. The genesis release keeps running;
+    the switch follows the handover's activation. Proves the later
+    release's bundles (genesis-release manifest for the root, later release
+    start) pass the installer's checks on both hosts."""
+    work = Path(work)
+    later = json.loads((work / 'net' / 'later' / 'LATER.json').read_bytes())
+    target = later['release_sha512'][:16]
+    running = later['genesis_release_sha512'][:16]
+    sentry = agent(work, PUBLIC)
+    say(f'== {PUBLIC}: stage release {target} beside {running}')
+    _, out, _ = sentry.run(['/root/node-later/dytallix-host/stage.sh'], timeout=900)
+    say(out.strip())
+    say(f'== validator-1: stage release {target} beside {running}')
+    result = subprocess.run([str(unpack_later(work, 'validator-1') / 'stage.sh')], capture_output=True, text=True)
+    say(result.stdout.strip())
+    if result.returncode != 0:
+        raise Failed(f'stage.sh failed on validator-1: {result.stderr.strip()}')
+    # Staged beside, not switched: both units still run the genesis release.
+    units = {PUBLIC: sentry.read(UNIT_FILE).decode(), 'validator-1': Path(UNIT_FILE).read_text()}
+    for label, unit in units.items():
+        if f'ExecStart=/opt/dytallix/{running}/bin/' not in unit:
+            raise Failed(f'{label}: the unit no longer runs the genesis release {running}')
+    _, staged, _ = sentry.run(['ls', f'/opt/dytallix/{target}/bin'])
+    if not staged.split() or not Path(f'/opt/dytallix/{target}/bin').is_dir():
+        raise Failed(f'release {target} is not staged on both hosts')
+    say(f'== release {target} staged on both hosts; both still run {running}')
+
+
+class Controls:
+    """Root controls as the founder makes them (control signing): the status
+    view through the public node's client channel, a request prepared from
+    it, each kit's signature, the assembled control checked and submitted.
+    The kit drill's flow, for any control family."""
+
+    def __init__(self, work, drill, timeout):
+        self.work, self.drill, self.timeout = Path(work), Path(drill), timeout
+        self.bins = self.work / 'release-bin'
+        chain = self.work / 'net' / 'chain'
+        self.config = chain / 'chain' / 'application-config.json'
+        self.kits = chain / 'control-kits'
+        (self.drill / 'home').mkdir(parents=True)
+        self.env = dict(os.environ, HOME=str(self.drill / 'home'))
+        digest = hashlib.sha256((chain / 'chain' / 'native-genesis.json').read_bytes()).hexdigest()
+        tool(self.bins / 'dytallix', 'config', 'pin-chain', '--endpoint',
+             self.work / 'net' / 'keys' / f'{PUBLIC}.channel-pin.json', '--network', 'testnet', '--chain-id',
+             staging_host.CHAIN_ID, '--genesis-digest', digest, env=self.env)
+        self.saved = iter(range(1, 1_000_000))
+
+    def status(self):
+        path = self.drill / f'status-{next(self.saved)}.json'
+        tool(self.bins / 'dytallix', 'control', 'status', '--out', path, env=self.env, quiet=True)
+        return path, json.loads(path.read_bytes())
+
+    def wait(self, what, done):
+        deadline = time.monotonic() + self.timeout
+        while True:
+            path, view = self.status()
+            if done(view):
+                say(f'== {what}: height {view["height"]}')
+                return path, view
+            if time.monotonic() > deadline:
+                raise Failed(f'{what} did not happen by height {view["height"]}')
+            time.sleep(3)
+
+    def prepare(self, operation, *inputs):
+        path, _ = self.status()
+        out = self.drill / f'{operation}-request.json'
+        tool(self.bins / 'dytallix-control', 'prepare', operation, '--config', self.config, '--status', path,
+             '--out', out, *inputs)
+        tool(self.bins / 'dytallix-root-sign', 'show-control', '-request', out)
+        return out, json.loads(out.read_bytes())
+
+    def sign(self, request_path, request, seats, purpose):
+        signatures = []
+        for n in seats:
+            out = self.drill / f'{request["operation"]}-kit-{n}.sig.json'
+            tool(self.bins / 'dytallix-root-sign', 'sign-control', '-request', request_path,
+                 '-private-key', self.kits / f'kit-{n}' / f'kit-{n}-{purpose}.key',
+                 '-public-key', self.kits / 'public' / f'kit-{n}-{purpose}.json', '-operation', request['operation'],
+                 '-sequence', request['envelope']['sequence'], '-out', out, quiet=True)
+            signatures.append(out)
+        return signatures
+
+    def assemble(self, request_path, request, signatures):
+        path, _ = self.status()
+        control = self.drill / f'{request["operation"]}-control.json'
+        tool(self.bins / 'dytallix-control', 'assemble', '--config', self.config, '--status', path,
+             '--request', request_path, '--out', control, *signatures)
+        return control
+
+    def send(self, control, operation):
+        for command, admitted in (('check', 'WOULD_BE_ADMITTED'), ('submit', 'SUBMITTED')):
+            result = json.loads(tool(self.bins / 'dytallix', 'control', command, control, env=self.env).stdout)
+            if result['status'] != admitted:
+                raise Failed(f'the {operation} control was refused: {result}')
+        return hashlib.sha256(control.read_bytes()).hexdigest()
+
+
+# Kits 1 to 3: seat 5 is the kit drill's new kit, and any three suffice.
+UPGRADE_SEATS = (1, 2, 3)
+# RC1's refusal of the committed release, as its engine and bridge log it; the
+# supervisor records the engine's exit first and stops the application before
+# it exits with its class, so the class itself is not in the journal.
+RELEASE_REFUSAL = re.compile(r'Committed release requires a different runtime executable')
+
+
+def reconcile_now(work, name, timeout=300):
+    """The reconciliation (T6) of both nodes and the client: one block and
+    application hash per height, and the supply rules. No account is
+    tracked, as in the agent drill's: accounts other steps created would
+    count against the totals. Its evidence is NAME/evidence.json."""
+    work = Path(work)
+    out = work / name
+    client = reconcile.Client(work / 'release-bin' / 'dytallix', pinned_cli(work, out), out)
+    hosts = {'validator-1': reconcile.LocalHost(), **{label: agent(work, label) for label in VMS}}
+    record = reconcile.collect(staging_host.CHAIN_ID, hosts,
+                               (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes(),
+                               client=client, timeout=timeout, say=say)
+    (out / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
+    for row in record['checks']:
+        say(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+    say(f'== reconciliation ({name}) at height {record["height"]}: {record["status"]}')
+    return {'status': record['status'], 'height': record['height'], 'sha256': record['sha256']}
+
+
+def upgrade_drill(work, timeout=900):
+    """The upgrade drill (simulation plan, T8): RC1 to RC2 with the
+    receipt-index migration, as upgrade execution and host setup describe
+    it. The upgrade and handover admissions, signed three of five and
+    submitted; RC2 staged on both hosts; after the notice, the upgrade
+    activation and the handover activation paired with it, submitted
+    together so one block commits both; RC1 stops itself on both hosts at
+    the activation; switch.sh on both; then both nodes run RC2 past the
+    activation. Evidence: upgrade-drill/evidence.json (upgrade_drill.py)."""
+    work = Path(work)
+    drill = work / 'upgrade-drill'
+    later = json.loads((work / 'net' / 'later' / 'LATER.json').read_bytes())
+    source, target = later['genesis_release_sha512'], later['release_sha512']
+    controls = Controls(work, drill, timeout)
+    config = json.loads(controls.config.read_bytes())
+    obs = {'releases': {'source': source, 'target': target},
+           'notice_blocks': config['upgrade']['min_notice_blocks']}
+    obs['reconcile_before'] = reconcile_now(work, 'reconcile-before-upgrade')
+
+    say(f'== admit the upgrade and the handover from {source[:16]} to {target[:16]} (three of five)')
+    authorization = drill / 'authorization.md'
+    authorization.write_text(f'Rehearsal handover {source[:16]} to {target[:16]} with the receipt-index migration '
+                             f'on {staging_host.CHAIN_ID}: staging only (simulation plan, T8).\n')
+    request_path, request = controls.prepare('upgrade-admit', '--authorization', authorization)
+    controls.send(controls.assemble(request_path, request, controls.sign(request_path, request, UPGRADE_SEATS, 'upgrade')),
+                  'upgrade-admit')
+    controls.wait('the upgrade admitted', lambda view: (view.get('upgrade') or {}).get('pending'))
+    request_path, request = controls.prepare('handover-admit', '--target-release-sha512', target,
+                                             '--transition', 'receipt-index-v1', '--authorization', authorization)
+    controls.send(controls.assemble(request_path, request, controls.sign(request_path, request, UPGRADE_SEATS, 'upgrade')),
+                  'handover-admit')
+    _, view = controls.wait('the handover admitted', lambda view: (view.get('release_handover') or {}).get('pending'))
+    obs['admitted'] = {'height': view['height'], 'upgrade_pending': view['upgrade']['pending'],
+                       'handover_pending': view['release_handover']['pending']}
+
+    say('== stage RC2 beside RC1 on both hosts, before the activation')
+    stage_later_release(work)
+
+    admitted = max(h for h in (upgrade_drill_module.admitted_height(obs['admitted']['upgrade_pending']),
+                               upgrade_drill_module.admitted_height(obs['admitted']['handover_pending']),
+                               view['height']) if h is not None)
+    notice = obs['notice_blocks']
+    controls.wait(f'the notice of {notice} blocks after {admitted}', lambda view: view['height'] + 1 >= admitted + notice)
+
+    say('== activate: the upgrade activation, then the handover activation paired with it (three of five each)')
+    evidence = drill / 'activation-evidence.md'
+    evidence.write_text(f'Release {target[:16]} staged on validator-1 and {PUBLIC}; reconciliation before the '
+                        f'handover {obs["reconcile_before"]["status"]} at height {obs["reconcile_before"]["height"]}.\n')
+    up_path, up = controls.prepare('upgrade-activate', '--evidence', evidence)
+    up_control = controls.assemble(up_path, up, controls.sign(up_path, up, UPGRADE_SEATS, 'upgrade'))
+    hand_path, hand = controls.prepare('handover-activate', '--evidence', evidence, '--upgrade-activation', up_control)
+    hand_control = controls.assemble(hand_path, hand, controls.sign(hand_path, hand, UPGRADE_SEATS, 'upgrade'))
+    obs['activation_anchor_height'] = max(up['anchor_height'], hand['anchor_height'])
+    # The handover activation first: the proposer pairs it with the upgrade
+    # activation once that is in the mempool and commits both in one block.
+    controls.send(hand_control, 'handover-activate')
+    controls.send(up_control, 'upgrade-activate')
+
+    # RC1 refuses to propose past the activation, so the validator stops at
+    # it; the sentry, which never proposes, stops when the next block reaches
+    # it, which needs the validator on RC2. Each host stops before it switches.
+    # The stop: RC1's application refuses, the engine stops itself (the E02
+    # self-term rule) and the supervisor stops the rest.
+    sentry = agent(work, PUBLIC)
+    exec_start = re.compile(r'^ExecStart=/opt/dytallix/([0-9a-f]{16})/bin/', re.M)
+    journal = ['journalctl', '-u', staging_host.UNIT, '-o', 'cat', '--no-pager', '-n', '40']
+    is_active = ['systemctl', 'is-active', f'{staging_host.UNIT}.service']
+    hosts = {
+        'validator-1': {'run': lambda args: subprocess.run(args, capture_output=True, text=True).stdout,
+                        'unit': lambda: Path(UNIT_FILE).read_text(), 'bundle': unpack_later(work, 'validator-1')},
+        PUBLIC: {'run': lambda args: sentry.run(args, check=False)[1],
+                 'unit': lambda: sentry.read(UNIT_FILE).decode(), 'bundle': Path('/root/node-later/dytallix-host')},
+    }
+    obs['stopped'], obs['units_after'], obs['switched_at'] = {}, {}, {}
+    for label, host in hosts.items():
+        say(f'== {label}: RC1 stops itself')
+        deadline = time.monotonic() + timeout
+        while True:
+            state = host['run'](is_active).strip()
+            if state in ('inactive', 'failed'):
+                break
+            if time.monotonic() > deadline:
+                say(host['run'](journal))
+                raise Failed(f'RC1 did not stop on {label}: {state}')
+            time.sleep(2)
+        lines = host['run'](journal)
+        say(f'{label} ({state}):\n{lines}')
+        obs['stopped'][label] = {'active': state, 'release_refusal': bool(RELEASE_REFUSAL.search(lines))}
+        if label == 'validator-1':
+            obs['halt_height'] = staging_host.height()
+        say(f'== {label}: switch to RC2 (switch.sh)')
+        switch = str(host['bundle'] / 'switch.sh')
+        if label == PUBLIC:
+            code, out, err = sentry.run([switch], timeout=900, check=False)
+        else:
+            result = subprocess.run([switch], capture_output=True, text=True)
+            code, out, err = result.returncode, result.stdout, result.stderr
+        say(out.strip())
+        if code != 0:
+            raise Failed(f'switch.sh failed on {label}: {err.strip()}')
+        obs['switched_at'][label] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        obs['units_after'][label] = (exec_start.search(host['unit']()) or [None, None])[1]
+
+    say('== both nodes run RC2 past the activation')
+    halt = obs['halt_height'] or 0
+
+    def engine(host):
+        raw = (host.run(list(OPERATOR_STATUS), check=False)[1] if host else
+               subprocess.run(OPERATOR_STATUS, capture_output=True, text=True).stdout)
+        try:
+            return sync_info(raw)
+        except (ValueError, KeyError, TypeError):
+            return None
+    deadline = time.monotonic() + timeout
+    while True:
+        ours, theirs = engine(None), engine(sentry)
+        if ours and theirs and ours[0] == theirs[0] and ours[0] >= halt + upgrade_drill_module.AFTER:
+            break
+        if time.monotonic() > deadline:
+            raise Failed(f'the nodes did not resume together past {halt}: validator {ours}, sentry {theirs}')
+        time.sleep(1)
+    obs['compared'] = {name: {'height': r[0], 'block_hash': r[1].lower(), 'app_hash': r[2].lower()}
+                       for name, r in (('validator', ours), ('sentry', theirs))}
+    _, view = controls.status()
+    obs['active'] = {'release': view['release_handover']['active_release_sha512'],
+                     'handover_schema': view['release_handover']['active_schema'],
+                     'upgrade_schema': (view.get('upgrade') or {}).get('active_schema')}
+    obs['host_verify_exit'] = {
+        'validator-1': subprocess.run([sys.executable, '-I', '-B', str(hosts['validator-1']['bundle'] / 'host_install.py'),
+                                       'verify']).returncode,
+        PUBLIC: sentry.run(['python3', '-I', '-B', '/root/node-later/dytallix-host/host_install.py', 'verify'],
+                           check=False)[0]}
+    obs['reconcile_after'] = reconcile_now(work, 'reconcile-after-upgrade')
+
+    genesis = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
+    record = upgrade_drill_module.build(staging_host.CHAIN_ID, genesis, obs)
+    path = drill / 'evidence.json'
+    path.write_text(json.dumps(record, indent=2) + '\n')
+    for row in record['checks']:
+        say(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+    if record['status'] != upgrade_drill_module.PASS or \
+            upgrade_drill_module.verify(json.loads(path.read_bytes()), genesis) != upgrade_drill_module.PASS:
+        raise Failed(f'the upgrade drill is {record["status"]}')
+    say(f'== handover {source[:16]} to {target[:16]} with the migration: PASS (evidence sha256 {record["sha256"]})')
+
+
 def agent_drill(work, label='sentry-1', timeout=300):
     """The staging agent (T2) on the sentry, driven only through the founder's
     path (staging_founder.py): signed commands PUT into the store with the
@@ -1662,9 +1977,11 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     p = commands.add_parser('prepare')
     p.add_argument('--release', type=Path, required=True)
+    p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'checkpoint', 'adversary-drill',
-                 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'agent-drill', 'diagnostics'):
+                 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'stage-later-release',
+                 'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     r = commands.add_parser('reconcile')
     r.add_argument('--work', type=Path, required=True)
@@ -1675,7 +1992,7 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'prepare':
-            prepare(args.release, args.work)
+            prepare(args.release, args.work, args.later_release)
             # The runner opens the backup copy with the release's own signer.
             shutil.copytree(args.release / 'bin', args.work / 'release-bin')
         elif args.command == 'network-up':
@@ -1698,6 +2015,10 @@ def main():
             adversary_drill(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
+        elif args.command == 'stage-later-release':
+            stage_later_release(args.work)
+        elif args.command == 'upgrade-drill':
+            upgrade_drill(args.work)
         elif args.command == 'validator-recovery-drill':
             validator_recovery_drill(args.work)
         elif args.command == 'restore-drill':
@@ -1711,7 +2032,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, recovery.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, recovery.Failed, upgrade_drill_module.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0

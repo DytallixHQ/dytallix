@@ -632,6 +632,15 @@ class StagingTests(unittest.TestCase):
         import staging_network
         self.assertIs(staging_network.OPERATOR_STATUS, rc.OPERATOR_STATUS)
 
+    def test_the_operator_status_runs_the_running_release(self):
+        # Two releases are installed after a switch (upgrade drill, T8): the
+        # command takes the binary the node unit's ExecStart names, never a
+        # glob over /opt/dytallix, which would name both.
+        command = rc.OPERATOR_STATUS[2]
+        self.assertNotIn('/opt/dytallix/*', command)
+        self.assertIn(rc.NODE_UNIT_FILE, command)
+        self.assertIn('^ExecStart=', command)
+
 
 if __name__ == '__main__':
     unittest.main()

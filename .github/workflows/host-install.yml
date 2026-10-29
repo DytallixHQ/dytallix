@@ -62,7 +62,9 @@ jobs:
         id: release-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/release
+          path: |
+            ${{ runner.temp }}/release
+            ${{ runner.temp }}/release-later
           key: ${{ steps.release-key.outputs.key }}
       - name: Builder image
         if: steps.release-cache.outputs.cache-hit != 'true'
@@ -76,12 +78,23 @@ jobs:
             -v "$RUNNER_TEMP/release:/out" -v "$RUNNER_TEMP/release-work:/work" \
             dytallix-release-builder \
             python3 /src/release/build_release.py build --src /src --out /out --work /work
-          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/release"
+          # The upgrade drill's second release (T8): the application
+          # recompiled from the same source, reusing this build's work tree.
+          mkdir -p "$RUNNER_TEMP/release-later"
+          docker run --rm --platform linux/amd64 \
+            -v "$GITHUB_WORKSPACE:/src:ro" -v "$RUNNER_TEMP/release:/base:ro" \
+            -v "$RUNNER_TEMP/release-later:/out" -v "$RUNNER_TEMP/release-work:/work" \
+            dytallix-release-builder \
+            python3 /src/release/build_release.py variant --src /src --base /base --out /out --work /work \
+              --member consensus_stdio
+          sudo chown -R "$(id -u):$(id -g)" "$RUNNER_TEMP/release" "$RUNNER_TEMP/release-later"
       - name: Save the release set
         if: steps.release-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/release
+          path: |
+            ${{ runner.temp }}/release
+            ${{ runner.temp }}/release-later
           key: ${{ steps.release-key.outputs.key }}
       # Host setup v1's base setup: the packages, and ufw off (the node's table
       # is the host firewall). GitHub's runners ship with ufw active.
@@ -155,7 +168,9 @@ jobs:
       - name: Cached release set
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ runner.temp }}/release
+          path: |
+            ${{ runner.temp }}/release
+            ${{ runner.temp }}/release-later
           key: ${{ steps.release-key.outputs.key }}
           fail-on-cache-miss: true
       - name: Host base setup
@@ -194,7 +209,7 @@ jobs:
       - name: Staging chain and bundles
         run: |
           python3 node/tools/mainnet-preparation/staging_network.py prepare \
-            --release "$RUNNER_TEMP/release" --work "$RUNNER_TEMP/network"
+            --release "$RUNNER_TEMP/release" --later-release "$RUNNER_TEMP/release-later" --work "$RUNNER_TEMP/network"
       - name: Bridge
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py network-up --work "$RUNNER_TEMP/network"
       - name: Sentry VM
@@ -288,6 +303,15 @@ jobs:
       - name: Fault injector (T5)
         timeout-minutes: 20
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py fault-drill --work "$RUNNER_TEMP/network"
+      # The upgrade drill (simulation plan, T8): the upgrade and handover to
+      # the second release with the receipt-index migration, signed three of
+      # five; RC2 staged on both hosts; the paired activation after the
+      # 20-block notice; RC1 stops itself; switch.sh on both; reconciled
+      # before and after. After the kit drill (seat 5 replaced; kits 1 to 3
+      # sign) and before the agent drill, whose wipe ends the network.
+      - name: Upgrade drill (T8)
+        timeout-minutes: 30
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py upgrade-drill --work "$RUNNER_TEMP/network"
       # The staging agent (simulation plan, T2) on the sentry: signed status
       # and journal commands run; tampered, unsigned, replayed,
       # non-allowlisted and expired ones are refused; the results open with

@@ -164,6 +164,31 @@ class ProductionRoleTests(unittest.TestCase):
                     self.assertEqual(delivered(source, target), source == target,
                                      f'urg {source} -> {target}')
 
+    def test_the_workload_stack_can_terminate_itself_and_nothing_more(self):
+        # The engine stops itself when the application fails: its proxy sends
+        # itself SIGTERM (E04 gap 15). The upgrade drill (T8) found it denied
+        # under S//&W, so the application never saw its input end and the old
+        # release never stopped. The workload stack may term itself; it still
+        # may not term the supervisor, the application owner or the helper.
+        output = self.output()
+        profiles = parsed_profiles(output['apparmor.profile'])
+        matrix = json.loads(output['role-matrix.json'])
+
+        def allows(component, action, peer):
+            return any(a == action and 'term' in names and p == peer
+                       for a, names, p in signal_rules(profiles[component]))
+
+        def delivered(source, target):
+            return (all(allows(c, 'send', target) for c in source.split('//&')) and
+                    all(allows(c, 'receive', source) for c in target.split('//&')))
+
+        for unit in matrix['units']:
+            workload = unit['workload_label']
+            self.assertTrue(delivered(workload, workload), f'term {workload} -> itself')
+            for role in ('supervisor', 'application-owner', 'helper'):
+                target = unit[role + '_label']
+                self.assertFalse(delivered(workload, target), f'term {workload} -> {target}')
+
     def test_preserved_base_controls_and_hashes(self):
         raw, mapping, request, _ = self.inputs()
         base_output = render.render(raw, mapping, request)

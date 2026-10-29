@@ -55,6 +55,14 @@ tree read-only at `/src`. It builds each member with fixed settings:
   binaries.
 - Go: `-trimpath -buildvcs=false -ldflags=-buildid=` and `CGO_ENABLED=0`.
 
+For the upgrade drill (simulation plan, T8), `build_release.py variant`
+makes a rehearsal's second release from a built set: the application
+(`consensus_stdio`) recompiled from the same source with only its own crate
+at another optimization level (`cargo rustc ... -- -C opt-level=2`), reusing
+the first build's work tree, so it alone differs; its build record names
+the variant. It is never a production release (P01, 28 October 2026,
+[approval](../launch/approvals/P01_T06_UPGRADE_DRILL_2026-10-28.json)).
+
 Every member is a static executable: it loads no shared library and names
 no program interpreter, and the build fails otherwise (P01, 5 October
 2026). So a host's operating system updates never change what the node

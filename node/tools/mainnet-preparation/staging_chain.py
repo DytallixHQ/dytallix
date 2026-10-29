@@ -448,6 +448,44 @@ def build(plan_path, keys_dir, release_dir, tools, out, genesis_time=None, show=
     return summary
 
 
+def later_release(chain_out, keys_dir, release_dir, out, show=print):
+    """The bundles of a later release of the chain built at CHAIN_OUT, for the
+    upgrade drill (simulation plan, T8): RELEASE_DIR's build record makes
+    the release manifest for the same chain and native genesis, the host
+    files keep the genesis release for the root (later release start, P01,
+    28 October 2026), and the sealed keys are the chain's own."""
+    chain_out, keys_dir, release_dir, out = map(Path, (chain_out, keys_dir, release_dir, out))
+    out.mkdir(parents=True)
+    first = read_json(chain_out / 'STAGING.json')
+    genesis_release = chain_out / 'release' / 'RELEASE_MANIFEST.json'
+    release = out / 'release'
+    release.mkdir()
+    shutil.copyfile(release_dir / 'BUILD_RECORD.json', release / 'BUILD_RECORD.json')
+    manifest_path = release / 'RELEASE_MANIFEST.json'
+    value = release_manifest.manifest(release_manifest.load_record(release / 'BUILD_RECORD.json'), first['chain_id'],
+                                      chain_out / 'chain' / 'native-genesis.json')
+    manifest_path.write_bytes(release_manifest.encode(value))
+    release_sha512 = hashlib.sha512(manifest_path.read_bytes()).hexdigest()
+    require(release_sha512 != first['release_sha512'], 'the later release is the genesis release')
+    show(f'== later release {release_sha512[:16]} of {first["chain_id"]} (genesis release {first["release_sha512"][:16]})')
+    generated = host_files.generate(release, chain_out / 'chain', chain_out / 'hosts', read_json(keys_dir / 'PIN_PLAN.json'),
+                                    keys_dir, read_json(chain_out / 'values.json'), read_json(SETUP_VALUES),
+                                    genesis_release=genesis_release)
+    host_files.write(out / 'host-files', generated)
+    bundles = out / 'bundles'
+    bundles.mkdir()
+    built = {label: host_bundle.build(out / 'host-files' / label, release_dir, keys_dir / f'{label}.sealed.json',
+                                      bundles / f'{label}.bundle.tar') for label in generated}
+    for label, b in built.items():
+        show(f'{label}: {b["bundle"]} sha256 {b["sha256"]}')
+    summary = {'status': 'LATER_RELEASE_BUILT', 'chain_id': first['chain_id'], 'release_sha512': release_sha512,
+               'genesis_release_sha512': first['release_sha512'],
+               'bundles': {label: {'path': b['bundle'], 'sha256': b['sha256'], 'role': b['role']}
+                           for label, b in built.items()}}
+    write_json(out / 'LATER.json', summary)
+    return summary
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     for name in ('plan', 'keys', 'release', 'tools', 'out'):
