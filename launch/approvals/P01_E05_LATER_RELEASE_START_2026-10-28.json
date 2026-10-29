@@ -1,0 +1,25 @@
+{
+  "decision_id": "P01-2026-10-28-E05-LATER-RELEASE-START",
+  "approved": "2026-10-28",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Starting a later release after a handover: the design note node/docs/architecture/later-release-start.md"
+  },
+  "reason": "A production node could not start on a release the chain committed by handover: consensus_stdio required the root configuration's release, the genesis release fixed by the root signatures, to equal the owner context, which the supervisor sets to the release it verified and launched; and host_files.py pointed the root configuration and the runtime candidate at one manifest file. Every later release is approved on chain by a handover (P01_E06_RELEASE_2026-10-05), so without a fix the chain could never change release in production.",
+  "design_ref": "../../node/docs/architecture/later-release-start.md",
+  "decisions": [
+    {
+      "question": "How a production node starts on a later release",
+      "selected": "Design note, then fix",
+      "rule": "The owner context must name the release that runs: with a runtime candidate, its verified manifest SHA-512, which opening has matched to the committed active release (the genesis release before any handover); without one, the root configuration's release. The check runs in consensus_stdio just after the application opens and before it answers anything; the development branch with a candidate follows the same rule. The root configuration keeps the genesis release: every bundle carries the genesis release's manifest as genesis-release-manifest.json and the root configuration names it with its SHA-512, while the runtime candidate and the supervisor's catalog keep the bundle's own release-manifest.json; host_files.py --genesis-release generates a later release of an existing chain and refuses one of another chain or genesis, or with another root verifier. Unchanged: the root genesis signatures and verifier, the emergency policy's release, the handover and upgrade controls, the supervisor and the rule that a release runs only once the chain has committed it."
+    }
+  ],
+  "does_not_authorize": [
+    "any handover or upgrade on a real host",
+    "the upgrade drill's own choices, which are recorded with it",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

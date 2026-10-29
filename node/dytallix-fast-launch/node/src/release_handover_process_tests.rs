@@ -40,15 +40,42 @@ impl HandoverProcess {
         candidate_config: Option<&Path>,
         restart: Option<&Path>,
     ) -> Self {
+        Self::launch(binary, root, database, label, candidate_config, restart, None)
+    }
+    /// With an owner context other than the running release's.
+    fn open_with_owner_context(
+        binary: &Path,
+        root: &RootFixture,
+        database: &Path,
+        label: &str,
+        candidate_config: Option<&Path>,
+        context: &str,
+    ) -> Self {
+        Self::launch(binary, root, database, label, candidate_config, None, Some(context))
+    }
+    fn launch(
+        binary: &Path,
+        root: &RootFixture,
+        database: &Path,
+        label: &str,
+        candidate_config: Option<&Path>,
+        restart: Option<&Path>,
+        context: Option<&str>,
+    ) -> Self {
         let dir = root._directory.path();
         let stderr = dir.join(format!("process-{label}.stderr"));
         // The application admits only an owned launch bound to its release
-        // (E04 gap 11, M-b); the launcher is the owner parent.
-        let release = &root.root.release_manifest_sha512;
+        // (E04 gap 11, M-b); the launcher is the owner parent. As the
+        // production supervisor does, the context names the release that
+        // runs: the candidate's manifest, or the root release without one
+        // (later release start).
+        let release = context.map(str::to_owned).unwrap_or_else(|| {
+            candidate_config.map_or_else(|| root.root.release_manifest_sha512.clone(), candidate_release)
+        });
         let mut command = Command::new(std::env::var("DYT_OWNER_LAUNCHER").expect("Explicit owner launcher"));
         command
-            .arg("--context-sha512").arg(release).arg("--").arg(binary)
-            .arg("--release-manifest-sha512").arg(release)
+            .arg("--context-sha512").arg(&release).arg("--").arg(binary)
+            .arg("--release-manifest-sha512").arg(&release)
             .arg("--config").arg(dir.join("consensus.json"))
             .arg("--genesis").arg(dir.join("genesis.json"))
             .arg("--db").arg(database)
@@ -130,7 +157,11 @@ impl HandoverProcess {
         assert_eq!(response["code"], 0);
         serde_json::from_slice(&B64.decode(response["value"].as_str().unwrap()).unwrap()).unwrap()
     }
-    fn assert_startup_rejected(mut self, expected_error: &str) {
+    fn assert_startup_rejected(self, expected_error: &str) {
+        // An obsolete candidate is a release failure (E04 gap 15).
+        self.assert_startup_exit(expected_error, Some(crate::failure_class::FailureClass::Release));
+    }
+    fn assert_startup_exit(mut self, expected_error: &str, class: Option<crate::failure_class::FailureClass>) {
         self.requests.take();
         let deadline = Instant::now() + FRAME_TIMEOUT;
         loop {
@@ -138,9 +169,9 @@ impl HandoverProcess {
                 let stderr = std::fs::read_to_string(&self.stderr).unwrap();
                 assert!(!status.success(), "Invalid candidate started successfully: {stderr}");
                 assert!(stderr.contains(expected_error), "Unexpected startup error: {stderr}");
-                // An obsolete candidate is a release failure (E04 gap 15).
-                assert_eq!(status.code(), Some(crate::failure_class::FailureClass::Release.exit_status().into()),
-                    "Unexpected startup exit: {status}");
+                if let Some(class) = class {
+                    assert_eq!(status.code(), Some(class.exit_status().into()), "Unexpected startup exit: {status}");
+                }
                 break;
             }
             assert!(Instant::now() < deadline, "Candidate startup rejection timed out");
@@ -223,6 +254,12 @@ fn write_candidate_settings(root: &RootFixture, executable: &Path, manifest_path
         "max_executable_bytes":std::fs::metadata(executable).unwrap().len().checked_add(1024 * 1024).unwrap()});
     std::fs::write(&path, serde_json::to_vec(&settings).unwrap()).unwrap();
     path
+}
+
+/// The release a candidate's settings name: its manifest's SHA-512.
+fn candidate_release(settings: &Path) -> String {
+    let settings: Value = serde_json::from_slice(&std::fs::read(settings).unwrap()).unwrap();
+    hex::encode(Sha512::digest(std::fs::read(settings["manifest_path"].as_str().unwrap()).unwrap()))
 }
 
 fn process_block(height: u64, txs: &[Vec<u8>]) -> Value {
@@ -440,6 +477,12 @@ fn actual_signed_handover_pairs_migration_and_changes_executing_candidate() {
     a.close_after(crate::failure_class::FailureClass::Release);
     HandoverProcess::open_with_candidate(&source,&root,&db,"handover-source-obsolete",Some(&source_settings))
         .assert_startup_rejected("Candidate manifest digest mismatch");
+    // The committed target under the genesis release's owner context, which
+    // the root still names: the owner context must name the running release
+    // (later release start).
+    HandoverProcess::open_with_owner_context(&target,&root,&db,"handover-target-genesis-context",Some(&target_settings),
+        &source_release).assert_startup_exit("Running release differs from owner admission", None);
+    assert_eq!(root.root.release_manifest_sha512,source_release,"The root names the genesis release");
 
     let mut b=HandoverProcess::open_with_candidate(&target,&root,&db,"handover-target-active",Some(&target_settings));
     assert_eq!(b.snapshot(),activated,"Target did not reopen the exact activated state");

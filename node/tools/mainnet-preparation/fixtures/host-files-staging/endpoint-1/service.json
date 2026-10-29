@@ -15,7 +15,7 @@
   },
   "root_config": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/root-config.json",
-    "sha256": "b194ec9987234d5615c3a4bb3a1eb935351ba8f6981c738e6ca5667fa0ad5a83",
+    "sha256": "417ff79978b021abd60b20e130ba1860a2e6a910e13c916c448cdaf0e77d8173",
     "max_bytes": 65536
   },
   "root_public_inputs": [
@@ -32,7 +32,7 @@
   ],
   "emergency_verifier_config": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/emergency-verifier.json",
-    "sha256": "593169e03bf6b72965f39e56487ed213ead4cb201f227f3df1d49ff6b49a646a",
+    "sha256": "dfe4a9a62eedd189e63afe1d3f10d1039790794f9fa3b04dd34e3b758f0fa09f",
     "max_bytes": 65536
   },
   "candidate_config": {
@@ -42,7 +42,7 @@
   },
   "process_admission": {
     "path": "/etc/dytallix/f2cc05f54bc3c6ec/admission.json",
-    "sha256": "58e2043a457fbd28c7c1ed14d5da98295802f812b02479a2495f0a18f3e542c8",
+    "sha256": "680bad8bea8a93c1c4285454d7f5fa7dcb406c1e1e707966a92aae0cb40ebe4b",
     "max_bytes": 65536
   },
   "observation_pause": {

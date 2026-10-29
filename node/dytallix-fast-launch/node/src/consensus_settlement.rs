@@ -4038,6 +4038,14 @@ fn upgrade_history(
 }
 
 impl ConsensusApplication {
+    /// The release the owner admission must name (later release start,
+    /// P01, 28 October 2026): the verified runtime candidate's manifest,
+    /// which opening matched to the committed active release; without a
+    /// candidate, the root-authorized release, which stays the genesis
+    /// release after a handover.
+    pub fn admitted_release_sha512<'a>(&'a self, root_release: &'a str) -> &'a str {
+        self.runtime_candidate.as_ref().map_or(root_release, |candidate| candidate.manifest_sha512())
+    }
     fn ensure_active_runtime(&self) -> Result<()> {
         self.ensure_active_runtime_in(&self.storage)
     }
