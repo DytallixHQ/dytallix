@@ -12,10 +12,18 @@ R07's checkpoints and their verbatim checks are the brief's, kept in
 offsets below, and only that schedule's digest counts as the dress rehearsal.
 R01 to R06 reconcile "at each checkpoint" but the brief sets no schedule for
 them; P01 approved one on 14 October 2026
-(launch/approvals/P01_T06_SIMULATION_INPUTS_2026-10-14.json), not yet built
-here: its event checkpoints follow faults, the upgrade switch and load
-windows rather than fixed offsets, so they need a change to this tool. Until
-then only R07 has a schedule, and this tool never invents one.
+(launch/approvals/P01_T06_SIMULATION_INPUTS_2026-10-14.json), which
+`schedule('R01')` to `schedule('R06')` build: one checkpoint before genesis
+at T-1h carrying both R07's T-6h and T-1h checks, R07's T0 to T+24h after
+it, and an event checkpoint after each of the run's events. An event
+checkpoint is a reconciliation (T6) bound with the event's own evidence,
+whose end it reads (a fault's recovery, the validator recovery, the load
+window); the reconciliation must finish within 30 minutes of it, and the
+event must end between genesis and T+24h (P01, 29 October 2026). Each run's
+events are fixed in its schedule from the run's definition, so its digest
+covers them and a run cannot skip one; an event whose tool records no end
+yet is INCONCLUSIVE and names what it waits for. This tool never invents a
+schedule for any other run.
 
 A checkpoint's status is PASS only when every check is PASS; a FAIL anywhere
 is a FAIL that stops the run (the plan's integrity rule); otherwise, with a
@@ -35,7 +43,7 @@ bound evidence whose own finish time falls outside a checkpoint's window does
 not count for it.
 """
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -43,8 +51,10 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import faults as fault_tool  # noqa: E402
 import load as load_tool  # noqa: E402
 import reconcile  # noqa: E402
+import recovery as recovery_tool  # noqa: E402
 
 SCHEMA = 'dytallix.checkpoint-run.v1'
 PASS, FAIL, INCONCLUSIVE = reconcile.PASS, reconcile.FAIL, reconcile.INCONCLUSIVE
@@ -56,6 +66,33 @@ OFFSETS = {
     'T MINUS 6 HOURS': -6 * 3600, 'T MINUS 1 HOUR': -3600, 'T ZERO': 0,
     'T PLUS 15 MINUTES': 15 * 60, 'T PLUS 1 HOUR': 3600,
     'T PLUS 6 HOURS': 6 * 3600, 'T PLUS 24 HOURS': 24 * 3600,
+}
+
+
+# Event checkpoints (R01 to R06): the reconciliation after each event must
+# finish within this many seconds of the event's end (P01, 29 October 2026),
+# and the event must end inside the run, between genesis and T+24h.
+EVENT_WINDOW_SECONDS = 30 * 60
+RUN_SECONDS = 24 * 3600
+EVENT_CHECKS = ['Verify state consistency across validators.', 'Verify token supply.']
+# Each run's events, from its definition (launch-rehearsals.md, "The runs"):
+# (the event, the tool whose evidence records its end, which of that tool's
+# readings). A tool of None records no end yet; the text names what it awaits.
+RUN_EVENTS = {
+    'R01': [],
+    'R02': [('the validator process restarted', None, 'a validator restart drill'),
+            ('the sentry stopped and restored', 'faults', 'process_kill'),
+            ('the peer connections redialed', None, 'the fault injector\'s peer drops (T5)'),
+            ('the sentry restored from its snapshot', None, 'evidence from the restore drill (R6)'),
+            ('the network restored', 'faults', 'partition'),
+            ('the validator host recovered', 'recovery', 'first_block_after_halt_at')],
+    'R03': [('the latency cleared', 'faults', 'latency'),
+            ('the packet loss cleared', 'faults', 'loss'),
+            ('the validator partition healed', 'faults', 'partition')],
+    'R04': [('the upgrade switched', None, 'a switch instant in the upgrade drill\'s evidence (T8)')],
+    'R05': [],
+    'R06': [('the full-capacity load window ended', 'load', 'finished'),
+            ('the half-capacity load window ended', 'load', 'finished')],
 }
 
 
@@ -181,6 +218,43 @@ def resolve_bind(bind, base, genesis_bytes):
     return status, record.get('finished'), record
 
 
+def resolve_event(event, bind, base, genesis_bytes, engine_genesis_bytes):
+    """Returns (status, end, detail) for an event checkpoint's event: its
+    tool's evidence re-read, re-hashed and re-verified, and the event's end
+    read from it. Raises Failed if the file is not the one the record names."""
+    if event['tool'] is None:
+        return INCONCLUSIVE, None, f'awaits {event["select"]}'
+    if not bind:
+        return INCONCLUSIVE, None, f'no {event["tool"]} evidence bound for {event["name"]}'
+    if bind['tool'] != event['tool']:
+        raise Failed(f'{event["name"]} binds {bind["tool"]} evidence, not {event["tool"]}')
+    path = base / bind['evidence']
+    data = path.read_bytes()
+    if digest(data) != bind['evidence_sha256']:
+        raise Failed(f'{bind["evidence"]} is not the evidence the record names')
+    record = json.loads(data)
+    if event['tool'] == 'faults':
+        status = fault_tool.verify(record, genesis_bytes, engine_genesis_bytes)
+        found = [s for s in record.get('scenarios', []) if s.get('name') == event['select']]
+        end = found[0].get('recovered_at') if len(found) == 1 else None
+    elif event['tool'] == 'recovery':
+        status = recovery_tool.verify(record, genesis_bytes)
+        moment = ((record.get('observations') or {}).get('instants') or {}).get(event['select'])
+        end = (datetime.fromtimestamp(moment, timezone.utc).isoformat()
+               if isinstance(moment, (int, float)) and not isinstance(moment, bool) else None)
+    elif event['tool'] == 'load':
+        rows = (base / bind['rows']).read_bytes()
+        if digest(rows) != bind['rows_sha256']:
+            raise Failed(f'{bind["rows"]} is not the transactions file the record names')
+        status = load_tool.verify(record, rows)
+        end = record.get(event['select'])
+    else:
+        raise Failed(f'{event["tool"]} is not an event tool')
+    if end is None:
+        return INCONCLUSIVE, None, f'the {event["tool"]} evidence records no end for {event["name"]}'
+    return status, end, f'{event["name"]} at {end}: the {event["tool"]} evidence is {status}'
+
+
 def in_window(moment, window):
     start, end = window
     at = instant(moment)
@@ -205,6 +279,8 @@ def evaluate(check, row, base, window, genesis_sha256, genesis_bytes):
         if not bind:
             tool = 'reconciliation (T6)' if kind in ('supply', 'state') else 'load run (T3)'
             return INCONCLUSIVE, f'no {tool} evidence bound at this checkpoint'
+        if window[0] is None:
+            return INCONCLUSIVE, 'the event this checkpoint follows has no recorded end'
         status, finished, bound = resolve_bind(bind, base, genesis_bytes)
         if finished is None or not in_window(finished, window):
             return INCONCLUSIVE, f'the bound {bind["tool"]} evidence is not from this checkpoint window'
@@ -253,22 +329,33 @@ def checkpoint_status(statuses):
     return PASS
 
 
-def window_of(schedule, index, genesis_time):
-    """[this checkpoint's planned time, the next one's), half-open; the last
-    checkpoint has no upper bound."""
+def window_of(schedule, index, genesis_time, event_end=None):
+    """A fixed checkpoint's window: [its planned time, the next fixed one's),
+    half-open, the last with no upper bound. An event checkpoint's: [its
+    event's end, 30 minutes later), or none while the end is unknown."""
+    if 'event' in schedule[index]:
+        if event_end is None:
+            return (None, None)
+        start = instant(event_end)
+        return (start.isoformat(), (start + timedelta(seconds=EVENT_WINDOW_SECONDS)).isoformat())
     genesis = instant(genesis_time)
     start = genesis + timedelta(seconds=schedule[index]['offset_seconds'])
-    end = None
-    if index + 1 < len(schedule):
-        end = genesis + timedelta(seconds=schedule[index + 1]['offset_seconds'])
+    following = [row for row in schedule[index + 1:] if 'event' not in row]
+    end = genesis + timedelta(seconds=following[0]['offset_seconds']) if following else None
     return (start.isoformat(), end.isoformat() if end else None)
 
 
-# Building a schedule. Only R07 is defined; its digest is what `--qualifying`
-# compares against.
+def event_in_run(end, genesis_time):
+    """An event counts only if it ended between genesis and T+24h."""
+    at, genesis = instant(end), instant(genesis_time)
+    return genesis <= at <= genesis + timedelta(seconds=RUN_SECONDS)
+
+
+# Building a schedule: R07's from the brief, R01 to R06's from it and their
+# events (P01, 14 October 2026). Its digest is what `--qualifying` compares.
 
 def schedule(run, register=None):
-    if run != 'R07':
+    if run != 'R07' and run not in RUN_EVENTS:
         raise Failed(f'no checkpoint schedule is defined for {run}')
     data = register if register is not None else json.loads(REGISTER.read_bytes())
     rows = []
@@ -278,7 +365,17 @@ def schedule(run, register=None):
             raise Failed(f'{label} has no offset')
         rows.append({'label': label, 'offset_seconds': OFFSETS[label],
                      'checks': list(item['checks_verbatim'])})
-    return rows
+    if run == 'R07':
+        return rows
+    # One checkpoint before genesis, at T-1h, with both T-6h's and T-1h's
+    # checks: each run starts from rebuilt hosts, so a separate T-6h adds
+    # six hours and nothing new.
+    before = [row for row in rows if row['offset_seconds'] < 0]
+    combined = {'label': 'T MINUS 1 HOUR', 'offset_seconds': OFFSETS['T MINUS 1 HOUR'],
+                'checks': list(dict.fromkeys(check for row in before for check in row['checks']))}
+    events = [{'label': f'AFTER {name.upper()}', 'event': {'name': name, 'tool': tool, 'select': select},
+               'checks': list(EVENT_CHECKS)} for name, tool, select in RUN_EVENTS[run]]
+    return [combined] + [row for row in rows if row['offset_seconds'] >= 0] + events
 
 
 def schedule_sha256(rows):
@@ -289,25 +386,40 @@ def schedule_sha256(rows):
 # checkpoint recorded so far, each chained to the one before, and a digest
 # over all of it.
 
-def build_checkpoint(schedule_rows, index, actual_time, rows, prev_sha256, genesis_time):
-    window = window_of(schedule_rows, index, genesis_time)
-    statuses = [row['status'] for row in rows]
+def build_checkpoint(schedule_rows, index, actual_time, rows, prev_sha256, genesis_time, event=None):
+    window = window_of(schedule_rows, index, genesis_time, event['end'] if event else None)
+    statuses = [row['status'] for row in rows] + ([event['status']] if event else [])
     body = {'label': schedule_rows[index]['label'],
-            'offset_seconds': schedule_rows[index]['offset_seconds'],
+            'offset_seconds': schedule_rows[index].get('offset_seconds'),
             'window': list(window), 'actual_time': actual_time,
             'status': checkpoint_status(statuses), 'checks': rows, 'prev_sha256': prev_sha256}
+    if event:
+        body['event'] = event
     body['sha256'] = digest(canonical(body))
     return body
 
 
+def event_record(planned, bind, base, genesis_bytes, engine_genesis_bytes, genesis_time):
+    """The event of an event checkpoint: its bound evidence, end and status.
+    An event outside the run (before genesis or after T+24h) does not count."""
+    status, end, detail = resolve_event(planned['event'], bind, base, genesis_bytes, engine_genesis_bytes)
+    if end is not None and not event_in_run(end, genesis_time):
+        status, detail = INCONCLUSIVE, f'{planned["event"]["name"]} at {end} is outside the run'
+    return {'name': planned['event']['name'], 'bind': bind, 'end': end, 'status': status, 'detail': detail}
+
+
 def record_checkpoint(schedule_rows, index, readings, base, genesis_bytes, engine_genesis_bytes,
-                      prev_sha256, actual_time):
+                      prev_sha256, actual_time, event_bind=None):
     """Build one checkpoint record. `readings` maps a check's text to its raw
     reading, {'inputs': ...} or {'bind': ...}; a check with no reading is left
     for its evaluator to call INCONCLUSIVE. The status of every check comes from
-    the same `evaluate` that `verify` re-runs, so the two always agree."""
+    the same `evaluate` that `verify` re-runs, so the two always agree. An event
+    checkpoint also takes `event_bind`, its event's evidence."""
     genesis_time = json.loads(engine_genesis_bytes)['genesis_time']
-    window = window_of(schedule_rows, index, genesis_time)
+    event = None
+    if 'event' in schedule_rows[index]:
+        event = event_record(schedule_rows[index], event_bind, base, genesis_bytes, engine_genesis_bytes, genesis_time)
+    window = window_of(schedule_rows, index, genesis_time, event['end'] if event else None)
     genesis_sha256 = digest(genesis_bytes)
     rows = []
     for check in schedule_rows[index]['checks']:
@@ -320,7 +432,7 @@ def record_checkpoint(schedule_rows, index, readings, base, genesis_bytes, engin
         status, detail = evaluate(check, row, base, window, genesis_sha256, genesis_bytes)
         row['status'], row['detail'] = status, detail
         rows.append(row)
-    return build_checkpoint(schedule_rows, index, actual_time, rows, prev_sha256, genesis_time)
+    return build_checkpoint(schedule_rows, index, actual_time, rows, prev_sha256, genesis_time, event)
 
 
 def run_status(schedule_rows, checkpoints):
@@ -360,7 +472,8 @@ def verify(record, base, genesis_bytes, engine_genesis_bytes, qualifying=None):
     if record['schedule_sha256'] != schedule_sha256(schedule_rows):
         raise Failed('the schedule digest does not match the recorded schedule')
     if qualifying is not None:
-        if record['schedule_sha256'] != schedule_sha256(schedule(qualifying)):
+        # R01 and R05 have no events, so their schedules match: the run counts too.
+        if record['run'] != qualifying or record['schedule_sha256'] != schedule_sha256(schedule(qualifying)):
             raise Failed(f'the schedule is not the {qualifying} schedule')
     genesis_sha256 = digest(genesis_bytes)
     checkpoints = record['checkpoints']
@@ -369,14 +482,23 @@ def verify(record, base, genesis_bytes, engine_genesis_bytes, qualifying=None):
     prev = ''
     for index, cp in enumerate(checkpoints):
         planned = schedule_rows[index]
-        if cp['label'] != planned['label'] or cp['offset_seconds'] != planned['offset_seconds']:
+        if cp['label'] != planned['label'] or cp['offset_seconds'] != planned.get('offset_seconds'):
             raise Failed(f'checkpoint {index} is not {planned["label"]} in order')
         if cp['prev_sha256'] != prev:
             raise Failed(f'checkpoint {cp["label"]} is not chained to the one before')
-        window = window_of(schedule_rows, index, genesis_time)
+        event = None
+        if 'event' in planned:
+            recorded = cp.get('event') or {}
+            event = event_record(planned, recorded.get('bind'), base, genesis_bytes, engine_genesis_bytes, genesis_time)
+            if event != recorded:
+                raise Failed(f'the event of {cp["label"]} does not follow from its evidence')
+        elif 'event' in cp:
+            raise Failed(f'checkpoint {cp["label"]} is not an event checkpoint')
+        window = window_of(schedule_rows, index, genesis_time, event['end'] if event else None)
         if list(window) != cp['window']:
             raise Failed(f'checkpoint {cp["label"]} records another window')
-        if not in_window(cp['actual_time'], window):
+        # An event checkpoint whose event's end is unknown has no window yet.
+        if window[0] is not None and not in_window(cp['actual_time'], window):
             raise Failed(f'checkpoint {cp["label"]} was taken outside its window (a compressed or early run)')
         checks = cp['checks']
         # The checkpoint must record exactly its schedule's checks, in order.
@@ -393,6 +515,8 @@ def verify(record, base, genesis_bytes, engine_genesis_bytes, qualifying=None):
             statuses.append(status)
             if status == FAIL and category(row['check']) in INTEGRITY:
                 integrity_failed = True
+        if event:
+            statuses.append(event['status'])
         if checkpoint_status(statuses) != cp['status']:
             raise Failed(f'the recorded status of {cp["label"]} does not follow from its checks')
         if integrity_failed and index != len(checkpoints) - 1:
@@ -416,7 +540,8 @@ def main():
         record = json.loads(args.evidence.read_bytes())
         status = verify(record, args.evidence.resolve().parent, args.genesis.read_bytes(),
                         args.engine_genesis.read_bytes(), args.qualifying)
-    except (Failed, reconcile.Failed, load_tool.Failed, OSError, KeyError, ValueError) as error:
+    except (Failed, reconcile.Failed, load_tool.Failed, fault_tool.Failed, recovery_tool.Failed, OSError, KeyError,
+            ValueError) as error:
         print(f'checkpoints: {error}', file=sys.stderr)
         return 1
     print(status)
