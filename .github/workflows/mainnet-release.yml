@@ -34,8 +34,16 @@ jobs:
         copy: [a, b]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Retried: snapshot.debian.org, which pins the builder's packages,
+      # sometimes stops answering for a few minutes. Every attempt uses the
+      # same pinned inputs.
       - name: Builder image
-        run: docker build --platform linux/amd64 -t dytallix-release-builder release/builder
+        run: |
+          for attempt in 1 2 3; do
+            docker build --platform linux/amd64 -t dytallix-release-builder release/builder && exit 0
+            [ "$attempt" = 3 ] || { echo "::warning::builder image attempt $attempt failed; retrying in $((attempt * 90)) s"; sleep $((attempt * 90)); }
+          done
+          exit 1
       - name: Build the release set
         run: |
           mkdir -p "$RUNNER_TEMP/out" "$RUNNER_TEMP/work"
