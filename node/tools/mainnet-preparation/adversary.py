@@ -19,9 +19,14 @@ zero) and commit, so a gateway or pin that refuses everything cannot make the
 run pass.
 
 The lean scope is the cases that do not need the load machines: an invalid
-ML-DSA-65 signature, a decode failure, a stale (already spent) nonce, a
-duplicate, a re-signed copy and an oversized request. Transaction and request
-floods follow with the load machines (R03).
+ML-DSA-65 signature, a decode failure, a stale (already spent) nonce and an
+oversized request; and, against a pending original (mempool rule v1, rule 3,
+node/docs/architecture/mempool-v1.md), the same bytes again, a re-signed copy
+of its intent, another intent at its nonce and the nonce after it, submitted in
+the original's own request so it is still pending. The original itself must be
+admitted and commit once (`pending_original`), and a record with those copies
+but no original does not verify. Transaction and request floods follow with
+the load machines (R03).
 
 The byte-level mutations here are offline and unit-tested: a valid transport is
 decoded, exactly the field under test is changed, and it is re-wrapped. The
@@ -51,7 +56,9 @@ MLDSA65_SIGNATURE_BYTES = 3309
 # CheckTx code. That is a real refusal with a definite "too large" message, so it
 # counts when its expected reason is in the log; every other case must be refused
 # by CheckTx (code > 0). This set is keyed by name so a record cannot opt in.
-TRANSPORT_REFUSAL_OK = {'oversized'}
+# The same bytes again are refused by the engine's cache ("tx already exists in
+# cache") before CheckTx, which a duplicate must name too.
+TRANSPORT_REFUSAL_OK = {'oversized', 'duplicate'}
 
 # Each case's name mapped to what the node must do with it. verify recomputes
 # this from the name, so a record cannot relabel a refuse case as a control.
@@ -61,9 +68,15 @@ EXPECTATION = {
     'stale_nonce': 'refuse',
     'duplicate': 'refuse',
     'resigned_copy': 'refuse',
+    'conflicting_nonce': 'refuse',
+    'future_nonce': 'refuse',
     'oversized': 'refuse',
+    'pending_original': 'admit',
     'positive_control': 'admit',
 }
+# The cases that test the one-transaction-per-nonce rule; each needs the
+# pending original in the same record.
+AGAINST_PENDING = ('duplicate', 'resigned_copy', 'conflicting_nonce', 'future_nonce')
 
 
 class Failed(Exception):
@@ -126,9 +139,10 @@ def evaluate(case):
     kind = expectation(case['name'])
     code, committed, log = case.get('code'), case.get('committed'), case.get('log') or ''
     if kind == 'admit':
+        what = 'pending original' if case['name'] == 'pending_original' else 'control'
         if code == 0 and committed is True:
-            return PASS, 'the control transaction was admitted and committed'
-        return FAIL, f'the control was not admitted and committed (code {code}, committed {committed})'
+            return PASS, f'the {what} transaction was admitted and committed'
+        return FAIL, f'the {what} was not admitted and committed (code {code}, committed {committed})'
     # refuse
     if not isinstance(code, int):
         return FAIL, f'no node refusal (a transport or uncertain outcome, code {code})'
@@ -189,6 +203,8 @@ def verify(record, genesis_bytes, engine_genesis_bytes):
     names = {row['name'] for row in cases}
     if 'positive_control' not in names:
         raise Failed('the record has no positive control')
+    if names & set(AGAINST_PENDING) and 'pending_original' not in names:
+        raise Failed('the record has copies of a pending intent but not the original')
     statuses = []
     for row in cases:
         if row.get('expectation') != expectation(row['name']):

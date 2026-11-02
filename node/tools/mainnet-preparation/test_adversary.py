@@ -89,6 +89,23 @@ class Evaluate(unittest.TestCase):
         self.assertEqual(self.status(case('invalid_signature', code=-1, log='Tx too large',
                                           expected_reason='too large')), adversary.FAIL)
 
+    def test_a_duplicate_is_refused_by_the_engine_cache_before_checktx(self):
+        cache = 'tx already exists in cache'
+        self.assertEqual(self.status(case('duplicate', code=-1, log=f'error on broadcastTxSync: {cache}',
+                                          expected_reason=cache)), adversary.PASS)
+        # A re-signed copy is not the same bytes: the cache cannot refuse it,
+        # so only the node's own identity check counts.
+        self.assertEqual(self.status(case('resigned_copy', code=-1, log=cache,
+                                          expected_reason='Intent is already reserved')), adversary.FAIL)
+        # Refused for being stale means the original had already committed: not this test.
+        self.assertEqual(self.status(case('resigned_copy', code=1, log='Ordinary spending nonce is stale',
+                                          expected_reason='Intent is already reserved')), adversary.FAIL)
+
+    def test_the_pending_original_must_commit(self):
+        self.assertEqual(adversary.evaluate(case('pending_original', code=0, committed=True)),
+                         (adversary.PASS, 'the pending original transaction was admitted and committed'))
+        self.assertEqual(self.status(case('pending_original', code=0, committed=False)), adversary.FAIL)
+
     def test_an_unregistered_case_is_refused(self):
         with self.assertRaises(adversary.Failed):
             adversary.evaluate(case('mystery'))
@@ -99,9 +116,10 @@ class Evidence(unittest.TestCase):
         return adversary.build_run('dytallix-staging-1', NATIVE, ENGINE, cases, 'sentry-1')
 
     def good_run(self):
-        return [case('invalid_signature'), case('decode_failure'), case('stale_nonce'),
-                case('duplicate'), case('resigned_copy'), case('oversized'),
-                case('positive_control', code=0, committed=True)]
+        return [case('invalid_signature'), case('decode_failure'), case('stale_nonce'), case('oversized'),
+                case('duplicate', code=-1, log='tx already exists in cache', expected_reason='tx already exists in cache'),
+                case('resigned_copy'), case('conflicting_nonce'), case('future_nonce'),
+                case('pending_original', code=0, committed=True), case('positive_control', code=0, committed=True)]
 
     def test_build_then_verify_roundtrips_pass(self):
         record = self.build(self.good_run())
@@ -118,6 +136,14 @@ class Evidence(unittest.TestCase):
     def test_a_run_without_a_control_is_refused(self):
         with self.assertRaises(adversary.Failed):
             adversary.verify(self.build([case('invalid_signature')]), NATIVE, ENGINE)
+
+    def test_copies_without_their_pending_original_are_refused(self):
+        cases = [c for c in self.good_run() if c['name'] != 'pending_original']
+        with self.assertRaisesRegex(adversary.Failed, 'not the original'):
+            adversary.verify(self.build(cases), NATIVE, ENGINE)
+        # Without the copies, the lean cases still stand alone.
+        lean = [c for c in cases if c['name'] not in adversary.AGAINST_PENDING]
+        self.assertEqual(adversary.verify(self.build(lean), NATIVE, ENGINE), adversary.PASS)
 
     def test_a_tampered_outcome_is_caught(self):
         record = self.build(self.good_run())

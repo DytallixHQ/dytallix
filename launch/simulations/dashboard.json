@@ -7,11 +7,11 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "ace4dc6bd4247250338940ab450b26f79aa4b8fe53959aa1e9be6b16ece0648a"
+        "sha256": "1e2d8f2f73fde50ee9609ec1340054889e8445226e3e8f72aefd04847faf28d1"
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "c65c631b68b17f12c42c479a4bcb32a90db6d86cdbf63b5684c4bbabde09abde"
+        "sha256": "741c365330dd218a348ac183518011cdba67f616ac46e73f5f4185c39fecbc24"
       },
       {
         "path": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
@@ -28,7 +28,7 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 438,
+    "commits_at_as_of": 448,
     "approval_records": 66
   },
   "phases": [
@@ -442,9 +442,9 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: duplicates, re-signed copies and request and transaction floods, with the load machines (R03)",
+      "value": "Built and proven in the CI staging network; still to come: request and transaction floods, with the load machines (R03)",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64",
-      "updated": "2026-10-14"
+      "updated": "2026-11-02"
     },
     {
       "id": "tools.t5.ready",

@@ -1869,10 +1869,12 @@ def agent_reconcile(work, guest, label, channel, timeout):
 def adversary_drill(work):
     """The adversarial generator (simulation plan, T4) on the staging network:
     through the client channel, an invalid ML-DSA-65 signature, a decode failure,
-    a stale nonce and an oversized request are each refused at admission, while a
-    valid control transaction is admitted and committed. Writes digest-bound
-    evidence that `adversary.py verify` re-evaluates. Duplicates, re-signed copies
-    and floods follow with the load machines."""
+    a stale nonce and an oversized request are each refused at admission; the
+    same bytes again, a re-signed copy, another intent at the same nonce and the
+    next nonce are each refused while their original is pending, and the
+    original commits once; a valid control transaction is admitted and
+    committed. Writes digest-bound evidence that `adversary.py verify`
+    re-evaluates. Floods follow with the load machines."""
     work = Path(work)
     chain = work / 'net' / 'chain'
     out = work / 'adversary'
@@ -1893,7 +1895,8 @@ def adversary_drill(work):
                                         'cases': {r['name']: r['status'] for r in record['cases']}}}, indent=2))
     if status != adversary.PASS:
         raise Failed(f'the adversarial run is {status}')
-    say(f'== {PUBLIC}: malformed traffic was refused at admission and the valid control committed (the run is {status})')
+    say(f'== {PUBLIC}: malformed traffic and copies of a pending transaction were refused at admission, and the '
+        f'original and the valid control committed (the run is {status})')
 
 
 # The fault injector (simulation plan, T5)
