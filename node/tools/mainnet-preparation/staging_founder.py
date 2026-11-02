@@ -328,8 +328,8 @@ def preflight(store, chain, host, status_url=None, say=print):
     say('\n'.join([
         'Founder checks, before the first command (record each):',
         '  1. B2 accepts curl\'s signing: a PUT and a GET with the founder key worked above or by hand.',
-        '  2. Each host\'s read key can GET only its own commands/CHAIN/HOST/ prefix: a GET of the other',
-        '     host\'s prefix and any PUT, LIST or DELETE are refused.',
+        '  2. Each host\'s read key can GET and LIST only its own commands/CHAIN/HOST/ prefix (readFiles,',
+        '     listFiles): a GET or LIST of the other host\'s prefix and any PUT or DELETE are refused.',
         '  3. The history upload key is write-only: LIST, GET and DELETE are refused.',
         '  4. Each host\'s read key is remade for each run\'s new chain ID (the prefix names the chain).',
         '  5. The first command on each host is fault-clear, so a wrong interface name (the fault',

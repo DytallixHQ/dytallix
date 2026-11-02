@@ -11,9 +11,11 @@ the production install, whose install refuses a host that still has it.
   agent.py poll                      the dytallix-agent unit, every minute
   agent.py remove                    as root: removes the agent
 
-Each poll fetches the next command file, by sequence number, from the
+Each poll looks for the next command file, by sequence number, in the
 command store (an S3-compatible bucket, AWS Signature V4, a read key for one
-prefix) with the host's curl, outbound only. A command runs only if it is
+prefix) with the host's curl, outbound only: it lists its own prefix for that
+one name and fetches it only when listed, because a prefix-limited read key at
+the real store (B2) answers 403, not 404, for an object that is not there. A command runs only if it is
 well formed, its ML-DSA-65 signature verifies (with the release's own
 `dytallix crypto verify`) under the staging command key pinned in the
 settings, it names this host, this chain and the expected sequence, it has
@@ -302,6 +304,23 @@ def fetch(host, curl, store, key, target):
     return status, raw
 
 
+def listed(host, curl, store, key, target):
+    """Whether the store holds `key`, from a listing of its own prefix (the
+    read key lists and reads only that prefix)."""
+    target.unlink(missing_ok=True)
+    name = f'{store["prefix"]}{key}'
+    result = host.run([curl, '--config', '-'], capture_output=True, input=curl_config(store, [
+        f'max-filesize = {MAX_COMMAND_BYTES}', f'output = "{target}"', 'write-out = "%{http_code}"',
+        f'url = "{store["endpoint"].rstrip("/")}/{store["bucket"]}/?list-type=2&max-keys=1&prefix={name}"']))
+    require(result.returncode == 0, f'the command store did not answer: '
+                                    f'{(result.stderr or b"").decode(errors="replace").strip()}')
+    status = int((result.stdout or b'0').decode().strip() or 0)
+    raw = target.read_bytes() if status == 200 and target.exists() else b''
+    target.unlink(missing_ok=True)
+    require(status == 200, f'the command store answered {status} listing {key}')
+    return f'<Key>{name}</Key>'.encode() in raw
+
+
 def truncate(raw):
     text = (raw or b'').decode(errors='replace')
     return text if len(text) <= MAX_OUTPUT_BYTES else text[:MAX_OUTPUT_BYTES] + '\n[truncated]'
@@ -400,9 +419,9 @@ def poll(host, clock=time.time, out=print):
             break
         sequence = state['next_sequence']
         key = f'{settings["chain_id"]}/{settings["label"]}/{sequence:010}.json'
-        status, raw = fetch(host, monitor['curl'], settings['commands'], key, host.path(f'{STATE}/scratch/command'))
-        if status == 404:
+        if not listed(host, monitor['curl'], settings['commands'], key, host.path(f'{STATE}/scratch/listing')):
             break
+        status, raw = fetch(host, monitor['curl'], settings['commands'], key, host.path(f'{STATE}/scratch/command'))
         require(status in (200, 413), f'the command store answered {status} for {key}')
         # The slot is spent before anything runs: a command runs at most once.
         state['next_sequence'] = sequence + 1

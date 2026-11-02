@@ -51,9 +51,15 @@ of the body's canonical JSON (sorted keys, no spaces, ASCII). The founder
 uploads it to the command store as `PREFIX/CHAIN/HOST/SEQUENCE.json`, the
 sequence in ten digits.
 
-Each poll fetches the next sequence's object with the host's curl (AWS
+Each poll looks for the next sequence's object with the host's curl (AWS
 Signature V4, a read key for the command prefix, outbound only; TLS is only
-transport). A 404 ends the poll. For an object it:
+transport). It lists its own prefix for that one name (ListObjectsV2,
+`max-keys=1`) and fetches the object only when listed; nothing listed ends the
+poll. It never reads a refused GET as "no command": at the real store (B2), a
+read key limited to a name prefix answers 403, not 404, for an object that is
+not there, and a wrong or revoked key answers 403 too. So the read key holds
+`readFiles` and `listFiles`, both read-only, on that host's prefix only
+(found on the real store, 2 November 2026). For an object it:
 
 1. **spends the slot** (the next sequence is written before anything runs,
    so a command runs at most once, even across a crash);
@@ -111,8 +117,8 @@ overlap give no common height, so INCONCLUSIVE, never a pass; the state check
 stays at the console ([approval](../../../launch/approvals/P01_T06_AGENT_RECONCILE_2026-10-20.json)).
 `preflight` reads only and lists the
 checks the founder makes on the real store before the first command: B2
-accepts curl's signing, each host's read key reaches only its own command
-prefix and is remade for each run's chain ID, the history key is write-only,
+accepts curl's signing, each host's read key lists and reads only its own
+command prefix and is remade for each run's chain ID, the history key is write-only,
 and the first command on each host is `fault-clear`, so a different interface
 name fails in seconds. The CI agent and fault drills drive the agent through
 the same module, the stand-in store reached over the network as the real

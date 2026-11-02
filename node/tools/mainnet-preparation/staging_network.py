@@ -1423,6 +1423,7 @@ def founder_channel(work, guest, label, drill, unit, address=None):
     guest.run(['systemd-run', f'--unit={unit}', 'python3', '/root/s3_standin.py', '--root', '/var/tmp/standin',
                '--port', str(STANDIN_PORT), '--bind', '0.0.0.0', '--access-key-id', UPLOAD['access_key_id'],
                '--access-key-id', HISTORY_UPLOAD['access_key_id'], '--read-key-id', COMMAND_STORE['access_key_id'],
+               '--read-prefix', f'{COMMAND_STORE["prefix"]}{staging_host.CHAIN_ID}/{label}/',
                '--founder-key-id', FOUNDER_STORE['access_key_id']])
     if address is None:
         # The host firewall drops what it does not list; let the runner reach the
