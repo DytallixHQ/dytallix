@@ -89,6 +89,35 @@ class Evaluate(unittest.TestCase):
         self.assertEqual(self.status(case('invalid_signature', code=-1, log='Tx too large',
                                           expected_reason='too large')), adversary.FAIL)
 
+    def test_a_duplicate_is_refused_by_the_engine_cache_before_checktx(self):
+        cache = 'tx already exists in cache'
+        self.assertEqual(self.status(case('duplicate', code=-1, log=f'error on broadcastTxSync: {cache}',
+                                          expected_reason=cache)), adversary.PASS)
+
+    def test_a_re_signed_copy_is_judged_by_its_own_bytes(self):
+        cache, identity = adversary.CACHE_REFUSAL, adversary.IDENTITY_REFUSAL
+
+        def resigned(same, code, log, reason):
+            row = case('resigned_copy', code=code, log=log, expected_reason=reason)
+            if same is not None:
+                row['same_bytes'] = same
+            return self.status(row)
+        # The release CLI signs deterministically: the same bytes, refused by the cache.
+        self.assertEqual(resigned(True, -1, cache, cache), adversary.PASS)
+        # A randomized signer's copy: byte-distinct, refused by the node's identity check.
+        self.assertEqual(resigned(False, 1, f'Admission reservation rejected: {identity}', identity), adversary.PASS)
+        # A byte-distinct copy cannot be a cache refusal, nor claim the cache's reason.
+        self.assertEqual(resigned(False, -1, cache, identity), adversary.FAIL)
+        self.assertEqual(resigned(False, -1, cache, cache), adversary.FAIL)
+        # Without the bytes' record, or refused because the original had already committed.
+        self.assertEqual(resigned(None, -1, cache, cache), adversary.FAIL)
+        self.assertEqual(resigned(False, 1, 'Ordinary spending nonce is stale', identity), adversary.FAIL)
+
+    def test_the_pending_original_must_commit(self):
+        self.assertEqual(adversary.evaluate(case('pending_original', code=0, committed=True)),
+                         (adversary.PASS, 'the pending original transaction was admitted and committed'))
+        self.assertEqual(self.status(case('pending_original', code=0, committed=False)), adversary.FAIL)
+
     def test_an_unregistered_case_is_refused(self):
         with self.assertRaises(adversary.Failed):
             adversary.evaluate(case('mystery'))
@@ -99,9 +128,12 @@ class Evidence(unittest.TestCase):
         return adversary.build_run('dytallix-staging-1', NATIVE, ENGINE, cases, 'sentry-1')
 
     def good_run(self):
-        return [case('invalid_signature'), case('decode_failure'), case('stale_nonce'),
-                case('duplicate'), case('resigned_copy'), case('oversized'),
-                case('positive_control', code=0, committed=True)]
+        return [case('invalid_signature'), case('decode_failure'), case('stale_nonce'), case('oversized'),
+                case('duplicate', code=-1, log='tx already exists in cache', expected_reason='tx already exists in cache'),
+                dict(case('resigned_copy', code=-1, log='tx already exists in cache',
+                          expected_reason='tx already exists in cache'), same_bytes=True),
+                case('conflicting_nonce'), case('future_nonce'),
+                case('pending_original', code=0, committed=True), case('positive_control', code=0, committed=True)]
 
     def test_build_then_verify_roundtrips_pass(self):
         record = self.build(self.good_run())
@@ -118,6 +150,14 @@ class Evidence(unittest.TestCase):
     def test_a_run_without_a_control_is_refused(self):
         with self.assertRaises(adversary.Failed):
             adversary.verify(self.build([case('invalid_signature')]), NATIVE, ENGINE)
+
+    def test_copies_without_their_pending_original_are_refused(self):
+        cases = [c for c in self.good_run() if c['name'] != 'pending_original']
+        with self.assertRaisesRegex(adversary.Failed, 'not the original'):
+            adversary.verify(self.build(cases), NATIVE, ENGINE)
+        # Without the copies, the lean cases still stand alone.
+        lean = [c for c in cases if c['name'] not in adversary.AGAINST_PENDING]
+        self.assertEqual(adversary.verify(self.build(lean), NATIVE, ENGINE), adversary.PASS)
 
     def test_a_tampered_outcome_is_caught(self):
         record = self.build(self.good_run())

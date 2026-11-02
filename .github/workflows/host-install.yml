@@ -262,9 +262,11 @@ jobs:
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py checkpoint --work "$RUNNER_TEMP/network"
       # The adversarial generator (simulation plan, T4) through the client
       # channel: an invalid ML-DSA-65 signature, a decode failure, a stale nonce
-      # and an oversized request are each refused at admission, while a valid
-      # control transaction is admitted and committed. After the checkpoint, so
-      # its control commit does not disturb the after-load reconcile it binds.
+      # and an oversized request are each refused at admission; copies of a
+      # pending transaction (the same bytes, a re-signed copy, another intent at
+      # its nonce, the next nonce) are refused while the original commits once;
+      # a valid control transaction is admitted and committed. After the
+      # checkpoint, so its commits do not disturb the after-load reconcile it binds.
       - name: Adversarial generator (T4)
         timeout-minutes: 15
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py adversary-drill --work "$RUNNER_TEMP/network"
@@ -303,14 +305,16 @@ jobs:
       - name: Fault injector (T5)
         timeout-minutes: 20
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py fault-drill --work "$RUNNER_TEMP/network"
-      # The upgrade drill (simulation plan, T8): the upgrade and handover to
-      # the second release with the receipt-index migration, signed three of
-      # five; RC2 staged on both hosts; the paired activation after the
-      # 20-block notice; RC1 stops itself; switch.sh on both; reconciled
-      # before and after. After the kit drill (seat 5 replaced; kits 1 to 3
+      # The upgrade drill (simulation plan, T8): first an upgrade and a
+      # handover admitted and cancelled before activation (L15); then the
+      # upgrade and handover to the second release with the receipt-index
+      # migration, signed three of five; RC2 staged on both hosts; the paired
+      # activation after the 20-block notice; RC1 stops itself; switch.sh on
+      # the validator, and on the sentry 10 blocks later (a late sentry);
+      # reconciled before and after. After the kit drill (seat 5 replaced; kits 1 to 3
       # sign) and before the agent drill, whose wipe ends the network.
       - name: Upgrade drill (T8)
-        timeout-minutes: 30
+        timeout-minutes: 40
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py upgrade-drill --work "$RUNNER_TEMP/network"
       # The staging agent (simulation plan, T2) on the sentry: signed status
       # and journal commands run; tampered, unsigned, replayed,

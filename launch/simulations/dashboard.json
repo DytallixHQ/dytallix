@@ -7,11 +7,11 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "ace4dc6bd4247250338940ab450b26f79aa4b8fe53959aa1e9be6b16ece0648a"
+        "sha256": "579d9ad013d7e0a886e2000806f2629b695f0e16230211c9aacdbdd9bcd93967"
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "c65c631b68b17f12c42c479a4bcb32a90db6d86cdbf63b5684c4bbabde09abde"
+        "sha256": "3875bd838a83f666dd8213822a273e7a2a6b027264dcdc08acd8897f5b367613"
       },
       {
         "path": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
@@ -28,8 +28,8 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 438,
-    "approval_records": 66
+    "commits_at_as_of": 450,
+    "approval_records": 67
   },
   "phases": [
     {
@@ -442,9 +442,9 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: duplicates, re-signed copies and request and transaction floods, with the load machines (R03)",
+      "value": "Built and proven in the CI staging network; still to come: request and transaction floods, with the load machines (R03)",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64",
-      "updated": "2026-10-14"
+      "updated": "2026-11-02"
     },
     {
       "id": "tools.t5.ready",
@@ -498,9 +498,9 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: a cancel before activation, a late sentry and a return handover",
+      "value": "Built and proven in the CI staging network; still to come: a return handover",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/72",
-      "updated": "2026-10-29"
+      "updated": "2026-11-02"
     },
     {
       "id": "tools.t9.ready",

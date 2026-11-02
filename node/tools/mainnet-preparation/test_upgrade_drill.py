@@ -13,11 +13,18 @@ RC1, RC2 = '11' * 64, '22' * 64
 
 
 def observations():
-    """A handover that followed the procedure: admitted at 100, 20-block
-    notice, activated after 120, both on RC2 at 130."""
-    node = {'height': 130, 'block_hash': 'b130', 'app_hash': 'a129'}
+    """A handover that followed the procedure: a first admission at 61
+    cancelled, and RC1 still active at 121; admitted again at 100, 20-block
+    notice, activated after 120; the sentry switched with the validator at
+    135, both on RC2 at 140."""
+    node = {'height': 140, 'block_hash': 'b140', 'app_hash': 'a139'}
     return {
         'releases': {'source': RC1, 'target': RC2}, 'notice_blocks': 20,
+        'cancelled': {
+            'admitted': {'height': 62, 'upgrade_pending': {'admitted_height': 60, 'plan': {}},
+                         'handover_pending': {'plan': {'target_release_sha512': RC2}, 'admitted_height': 61}},
+            'after': {'height': 70, 'upgrade_pending': None, 'handover_pending': None, 'active_release': RC1},
+            'past': {'height': 121, 'active_release': RC1, 'units': {'validator-1': RC1[:16], 'sentry-1': RC1[:16]}}},
         'reconcile_before': {'status': 'PASS', 'height': 90, 'sha256': 'r1'},
         'admitted': {'height': 101, 'upgrade_pending': {'admitted_height': 99, 'plan': {}},
                      'handover_pending': {'plan': {'target_release_sha512': RC2}, 'admitted_height': 100}},
@@ -26,7 +33,7 @@ def observations():
                     'sentry-1': {'active': 'inactive', 'release_refusal': True}},
         'units_after': {'validator-1': RC2[:16], 'sentry-1': RC2[:16]},
         'active': {'release': RC2, 'handover_schema': 1, 'upgrade_schema': 1},
-        'compared': {'validator': dict(node), 'sentry': dict(node)},
+        'compared': {'validator': dict(node), 'sentry': dict(node)}, 'late_sentry': {'validator_height': 135},
         'host_verify_exit': {'validator-1': 0, 'sentry-1': 0},
         'reconcile_after': {'status': 'PASS', 'height': 131, 'sha256': 'r2'},
     }
@@ -41,11 +48,13 @@ class UpgradeDrillTests(unittest.TestCase):
     def test_a_handover_by_the_procedure_passes(self):
         found, status = checks(observations())
         self.assertEqual(status, ud.PASS, found)
-        self.assertEqual(set(found), {'admitted', 'notice', 'stopped', 'switched', 'active', 'resumed', 'host_verify',
-                                      'reconciled'})
+        self.assertEqual(set(found), {'cancelled', 'admitted', 'notice', 'stopped', 'switched', 'active', 'resumed',
+                                      'late_sentry', 'host_verify', 'reconciled'})
 
     def test_each_broken_rule_fails(self):
         cases = {
+            'cancelled': lambda o: o['cancelled']['after'].update(handover_pending={'plan': {}}),
+            'late_sentry': lambda o: o['late_sentry'].update(validator_height=125),
             'admitted': lambda o: o['admitted']['handover_pending']['plan'].update(target_release_sha512=RC1),
             'notice': lambda o: o.update(activation_anchor_height=118),
             'stopped': lambda o: o['stopped']['sentry-1'].update(active='active'),
@@ -70,14 +79,25 @@ class UpgradeDrillTests(unittest.TestCase):
         for node in obs['compared'].values():
             node['height'] = 124
         self.assertEqual(checks(obs)[0]['resumed'], ud.FAIL)
+        # The cancel (L15): the release must not move, the reading must be past
+        # the cancelled plan's first activation height, and the units on RC1.
+        for change in (lambda c: c['after'].update(active_release=RC2), lambda c: c['past'].update(height=80),
+                       lambda c: c['past']['units'].update({'sentry-1': RC2[:16]})):
+            obs = observations()
+            change(obs['cancelled'])
+            self.assertEqual(checks(obs)[0]['cancelled'], ud.FAIL)
+        # A late sentry must catch up past where the validator was.
+        obs = observations()
+        obs['late_sentry']['validator_height'] = 140
+        self.assertEqual(checks(obs)[0]['late_sentry'], ud.FAIL)
         # The same release twice is no handover.
         obs = observations()
         obs['releases']['target'] = RC1
         self.assertEqual(checks(obs)[0]['admitted'], ud.FAIL)
 
     def test_a_missing_reading_is_inconclusive(self):
-        for key in ('admitted', 'activation_anchor_height', 'stopped', 'units_after', 'active', 'compared',
-                    'host_verify_exit', 'reconcile_after'):
+        for key in ('cancelled', 'admitted', 'activation_anchor_height', 'stopped', 'units_after', 'active',
+                    'compared', 'late_sentry', 'host_verify_exit', 'reconcile_after'):
             with self.subTest(missing=key):
                 obs = observations()
                 del obs[key]

@@ -6,15 +6,23 @@ the staging network's two hosts, and digest-bound evidence that
 
   upgrade_drill.py verify --evidence FILE --genesis NATIVE_GENESIS
 
-The drill prepares the upgrade admission and the handover admission (target
-RC2, transition receipt-index-v1), signs each three of five with the
-rehearsal kits and submits them; stages RC2 beside RC1 on both hosts; after
-the notice, prepares and signs the upgrade activation and the handover
-activation paired with it and submits both, the handover activation first;
-on each host in turn, the validator first, waits for RC1 to stop itself and
-switches that host to RC2 (switch.sh); and reconciles before and after.
-Each rule is one check:
+The drill first admits an upgrade and a handover to RC2 and cancels both
+before activation (L15, the pre-activation abort), then prepares the
+upgrade admission and the handover admission again (target RC2, transition
+receipt-index-v1), signs each three of five with the rehearsal kits and
+submits them; stages RC2 beside RC1 on both hosts; after the notice,
+prepares and signs the upgrade activation and the handover activation
+paired with it and submits both, the handover activation first; on each
+host in turn, the validator first, waits for RC1 to stop itself and
+switches that host to RC2 (switch.sh), the sentry only once the validator
+has run alone on RC2 for a while (a late sentry); and reconciles before and
+after. Each rule is one check:
 
+- cancelled: the first upgrade and handover were pending, nothing was
+  pending after their cancels (the handover's first, then the upgrade's),
+  and the chain was read past the cancelled plan's first possible
+  activation height (its admission plus the notice) with RC1 still the
+  active release and both units still running it;
 - admitted: the upgrade and the handover pending, the handover naming RC2;
 - notice: the activation's first possible height (its anchor plus one) at
   least the admission height plus the notice (the chain's upgrade policy,
@@ -29,6 +37,8 @@ Each rule is one check:
   receipt-index migration ran: schema 0 to 1 only through it);
 - resumed: both nodes past the activation, the same block and application
   hash at one height after it;
+- late_sentry: the sentry switched only once the validator was at least
+  LATE_BLOCKS past the halt on RC2, and it caught up past that height;
 - host_verify: both hosts verify against their RC2 bundles;
 - reconciled: the reconciliation (T6) PASS before and after.
 
@@ -46,6 +56,8 @@ PASS, FAIL, INCONCLUSIVE = 'PASS', 'FAIL', 'INCONCLUSIVE'
 HOSTS = ('validator-1', 'sentry-1')
 # Heights past the activation both nodes must reach.
 AFTER = 3
+# Blocks the validator makes alone on RC2 before the sentry switches.
+LATE_BLOCKS = 10
 # The schema the receipt-index migration (receipt-index-v1) moves to.
 MIGRATED_SCHEMA = 1
 
@@ -82,6 +94,31 @@ def evaluate(observations):
 
     releases = observations.get('releases') or {}
     source, target = releases.get('source'), releases.get('target')
+    notice = observations.get('notice_blocks')
+
+    cancelled = observations.get('cancelled') or {}
+    first, after, past = (cancelled.get(k) or {} for k in ('admitted', 'after', 'past'))
+    since = admitted_height(first.get('handover_pending'))
+    if not (first and after and past and source and target) or not isinstance(notice, int) or since is None \
+            or not isinstance(past.get('height'), int):
+        add('cancelled', INCONCLUSIVE, 'no cancelled admission, its cancels and a reading past it (L15)')
+    else:
+        problems = []
+        if not first.get('upgrade_pending') or target not in json.dumps(first.get('handover_pending')):
+            problems.append('the upgrade and the handover to cancel were not both pending')
+        if after.get('upgrade_pending') or after.get('handover_pending'):
+            problems.append('a plan was still pending after the cancels')
+        if after.get('active_release') != source or past.get('active_release') != source:
+            problems.append('the active release changed')
+        if past['height'] < since + notice:
+            problems.append(f'read at {past["height"]}, before the cancelled plan could activate ({since + notice})')
+        units = past.get('units') or {}
+        if any(units.get(h) != source[:16] for h in HOSTS):
+            problems.append(f'a unit left RC1: {units}')
+        add('cancelled', FAIL if problems else PASS, '; '.join(problems) if problems else
+            f'admitted at {since} and cancelled; at {past["height"]}, past its first activation height, '
+            f'{source[:16]} still active on both hosts')
+
     admitted = observations.get('admitted') or {}
     upgrade, handover = admitted.get('upgrade_pending'), admitted.get('handover_pending')
     if not source or not target or source == target:
@@ -95,7 +132,6 @@ def evaluate(observations):
 
     # The activation commits after its anchor, so its window's first height
     # bounds the activation height from below.
-    notice = observations.get('notice_blocks')
     since = admitted_height(handover)
     anchor = observations.get('activation_anchor_height')
     halted = observations.get('halt_height')
@@ -143,6 +179,19 @@ def evaluate(observations):
         add('resumed', FAIL, f'compared at {nodes[0]["height"]}, not {AFTER} blocks past {halted}')
     else:
         add('resumed', PASS, f'the same block and application hash at {nodes[0]["height"]}, past {halted}')
+
+    late = (observations.get('late_sentry') or {}).get('validator_height')
+    if not isinstance(halted, int) or not isinstance(late, int) or not isinstance(nodes[1], dict) \
+            or not isinstance(nodes[1].get('height'), int):
+        add('late_sentry', INCONCLUSIVE, 'no reading of the validator when the sentry switched')
+    elif late < halted + LATE_BLOCKS:
+        add('late_sentry', FAIL, f'the sentry switched with the validator at {late}, under {LATE_BLOCKS} blocks '
+                                 f'past the halt at {halted}')
+    elif nodes[1]['height'] <= late:
+        add('late_sentry', FAIL, f'the sentry was compared at {nodes[1]["height"]}, not past {late}')
+    else:
+        add('late_sentry', PASS, f'the sentry switched {late - halted} blocks after the halt and caught up to '
+                                 f'{nodes[1]["height"]}')
 
     verified = observations.get('host_verify_exit') or {}
     if not all(h in verified for h in HOSTS):

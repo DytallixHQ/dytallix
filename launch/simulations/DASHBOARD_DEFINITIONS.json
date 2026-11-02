@@ -420,8 +420,8 @@
       "unit": null,
       "source": {
         "tool": "T4",
-        "built": "2026-10-14",
-        "remaining": "duplicates, re-signed copies and request and transaction floods, with the load machines (R03)"
+        "built": "2026-11-02",
+        "remaining": "request and transaction floods, with the load machines (R03)"
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64"
     },
@@ -484,8 +484,8 @@
       "unit": null,
       "source": {
         "tool": "T8",
-        "built": "2026-10-29",
-        "remaining": "a cancel before activation, a late sentry and a return handover"
+        "built": "2026-11-02",
+        "remaining": "a return handover"
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/72"
     },

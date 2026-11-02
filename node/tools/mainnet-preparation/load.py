@@ -1497,10 +1497,12 @@ def adversary_run(cli, home, fleet_dir, out, application_config, funder_label, v
     """The adversarial generator (simulation plan, T4): on one funded wallet, send
     malformed transactions through the client channel and check the node refuses
     each at admission (an invalid ML-DSA-65 signature, a decode failure, a stale
-    nonce and an oversized request), then a valid control is admitted and
-    committed. Returns the adversary evidence record, which `adversary.verify`
-    re-evaluates. Duplicates, re-signed copies and floods follow with the load
-    machines."""
+    nonce and an oversized request); then a valid original with, in the same
+    request so it is still pending, the same bytes again, a re-signed copy, another
+    intent at its nonce and the nonce after it, each refused while the original
+    commits once; then a valid control is admitted and committed. Returns the
+    adversary evidence record, which `adversary.verify` re-evaluates. Floods
+    follow with the load machines."""
     import adversary
     out, fleet_dir = Path(out), Path(fleet_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -1527,23 +1529,26 @@ def adversary_run(cli, home, fleet_dir, out, application_config, funder_label, v
         load.sync([wallet])
         actions = actions_for('send_drt', recipient_hex=funder['account_id'])
 
-        def signed_at(nonce):
+        def signed_at(nonce, sent=actions, row=None):
             """A validly signed transport at `nonce`, leaving the tracked nonce as it was."""
             keep = wallet.nonce
             wallet.nonce = nonce
             try:
-                return load.sign(new_row('adversary', 'base', wallet), wallet, actions)[1]
+                return load.sign(row or new_row('adversary', 'base', wallet), wallet, sent)[1]
             finally:
                 wallet.nonce = keep
+
+        def outcome(name, row, expected_reason):
+            # A refused transaction is never block-included, so it cannot commit.
+            found = {'name': name, 'code': row.get('code'), 'committed': False,
+                     'log': row.get('log') or '', 'expected_reason': expected_reason}
+            show(f'== {name}: code {found["code"]}, log {found["log"][:120]!r}')
+            return found
 
         def submit(name, tx, expected_reason):
             row = new_row('adversary', name, wallet)
             broadcast(rpc, [(row, tx)], name)
-            # A refused transaction is never block-included, so it cannot commit.
-            outcome = {'name': name, 'code': row.get('code'), 'committed': False,
-                       'log': row.get('log') or '', 'expected_reason': expected_reason}
-            show(f'== {name}: code {outcome["code"]}, log {outcome["log"][:120]!r}')
-            return outcome
+            return outcome(name, row, expected_reason)
 
         base_tx = signed_at(wallet.nonce)
         cases = [
@@ -1552,6 +1557,34 @@ def adversary_run(cli, home, fleet_dir, out, application_config, funder_label, v
             submit('oversized', adversary.oversized_envelope(300_000), 'too large'),
             submit('stale_nonce', signed_at(0), 'Ordinary spending nonce is stale'),
         ]
+        # One transaction per nonce (mempool rule v1): the original and its
+        # copies in one request, so each copy meets the original still pending.
+        # The release CLI signs deterministically, so its re-signed copy is the
+        # same bytes (the engine's cache); a byte-distinct one would meet the
+        # node's identity check. Another amount is another intent at the nonce.
+        original = new_row('adversary', 'pending_original', wallet)
+        original_tx = signed_at(wallet.nonce, row=original)
+        resigned = signed_at(wallet.nonce)
+        same = resigned == original_tx
+        other = [send_action(funder['account_id'], 'udrt', AMOUNTS['send_drt'] + 1)]
+        copies = [('duplicate', original_tx, adversary.CACHE_REFUSAL),
+                  ('resigned_copy', resigned, adversary.CACHE_REFUSAL if same else adversary.IDENTITY_REFUSAL),
+                  ('conflicting_nonce', signed_at(wallet.nonce, other),
+                   'Counter is already reserved; explicit eviction is required'),
+                  ('future_nonce', signed_at(wallet.nonce + 1), 'Ordinary spending nonce is stale')]
+        rows = [(new_row('adversary', name, wallet), tx) for name, tx, _ in copies]
+        broadcast(rpc, [(original, original_tx)] + rows, 'pending copies')
+        cases += [outcome(name, row, reason) for (row, _), (name, _, reason) in zip(rows, copies)]
+        next(c for c in cases if c['name'] == 'resigned_copy')['same_bytes'] = same
+        show(f'== the re-signed copy is {"the same bytes" if same else "byte-distinct"}')
+        committed = False
+        if original['status'] == 'admitted':
+            load.follow(original)
+            committed = True
+        cases.append({'name': 'pending_original', 'code': original.get('code'), 'committed': committed,
+                      'log': original.get('log') or ''})
+        show(f'== pending_original: code {original.get("code")}, committed {committed}')
+        load.sync([wallet])
         # The positive control, last: a valid transaction that must commit.
         control = load.online(wallet, ('send', '--to', funder['address'], '--amount', '1', '--token', 'drt'),
                               phase='adversary', kind='positive_control')

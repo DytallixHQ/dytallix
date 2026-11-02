@@ -74,11 +74,13 @@ sentry still holds every block from genesis.
 
 upgrade-drill is the upgrade drill (simulation plan, T8): the upgrade and
 handover from the genesis release to the second release built with
-prepare --later-release, with the receipt-index migration. Both admissions
-are signed three of five with the rehearsal kits; the second release is
-staged on both hosts; after the notice the paired activation commits in one
-block; the genesis release stops itself on both hosts; switch.sh moves both
-to the second release; the reconciliation runs before and after. Its
+prepare --later-release, with the receipt-index migration. A first upgrade
+and handover are admitted and cancelled before their activation (L15). Both
+admissions are signed three of five with the rehearsal kits; the second
+release is staged on both hosts; after the notice the paired activation
+commits in one block; the genesis release stops itself on both hosts;
+switch.sh moves both to the second release, the sentry 10 blocks after the
+validator (a late sentry); the reconciliation runs before and after. Its
 evidence (upgrade_drill.py) is upgrade-drill/evidence.json. It runs after
 the kit drill and before the agent drill.
 
@@ -1631,12 +1633,15 @@ def reconcile_now(work, name, timeout=300):
 def upgrade_drill(work, timeout=900):
     """The upgrade drill (simulation plan, T8): RC1 to RC2 with the
     receipt-index migration, as upgrade execution and host setup describe
-    it. The upgrade and handover admissions, signed three of five and
-    submitted; RC2 staged on both hosts; after the notice, the upgrade
-    activation and the handover activation paired with it, submitted
+    it. First an upgrade and a handover admitted and cancelled before their
+    activation (L15). Then the upgrade and handover admissions, signed three
+    of five and submitted; RC2 staged on both hosts; after the notice, the
+    upgrade activation and the handover activation paired with it, submitted
     together so one block commits both; RC1 stops itself on both hosts at
-    the activation; switch.sh on both; then both nodes run RC2 past the
-    activation. Evidence: upgrade-drill/evidence.json (upgrade_drill.py)."""
+    the activation; switch.sh on the validator, and on the sentry only after
+    the validator has run alone on RC2 for LATE_BLOCKS (a late sentry); then
+    both nodes run RC2 past the activation. Evidence:
+    upgrade-drill/evidence.json (upgrade_drill.py)."""
     work = Path(work)
     drill = work / 'upgrade-drill'
     later = json.loads((work / 'net' / 'later' / 'LATER.json').read_bytes())
@@ -1646,31 +1651,63 @@ def upgrade_drill(work, timeout=900):
     obs = {'releases': {'source': source, 'target': target},
            'notice_blocks': config['upgrade']['min_notice_blocks']}
     obs['reconcile_before'] = reconcile_now(work, 'reconcile-before-upgrade')
+    sentry = agent(work, PUBLIC)
+    exec_start = re.compile(r'^ExecStart=/opt/dytallix/([0-9a-f]{16})/bin/', re.M)
+
+    def admit(controls, authorization):
+        """The upgrade and the handover to RC2 admitted, three of five each."""
+        request_path, request = controls.prepare('upgrade-admit', '--authorization', authorization)
+        controls.send(controls.assemble(request_path, request,
+                                        controls.sign(request_path, request, UPGRADE_SEATS, 'upgrade')), 'upgrade-admit')
+        controls.wait('the upgrade admitted', lambda view: (view.get('upgrade') or {}).get('pending'))
+        request_path, request = controls.prepare('handover-admit', '--target-release-sha512', target,
+                                                 '--transition', 'receipt-index-v1', '--authorization', authorization)
+        controls.send(controls.assemble(request_path, request,
+                                        controls.sign(request_path, request, UPGRADE_SEATS, 'upgrade')), 'handover-admit')
+        _, view = controls.wait('the handover admitted',
+                                lambda view: (view.get('release_handover') or {}).get('pending'))
+        return {'height': view['height'], 'upgrade_pending': view['upgrade']['pending'],
+                'handover_pending': view['release_handover']['pending']}
+
+    # L15, the pre-activation abort: its own controls folder, so no file of
+    # the real handover's is reused.
+    say(f'== L15: admit an upgrade and a handover to {target[:16]}, then cancel both before activation')
+    aborted = Controls(work, drill / 'cancelled', timeout)
+    authorization = aborted.drill / 'authorization.md'
+    authorization.write_text(f'Rehearsal handover {source[:16]} to {target[:16]} on {staging_host.CHAIN_ID}, '
+                             f'admitted to be cancelled before its activation (L15): staging only (simulation plan, '
+                             f'T8).\n')
+    obs['cancelled'] = {'admitted': admit(aborted, authorization)}
+    for operation, family in (('handover-cancel', 'release_handover'), ('upgrade-cancel', 'upgrade')):
+        request_path, request = aborted.prepare(operation)
+        aborted.send(aborted.assemble(request_path, request,
+                                      aborted.sign(request_path, request, UPGRADE_SEATS, 'upgrade')), operation)
+        aborted.wait(f'the {family} cancelled', lambda view, family=family: not (view.get(family) or {}).get('pending'))
+    _, view = aborted.status()
+    obs['cancelled']['after'] = {'height': view['height'], 'upgrade_pending': (view.get('upgrade') or {}).get('pending'),
+                                 'handover_pending': view['release_handover'].get('pending'),
+                                 'active_release': view['release_handover']['active_release_sha512']}
 
     say(f'== admit the upgrade and the handover from {source[:16]} to {target[:16]} (three of five)')
     authorization = drill / 'authorization.md'
     authorization.write_text(f'Rehearsal handover {source[:16]} to {target[:16]} with the receipt-index migration '
                              f'on {staging_host.CHAIN_ID}: staging only (simulation plan, T8).\n')
-    request_path, request = controls.prepare('upgrade-admit', '--authorization', authorization)
-    controls.send(controls.assemble(request_path, request, controls.sign(request_path, request, UPGRADE_SEATS, 'upgrade')),
-                  'upgrade-admit')
-    controls.wait('the upgrade admitted', lambda view: (view.get('upgrade') or {}).get('pending'))
-    request_path, request = controls.prepare('handover-admit', '--target-release-sha512', target,
-                                             '--transition', 'receipt-index-v1', '--authorization', authorization)
-    controls.send(controls.assemble(request_path, request, controls.sign(request_path, request, UPGRADE_SEATS, 'upgrade')),
-                  'handover-admit')
-    _, view = controls.wait('the handover admitted', lambda view: (view.get('release_handover') or {}).get('pending'))
-    obs['admitted'] = {'height': view['height'], 'upgrade_pending': view['upgrade']['pending'],
-                       'handover_pending': view['release_handover']['pending']}
+    obs['admitted'] = admit(controls, authorization)
 
     say('== stage RC2 beside RC1 on both hosts, before the activation')
     stage_later_release(work)
 
     admitted = max(h for h in (upgrade_drill_module.admitted_height(obs['admitted']['upgrade_pending']),
                                upgrade_drill_module.admitted_height(obs['admitted']['handover_pending']),
-                               view['height']) if h is not None)
+                               obs['admitted']['height']) if h is not None)
     notice = obs['notice_blocks']
-    controls.wait(f'the notice of {notice} blocks after {admitted}', lambda view: view['height'] + 1 >= admitted + notice)
+    _, view = controls.wait(f'the notice of {notice} blocks after {admitted}',
+                            lambda view: view['height'] + 1 >= admitted + notice)
+    # Past the cancelled plan's first activation height, before the real one.
+    obs['cancelled']['past'] = {
+        'height': view['height'], 'active_release': view['release_handover']['active_release_sha512'],
+        'units': {'validator-1': (exec_start.search(Path(UNIT_FILE).read_text()) or [None, None])[1],
+                  PUBLIC: (exec_start.search(sentry.read(UNIT_FILE).decode()) or [None, None])[1]}}
 
     say('== activate: the upgrade activation, then the handover activation paired with it (three of five each)')
     evidence = drill / 'activation-evidence.md'
@@ -1691,8 +1728,6 @@ def upgrade_drill(work, timeout=900):
     # it, which needs the validator on RC2. Each host stops before it switches.
     # The stop: RC1's application refuses, the engine stops itself (the E02
     # self-term rule) and the supervisor stops the rest.
-    sentry = agent(work, PUBLIC)
-    exec_start = re.compile(r'^ExecStart=/opt/dytallix/([0-9a-f]{16})/bin/', re.M)
     journal = ['journalctl', '-u', staging_host.UNIT, '-o', 'cat', '--no-pager', '-n', '40']
     is_active = ['systemctl', 'is-active', f'{staging_host.UNIT}.service']
     hosts = {
@@ -1718,6 +1753,15 @@ def upgrade_drill(work, timeout=900):
         obs['stopped'][label] = {'active': state, 'release_refusal': bool(RELEASE_REFUSAL.search(lines))}
         if label == 'validator-1':
             obs['halt_height'] = staging_host.height()
+        else:
+            late = (obs['halt_height'] or 0) + upgrade_drill_module.LATE_BLOCKS
+            say(f'== the validator runs alone on RC2 to {late} before the sentry switches (a late sentry)')
+            deadline = time.monotonic() + timeout
+            while (staging_host.height() or 0) < late:
+                if time.monotonic() > deadline:
+                    raise Failed(f'the validator did not reach {late} on RC2 alone: {staging_host.height()}')
+                time.sleep(2)
+            obs['late_sentry'] = {'validator_height': staging_host.height()}
         say(f'== {label}: switch to RC2 (switch.sh)')
         switch = str(host['bundle'] / 'switch.sh')
         if label == PUBLIC:
@@ -1744,7 +1788,8 @@ def upgrade_drill(work, timeout=900):
     deadline = time.monotonic() + timeout
     while True:
         ours, theirs = engine(None), engine(sentry)
-        if ours and theirs and ours[0] == theirs[0] and ours[0] >= halt + upgrade_drill_module.AFTER:
+        if ours and theirs and ours[0] == theirs[0] and ours[0] >= halt + upgrade_drill_module.AFTER \
+                and ours[0] > obs['late_sentry']['validator_height']:
             break
         if time.monotonic() > deadline:
             raise Failed(f'the nodes did not resume together past {halt}: validator {ours}, sentry {theirs}')
@@ -1869,10 +1914,12 @@ def agent_reconcile(work, guest, label, channel, timeout):
 def adversary_drill(work):
     """The adversarial generator (simulation plan, T4) on the staging network:
     through the client channel, an invalid ML-DSA-65 signature, a decode failure,
-    a stale nonce and an oversized request are each refused at admission, while a
-    valid control transaction is admitted and committed. Writes digest-bound
-    evidence that `adversary.py verify` re-evaluates. Duplicates, re-signed copies
-    and floods follow with the load machines."""
+    a stale nonce and an oversized request are each refused at admission; the
+    same bytes again, a re-signed copy, another intent at the same nonce and the
+    next nonce are each refused while their original is pending, and the
+    original commits once; a valid control transaction is admitted and
+    committed. Writes digest-bound evidence that `adversary.py verify`
+    re-evaluates. Floods follow with the load machines."""
     work = Path(work)
     chain = work / 'net' / 'chain'
     out = work / 'adversary'
@@ -1893,7 +1940,8 @@ def adversary_drill(work):
                                         'cases': {r['name']: r['status'] for r in record['cases']}}}, indent=2))
     if status != adversary.PASS:
         raise Failed(f'the adversarial run is {status}')
-    say(f'== {PUBLIC}: malformed traffic was refused at admission and the valid control committed (the run is {status})')
+    say(f'== {PUBLIC}: malformed traffic and copies of a pending transaction were refused at admission, and the '
+        f'original and the valid control committed (the run is {status})')
 
 
 # The fault injector (simulation plan, T5)

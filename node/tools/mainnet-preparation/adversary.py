@@ -19,9 +19,19 @@ zero) and commit, so a gateway or pin that refuses everything cannot make the
 run pass.
 
 The lean scope is the cases that do not need the load machines: an invalid
-ML-DSA-65 signature, a decode failure, a stale (already spent) nonce, a
-duplicate, a re-signed copy and an oversized request. Transaction and request
-floods follow with the load machines (R03).
+ML-DSA-65 signature, a decode failure, a stale (already spent) nonce and an
+oversized request; and, against a pending original (mempool rule v1, rule 3,
+node/docs/architecture/mempool-v1.md), the same bytes again, a re-signed copy
+of its intent, another intent at its nonce and the nonce after it, submitted in
+the original's own request so it is still pending. The release CLI signs
+deterministically (sdk dytallix-core keypair.rs: the ML-DSA-65 seed comes from
+the key and the message), so its re-signed copy is the same bytes and must be
+refused as such; a byte-distinct copy from a randomized signer must be refused
+by the node's identity check. The case records which it was (`same_bytes`),
+and the reason it must be refused for follows from that, never from the log. The original itself must be
+admitted and commit once (`pending_original`), and a record with those copies
+but no original does not verify. Transaction and request floods follow with
+the load machines (R03).
 
 The byte-level mutations here are offline and unit-tested: a valid transport is
 decoded, exactly the field under test is changed, and it is re-wrapped. The
@@ -51,7 +61,11 @@ MLDSA65_SIGNATURE_BYTES = 3309
 # CheckTx code. That is a real refusal with a definite "too large" message, so it
 # counts when its expected reason is in the log; every other case must be refused
 # by CheckTx (code > 0). This set is keyed by name so a record cannot opt in.
-TRANSPORT_REFUSAL_OK = {'oversized'}
+# The same bytes again are refused by the engine's cache before CheckTx, which
+# a duplicate (and a re-signed copy with the same bytes) must name.
+TRANSPORT_REFUSAL_OK = {'oversized', 'duplicate', 'resigned_copy'}
+CACHE_REFUSAL = 'tx already exists in cache'
+IDENTITY_REFUSAL = 'Intent is already reserved with other inputs or another signed envelope'
 
 # Each case's name mapped to what the node must do with it. verify recomputes
 # this from the name, so a record cannot relabel a refuse case as a control.
@@ -61,9 +75,15 @@ EXPECTATION = {
     'stale_nonce': 'refuse',
     'duplicate': 'refuse',
     'resigned_copy': 'refuse',
+    'conflicting_nonce': 'refuse',
+    'future_nonce': 'refuse',
     'oversized': 'refuse',
+    'pending_original': 'admit',
     'positive_control': 'admit',
 }
+# The cases that test the one-transaction-per-nonce rule; each needs the
+# pending original in the same record.
+AGAINST_PENDING = ('duplicate', 'resigned_copy', 'conflicting_nonce', 'future_nonce')
 
 
 class Failed(Exception):
@@ -125,10 +145,20 @@ def evaluate(case):
     commit outcome and log. Never reads the recorded status."""
     kind = expectation(case['name'])
     code, committed, log = case.get('code'), case.get('committed'), case.get('log') or ''
+    reason = case.get('expected_reason')
+    if case['name'] == 'resigned_copy':
+        if not isinstance(case.get('same_bytes'), bool):
+            return FAIL, 'the re-signed copy does not record whether its bytes were the original\'s'
+        reason = CACHE_REFUSAL if case['same_bytes'] else IDENTITY_REFUSAL
+        if reason != case.get('expected_reason'):
+            return FAIL, f'a re-signed copy with same_bytes {case["same_bytes"]} must be refused for {reason!r}'
+        if code is not None and code < 0 and not case['same_bytes']:
+            return FAIL, 'a byte-distinct re-signed copy cannot be a cache refusal'
     if kind == 'admit':
+        what = 'pending original' if case['name'] == 'pending_original' else 'control'
         if code == 0 and committed is True:
-            return PASS, 'the control transaction was admitted and committed'
-        return FAIL, f'the control was not admitted and committed (code {code}, committed {committed})'
+            return PASS, f'the {what} transaction was admitted and committed'
+        return FAIL, f'the {what} was not admitted and committed (code {code}, committed {committed})'
     # refuse
     if not isinstance(code, int):
         return FAIL, f'no node refusal (a transport or uncertain outcome, code {code})'
@@ -136,7 +166,6 @@ def evaluate(case):
         return FAIL, 'the node admitted the transaction'
     if committed:
         return FAIL, 'the transaction committed despite admission refusal'
-    reason = case.get('expected_reason')
     if code < 0:
         # Refused before CheckTx (the mempool/RPC size limit). Only for the cases
         # that are expected there, and only with the definite reason in the log.
@@ -189,6 +218,8 @@ def verify(record, genesis_bytes, engine_genesis_bytes):
     names = {row['name'] for row in cases}
     if 'positive_control' not in names:
         raise Failed('the record has no positive control')
+    if names & set(AGAINST_PENDING) and 'pending_original' not in names:
+        raise Failed('the record has copies of a pending intent but not the original')
     statuses = []
     for row in cases:
         if row.get('expectation') != expectation(row['name']):

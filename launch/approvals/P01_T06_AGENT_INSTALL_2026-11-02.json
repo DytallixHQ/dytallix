@@ -1,0 +1,26 @@
+{
+  "decision_id": "P01-2026-11-02-T06-AGENT-INSTALL",
+  "approved": "2026-11-02",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Install the staging agent on the real staging hosts (the staging agent approval's does_not_authorize items 1 and 2)"
+  },
+  "reason": "The staging agent's choices are approved (P01_T06_STAGING_AGENT_2026-10-14), but that approval does not authorize installing it on either host or any run on a real host. The rehearsal chain dytallix-staging-2 has run on both production hosts since 2 November 2026, and the statistical campaign needs the agent on both.",
+  "design_ref": "../../node/docs/architecture/staging-agent-v1.md",
+  "decisions": [
+    {
+      "question": "Install the staging agent on the real staging hosts",
+      "selected": "Both hosts, then the quick-fault runs",
+      "rule": "The staging agent is installed on both hosts of the rehearsal chain dytallix-staging-2 (sentry-1 and validator-1) in one console sitting: the founder opens each host's console and briefly removes its firewall so the install runs over SSH, and the install ends by reloading the firewall from its file. Each host gets its own read-only command key, limited to commands/dytallix-staging-2/HOST/, made for this chain and checked on the real store before the install. The first commands on each host are fault-clear and status. Then the quick-fault runs on that chain are authorized: up to 30 rounds of the sentry's quick faults (latency, loss, partition, peer drop, process kill) and up to 30 validator process restarts, each restart briefly halting the rehearsal chain. Each injected fault raises its alert on the founder's phone. Results reach the launch page only as signed summaries, by pull request."
+    }
+  ],
+  "does_not_authorize": [
+    "heavy faults (host rebuild, snapshot restore, validator recovery) on a real host",
+    "the attack, performance or endurance parts of the campaign on a real host",
+    "installing the agent for any other chain, or keeping it after the wipe before the production install",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
