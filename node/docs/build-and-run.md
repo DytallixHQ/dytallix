@@ -41,8 +41,9 @@ restart authorization for the committed checkpoint and the exact bytes to
 sign ([restart runbook](operations/restart.md)).
 
 A stopped application writes no text. Its exit status names the failure
-class, which the native supervisor's report repeats
-(`application_failure_class`, or `failure_class` for a failed preflight).
+class, which the native supervisor's final report repeats
+(`application_failure_class`, also when the engine stopped first, or
+`failure_class` for a failed preflight).
 The check tool exits with the same status:
 
 | Status | Class | Meaning |

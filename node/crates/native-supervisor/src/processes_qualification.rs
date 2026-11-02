@@ -19,6 +19,7 @@ use std::path::PathBuf;
 /// Every case by name. A case passes by returning and fails by panicking.
 pub const CASES: &[(&str, fn())] = &[
     ("owned_child_has_private_umask_and_creates_mode_0600_file", owned_child_has_private_umask_and_creates_mode_0600_file),
+    ("the_stop_records_the_application_exit_and_its_class", the_stop_records_the_application_exit_and_its_class),
     ("owned_application_probe_maps_and_exact_descriptor_environment_isolation", owned_application_probe_maps_and_exact_descriptor_environment_isolation),
     ("bridge_inherits_owned_pipes_and_parent_retains_no_duplicate_endpoints", bridge_inherits_owned_pipes_and_parent_retains_no_duplicate_endpoints),
     ("bridge_exit_delivers_application_eof_without_hidden_parent_duplicates", bridge_exit_delivers_application_eof_without_hidden_parent_duplicates),
@@ -333,6 +334,24 @@ fn owned_child_has_private_umask_and_creates_mode_0600_file() {
     assert_eq!(metadata.mode() & 0o7777, 0o600);
     assert_eq!(metadata.uid(), unsafe { libc::geteuid() });
     owner.shutdown().unwrap();
+}
+fn the_stop_records_the_application_exit_and_its_class() {
+    // The engine stops itself first on a failed block; the application
+    // then exits with its class during the stop, which the report keeps.
+    let fixture = Fixture::new(true);
+    let mut owner = fixture.owner();
+    owner.start_application(&["--fixture-failed-release".into()]).unwrap();
+    probe(&mut owner);
+    owner.shutdown().unwrap();
+    let exits = owner.stop_exits().to_vec();
+    assert_eq!(exits.len(), 1, "{exits:?}");
+    assert_eq!(exits[0]["role"], crate::processes::Role::Application.as_str());
+    assert_eq!(exits[0]["classification"], "EXITED");
+    assert_eq!(exits[0]["si_status"], 14);
+    assert_eq!(exits[0]["application_failure_class"], "release");
+    let report = serde_json::json!({"failure": {"child_exit": {"role": crate::processes::Role::Engine.as_str(),
+        "classification": "EXITED", "application_failure_class": null}}, "stop_exits": exits});
+    assert_eq!(crate::startup_diagnostic::application_failure_class(&report), "release");
 }
 fn owned_application_probe_maps_and_exact_descriptor_environment_isolation() {
     let fixture = Fixture::new(true);

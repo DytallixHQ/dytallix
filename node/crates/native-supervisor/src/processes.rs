@@ -208,6 +208,8 @@ pub struct ProcessOwner {
     observation_pause: Option<observation::controlled_pause::Budget>,
     observation_timings: [RoleObservationTiming; 4],
     first_failure_snapshot: Option<serde_json::Value>,
+    /// Each child's own exit seen during the stop, before any SIGKILL.
+    stop_exits: Vec<serde_json::Value>,
     bounds: ProcessBounds,
     environment: ExplicitEnvironment,
     children: Vec<OwnedChild>,
@@ -278,6 +280,7 @@ impl ProcessOwner {
             application_probed: false,
             cancelled: ownership::cancellation_handle(),
             first_failure_snapshot: None,
+            stop_exits: Vec::new(),
             failed: false,
             stopped: false,
         })
@@ -390,6 +393,7 @@ impl ProcessOwner {
     /// Capture retained children before the first failure cleanup. Never wait or reap.
     pub fn capture_failure(&mut self) { capture_first_failure(&mut self.first_failure_snapshot, &self.children); }
     pub fn first_failure_snapshot(&self) -> Option<&serde_json::Value> { self.first_failure_snapshot.as_ref() }
+    pub fn stop_exits(&self) -> &[serde_json::Value] { &self.stop_exits }
     fn finish<T>(&mut self, result: Result<T>) -> Result<T> {
         match result {
             Ok(value) => Ok(value),
@@ -841,6 +845,16 @@ impl ProcessOwner {
                     .poll_interval
                     .min(deadline.saturating_duration_since(Instant::now())),
             );
+        }
+        // Read, without reaping, how each child ended before any SIGKILL. The
+        // application exits with its failure class when told to stop (E04
+        // gap 15), usually after the engine whose exit started the stop.
+        for child in &self.children {
+            if let Ok(Some(observation)) = exit_observation(&child.child) {
+                if observation.si_code.is_some() {
+                    self.stop_exits.push(crate::startup_diagnostic::child_exit_record(&OwnedChildExit{role:child.role,pid:child.child.id(),observation}));
+                }
+            }
         }
         for child in self.children.iter().rev() {
             if let Err(error) = signal_owned(&child.child, libc::SIGKILL) {
@@ -1295,6 +1309,14 @@ pub fn qualification_fixture_main() -> Result<()> {
         // No chmod: the test must inspect the mode set by the launch-time mask.
         std::fs::write(path, b"synthetic child file\n")?;
     }
+    // As consensus_stdio after an engine-fatal release refusal: it exits with
+    // class release (14) however it is stopped, input end or SIGTERM.
+    let failed_release = args.iter().any(|a| a == "--fixture-failed-release");
+    if failed_release {
+        extern "C" fn exit_release(_: libc::c_int) { unsafe { libc::_exit(14) } }
+        ensure!(unsafe { libc::signal(libc::SIGTERM, exit_release as *const () as libc::sighandler_t) } != libc::SIG_ERR,
+            "Fixture SIGTERM handler not installed");
+    }
     for line in std::io::stdin().lock().lines() {
         let line = line?;
         match line.as_str() {
@@ -1326,6 +1348,9 @@ pub fn qualification_fixture_main() -> Result<()> {
             _ => println!("{line}"),
         }
         std::io::stdout().flush()?;
+    }
+    if failed_release {
+        std::process::exit(14);
     }
     Ok(())
 }

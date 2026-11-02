@@ -347,7 +347,7 @@
       "files": [
         {
           "path": "crates/native-supervisor/src/processes.rs",
-          "sha256": "ef6bb02e3ff8c36d0f5985e2be58eaeaa16fd1923d4e379633ec73430112bc15"
+          "sha256": "6e68cbee2f7ed422b6dee2dfd9a08e964be8ac07b5fe76ea206dc6166fe93afc"
         },
         {
           "path": "crates/native-supervisor/src/config.rs",
@@ -378,7 +378,7 @@
         },
         {
           "path": "crates/native-supervisor/src/service.rs",
-          "sha256": "3f38e2d3bc641f7e876971fb31e17e131418ae7de307f5040f986b0846fbf9cb"
+          "sha256": "83e72819905b40df7959ac75dfc21c6e778036ba9260bbebb76f5a8720360b24"
         }
       ],
       "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",

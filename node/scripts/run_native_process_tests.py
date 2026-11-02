@@ -40,7 +40,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = 'dytallix-native-supervisor'
 FEATURES = ['--features', 'qualification-fixtures']
 # A case dropped from the runner must fail the run, not shrink it.
-EXPECTED = 17
+EXPECTED = 18
 # The names in processes::qualification.
 DIRECTORY_PREFIX = 'dyt-native-process-'
 COPIES = {'application': 'DYT_NATIVE_PROCESS_APPLICATION_LABEL',
