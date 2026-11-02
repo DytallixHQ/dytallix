@@ -7,7 +7,7 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "75ca6962a418fc73120bd32950ac9b79e2e53e8e063ed53143cca3b4a0e067ea"
+        "sha256": "ace4dc6bd4247250338940ab450b26f79aa4b8fe53959aa1e9be6b16ece0648a"
       },
       {
         "path": ".github/workflows/host-install.yml",
@@ -28,8 +28,8 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 437,
-    "approval_records": 65
+    "commits_at_as_of": 438,
+    "approval_records": 66
   },
   "phases": [
     {

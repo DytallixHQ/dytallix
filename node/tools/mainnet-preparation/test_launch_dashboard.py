@@ -91,9 +91,10 @@ class LaunchDashboardTests(unittest.TestCase):
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
                 (root / path).write_bytes((m.ROOT / path).read_bytes())
             self.assertEqual(m.build(m.gather(root), 0)['kpis'], self.data['kpis'])
-            (root / m.RESULTS / 'R01').mkdir(parents=True)
-            (root / m.RESULTS / 'R01' / 'T0.json').write_text('{}')
-            with self.assertRaisesRegex(m.Invalid, 'result summaries are not read yet'):
+            # A summary counts only with its signature beside it (results.py signs).
+            (root / m.RESULTS / 'run').mkdir(parents=True)
+            (root / m.RESULTS / 'run' / '2026-11-03.json').write_text('{}')
+            with self.assertRaisesRegex(m.Invalid, 'has no signature in hex beside it'):
                 m.gather(root)
 
     def test_phases_roll_up_as_the_page_does(self):
