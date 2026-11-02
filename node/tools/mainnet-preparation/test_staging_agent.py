@@ -49,10 +49,13 @@ def settings():
 
 
 class Store:
-    """The command store and the result store, behind a stand-in curl."""
+    """The command store and the result store, behind a stand-in curl. Like
+    the real store (B2), the host's prefix-limited read key gets 403, not
+    404, for an object that is not there, and may list its own prefix."""
 
     def __init__(self):
         self.objects, self.uploads, self.status, self.fail_uploads = {}, {}, None, False
+        self.lists, self.ghosts = 0, []
 
     def curl(self, config):
         lines = dict(line.split(' = ', 1) for line in config.decode().splitlines() if ' = ' in line)
@@ -66,11 +69,21 @@ class Store:
         assert 'READKEY' in lines['user'] and lines['max-filesize'] == str(agent.MAX_COMMAND_BYTES)
         if self.status:
             return subprocess.CompletedProcess([], 0, str(self.status).encode(), b'')
+        bucket = f'{STORE["endpoint"]}/{STORE["bucket"]}/'
+        if '?list-type=2' in url:
+            self.lists += 1
+            query = dict(part.split('=', 1) for part in url.split('?', 1)[1].split('&'))
+            assert query['prefix'].startswith(f'{STORE["prefix"]}{CHAIN}/{LABEL}/'), 'outside the read key\'s prefix'
+            names = sorted(n for n in [u[len(bucket):] for u in self.objects] + self.ghosts
+                           if n.startswith(query['prefix']))
+            body = ''.join(f'<Contents><Key>{n}</Key></Contents>' for n in names[:int(query['max-keys'])])
+            Path(lines['output'].strip('"')).write_text(f'<ListBucketResult>{body}</ListBucketResult>')
+            return subprocess.CompletedProcess([], 0, b'200', b'')
         raw = self.objects.get(url)
         if raw is not None and len(raw) > agent.MAX_COMMAND_BYTES:
             return subprocess.CompletedProcess([], 63, b'', b'maximum file size exceeded')
-        Path(lines['output'].strip('"')).write_bytes(raw if raw is not None else b'no such key')
-        return subprocess.CompletedProcess([], 0, b'200' if raw is not None else b'404', b'')
+        Path(lines['output'].strip('"')).write_bytes(raw if raw is not None else b'AccessDenied')
+        return subprocess.CompletedProcess([], 0, b'200' if raw is not None else b'403', b'')
 
     def put(self, sequence, raw):
         self.objects[f'{STORE["endpoint"]}/{STORE["bucket"]}/{STORE["prefix"]}{CHAIN}/{LABEL}/{sequence:010}.json'] = raw
@@ -248,6 +261,20 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(summary['handled'][0]['status'], 'REFUSED')
         self.assertIn('larger than', summary['handled'][0]['reason'])
         self.assertEqual(summary['next_sequence'], 2)
+
+    def test_the_next_command_is_listed_before_it_is_fetched(self):
+        # Nothing listed ends the poll; the store's 403 for a missing object is
+        # never read as "no command" (a wrong key answers 403 too).
+        summary = self.poll()
+        self.assertEqual((summary['handled'], summary['errors'], self.store.lists), ([], [], 1))
+        self.store.put(1, signed(1))
+        self.assertEqual(self.poll()['handled'][0]['status'], 'DONE')
+        # Listed but then refused: an error, and the slot is not spent.
+        self.store.ghosts.append(f'{STORE["prefix"]}{CHAIN}/{LABEL}/0000000002.json')
+        with self.assertRaisesRegex(agent.Failed, 'answered 403 for'):
+            self.poll()
+        state = json.loads(self.host.path(f'{agent.STATE}/state.json').read_text())
+        self.assertEqual(state['next_sequence'], 2)
 
     def test_state_for_another_chain_never_restarts_the_sequence(self):
         self.store.put(1, signed(1))

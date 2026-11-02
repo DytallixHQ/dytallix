@@ -37,7 +37,7 @@ class Standin:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name) / 'root'
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), s3_standin.handler(str(self.root), ['UPLOADKEY'], READ,
-                                                                                FOUNDER))
+                                                                                FOUNDER, 'commands/c/h/'))
         self.port = self.server.server_address[1]
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
 
@@ -69,12 +69,14 @@ class StoreTests(unittest.TestCase):
             self.store.put('commands/c/h/0000000001.json', b'other')
         self.assertEqual(self.store.get('commands/c/h/0000000001.json'), (200, b'one'))
 
-    def test_a_host_read_key_cannot_list_or_put(self):
+    def test_a_host_read_key_lists_only_its_prefix_and_cannot_put(self):
+        self.store.put('commands/c/h/0000000001.json', b'one')
         reader = sf.Store(sf.check_store(store_record(self.standin.port, access_key_id=READ), standin=True), self.scratch)
+        self.assertEqual(reader.list('commands/c/h/'), ['commands/c/h/0000000001.json'])
         with self.assertRaisesRegex(sf.Failed, 'HTTP 403'):
             reader.list('commands/')
         with self.assertRaisesRegex(sf.Failed, '403'):
-            reader.put('commands/c/h/0000000001.json', b'one')
+            reader.put('commands/c/h/0000000002.json', b'two')
 
     def test_plain_http_only_to_the_standin(self):
         with self.assertRaisesRegex(sf.Failed, 'https'):

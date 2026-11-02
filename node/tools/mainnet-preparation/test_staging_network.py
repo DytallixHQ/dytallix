@@ -154,7 +154,7 @@ class StandinTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.server = ThreadingHTTPServer(('127.0.0.1', 0), s3_standin.handler(self.tmp.name, ['STANDIN', 'STANDINHISTORY'],
-                                                                                 'STANDINREAD'))
+                                                                                 'STANDINREAD', None, 'commands/sentry-1/'))
         threading.Thread(target=self.server.serve_forever, daemon=True).start()
         self.addCleanup(self.server.shutdown)
         self.base = f'http://127.0.0.1:{self.server.server_address[1]}'
@@ -187,14 +187,21 @@ class StandinTests(unittest.TestCase):
         with urllib.request.urlopen(request, timeout=5) as response:
             return response.read()
 
-    def test_serves_signed_gets_to_the_read_key_only(self):
-        (Path(self.tmp.name) / 'copies/commands').mkdir(parents=True)
-        (Path(self.tmp.name) / 'copies/commands/1.json').write_bytes(b'{}')
+    def test_serves_the_read_key_its_own_prefix_as_the_real_store_does(self):
+        for host in ('sentry-1', 'validator-1'):
+            (Path(self.tmp.name) / f'copies/commands/{host}').mkdir(parents=True)
+            (Path(self.tmp.name) / f'copies/commands/{host}/1.json').write_bytes(b'{}')
         read = 'AWS4-HMAC-SHA256 Credential=STANDINREAD/20261012/auto/s3/aws4_request, SignedHeaders=host, Signature=ab'
-        self.assertEqual(self.get('/copies/commands/1.json', read), b'{}')
-        for path, authorization, code in (('/copies/commands/2.json', read, 404),
-                                          ('/copies/commands/1.json', read.replace('STANDINREAD/', 'STANDIN/'), 403),
-                                          ('/copies/commands/1.json', None, 403),
+        self.assertEqual(self.get('/copies/commands/sentry-1/1.json', read), b'{}')
+        listed = self.get('/copies/?list-type=2&max-keys=1&prefix=commands/sentry-1/1.json', read)
+        self.assertIn(b'<Key>commands/sentry-1/1.json</Key>', listed)
+        self.assertNotIn(b'<Key>', self.get('/copies/?list-type=2&max-keys=1&prefix=commands/sentry-1/2.json', read))
+        # A missing name answers 403, as a prefix-limited B2 read key gets.
+        for path, authorization, code in (('/copies/commands/sentry-1/2.json', read, 403),
+                                          ('/copies/commands/validator-1/1.json', read, 403),
+                                          ('/copies/?list-type=2&prefix=commands/validator-1/', read, 403),
+                                          ('/copies/commands/sentry-1/1.json', read.replace('STANDINREAD/', 'STANDIN/'), 403),
+                                          ('/copies/commands/sentry-1/1.json', None, 403),
                                           ('/copies/../x', read, 400)):
             with self.assertRaises(urllib.error.HTTPError) as refused:
                 self.get(path, authorization)
