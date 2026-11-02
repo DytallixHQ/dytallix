@@ -43,6 +43,7 @@ The production hosts are console-only. While they serve as staging, each runs a 
 - It runs a command only if the founder's ML-DSA-65 staging command key signed it and the command is on a fixed allowlist: the run steps below, such as start, stop, fault injection and status capture. Key custody, encryption, store layout and the allowlist are approved ([staging agent approval](../../../launch/approvals/P01_T06_STAGING_AGENT_2026-10-14.json)).
 - It uploads each result encrypted, like the metric history. TLS stays transport only.
 - It is never part of a release, and the wipe before the production install removes it.
+- Its install on both hosts for the rehearsal chain `dytallix-staging-2`, and the quick-fault runs there (up to 30 rounds of the sentry's quick faults and 30 validator restarts), are approved ([approval](../../../launch/approvals/P01_T06_AGENT_INSTALL_2026-11-02.json)); heavy faults and the other campaign parts on the real hosts need their own.
 
 The design, its threat model and the choices still open for P01 are in [staging agent v1](../architecture/staging-agent-v1.md).
 
