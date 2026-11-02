@@ -71,11 +71,8 @@ fn need(ok: bool, reason: &str) -> Result<()> {
     }
 }
 fn algorithm(name: &str) -> Result<(u8, usize, usize)> {
-    match name {
-        "mldsa65" => Ok((1, 1952, 3309)),
-        "mldsa87" => Ok((2, 2592, 4627)),
-        _ => Err(WireError("unsupported exact algorithm identifier".into())),
-    }
+    let a = crate::algorithms::by_name(name).ok_or_else(|| WireError("unsupported exact algorithm identifier".into()))?;
+    Ok((u8::try_from(a.code).map_err(|_| WireError("algorithm code exceeds u8".into()))?, a.public_key_len, a.signature_len))
 }
 struct Writer {
     bytes: Vec<u8>,
@@ -378,10 +375,9 @@ impl<'a> Reader<'a> {
         Ok(value.to_owned())
     }
     fn key(&mut self) -> Result<KeyIdentity> {
-        let (name, size) = match self.u8()? {
-            1 => ("mldsa65", 1952),
-            2 => ("mldsa87", 2592),
-            _ => return Err(WireError("unsupported algorithm code".into())),
+        let (name, size) = match crate::algorithms::by_code(u16::from(self.u8()?)) {
+            Some(a) => (a.name, a.public_key_len),
+            None => return Err(WireError("unsupported algorithm code".into())),
         };
         need(
             usize::from(self.u16()?) == size,

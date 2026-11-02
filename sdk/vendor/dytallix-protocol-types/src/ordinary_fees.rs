@@ -19,20 +19,14 @@ fn need(ok: bool, message: &str) -> Result<()> {
     }
 }
 fn code(name: &str) -> Result<u16> {
-    match name {
-        "mldsa65" => Ok(1),
-        "mldsa87" => Ok(2),
-        _ => Err(WireError(
-            "unsupported exact fee algorithm identifier".into(),
-        )),
-    }
+    crate::algorithms::by_name(name)
+        .map(|a| a.code)
+        .ok_or_else(|| WireError("unsupported exact fee algorithm identifier".into()))
 }
 fn name(code: u16) -> Result<&'static str> {
-    match code {
-        1 => Ok("mldsa65"),
-        2 => Ok("mldsa87"),
-        _ => Err(WireError("unsupported fee algorithm code".into())),
-    }
+    crate::algorithms::by_code(code)
+        .map(|a| a.name)
+        .ok_or_else(|| WireError("unsupported fee algorithm code".into()))
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

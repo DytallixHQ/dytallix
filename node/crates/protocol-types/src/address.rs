@@ -37,6 +37,7 @@ impl AddressNetwork {
 pub enum OriginKeyAlgorithm {
     MlDsa65,
     MlDsa87,
+    SlhDsaShake192s,
     LegacyDilithium5,
 }
 impl OriginKeyAlgorithm {
@@ -44,6 +45,7 @@ impl OriginKeyAlgorithm {
         match self {
             Self::MlDsa65 => 1,
             Self::MlDsa87 => 2,
+            Self::SlhDsaShake192s => 3,
             Self::LegacyDilithium5 => 0x8001,
         }
     }
@@ -51,6 +53,7 @@ impl OriginKeyAlgorithm {
         match self {
             Self::MlDsa65 => 1952,
             Self::MlDsa87 | Self::LegacyDilithium5 => 2592,
+            Self::SlhDsaShake192s => 48,
         }
     }
 }

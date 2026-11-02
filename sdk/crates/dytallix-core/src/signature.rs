@@ -101,7 +101,48 @@ pub fn verify_for_scheme(
         KeyScheme::MlDsa65 => verify_mldsa65(pubkey, message, signature),
         KeyScheme::MlDsa87 => verify_mldsa87(pubkey, message, signature),
         KeyScheme::SlhDsa => verify_slhdsa(pubkey, message, signature),
+        KeyScheme::SlhDsaShake192s => verify_slhdsa_shake_192s(pubkey, message, signature),
     }
+}
+
+/// Verifies a FIPS 205 SLH-DSA-SHAKE-192s signature in pure mode with an empty
+/// context, as the node's `verify_exact` does. Wrong lengths return an error.
+#[cfg(feature = "fips205")]
+pub fn verify_slhdsa_shake_192s(
+    pubkey: &[u8],
+    message: &[u8],
+    signature: &[u8],
+) -> Result<bool, DytallixError> {
+    use fips205::slh_dsa_shake_192s;
+    use fips205::traits::{SerDes as _, Verifier as _};
+    let public: [u8; slh_dsa_shake_192s::PK_LEN] =
+        pubkey
+            .try_into()
+            .map_err(|_| DytallixError::InvalidKeySize {
+                expected: slh_dsa_shake_192s::PK_LEN,
+                got: pubkey.len(),
+            })?;
+    let signature: &[u8; slh_dsa_shake_192s::SIG_LEN] =
+        signature
+            .try_into()
+            .map_err(|_| DytallixError::InvalidSignatureSize {
+                expected: slh_dsa_shake_192s::SIG_LEN,
+                got: signature.len(),
+            })?;
+    let public = slh_dsa_shake_192s::PublicKey::try_from_bytes(public)
+        .map_err(|err| DytallixError::InvalidKeypair(err.to_string()))?;
+    Ok(public.verify(message, signature, &[]))
+}
+
+#[cfg(not(feature = "fips205"))]
+pub fn verify_slhdsa_shake_192s(
+    _pubkey: &[u8],
+    _message: &[u8],
+    _signature: &[u8],
+) -> Result<bool, DytallixError> {
+    Err(DytallixError::CryptoError(
+        "this build does not include FIPS 205 SLH-DSA".into(),
+    ))
 }
 
 /// Legacy alias that verifies SPHINCS+-SHAKE-192s-simple signatures.

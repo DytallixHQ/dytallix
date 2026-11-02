@@ -3,6 +3,8 @@ use fips204::ml_dsa_65;
 #[cfg(feature = "compatibility")]
 use fips204::ml_dsa_87;
 use fips204::traits::{KeyGen, SerDes, Signer};
+#[cfg(feature = "fips205")]
+use fips205::slh_dsa_shake_192s;
 #[cfg(feature = "compatibility")]
 use pqcrypto_sphincsplus::sphincsshake192ssimple;
 #[cfg(feature = "compatibility")]
@@ -47,6 +49,10 @@ pub enum KeyScheme {
     SlhDsa,
     /// ML-DSA-87 (FIPS 204), available through explicit selection.
     MlDsa87,
+    /// FIPS 205 SLH-DSA-SHAKE-192s, pure mode, empty context. The hash-based
+    /// fallback if lattice signatures fail. Its key and signature lengths equal
+    /// the legacy SPHINCS+ ones, so it is only ever selected by name.
+    SlhDsaShake192s,
 }
 
 impl KeyScheme {
@@ -67,7 +73,19 @@ impl KeyScheme {
             Self::MlDsa65 => "mldsa65",
             Self::MlDsa87 => "mldsa87",
             Self::SlhDsa => "legacy-sphincsplus-shake-192s-simple",
+            Self::SlhDsaShake192s => "slhdsa-shake-192s",
         }
+    }
+
+    /// Schemes the wallet keystore may hold: ML-DSA-65, plus FIPS 205
+    /// SLH-DSA-SHAKE-192s as a fallback key in builds that include it. The
+    /// node, not the keystore, refuses SLH-DSA on mainnet.
+    pub fn require_keystore(self) -> Result<(), DytallixError> {
+        #[cfg(feature = "fips205")]
+        if self == Self::SlhDsaShake192s {
+            return Ok(());
+        }
+        self.require_production_operational()
     }
 
     /// Rejects schemes outside the approved production operational profile.
@@ -168,6 +186,20 @@ impl DytallixKeypair {
         }
     }
 
+    /// Generates a FIPS 205 SLH-DSA-SHAKE-192s keypair: 48 public-key bytes
+    /// and 96 private-key bytes. For development networks; mainnet refuses it.
+    #[cfg(feature = "fips205")]
+    pub fn generate_slh_dsa_shake_192s() -> Self {
+        use fips205::traits::SerDes as _;
+        let (public_key, private_key) = slh_dsa_shake_192s::try_keygen()
+            .expect("SLH-DSA-SHAKE-192s key generation should succeed with the OS RNG");
+        Self {
+            public_key: public_key.into_bytes().to_vec(),
+            private_key: private_key.into_bytes().to_vec(),
+            scheme: KeyScheme::SlhDsaShake192s,
+        }
+    }
+
     /// Reconstructs a keypair from raw private key bytes.
     ///
     /// Byte lengths are matched against the canonical Dytallix schemes. For
@@ -175,6 +207,9 @@ impl DytallixKeypair {
     /// That legacy path retains the pinned backend's malformed-secret limitation:
     /// public-key derivation can assert on inconsistent secret components.
     /// Use `from_keypair` for new imports of either ML-DSA scheme.
+    /// A 96-byte key is always read as legacy SPHINCS+, never as FIPS 205
+    /// SLH-DSA-SHAKE-192s, which has the same length: import that with
+    /// `from_keypair(KeyScheme::SlhDsaShake192s, ...)`.
     /// Private-only ML-DSA-87 import fails closed because the pinned backend
     /// cannot safely derive a public key from arbitrary packed private bytes.
     ///
@@ -250,6 +285,11 @@ impl DytallixKeypair {
                 SLHDSA_PRIVATE_KEY_BYTES,
                 b"slhdsa".as_slice(),
             ),
+            KeyScheme::SlhDsaShake192s => (
+                SLHDSA_PUBLIC_KEY_BYTES,
+                SLHDSA_PRIVATE_KEY_BYTES,
+                b"slhdsa-shake-192s".as_slice(),
+            ),
         };
         if public_key.len() != public_size {
             return Err(DytallixError::InvalidKeySize {
@@ -301,6 +341,28 @@ impl DytallixKeypair {
             KeyScheme::MlDsa87 | KeyScheme::SlhDsa => Err(DytallixError::CryptoError(
                 "this build supports only ML-DSA-65".into(),
             )),
+            #[cfg(not(feature = "fips205"))]
+            KeyScheme::SlhDsaShake192s => Err(DytallixError::CryptoError(
+                "this build does not include FIPS 205 SLH-DSA".into(),
+            )),
+            #[cfg(feature = "fips205")]
+            KeyScheme::SlhDsaShake192s => {
+                use fips205::traits::{SerDes as _, Signer as _};
+                let bytes: [u8; slh_dsa_shake_192s::SK_LEN] =
+                    self.private_key.as_slice().try_into().map_err(|_| {
+                        DytallixError::InvalidKeySize {
+                            expected: SLHDSA_PRIVATE_KEY_BYTES,
+                            got: self.private_key.len(),
+                        }
+                    })?;
+                let private_key = slh_dsa_shake_192s::PrivateKey::try_from_bytes(bytes)
+                    .map_err(|err| DytallixError::InvalidKeypair(err.to_string()))?;
+                // Deterministic (not hedged), empty context, as for ML-DSA here.
+                let signature = private_key
+                    .try_sign(message, &[], false)
+                    .map_err(|err| DytallixError::CryptoError(err.to_string()))?;
+                Ok(signature.to_vec())
+            }
             KeyScheme::MlDsa65 => {
                 let private_key = ml_dsa_65_private_key_from_bytes(&self.private_key)?;
                 let seed = deterministic_mldsa65_seed(&self.private_key, message);

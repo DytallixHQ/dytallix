@@ -4,7 +4,7 @@
   "package_version": "0.1.0",
   "vendor_path": "vendor/dytallix-protocol-types",
   "source_repository": "https://github.com/DytallixHQ/dytallix",
-  "source_head": "ba131b655d9066a70ba97e9239a97e78fcf420b2",
+  "source_head": "6505993bf81ce0cb1912eb694904d7821a088fd4",
   "source_kind": "working_tree_snapshot",
   "source_head_is_complete_snapshot": false,
   "source_description": "Exact bytes of node/crates/protocol-types and node/LICENSE, copied by scripts/sync_protocol_vendor.py. The file hashes, not source_head alone, identify this snapshot.",
@@ -25,8 +25,14 @@
     {
       "path": "src/address.rs",
       "source_path": "crates/protocol-types/src/address.rs",
-      "bytes": 5134,
-      "sha256": "215409ad82d86db24eabc74a4b79c5ffc29ebb4eebfe677b170051b698565ad6"
+      "bytes": 5236,
+      "sha256": "4b6941b374f97076cc597953f8e692fab3893b9bfedb8d14e33042dc1cede34f"
+    },
+    {
+      "path": "src/algorithms.rs",
+      "source_path": "crates/protocol-types/src/algorithms.rs",
+      "bytes": 2390,
+      "sha256": "bbe30d248a7880f5c7818a8135a882e7a88e65ec6020a1e49b927de95d4884ac"
     },
     {
       "path": "src/governance_action.rs",
@@ -43,8 +49,8 @@
     {
       "path": "src/lib.rs",
       "source_path": "crates/protocol-types/src/lib.rs",
-      "bytes": 1574,
-      "sha256": "440287cebfeeb53335dba8a4192c7dc2fe6b3157f6ee5bdb6a99cce3c3690296"
+      "bytes": 1673,
+      "sha256": "a696afdb243c432e4c5f446b47556601b6d4cc96925df418033cbe729cd59f4c"
     },
     {
       "path": "src/native_account.rs",
@@ -55,8 +61,8 @@
     {
       "path": "src/ordinary.rs",
       "source_path": "crates/protocol-types/src/ordinary.rs",
-      "bytes": 25637,
-      "sha256": "38e966bc399380a5ebdb0960031ad7b78c1d0eb7d0fcb965eea3948aec136ee3"
+      "bytes": 25668,
+      "sha256": "fda7d8db7bbbc4a499a1d1c19d277b92c50e810f7ab2dfb564c086a554bfdcae"
     },
     {
       "path": "src/ordinary_client.rs",
@@ -67,8 +73,8 @@
     {
       "path": "src/ordinary_fees.rs",
       "source_path": "crates/protocol-types/src/ordinary_fees.rs",
-      "bytes": 17086,
-      "sha256": "0c88f4eceef819e24fa94396862bd6f9328a0b2d62d9eeadc04019255c5739e2"
+      "bytes": 17039,
+      "sha256": "0eca68ecd7fad5228fe36c4d15255602f969152234c6e874909bfafaca1d765e"
     },
     {
       "path": "src/ordinary_fees_v3.rs",
@@ -79,8 +85,8 @@
     {
       "path": "src/ordinary_v3.rs",
       "source_path": "crates/protocol-types/src/ordinary_v3.rs",
-      "bytes": 30060,
-      "sha256": "01c4eaf5c364e84db6a5cce67a91a31b783b54e7e7e54247d340eaaed1ed695c"
+      "bytes": 30091,
+      "sha256": "66b0435c9256b49bc9591d33e171e458de291c7227f23163b0831bcf599aef5c"
     },
     {
       "path": "src/recovery.rs",
@@ -91,14 +97,14 @@
     {
       "path": "src/recovery_sponsor.rs",
       "source_path": "crates/protocol-types/src/recovery_sponsor.rs",
-      "bytes": 16758,
-      "sha256": "182b80b941b5cf7a24cfea762bab5d47099d8dbf6be2a3d15bba0c0780aef1f6"
+      "bytes": 16841,
+      "sha256": "490cbd10643651abde8729aa8b7c0413a992aa1507975fd346f1592d987a71d2"
     },
     {
       "path": "src/recovery_wire.rs",
       "source_path": "crates/protocol-types/src/recovery_wire.rs",
-      "bytes": 18202,
-      "sha256": "b9b9fc31d79e3379747c780d4a65405197c351786c830993863dfde616dc44c9"
+      "bytes": 18285,
+      "sha256": "7c9ec65e1f719c87d19b003167c6c8c5562827673b4c83bacf2d2cc9c9ea5f50"
     },
     {
       "path": "src/state_proof.rs",
@@ -169,8 +175,8 @@
     {
       "path": "tests/ordinary_fees.rs",
       "source_path": "crates/protocol-types/tests/ordinary_fees.rs",
-      "bytes": 12533,
-      "sha256": "773ce4db6b1736b495ab14d061332b12a8261e163d2c5a959c2589952bd1c214"
+      "bytes": 12602,
+      "sha256": "86872f64451288ebeb276a8d006bf8b502b842384b2eed888d07844ac5cf5a9c"
     },
     {
       "path": "tests/ordinary_fees_v3.rs",

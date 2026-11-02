@@ -341,10 +341,9 @@ impl RecoveryBook {
             "Mixed recovery chain domains"
         );
         for (algorithm, length) in &account.recovery.config.algorithms {
-            let expected = match algorithm.as_str() {
-                "mldsa65" => 1952,
-                "mldsa87" => 2592,
-                _ => bail!("Unsupported configured recovery algorithm"),
+            let expected = match dytallix_protocol_types::algorithms::by_name(algorithm) {
+                Some(a) => a.public_key_len,
+                None => bail!("Unsupported configured recovery algorithm"),
             };
             ensure!(
                 *length == expected && self.profile.signature_costs.contains_key(algorithm),

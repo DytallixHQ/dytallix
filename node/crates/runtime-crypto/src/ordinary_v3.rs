@@ -71,36 +71,19 @@ fn verify_backend(
     signed: &SignedOrdinary,
     limits: &V3Limits,
 ) -> Result<(), OrdinaryV3VerificationError> {
-    use fips204::{
-        ml_dsa_65,
-        traits::{SerDes, Verifier},
-    };
-
     let message = wire::signing_bytes(&signed.body, limits)
         .map_err(|e| OrdinaryV3VerificationError::Wire(e.to_string()))?;
     let key = &signed.body.key;
-    if signed.body.domain.network == 1 && key.algorithm != "mldsa65" {
+    if signed.body.domain.network == 1 && !dytallix_protocol_types::algorithms::mainnet_approved(&key.algorithm) {
         return Err(OrdinaryV3VerificationError::UnsupportedAlgorithm);
     }
     // Pure ML-DSA signs the complete versioned body with an empty FIPS context.
-    let valid = match key.algorithm.as_str() {
-        "mldsa65" => {
-            let bytes: [u8; ml_dsa_65::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryV3VerificationError::InvalidPublicKey)?;
-            let public = ml_dsa_65::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| OrdinaryV3VerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_65::SIG_LEN] = signed
-                .signature
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryV3VerificationError::InvalidSignature)?;
-            crate::stats::measured(|| public.verify(&message, &signature, &[]))
-        }
-        _ => return Err(OrdinaryV3VerificationError::UnsupportedAlgorithm),
-    };
+    let valid = crate::pqc_verify::verify_exact(&key.algorithm, &key.public_key, &message, &signed.signature)
+        .map_err(|e| match e {
+            crate::ExactError::Unsupported => OrdinaryV3VerificationError::UnsupportedAlgorithm,
+            crate::ExactError::InvalidPublicKey => OrdinaryV3VerificationError::InvalidPublicKey,
+            crate::ExactError::InvalidSignature => OrdinaryV3VerificationError::InvalidSignature,
+        })?;
     if !valid {
         return Err(OrdinaryV3VerificationError::InvalidSignature);
     }

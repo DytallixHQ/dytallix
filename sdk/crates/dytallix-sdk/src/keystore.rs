@@ -258,10 +258,10 @@ impl Keystore {
     /// Adds or replaces a named keypair entry. Requires an unlocked
     /// version 2 keystore.
     pub fn add_keypair(&mut self, keypair: &DytallixKeypair, name: &str) -> Result<(), SdkError> {
-        keypair.scheme().require_production_operational()?;
+        keypair.scheme().require_keystore()?;
         let meta = KeystoreEntry {
             name: name.to_owned(),
-            address: DAddr::from_public_key(keypair.public_key())?,
+            address: DAddr::from_scheme_public_key(keypair.scheme(), keypair.public_key())?,
             public_key: keypair.public_key().to_vec(),
             scheme: keypair.scheme(),
             created_at: unix_timestamp(),
@@ -305,7 +305,7 @@ impl Keystore {
             .find(|item| item.meta.name == name)
             .ok_or_else(|| SdkError::KeystoreCorrupt(format!("missing keypair entry: {name}")))?;
         let entry = &stored.meta;
-        entry.scheme.require_production_operational()?;
+        entry.scheme.require_keystore()?;
         let Secret::Sealed(sealed) = &stored.secret else {
             return Err(SdkError::KeystorePlaintext);
         };
@@ -313,7 +313,7 @@ impl Keystore {
             .open(key, &entry_aad(entry)?)
             .map_err(|_| SdkError::KeystoreCorrupt(format!("entry {name} fails authentication")))?;
         let keypair = DytallixKeypair::from_keypair(entry.scheme, &entry.public_key, &private_key)?;
-        if DAddr::from_public_key(keypair.public_key())? != entry.address {
+        if DAddr::from_scheme_public_key(keypair.scheme(), keypair.public_key())? != entry.address {
             return Err(SdkError::KeystoreCorrupt(format!(
                 "address mismatch for entry: {name}"
             )));

@@ -433,7 +433,9 @@ fn exact_scheme(algorithm: &str) -> Result<KeyScheme> {
         #[cfg(not(feature = "strict-local-mldsa65"))]
         "mldsa87" => Ok(KeyScheme::MlDsa87),
         #[cfg(not(feature = "strict-local-mldsa65"))]
-        _ => Err(anyhow!("algorithm must be exactly mldsa65 or mldsa87")),
+        "slhdsa-shake-192s" => Ok(KeyScheme::SlhDsaShake192s),
+        #[cfg(not(feature = "strict-local-mldsa65"))]
+        _ => Err(anyhow!("algorithm must be exactly mldsa65, mldsa87 or slhdsa-shake-192s")),
         #[cfg(feature = "strict-local-mldsa65")]
         _ => Err(anyhow!("strict local profile requires exactly mldsa65")),
     }
@@ -509,6 +511,7 @@ fn check_genesis(inputs: &ValidatedInputs, manifest: &GenesisIdentity, bytes: &[
     let algorithm = match exact_scheme(&manifest.origin_key.algorithm)? {
         KeyScheme::MlDsa65 => OriginKeyAlgorithm::MlDsa65,
         KeyScheme::MlDsa87 => OriginKeyAlgorithm::MlDsa87,
+        KeyScheme::SlhDsaShake192s => OriginKeyAlgorithm::SlhDsaShake192s,
         KeyScheme::SlhDsa => unreachable!(),
     };
     let origin = AccountAddress::from_origin_key(

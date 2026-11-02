@@ -274,6 +274,7 @@ fn origin_algorithm(name: &str) -> Result<OriginKeyAlgorithm> {
     match name {
         "mldsa65" => Ok(OriginKeyAlgorithm::MlDsa65),
         "mldsa87" => Ok(OriginKeyAlgorithm::MlDsa87),
+        "slhdsa-shake-192s" => Ok(OriginKeyAlgorithm::SlhDsaShake192s),
         _ => Err(Error("unsupported ordinary algorithm".into())),
     }
 }
@@ -503,8 +504,11 @@ impl<'a> KeypairSigner<'a> {
     pub fn new(key: &'a DytallixKeypair) -> Result<Self> {
         key.scheme().require_available().map_err(error)?;
         need(
-            matches!(key.scheme(), KeyScheme::MlDsa65 | KeyScheme::MlDsa87),
-            "ordinary signing requires exact ML-DSA-65 or ML-DSA-87",
+            matches!(
+                key.scheme(),
+                KeyScheme::MlDsa65 | KeyScheme::MlDsa87 | KeyScheme::SlhDsaShake192s
+            ),
+            "ordinary signing requires exact ML-DSA-65, ML-DSA-87 or SLH-DSA-SHAKE-192s",
         )?;
         Ok(Self(key))
     }
@@ -512,9 +516,8 @@ impl<'a> KeypairSigner<'a> {
 impl OrdinarySigner for KeypairSigner<'_> {
     fn algorithm(&self) -> &str {
         match self.0.scheme() {
-            KeyScheme::MlDsa65 => "mldsa65",
-            KeyScheme::MlDsa87 => "mldsa87",
-            KeyScheme::SlhDsa => unreachable!("constructor rejects SLH-DSA"),
+            KeyScheme::SlhDsa => unreachable!("constructor rejects legacy SPHINCS+"),
+            scheme => scheme.algorithm_id(),
         }
     }
     fn public_key(&self) -> &[u8] {
@@ -551,6 +554,7 @@ pub fn verify_signature(signed: &SignedOrdinary, limits: &Limits) -> Result<()> 
     let scheme = match signed.body.key.algorithm.as_str() {
         "mldsa65" => KeyScheme::MlDsa65,
         "mldsa87" => KeyScheme::MlDsa87,
+        "slhdsa-shake-192s" => KeyScheme::SlhDsaShake192s,
         _ => return Err(Error("unsupported ordinary algorithm".into())),
     };
     let bytes = wire::signing_bytes(&signed.body, limits).map_err(error)?;

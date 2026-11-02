@@ -78,36 +78,20 @@ fn verify_backend(
     signed: &SignedOrdinary,
     limits: &Limits,
 ) -> Result<(), OrdinaryVerificationError> {
-    use fips204::{
-        ml_dsa_65,
-        traits::{SerDes, Verifier},
-    };
     let message = wire::signing_bytes(&signed.body, limits)
         .map_err(|e| OrdinaryVerificationError::Wire(e.to_string()))?;
     let key = &signed.body.key;
-    if signed.body.domain.network == 1 && key.algorithm != "mldsa65" {
+    if signed.body.domain.network == 1 && !dytallix_protocol_types::algorithms::mainnet_approved(&key.algorithm) {
         return Err(OrdinaryVerificationError::UnsupportedAlgorithm);
     }
     // Pure ML-DSA over all signing bytes, not an application-hash substitute.
     // The complete body contains its domain prefix. The FIPS context is empty.
-    let valid = match key.algorithm.as_str() {
-        "mldsa65" => {
-            let bytes: [u8; ml_dsa_65::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryVerificationError::InvalidPublicKey)?;
-            let public = ml_dsa_65::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| OrdinaryVerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_65::SIG_LEN] = signed
-                .signature
-                .as_slice()
-                .try_into()
-                .map_err(|_| OrdinaryVerificationError::InvalidSignature)?;
-            crate::stats::measured(|| public.verify(&message, &signature, &[]))
-        }
-        _ => return Err(OrdinaryVerificationError::UnsupportedAlgorithm),
-    };
+    let valid = crate::pqc_verify::verify_exact(&key.algorithm, &key.public_key, &message, &signed.signature)
+        .map_err(|e| match e {
+            crate::ExactError::Unsupported => OrdinaryVerificationError::UnsupportedAlgorithm,
+            crate::ExactError::InvalidPublicKey => OrdinaryVerificationError::InvalidPublicKey,
+            crate::ExactError::InvalidSignature => OrdinaryVerificationError::InvalidSignature,
+        })?;
     if !valid {
         return Err(OrdinaryVerificationError::InvalidSignature);
     }

@@ -15,7 +15,7 @@ pub use dilithium_fips204::MlDsa65 as ActivePQC;
 
 // New multi-algorithm PQC verification module
 pub mod pqc_verify;
-pub use pqc_verify::{verify, verify_default, PQCAlgorithm, PQCVerifyError};
+pub use pqc_verify::{verify, verify_default, verify_exact, ExactError, PQCAlgorithm, PQCVerifyError};
 
 pub use dytallix_protocol_types::{canonical_json, sha3_256};
 

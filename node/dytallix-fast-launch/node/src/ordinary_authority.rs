@@ -144,6 +144,7 @@ pub(crate) fn origin_algorithm(value: &str) -> Result<OriginKeyAlgorithm> {
     match value {
         "mldsa65" => Ok(OriginKeyAlgorithm::MlDsa65),
         "mldsa87" => Ok(OriginKeyAlgorithm::MlDsa87),
+        "slhdsa-shake-192s" => Ok(OriginKeyAlgorithm::SlhDsaShake192s),
         _ => anyhow::bail!("Unsupported exact ordinary origin algorithm"),
     }
 }

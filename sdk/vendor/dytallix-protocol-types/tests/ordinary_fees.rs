@@ -73,7 +73,8 @@ fn format_contract_denomination_and_exact_algorithm_codes_reject_aliases() {
     let mut p = profile();
     p.denomination = Denomination::Udgt;
     assert!(profile_bytes(&p).is_err());
-    for code in [0u16, 3, u16::MAX] {
+    // Code 3 is SLH-DSA-SHAKE-192s; 4 is the first unassigned code.
+    for code in [0u16, 4, u16::MAX] {
         for path in [
             "/signature_costs/mldsa65/code",
             "/validator_proof_costs/mldsa87/code",

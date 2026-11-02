@@ -10,9 +10,13 @@ dytallix-protocol-types = { path = "../protocol-types" }
 thiserror = "1"
 tracing = "0.1"
 fips204 = { version = "0.4", optional = true, default-features = false, features = ["default-rng", "ml-dsa-65"] }
+fips205 = { version = "0.5", default-features = false, features = ["slh-dsa-shake-192s"] }
 rand_core = "0.6"
 blake3 = "1.5"
 once_cell = "1"
+
+[dev-dependencies]
+fips205 = { version = "0.5", default-features = false, features = ["default-rng", "slh-dsa-shake-128s", "slh-dsa-shake-128f", "slh-dsa-shake-192s", "slh-dsa-shake-192f", "slh-dsa-shake-256s", "slh-dsa-shake-256f"] }
 
 [features]
 default = []

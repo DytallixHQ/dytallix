@@ -10,6 +10,8 @@ pub const TRANSACTION_FORMAT_VERSION: u32 = 1;
 pub const RECEIPT_FORMAT_VERSION: u32 = 1;
 
 pub mod address;
+/// Exact signature algorithm identifiers shared by every account wire format.
+pub mod algorithms;
 pub mod units;
 
 /// Recovery transitions over trusted authority facts; no public signing format or route.

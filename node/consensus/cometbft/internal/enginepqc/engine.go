@@ -76,6 +76,7 @@ type Runtime struct {
 	byID            map[p2p.ID][]byte
 	addresses       map[p2p.ID]string
 	slots           chan struct{}
+	psk             map[string]pqcp2p.PSK
 	configSHA256    [sha256.Size]byte
 	genesisSHA256   [sha256.Size]byte
 	transportSHA256 [sha256.Size]byte
@@ -503,6 +504,10 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 	if err != nil {
 		return nil, err
 	}
+	psk, err := loadPeerPSKs(home, pins)
+	if err != nil {
+		return nil, err
+	}
 	if candidate {
 		if err := ValidateProductionTransportCandidate(c, tc, key, genesis.ChainID); err != nil {
 			return nil, err
@@ -530,7 +535,7 @@ func load(home, profile string, candidate bool) (*Runtime, error) {
 	return &Runtime{
 		Config: c, Genesis: genesis, NodeKey: key, Validator: validator,
 		Transport: tc, identity: identity, pins: pins, byID: byID,
-		addresses: addresses, slots: make(chan struct{}, MaxConcurrentHandshakes),
+		addresses: addresses, slots: make(chan struct{}, MaxConcurrentHandshakes), psk: psk,
 		configSHA256:    sha256.Sum256(configRaw),
 		genesisSHA256:   sha256.Sum256(genesisRaw),
 		transportSHA256: sha256.Sum256(raw),
@@ -592,7 +597,7 @@ func (r *Runtime) Upgrade(logger log.Logger) p2p.AuthenticatedConnUpgrade {
 		} else if !loopback(raw.RemoteAddr().String()) || !loopback(raw.LocalAddr().String()) {
 			return nil, errors.New("PQC fixture connection is not loopback")
 		}
-		connection, err := pqcp2p.Upgrade(raw, r.Transport.Network, r.identity, r.pins, remote, time.Duration(r.Transport.HandshakeTimeoutMS)*time.Millisecond)
+		connection, err := pqcp2p.UpgradePSK(raw, r.Transport.Network, r.identity, r.pins, remote, r.peerPSK, time.Duration(r.Transport.HandshakeTimeoutMS)*time.Millisecond)
 		if err != nil {
 			return nil, err
 		}

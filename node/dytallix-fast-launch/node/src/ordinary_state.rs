@@ -12,6 +12,7 @@ use crate::{
 };
 use anyhow::{ensure, Context, Result};
 use dytallix_protocol_types::{
+    algorithms,
     address::{AccountAddress, AddressNetwork},
     ordinary_fees::{self, FeeProfile},
     recovery::RecoveryConfig,
@@ -194,10 +195,9 @@ impl OrdinaryConfig {
         template.validate()?;
         let network = book.chain()?.network;
         for (algorithm, length) in &template.algorithms {
-            let expected = match algorithm.as_str() {
-                "mldsa65" => 1952,
-                "mldsa87" => 2592,
-                _ => anyhow::bail!("Unsupported account template algorithm"),
+            let expected = match algorithms::by_name(algorithm) {
+                Some(a) => a.public_key_len,
+                None => anyhow::bail!("Unsupported account template algorithm"),
             };
             ensure!(
                 *length == expected
@@ -206,7 +206,7 @@ impl OrdinaryConfig {
                 "Account template algorithm outside the configured account roles"
             );
             ensure!(
-                network != 1 || algorithm == "mldsa65",
+                network != 1 || algorithms::mainnet_approved(algorithm),
                 "Mainnet account template requires ML-DSA-65 exclusively"
             );
         }
@@ -231,13 +231,13 @@ impl OrdinaryConfig {
                     .limits
                     .allowed_algorithms
                     .iter()
-                    .all(|a| a == "mldsa65")
+                    .all(|a| algorithms::mainnet_approved(a))
                     && account
                         .recovery
                         .config
                         .algorithms
                         .keys()
-                        .all(|a| a == "mldsa65"),
+                        .all(|a| algorithms::mainnet_approved(a)),
                 "Mainnet operational profile requires ML-DSA-65 exclusively"
             );
         }

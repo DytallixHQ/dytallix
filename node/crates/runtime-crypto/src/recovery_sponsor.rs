@@ -47,39 +47,22 @@ pub fn verify_bytes(wire: &[u8]) -> Result<AuthenticatedFacts, SponsorVerificati
 fn verify_backend(
     signed: &SponsoredRecovery,
 ) -> Result<AuthenticatedFacts, SponsorVerificationError> {
-    use fips204::{
-        ml_dsa_65,
-        traits::{SerDes, Verifier},
-    };
-
     // Preserve the specified meter order: inner signatures precede the sponsor.
     let facts = crate::recovery::verify_signed(&signed.recovery)?;
     let message = recovery_sponsor::sponsor_signing_bytes(&signed.sponsor)
         .map_err(|e| SponsorVerificationError::Wire(e.to_string()))?;
     let key = &signed.sponsor.sponsor_key;
-    if signed.recovery.operation.domain.network == 1 && key.algorithm != "mldsa65" {
+    if signed.recovery.operation.domain.network == 1 && !dytallix_protocol_types::algorithms::mainnet_approved(&key.algorithm) {
         return Err(SponsorVerificationError::UnsupportedAlgorithm);
     }
     // Exact identifiers only. Pure ML-DSA uses the empty FIPS context. The signed
     // bytes already contain the distinct recovery sponsor domain separator.
-    let valid = match key.algorithm.as_str() {
-        "mldsa65" => {
-            let bytes: [u8; ml_dsa_65::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| SponsorVerificationError::InvalidPublicKey)?;
-            let public = ml_dsa_65::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| SponsorVerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_65::SIG_LEN] = signed
-                .signature
-                .as_slice()
-                .try_into()
-                .map_err(|_| SponsorVerificationError::InvalidSignature)?;
-            crate::stats::measured(|| public.verify(&message, &signature, &[]))
-        }
-        _ => return Err(SponsorVerificationError::UnsupportedAlgorithm),
-    };
+    let valid = crate::pqc_verify::verify_exact(&key.algorithm, &key.public_key, &message, &signed.signature)
+        .map_err(|e| match e {
+            crate::ExactError::Unsupported => SponsorVerificationError::UnsupportedAlgorithm,
+            crate::ExactError::InvalidPublicKey => SponsorVerificationError::InvalidPublicKey,
+            crate::ExactError::InvalidSignature => SponsorVerificationError::InvalidSignature,
+        })?;
     if !valid {
         return Err(SponsorVerificationError::InvalidSignature);
     }

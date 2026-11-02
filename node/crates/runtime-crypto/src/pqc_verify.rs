@@ -87,6 +87,51 @@ pub fn verify(
     }
 }
 
+/// Why an exact account signature could not be checked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExactError {
+    Unsupported,
+    InvalidPublicKey,
+    InvalidSignature,
+}
+
+/// Verify one account signature under its exact algorithm identifier, in pure
+/// mode with an empty FIPS context over the complete message. The ordinary,
+/// ordinary-v3, recovery and sponsor verifiers all dispatch here, so adding an
+/// algorithm is one arm. Mainnet policy is checked by the caller against
+/// `dytallix_protocol_types::algorithms::mainnet_approved`.
+pub fn verify_exact(
+    algorithm: &str,
+    public_key: &[u8],
+    message: &[u8],
+    signature: &[u8],
+) -> Result<bool, ExactError> {
+    match algorithm {
+        "mldsa65" => {
+            use fips204::traits::{SerDes as _, Verifier as _};
+            let bytes: [u8; ml_dsa_65::PK_LEN] =
+                public_key.try_into().map_err(|_| ExactError::InvalidPublicKey)?;
+            let public = ml_dsa_65::PublicKey::try_from_bytes(bytes)
+                .map_err(|_| ExactError::InvalidPublicKey)?;
+            let signature: [u8; ml_dsa_65::SIG_LEN] =
+                signature.try_into().map_err(|_| ExactError::InvalidSignature)?;
+            Ok(crate::stats::measured(|| public.verify(message, &signature, &[])))
+        }
+        "slhdsa-shake-192s" => {
+            use fips205::slh_dsa_shake_192s;
+            use fips205::traits::{SerDes as _, Verifier as _};
+            let bytes: [u8; slh_dsa_shake_192s::PK_LEN] =
+                public_key.try_into().map_err(|_| ExactError::InvalidPublicKey)?;
+            let public = slh_dsa_shake_192s::PublicKey::try_from_bytes(bytes)
+                .map_err(|_| ExactError::InvalidPublicKey)?;
+            let signature: &[u8; slh_dsa_shake_192s::SIG_LEN] =
+                signature.try_into().map_err(|_| ExactError::InvalidSignature)?;
+            Ok(crate::stats::measured(|| public.verify(message, signature, &[])))
+        }
+        _ => Err(ExactError::Unsupported),
+    }
+}
+
 /// Verify the operational default algorithm (ML-DSA-65).
 /// This maintains backward compatibility with existing ActivePQC::verify calls
 pub fn verify_default(pubkey: &[u8], msg: &[u8], sig: &[u8]) -> bool {

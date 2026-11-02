@@ -16,5 +16,7 @@ message PublicKey {
     bytes bls12381 = 3;
     bytes mldsa65 = 4;
     bytes secp256k1eth = 5;
+    // FIPS 205 SLH-DSA-SHAKE-192f: the hash-based validator key for a lattice break.
+    bytes slhdsa_shake_192f = 6;
   }
 }

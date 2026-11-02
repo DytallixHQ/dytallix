@@ -23,11 +23,8 @@ fn hash(bytes: &[u8]) -> [u8; 32] {
     Sha3_256::digest(bytes).into()
 }
 fn algorithm(name: &str) -> Result<(u16, usize, usize)> {
-    match name {
-        "mldsa65" => Ok((1, 1952, 3309)),
-        "mldsa87" => Ok((2, 2592, 4627)),
-        _ => Err(WireError("unsupported exact account algorithm".into())),
-    }
+    let a = crate::algorithms::by_name(name).ok_or_else(|| WireError("unsupported exact account algorithm".into()))?;
+    Ok((a.code, a.public_key_len, a.signature_len))
 }
 pub fn signature_size(name: &str) -> Result<usize> {
     Ok(algorithm(name)?.2)
@@ -585,7 +582,7 @@ pub fn envelope_hash(value: &SignedOrdinary, l: &Limits) -> Result<[u8; 32]> {
 pub fn key_id(key: &KeyIdentity) -> Result<[u8; 32]> {
     let mut w = Writer {
         bytes: Vec::new(),
-        maximum: KEY_PREFIX.len() + 6 + 2592,
+        maximum: KEY_PREFIX.len() + 6 + crate::algorithms::MAX_PUBLIC_KEY_LEN,
     };
     w.raw(KEY_PREFIX)?;
     w.key(key)?;
@@ -642,10 +639,9 @@ impl<'a> Reader<'a> {
             .to_owned())
     }
     fn key(&mut self) -> Result<KeyIdentity> {
-        let (name, size) = match self.u16()? {
-            1 => ("mldsa65", 1952),
-            2 => ("mldsa87", 2592),
-            _ => return Err(WireError("unsupported account algorithm code".into())),
+        let (name, size) = match crate::algorithms::by_code(self.u16()?) {
+            Some(a) => (a.name, a.public_key_len),
+            None => return Err(WireError("unsupported account algorithm code".into())),
         };
         let bytes = self.blob(size)?;
         need(bytes.len() == size, "account public key length differs")?;

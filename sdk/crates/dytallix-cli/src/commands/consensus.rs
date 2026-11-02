@@ -314,6 +314,7 @@ pub(crate) fn entry_identity(entry: &dytallix_sdk::KeystoreEntry) -> Result<KeyI
         KeyScheme::MlDsa65 => "mldsa65",
         KeyScheme::MlDsa87 => "mldsa87",
         KeyScheme::SlhDsa => return Err(anyhow!("consensus accounts use ML-DSA-65 or ML-DSA-87")),
+        KeyScheme::SlhDsaShake192s => "slhdsa-shake-192s",
     };
     Ok(KeyIdentity {
         algorithm: algorithm.into(),
@@ -325,6 +326,7 @@ pub(crate) fn key_identity(key: &DytallixKeypair) -> Result<KeyIdentity> {
         KeyScheme::MlDsa65 => "mldsa65",
         KeyScheme::MlDsa87 => "mldsa87",
         KeyScheme::SlhDsa => return Err(anyhow!("consensus accounts use ML-DSA-65 or ML-DSA-87")),
+        KeyScheme::SlhDsaShake192s => "slhdsa-shake-192s",
     };
     Ok(KeyIdentity {
         algorithm: algorithm.into(),

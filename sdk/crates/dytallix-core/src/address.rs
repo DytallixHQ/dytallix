@@ -64,6 +64,40 @@ impl DAddr {
         Ok(Self(encoded))
     }
 
+    /// Derives the keystore D-Addr for a key of an explicit scheme. ML-DSA-65
+    /// keys give exactly `from_public_key`. An SLH-DSA-SHAKE-192s key hashes
+    /// its algorithm identifier with the key, so the same 48 bytes never give
+    /// one address under two algorithms. Other schemes are refused.
+    pub fn from_scheme_public_key(
+        scheme: crate::keypair::KeyScheme,
+        pubkey: &[u8],
+    ) -> Result<Self, DytallixError> {
+        use crate::keypair::KeyScheme;
+        match scheme {
+            KeyScheme::MlDsa65 => Self::from_public_key(pubkey),
+            KeyScheme::SlhDsaShake192s => {
+                if pubkey.len() != 48 {
+                    return Err(DytallixError::InvalidKeySize {
+                        expected: 48,
+                        got: pubkey.len(),
+                    });
+                }
+                let mut preimage = b"slhdsa-shake-192s\0".to_vec();
+                preimage.extend_from_slice(pubkey);
+                let hash = hash_public_key(&preimage);
+                let hrp = Hrp::parse(DYTALLIX_HRP)
+                    .map_err(|err| DytallixError::Bech32Error(err.to_string()))?;
+                let encoded = bech32::encode::<Bech32m>(hrp, &hash)
+                    .map_err(|err| DytallixError::Bech32Error(err.to_string()))?;
+                Ok(Self(encoded))
+            }
+            other => Err(DytallixError::CryptoError(format!(
+                "no keystore address for {}",
+                other.algorithm_id()
+            ))),
+        }
+    }
+
     /// Parses and validates a Dytallix Bech32m address.
     ///
     /// Validation is performed in this order:

@@ -1,8 +1,12 @@
 package types
 
-import "github.com/cometbft/cometbft/crypto/mldsa65"
+import (
+	"github.com/cometbft/cometbft/crypto/mldsa65"
+	"github.com/cometbft/cometbft/crypto/slhdsa192f"
+)
 
-var MaxSignatureSize = mldsa65.SignatureSize
+// MaxSignatureSize is the largest signature of any registered validator key type.
+var MaxSignatureSize = max(mldsa65.SignatureSize, slhdsa192f.SignatureSize)
 
 // Signable is an interface for all signable things.
 // It typically removes signatures before serializing.

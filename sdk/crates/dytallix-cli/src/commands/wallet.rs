@@ -31,6 +31,9 @@ pub enum WalletCommand {
         /// Optional wallet name.
         #[arg(long)]
         name: Option<String>,
+        /// Key scheme. slhdsa-shake-192s is for development networks.
+        #[arg(long, value_enum, default_value = "ml-dsa-65")]
+        scheme: crate::commands::crypto::CryptoScheme,
     },
     /// Import a keypair from a file.
     Import {
@@ -65,7 +68,7 @@ pub enum WalletCommand {
 /// Runs the `wallet` command.
 pub async fn run(args: WalletArgs) -> Result<()> {
     match args.command {
-        WalletCommand::Create { name } => create_wallet(name),
+        WalletCommand::Create { name, scheme } => create_wallet(name, scheme),
         WalletCommand::Import { key_file, name } => import_wallet(key_file, name),
         WalletCommand::Export { output } => export_wallet(output),
         WalletCommand::List => list_wallets(),
@@ -76,8 +79,8 @@ pub async fn run(args: WalletArgs) -> Result<()> {
     }
 }
 
-fn create_wallet(name: Option<String>) -> Result<()> {
-    let keypair = DytallixKeypair::generate();
+fn create_wallet(name: Option<String>, scheme: crate::commands::crypto::CryptoScheme) -> Result<()> {
+    let keypair = crate::commands::crypto::generate(scheme)?;
     let mut keystore = load_or_create_keystore()?;
     let name = name.unwrap_or_else(default_wallet_name);
 

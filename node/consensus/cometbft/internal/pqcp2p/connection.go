@@ -17,9 +17,10 @@ import (
 )
 
 const (
-	// Version 2 seals records with AES-256-GCM (E04 gap 19, P01 29 September
-	// 2026); version 1 used ChaCha20-Poly1305 and is refused.
-	WireVersion  = 2
+	// Version 3 mixes a per-pair PSK into the key schedule. Version 2 is
+	// refused: accepting it would let an attacker who can forge ML-DSA skip the
+	// PSK. Version 2 sealed records with AES-256-GCM, as version 3 does.
+	WireVersion  = 3
 	MaxPins      = 64
 	MaxPlaintext = 16 * 1024
 	// A direction can carry at most 16 GiB per session. Reconnect with fresh keys.
@@ -74,6 +75,15 @@ func (c *Conn) fail(err error) error { _ = c.Close(); return err }
 // the responder role. There is no protocol negotiation or plaintext fallback.
 // Callers must separately bound the number of concurrent handshake attempts.
 func Upgrade(raw net.Conn, network string, local *Identity, pins [][]byte, remotePin []byte, timeout time.Duration) (result *Conn, err error) {
+	return UpgradePSK(raw, network, local, pins, remotePin, nil, timeout)
+}
+
+// UpgradePSK is Upgrade with a pre-shared key per pinned peer. psk returns the
+// key for a full peer pin; nil, or a pin it does not know, uses the zero PSK.
+func UpgradePSK(raw net.Conn, network string, local *Identity, pins [][]byte, remotePin []byte, psk func(pin []byte) PSK, timeout time.Duration) (result *Conn, err error) {
+	if psk == nil {
+		psk = func([]byte) PSK { return PSK{} }
+	}
 	if raw == nil {
 		return nil, ErrRejected
 	}
@@ -110,9 +120,9 @@ func Upgrade(raw net.Conn, network string, local *Identity, pins [][]byte, remot
 	var keys SessionKeys
 	var peer []byte
 	if remotePin != nil {
-		keys, peer, err = upgradeInitiator(raw, network, local, allowed[string(remotePin)])
+		keys, peer, err = upgradeInitiator(raw, network, local, allowed[string(remotePin)], psk)
 	} else {
-		keys, peer, err = upgradeResponder(raw, network, local, allowed)
+		keys, peer, err = upgradeResponder(raw, network, local, allowed, psk)
 	}
 	defer clear(keys.Send[:])
 	defer clear(keys.Receive[:])
@@ -133,8 +143,8 @@ func Upgrade(raw net.Conn, network string, local *Identity, pins [][]byte, remot
 	return &Conn{raw: raw, peer: bytes.Clone(peer), send: send, receive: receive}, nil
 }
 
-func upgradeInitiator(raw net.Conn, network string, local *Identity, pin []byte) (SessionKeys, []byte, error) {
-	i, h, err := NewInitiator(network, local, pin)
+func upgradeInitiator(raw net.Conn, network string, local *Identity, pin []byte, psk func([]byte) PSK) (SessionKeys, []byte, error) {
+	i, h, err := NewInitiatorPSK(network, local, pin, psk(pin))
 	if err != nil {
 		return SessionKeys{}, nil, err
 	}
@@ -172,7 +182,7 @@ func upgradeInitiator(raw net.Conn, network string, local *Identity, pin []byte)
 	return keys, h.Responder, nil
 }
 
-func upgradeResponder(raw net.Conn, network string, local *Identity, pins map[string][]byte) (SessionKeys, []byte, error) {
+func upgradeResponder(raw net.Conn, network string, local *Identity, pins map[string][]byte, psk func([]byte) PSK) (SessionKeys, []byte, error) {
 	payload, err := readHandshake(raw, helloType)
 	if err != nil {
 		return SessionKeys{}, nil, err
@@ -185,7 +195,7 @@ func upgradeResponder(raw net.Conn, network string, local *Identity, pins map[st
 	if !found {
 		return SessionKeys{}, nil, ErrRejected
 	}
-	responder, offer, err := NewResponder(network, local, pin, h)
+	responder, offer, err := NewResponderPSK(network, local, pin, h, psk(pin))
 	if err != nil {
 		return SessionKeys{}, nil, err
 	}

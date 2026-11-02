@@ -16,9 +16,15 @@ import (
 	"github.com/cloudflare/circl/sign/mldsa/mldsa65"
 )
 
-// Suite binds every signature and derived key. Version 2 names its record
-// cipher, so a version 1 peer never derives the same keys.
-const Suite = "dytallix-pqcp2p-component-v2/mlkem768/mldsa65/hkdfsha256/aes256gcm"
+// Suite binds every signature and derived key. Version 3 mixes a per-pair
+// pre-shared key into the key schedule, so a version 2 peer never derives the
+// same keys. Without the PSK, an attacker who breaks both ML-KEM-768 and
+// ML-DSA-65 can neither read traffic nor pass key confirmation.
+const Suite = "dytallix-pqcp2p-component-v3/mlkem768/mldsa65/psk/hkdfsha256/aes256gcm"
+
+// PSK is a symmetric secret shared by exactly one pair of pinned peers. A pair
+// with no PSK uses the zero value; nothing on the wire says which.
+type PSK [32]byte
 
 var ErrRejected = errors.New("PQC session establishment rejected")
 var ErrConsumed = errors.New("PQC session state already consumed")
@@ -65,6 +71,7 @@ type SessionKeys struct{ Send, Receive [32]byte }
 type initiatorState struct {
 	identity *Identity
 	hello    Initiation
+	psk      PSK
 }
 type Initiator struct {
 	mu    sync.Mutex
@@ -74,6 +81,7 @@ type responderState struct {
 	hello Initiation
 	offer Offer
 	key   *mlkem.DecapsulationKey768
+	psk   PSK
 }
 type Responder struct {
 	mu    sync.Mutex
@@ -103,6 +111,11 @@ func validHello(h Initiation) bool {
 
 // NewInitiator creates one attempt. Retry requires a fresh attempt and nonce.
 func NewInitiator(network string, local *Identity, pinnedResponder []byte) (*Initiator, Initiation, error) {
+	return NewInitiatorPSK(network, local, pinnedResponder, PSK{})
+}
+
+// NewInitiatorPSK is NewInitiator with the pair's pre-shared key.
+func NewInitiatorPSK(network string, local *Identity, pinnedResponder []byte, psk PSK) (*Initiator, Initiation, error) {
 	if local == nil || local.private == nil {
 		return nil, Initiation{}, ErrRejected
 	}
@@ -113,12 +126,17 @@ func NewInitiator(network string, local *Identity, pinnedResponder []byte) (*Ini
 	if !validHello(h) {
 		return nil, Initiation{}, ErrRejected
 	}
-	return &Initiator{state: &initiatorState{local, cloneHello(h)}}, h, nil
+	return &Initiator{state: &initiatorState{local, cloneHello(h), psk}}, h, nil
 }
 
 // NewResponder authenticates the peer configuration before creating an ephemeral key.
 // The offer signs the network, roles, nonce, full identity keys, suite, and KEM key.
 func NewResponder(network string, local *Identity, pinnedInitiator []byte, h Initiation) (*Responder, Offer, error) {
+	return NewResponderPSK(network, local, pinnedInitiator, h, PSK{})
+}
+
+// NewResponderPSK is NewResponder with the pair's pre-shared key.
+func NewResponderPSK(network string, local *Identity, pinnedInitiator []byte, h Initiation, psk PSK) (*Responder, Offer, error) {
 	if local == nil || local.private == nil || !validHello(h) || network != h.Network || !bytes.Equal(pinnedInitiator, h.Initiator) || !bytes.Equal(local.PublicKey(), h.Responder) {
 		return nil, Offer{}, ErrRejected
 	}
@@ -132,7 +150,7 @@ func NewResponder(network string, local *Identity, pinnedInitiator []byte, h Ini
 		return nil, Offer{}, e
 	}
 	saved := Offer{bytes.Clone(o.KEMPublicKey), bytes.Clone(o.Signature)}
-	return &Responder{state: &responderState{cloneHello(h), saved, k}}, o, nil
+	return &Responder{state: &responderState{cloneHello(h), saved, k, psk}}, o, nil
 }
 
 // Respond consumes the initiator attempt, including on failure.
@@ -159,7 +177,7 @@ func (i *Initiator) Respond(o Offer) (*PendingInitiator, Response, error) {
 	if e != nil {
 		return nil, Response{}, e
 	}
-	p, e := derive(secret, s.hello, o, r, true)
+	p, e := derive(secret, s.psk, s.hello, o, r, true)
 	if e != nil {
 		return nil, Response{}, e
 	}
@@ -185,7 +203,7 @@ func (s *Responder) Confirm(r Response) (*PendingResponder, Confirmation, error)
 		return nil, Confirmation{}, ErrRejected
 	}
 	defer clear(secret)
-	p, e := derive(secret, st.hello, st.offer, r, false)
+	p, e := derive(secret, st.psk, st.hello, st.offer, r, false)
 	if e != nil {
 		return nil, Confirmation{}, e
 	}
@@ -269,9 +287,12 @@ func verify(raw, msg []byte, role string, sig []byte) bool {
 	k.Unpack(&packed)
 	return mldsa65.Verify(&k, msg, []byte(Suite+"/"+role), sig)
 }
-func derive(secret []byte, h Initiation, o Offer, r Response, initiator bool) (*pendingState, error) {
+func derive(secret []byte, psk PSK, h Initiation, o Offer, r Response, initiator bool) (*pendingState, error) {
 	transcript := sha256.Sum256(encode(responseMessage(h, o, r), r.Signature))
-	material, e := hkdf.Key(sha256.New, secret, transcript[:], Suite+"/traffic-and-confirmation", 128)
+	// Both inputs have fixed lengths, so the concatenation is unambiguous.
+	ikm := append(bytes.Clone(secret), psk[:]...)
+	defer clear(ikm)
+	material, e := hkdf.Key(sha256.New, ikm, transcript[:], Suite+"/traffic-and-confirmation", 128)
 	if e != nil {
 		return nil, e
 	}

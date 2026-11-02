@@ -202,7 +202,7 @@ func frame(c *Conn, seq uint64, p []byte) []byte {
 	return append(h[:], c.receive.Seal(nil, nonce[:], p, h[:])...)
 }
 
-// Version 2 records are AES-256-GCM: an independent AES-GCM, given the key,
+// Version 3 records, like version 2, are AES-256-GCM: an independent AES-GCM, given the key,
 // opens a record Write produced, with the header as associated data and the
 // sequence as the nonce's last eight bytes.
 func TestVersion2RecordsAreAES256GCM(t *testing.T) {
@@ -213,7 +213,7 @@ func TestVersion2RecordsAreAES256GCM(t *testing.T) {
 		t.Fatal(err)
 	}
 	header := record[:recordHeaderSize]
-	if string(header[:4]) != "DYPR" || header[4] != 2 || header[5] != 0 {
+	if string(header[:4]) != "DYPR" || header[4] != WireVersion || header[5] != 0 {
 		t.Fatalf("record header %x", header)
 	}
 	key := make([]byte, 32)
@@ -230,8 +230,8 @@ func TestVersion2RecordsAreAES256GCM(t *testing.T) {
 	if err != nil || string(plain) != "wire version 2" {
 		t.Fatalf("independent AES-256-GCM did not open the record: %q %v", plain, err)
 	}
-	if !strings.Contains(Suite, "-v2/") || !strings.HasSuffix(Suite, "/aes256gcm") {
-		t.Fatalf("suite %q does not name version 2 and its cipher", Suite)
+	if !strings.Contains(Suite, "-v3/") || !strings.Contains(Suite, "/psk/") || !strings.HasSuffix(Suite, "/aes256gcm") {
+		t.Fatalf("suite %q does not name version 3, its PSK and its cipher", Suite)
 	}
 }
 

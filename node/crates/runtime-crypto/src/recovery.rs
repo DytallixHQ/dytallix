@@ -68,7 +68,7 @@ fn verify_backend(
     let mut signers = Vec::new();
     let mut proofs = Vec::new();
     for entry in &signed.signatures {
-        if signed.operation.domain.network == 1 && entry.key.algorithm != "mldsa65" {
+        if signed.operation.domain.network == 1 && !dytallix_protocol_types::algorithms::mainnet_approved(&entry.key.algorithm) {
             return Err(RecoveryVerificationError::UnsupportedAlgorithm);
         }
         let message =
@@ -93,29 +93,14 @@ fn verify_signature(
     message: &[u8],
     signature: &[u8],
 ) -> Result<(), RecoveryVerificationError> {
-    use fips204::{
-        ml_dsa_65,
-        traits::{SerDes, Verifier},
-    };
-
     // Do not use legacy algorithm aliases or the mock-capable verifier dispatch.
     // Signing bytes carry the operation/proof domain. FIPS context is empty.
-    let valid = match key.algorithm.as_str() {
-        "mldsa65" => {
-            let bytes: [u8; ml_dsa_65::PK_LEN] = key
-                .public_key
-                .as_slice()
-                .try_into()
-                .map_err(|_| RecoveryVerificationError::InvalidPublicKey)?;
-            let public_key = ml_dsa_65::PublicKey::try_from_bytes(bytes)
-                .map_err(|_| RecoveryVerificationError::InvalidPublicKey)?;
-            let signature: [u8; ml_dsa_65::SIG_LEN] = signature
-                .try_into()
-                .map_err(|_| RecoveryVerificationError::InvalidSignature)?;
-            crate::stats::measured(|| public_key.verify(message, &signature, &[]))
-        }
-        _ => return Err(RecoveryVerificationError::UnsupportedAlgorithm),
-    };
+    let valid = crate::pqc_verify::verify_exact(&key.algorithm, &key.public_key, &message, signature)
+        .map_err(|e| match e {
+            crate::ExactError::Unsupported => RecoveryVerificationError::UnsupportedAlgorithm,
+            crate::ExactError::InvalidPublicKey => RecoveryVerificationError::InvalidPublicKey,
+            crate::ExactError::InvalidSignature => RecoveryVerificationError::InvalidSignature,
+        })?;
     if valid {
         Ok(())
     } else {

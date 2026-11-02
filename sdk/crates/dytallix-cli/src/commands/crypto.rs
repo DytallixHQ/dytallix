@@ -52,6 +52,22 @@ pub enum CryptoScheme {
     /// Reserved for separate FIPS 205 root authorization. Unavailable here.
     #[value(name = "slh-dsa")]
     SlhDsa,
+    /// FIPS 205 SLH-DSA-SHAKE-192s account key, the lattice-break fallback.
+    /// Development networks only; mainnet refuses it.
+    #[value(name = "slhdsa-shake-192s")]
+    SlhDsaShake192s,
+}
+
+/// Generates a keypair for a scheme that may hold an account.
+pub(crate) fn generate(scheme: CryptoScheme) -> Result<DytallixKeypair> {
+    match scheme {
+        CryptoScheme::MlDsa65 => Ok(DytallixKeypair::generate()),
+        CryptoScheme::SlhDsa => Err(anyhow!("FIPS 205 root authorization is a separate component; SDK SLH-DSA key generation is unavailable. Legacy SPHINCS+ is not FIPS 205. For an SLH-DSA account key use slhdsa-shake-192s.")),
+        #[cfg(not(feature = "strict-local-mldsa65"))]
+        CryptoScheme::SlhDsaShake192s => Ok(DytallixKeypair::generate_slh_dsa_shake_192s()),
+        #[cfg(feature = "strict-local-mldsa65")]
+        CryptoScheme::SlhDsaShake192s => Err(anyhow!("strict local profile requires exactly mldsa65")),
+    }
 }
 
 /// Runs the `crypto` command.
@@ -70,12 +86,7 @@ pub async fn run(args: CryptoArgs) -> Result<()> {
 }
 
 fn keygen(scheme: CryptoScheme) -> Result<()> {
-    let keypair = match scheme {
-        CryptoScheme::MlDsa65 => DytallixKeypair::generate(),
-        CryptoScheme::SlhDsa => {
-            return Err(anyhow!("FIPS 205 root authorization is a separate component; SDK SLH-DSA key generation is unavailable. Legacy SPHINCS+ is not FIPS 205."));
-        }
-    };
+    let keypair = generate(scheme)?;
 
     output::section("Generated keypair");
     println!("Scheme:      {}", keypair.scheme().algorithm_id());
