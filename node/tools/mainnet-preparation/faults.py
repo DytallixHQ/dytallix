@@ -41,20 +41,23 @@ scenario records which clock each instant came from.
 The lean scope is the network and process faults driven through the agent:
 latency and loss (`tc netem`) and a peer partition (an `inet dytallix_fault`
 nftables table, scoped to the p2p port so the agent's own command path stays
-reachable), and a process kill, on the sentry; the validator keeps producing
+reachable), a peer drop (the established p2p connections closed once with
+`ss -K`; nothing is blocked, so the nodes redial at once; P01, 2 November
+2026) and a process kill, on the sentry; the validator keeps producing
 throughout, and recovery is the sentry catching back up. The validator's
 process restart (R02, `validator_restart`) is the same kill and restart on the
 validator, through its own agent, as its own record (`--host validator-1
 --scenarios validator_restart`): with one validator the chain halts while it
 is down, so recovery is the next block the sentry's status page serves, judged
 against the approved 5-minute target (TIMINGS.json
-validator_restart_target_seconds). Peer drops and host loss follow.
+validator_restart_target_seconds). Host loss follows.
 """
 import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
+import re
 import sys
 import threading
 import time
@@ -68,12 +71,13 @@ PASS, FAIL, INCONCLUSIVE = reconcile.PASS, reconcile.FAIL, reconcile.INCONCLUSIV
 
 # A scenario's kind decides how its effect is proven. The netem kinds confirm a
 # netem qdisc was active; the partition confirms the sentry stopped advancing
-# while cut off; the process kind confirms the node was down right after the
+# while cut off; the peers kind confirms connections were closed and none of
+# them is open after; the process kind confirms the node was down right after the
 # kill (the sentry's, or the validator's for validator_restart). verify
 # recomputes the kind from the name, so a record cannot file a scenario under
 # a softer kind.
-KINDS = {'latency': 'netem', 'loss': 'netem', 'partition': 'partition', 'process_kill': 'process',
-         'validator_restart': 'process'}
+KINDS = {'latency': 'netem', 'loss': 'netem', 'partition': 'partition', 'peer_drop': 'peers',
+         'process_kill': 'process', 'validator_restart': 'process'}
 
 
 class Failed(Exception):
@@ -105,6 +109,7 @@ SCENARIOS = (
     {'name': 'loss', 'command': 'fault-netem',
      'args': {'delay_ms': 50, 'loss_percent': 40, 'duration_seconds': 45}},
     {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
+    {'name': 'peer_drop', 'command': 'fault-peer-drop', 'args': {}},
     {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
 )
 # R02's validator process restart, on the validator through its own agent.
@@ -136,6 +141,9 @@ def effect_holds(scenario_kind, effect):
         # The drop is objectively installed (deterministic, unlike watching for a
         # freeze, which races TCP teardown); recovery then proves it was real.
         return effect.get('installed') is True
+    if scenario_kind == 'peers':
+        closed, after = effect.get('closed') or [], effect.get('after') or []
+        return bool(closed) and not set(closed) & set(after)
     if scenario_kind == 'process':
         return (effect.get('active') or '') in ('inactive', 'failed', 'deactivating')
     return False
@@ -184,7 +192,20 @@ def effect_of(name, result):
         return {'qdisc': out}
     if this == 'partition':
         return {'installed': '26656' in out, 'set': out}
+    if this == 'peers':
+        return {'closed': connections(steps[0].get('stdout') if steps else ''), 'after': connections(out)}
     return {'active': out}
+
+
+def connections(listing):
+    """The connections in an `ss -Htn` listing, each its local and peer
+    address (the first two ADDRESS:PORT words of a line), sorted."""
+    pairs = set()
+    for line in (listing or '').splitlines():
+        ends = [word for word in line.split() if re.fullmatch(r'\S+:\d+', word)][:2]
+        if len(ends) == 2:
+            pairs.add(' '.join(ends))
+    return sorted(pairs)
 
 
 def iso_at(seconds):
@@ -252,6 +273,11 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
                 kill, restart = channel.send(command, args), channel.send('start')
                 injected, started = channel.wait([kill, restart], result_timeout)
                 cleared_at, clear = started.get('finished_at'), {'mechanism': 'restart', 'status': started['status']}
+            elif command == 'fault-peer-drop':
+                # The connections close once and nothing stays blocked: the
+                # drop clears when the command finishes, and the nodes redial.
+                injected = channel.wait([channel.send(command, args)], result_timeout)[0]
+                cleared_at, clear = injected.get('finished_at'), {'mechanism': 'redial'}
             else:
                 injected = channel.wait([channel.send(command, args)], result_timeout)[0]
                 finished = injected.get('finished_at')
@@ -269,7 +295,7 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
                 while clock() < cleared_at + 2:
                     sleep(period)
                 row['height_at_clear'] = timeline.last_height(before=cleared_at)
-                if on_cleared and command != 'fault-kill':
+                if on_cleared and clear['mechanism'] == 'dead-man':
                     on_cleared(name)
                 while True:
                     found = timeline.recovered(cleared_at, row['height_at_clear'], made)
@@ -278,7 +304,7 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
                     sleep(period)
                 if found:
                     row['recovered_at'], row['recovered_height'] = found
-        if command != 'fault-kill':
+        if clear['mechanism'] == 'dead-man':
             # The dead-man already removed it; this removes the empty table.
             clear['status'] = channel.run('fault-clear', timeout=result_timeout)['status']
         say(f'== {name}: {"caught back up at " + str(row["recovered_height"]) if row["recovered_at"] else "no recovery"}')

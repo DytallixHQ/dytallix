@@ -1959,8 +1959,9 @@ def fault_drill(work, label='sentry-1', timeout=300):
     _, left, _ = guest.run(['python3', '-I', '-B', '/root/agent/agent.py', 'remove'])
     say(left.strip())
     close_founder_channel(guest, unit)
-    say(f'== {label}: latency, loss, a p2p partition and a process kill each took hold and the sentry caught back up '
-        f'within the {target} s recovery target, measured through the public paths only (the run is {status})')
+    say(f'== {label}: latency, loss, a p2p partition, a peer drop and a process kill each took hold and the sentry '
+        f'caught back up within the {target} s recovery target, measured through the public paths only '
+        f'(the run is {status})')
     restart = validator_restart(work, drill, guest, native, engine, timeout)
     say(f'== validator-1: its process killed through its own agent and started again; blocks resumed within the '
         f'approved 5-minute target (the run is {restart})')

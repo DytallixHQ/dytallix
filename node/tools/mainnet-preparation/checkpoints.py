@@ -84,7 +84,7 @@ RUN_EVENTS = {
     'R01': [],
     'R02': [('the validator process restarted', 'faults', 'validator_restart'),
             ('the sentry stopped and restored', 'faults', 'process_kill'),
-            ('the peer connections redialed', None, 'the fault injector\'s peer drops (T5)'),
+            ('the peer connections redialed', 'faults', 'peer_drop'),
             ('the sentry restored from its snapshot', 'restore', 'caught_up_at'),
             ('the network restored', 'faults', 'partition'),
             ('the validator host recovered', 'recovery', 'first_block_after_halt_at')],

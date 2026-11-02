@@ -436,10 +436,10 @@
       "unit": null,
       "source": {
         "tool": "T5",
-        "built": "2026-10-13",
-        "remaining": "peer drops and host loss"
+        "built": "2026-11-02",
+        "remaining": "host loss"
       },
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/63"
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78"
     },
     {
       "id": "tools.t6.ready",

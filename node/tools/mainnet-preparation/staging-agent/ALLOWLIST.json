@@ -233,6 +233,15 @@
         ["nft", "list", "set", "inet", "dytallix_fault", "blocked"]
       ]
     },
+    "fault-peer-drop": {
+      "purpose": "Drop the host's peer connections once (simulation plan, T5: peer drops; P01, 2 November 2026): ss -K closes the established TCP connections on the p2p port and lists the ones it closed; nothing is blocked and nothing is left behind, so the nodes redial at once. Its last step lists the established p2p connections as the proof that the closed ones are gone (read-only)",
+      "args": {},
+      "timeout_seconds": 60,
+      "steps": [
+        ["ss", "-K", "-Htn", "state", "established", "(", "sport", "=", ":26656", "or", "dport", "=", ":26656", ")"],
+        ["ss", "-Htn", "state", "established", "(", "sport", "=", ":26656", "or", "dport", "=", ":26656", ")"]
+      ]
+    },
     "fault-clear": {
       "purpose": "Remove every injected network fault (simulation plan, T5); idempotent, so it runs whether or not a fault is set",
       "args": {},
