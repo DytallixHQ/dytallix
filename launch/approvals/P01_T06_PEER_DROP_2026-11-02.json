@@ -1,0 +1,25 @@
+{
+  "decision_id": "P01-2026-11-02-T06-PEER-DROP",
+  "approved": "2026-11-02",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The fault injector's peer drops (T5) for R02's event 'the peer connections redialed': how the staging agent drops the sentry's peer connections"
+  },
+  "reason": "R02 drops the peer connections and checks they redial, but the staging agent's approved allowlist (P01_T06_STAGING_AGENT_2026-10-14) has no command that drops a connection without cutting the network, so R02's event checkpoint after the redial could only stay INCONCLUSIVE.",
+  "design_ref": "../../node/docs/architecture/staging-agent-v1.md",
+  "decisions": [
+    {
+      "question": "How the agent drops the sentry's peer connections",
+      "selected": "Close the connections once",
+      "rule": "A new allowlisted command, fault-peer-drop, with no arguments: ss -K closes the host's established TCP connections on the p2p port (26656) once and lists the ones it closed; a read-only listing of the established p2p connections is its last step. Nothing is blocked and nothing is left behind to expire, so the nodes redial at once. The drop took hold when at least one connection was closed and none of the closed ones is still open; recovery is the sentry serving a block made after the drop, judged against the approved 120-second fault recovery target (P01_E05_FAULT_RECOVERY_2026-10-13). It runs on the sentry, in staging only, and the wipe before the production install removes the agent with it."
+    }
+  ],
+  "does_not_authorize": [
+    "installing the agent on a real host, which needs its own approval",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

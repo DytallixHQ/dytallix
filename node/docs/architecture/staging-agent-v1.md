@@ -86,6 +86,7 @@ again). The founder opens results with `dytallix-root-sign history-open`.
 | `monitor-run`, `backup-run` | one run of the monitor or the sentry's backup job |
 | `fault-kill` | SIGKILL to the node's main process (T5's process kill), then, after 2 seconds, the unit's state as its proof |
 | `fault-netem`, `fault-partition`, `fault-clear` | T5's latency and loss (`tc netem`), its self-expiring p2p partition (`inet dytallix_fault`), and their removal; the first two end with a read-only proof (the qdisc, the fault set) |
+| `fault-peer-drop` | T5's peer drop ([approval](../../../launch/approvals/P01_T06_PEER_DROP_2026-11-02.json)): `ss -K` closes the established p2p connections once and lists them; nothing is blocked, so the nodes redial at once; then the established p2p connections as its read-only proof |
 
 Nothing that needs a code typed from paper (install, restore, stage,
 switch, wipe, monitor settings) is on it: those stay at the console.

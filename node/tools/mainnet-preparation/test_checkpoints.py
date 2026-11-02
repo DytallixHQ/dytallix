@@ -394,10 +394,20 @@ class EventCheckpoints(unittest.TestCase):
             {'name': 'process_kill', 'recovered_at': '2026-10-12T15:02:00+00:00'}]}, 'sentry-faults.json')
         self.assertEqual(self.record(self.restart, bind, '2026-10-12T15:10:00Z')['status'], cp.INCONCLUSIVE)
 
+    def test_the_peer_redial_is_read_from_the_peer_drop(self):
+        bind = write_event(self.base, 'faults', {'scenarios': [
+            {'name': 'peer_drop', 'recovered_at': '2026-10-12T15:20:00+00:00'}]}, 'peer-faults.json')
+        checkpoint = self.record(self.redial, bind, '2026-10-12T15:25:00Z')
+        self.assertEqual((checkpoint['status'], checkpoint['event']['end']), (cp.PASS, '2026-10-12T15:20:00+00:00'))
+
     def test_an_event_with_no_tool_yet_waits_and_never_passes(self):
+        # Every run's events have a tool now; an event without one still only waits.
+        self.assertTrue(all(tool for events in cp.RUN_EVENTS.values() for _, tool, _ in events))
+        event = {'name': 'a future event', 'tool': None, 'select': 'its tool'}
+        self.assertEqual(cp.resolve_event(event, None, self.base, NATIVE, ENGINE),
+                         (cp.INCONCLUSIVE, None, 'awaits its tool'))
         checkpoint = self.record(self.redial, None, '2026-10-12T15:00:00Z')
         self.assertEqual(checkpoint['status'], cp.INCONCLUSIVE)
-        self.assertIn('awaits', checkpoint['event']['detail'])
         self.assertEqual(checkpoint['window'], [None, None])
 
     def test_another_tool_s_evidence_is_refused(self):

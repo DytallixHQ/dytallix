@@ -49,6 +49,19 @@ class Effect(unittest.TestCase):
         self.assertFalse(faults.effect_holds('partition', {'installed': False}))
         self.assertFalse(faults.effect_holds('partition', {}))
 
+    def test_peers_effect_needs_closed_connections_that_stay_closed(self):
+        closed = ['10.77.0.11:26656 10.77.0.1:41234']
+        self.assertTrue(faults.effect_holds('peers', {'closed': closed, 'after': ['10.77.0.11:50130 10.77.0.1:26656']}))
+        self.assertTrue(faults.effect_holds('peers', {'closed': closed, 'after': []}))
+        self.assertFalse(faults.effect_holds('peers', {'closed': [], 'after': []}), 'nothing closed: a no-op')
+        self.assertFalse(faults.effect_holds('peers', {'closed': closed, 'after': closed}), 'still open')
+
+    def test_the_peer_drop_proof_reads_both_listings(self):
+        result = {'steps': [{'stdout': '0 0 10.77.0.11:26656 10.77.0.1:41234\n'},
+                            {'stdout': 'ESTAB 0 0 10.77.0.11:50130 10.77.0.1:26656 users:((x))\n'}]}
+        self.assertEqual(faults.effect_of('peer_drop', result),
+                         {'closed': ['10.77.0.11:26656 10.77.0.1:41234'], 'after': ['10.77.0.11:50130 10.77.0.1:26656']})
+
     def test_process_effect_needs_a_down_node(self):
         self.assertTrue(faults.effect_holds('process', {'active': 'inactive'}))
         self.assertFalse(faults.effect_holds('process', {'active': 'active'}))

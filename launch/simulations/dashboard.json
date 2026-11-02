@@ -7,7 +7,7 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "8a0f11838066826469b31144fe5af5dd3d382aa5ce69cbceb4baf30e2d5b704d"
+        "sha256": "75ca6962a418fc73120bd32950ac9b79e2e53e8e063ed53143cca3b4a0e067ea"
       },
       {
         "path": ".github/workflows/host-install.yml",
@@ -28,8 +28,8 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 434,
-    "approval_records": 64
+    "commits_at_as_of": 437,
+    "approval_records": 65
   },
   "phases": [
     {
@@ -456,9 +456,9 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: peer drops and host loss",
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/63",
-      "updated": "2026-10-13"
+      "value": "Built and proven in the CI staging network; still to come: host loss",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78",
+      "updated": "2026-11-02"
     },
     {
       "id": "tools.t6.ready",

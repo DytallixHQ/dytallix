@@ -225,7 +225,13 @@ class FakeChannel:
         now = time.time()
         proof = {'fault-netem': 'qdisc netem 8001: root refcnt 2 limit 1000 delay 400ms loss 5%',
                  'fault-partition': 'set blocked { type inet_service elements = { 26656 expires 1s } }',
-                 'fault-kill': 'failed', 'start': 'active', 'fault-clear': ''}[command]
+                 'fault-kill': 'failed', 'start': 'active', 'fault-clear': '',
+                 'fault-peer-drop': '0 0 10.77.0.11:50130 10.77.0.1:26656'}[command]
+        steps = [{'stdout': proof}]
+        if command == 'fault-peer-drop':
+            # ss -K lists what it closed; the nodes redial after a moment.
+            steps = [{'stdout': '0 0 10.77.0.11:26656 10.77.0.1:41234'}, {'stdout': proof}]
+            self.page.stalled_until = now + 0.3
         if command == 'fault-kill':
             self.page.down = True
         if command == 'start':
@@ -233,7 +239,7 @@ class FakeChannel:
         if command in ('fault-netem', 'fault-partition'):
             self.page.stalled_until = now + args['duration_seconds']
         self.results[self.sequence] = {'sequence': self.sequence, 'status': 'DONE', 'finished_at': now,
-                                       'steps': [{'stdout': proof}]}
+                                       'steps': steps}
         return self.sequence
 
     def wait(self, sequences, timeout=600):
@@ -263,6 +269,7 @@ class ScenarioTests(unittest.TestCase):
     SCENARIOS = (
         {'name': 'latency', 'command': 'fault-netem', 'args': {'delay_ms': 400, 'loss_percent': 5, 'duration_seconds': 1}},
         {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 1}},
+        {'name': 'peer_drop', 'command': 'fault-peer-drop', 'args': {}},
         {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
     )
 
@@ -273,12 +280,14 @@ class ScenarioTests(unittest.TestCase):
         rows = faults.run_scenarios(channel, page.read, sf.block_instant, self.SCENARIOS, result_timeout=5,
                                     recovery_timeout=10, say=lambda m: None, period=0.02, on_cleared=cleared.append)
         record = faults.build_run('c', b'{}', b'{}', rows, 120, 'sentry-1')
-        self.assertEqual([r['status'] for r in record['scenarios']], ['PASS'] * 3, record['scenarios'])
+        self.assertEqual([r['status'] for r in record['scenarios']], ['PASS'] * 4, record['scenarios'])
         self.assertEqual(faults.verify(json.loads(json.dumps(record)), b'{}', b'{}'), 'PASS')
         self.assertEqual(cleared, ['latency', 'partition'])
-        # The kill and its restart go out together; each network fault is cleaned up.
+        # The kill and its restart go out together; each self-expiring network
+        # fault is cleaned up, and the peer drop leaves nothing to clean.
         self.assertEqual(channel.commands, ['fault-netem', 'fault-clear', 'fault-partition', 'fault-clear',
-                                            'fault-kill', 'start'])
+                                            'fault-peer-drop', 'fault-kill', 'start'])
+        self.assertEqual(record['scenarios'][2]['clear'], {'mechanism': 'redial'})
         for row in record['scenarios']:
             self.assertEqual(row['clocks'], faults.CLOCKS)
             self.assertGreater(row['recovered_height'], row['height_at_clear'])
