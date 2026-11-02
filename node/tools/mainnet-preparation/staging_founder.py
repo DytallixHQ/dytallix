@@ -214,15 +214,20 @@ class Channel:
         self.say(f'== {self.host}: sent {command} {json.dumps(args)} as sequence {sequence}')
         return sequence
 
-    def open_all(self):
-        """Download and open every result not yet opened; each must be for this
-        chain and host, at the sequence its name gives, under its name's digest."""
+    def open_all(self, wanted=None):
+        """Download and open every result not yet opened, or only those of the
+        wanted sequences: on a real host each opening is a run of
+        dytallix-root-sign, and a campaign leaves hundreds of results in the
+        store. Each must be for this chain and host, at the sequence its name
+        gives, under its name's digest."""
         require(self.paper and self.signer, 'opening results needs the history code paper and dytallix-root-sign')
         for key in self.store.list(self.results):
             found = RESULT_NAME.match(key[len(self.results):])
             if not found or int(found.group(1)) in self.opened:
                 continue
             sequence = int(found.group(1))
+            if wanted is not None and sequence not in wanted:
+                continue
             status, raw = self.store.get(key)
             require(status == 200 and raw is not None, f'GET {key} answered HTTP {status}')
             require(hashlib.sha256(raw).hexdigest() == found.group(2), f'{key}: the copy does not match its name')
@@ -245,7 +250,7 @@ class Channel:
         this channel sent must carry that command file's digest."""
         deadline = self.clock() + timeout
         while True:
-            self.open_all()
+            self.open_all(set(sequences))
             if all(s in self.opened for s in sequences):
                 break
             require(self.clock() < deadline, f'{self.host}: no result for sequence(s) '
