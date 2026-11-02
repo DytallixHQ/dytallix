@@ -1392,14 +1392,16 @@ def put_file(guest, path, text, mode='0644'):
     guest.run(['sh', '-c', f'mkdir -p "$(dirname {path})" && umask 077 && cat > {path} && chmod {mode} {path}'], stdin=text)
 
 
-def founder_channel(work, guest, label, drill, unit):
+def founder_channel(work, guest, label, drill, unit, address=None):
     """The founder's side of the agent (T2), as on a real host: the staging
     command key made with the release's CLI, the agent installed beside the
     node with a read key for its own command prefix, and a channel that
     reaches the store only through its S3 API (staging_founder.py) with the
     founder's key. The stand-in store on the guest stands for the real one:
     the agent and the host's jobs use it on loopback, the founder over the
-    network, which this CI-only rule opens to the runner alone."""
+    network, which this CI-only rule opens to the runner alone. On the runner
+    itself (the validator) the founder reaches it at `address`, its loopback,
+    which the host firewall already accepts."""
     passphrase = drill / 'passphrase'
     descriptor = os.open(passphrase, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(descriptor, 'w') as file:
@@ -1418,11 +1420,12 @@ def founder_channel(work, guest, label, drill, unit):
                '--port', str(STANDIN_PORT), '--bind', '0.0.0.0', '--access-key-id', UPLOAD['access_key_id'],
                '--access-key-id', HISTORY_UPLOAD['access_key_id'], '--read-key-id', COMMAND_STORE['access_key_id'],
                '--founder-key-id', FOUNDER_STORE['access_key_id']])
-    # The host firewall drops what it does not list; let the runner reach the
-    # stand-in (absent the table, the port is open anyway).
-    guest.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES['validator-1'],
-               'tcp', 'dport', str(STANDIN_PORT), 'accept'], check=False)
-    wait_standin(guest, unit)
+    if address is None:
+        # The host firewall drops what it does not list; let the runner reach the
+        # stand-in (absent the table, the port is open anyway).
+        guest.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES['validator-1'],
+                   'tcp', 'dport', str(STANDIN_PORT), 'accept'], check=False)
+    wait_standin(guest, unit, address=address or ADDRESSES[PUBLIC])
     for name in ('agent.py', 'ALLOWLIST.json'):
         put_file(guest, f'/root/agent/{name}', (staging_command.AGENT_DIR / name).read_text())
     put_file(guest, '/root/agent-settings.json', (drill / 'settings.json').read_text(), '0600')
@@ -1440,14 +1443,15 @@ def founder_channel(work, guest, label, drill, unit):
         guest.run(['systemctl', 'start', 'dytallix-agent.service'], timeout=600, check=False)
         time.sleep(min(seconds, 3))
 
-    store = staging_founder.Store(staging_founder.check_store(FOUNDER_STORE, standin=True), drill / 'store-scratch')
+    founder = FOUNDER_STORE if address is None else dict(FOUNDER_STORE, endpoint=f'http://{address}:{STANDIN_PORT}')
+    store = staging_founder.Store(staging_founder.check_store(founder, standin=True), drill / 'store-scratch')
     return staging_founder.Channel(store, staging_host.CHAIN_ID, label, drill / 'results', cli, home, key, paper,
                                    work / 'release-bin' / 'dytallix-root-sign', sleep=poll_now, say=say)
 
 
-def wait_standin(guest, unit, timeout=60):
+def wait_standin(guest, unit, timeout=60, address=ADDRESSES[PUBLIC]):
     """The stand-in answers on the guest's loopback (where the agent reaches it)
-    and from the runner (where the founder's side does)."""
+    and from the runner at `address` (where the founder's side does)."""
     deadline = time.monotonic() + timeout
     probe = 'import socket, sys; socket.create_connection((sys.argv[1], int(sys.argv[2])), 3)'
     while True:
@@ -1460,10 +1464,10 @@ def wait_standin(guest, unit, timeout=60):
             raise Failed(f'the stand-in store ({unit}) never listened on port {STANDIN_PORT}:\n{state}\n{journal}')
         time.sleep(1)
     try:
-        socket.create_connection((ADDRESSES[PUBLIC], STANDIN_PORT), 5).close()
+        socket.create_connection((address, STANDIN_PORT), 5).close()
     except OSError as error:
         _, rules, _ = guest.run(['nft', 'list', 'ruleset'], check=False)
-        raise Failed(f'the runner cannot reach the stand-in at {ADDRESSES[PUBLIC]}:{STANDIN_PORT} ({error}); '
+        raise Failed(f'the runner cannot reach the stand-in at {address}:{STANDIN_PORT} ({error}); '
                      f'the guest ruleset:\n{rules}')
 
 
@@ -1911,7 +1915,8 @@ def fault_drill(work, label='sentry-1', timeout=300):
     writes digest-bound evidence that `faults.py verify` re-evaluates, judged
     against the approved recovery target (launch/simulations/TIMINGS.json,
     fault_recovery_target_seconds). CI also checks, outside the evidence, that
-    the host's own dead-man removed each network fault."""
+    the host's own dead-man removed each network fault. Then the validator's
+    process restart (validator_restart) runs on the validator."""
     work = Path(work)
     guest = agent(work, label)
     drill = work / 'fault-drill'
@@ -1956,6 +1961,50 @@ def fault_drill(work, label='sentry-1', timeout=300):
     close_founder_channel(guest, unit)
     say(f'== {label}: latency, loss, a p2p partition and a process kill each took hold and the sentry caught back up '
         f'within the {target} s recovery target, measured through the public paths only (the run is {status})')
+    restart = validator_restart(work, drill, guest, native, engine, timeout)
+    say(f'== validator-1: its process killed through its own agent and started again; blocks resumed within the '
+        f'approved 5-minute target (the run is {restart})')
+
+
+def validator_restart(work, drill, sentry, native, engine, timeout=300):
+    """R02's validator process restart (T5) on the validator, here the runner,
+    through its own agent, as on a real host (faults.py run --host validator-1
+    --scenarios validator_restart): the agent kills the node's main process and
+    starts it again. With one validator the chain halts while it is down, so
+    recovery is the next block the sentry's public status page serves, judged
+    against the approved 5-minute target (TIMINGS.json
+    validator_restart_target_seconds). Its evidence is its own file, beside the
+    sentry's. The agent is removed and the stand-in stopped even on a failure,
+    since later steps install on this host."""
+    label, host = 'validator-1', reconcile.LocalHost()
+    sub = drill / label
+    sub.mkdir()
+    unit = 'dytallix-store-standin-validator'
+    _, listening, _ = host.run(['ss', '-ltnH', 'sport', '=', f':{STANDIN_PORT}'], check=False)
+    if listening.strip():
+        raise Failed(f'port {STANDIN_PORT} is already in use on the runner: {listening.strip()}')
+    put_file(host, '/root/s3_standin.py', (HERE / 's3_standin.py').read_text())
+    timings = json.loads((Path(__file__).resolve().parents[3] / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())
+    target = timings['validator_restart_target_seconds']
+    try:
+        channel = founder_channel(work, host, label, sub, unit, address='127.0.0.1')
+        url = f'http://{ADDRESSES[PUBLIC]}:8080/status'
+        rows = faults.run_scenarios(channel, lambda: staging_founder.status_page(url), staging_founder.block_instant,
+                                    faults.VALIDATOR_SCENARIOS, result_timeout=timeout, recovery_timeout=timeout,
+                                    say=say)
+        record = faults.build_run(staging_host.CHAIN_ID, native, engine, rows, target, label)
+        (sub / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
+        status = faults.verify(json.loads((sub / 'evidence.json').read_bytes()), native, engine)
+    finally:
+        host.run(['python3', '-I', '-B', '/root/agent/agent.py', 'remove'], check=False)
+        host.run(['systemctl', 'stop', unit], check=False)
+    row = record['scenarios'][0]
+    say(f'== validator_restart: {row["status"]} ({row["detail"]})')
+    if status == faults.FAIL:
+        raise Failed(f'the validator restart is {status}')
+    # The steps after this one start from a live chain.
+    wait_height(sentry, PUBLIC, (guest_height(sentry) or 0) + 2, timeout)
+    return status
 
 
 def diagnostics(work):

@@ -82,7 +82,7 @@ EVENT_CHECKS = ['Verify state consistency across validators.', 'Verify token sup
 # readings). A tool of None records no end yet; the text names what it awaits.
 RUN_EVENTS = {
     'R01': [],
-    'R02': [('the validator process restarted', None, 'a validator restart drill'),
+    'R02': [('the validator process restarted', 'faults', 'validator_restart'),
             ('the sentry stopped and restored', 'faults', 'process_kill'),
             ('the peer connections redialed', None, 'the fault injector\'s peer drops (T5)'),
             ('the sentry restored from its snapshot', 'restore', 'caught_up_at'),

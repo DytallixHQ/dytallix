@@ -10,6 +10,8 @@
   "restore_trust_basis": "A restore trusts the copy's header for the evidence age less a fourteenth of it (dytallix-pqc-engine restore.go; P01, 8 and 12 October 2026).",
   "fault_recovery_target_seconds": 120,
   "fault_recovery_target_basis": "The fault injector's acceptance (T5): the sentry must catch back up to the validator within 120 seconds after a transient fault clears. The staging drill measured 13 to 21 seconds, so this is about six times the observed worst case (roughly two dozen 5-second block intervals). This is the rehearsal acceptance for transient faults only; it is stricter than and distinct from the six-hour per-host readiness catch-up budget (E05 catch_up_millis) used by the supervisor for a node rejoining from far behind. P01, 13 October 2026; launch/approvals/P01_E05_FAULT_RECOVERY_2026-10-13.json.",
+  "validator_restart_target_seconds": 300,
+  "validator_restart_target_basis": "The validator process restart's acceptance (T5, R02): blocks again within 5 minutes of a validator process restart, read on the sentry's public status page as the first block made after the restart. The simulation plan's approved recovery threshold (P01, 11 October 2026; launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json, \"blocks again within 5 minutes of a validator process restart\"), recorded here as a number; with one validator the chain halts while it is down, so this is the time from the restart to the next block.",
   "run_seconds": 86400,
   "profiles": {
     "production": {
