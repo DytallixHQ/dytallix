@@ -64,6 +64,7 @@ fn run() -> Result<()> {
     if let Err(error) = &finished {
         report["failure"] = dytallix_native_supervisor::startup_diagnostic::record(error);
     }
+    report["application_failure_class"] = dytallix_native_supervisor::startup_diagnostic::application_failure_class(&report);
     let output = sink.emit(&report, false);
     match (finished, output) {
         (result, Ok(())) => result,

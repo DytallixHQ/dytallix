@@ -84,6 +84,19 @@ pub(crate) fn child_exit_record(exit: &OwnedChildExit) -> Value {
         "observation_errno":exit.observation.observation_errno,
         "source":"WAITID_WEXITED_WNOHANG_WNOWAIT","reaped_by_observation":false})
 }
+/// The application's failure class for the final report: from the failure's
+/// child exit when the application stopped first, else from its own exit
+/// during the stop that followed (the engine stops itself first on a failed
+/// block). Only an application that exited names a class; one killed by a
+/// signal, or never seen to exit, gives null.
+pub fn application_failure_class(report: &Value) -> Value {
+    let application = Role::Application.as_str();
+    std::iter::once(&report["failure"]["child_exit"])
+        .chain(report["stop_exits"].as_array().into_iter().flatten())
+        .find(|exit| exit["role"] == application && exit["classification"] == "EXITED")
+        .map(|exit| exit["application_failure_class"].clone())
+        .unwrap_or(Value::Null)
+}
 #[derive(Debug)]
 pub struct ReadinessExpired;
 impl std::fmt::Display for ReadinessExpired { fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result { f.write_str("Readiness deadline exceeded") } }
@@ -173,6 +186,20 @@ mod exit_record_tests {
         assert!(row(Role::Application,1,1).is_null());assert!(row(Role::Application,2,12).is_null());assert!(row(Role::Engine,1,12).is_null());
         let error=dytallix_fast_node::failure_class::classify::<()>(Err(anyhow::anyhow!("private detail")),FailureClass::History).unwrap_err();
         let record=record(&error);assert_eq!(record["failure_class"],"history");assert!(!record.to_string().contains("private"));
+    }
+    #[test]
+    fn the_report_names_the_application_class_from_whichever_exit_it_has() {
+        let exit=|role:Role,classification:&str,class:Value|json!({"role":role.as_str(),"classification":classification,"application_failure_class":class});
+        // The application stopped first.
+        let report=json!({"failure":{"child_exit":exit(Role::Application,"EXITED",json!("supply"))},"stop_exits":[]});
+        assert_eq!(application_failure_class(&report),"supply");
+        // The engine stopped first; the application exited with its class during the stop.
+        let report=json!({"failure":{"child_exit":exit(Role::Engine,"EXITED",Value::Null)},"stop_exits":[exit(Role::Bridge,"EXITED",Value::Null),exit(Role::Application,"EXITED",json!("release"))]});
+        assert_eq!(application_failure_class(&report),"release");
+        // Killed by the stop's signal, or never seen to exit: no class.
+        let report=json!({"failure":{"child_exit":exit(Role::Engine,"EXITED",Value::Null)},"stop_exits":[exit(Role::Application,"KILLED",Value::Null)]});
+        assert!(application_failure_class(&report).is_null());
+        assert!(application_failure_class(&json!({"stop_exits":[]})).is_null());
     }
     #[test]
     fn missing_wait_status_does_not_invent_signal_or_code() {

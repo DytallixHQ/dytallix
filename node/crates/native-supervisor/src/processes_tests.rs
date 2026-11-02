@@ -338,6 +338,25 @@ mod linux {
         owner.shutdown().unwrap();
     }
     #[test]
+    fn the_stop_records_the_application_exit_and_its_class() {
+        // The engine stops itself first on a failed block; the application
+        // then exits with its class during the stop, which the report keeps.
+        let fixture = Fixture::new(true);
+        let mut owner = fixture.owner();
+        owner.start_application(&["--fixture-failed-release".into()]).unwrap();
+        probe(&mut owner);
+        owner.shutdown().unwrap();
+        let exits = owner.stop_exits().to_vec();
+        assert_eq!(exits.len(), 1, "{exits:?}");
+        assert_eq!(exits[0]["role"], crate::processes::Role::Application.as_str());
+        assert_eq!(exits[0]["classification"], "EXITED");
+        assert_eq!(exits[0]["si_status"], 14);
+        assert_eq!(exits[0]["application_failure_class"], "release");
+        let report = serde_json::json!({"failure": {"child_exit": {"role": crate::processes::Role::Engine.as_str(),
+            "classification": "EXITED", "application_failure_class": null}}, "stop_exits": exits});
+        assert_eq!(crate::startup_diagnostic::application_failure_class(&report), "release");
+    }
+    #[test]
     fn owned_application_probe_maps_and_exact_descriptor_environment_isolation() {
         let fixture = Fixture::new(true);
         let mut owner = fixture.owner();
