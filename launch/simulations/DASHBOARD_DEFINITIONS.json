@@ -1,0 +1,1658 @@
+{
+  "schema": "dytallix.launch-dashboard-definitions.v1",
+  "about": "What launch_dashboard.py builds launch/simulations/dashboard.json from (node/tools/mainnet-preparation; the page is dytallix.com/developers/launch). Each KPI names its source: an approval record, a tool (built on the date given, proven by its CI step named \"(Tn)\" in host-install.yml, with any scope still to come), or results, read from signed result summaries once the collector publishes them; until then a result KPI is planned. results false marks a KPI that does not apply to its run.",
+  "planned_on": "2026-10-11",
+  "project_since": "2026-09-26",
+  "schema_rules": [
+    "No IP addresses or host names of launch servers.",
+    "No private keys, seeds or secrets.",
+    "No names of root key holders; holders are kit holder 1 to 5.",
+    "Attack results are counts and pass or fail only; details follow only after a fix.",
+    "Evidence links point only to github.com/DytallixHQ/dytallix."
+  ],
+  "phases": [
+    {
+      "id": "plan",
+      "order": 1,
+      "name": "Simulation plan",
+      "summary": "The seven runs, their pass criteria, timings, host access, load source and the statistical campaign, approved as one decision record.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json"
+    },
+    {
+      "id": "tools",
+      "order": 2,
+      "name": "Simulation tools",
+      "summary": "Nine tools (T1 to T9) that build rehearsal genesis, drive the hosts, generate load and attacks, inject faults and record evidence. Each is proven in the CI staging network first.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#tools-to-build-a3"
+    },
+    {
+      "id": "staging",
+      "order": 3,
+      "name": "Staging on production hosts",
+      "summary": "The two production hosts, the validator and the sentry, run the peer tests, the capacity measurements and the root kit drills with rehearsal identities.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/GENESIS_FRAMEWORK.md#6-order-of-work"
+    },
+    {
+      "id": "campaign",
+      "order": 4,
+      "name": "Statistical campaign",
+      "summary": "Thousands of attack attempts per type, repeated faults and an endurance run of at least 15 days, so results carry statistical confidence.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "review",
+      "order": 5,
+      "name": "Freeze, audit and public review",
+      "summary": "The release candidate is frozen, audited by Hashlock and opened to a 30-day public review with a DGT bug bounty. Every finding is fixed or answered on the record.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_AUDIT_2026-10-10.json"
+    },
+    {
+      "id": "runs",
+      "order": 6,
+      "name": "Seven launch simulations",
+      "summary": "Seven full launches (R01 to R07) on the final candidate, each from clean hosts and a fresh rehearsal genesis, each operating for 24 hours.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "checkpoints",
+      "order": 7,
+      "name": "Dress rehearsal checkpoints",
+      "summary": "R07 follows the exact production launch procedure, with checks from six hours before genesis to 24 hours after.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "genesis",
+      "order": 8,
+      "name": "Genesis",
+      "summary": "The final inputs are frozen, the release and genesis are reproduced byte for byte, three of five root kits sign, and the founder signs off.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/GENESIS_FRAMEWORK.md#6-order-of-work"
+    }
+  ],
+  "groups": [
+    {
+      "id": "D14-Q02",
+      "phase": "plan",
+      "name": "Simulation plan decision",
+      "summary": "Pass criteria, timings, host access, load source and the statistical campaign."
+    },
+    {
+      "id": "T1",
+      "phase": "tools",
+      "name": "Spendable rehearsal genesis",
+      "summary": "Real keys for every allocation row and the wallet fleet, a fresh chain ID per run and the recorded mapping."
+    },
+    {
+      "id": "T2",
+      "phase": "tools",
+      "name": "Staging agent and real-host harness",
+      "summary": "Signed, allowlisted commands on console-only hosts, and the drills' assertions against real hosts."
+    },
+    {
+      "id": "T3",
+      "phase": "tools",
+      "name": "Load generator and wallet fleet",
+      "summary": "Workers that sign locally, track nonces and send the transaction mix through the public client channel."
+    },
+    {
+      "id": "T4",
+      "phase": "tools",
+      "name": "Adversarial generator",
+      "summary": "Invalid signatures, bad encodings, bad nonces, duplicates, oversized requests and floods."
+    },
+    {
+      "id": "T5",
+      "phase": "tools",
+      "name": "Fault injector",
+      "summary": "Latency, packet loss, partitions, peer drops, process kills and host loss, each with recovery timing."
+    },
+    {
+      "id": "T6",
+      "phase": "tools",
+      "name": "Reconciliation report",
+      "summary": "Every node's app hash and supply compared at a height; genesis plus emitted minus burned; fees against burns."
+    },
+    {
+      "id": "T7",
+      "phase": "tools",
+      "name": "Checkpoint recorder",
+      "summary": "Runs each checkpoint's checks, including one after each fault, upgrade and load window, and writes evidence bound to the candidate's digests."
+    },
+    {
+      "id": "T8",
+      "phase": "tools",
+      "name": "Upgrade drill",
+      "summary": "Builds the next release for a running chain and runs the signed handover and upgrade end to end."
+    },
+    {
+      "id": "T9",
+      "phase": "tools",
+      "name": "Validator recovery drill",
+      "summary": "Fences, reinstalls and resynchronizes a lost validator host and times it against the target."
+    },
+    {
+      "id": "hosts",
+      "phase": "staging",
+      "name": "Production hosts",
+      "summary": "The validator and the sentry, the public node."
+    },
+    {
+      "id": "E03",
+      "phase": "staging",
+      "name": "Peer tests",
+      "summary": "The negative peer suite against the real transport."
+    },
+    {
+      "id": "T05",
+      "phase": "staging",
+      "name": "Capacity",
+      "summary": "Throughput measured on the real hosts."
+    },
+    {
+      "id": "kits",
+      "phase": "staging",
+      "name": "Root kits",
+      "summary": "Three-of-five control signing with rehearsal kits."
+    },
+    {
+      "id": "transactions",
+      "phase": "campaign",
+      "name": "Transactions",
+      "summary": "Invalid, wrong-key and truncated ML-DSA-65 signatures; malformed and oversized envelopes; wrong chain; expired, stale and conflicting nonces; duplicates; fee caps below the minimum; overspending."
+    },
+    {
+      "id": "staking",
+      "phase": "campaign",
+      "name": "Staking",
+      "summary": "Bonds below the minimum or to unknown validators, over-unbonding, early withdrawal, repeated reward claims, bad validator registrations."
+    },
+    {
+      "id": "governance",
+      "phase": "campaign",
+      "name": "Governance",
+      "summary": "Proposals below the deposit, votes without a bond, repeated or late votes, replayed execution, out-of-bounds parameter changes."
+    },
+    {
+      "id": "root_controls",
+      "phase": "campaign",
+      "name": "Root controls",
+      "summary": "Too few signatures, keys from the wrong epoch, replayed sequences, expired windows, non-canonical encoding."
+    },
+    {
+      "id": "recovery",
+      "phase": "campaign",
+      "name": "Account recovery",
+      "summary": "Replayed and wrong-key recovery transactions."
+    },
+    {
+      "id": "endpoint_rpc",
+      "phase": "campaign",
+      "name": "Endpoint and RPC",
+      "summary": "Oversized bodies, connection floods beyond the limits, slow clients, invalid handshakes, methods outside the allowlist."
+    },
+    {
+      "id": "network",
+      "phase": "campaign",
+      "name": "Network",
+      "summary": "Latency, packet loss, partitions, peer instability, wrong-key and malformed peers."
+    },
+    {
+      "id": "faults",
+      "phase": "campaign",
+      "name": "Faults and recovery",
+      "summary": "Quick faults about 30 times each, heavy faults 3 to 5 times, with recovery times recorded as distributions."
+    },
+    {
+      "id": "performance",
+      "phase": "campaign",
+      "name": "Performance",
+      "summary": "Block intervals, inclusion delay and response times over the endurance run."
+    },
+    {
+      "id": "endurance",
+      "phase": "campaign",
+      "name": "Endurance",
+      "summary": "At least 15 days continuous at the exact production values."
+    },
+    {
+      "id": "E06",
+      "phase": "review",
+      "name": "Release freeze",
+      "summary": "The candidate under review."
+    },
+    {
+      "id": "hashlock",
+      "phase": "review",
+      "name": "Hashlock audit",
+      "summary": "Independent security audit of the frozen candidate."
+    },
+    {
+      "id": "public",
+      "phase": "review",
+      "name": "Public review",
+      "summary": "30 days with a DGT bug bounty."
+    },
+    {
+      "id": "findings",
+      "phase": "review",
+      "name": "Findings",
+      "summary": "Audit, public and AI review findings."
+    },
+    {
+      "id": "ai",
+      "phase": "review",
+      "name": "AI review",
+      "summary": "Adversarial review by an AI model, labeled as AI."
+    },
+    {
+      "id": "R01",
+      "phase": "runs",
+      "name": "Clean genesis",
+      "summary": "The full launch with rehearsal identities: genesis, wallets, staking, transfers, fees and rewards, with supply reconciled at each checkpoint."
+    },
+    {
+      "id": "R02",
+      "phase": "runs",
+      "name": "Infrastructure failure",
+      "summary": "Process kills, the sentry stopped and restored, a destroyed sentry, a network cut and a lost validator host, each recovered and checked."
+    },
+    {
+      "id": "R03",
+      "phase": "runs",
+      "name": "Adversarial network",
+      "summary": "Latency, packet loss, a partition, malformed and invalid transactions and request floods from outside machines."
+    },
+    {
+      "id": "R04",
+      "phase": "runs",
+      "name": "Production upgrade",
+      "summary": "A signed release handover and state upgrade from one candidate to the next, with state checked before and after."
+    },
+    {
+      "id": "R05",
+      "phase": "runs",
+      "name": "Operator error",
+      "summary": "Wrong configuration, binary, network, genesis, peers and versions, and a second copy of the validator key. Each must be refused or harmless."
+    },
+    {
+      "id": "R06",
+      "phase": "runs",
+      "name": "Load and economic activity",
+      "summary": "1,000 wallets, sustained load at full and half capacity, staking, governance and malformed traffic mixed in."
+    },
+    {
+      "id": "R07",
+      "phase": "runs",
+      "name": "Final dress rehearsal",
+      "summary": "The exact production launch procedure with production values, from six hours before genesis to 24 hours after."
+    },
+    {
+      "id": "T-6h",
+      "phase": "checkpoints",
+      "name": "Six hours before",
+      "summary": "Binaries, genesis, allocations, supply, validators, infrastructure, monitoring and backups."
+    },
+    {
+      "id": "T-1h",
+      "phase": "checkpoints",
+      "name": "One hour before",
+      "summary": "Genesis and binary hashes, peers, clocks, keys, configuration and parameters."
+    },
+    {
+      "id": "T0",
+      "phase": "checkpoints",
+      "name": "Genesis",
+      "summary": "Start, consensus, block production and validator participation."
+    },
+    {
+      "id": "T+15m",
+      "phase": "checkpoints",
+      "name": "Fifteen minutes after",
+      "summary": "RPC, wallets, a PQC transaction, DRT and DGT transfers, a delegation, fees and finality."
+    },
+    {
+      "id": "T+1h",
+      "phase": "checkpoints",
+      "name": "One hour after",
+      "summary": "State consistency across nodes, wallets, staking, rewards, supply and monitoring."
+    },
+    {
+      "id": "T+6h",
+      "phase": "checkpoints",
+      "name": "Six hours after",
+      "summary": "Telemetry, logs, participation, accounting, transactions, alerts and staking."
+    },
+    {
+      "id": "T+24h",
+      "phase": "checkpoints",
+      "name": "24 hours after",
+      "summary": "Full supply reconciliation, validator review and final state review."
+    },
+    {
+      "id": "freeze",
+      "phase": "genesis",
+      "name": "Input freeze",
+      "summary": "Allocation ledger and genesis time."
+    },
+    {
+      "id": "reproduce",
+      "phase": "genesis",
+      "name": "Reproduction",
+      "summary": "Release and genesis rebuilt independently."
+    },
+    {
+      "id": "root",
+      "phase": "genesis",
+      "name": "Root signatures",
+      "summary": "Three of five kits sign the genesis."
+    }
+  ],
+  "kpis": [
+    {
+      "id": "plan.d14_q02.approval",
+      "phase": "plan",
+      "group": "D14-Q02",
+      "name": "Plan approved",
+      "measures": "Whether the pass criteria, timings, host access, load source and statistical campaign are fixed in an approval record before any run.",
+      "why": "Thresholds set before the runs cannot be adjusted to fit the results.",
+      "threshold": "One approval record covering all six decisions",
+      "unit": null,
+      "source": {
+        "approval": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json"
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json"
+    },
+    {
+      "id": "tools.t1.ready",
+      "phase": "tools",
+      "group": "T1",
+      "name": "Spendable rehearsal genesis",
+      "measures": "Real keys for every allocation row and the wallet fleet, a fresh chain ID per run and the recorded mapping.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T1",
+        "built": "2026-10-12",
+        "remaining": null
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/58"
+    },
+    {
+      "id": "tools.t2.ready",
+      "phase": "tools",
+      "group": "T2",
+      "name": "Staging agent and real-host harness",
+      "measures": "Signed, allowlisted commands on console-only hosts, and the drills' assertions against real hosts.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T2",
+        "built": "2026-10-20",
+        "remaining": null
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/68"
+    },
+    {
+      "id": "tools.t3.ready",
+      "phase": "tools",
+      "group": "T3",
+      "name": "Load generator and wallet fleet",
+      "measures": "Workers that sign locally, track nonces and send the transaction mix through the public client channel.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T3",
+        "built": "2026-10-12",
+        "remaining": null
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/60"
+    },
+    {
+      "id": "tools.t4.ready",
+      "phase": "tools",
+      "group": "T4",
+      "name": "Adversarial generator",
+      "measures": "Invalid signatures, bad encodings, bad nonces, duplicates, oversized requests and floods.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T4",
+        "built": "2026-10-14",
+        "remaining": "duplicates, re-signed copies and request and transaction floods, with the load machines (R03)"
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64"
+    },
+    {
+      "id": "tools.t5.ready",
+      "phase": "tools",
+      "group": "T5",
+      "name": "Fault injector",
+      "measures": "Latency, packet loss, partitions, peer drops, process kills and host loss, each with recovery timing.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T5",
+        "built": "2026-10-13",
+        "remaining": "peer drops and host loss"
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/63"
+    },
+    {
+      "id": "tools.t6.ready",
+      "phase": "tools",
+      "group": "T6",
+      "name": "Reconciliation report",
+      "measures": "Every node's app hash and supply compared at a height; genesis plus emitted minus burned; fees against burns.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T6",
+        "built": "2026-10-20",
+        "remaining": null
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/68"
+    },
+    {
+      "id": "tools.t7.ready",
+      "phase": "tools",
+      "group": "T7",
+      "name": "Checkpoint recorder",
+      "measures": "Runs each checkpoint's checks, including one after each fault, upgrade and load window, and writes evidence bound to the candidate's digests.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T7",
+        "built": "2026-11-02",
+        "remaining": null
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/74"
+    },
+    {
+      "id": "tools.t8.ready",
+      "phase": "tools",
+      "group": "T8",
+      "name": "Upgrade drill",
+      "measures": "Builds the next release for a running chain and runs the signed handover and upgrade end to end.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T8",
+        "built": "2026-10-29",
+        "remaining": "a cancel before activation, a late sentry and a return handover"
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/72"
+    },
+    {
+      "id": "tools.t9.ready",
+      "phase": "tools",
+      "group": "T9",
+      "name": "Validator recovery drill",
+      "measures": "Fences, reinstalls and resynchronizes a lost validator host and times it against the target.",
+      "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
+      "threshold": "Built and passing in the CI staging network",
+      "unit": null,
+      "source": {
+        "tool": "T9",
+        "built": "2026-10-28",
+        "remaining": "each step's time recorded at the real hosts' consoles"
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/69"
+    },
+    {
+      "id": "staging.hosts.ready",
+      "phase": "staging",
+      "group": "hosts",
+      "name": "Production hosts in service",
+      "measures": "The validator and sentry servers installed from sealed rehearsal bundles. The sentry is the one public node.",
+      "why": "Simulations only count on the hardware and network the mainnet will use.",
+      "threshold": "2 of 2 hosts; validator and sentry in different countries",
+      "unit": "count",
+      "target": 2,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json"
+    },
+    {
+      "id": "staging.e03.peer_tests",
+      "phase": "staging",
+      "group": "E03",
+      "name": "Negative peer tests",
+      "measures": "Wrong-key, malformed and unexpected peers against the production hosts' post-quantum transport.",
+      "why": "Only approved peers may reach the validator. A peer that should be refused must be refused.",
+      "threshold": "Every case refused as specified",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/e03-negative-peer-method.md"
+    },
+    {
+      "id": "staging.t05.capacity",
+      "phase": "staging",
+      "group": "T05",
+      "name": "Measured capacity",
+      "measures": "Basic transfers per block the hosts sustain within the approved queue and connection limits.",
+      "why": "The load thresholds in R06 depend on a capacity measured on the real hosts, not estimated.",
+      "threshold": "Confirms about 180 basic Sends a block",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json"
+    },
+    {
+      "id": "staging.kits.drill",
+      "phase": "staging",
+      "group": "kits",
+      "name": "Root kit drill",
+      "measures": "Three of five rehearsal kits prepare, sign and submit a root control end to end.",
+      "why": "Upgrades and emergency controls need three kit holders acting together. The procedure is rehearsed before it is needed.",
+      "threshold": "Control admitted with 3 of 5 signatures",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json"
+    },
+    {
+      "id": "campaign.transactions.attempts",
+      "phase": "campaign",
+      "group": "transactions",
+      "name": "Transactions: attempts",
+      "measures": "Attempts made per attack type. Covers: Invalid, wrong-key and truncated ML-DSA-65 signatures; malformed and oversized envelopes; wrong chain; expired, stale and conflicting nonces; duplicates; fee caps below the minimum; overspending.",
+      "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
+      "threshold": "At least 3,000 per attack type",
+      "unit": "count",
+      "target": 3000,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.transactions.successes",
+      "phase": "campaign",
+      "group": "transactions",
+      "name": "Transactions: successes",
+      "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.staking.attempts",
+      "phase": "campaign",
+      "group": "staking",
+      "name": "Staking: attempts",
+      "measures": "Attempts made per attack type. Covers: Bonds below the minimum or to unknown validators, over-unbonding, early withdrawal, repeated reward claims, bad validator registrations.",
+      "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
+      "threshold": "At least 3,000 per attack type",
+      "unit": "count",
+      "target": 3000,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.staking.successes",
+      "phase": "campaign",
+      "group": "staking",
+      "name": "Staking: successes",
+      "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.governance.attempts",
+      "phase": "campaign",
+      "group": "governance",
+      "name": "Governance: attempts",
+      "measures": "Attempts made per attack type. Covers: Proposals below the deposit, votes without a bond, repeated or late votes, replayed execution, out-of-bounds parameter changes.",
+      "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
+      "threshold": "At least 3,000 per attack type",
+      "unit": "count",
+      "target": 3000,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.governance.successes",
+      "phase": "campaign",
+      "group": "governance",
+      "name": "Governance: successes",
+      "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.root_controls.attempts",
+      "phase": "campaign",
+      "group": "root_controls",
+      "name": "Root controls: attempts",
+      "measures": "Attempts made per attack type. Covers: Too few signatures, keys from the wrong epoch, replayed sequences, expired windows, non-canonical encoding.",
+      "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
+      "threshold": "At least 3,000 per attack type",
+      "unit": "count",
+      "target": 3000,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.root_controls.successes",
+      "phase": "campaign",
+      "group": "root_controls",
+      "name": "Root controls: successes",
+      "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.recovery.attempts",
+      "phase": "campaign",
+      "group": "recovery",
+      "name": "Account recovery: attempts",
+      "measures": "Attempts made per attack type. Covers: Replayed and wrong-key recovery transactions.",
+      "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
+      "threshold": "At least 3,000 per attack type",
+      "unit": "count",
+      "target": 3000,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.recovery.successes",
+      "phase": "campaign",
+      "group": "recovery",
+      "name": "Account recovery: successes",
+      "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.endpoint_rpc.attempts",
+      "phase": "campaign",
+      "group": "endpoint_rpc",
+      "name": "Endpoint and RPC: attempts",
+      "measures": "Attempts made per attack type. Covers: Oversized bodies, connection floods beyond the limits, slow clients, invalid handshakes, methods outside the allowlist.",
+      "why": "Connection- and network-level attacks are slower to run; about 30 repetitions each show consistent behavior.",
+      "threshold": "About 30 per attack type",
+      "unit": "count",
+      "target": 30,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.endpoint_rpc.successes",
+      "phase": "campaign",
+      "group": "endpoint_rpc",
+      "name": "Endpoint and RPC: successes",
+      "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.network.attempts",
+      "phase": "campaign",
+      "group": "network",
+      "name": "Network: attempts",
+      "measures": "Attempts made per attack type. Covers: Latency, packet loss, partitions, peer instability, wrong-key and malformed peers.",
+      "why": "Connection- and network-level attacks are slower to run; about 30 repetitions each show consistent behavior.",
+      "threshold": "About 30 per attack type",
+      "unit": "count",
+      "target": 30,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.network.successes",
+      "phase": "campaign",
+      "group": "network",
+      "name": "Network: successes",
+      "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.faults.validator_restart",
+      "phase": "campaign",
+      "group": "faults",
+      "name": "Validator restart",
+      "measures": "Time from a validator process restart to the next committed block. The chain has one validator, so it pauses meanwhile. About 30 repetitions; recorded as a distribution.",
+      "why": "Recovery targets are what users can expect from a one-validator launch. Repeated measurement shows the spread, not one lucky run.",
+      "threshold": "Blocks again within 5 minutes, every time",
+      "unit": "s",
+      "target": 300,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.faults.network_heal",
+      "phase": "campaign",
+      "group": "faults",
+      "name": "Network heal",
+      "measures": "Time for the sentry to catch up after a network cut is restored. About 30 repetitions; recorded as a distribution.",
+      "why": "Recovery targets are what users can expect from a one-validator launch. Repeated measurement shows the spread, not one lucky run.",
+      "threshold": "Caught up within 2 minutes, every time",
+      "unit": "s",
+      "target": 120,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.faults.sentry_rebuild",
+      "phase": "campaign",
+      "group": "faults",
+      "name": "Sentry rebuild",
+      "measures": "Time to rebuild a destroyed sentry, the public node, from its snapshot. 3 to 5 repetitions; recorded as a distribution.",
+      "why": "Recovery targets are what users can expect from a one-validator launch. Repeated measurement shows the spread, not one lucky run.",
+      "threshold": "Within 4 hours",
+      "unit": "s",
+      "target": 14400,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.faults.validator_host",
+      "phase": "campaign",
+      "group": "faults",
+      "name": "Validator host recovery",
+      "measures": "Time to recover a lost validator host by the fence-first procedure. 3 to 5 repetitions; recorded as a distribution.",
+      "why": "Recovery targets are what users can expect from a one-validator launch. Repeated measurement shows the spread, not one lucky run.",
+      "threshold": "Within 8 hours",
+      "unit": "s",
+      "target": 28800,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.faults.alerts",
+      "phase": "campaign",
+      "group": "faults",
+      "name": "Fault alerts",
+      "measures": "Injected faults that raised their alert and resolved it after recovery.",
+      "why": "The founder runs the chain alone. An outage that does not alert can last until someone notices.",
+      "threshold": "100% of injected faults",
+      "unit": "%",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.performance.block_interval_p50",
+      "phase": "campaign",
+      "group": "performance",
+      "name": "Block interval, median",
+      "measures": "Seconds between consecutive committed blocks, outside injected faults. A day gives about 17,280 blocks.",
+      "why": "Block interval is how long a user waits for a transaction to be final. The tail matters as much as the median.",
+      "threshold": "At most 6 s",
+      "unit": "s",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.performance.block_interval_p95",
+      "phase": "campaign",
+      "group": "performance",
+      "name": "Block interval, 95th percentile",
+      "measures": "Seconds between consecutive committed blocks, outside injected faults. A day gives about 17,280 blocks.",
+      "why": "Block interval is how long a user waits for a transaction to be final. The tail matters as much as the median.",
+      "threshold": "Recorded",
+      "unit": "s",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.performance.block_interval_p99",
+      "phase": "campaign",
+      "group": "performance",
+      "name": "Block interval, 99th percentile",
+      "measures": "Seconds between consecutive committed blocks, outside injected faults. A day gives about 17,280 blocks.",
+      "why": "Block interval is how long a user waits for a transaction to be final. The tail matters as much as the median.",
+      "threshold": "At most 10 s",
+      "unit": "s",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.performance.block_interval_p99_9",
+      "phase": "campaign",
+      "group": "performance",
+      "name": "Block interval, 99.9th percentile",
+      "measures": "Seconds between consecutive committed blocks, outside injected faults. A day gives about 17,280 blocks.",
+      "why": "Block interval is how long a user waits for a transaction to be final. The tail matters as much as the median.",
+      "threshold": "Recorded over the endurance run",
+      "unit": "s",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.performance.inclusion_within_2_blocks",
+      "phase": "campaign",
+      "group": "performance",
+      "name": "Inclusion at half capacity",
+      "measures": "Valid transactions committed within 2 blocks of submission while the chain runs at half capacity.",
+      "why": "Shows that ordinary transactions are not delayed or dropped under normal load.",
+      "threshold": "At least 99%",
+      "unit": "%",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "campaign.performance.response_time_p99",
+      "phase": "campaign",
+      "group": "performance",
+      "name": "Client response time, 99th percentile",
+      "measures": "Time for the public node to answer a client request, under background load.",
+      "why": "Wallets and applications reach the chain only through the public node. Slow answers look like an outage to users.",
+      "threshold": "Recorded",
+      "unit": "s",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.endurance.days",
+      "phase": "campaign",
+      "group": "endurance",
+      "name": "Endurance run",
+      "measures": "Continuous days at the exact production values with background load, covering full unbonding, governance voting and a release handover.",
+      "why": "Some lifecycles take two weeks at production values. Slow leaks in state or memory only show over time.",
+      "threshold": "At least 15 days",
+      "unit": "days",
+      "target": 15,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "campaign.endurance.epochs",
+      "phase": "campaign",
+      "group": "endurance",
+      "name": "Epochs and snapshots",
+      "measures": "Reward epochs and state snapshots completed during the endurance run.",
+      "why": "Emission, rewards and snapshot restore are checked across many boundaries, not one.",
+      "threshold": "At least 15",
+      "unit": "count",
+      "target": 15,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging"
+    },
+    {
+      "id": "review.e06.freeze",
+      "phase": "review",
+      "group": "E06",
+      "name": "Release candidate frozen",
+      "measures": "A tagged release candidate whose binaries a clean CI runner and a fresh container reproduce byte for byte.",
+      "why": "The audit, the public review and the simulations must all test the same code.",
+      "threshold": "Tagged and reproduced",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_REVIEW_ORDER_2026-10-10.json"
+    },
+    {
+      "id": "review.hashlock.audit",
+      "phase": "review",
+      "group": "hashlock",
+      "name": "Independent audit",
+      "measures": "Hashlock's audit of the consensus application, the post-quantum CometBFT fork, the root authorization tools and the CLI wallet.",
+      "why": "An independent human audit lowers the risk of defects. The launch is labeled unaudited until the report is published.",
+      "threshold": "Report published; every finding fixed and re-checked, or answered on the record",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_AUDIT_2026-10-10.json"
+    },
+    {
+      "id": "review.public.days",
+      "phase": "review",
+      "group": "public",
+      "name": "Public review",
+      "measures": "Days the frozen candidate has been open to public review with a DGT bug bounty.",
+      "why": "Anyone can inspect the code before it holds value, and reports are rewarded.",
+      "threshold": "30 days",
+      "unit": "days",
+      "target": 30,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/SECURITY.md"
+    },
+    {
+      "id": "review.findings.open",
+      "phase": "review",
+      "group": "findings",
+      "name": "Open findings",
+      "measures": "Audit, public review and AI review findings not yet fixed or answered on the record.",
+      "why": "No finding may be silently dropped before launch.",
+      "threshold": "0 at launch",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_AUDIT_2026-10-10.json"
+    },
+    {
+      "id": "review.ai.review",
+      "phase": "review",
+      "group": "ai",
+      "name": "AI review",
+      "measures": "An adversarial review by an AI model of the candidate's code, published and labeled as AI.",
+      "why": "It adds coverage, but it is not independent human review, and it is never presented as one.",
+      "threshold": "Published and labeled as AI",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_REVIEW_ORDER_2026-10-10.json"
+    },
+    {
+      "id": "runs.r01.integrity",
+      "phase": "runs",
+      "group": "R01",
+      "name": "R01 integrity",
+      "measures": "Conflicting finalized blocks, app hashes on every node at every checkpoint, supply reconciliation (DRT genesis plus emitted minus burned, DGT unchanged) and blocks lost in recovery.",
+      "why": "Safety first: a conflicting block or an unexplained supply difference stops the run.",
+      "threshold": "Zero conflicts; one app hash; exact supply; no committed block lost",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r01.liveness",
+      "phase": "runs",
+      "group": "R01",
+      "name": "R01 liveness",
+      "measures": "Median and 99th percentile block interval outside injected faults.",
+      "why": "Shows the chain keeps a steady pace during the whole operating period.",
+      "threshold": "Median at most 6 s; 99th percentile at most 10 s",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r01.inclusion",
+      "phase": "runs",
+      "group": "R01",
+      "name": "R01 inclusion",
+      "measures": "Valid transactions committed within 2 blocks at half capacity, and transactions lost at full capacity.",
+      "why": "A valid transaction must be committed or refused at admission, never silently lost.",
+      "threshold": "99% within 2 blocks at half capacity; none lost at full",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r01.recovery",
+      "phase": "runs",
+      "group": "R01",
+      "name": "R01 recovery",
+      "measures": "Time to recover from each injected fault, and whether each fault raised its alert and resolved.",
+      "why": "Faults are certain over time; the targets bound how long users wait.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r01.load",
+      "phase": "runs",
+      "group": "R01",
+      "name": "R01 load",
+      "measures": "Full capacity, about 180 basic Sends a block, held for 1 hour, then half capacity for 6 hours, across 1,000 wallets.",
+      "why": "Shows the production hosts sustain launch demand with the real fee and signature costs.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r02.integrity",
+      "phase": "runs",
+      "group": "R02",
+      "name": "R02 integrity",
+      "measures": "Conflicting finalized blocks, app hashes on every node at every checkpoint, supply reconciliation (DRT genesis plus emitted minus burned, DGT unchanged) and blocks lost in recovery.",
+      "why": "Safety first: a conflicting block or an unexplained supply difference stops the run.",
+      "threshold": "Zero conflicts; one app hash; exact supply; no committed block lost",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r02.liveness",
+      "phase": "runs",
+      "group": "R02",
+      "name": "R02 liveness",
+      "measures": "Median and 99th percentile block interval outside injected faults.",
+      "why": "Shows the chain keeps a steady pace during the whole operating period.",
+      "threshold": "Median at most 6 s; 99th percentile at most 10 s",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r02.inclusion",
+      "phase": "runs",
+      "group": "R02",
+      "name": "R02 inclusion",
+      "measures": "Valid transactions committed within 2 blocks at half capacity, and transactions lost at full capacity.",
+      "why": "A valid transaction must be committed or refused at admission, never silently lost.",
+      "threshold": "99% within 2 blocks at half capacity; none lost at full",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r02.recovery",
+      "phase": "runs",
+      "group": "R02",
+      "name": "R02 recovery",
+      "measures": "Time to recover from each injected fault, and whether each fault raised its alert and resolved.",
+      "why": "Faults are certain over time; the targets bound how long users wait.",
+      "threshold": "Validator restart 5 min; network heal 2 min; sentry rebuild 4 h; validator host 8 h; every fault alerts",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r02.load",
+      "phase": "runs",
+      "group": "R02",
+      "name": "R02 load",
+      "measures": "Full capacity, about 180 basic Sends a block, held for 1 hour, then half capacity for 6 hours, across 1,000 wallets.",
+      "why": "Shows the production hosts sustain launch demand with the real fee and signature costs.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r03.integrity",
+      "phase": "runs",
+      "group": "R03",
+      "name": "R03 integrity",
+      "measures": "Conflicting finalized blocks, app hashes on every node at every checkpoint, supply reconciliation (DRT genesis plus emitted minus burned, DGT unchanged) and blocks lost in recovery.",
+      "why": "Safety first: a conflicting block or an unexplained supply difference stops the run.",
+      "threshold": "Zero conflicts; one app hash; exact supply; no committed block lost",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r03.liveness",
+      "phase": "runs",
+      "group": "R03",
+      "name": "R03 liveness",
+      "measures": "Median and 99th percentile block interval outside injected faults.",
+      "why": "Shows the chain keeps a steady pace during the whole operating period.",
+      "threshold": "Median at most 6 s; 99th percentile at most 10 s",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r03.inclusion",
+      "phase": "runs",
+      "group": "R03",
+      "name": "R03 inclusion",
+      "measures": "Valid transactions committed within 2 blocks at half capacity, and transactions lost at full capacity.",
+      "why": "A valid transaction must be committed or refused at admission, never silently lost.",
+      "threshold": "99% within 2 blocks at half capacity; none lost at full",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r03.recovery",
+      "phase": "runs",
+      "group": "R03",
+      "name": "R03 recovery",
+      "measures": "Time to recover from each injected fault, and whether each fault raised its alert and resolved.",
+      "why": "Faults are certain over time; the targets bound how long users wait.",
+      "threshold": "Validator restart 5 min; network heal 2 min; sentry rebuild 4 h; validator host 8 h; every fault alerts",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r03.load",
+      "phase": "runs",
+      "group": "R03",
+      "name": "R03 load",
+      "measures": "Full capacity, about 180 basic Sends a block, held for 1 hour, then half capacity for 6 hours, across 1,000 wallets.",
+      "why": "Shows the production hosts sustain launch demand with the real fee and signature costs.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r04.integrity",
+      "phase": "runs",
+      "group": "R04",
+      "name": "R04 integrity",
+      "measures": "Conflicting finalized blocks, app hashes on every node at every checkpoint, supply reconciliation (DRT genesis plus emitted minus burned, DGT unchanged) and blocks lost in recovery.",
+      "why": "Safety first: a conflicting block or an unexplained supply difference stops the run.",
+      "threshold": "Zero conflicts; one app hash; exact supply; no committed block lost",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r04.liveness",
+      "phase": "runs",
+      "group": "R04",
+      "name": "R04 liveness",
+      "measures": "Median and 99th percentile block interval outside injected faults.",
+      "why": "Shows the chain keeps a steady pace during the whole operating period.",
+      "threshold": "Median at most 6 s; 99th percentile at most 10 s",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r04.inclusion",
+      "phase": "runs",
+      "group": "R04",
+      "name": "R04 inclusion",
+      "measures": "Valid transactions committed within 2 blocks at half capacity, and transactions lost at full capacity.",
+      "why": "A valid transaction must be committed or refused at admission, never silently lost.",
+      "threshold": "99% within 2 blocks at half capacity; none lost at full",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r04.recovery",
+      "phase": "runs",
+      "group": "R04",
+      "name": "R04 recovery",
+      "measures": "Time to recover from each injected fault, and whether each fault raised its alert and resolved.",
+      "why": "Faults are certain over time; the targets bound how long users wait.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r04.load",
+      "phase": "runs",
+      "group": "R04",
+      "name": "R04 load",
+      "measures": "Full capacity, about 180 basic Sends a block, held for 1 hour, then half capacity for 6 hours, across 1,000 wallets.",
+      "why": "Shows the production hosts sustain launch demand with the real fee and signature costs.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r05.integrity",
+      "phase": "runs",
+      "group": "R05",
+      "name": "R05 integrity",
+      "measures": "Conflicting finalized blocks, app hashes on every node at every checkpoint, supply reconciliation (DRT genesis plus emitted minus burned, DGT unchanged) and blocks lost in recovery.",
+      "why": "Safety first: a conflicting block or an unexplained supply difference stops the run.",
+      "threshold": "Zero conflicts; one app hash; exact supply; no committed block lost",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r05.liveness",
+      "phase": "runs",
+      "group": "R05",
+      "name": "R05 liveness",
+      "measures": "Median and 99th percentile block interval outside injected faults.",
+      "why": "Shows the chain keeps a steady pace during the whole operating period.",
+      "threshold": "Median at most 6 s; 99th percentile at most 10 s",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r05.inclusion",
+      "phase": "runs",
+      "group": "R05",
+      "name": "R05 inclusion",
+      "measures": "Valid transactions committed within 2 blocks at half capacity, and transactions lost at full capacity.",
+      "why": "A valid transaction must be committed or refused at admission, never silently lost.",
+      "threshold": "99% within 2 blocks at half capacity; none lost at full",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r05.recovery",
+      "phase": "runs",
+      "group": "R05",
+      "name": "R05 recovery",
+      "measures": "Time to recover from each injected fault, and whether each fault raised its alert and resolved.",
+      "why": "Faults are certain over time; the targets bound how long users wait.",
+      "threshold": "Validator restart 5 min; network heal 2 min; sentry rebuild 4 h; validator host 8 h; every fault alerts",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r05.load",
+      "phase": "runs",
+      "group": "R05",
+      "name": "R05 load",
+      "measures": "Full capacity, about 180 basic Sends a block, held for 1 hour, then half capacity for 6 hours, across 1,000 wallets.",
+      "why": "Shows the production hosts sustain launch demand with the real fee and signature costs.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r06.integrity",
+      "phase": "runs",
+      "group": "R06",
+      "name": "R06 integrity",
+      "measures": "Conflicting finalized blocks, app hashes on every node at every checkpoint, supply reconciliation (DRT genesis plus emitted minus burned, DGT unchanged) and blocks lost in recovery.",
+      "why": "Safety first: a conflicting block or an unexplained supply difference stops the run.",
+      "threshold": "Zero conflicts; one app hash; exact supply; no committed block lost",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r06.liveness",
+      "phase": "runs",
+      "group": "R06",
+      "name": "R06 liveness",
+      "measures": "Median and 99th percentile block interval outside injected faults.",
+      "why": "Shows the chain keeps a steady pace during the whole operating period.",
+      "threshold": "Median at most 6 s; 99th percentile at most 10 s",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r06.inclusion",
+      "phase": "runs",
+      "group": "R06",
+      "name": "R06 inclusion",
+      "measures": "Valid transactions committed within 2 blocks at half capacity, and transactions lost at full capacity.",
+      "why": "A valid transaction must be committed or refused at admission, never silently lost.",
+      "threshold": "99% within 2 blocks at half capacity; none lost at full",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r06.recovery",
+      "phase": "runs",
+      "group": "R06",
+      "name": "R06 recovery",
+      "measures": "Time to recover from each injected fault, and whether each fault raised its alert and resolved.",
+      "why": "Faults are certain over time; the targets bound how long users wait.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r06.load",
+      "phase": "runs",
+      "group": "R06",
+      "name": "R06 load",
+      "measures": "Full capacity, about 180 basic Sends a block, held for 1 hour, then half capacity for 6 hours, across 1,000 wallets.",
+      "why": "Shows the production hosts sustain launch demand with the real fee and signature costs.",
+      "threshold": "1 h at full capacity and 6 h at half, 1,000 wallets, all other criteria met",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r07.integrity",
+      "phase": "runs",
+      "group": "R07",
+      "name": "R07 integrity",
+      "measures": "Conflicting finalized blocks, app hashes on every node at every checkpoint, supply reconciliation (DRT genesis plus emitted minus burned, DGT unchanged) and blocks lost in recovery.",
+      "why": "Safety first: a conflicting block or an unexplained supply difference stops the run.",
+      "threshold": "Zero conflicts; one app hash; exact supply; no committed block lost",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r07.liveness",
+      "phase": "runs",
+      "group": "R07",
+      "name": "R07 liveness",
+      "measures": "Median and 99th percentile block interval outside injected faults.",
+      "why": "Shows the chain keeps a steady pace during the whole operating period.",
+      "threshold": "Median at most 6 s; 99th percentile at most 10 s",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r07.inclusion",
+      "phase": "runs",
+      "group": "R07",
+      "name": "R07 inclusion",
+      "measures": "Valid transactions committed within 2 blocks at half capacity, and transactions lost at full capacity.",
+      "why": "A valid transaction must be committed or refused at admission, never silently lost.",
+      "threshold": "99% within 2 blocks at half capacity; none lost at full",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r07.recovery",
+      "phase": "runs",
+      "group": "R07",
+      "name": "R07 recovery",
+      "measures": "Time to recover from each injected fault, and whether each fault raised its alert and resolved.",
+      "why": "Faults are certain over time; the targets bound how long users wait.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "runs.r07.load",
+      "phase": "runs",
+      "group": "R07",
+      "name": "R07 load",
+      "measures": "Full capacity, about 180 basic Sends a block, held for 1 hour, then half capacity for 6 hours, across 1,000 wallets.",
+      "why": "Shows the production hosts sustain launch demand with the real fee and signature costs.",
+      "threshold": "Not part of this run",
+      "unit": null,
+      "source": {
+        "results": false
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria"
+    },
+    {
+      "id": "checkpoints.t_minus_6h.checks",
+      "phase": "checkpoints",
+      "group": "T-6h",
+      "name": "T-6h checks",
+      "measures": "Verify binaries. Verify checksums. Verify release commit. Verify genesis. Verify all genesis allocations. Verify DRT supply. Verify DGT supply. Verify validators. Verify validator keys. Verify infrastructure. Verify networking. Verify DNS. Verify RPC. Verify monitoring. Verify alerts. Verify backups. Verify recovery procedures.",
+      "why": "The dress rehearsal follows the exact launch procedure, so the real launch repeats steps that have already passed.",
+      "threshold": "All 17 checks pass",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "checkpoints.t_minus_1h.checks",
+      "phase": "checkpoints",
+      "group": "T-1h",
+      "name": "T-1h checks",
+      "measures": "Confirm validator coordination. Confirm genesis hash. Confirm binary hash. Confirm peers. Confirm system clocks. Confirm validator keys. Confirm configuration. Confirm token allocations. Confirm network parameters.",
+      "why": "The dress rehearsal follows the exact launch procedure, so the real launch repeats steps that have already passed.",
+      "threshold": "All 9 checks pass",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "checkpoints.t0.checks",
+      "phase": "checkpoints",
+      "group": "T0",
+      "name": "T0 checks",
+      "measures": "Start validators. Confirm consensus. Confirm block production. Verify expected validator participation.",
+      "why": "The dress rehearsal follows the exact launch procedure, so the real launch repeats steps that have already passed.",
+      "threshold": "All 4 checks pass",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "checkpoints.t_plus_15m.checks",
+      "phase": "checkpoints",
+      "group": "T+15m",
+      "name": "T+15m checks",
+      "measures": "Verify RPC. Verify wallet connectivity. Execute canonical PQC transaction. Execute DRT transaction. Execute DGT transaction. Create delegation. Verify fee accounting. Verify finalization.",
+      "why": "The dress rehearsal follows the exact launch procedure, so the real launch repeats steps that have already passed.",
+      "threshold": "All 8 checks pass",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "checkpoints.t_plus_1h.checks",
+      "phase": "checkpoints",
+      "group": "T+1h",
+      "name": "T+1h checks",
+      "measures": "Verify state consistency across validators. Verify wallets. Verify staking. Verify rewards. Verify token supply. Verify monitoring. Verify RPC infrastructure.",
+      "why": "The dress rehearsal follows the exact launch procedure, so the real launch repeats steps that have already passed.",
+      "threshold": "All 7 checks pass",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "checkpoints.t_plus_6h.checks",
+      "phase": "checkpoints",
+      "group": "T+6h",
+      "name": "T+6h checks",
+      "measures": "Review telemetry. Review logs. Review validator participation. Review token accounting. Review transaction statistics. Review security alerts. Review staking activity.",
+      "why": "The dress rehearsal follows the exact launch procedure, so the real launch repeats steps that have already passed.",
+      "threshold": "All 7 checks pass",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "checkpoints.t_plus_24h.checks",
+      "phase": "checkpoints",
+      "group": "T+24h",
+      "name": "T+24h checks",
+      "measures": "Perform full supply reconciliation. Perform full validator review. Perform final state consistency review.",
+      "why": "The dress rehearsal follows the exact launch procedure, so the real launch repeats steps that have already passed.",
+      "threshold": "All 3 checks pass",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#the-runs"
+    },
+    {
+      "id": "genesis.freeze.inputs",
+      "phase": "genesis",
+      "group": "freeze",
+      "name": "Final input freeze",
+      "measures": "The allocation ledger (buckets, holder grants, validator self-bond, DRT bootstrap) and the genesis time.",
+      "why": "Genesis is reproducible only if every input is fixed and published first.",
+      "threshold": "Frozen and published; genesis a weekday at 14:00 UTC, at least 72 h after the final build",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/GENESIS_FRAMEWORK.md#6-order-of-work"
+    },
+    {
+      "id": "genesis.reproduce.digests",
+      "phase": "genesis",
+      "group": "reproduce",
+      "name": "Reproduced byte for byte",
+      "measures": "Release and genesis digests built independently on a clean CI runner and a fresh container.",
+      "why": "Anyone can check that the published binaries and genesis come from the published source.",
+      "threshold": "Both builds produce identical digests",
+      "unit": null,
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/TRUST_MODEL.md"
+    },
+    {
+      "id": "genesis.root.signatures",
+      "phase": "genesis",
+      "group": "root",
+      "name": "Genesis signatures",
+      "measures": "Root key kits that signed the genesis.",
+      "why": "No one person, and no two, can sign the genesis alone.",
+      "threshold": "3 of 5 kits",
+      "unit": "count",
+      "source": {
+        "results": true
+      },
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/TRUST_MODEL.md"
+    }
+  ]
+}
