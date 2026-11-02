@@ -40,3 +40,11 @@ required-features = ["qualification-fixtures"]
 name = "state-sync-join"
 path = "src/bin/state_sync_join.rs"
 required-features = ["qualification-fixtures"]
+
+# Owned-process cases, each on the main thread of a fresh process
+# (scripts/run_native_process_tests.py).
+[[test]]
+name = "process_qualification"
+path = "tests/process_qualification.rs"
+harness = false
+required-features = ["qualification-fixtures"]
