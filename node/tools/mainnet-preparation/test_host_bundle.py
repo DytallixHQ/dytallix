@@ -9,8 +9,10 @@ import os
 from pathlib import Path
 import re
 import stat
+import subprocess
 import sys
 import tarfile
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -868,3 +870,23 @@ class BackupHostTests(HostNetwork):
             host_files.generate(self.network.dirs['release'], self.network.dirs['chain'], self.network.dirs['hosts'],
                                 self.plan, self.keys, self.network.values, self.network.setup)
 
+
+class WrapperPathTests(unittest.TestCase):
+    """The wrappers that take a path read it from where they are run."""
+
+    def test_a_relative_path_is_the_callers(self):
+        # The first install on the staging hosts (2 November 2026) ran
+        # monitor-settings.sh monitor.json from /root, and the wrapper, which
+        # changed to its own directory first, found no monitor.json.
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle, work = Path(tmp) / 'dytallix-host', Path(tmp) / 'work'
+            bundle.mkdir()
+            work.mkdir()
+            (work / 'given').write_text('{}')
+            # A stand-in installer that says whether the path it got exists.
+            stand_in = 'import os, sys\nprint(sys.argv[1], os.path.exists(sys.argv[2]))\n'
+            (bundle / 'host_install.py').write_text(stand_in)
+            for script, command in (('monitor-settings.sh', 'monitor-settings'), ('restore.sh', 'restore')):
+                (bundle / script).write_bytes((HERE / 'host' / script).read_bytes())
+                result = subprocess.run(['sh', str(bundle / script), 'given'], cwd=work, capture_output=True, text=True)
+                self.assertEqual(result.stdout.strip(), f'{command} True', result.stderr)
