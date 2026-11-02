@@ -66,8 +66,8 @@ class LaunchDashboardTests(unittest.TestCase):
         self.assertEqual(self.kpi(self.data, 'tools.t3.ready')['status'], 'pass')
         t8 = self.kpi(self.data, 'tools.t8.ready')
         self.assertEqual(t8['status'], 'in_progress')
-        self.assertIn('still to come: a cancel before activation', t8['value'])
-        self.assertEqual(t8['updated'], '2026-10-29')
+        self.assertIn('still to come: a return handover', t8['value'])
+        self.assertEqual(t8['updated'], '2026-11-02')
         self.assertEqual(self.kpi(self.data, 'plan.d14_q02.approval')['value'], 'Approved 11 October 2026')
 
     def test_a_tool_claim_must_match_its_ci_step(self):
