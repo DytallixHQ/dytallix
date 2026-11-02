@@ -1559,22 +1559,24 @@ def adversary_run(cli, home, fleet_dir, out, application_config, funder_label, v
         ]
         # One transaction per nonce (mempool rule v1): the original and its
         # copies in one request, so each copy meets the original still pending.
-        # ML-DSA-65 signing is randomized, so signing the intent again gives
-        # other bytes; another amount is another intent at the same nonce.
+        # The release CLI signs deterministically, so its re-signed copy is the
+        # same bytes (the engine's cache); a byte-distinct one would meet the
+        # node's identity check. Another amount is another intent at the nonce.
         original = new_row('adversary', 'pending_original', wallet)
         original_tx = signed_at(wallet.nonce, row=original)
+        resigned = signed_at(wallet.nonce)
+        same = resigned == original_tx
         other = [send_action(funder['account_id'], 'udrt', AMOUNTS['send_drt'] + 1)]
-        copies = [('duplicate', original_tx, 'tx already exists in cache'),
-                  ('resigned_copy', signed_at(wallet.nonce),
-                   'Intent is already reserved with other inputs or another signed envelope'),
+        copies = [('duplicate', original_tx, adversary.CACHE_REFUSAL),
+                  ('resigned_copy', resigned, adversary.CACHE_REFUSAL if same else adversary.IDENTITY_REFUSAL),
                   ('conflicting_nonce', signed_at(wallet.nonce, other),
                    'Counter is already reserved; explicit eviction is required'),
                   ('future_nonce', signed_at(wallet.nonce + 1), 'Ordinary spending nonce is stale')]
-        if original_tx in [tx for name, tx, _ in copies if name != 'duplicate']:
-            raise Failed('signing the same intent again gave the same bytes; the re-signed copy would be a duplicate')
         rows = [(new_row('adversary', name, wallet), tx) for name, tx, _ in copies]
         broadcast(rpc, [(original, original_tx)] + rows, 'pending copies')
         cases += [outcome(name, row, reason) for (row, _), (name, _, reason) in zip(rows, copies)]
+        next(c for c in cases if c['name'] == 'resigned_copy')['same_bytes'] = same
+        show(f'== the re-signed copy is {"the same bytes" if same else "byte-distinct"}')
         committed = False
         if original['status'] == 'admitted':
             load.follow(original)
