@@ -17,8 +17,8 @@ them; P01 approved one on 14 October 2026
 at T-1h carrying both R07's T-6h and T-1h checks, R07's T0 to T+24h after
 it, and an event checkpoint after each of the run's events. An event
 checkpoint is a reconciliation (T6) bound with the event's own evidence,
-whose end it reads (a fault's recovery, the validator recovery, the load
-window); the reconciliation must finish within 30 minutes of it, and the
+whose end it reads (a fault's recovery, the validator recovery, the
+sentry's restore, the upgrade switch, the load window); the reconciliation must finish within 30 minutes of it, and the
 event must end between genesis and T+24h (P01, 29 October 2026). Each run's
 events are fixed in its schedule from the run's definition, so its digest
 covers them and a run cannot skip one; an event whose tool records no end
@@ -55,6 +55,8 @@ import faults as fault_tool  # noqa: E402
 import load as load_tool  # noqa: E402
 import reconcile  # noqa: E402
 import recovery as recovery_tool  # noqa: E402
+import restore_drill as restore_tool  # noqa: E402
+import upgrade_drill as upgrade_tool  # noqa: E402
 
 SCHEMA = 'dytallix.checkpoint-run.v1'
 PASS, FAIL, INCONCLUSIVE = reconcile.PASS, reconcile.FAIL, reconcile.INCONCLUSIVE
@@ -83,13 +85,13 @@ RUN_EVENTS = {
     'R02': [('the validator process restarted', None, 'a validator restart drill'),
             ('the sentry stopped and restored', 'faults', 'process_kill'),
             ('the peer connections redialed', None, 'the fault injector\'s peer drops (T5)'),
-            ('the sentry restored from its snapshot', None, 'evidence from the restore drill (R6)'),
+            ('the sentry restored from its snapshot', 'restore', 'caught_up_at'),
             ('the network restored', 'faults', 'partition'),
             ('the validator host recovered', 'recovery', 'first_block_after_halt_at')],
     'R03': [('the latency cleared', 'faults', 'latency'),
             ('the packet loss cleared', 'faults', 'loss'),
             ('the validator partition healed', 'faults', 'partition')],
-    'R04': [('the upgrade switched', None, 'a switch instant in the upgrade drill\'s evidence (T8)')],
+    'R04': [('the upgrade switched', 'upgrade', 'switched_at')],
     'R05': [],
     'R06': [('the full-capacity load window ended', 'load', 'finished'),
             ('the half-capacity load window ended', 'load', 'finished')],
@@ -237,11 +239,18 @@ def resolve_event(event, bind, base, genesis_bytes, engine_genesis_bytes):
         status = fault_tool.verify(record, genesis_bytes, engine_genesis_bytes)
         found = [s for s in record.get('scenarios', []) if s.get('name') == event['select']]
         end = found[0].get('recovered_at') if len(found) == 1 else None
-    elif event['tool'] == 'recovery':
-        status = recovery_tool.verify(record, genesis_bytes)
+    elif event['tool'] in ('recovery', 'restore'):
+        tool = recovery_tool if event['tool'] == 'recovery' else restore_tool
+        status = tool.verify(record, genesis_bytes)
         moment = ((record.get('observations') or {}).get('instants') or {}).get(event['select'])
         end = (datetime.fromtimestamp(moment, timezone.utc).isoformat()
                if isinstance(moment, (int, float)) and not isinstance(moment, bool) else None)
+    elif event['tool'] == 'upgrade':
+        # The switch is done once the last host has switched.
+        status = upgrade_tool.verify(record, genesis_bytes)
+        switched = (record.get('observations') or {}).get(event['select']) or {}
+        times = [instant(v) for v in switched.values() if isinstance(v, str)]
+        end = max(times).isoformat() if times and len(times) == len(switched) else None
     elif event['tool'] == 'load':
         rows = (base / bind['rows']).read_bytes()
         if digest(rows) != bind['rows_sha256']:
@@ -540,8 +549,8 @@ def main():
         record = json.loads(args.evidence.read_bytes())
         status = verify(record, args.evidence.resolve().parent, args.genesis.read_bytes(),
                         args.engine_genesis.read_bytes(), args.qualifying)
-    except (Failed, reconcile.Failed, load_tool.Failed, fault_tool.Failed, recovery_tool.Failed, OSError, KeyError,
-            ValueError) as error:
+    except (Failed, reconcile.Failed, load_tool.Failed, fault_tool.Failed, recovery_tool.Failed, restore_tool.Failed,
+            upgrade_tool.Failed, OSError, KeyError, ValueError) as error:
         print(f'checkpoints: {error}', file=sys.stderr)
         return 1
     print(status)
