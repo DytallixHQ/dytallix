@@ -150,6 +150,17 @@ class ChannelTests(unittest.TestCase):
         self.result(sequence, self.channel.sent[sequence])
         self.assertEqual(self.channel.wait([sequence])[0]['sequence'], sequence)
 
+    def test_wait_opens_only_the_results_it_waits_for(self):
+        # Earlier results stay in the store; a campaign does not reopen them.
+        earlier = [self.channel.send('status') for _ in range(2)]
+        for sequence in earlier:
+            self.result(sequence, self.channel.sent[sequence])
+        sequence = self.channel.send('status')
+        self.result(sequence, self.channel.sent[sequence])
+        self.channel.wait([sequence])
+        self.assertEqual(sorted(self.channel.opened), [sequence])
+        self.assertEqual(sorted(self.channel.open_all()), earlier + [sequence])
+
     def test_a_result_for_another_command_file_is_refused(self):
         sequence = self.channel.send('status')
         self.result(sequence, '0' * 64)
