@@ -44,11 +44,17 @@ retired in production activation v1, A5.
 
 - **Supervisor report.** One JSON object per line on the supervisor's
   standard output (the journal under systemd). On a stop, the final report
-  records `failure` with these fields:
+  records `application_failure_class`, the application's class from its own
+  exit status, and `failure` with these fields:
   - `error_class`, `role` and `stage`;
   - `failure_class`, the node's class for a failed preflight;
-  - `child_exit`, whose `application_failure_class` comes from the
-    application's exit status.
+  - `child_exit`, the exit of the child that stopped first.
+
+  On a failed block the engine usually stops first, and the application
+  exits with its class during the stop that follows; `stop_exits` records
+  each child's exit seen then, and `application_failure_class` is taken from
+  whichever of the two holds the application's exit. It is null when the
+  application was killed rather than exiting.
 
   The engine's, bridge's and adapter's own output follows in the same
   journal, each line prefixed with its role:

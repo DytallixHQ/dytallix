@@ -378,6 +378,7 @@ impl NativeService {
             "release_manifest_sha512":self.authority.expected_candidate().manifest_sha512,
             "observation_timings":self.owner.observation_timings(),
             "first_failure_children":self.owner.first_failure_snapshot(),
+            "stop_exits":self.owner.stop_exits(),
             "helper_admission":dytallix_fast_node::root_genesis::helper_admission_receipt(),
             "application_startup_helper_admission_receipt":self.application_startup_helper_admission_receipt}))
     }
