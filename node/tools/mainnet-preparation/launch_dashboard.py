@@ -7,8 +7,12 @@ checks, which this tool repeats (page_problems). Every status and value comes
 from a record in this repository, as launch/simulations/
 DASHBOARD_DEFINITIONS.json names it for each KPI: an approval record's date; a
 tool's build date, proven by its CI step named "(Tn)" in host-install.yml; or
-results, from the signed result summaries once the collector publishes them,
-so a result KPI stays planned until then. Nothing is entered by hand.
+results, from the newest signed result summary that reports the KPI
+(launch/simulations/results/, written and signed by results.py), so a result
+KPI stays planned until one does. Nothing is entered by hand. Every summary
+must have its signature file beside it and pass summary_problems (the page's
+rules, and the KPI's unit and target); the signatures themselves are checked
+with the release CLI (results.py verify), which this check does not run.
 
   launch_dashboard.py            check that the file is current; exit 1 if not
   launch_dashboard.py --write    regenerate it (needs the full history: it counts commits)
@@ -30,6 +34,9 @@ ROOT = Path(__file__).resolve().parents[3]
 DEFINITIONS = 'launch/simulations/DASHBOARD_DEFINITIONS.json'
 DASHBOARD = 'launch/simulations/dashboard.json'
 RESULTS = 'launch/simulations/results'
+RESULT_SCHEMA = 'dytallix.launch-result.v1'
+# An ML-DSA-65 signature (3,309 bytes) in hex.
+SIGNATURE = re.compile(r'[0-9a-f]{6618}')
 WORKFLOW = '.github/workflows/host-install.yml'
 APPROVALS = 'launch/approvals'
 DEFINITIONS_SCHEMA = 'dytallix.launch-dashboard-definitions.v1'
@@ -191,10 +198,21 @@ def gather(root=ROOT):
     workflow = (root / WORKFLOW).read_bytes()
     d = json.loads(definitions)
     if d.get('schema') != DEFINITIONS_SCHEMA: raise Invalid(f'{DEFINITIONS} is not {DEFINITIONS_SCHEMA}')
-    results = root / RESULTS
-    if results.exists() and any(p.is_file() for p in results.rglob('*')):
-        raise Invalid(f'{RESULTS} has files, but result summaries are not read yet: the collector defines them')
     records, digests = {}, [(DEFINITIONS, definitions), (WORKFLOW, workflow)]
+    summaries = []
+    for path in sorted((root / RESULTS).rglob('*')) if (root / RESULTS).exists() else []:
+        name = path.relative_to(root).as_posix()
+        if not path.is_file() or (path.suffix == '.sig' and path.with_suffix('').is_file()):
+            continue
+        if path.suffix != '.json': raise Invalid(f'{name} is not a result summary or its signature')
+        raw, sig = path.read_bytes(), path.with_name(path.name + '.sig')
+        if not sig.is_file() or SIGNATURE.fullmatch(sig.read_text().strip()) is None:
+            raise Invalid(f'{name} has no signature in hex beside it ({name}.sig)')
+        summary = json.loads(raw)
+        found = summary_problems(summary, d)
+        if found: raise Invalid(f'{name}: {"; ".join(found)}')
+        summaries.append({'path': name, 'summary': summary})
+        digests += [(name, raw), (f'{name}.sig', sig.read_bytes())]
     for kpi in d['kpis']:
         record = kpi['source'].get('approval')
         if record and record not in records:
@@ -202,18 +220,55 @@ def gather(root=ROOT):
             raw = (root / record).read_bytes()
             records[record] = json.loads(raw)
             digests.append((record, raw))
-    return {'definitions': d, 'workflow': workflow.decode('utf-8'), 'records': records,
+    return {'definitions': d, 'workflow': workflow.decode('utf-8'), 'records': records, 'summaries': summaries,
             'inputs': [{'path': path, 'sha256': sha256(raw)} for path, raw in digests],
             'approval_records': len(list((root / APPROVALS).glob('*.json')))}
 
 
-def derive(kpi, d, records, proven):
-    """A KPI's status, value and date, from the source the definitions name."""
+def summary_problems(summary, definitions):
+    """What keeps a result summary off the page: its shape, a KPI the
+    definitions do not read from results or whose unit or target differs, or
+    the page's public rules (no addresses, no launch server names)."""
+    if not isinstance(summary, dict) or summary.get('schema') != RESULT_SCHEMA:
+        return [f'not a result summary ({RESULT_SCHEMA})']
+    found = []
+    prefixes = {'campaign': ('campaign.',), 'run': ('runs.', 'checkpoints.'), 'staging': ('staging.',)}
+    prefix = prefixes.get(summary.get('scope'))
+    if prefix is None: found.append('the scope is not campaign, run or staging')
+    if not is_date(summary.get('date')): found.append('the date is not a date')
+    defined = {k['id']: k for k in definitions['kpis']}
+    kpis = summary.get('kpis')
+    if not isinstance(kpis, list) or not kpis:
+        found.append('the summary reports no KPI')
+        kpis = []
+    for kpi in kpis:
+        kid = kpi.get('id') if isinstance(kpi, dict) else None
+        spec = defined.get(kid)
+        if spec is None or spec['source'] != {'results': True}:
+            found.append(f'{kid} is not a KPI the page reads from results')
+            continue
+        if prefix and not kid.startswith(prefix): found.append(f'{kid} is not a {summary["scope"]} KPI')
+        if kpi.get('unit') != spec['unit'] or kpi.get('target') != spec.get('target'):
+            found.append(f'{kid}: its unit or target differs from the page\'s')
+        if kpi.get('status') not in STATUSES: found.append(f'{kid}: the status is not one of the page\'s')
+        value = kpi.get('value')
+        if value is not None and not (number(value) and math.isfinite(value)):
+            found.append(f'{kid}: the value is not a number')
+    for value in strings(summary):
+        if contains_address(value): found.append(f'contains an address: {value[:60]}')
+        named = [name for name in HOST_NAMES if name in value.lower()]
+        if named: found.append(f'names a launch server ({", ".join(named)})')
+    return found
+
+
+def derive(kpi, d, records, proven, summaries=()):
+    """A KPI's status, value, date and evidence link (None to keep the
+    definitions'), from the source the definitions name."""
     source = kpi['source']
     if set(source) == {'approval'}:
         approved = records[source['approval']].get('approved')
         if not is_date(approved): raise Invalid(f'{kpi["id"]}: {source["approval"]} has no approval date')
-        return 'pass', f'Approved {long_date(approved)}', approved
+        return 'pass', f'Approved {long_date(approved)}', approved, None
     if set(source) == {'tool', 'built', 'remaining'}:
         tool, built, remaining = source['tool'], source['built'], source['remaining']
         if tool != kpi['group']: raise Invalid(f'{kpi["id"]}: its tool is {tool}, not its group {kpi["group"]}')
@@ -221,12 +276,17 @@ def derive(kpi, d, records, proven):
             claim = (f'marked built, but no CI step "({tool})" runs in' if built
                      else 'not marked built, but its CI step runs in')
             raise Invalid(f'{kpi["id"]}: {tool} is {claim} {WORKFLOW}')
-        if built is None: return 'planned', None, d['planned_on']
+        if built is None: return 'planned', None, d['planned_on'], None
         if not is_date(built): raise Invalid(f'{kpi["id"]}: built must be a date')
         value = 'Built and proven in the CI staging network' + (f'; still to come: {remaining}' if remaining else '')
-        return ('in_progress' if remaining else 'pass'), value, built
+        return ('in_progress' if remaining else 'pass'), value, built, None
     if set(source) == {'results'} and isinstance(source['results'], bool):
-        return ('planned' if source['results'] else 'not_applicable'), None, d['planned_on']
+        # The newest summary that reports it; summaries are cumulative.
+        reports = [(s['summary']['date'], s['path'], k) for s in summaries for k in s['summary']['kpis']
+                   if k['id'] == kpi['id']]
+        if not reports: return ('planned' if source['results'] else 'not_applicable'), None, d['planned_on'], None
+        date, path, result = max(reports, key=lambda r: (r[0], r[1]))
+        return result['status'], result['value'], date, f'{REPO}/blob/main/{path}'
     raise Invalid(f'{kpi["id"]}: unknown source {source}')
 
 
@@ -236,10 +296,10 @@ def build(found, commits):
     proven = proven_tools(found['workflow'])
     kpis = []
     for k in d['kpis']:
-        status, value, updated = derive(k, d, found['records'], proven)
+        status, value, updated, evidence = derive(k, d, found['records'], proven, found['summaries'])
         kpi = {field: k[field] for field in ('id', 'phase', 'group', 'name', 'measures', 'why', 'threshold', 'unit')}
         if 'target' in k: kpi['target'] = k['target']
-        kpi.update(status=status, value=value, evidence_url=k['evidence_url'], updated=updated)
+        kpi.update(status=status, value=value, evidence_url=evidence or k['evidence_url'], updated=updated)
         kpis.append(kpi)
     phases = [dict(p, status=roll_up([k['status'] for k in kpis if k['phase'] == p['id']])) for p in d['phases']]
     as_of = max(k['updated'] for k in kpis)

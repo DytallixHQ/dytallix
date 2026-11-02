@@ -1,0 +1,25 @@
+{
+  "decision_id": "P01-2026-11-02-T06-RESULTS-KEY",
+  "approved": "2026-11-02",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Where the launch page's results key lives (the results pipeline's unset item, P01_T06_SIMULATION_INPUTS_2026-10-14)"
+  },
+  "reason": "The results pipeline (P01_T06_SIMULATION_INPUTS_2026-10-14) signs each public result summary with a dedicated results key and left the key itself unset until the collector is built.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "Where the results key lives",
+      "selected": "This Mac, with a backup",
+      "rule": "The results key is an ML-DSA-65 key in its own encrypted keystore on the founder's machine, made and used only through the release CLI (dytallix wallet create --name launch-results, dytallix crypto sign over 'dytallix-launch-results-v1:' and the SHA-256 of the summary's exact bytes). Its passphrase is in the founder's owner-only secrets folder, and one backup copy of the keystore and passphrase is on the founder's own drive. It is never the staging command key, a kit key or a wallet key, and holds no tokens. Only its public key is in the repository (launch/simulations/RESULTS_KEY.json). If it is lost or replaced, a new public key is published by pull request; summaries signed earlier keep verifying under the earlier key, which stays listed."
+    }
+  ],
+  "does_not_authorize": [
+    "publishing any result before its evidence exists",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

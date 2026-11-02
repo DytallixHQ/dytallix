@@ -138,10 +138,12 @@ import adversary  # noqa: E402
 import checkpoints  # noqa: E402
 import faults  # noqa: E402
 import host_install  # noqa: E402
+import launch_dashboard  # noqa: E402
 import load as load_generator  # noqa: E402
 import reconcile  # noqa: E402
 import recovery  # noqa: E402
 import restore_drill as restore_drill_module  # noqa: E402
+import results as result_summaries  # noqa: E402
 import staging_chain  # noqa: E402
 import staging_command  # noqa: E402
 import staging_founder  # noqa: E402
@@ -1965,6 +1967,48 @@ def fault_drill(work, label='sentry-1', timeout=300):
     restart = validator_restart(work, drill, guest, native, engine, timeout)
     say(f'== validator-1: its process killed through its own agent and started again; blocks resumed within the '
         f'approved 5-minute target (the run is {restart})')
+    results_drill(work, drill, native, engine)
+
+
+def results_drill(work, drill, native, engine):
+    """The results pipeline end to end (P01, 14 October and 2 November 2026),
+    with a throwaway results key made by the release's CLI: the two fault
+    records summarized into a campaign summary, signed and verified with the
+    CLI, and read as the launch page's generator reads summaries. Nothing CI
+    makes is published."""
+    repo = Path(__file__).resolve().parents[3]
+    root = drill / 'results'
+    for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW,
+                 'launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json'):
+        (root / path).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(repo / path, root / path)
+    cli, home = work / 'release-bin' / 'dytallix', drill / 'results-key'
+    home.mkdir(mode=0o700)
+    # The keystore passphrase comes from DYTALLIX_KEYSTORE_PASSPHRASE_FILE, set for the founder channel.
+    made = subprocess.run([str(cli), 'wallet', 'create', '--name', result_summaries.WALLET],
+                          env=dict(os.environ, HOME=str(home)), capture_output=True, text=True)
+    if made.returncode != 0:
+        raise Failed(f'dytallix wallet create failed: {made.stderr.strip() or made.stdout.strip()}')
+    key = result_summaries.keystore_key(home)
+    (root / result_summaries.KEYS).write_text(json.dumps({'schema': result_summaries.KEY_SCHEMA, 'keys': [
+        {'key_id': hashlib.sha256(bytes.fromhex(key)).hexdigest(), 'since': '2026-11-02', 'public_key_hex': key}]}))
+    timings = json.loads((repo / result_summaries.TIMINGS).read_bytes())
+    release = json.loads((work / 'net' / 'chain' / 'release' / 'BUILD_RECORD.json').read_bytes())
+    commit = os.environ.get('GITHUB_SHA') or subprocess.run(['git', '-C', str(repo), 'rev-parse', 'HEAD'],
+                                                            capture_output=True, text=True).stdout.strip()
+    records = [(drill / 'evidence.json').read_bytes(), (drill / 'validator-1' / 'evidence.json').read_bytes()]
+    summary = result_summaries.summarize_campaign(records, native, engine, timings, release, commit)
+    path = result_summaries.write_summary(summary, root)
+    result_summaries.sign(cli, home, path, root)
+    result_summaries.verify(cli, path, root)
+    data = launch_dashboard.build(launch_dashboard.gather(root), 0)
+    shown = {k['id']: (k['status'], k['value']) for k in data['kpis'] if k['id'].startswith('campaign.faults.')}
+    for kid in ('campaign.faults.network_heal', 'campaign.faults.validator_restart'):
+        if shown[kid][0] != 'in_progress' or not isinstance(shown[kid][1], (int, float)):
+            raise Failed(f'the page would show {kid} as {shown[kid]}, not in progress with a recovery time')
+    if launch_dashboard.page_problems(data):
+        raise Failed(f'the page would refuse the data: {launch_dashboard.page_problems(data)}')
+    say(json.dumps({'results_drill': {'summary': str(path.relative_to(root)), 'shown': shown}}, indent=2))
 
 
 def validator_restart(work, drill, sentry, native, engine, timeout=300):

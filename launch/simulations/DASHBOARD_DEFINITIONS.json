@@ -1,6 +1,6 @@
 {
   "schema": "dytallix.launch-dashboard-definitions.v1",
-  "about": "What launch_dashboard.py builds launch/simulations/dashboard.json from (node/tools/mainnet-preparation; the page is dytallix.com/developers/launch). Each KPI names its source: an approval record, a tool (built on the date given, proven by its CI step named \"(Tn)\" in host-install.yml, with any scope still to come), or results, read from signed result summaries once the collector publishes them; until then a result KPI is planned. results false marks a KPI that does not apply to its run.",
+  "about": "What launch_dashboard.py builds launch/simulations/dashboard.json from (node/tools/mainnet-preparation; the page is dytallix.com/developers/launch). Each KPI names its source: an approval record, a tool (built on the date given, proven by its CI step named \"(Tn)\" in host-install.yml, with any scope still to come), or results, from the newest signed result summary that reports it (launch/simulations/results/, written and signed by results.py with the results key, RESULTS_KEY.json); until one does, a result KPI is planned. results false marks a KPI that does not apply to its run.",
   "planned_on": "2026-10-11",
   "project_since": "2026-09-26",
   "schema_rules": [

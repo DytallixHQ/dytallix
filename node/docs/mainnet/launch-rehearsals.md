@@ -150,6 +150,8 @@ The capacity measurements (T05) use T3 and T6, and the statistical campaign uses
 
 Each run records: the run ID, start and end, status and the founder's sign-off; the source revision, the release manifest and binary digests, the genesis and configuration digests, the rehearsal chain ID and the shortened timing set; the node identities (public only), the workload, the injected faults and their timing; per-node finalized heights, app hashes and supply reconciliations; client receipts, resource metrics, alerts and logs; expected and actual results and every assertion. The evidence files are hashed. Success is never inferred from a process exiting.
 
+The launch page shows public summaries of the evidence, never the evidence itself: `results.py` reduces it to counts, times and pass or fail, signed with the results key ([approval](../../../launch/approvals/P01_T06_RESULTS_KEY_2026-11-02.json); public key in `launch/simulations/RESULTS_KEY.json`), and `launch_dashboard.py` takes each KPI from the newest signed summary that reports it. The first summarizer covers the fault recoveries (network heal, validator restart); the runs, checkpoints, attacks, performance and endurance follow.
+
 A run stops on conflicting finality or an unexplained accounting difference: the evidence is preserved, the cause fixed, and the affected runs rerun. A change to consensus, economics, cryptography or persistence invalidates the affected results. A testnet-style database reset is never a mainnet recovery procedure.
 
 ## Local prerequisites
