@@ -636,7 +636,7 @@
           "name": "TestSocketsServeTheirAllowlistsPrivately"
         },
         {
-          "file": "node/crates/native-supervisor/src/processes_tests.rs",
+          "file": "node/crates/native-supervisor/src/processes_qualification.rs",
           "name": "a_leftover_operator_socket_refuses_the_engine_start"
         }
       ]

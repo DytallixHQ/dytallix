@@ -67,3 +67,15 @@ The locks exclude cooperating owners that use the same protected lock directory.
 The readiness probes establish process identity and protocol responses. They do not independently verify consensus proofs. Consensus commitment, restart, handover, final artifact inspection and production acceptance require separate evidence from the integrated candidate.
 
 The `qualification-fixtures` feature adds synthetic process fixtures and Linux tests. It must remain disabled in release artifacts. These fixtures do not establish integrated service qualification.
+
+## Tests
+
+`cargo test -p dytallix-native-supervisor` runs the portable tests.
+
+The Linux owned-process tests (`processes::qualification`, feature `qualification-fixtures`) start real owned children. The owner must be the process leader thread, and each child must show the exact security state of its role: an enforced AppArmor label, no-new-privileges, a seccomp filter and a non-root UID. libtest runs every test on a worker thread, so the runner `tests/process_qualification.rs` has no libtest harness. It runs each case on the main thread of a fresh process. On a Linux host with AppArmor, systemd and sudo, run them as a non-root user:
+
+```
+python3 scripts/run_native_process_tests.py
+```
+
+The script builds the fixture without debug information, because the synthetic catalog bounds each member at 128 MiB. It loads two AppArmor profiles that label the fixture's application and workload copies, and runs the cases through `sudo systemd-run` under no-new-privileges and the production system call deny list. The CI node job runs it.

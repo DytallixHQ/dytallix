@@ -1167,6 +1167,12 @@ fn signal_owned(_: &Child, _: i32) -> Result<()> {
 #[cfg(test)]
 #[path = "processes_tests.rs"]
 mod tests;
+/// Linux owned-process cases. Ownership refuses libtest's worker threads, so
+/// tests/process_qualification.rs runs each on the main thread of a fresh process.
+#[cfg(all(target_os = "linux", feature = "qualification-fixtures"))]
+#[doc(hidden)]
+#[path = "processes_qualification.rs"]
+pub mod qualification;
 
 /// Synthetic native fixture. It is absent from normal builds and has no release
 /// authority. The qualification binary's only entry point calls this function.
@@ -1179,6 +1185,19 @@ pub fn qualification_fixture_main() -> Result<()> {
     use std::io::BufRead;
     use std::os::unix::net::UnixListener;
     let args: Vec<_> = std::env::args().collect();
+    // An owned role completes the owner protocol first, as the real roles do,
+    // and keeps its admission. The parent-death launcher and its child are not owned.
+    let _admission = if args.iter().any(|a| a == "--fixture-parent-death" || a == "--fixture-application") { None } else {
+        let role = if args.iter().any(|a| a == "--application-channel=inherited-pipes-v1") { ownership::Role::Bridge }
+            else if args.iter().any(|a| a == "--fixture-engine") { ownership::Role::Engine }
+            else if args.iter().any(|a| a == "--fixture-adapter") { ownership::Role::Adapter }
+            else { ownership::Role::Application };
+        let admission = ownership::admit(role)?;
+        if let Some(index) = args.iter().position(|a| a == "--release-manifest-sha512") {
+            admission.verify_context(&ownership::parse_context_sha512(args.get(index + 1).context("Fixture release context missing")?)?)?;
+        }
+        Some(admission)
+    };
     if args.iter().any(|a| a == "--fixture-parent-death") {
         let marker = args.get(2).context("Parent fixture marker missing")?;
         let mut command = Command::new(std::env::current_exe()?);
