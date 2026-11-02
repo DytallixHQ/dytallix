@@ -22,7 +22,7 @@ cannot be edited after the fact.
   faults.py run --store STORE.json --chain ID --host LABEL --cli DYTALLIX --home DIR \
       --key KEY.json --paper FILE --signer DYTALLIX_ROOT_SIGN --work DIR \
       --status-url URL --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS \
-      --target SECONDS --out FILE
+      --target SECONDS --out FILE [--scenarios NAME,...]
 
 run drives the scenarios on a real host from the founder's machine (T2's
 real-host harness), through only the public paths: signed commands and sealed
@@ -41,10 +41,14 @@ scenario records which clock each instant came from.
 The lean scope is the network and process faults driven through the agent:
 latency and loss (`tc netem`) and a peer partition (an `inet dytallix_fault`
 nftables table, scoped to the p2p port so the agent's own command path stays
-reachable), and a process kill. Peer drops and host loss follow (they need a VM
-restart path). The validator keeps producing throughout; recovery is the
-sentry catching back up, read through the guest agent, whose virtio serial
-survives the fault that the network path does not.
+reachable), and a process kill, on the sentry; the validator keeps producing
+throughout, and recovery is the sentry catching back up. The validator's
+process restart (R02, `validator_restart`) is the same kill and restart on the
+validator, through its own agent, as its own record (`--host validator-1
+--scenarios validator_restart`): with one validator the chain halts while it
+is down, so recovery is the next block the sentry's status page serves, judged
+against the approved 5-minute target (TIMINGS.json
+validator_restart_target_seconds). Peer drops and host loss follow.
 """
 import argparse
 from datetime import datetime, timezone
@@ -65,9 +69,11 @@ PASS, FAIL, INCONCLUSIVE = reconcile.PASS, reconcile.FAIL, reconcile.INCONCLUSIV
 # A scenario's kind decides how its effect is proven. The netem kinds confirm a
 # netem qdisc was active; the partition confirms the sentry stopped advancing
 # while cut off; the process kind confirms the node was down right after the
-# kill. verify recomputes the kind from the name, so a record cannot file a
-# scenario under a softer kind.
-KINDS = {'latency': 'netem', 'loss': 'netem', 'partition': 'partition', 'process_kill': 'process'}
+# kill (the sentry's, or the validator's for validator_restart). verify
+# recomputes the kind from the name, so a record cannot file a scenario under
+# a softer kind.
+KINDS = {'latency': 'netem', 'loss': 'netem', 'partition': 'partition', 'process_kill': 'process',
+         'validator_restart': 'process'}
 
 
 class Failed(Exception):
@@ -101,6 +107,11 @@ SCENARIOS = (
     {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
     {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
 )
+# R02's validator process restart, on the validator through its own agent.
+VALIDATOR_SCENARIOS = (
+    {'name': 'validator_restart', 'command': 'fault-kill', 'args': {}},
+)
+BY_NAME = {spec['name']: spec for spec in SCENARIOS + VALIDATOR_SCENARIOS}
 CLOCKS = {'injected_at': 'host', 'cleared_at': 'host', 'recovered_at': 'reader'}
 
 
@@ -350,6 +361,8 @@ def main():
     r.add_argument('--host', required=True)
     r.add_argument('--status-url', required=True)
     r.add_argument('--target', type=int, required=True, help='the approved recovery target in seconds')
+    r.add_argument('--scenarios', default=','.join(spec['name'] for spec in SCENARIOS),
+                   help='comma-separated (default: the sentry\'s four; validator_restart on the validator)')
     args = parser.parse_args()
     if args.command == 'run':
         return run_main(args)
@@ -369,11 +382,15 @@ def run_main(args):
         store = staging_founder.Store(staging_founder.load_store(args.store), args.work / 'store-scratch')
         channel = staging_founder.Channel(store, args.chain, args.host, args.work, args.cli, args.home, args.key,
                                           args.paper, args.signer)
+        try:
+            scenarios = tuple(BY_NAME[name] for name in args.scenarios.split(','))
+        except KeyError as error:
+            raise Failed(f'{error} is not a registered fault scenario')
         probe = channel.run('fault-clear')
         if probe['status'] != 'DONE':
             raise Failed(f'the fault commands do not run on this host (tc, nft or the interface): {probe.get("steps")}')
         rows = run_scenarios(channel, lambda: staging_founder.status_page(args.status_url),
-                             staging_founder.block_instant)
+                             staging_founder.block_instant, scenarios)
         record = build_run(args.chain, args.genesis.read_bytes(), args.engine_genesis.read_bytes(), rows,
                            args.target, args.host)
         args.out.write_text(json.dumps(record, indent=2) + '\n')

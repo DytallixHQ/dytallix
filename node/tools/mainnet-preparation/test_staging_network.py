@@ -297,7 +297,7 @@ class FaultDrillTests(unittest.TestCase):
         self.allowlist = json.loads((sn.staging_command.AGENT_DIR / 'ALLOWLIST.json').read_bytes())['commands']
 
     def test_every_scenario_is_allowlisted_and_in_range(self):
-        for scenario in self.faults.SCENARIOS:
+        for scenario in self.faults.SCENARIOS + self.faults.VALIDATOR_SCENARIOS:
             entry = self.allowlist[scenario['command']]
             self.assertFalse(entry.get('stub'), scenario['command'])
             self.assertEqual(set(scenario['args']), set(entry['args']), scenario['name'])
@@ -311,8 +311,9 @@ class FaultDrillTests(unittest.TestCase):
                 self.assertTrue(scenario['args']['delay_ms'] > 0 or scenario['args']['loss_percent'] > 0)
 
     def test_every_scenario_name_is_a_registered_fault_kind(self):
-        for scenario in self.faults.SCENARIOS:
+        for scenario in self.faults.SCENARIOS + self.faults.VALIDATOR_SCENARIOS:
             self.assertIn(scenario['name'], self.faults.KINDS)
+        self.assertEqual(set(self.faults.BY_NAME), set(self.faults.KINDS))
 
     def test_the_recovery_target_is_approved_and_wired(self):
         root = Path(__file__).resolve().parents[3]
@@ -320,6 +321,14 @@ class FaultDrillTests(unittest.TestCase):
         self.assertIsInstance(target, int)
         self.assertGreater(target, 0)
         self.assertTrue((root / 'launch' / 'approvals' / 'P01_E05_FAULT_RECOVERY_2026-10-13.json').exists())
+
+    def test_the_validator_restart_target_is_the_plan_s_five_minutes(self):
+        root = Path(__file__).resolve().parents[3]
+        timings = json.loads((root / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())
+        self.assertEqual(timings['validator_restart_target_seconds'], 5 * 60)
+        plan = json.loads((root / 'launch' / 'approvals' / 'P01_T06_SIMULATION_PLAN_2026-10-11.json').read_bytes())
+        self.assertIn('blocks again within 5 minutes of a validator process restart', json.dumps(plan))
+        self.assertEqual(self.faults.kind('validator_restart'), 'process')
 
 
 if __name__ == '__main__':

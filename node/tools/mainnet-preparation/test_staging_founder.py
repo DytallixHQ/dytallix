@@ -283,6 +283,41 @@ class ScenarioTests(unittest.TestCase):
             self.assertEqual(row['clocks'], faults.CLOCKS)
             self.assertGreater(row['recovered_height'], row['height_at_clear'])
 
+    def test_the_validator_restart_halts_the_chain_until_blocks_resume(self):
+        # With one validator, its kill halts the chain: the sentry keeps serving
+        # its last block until the restart, and blocks resume after it.
+        page = FakePage()
+        channel = FakeChannel(page)
+        send = channel.send
+
+        def on_the_validator(command, args=None):
+            sequence = send(command, args)
+            page.down, page.stalled_until = False, (time.time() + 3600 if command == 'fault-kill' else 0)
+            return sequence
+        channel.send = on_the_validator
+        rows = faults.run_scenarios(channel, page.read, sf.block_instant, faults.VALIDATOR_SCENARIOS, result_timeout=5,
+                                    recovery_timeout=10, say=lambda m: None, period=0.02)
+        record = faults.build_run('c', b'{}', b'{}', rows, 300, 'validator-1')
+        row = record['scenarios'][0]
+        self.assertEqual((row['name'], row['kind'], row['status']), ('validator_restart', 'process', 'PASS'), row)
+        self.assertEqual(channel.commands, ['fault-kill', 'start'])
+        self.assertEqual(faults.verify(json.loads(json.dumps(record)), b'{}', b'{}'), 'PASS')
+
+        # A restart after which no block comes fails.
+        page = FakePage()
+        channel = FakeChannel(page)
+        send = channel.send
+
+        def halted(command, args=None):
+            sequence = send(command, args)
+            page.down, page.stalled_until = False, time.time() + 3600
+            return sequence
+        channel.send = halted
+        rows = faults.run_scenarios(channel, page.read, sf.block_instant, faults.VALIDATOR_SCENARIOS, result_timeout=5,
+                                    recovery_timeout=0.5, say=lambda m: None, period=0.02)
+        record = faults.build_run('c', b'{}', b'{}', rows, 300, 'validator-1')
+        self.assertEqual(record['scenarios'][0]['status'], 'FAIL')
+
     def test_a_sentry_that_never_recovers_fails(self):
         page = FakePage()
         channel = FakeChannel(page)

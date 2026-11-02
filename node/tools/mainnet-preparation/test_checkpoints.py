@@ -318,6 +318,7 @@ class EventCheckpoints(unittest.TestCase):
         self.host = index['AFTER THE VALIDATOR HOST RECOVERED']
         self.network = index['AFTER THE NETWORK RESTORED']
         self.restart = index['AFTER THE VALIDATOR PROCESS RESTARTED']
+        self.redial = index['AFTER THE PEER CONNECTIONS REDIALED']
         for patch in (mock.patch.object(cp.recovery_tool, 'verify', return_value=cp.PASS),
                       mock.patch.object(cp.fault_tool, 'verify', return_value=cp.PASS),
                       mock.patch.object(cp.reconcile, 'verify', return_value=cp.PASS)):
@@ -383,8 +384,18 @@ class EventCheckpoints(unittest.TestCase):
                                               '2026-10-12T18:04:00Z', event_bind=bind)
             self.assertEqual(checkpoint['status'], cp.INCONCLUSIVE)
 
+    def test_the_validator_restart_is_read_from_the_validator_s_own_fault_record(self):
+        bind = write_event(self.base, 'faults', {'host': 'validator-1', 'scenarios': [
+            {'name': 'validator_restart', 'recovered_at': '2026-10-12T15:02:00+00:00'}]}, 'validator-faults.json')
+        checkpoint = self.record(self.restart, bind, '2026-10-12T15:10:00Z')
+        self.assertEqual((checkpoint['status'], checkpoint['event']['end']), (cp.PASS, '2026-10-12T15:02:00+00:00'))
+        # The sentry's record has no validator restart in it: no end, so no pass.
+        bind = write_event(self.base, 'faults', {'scenarios': [
+            {'name': 'process_kill', 'recovered_at': '2026-10-12T15:02:00+00:00'}]}, 'sentry-faults.json')
+        self.assertEqual(self.record(self.restart, bind, '2026-10-12T15:10:00Z')['status'], cp.INCONCLUSIVE)
+
     def test_an_event_with_no_tool_yet_waits_and_never_passes(self):
-        checkpoint = self.record(self.restart, None, '2026-10-12T15:00:00Z')
+        checkpoint = self.record(self.redial, None, '2026-10-12T15:00:00Z')
         self.assertEqual(checkpoint['status'], cp.INCONCLUSIVE)
         self.assertIn('awaits', checkpoint['event']['detail'])
         self.assertEqual(checkpoint['window'], [None, None])
