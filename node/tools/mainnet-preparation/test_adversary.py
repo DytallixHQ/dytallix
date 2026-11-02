@@ -93,13 +93,25 @@ class Evaluate(unittest.TestCase):
         cache = 'tx already exists in cache'
         self.assertEqual(self.status(case('duplicate', code=-1, log=f'error on broadcastTxSync: {cache}',
                                           expected_reason=cache)), adversary.PASS)
-        # A re-signed copy is not the same bytes: the cache cannot refuse it,
-        # so only the node's own identity check counts.
-        self.assertEqual(self.status(case('resigned_copy', code=-1, log=cache,
-                                          expected_reason='Intent is already reserved')), adversary.FAIL)
-        # Refused for being stale means the original had already committed: not this test.
-        self.assertEqual(self.status(case('resigned_copy', code=1, log='Ordinary spending nonce is stale',
-                                          expected_reason='Intent is already reserved')), adversary.FAIL)
+
+    def test_a_re_signed_copy_is_judged_by_its_own_bytes(self):
+        cache, identity = adversary.CACHE_REFUSAL, adversary.IDENTITY_REFUSAL
+
+        def resigned(same, code, log, reason):
+            row = case('resigned_copy', code=code, log=log, expected_reason=reason)
+            if same is not None:
+                row['same_bytes'] = same
+            return self.status(row)
+        # The release CLI signs deterministically: the same bytes, refused by the cache.
+        self.assertEqual(resigned(True, -1, cache, cache), adversary.PASS)
+        # A randomized signer's copy: byte-distinct, refused by the node's identity check.
+        self.assertEqual(resigned(False, 1, f'Admission reservation rejected: {identity}', identity), adversary.PASS)
+        # A byte-distinct copy cannot be a cache refusal, nor claim the cache's reason.
+        self.assertEqual(resigned(False, -1, cache, identity), adversary.FAIL)
+        self.assertEqual(resigned(False, -1, cache, cache), adversary.FAIL)
+        # Without the bytes' record, or refused because the original had already committed.
+        self.assertEqual(resigned(None, -1, cache, cache), adversary.FAIL)
+        self.assertEqual(resigned(False, 1, 'Ordinary spending nonce is stale', identity), adversary.FAIL)
 
     def test_the_pending_original_must_commit(self):
         self.assertEqual(adversary.evaluate(case('pending_original', code=0, committed=True)),
@@ -118,7 +130,9 @@ class Evidence(unittest.TestCase):
     def good_run(self):
         return [case('invalid_signature'), case('decode_failure'), case('stale_nonce'), case('oversized'),
                 case('duplicate', code=-1, log='tx already exists in cache', expected_reason='tx already exists in cache'),
-                case('resigned_copy'), case('conflicting_nonce'), case('future_nonce'),
+                dict(case('resigned_copy', code=-1, log='tx already exists in cache',
+                          expected_reason='tx already exists in cache'), same_bytes=True),
+                case('conflicting_nonce'), case('future_nonce'),
                 case('pending_original', code=0, committed=True), case('positive_control', code=0, committed=True)]
 
     def test_build_then_verify_roundtrips_pass(self):
