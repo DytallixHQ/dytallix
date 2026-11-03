@@ -7,11 +7,11 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "579d9ad013d7e0a886e2000806f2629b695f0e16230211c9aacdbdd9bcd93967"
+        "sha256": "aeb983983b5f1b2aeebfa64d202adb2c0e496ccbcc3ebd7fcb7ad13543cdea3d"
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "62cb0f44215baf6f262c8db144a6f73656eb75f013d6a00f0e726b6fb38536a4"
+        "sha256": "eeb20a1d02cac46edc3f5190f3f0bddd5a505811d519b2e1341718fe44bcb76b"
       },
       {
         "path": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
@@ -28,7 +28,7 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 462,
+    "commits_at_as_of": 464,
     "approval_records": 67
   },
   "phases": [
@@ -497,8 +497,8 @@
       "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
-      "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: a return handover",
+      "status": "pass",
+      "value": "Built and proven in the CI staging network",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/72",
       "updated": "2026-11-02"
     },

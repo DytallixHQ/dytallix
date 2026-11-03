@@ -15,8 +15,12 @@ prepares and signs the upgrade activation and the handover activation
 paired with it and submits both, the handover activation first; on each
 host in turn, the validator first, waits for RC1 to stop itself and
 switches that host to RC2 (switch.sh), the sentry only once the validator
-has run alone on RC2 for a while (a late sentry); and reconciles before and
-after. Each rule is one check:
+has run alone on RC2 for a while (a late sentry); reconciles before and
+after; then returns to RC1 as the upgrade failure runbook's section 6 says:
+RC1 staged again, a schema-preserving handover back to it admitted and
+activated three of five after the notice, RC2 stopping itself and each host
+switched back, and a reconciliation after the return. Each rule is one
+check:
 
 - cancelled: the first upgrade and handover were pending, nothing was
   pending after their cancels (the handover's first, then the upgrade's),
@@ -30,7 +34,8 @@ after. Each rule is one check:
 - stopped: RC1 stopped itself on each host, refusing because the committed
   release is no longer its own, before that host switched: the validator at the activation (RC1 refuses
   to propose past it), the sentry when the next block reached it from the
-  validator on RC2;
+  validator on RC2; and the supervisor's final report names the
+  application's class, release (E04 gap 15);
 - switched: both units run RC2 after switch.sh (the instant of each switch
   is recorded for the event checkpoint after it, T7);
 - active: the chain's active release RC2 and active schema 1 (the
@@ -40,7 +45,10 @@ after. Each rule is one check:
 - late_sentry: the sentry switched only once the validator was at least
   LATE_BLOCKS past the halt on RC2, and it caught up past that height;
 - host_verify: both hosts verify against their RC2 bundles;
-- reconciled: the reconciliation (T6) PASS before and after.
+- return_admitted, return_notice, return_stopped, return_switched,
+  return_active, return_resumed, return_host_verify: the same rules for the
+  return to RC1, whose handover preserves schema 1 and pairs no upgrade;
+- reconciled: the reconciliation (T6) PASS before, after and after the return.
 
 Any broken rule is FAIL; a missing reading is INCONCLUSIVE, which no run
 counts as a pass. Only PASS exits 0.
@@ -119,66 +127,88 @@ def evaluate(observations):
             f'admitted at {since} and cancelled; at {past["height"]}, past its first activation height, '
             f'{source[:16]} still active on both hosts')
 
-    admitted = observations.get('admitted') or {}
-    upgrade, handover = admitted.get('upgrade_pending'), admitted.get('handover_pending')
-    if not source or not target or source == target:
-        add('admitted', FAIL, f'the drill needs two distinct releases: {releases}')
-    elif not upgrade or not handover:
-        add('admitted', INCONCLUSIVE if not admitted else FAIL, 'the upgrade or the handover was not pending')
-    elif target not in json.dumps(handover):
-        add('admitted', FAIL, 'the pending handover does not name the target release')
-    else:
-        add('admitted', PASS, f'the upgrade and the handover to {target[:16]} pending')
+    def leg(part, frm, to, prefix='', paired=True):
+        """One handover: admitted, notice, stopped, switched, active, resumed
+        and host_verify, from `frm` to `to`. The forward leg pairs the
+        upgrade (the migration); the return is schema-preserving alone."""
+        admitted = part.get('admitted') or {}
+        upgrade, handover = admitted.get('upgrade_pending'), admitted.get('handover_pending')
+        name = lambda check: f'{prefix}{check}'  # noqa: E731
+        if not frm or not to or frm == to:
+            add(name('admitted'), FAIL, f'the drill needs two distinct releases: {releases}')
+        elif not handover or (paired and not upgrade):
+            add(name('admitted'), INCONCLUSIVE if not admitted else FAIL,
+                'the upgrade or the handover was not pending' if paired else 'the handover was not pending')
+        elif to not in json.dumps(handover):
+            add(name('admitted'), FAIL, f'the pending handover does not name {to[:16]}')
+        else:
+            add(name('admitted'), PASS, f'{"the upgrade and " if paired else ""}the handover to {to[:16]} pending')
 
-    # The activation commits after its anchor, so its window's first height
-    # bounds the activation height from below.
-    since = admitted_height(handover)
-    anchor = observations.get('activation_anchor_height')
-    halted = observations.get('halt_height')
-    if not isinstance(notice, int) or since is None or not isinstance(anchor, int):
-        add('notice', INCONCLUSIVE, 'no admission height, notice or activation anchor')
-    else:
-        add('notice', PASS if anchor + 1 >= since + notice else FAIL,
-            f'admitted at {since}, activation anchored at {anchor}, notice {notice} blocks')
+        # The activation commits after its anchor, so its window's first
+        # height bounds the activation height from below.
+        since = admitted_height(handover)
+        anchor = part.get('activation_anchor_height')
+        if not isinstance(notice, int) or since is None or not isinstance(anchor, int):
+            add(name('notice'), INCONCLUSIVE, 'no admission height, notice or activation anchor')
+        else:
+            add(name('notice'), PASS if anchor + 1 >= since + notice else FAIL,
+                f'admitted at {since}, activation anchored at {anchor}, notice {notice} blocks')
 
-    stopped = observations.get('stopped') or {}
-    if not all(isinstance(stopped.get(h), dict) for h in HOSTS):
-        add('stopped', INCONCLUSIVE, 'not every host was read after the activation')
-    else:
-        bad = [f'{h}: {stopped[h]}' for h in HOSTS
-               if stopped[h].get('active') not in ('inactive', 'failed') or not stopped[h].get('release_refusal')]
-        add('stopped', FAIL if bad else PASS, '; '.join(bad) if bad else
-            'RC1 stopped itself on both hosts, refusing the committed release')
+        # The release stopping itself: its unit stops, it refuses the
+        # committed release, and the supervisor's final report names the
+        # application's class, release (E04 gap 15).
+        stopped = part.get('stopped') or {}
+        if not all(isinstance(stopped.get(h), dict) for h in HOSTS):
+            add(name('stopped'), INCONCLUSIVE, 'not every host was read after the activation')
+        else:
+            bad = [f'{h}: {stopped[h]}' for h in HOSTS
+                   if stopped[h].get('active') not in ('inactive', 'failed') or not stopped[h].get('release_refusal')
+                   or stopped[h].get('application_failure_class') != 'release']
+            add(name('stopped'), FAIL if bad else PASS, '; '.join(bad) if bad else
+                f'{frm[:16]} stopped itself on both hosts, refusing the committed release (class release)')
 
-    units = observations.get('units_after') or {}
-    if not all(h in units for h in HOSTS) or not target:
-        add('switched', INCONCLUSIVE, 'the units were not read after the switch')
-    else:
-        wrong = [f'{h} runs {units[h]}' for h in HOSTS if units[h] != target[:16]]
-        add('switched', FAIL if wrong else PASS, '; '.join(wrong) if wrong else f'both units run {target[:16]}')
+        units = part.get('units_after') or {}
+        if not all(h in units for h in HOSTS) or not to:
+            add(name('switched'), INCONCLUSIVE, 'the units were not read after the switch')
+        else:
+            wrong = [f'{h} runs {units[h]}' for h in HOSTS if units[h] != to[:16]]
+            add(name('switched'), FAIL if wrong else PASS, '; '.join(wrong) if wrong else f'both units run {to[:16]}')
 
-    active = observations.get('active') or {}
-    if not active:
-        add('active', INCONCLUSIVE, 'the status view was not read after the switch')
-    else:
-        problems = []
-        if active.get('release') != target:
-            problems.append(f'the active release is {active.get("release")}')
-        if active.get('handover_schema') != MIGRATED_SCHEMA or active.get('upgrade_schema') != MIGRATED_SCHEMA:
-            problems.append(f'the active schema is {active.get("handover_schema")}/{active.get("upgrade_schema")}')
-        add('active', FAIL if problems else PASS, '; '.join(problems) if problems else
-            f'release {target[:16]} active, schema {MIGRATED_SCHEMA}: the migration ran')
+        active = part.get('active') or {}
+        if not active:
+            add(name('active'), INCONCLUSIVE, 'the status view was not read after the switch')
+        else:
+            problems = []
+            if active.get('release') != to:
+                problems.append(f'the active release is {active.get("release")}')
+            if active.get('handover_schema') != MIGRATED_SCHEMA or active.get('upgrade_schema') != MIGRATED_SCHEMA:
+                problems.append(f'the active schema is {active.get("handover_schema")}/{active.get("upgrade_schema")}')
+            add(name('active'), FAIL if problems else PASS, '; '.join(problems) if problems else
+                f'release {to[:16]} active, schema {MIGRATED_SCHEMA}: '
+                + ('the migration ran' if paired else 'the schema preserved'))
 
-    compared = observations.get('compared') or {}
-    nodes = [compared.get(n) for n in ('validator', 'sentry')]
-    if not isinstance(halted, int) or not all(isinstance(n, dict) and n.get('height') for n in nodes):
-        add('resumed', INCONCLUSIVE, 'the nodes were not compared after the activation')
-    elif nodes[0] != nodes[1]:
-        add('resumed', FAIL, f'the nodes differ: validator {nodes[0]}, sentry {nodes[1]}')
-    elif nodes[0]['height'] < halted + AFTER:
-        add('resumed', FAIL, f'compared at {nodes[0]["height"]}, not {AFTER} blocks past {halted}')
-    else:
-        add('resumed', PASS, f'the same block and application hash at {nodes[0]["height"]}, past {halted}')
+        compared = part.get('compared') or {}
+        nodes = [compared.get(n) for n in ('validator', 'sentry')]
+        halted = part.get('halt_height')
+        if not isinstance(halted, int) or not all(isinstance(n, dict) and n.get('height') for n in nodes):
+            add(name('resumed'), INCONCLUSIVE, 'the nodes were not compared after the activation')
+        elif nodes[0] != nodes[1]:
+            add(name('resumed'), FAIL, f'the nodes differ: validator {nodes[0]}, sentry {nodes[1]}')
+        elif nodes[0]['height'] < halted + AFTER:
+            add(name('resumed'), FAIL, f'compared at {nodes[0]["height"]}, not {AFTER} blocks past {halted}')
+        else:
+            add(name('resumed'), PASS, f'the same block and application hash at {nodes[0]["height"]}, past {halted}')
+
+        verified = part.get('host_verify_exit') or {}
+        if not all(h in verified for h in HOSTS):
+            add(name('host_verify'), INCONCLUSIVE, 'not run on every host')
+        else:
+            failed = [f'{h} exited {verified[h]}' for h in HOSTS if verified[h] != 0]
+            add(name('host_verify'), FAIL if failed else PASS, '; '.join(failed) if failed else
+                f'both hosts verify against their {to[:16]} bundles')
+        return halted, nodes
+
+    halted, nodes = leg(observations, source, target)
 
     late = (observations.get('late_sentry') or {}).get('validator_height')
     if not isinstance(halted, int) or not isinstance(late, int) or not isinstance(nodes[1], dict) \
@@ -193,15 +223,11 @@ def evaluate(observations):
         add('late_sentry', PASS, f'the sentry switched {late - halted} blocks after the halt and caught up to '
                                  f'{nodes[1]["height"]}')
 
-    verified = observations.get('host_verify_exit') or {}
-    if not all(h in verified for h in HOSTS):
-        add('host_verify', INCONCLUSIVE, 'not run on every host')
-    else:
-        failed = [f'{h} exited {verified[h]}' for h in HOSTS if verified[h] != 0]
-        add('host_verify', FAIL if failed else PASS, '; '.join(failed) if failed else
-            'both hosts verify against their RC2 bundles')
+    # The return (upgrade-failure.md, section 6): a schema-preserving
+    # handover back to the previous release.
+    leg(observations.get('returned') or {}, target, source, 'return_', paired=False)
 
-    reconciled = {when: observations.get(f'reconcile_{when}') or {} for when in ('before', 'after')}
+    reconciled = {when: observations.get(f'reconcile_{when}') or {} for when in ('before', 'after', 'returned')}
     if not all(r.get('status') for r in reconciled.values()):
         add('reconciled', INCONCLUSIVE, 'no reconciliation before and after')
     else:

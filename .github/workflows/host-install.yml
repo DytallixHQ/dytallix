@@ -320,7 +320,9 @@ jobs:
       # migration, signed three of five; RC2 staged on both hosts; the paired
       # activation after the 20-block notice; RC1 stops itself; switch.sh on
       # the validator, and on the sentry 10 blocks later (a late sentry);
-      # reconciled before and after. After the kit drill (seat 5 replaced; kits 1 to 3
+      # reconciled before and after; then the return to RC1 (a
+      # schema-preserving handover, upgrade failure runbook section 6),
+      # reconciled after. After the kit drill (seat 5 replaced; kits 1 to 3
       # sign) and before the agent drill, whose wipe ends the network.
       - name: Upgrade drill (T8)
         timeout-minutes: 40

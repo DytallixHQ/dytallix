@@ -18,6 +18,7 @@ def observations():
     notice, activated after 120; the sentry switched with the validator at
     135, both on RC2 at 140."""
     node = {'height': 140, 'block_hash': 'b140', 'app_hash': 'a139'}
+    back = {'height': 180, 'block_hash': 'b180', 'app_hash': 'a179'}
     return {
         'releases': {'source': RC1, 'target': RC2}, 'notice_blocks': 20,
         'cancelled': {
@@ -29,13 +30,25 @@ def observations():
         'admitted': {'height': 101, 'upgrade_pending': {'admitted_height': 99, 'plan': {}},
                      'handover_pending': {'plan': {'target_release_sha512': RC2}, 'admitted_height': 100}},
         'activation_anchor_height': 121, 'halt_height': 123,
-        'stopped': {'validator-1': {'active': 'failed', 'release_refusal': True},
-                    'sentry-1': {'active': 'inactive', 'release_refusal': True}},
+        'stopped': {'validator-1': {'active': 'failed', 'release_refusal': True, 'application_failure_class': 'release'},
+                    'sentry-1': {'active': 'inactive', 'release_refusal': True, 'application_failure_class': 'release'}},
         'units_after': {'validator-1': RC2[:16], 'sentry-1': RC2[:16]},
         'active': {'release': RC2, 'handover_schema': 1, 'upgrade_schema': 1},
         'compared': {'validator': dict(node), 'sentry': dict(node)}, 'late_sentry': {'validator_height': 135},
         'host_verify_exit': {'validator-1': 0, 'sentry-1': 0},
-        'reconcile_after': {'status': 'PASS', 'height': 131, 'sha256': 'r2'},
+        'reconcile_after': {'status': 'PASS', 'height': 141, 'sha256': 'r2'},
+        # The return: admitted at 150, activated after 170, both on RC1 at 180.
+        'returned': {
+            'admitted': {'height': 151, 'upgrade_pending': None,
+                         'handover_pending': {'plan': {'target_release_sha512': RC1}, 'admitted_height': 150}},
+            'activation_anchor_height': 171, 'halt_height': 173,
+            'stopped': {h: {'active': 'failed', 'release_refusal': True, 'application_failure_class': 'release'}
+                        for h in ('validator-1', 'sentry-1')},
+            'units_after': {'validator-1': RC1[:16], 'sentry-1': RC1[:16]},
+            'active': {'release': RC1, 'handover_schema': 1, 'upgrade_schema': 1},
+            'compared': {'validator': dict(back), 'sentry': dict(back)},
+            'host_verify_exit': {'validator-1': 0, 'sentry-1': 0}},
+        'reconcile_returned': {'status': 'PASS', 'height': 181, 'sha256': 'r3'},
     }
 
 
@@ -49,7 +62,9 @@ class UpgradeDrillTests(unittest.TestCase):
         found, status = checks(observations())
         self.assertEqual(status, ud.PASS, found)
         self.assertEqual(set(found), {'cancelled', 'admitted', 'notice', 'stopped', 'switched', 'active', 'resumed',
-                                      'late_sentry', 'host_verify', 'reconciled'})
+                                      'late_sentry', 'host_verify', 'reconciled', 'return_admitted', 'return_notice',
+                                      'return_stopped', 'return_switched', 'return_active', 'return_resumed',
+                                      'return_host_verify'})
 
     def test_each_broken_rule_fails(self):
         cases = {
@@ -63,6 +78,14 @@ class UpgradeDrillTests(unittest.TestCase):
             'resumed': lambda o: o['compared']['sentry'].update(app_hash='other'),
             'host_verify': lambda o: o['host_verify_exit'].update({'validator-1': 1}),
             'reconciled': lambda o: o['reconcile_after'].update(status='FAIL'),
+            'return_admitted': lambda o: o['returned']['admitted']['handover_pending']['plan'].update(
+                target_release_sha512=RC2),
+            'return_notice': lambda o: o['returned'].update(activation_anchor_height=160),
+            'return_stopped': lambda o: o['returned']['stopped']['sentry-1'].update(active='active'),
+            'return_switched': lambda o: o['returned']['units_after'].update({'validator-1': RC2[:16]}),
+            'return_active': lambda o: o['returned']['active'].update(handover_schema=0),
+            'return_resumed': lambda o: o['returned']['compared']['sentry'].update(block_hash='other'),
+            'return_host_verify': lambda o: o['returned']['host_verify_exit'].update({'sentry-1': 2}),
         }
         for check, change in cases.items():
             with self.subTest(check=check):
@@ -70,6 +93,14 @@ class UpgradeDrillTests(unittest.TestCase):
                 change(obs)
                 found, status = checks(obs)
                 self.assertEqual((found[check], status), (ud.FAIL, ud.FAIL))
+        # The supervisor must name the application's class on the stop (E04 gap 15).
+        obs = observations()
+        obs['stopped']['sentry-1']['application_failure_class'] = None
+        self.assertEqual(checks(obs)[0]['stopped'], ud.FAIL)
+        # The return needs no paired upgrade, and is reconciled after.
+        obs = observations()
+        obs['reconcile_returned']['status'] = 'FAIL'
+        self.assertEqual(checks(obs)[0]['reconciled'], ud.FAIL)
         # A stop without RC1's refusal of the committed release is not the activation's.
         obs = observations()
         obs['stopped']['validator-1']['release_refusal'] = False
@@ -97,7 +128,7 @@ class UpgradeDrillTests(unittest.TestCase):
 
     def test_a_missing_reading_is_inconclusive(self):
         for key in ('cancelled', 'admitted', 'activation_anchor_height', 'stopped', 'units_after', 'active',
-                    'compared', 'late_sentry', 'host_verify_exit', 'reconcile_after'):
+                    'compared', 'late_sentry', 'host_verify_exit', 'reconcile_after', 'returned', 'reconcile_returned'):
             with self.subTest(missing=key):
                 obs = observations()
                 del obs[key]

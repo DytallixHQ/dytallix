@@ -1724,60 +1724,71 @@ def upgrade_drill(work, timeout=900):
     controls.send(hand_control, 'handover-activate')
     controls.send(up_control, 'upgrade-activate')
 
-    # RC1 refuses to propose past the activation, so the validator stops at
-    # it; the sentry, which never proposes, stops when the next block reaches
-    # it, which needs the validator on RC2. Each host stops before it switches.
-    # The stop: RC1's application refuses, the engine stops itself (the E02
-    # self-term rule) and the supervisor stops the rest.
+    # The release refuses to propose past the activation, so the validator
+    # stops at it; the sentry, which never proposes, stops when the next block
+    # reaches it, which needs the validator on the new release. Each host stops
+    # before it switches. The stop: the application refuses, the engine stops
+    # itself (the E02 self-term rule) and the supervisor stops the rest; its
+    # final report names the application's class, release (E04 gap 15).
     journal = ['journalctl', '-u', staging_host.UNIT, '-o', 'cat', '--no-pager', '-n', '40']
     is_active = ['systemctl', 'is-active', f'{staging_host.UNIT}.service']
-    hosts = {
-        'validator-1': {'run': lambda args: subprocess.run(args, capture_output=True, text=True).stdout,
-                        'unit': lambda: Path(UNIT_FILE).read_text(), 'bundle': unpack_later(work, 'validator-1')},
-        PUBLIC: {'run': lambda args: sentry.run(args, check=False)[1],
-                 'unit': lambda: sentry.read(UNIT_FILE).decode(), 'bundle': Path('/root/node-later/dytallix-host')},
-    }
-    obs['stopped'], obs['units_after'], obs['switched_at'] = {}, {}, {}
-    for label, host in hosts.items():
-        say(f'== {label}: RC1 stops itself')
-        deadline = time.monotonic() + timeout
-        while True:
-            state = host['run'](is_active).strip()
-            if state in ('inactive', 'failed'):
-                break
-            if time.monotonic() > deadline:
-                say(host['run'](journal))
-                raise Failed(f'RC1 did not stop on {label}: {state}')
-            time.sleep(2)
-        lines = host['run'](journal)
-        say(f'{label} ({state}):\n{lines}')
-        obs['stopped'][label] = {'active': state, 'release_refusal': bool(RELEASE_REFUSAL.search(lines))}
-        if label == 'validator-1':
-            obs['halt_height'] = staging_host.height()
-        else:
-            late = (obs['halt_height'] or 0) + upgrade_drill_module.LATE_BLOCKS
-            say(f'== the validator runs alone on RC2 to {late} before the sentry switches (a late sentry)')
-            deadline = time.monotonic() + timeout
-            while (staging_host.height() or 0) < late:
-                if time.monotonic() > deadline:
-                    raise Failed(f'the validator did not reach {late} on RC2 alone: {staging_host.height()}')
-                time.sleep(2)
-            obs['late_sentry'] = {'validator_height': staging_host.height()}
-        say(f'== {label}: switch to RC2 (switch.sh)')
-        switch = str(host['bundle'] / 'switch.sh')
-        if label == PUBLIC:
-            code, out, err = sentry.run([switch], timeout=900, check=False)
-        else:
-            result = subprocess.run([switch], capture_output=True, text=True)
-            code, out, err = result.returncode, result.stdout, result.stderr
-        say(out.strip())
-        if code != 0:
-            raise Failed(f'switch.sh failed on {label}: {err.strip()}')
-        obs['switched_at'][label] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-        obs['units_after'][label] = (exec_start.search(host['unit']()) or [None, None])[1]
+    runs = {'validator-1': lambda args: subprocess.run(args, capture_output=True, text=True).stdout,
+            PUBLIC: lambda args: sentry.run(args, check=False)[1]}
+    unit_text = {'validator-1': lambda: Path(UNIT_FILE).read_text(), PUBLIC: lambda: sentry.read(UNIT_FILE).decode()}
 
-    say('== both nodes run RC2 past the activation')
-    halt = obs['halt_height'] or 0
+    def final_class(lines):
+        """The application's class in the supervisor's final report."""
+        for line in reversed(lines.splitlines()):
+            if line.startswith('{') and '"stop_exits"' in line:
+                try:
+                    return json.loads(line).get('application_failure_class')
+                except ValueError:
+                    return None
+        return None
+
+    def stop_and_switch(part, old, new, bundles, late_blocks=0):
+        part['stopped'], part['units_after'], part['switched_at'] = {}, {}, {}
+        late = None
+        for label in ('validator-1', PUBLIC):
+            run = runs[label]
+            say(f'== {label}: {old} stops itself')
+            deadline = time.monotonic() + timeout
+            while True:
+                state = run(is_active).strip()
+                if state in ('inactive', 'failed'):
+                    break
+                if time.monotonic() > deadline:
+                    say(run(journal))
+                    raise Failed(f'{old} did not stop on {label}: {state}')
+                time.sleep(2)
+            lines = run(journal)
+            say(f'{label} ({state}):\n{lines}')
+            part['stopped'][label] = {'active': state, 'release_refusal': bool(RELEASE_REFUSAL.search(lines)),
+                                      'application_failure_class': final_class(lines)}
+            if label == 'validator-1':
+                part['halt_height'] = staging_host.height()
+            elif late_blocks:
+                target_height = (part['halt_height'] or 0) + late_blocks
+                say(f'== the validator runs alone on {new} to {target_height} before the sentry switches (a late sentry)')
+                deadline = time.monotonic() + timeout
+                while (staging_host.height() or 0) < target_height:
+                    if time.monotonic() > deadline:
+                        raise Failed(f'the validator did not reach {target_height} on {new} alone: {staging_host.height()}')
+                    time.sleep(2)
+                late = staging_host.height()
+            say(f'== {label}: switch to {new} (switch.sh)')
+            switch = str(bundles[label] / 'switch.sh')
+            if label == PUBLIC:
+                code, out, err = sentry.run([switch], timeout=900, check=False)
+            else:
+                result = subprocess.run([switch], capture_output=True, text=True)
+                code, out, err = result.returncode, result.stdout, result.stderr
+            say(out.strip())
+            if code != 0:
+                raise Failed(f'switch.sh failed on {label}: {err.strip()}')
+            part['switched_at'][label] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+            part['units_after'][label] = (exec_start.search(unit_text[label]()) or [None, None])[1]
+        return late
 
     def engine(host):
         raw = (host.run(list(OPERATOR_STATUS), check=False)[1] if host else
@@ -1786,27 +1797,78 @@ def upgrade_drill(work, timeout=900):
             return sync_info(raw)
         except (ValueError, KeyError, TypeError):
             return None
-    deadline = time.monotonic() + timeout
-    while True:
-        ours, theirs = engine(None), engine(sentry)
-        if ours and theirs and ours[0] == theirs[0] and ours[0] >= halt + upgrade_drill_module.AFTER \
-                and ours[0] > obs['late_sentry']['validator_height']:
-            break
-        if time.monotonic() > deadline:
-            raise Failed(f'the nodes did not resume together past {halt}: validator {ours}, sentry {theirs}')
-        time.sleep(1)
-    obs['compared'] = {name: {'height': r[0], 'block_hash': r[1].lower(), 'app_hash': r[2].lower()}
-                       for name, r in (('validator', ours), ('sentry', theirs))}
-    _, view = controls.status()
-    obs['active'] = {'release': view['release_handover']['active_release_sha512'],
-                     'handover_schema': view['release_handover']['active_schema'],
-                     'upgrade_schema': (view.get('upgrade') or {}).get('active_schema')}
-    obs['host_verify_exit'] = {
-        'validator-1': subprocess.run([sys.executable, '-I', '-B', str(hosts['validator-1']['bundle'] / 'host_install.py'),
-                                       'verify']).returncode,
-        PUBLIC: sentry.run(['python3', '-I', '-B', '/root/node-later/dytallix-host/host_install.py', 'verify'],
-                           check=False)[0]}
+
+    def resume(part, new, past=0):
+        say(f'== both nodes run {new} past the activation')
+        halt = part['halt_height'] or 0
+        deadline = time.monotonic() + timeout
+        while True:
+            ours, theirs = engine(None), engine(sentry)
+            if ours and theirs and ours[0] == theirs[0] and ours[0] >= halt + upgrade_drill_module.AFTER \
+                    and ours[0] > past:
+                break
+            if time.monotonic() > deadline:
+                raise Failed(f'the nodes did not resume together past {halt}: validator {ours}, sentry {theirs}')
+            time.sleep(1)
+        part['compared'] = {name: {'height': r[0], 'block_hash': r[1].lower(), 'app_hash': r[2].lower()}
+                            for name, r in (('validator', ours), ('sentry', theirs))}
+
+    def settle(part, bundles, controls):
+        _, view = controls.status()
+        part['active'] = {'release': view['release_handover']['active_release_sha512'],
+                          'handover_schema': view['release_handover']['active_schema'],
+                          'upgrade_schema': (view.get('upgrade') or {}).get('active_schema')}
+        part['host_verify_exit'] = {
+            'validator-1': subprocess.run([sys.executable, '-I', '-B', str(bundles['validator-1'] / 'host_install.py'),
+                                           'verify']).returncode,
+            PUBLIC: sentry.run(['python3', '-I', '-B', str(bundles[PUBLIC] / 'host_install.py'), 'verify'],
+                               check=False)[0]}
+
+    rc2 = {'validator-1': unpack_later(work, 'validator-1'), PUBLIC: Path('/root/node-later/dytallix-host')}
+    late = stop_and_switch(obs, 'RC1', 'RC2', rc2, upgrade_drill_module.LATE_BLOCKS)
+    obs['late_sentry'] = {'validator_height': late}
+    resume(obs, 'RC2', past=late)
+    settle(obs, rc2, controls)
     obs['reconcile_after'] = reconcile_now(work, 'reconcile-after-upgrade')
+
+    # The return (upgrade-failure.md, section 6): a schema-preserving handover
+    # back to the previous release, RC1 staged again beside RC2 from each
+    # host's own first bundle.
+    rc1 = {'validator-1': staging_host.unpack(work / 'net', 'validator-1'), PUBLIC: Path('/root/node/dytallix-host')}
+    say(f'== the return: stage {source[:16]} again beside {target[:16]} on both hosts')
+    code, out, err = sentry.run([str(rc1[PUBLIC] / 'stage.sh')], timeout=900, check=False)
+    say(out.strip())
+    if code != 0:
+        raise Failed(f'stage.sh of RC1 failed on {PUBLIC}: {err.strip()}')
+    result = subprocess.run([str(rc1['validator-1'] / 'stage.sh')], capture_output=True, text=True)
+    say(result.stdout.strip())
+    if result.returncode != 0:
+        raise Failed(f'stage.sh of RC1 failed on validator-1: {result.stderr.strip()}')
+    back = Controls(work, drill / 'return', timeout)
+    authorization = back.drill / 'authorization.md'
+    authorization.write_text(f'Rehearsal return handover {target[:16]} to {source[:16]}, schema-preserving, on '
+                             f'{staging_host.CHAIN_ID} (upgrade failure runbook, section 6): staging only '
+                             f'(simulation plan, T8).\n')
+    request_path, request = back.prepare('handover-admit', '--target-release-sha512', source,
+                                         '--transition', 'schema-preserving', '--authorization', authorization)
+    back.send(back.assemble(request_path, request, back.sign(request_path, request, UPGRADE_SEATS, 'upgrade')),
+              'handover-admit')
+    _, view = back.wait('the return admitted', lambda view: (view.get('release_handover') or {}).get('pending'))
+    returned = obs['returned'] = {'admitted': {'height': view['height'],
+                                               'upgrade_pending': (view.get('upgrade') or {}).get('pending'),
+                                               'handover_pending': view['release_handover']['pending']}}
+    since = upgrade_drill_module.admitted_height(view['release_handover']['pending']) or view['height']
+    back.wait(f'the notice of {notice} blocks after {since}', lambda view: view['height'] + 1 >= since + notice)
+    evidence = back.drill / 'activation-evidence.md'
+    evidence.write_text(f'Release {source[:16]} staged again on validator-1 and {PUBLIC}; reconciliation after the '
+                        f'handover {obs["reconcile_after"]["status"]} at height {obs["reconcile_after"]["height"]}.\n')
+    hand_path, hand = back.prepare('handover-activate', '--evidence', evidence)
+    returned['activation_anchor_height'] = hand['anchor_height']
+    back.send(back.assemble(hand_path, hand, back.sign(hand_path, hand, UPGRADE_SEATS, 'upgrade')), 'handover-activate')
+    stop_and_switch(returned, 'RC2', 'RC1', rc1)
+    resume(returned, 'RC1')
+    settle(returned, rc1, back)
+    obs['reconcile_returned'] = reconcile_now(work, 'reconcile-after-return')
 
     genesis = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
     record = upgrade_drill_module.build(staging_host.CHAIN_ID, genesis, obs)
@@ -1817,7 +1879,8 @@ def upgrade_drill(work, timeout=900):
     if record['status'] != upgrade_drill_module.PASS or \
             upgrade_drill_module.verify(json.loads(path.read_bytes()), genesis) != upgrade_drill_module.PASS:
         raise Failed(f'the upgrade drill is {record["status"]}')
-    say(f'== handover {source[:16]} to {target[:16]} with the migration: PASS (evidence sha256 {record["sha256"]})')
+    say(f'== handover {source[:16]} to {target[:16]} with the migration, and the return: PASS '
+        f'(evidence sha256 {record["sha256"]})')
 
 
 def agent_drill(work, label='sentry-1', timeout=300):

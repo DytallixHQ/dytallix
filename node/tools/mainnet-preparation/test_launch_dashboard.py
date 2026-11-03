@@ -64,10 +64,11 @@ class LaunchDashboardTests(unittest.TestCase):
 
     def test_a_tool_passes_only_when_built_proven_and_complete(self):
         self.assertEqual(self.kpi(self.data, 'tools.t3.ready')['status'], 'pass')
-        t8 = self.kpi(self.data, 'tools.t8.ready')
-        self.assertEqual(t8['status'], 'in_progress')
-        self.assertIn('still to come: a return handover', t8['value'])
-        self.assertEqual(t8['updated'], '2026-11-02')
+        self.assertEqual(self.kpi(self.data, 'tools.t8.ready')['status'], 'pass')
+        t9 = self.kpi(self.data, 'tools.t9.ready')
+        self.assertEqual(t9['status'], 'in_progress')
+        self.assertIn('still to come: each step\'s time recorded', t9['value'])
+        self.assertEqual(t9['updated'], '2026-10-28')
         self.assertEqual(self.kpi(self.data, 'plan.d14_q02.approval')['value'], 'Approved 11 October 2026')
 
     def test_a_tool_claim_must_match_its_ci_step(self):
