@@ -1,61 +1,73 @@
 #!/usr/bin/env python3
-"""The load machines (simulation plan; P01, 20 October 2026,
-launch/approvals/P01_T06_AGENT_RECONCILE_2026-10-20.json): four to eight of
-DigitalOcean's smallest droplets, spread across regions so each has its own
-address, rented by the hour only for R03, R06 and the campaign's flood runs,
-holding only rehearsal keys, and destroyed after each use.
+"""The load machines (simulation plan; P01, 3 November 2026,
+launch/approvals/P01_T06_LOAD_MACHINES_HETZNER_2026-11-03.json): four to
+eight of Hetzner Cloud's smallest servers, each with its own address, in the
+hosts' Hetzner project but never in the sentry's location, rented by the hour
+only for R03, R06 and the campaign's flood runs, holding only rehearsal keys,
+and destroyed after each use.
 
-  load_machines.py check --token FILE
-  load_machines.py up --token FILE --count N --hours H --out DIR [--size SLUG] [--regions R,R,...]
-  load_machines.py down --token FILE --out DIR
-  load_machines.py reap --token FILE
-  load_machines.py watchdog --token FILE --out DIR
+  load_machines.py check
+  load_machines.py up --count N --hours H --out DIR [--type NAME] [--locations L,L,...]
+  load_machines.py down --out DIR
+  load_machines.py reap
+  load_machines.py watchdog --out DIR
 
-check reads the account and lists any machine left running; it creates
-nothing. up makes a throwaway SSH key for the run, registers it, creates the
-machines (each tagged `dytallix-load` and `dytallix-load-RUN`) across the
-regions in turn, waits until each is active with a public IPv4 address, and
-writes DIR/machines.json. It starts a detached watchdog that destroys the
-run's machines and key at the run's deadline (--hours), whatever else
-happens; down destroys them at once, and reap destroys every machine tagged
-`dytallix-load` and every key this tool registered. A machine is always
-destroyed, never only powered off.
+Each takes --context NAME (default dytallix) and --hcloud PATH.
 
-The limits are in code: at most 8 machines, only the two smallest sizes
-(s-1vcpu-512mb-10gb, s-1vcpu-1gb), at most 12 hours, and up refuses to start
-while any machine tagged `dytallix-load` exists, so two runs never overlap and
-nothing is left behind unseen. If any step of up fails, everything it made is
-destroyed before it exits. The machines get no token, no funder keystore and
-no operator key: only what the load workers send them later.
+check lists any machine left running and any other server in the project
+without delete protection; it creates nothing. up makes a throwaway SSH key
+for the run, registers it, creates the machines (each labelled
+`dytallix-load=RUN`) across the locations in turn, waits until each is running
+with a public IPv4 address, and writes DIR/machines.json. It starts a
+detached watchdog that destroys the run's machines and key at the run's
+deadline (--hours), whatever else happens; down destroys them at once (the
+watchdog then stops), and reap destroys every server and SSH key labelled
+`dytallix-load`. A machine is always deleted, never only powered off
+(Hetzner bills a stopped server).
 
-The token is a DigitalOcean personal access token with custom scopes (the
-launch purchase packet lists them), in an owner-only file. It reaches curl
-on its standard input, never on a command line. Standard library and curl
-only.
+The hosts share the project, so deleting is guarded. Hetzner deletes by ID:
+the tool lists by a label selector that may never be empty, and deletes a
+server only if it carries the load label (the run's value, for a run), its
+name starts with `dytallix-load-` and it has no delete protection; down
+deletes only the IDs machines.json recorded. A key is deleted only by its
+load label, so the account's own keys stay. up refuses to start while any
+server without the load label lacks delete protection, so a mistake here
+cannot reach a host.
+
+The limits are in code: at most 8 machines, only the smallest x86 types
+(cpx02, cx23, cpx12), at most 12 hours, only in nbg1, fsn1 and sin (never
+hel1, the sentry's), and up refuses to start while any machine labelled
+`dytallix-load` exists, so two runs never overlap and nothing is left behind
+unseen. If any step of up fails, everything it made is destroyed before it
+exits. The machines get no token, no funder keystore and no operator key:
+only what the load workers send them later.
+
+No token passes through this tool. It runs the hcloud CLI with the context
+named on every call, so the project's token stays in hcloud's own
+configuration; HCLOUD_* variables are removed from its environment, so an
+environment token can never pick another project. Standard library and
+hcloud only.
 """
 import argparse
 from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 import re
 import signal
 import subprocess
 import sys
-import tempfile
 import time
-from urllib.parse import urlsplit
 
-API = 'https://api.digitalocean.com'
+CONTEXT = 'dytallix'
 TAG = 'dytallix-load'
-KEY_PREFIX = 'dytallix-load-'
 MAX_MACHINES = 8
 MAX_HOURS = 12
-SIZES = ('s-1vcpu-512mb-10gb', 's-1vcpu-1gb')
-IMAGE = 'ubuntu-24-04-x64'
-# Spread across continents; each run takes them in turn, one machine each.
-REGIONS = ('nyc3', 'fra1', 'sfo3', 'sgp1', 'lon1', 'tor1', 'syd1', 'blr1')
-PER_REQUEST = 10
-TOKEN = re.compile(r'^dop_v1_[0-9A-Za-z]{20,256}$')
+TYPES = ('cpx02', 'cx23', 'cpx12')
+IMAGE = 'ubuntu-24.04'
+# Away from the sentry (hel1); each run takes them in turn, one machine each.
+LOCATIONS = ('nbg1', 'fsn1', 'sin')
+CONTEXT_NAME = re.compile(r'^[A-Za-z0-9_.-]{1,64}$')
 STATE = 'machines.json'
 
 
@@ -76,106 +88,107 @@ def iso(moment):
     return moment.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
-def load_token(path, standin=False):
-    token = Path(path).read_text().strip()
-    require(standin or TOKEN.fullmatch(token), f'{path} holds no DigitalOcean personal access token')
-    require(Path(path).stat().st_mode & 0o077 == 0, f'{path} must be readable by its owner only')
-    return token
+class Hcloud:
+    """The hcloud CLI, with the context named on every call."""
+
+    def __init__(self, context=CONTEXT, binary='hcloud', run=subprocess.run):
+        require(CONTEXT_NAME.fullmatch(context or ''), f'{context!r} is not an hcloud context name')
+        self.context, self.binary, self.run = context, str(binary), run
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith('HCLOUD_')}
+
+    def call(self, *args, output=True):
+        command = [self.binary, '--context', self.context, *args] + (['-o', 'json'] if output else [])
+        done = self.run(command, capture_output=True, text=True, env=self.env, timeout=900)
+        require(done.returncode == 0, f'hcloud {" ".join(args[:2])} failed: '
+                                      f'{(done.stderr or done.stdout or "").strip()[:300]}')
+        return json.loads(done.stdout) if output and (done.stdout or '').strip() else None
+
+    def servers(self, selector):
+        require(selector, 'a server listing needs a label selector')
+        return self.call('server', 'list', '-l', selector) or []
+
+    def every_server(self):
+        return self.call('server', 'list') or []
+
+    def keys(self, selector):
+        require(selector, 'a key listing needs a label selector')
+        return self.call('ssh-key', 'list', '-l', selector) or []
 
 
-class Api:
-    """DigitalOcean API v2 through curl; the token goes on curl's stdin."""
-
-    def __init__(self, token, base=API, run=subprocess.run, standin=False):
-        split = urlsplit(base)
-        require(split.scheme == 'https' or (standin and split.hostname in ('127.0.0.1', 'localhost')),
-                'the API must be reached over https (plain http only to a local stand-in)')
-        self.token, self.base, self.run = token, base.rstrip('/'), run
-
-    def call(self, method, path, body=None, expect=(200,)):
-        with tempfile.TemporaryDirectory() as scratch:
-            out = Path(scratch) / 'out.json'
-            lines = ['silent', 'show-error', 'max-time = 60', f'request = "{method}"',
-                     f'header = "Authorization: Bearer {self.token}"', f'output = "{out}"',
-                     'write-out = "%{http_code}"', f'url = "{self.base}{path}"']
-            if body is not None:
-                data = Path(scratch) / 'body.json'
-                data.write_text(json.dumps(body))
-                lines += ['header = "Content-Type: application/json"', f'data-binary = "@{data}"']
-            done = self.run(['curl', '--config', '-'], input=('\n'.join(lines) + '\n').encode(), capture_output=True)
-            require(done.returncode == 0, f'{method} {path}: the API did not answer: '
-                                          f'{(done.stderr or b"").decode(errors="replace").strip()}')
-            status = int((done.stdout or b'0').decode().strip() or 0)
-            raw = out.read_bytes() if out.exists() else b''
-        require(status in expect, f'{method} {path} answered HTTP {status}: {raw[:300]!r}')
-        return json.loads(raw) if raw.strip() else {}
-
-    def tagged(self, tag=TAG):
-        """Every machine with the tag, following pages."""
-        machines, page = [], 1
-        while True:
-            found = self.call('GET', f'/v2/droplets?tag_name={tag}&per_page=200&page={page}')
-            machines += found.get('droplets', [])
-            if not (found.get('links') or {}).get('pages', {}).get('next'):
-                return machines
-            page += 1
-
-    def keys(self):
-        found = self.call('GET', '/v2/account/keys?per_page=200')
-        return [k for k in found.get('ssh_keys', []) if k.get('name', '').startswith(KEY_PREFIX)]
+def labels(item):
+    return item.get('labels') or {}
 
 
-def public_ipv4(machine):
-    for net in (machine.get('networks') or {}).get('v4', []):
-        if net.get('type') == 'public':
-            return net.get('ip_address')
-    return None
+def protected(server):
+    return bool((server.get('protection') or {}).get('delete'))
 
 
-def check(api, say=print):
-    account = api.call('GET', '/v2/account')['account']
-    left = api.tagged()
-    say(json.dumps({'account_status': account.get('status'), 'droplet_limit': account.get('droplet_limit'),
-                    'machines_running': [m['name'] for m in left], 'keys_left': [k['name'] for k in api.keys()]}))
+def deletable(server, run=None):
+    return (TAG in labels(server) and (run is None or labels(server)[TAG] == run)
+            and server.get('name', '').startswith(f'{TAG}-') and not protected(server))
+
+
+def public_ipv4(server):
+    return ((server.get('public_net') or {}).get('ipv4') or {}).get('ip')
+
+
+def unprotected_hosts(cloud):
+    return [s['name'] for s in cloud.every_server() if TAG not in labels(s) and not protected(s)]
+
+
+def check(cloud, say=print):
+    left = cloud.servers(TAG)
+    say(json.dumps({'context': cloud.context, 'machines_running': [m['name'] for m in left],
+                    'keys_left': [k['name'] for k in cloud.keys(TAG)],
+                    'servers_without_delete_protection': unprotected_hosts(cloud)}))
     return left
 
 
-def plan(count, hours, size, regions):
+def plan(count, hours, server_type, locations):
     require(1 <= count <= MAX_MACHINES, f'1 to {MAX_MACHINES} machines (the approval allows 4 to 8 for a run)')
     require(0 < hours <= MAX_HOURS, f'a run holds its machines for at most {MAX_HOURS} hours')
-    require(size in SIZES, f'{size} is not one of the approved smallest sizes {SIZES}')
-    require(len(set(regions)) == len(regions) and regions, 'the regions must be distinct')
-    return [(f'{TAG}-{i + 1}', regions[i % len(regions)]) for i in range(count)]
+    require(server_type in TYPES, f'{server_type} is not one of the approved smallest types {TYPES}')
+    require(locations and len(set(locations)) == len(locations), 'the locations must be distinct')
+    outside = sorted(set(locations) - set(LOCATIONS))
+    require(not outside, f'{", ".join(outside)} is not an approved location {LOCATIONS}')
+    return [(i + 1, locations[i % len(locations)]) for i in range(count)]
 
 
-def destroy(api, run_tag, key_id, say=print):
-    """The run's machines and its key; safe to call more than once."""
-    api.call('DELETE', f'/v2/droplets?tag_name={run_tag}', expect=(204, 404))
-    if key_id:
-        api.call('DELETE', f'/v2/account/keys/{key_id}', expect=(204, 404))
-    say(f'== destroyed the machines tagged {run_tag}' + (f' and key {key_id}' if key_id else ''))
+def destroy(cloud, run, key_id, say=print, ids=None):
+    """The run's machines and its key; safe to call more than once. With ids,
+    only the servers among them."""
+    servers = [s for s in cloud.servers(f'{TAG}={run}') if deletable(s, run) and (ids is None or s['id'] in ids)]
+    if servers:
+        cloud.call('server', 'delete', *[str(s['id']) for s in servers], output=False)
+    keys = [k for k in cloud.keys(f'{TAG}={run}') if k['id'] == key_id and labels(k).get(TAG) == run]
+    for key in keys:
+        cloud.call('ssh-key', 'delete', str(key['id']), output=False)
+    say(f'== destroyed {len(servers)} machine(s) labelled {TAG}={run}' + (f' and key {key_id}' if keys else ''))
 
 
-def up(api, out, count, hours, size=SIZES[0], regions=REGIONS, timeout=600, keygen='ssh-keygen',
+def up(cloud, out, count, hours, server_type=TYPES[0], locations=LOCATIONS, timeout=600, keygen='ssh-keygen',
        clock=time.monotonic, sleep=time.sleep, say=print, watchdog=None):
     out = Path(out)
-    names = plan(count, hours, size, list(regions))
-    left = api.tagged()
-    require(not left, f'machines tagged {TAG} still exist ({", ".join(m["name"] for m in left)}); '
+    names = plan(count, hours, server_type, list(locations))
+    unprotected = unprotected_hosts(cloud)
+    require(not unprotected, f'servers without delete protection share the project ({", ".join(unprotected)}); '
+                             f'protect them first (hcloud server enable-protection ID delete rebuild)')
+    left = cloud.servers(TAG)
+    require(not left, f'machines labelled {TAG} still exist ({", ".join(m["name"] for m in left)}); '
                       f'run reap or down first')
-    available = {r['slug'] for r in api.call('GET', '/v2/regions?per_page=200')['regions']
-                 if r.get('available') and size in r.get('sizes', [])}
-    missing = sorted({region for _, region in names} - available)
-    require(not missing, f'{size} is not available in {", ".join(missing)}')
+    offered = {entry['name'] for entry in cloud.call('server-type', 'describe', server_type).get('locations') or []
+               if entry.get('available') and not entry.get('deprecation')}
+    missing = sorted({location for _, location in names} - offered)
+    require(not missing, f'{server_type} cannot be ordered in {", ".join(missing)} now')
     started = now()
     run = started.strftime('%Y%m%d%H%M%S')
-    run_tag = f'{TAG}-{run}'
+    label = f'{TAG}={run}'
     out.mkdir(parents=True, exist_ok=True, mode=0o700)
     key_file = out / 'id_ed25519'
-    subprocess.run([keygen, '-q', '-t', 'ed25519', '-N', '', '-C', run_tag, '-f', str(key_file)], check=True)
-    state = {'schema': 'dytallix.load-machines.v1', 'run': run, 'tag': run_tag, 'size': size,
-             'started': iso(started), 'deadline': iso(started + timedelta(hours=hours)), 'key_id': None,
-             'machines': []}
+    subprocess.run([keygen, '-q', '-t', 'ed25519', '-N', '', '-C', f'{TAG}-{run}', '-f', str(key_file)], check=True)
+    state = {'schema': 'dytallix.load-machines.v2', 'provider': 'hetzner', 'context': cloud.context, 'run': run,
+             'label': label, 'type': server_type, 'started': iso(started),
+             'deadline': iso(started + timedelta(hours=hours)), 'key_id': None, 'created': [], 'machines': []}
     path = out / STATE
 
     def save():
@@ -189,77 +202,86 @@ def up(api, out, count, hours, size=SIZES[0], regions=REGIONS, timeout=600, keyg
         previous[number] = signal.signal(number, on_signal)
     try:
         save()
-        key = api.call('POST', '/v2/account/keys', {'name': f'{KEY_PREFIX}{run}',
-                                                     'public_key': (out / 'id_ed25519.pub').read_text().strip()},
-                       expect=(201,))['ssh_key']
+        key = cloud.call('ssh-key', 'create', '--name', f'{TAG}-{run}', '--public-key-from-file',
+                         str(out / 'id_ed25519.pub'), '--label', label)['ssh_key']
         state['key_id'] = key['id']
         save()
         if watchdog:
             watchdog(out)
-        by_region = {}
-        for name, region in names:
-            by_region.setdefault(region, []).append(name)
-        for region, group in by_region.items():
-            for i in range(0, len(group), PER_REQUEST):
-                api.call('POST', '/v2/droplets', {'names': group[i:i + PER_REQUEST], 'region': region, 'size': size,
-                                                  'image': IMAGE, 'ssh_keys': [key['id']], 'tags': [TAG, run_tag],
-                                                  'ipv6': False, 'monitoring': False}, expect=(202,))
+        for number, location in names:
+            made = cloud.call('server', 'create', '--name', f'{TAG}-{run}-{number}', '--type', server_type,
+                              '--image', IMAGE, '--location', location, '--ssh-key', str(key['id']),
+                              '--label', label, '--without-ipv6')['server']
+            state['created'].append(made['id'])
+            save()
         deadline = clock() + timeout
         while True:
-            machines = api.tagged(run_tag)
-            ready = [m for m in machines if m.get('status') == 'active' and public_ipv4(m)]
+            servers = [s for s in cloud.servers(label) if s['id'] in state['created']]
+            ready = [s for s in servers if s.get('status') == 'running' and public_ipv4(s)]
             if len(ready) == count:
                 break
-            require(clock() < deadline, f'only {len(ready)} of {count} machines active after {timeout} s')
+            require(clock() < deadline, f'only {len(ready)} of {count} machines running after {timeout} s')
             sleep(5)
-        state['machines'] = sorted(({'name': m['name'], 'id': m['id'], 'region': (m.get('region') or {}).get('slug'),
-                                     'ipv4': public_ipv4(m)} for m in ready), key=lambda m: m['name'])
+        state['machines'] = sorted(({'name': s['name'], 'id': s['id'],
+                                     'location': (s.get('location') or {}).get('name'), 'ipv4': public_ipv4(s)}
+                                    for s in ready), key=lambda m: m['name'])
         require(len({m['ipv4'] for m in state['machines']}) == count, 'two machines share an address')
         save()
         say(f'== {count} machines up until {state["deadline"]}: '
-            + ', '.join(f'{m["name"]} {m["region"]}' for m in state['machines']))
+            + ', '.join(f'{m["name"]} {m["location"]}' for m in state['machines']))
         return state
     except BaseException:
-        destroy(api, run_tag, state['key_id'], say)
+        destroy(cloud, run, state['key_id'], say)
         raise
     finally:
         for number, handler in previous.items():
             signal.signal(number, handler)
 
 
-def down(api, out, say=print):
-    state = json.loads((Path(out) / STATE).read_bytes())
-    destroy(api, state['tag'], state['key_id'], say)
+def down(cloud, out, say=print):
+    path = Path(out) / STATE
+    state = json.loads(path.read_bytes())
+    destroy(cloud, state['run'], state['key_id'], say, ids=set(state['created']))
+    # The watchdog reads this and stops.
+    state['destroyed'] = iso(now())
+    path.write_text(json.dumps(state, indent=2) + '\n')
 
 
-def reap(api, say=print):
-    """Every tagged machine and every key this tool registered."""
-    machines = api.tagged()
-    api.call('DELETE', f'/v2/droplets?tag_name={TAG}', expect=(204, 404))
-    keys = api.keys()
+def reap(cloud, say=print):
+    """Every labelled machine and every key this tool registered."""
+    servers = [s for s in cloud.servers(TAG) if deletable(s)]
+    if servers:
+        cloud.call('server', 'delete', *[str(s['id']) for s in servers], output=False)
+    keys = [k for k in cloud.keys(TAG) if TAG in labels(k) and k.get('name', '').startswith(f'{TAG}-')]
     for key in keys:
-        api.call('DELETE', f'/v2/account/keys/{key["id"]}', expect=(204, 404))
-    say(f'== reaped {len(machines)} machine(s) and {len(keys)} key(s)')
-    return len(machines), len(keys)
+        cloud.call('ssh-key', 'delete', str(key['id']), output=False)
+    say(f'== reaped {len(servers)} machine(s) and {len(keys)} key(s)')
+    return len(servers), len(keys)
 
 
-def watch(api, out, clock=now, sleep=time.sleep, say=print):
-    """Destroys the run's machines and key at its deadline."""
-    state = json.loads((Path(out) / STATE).read_bytes())
+def watch(cloud, out, clock=now, sleep=time.sleep, say=print):
+    """Destroys the run's machines and key at its deadline, or stops once
+    down has destroyed them."""
+    path = Path(out) / STATE
+    state = json.loads(path.read_bytes())
     deadline = datetime.strptime(state['deadline'], '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=timezone.utc)
     while True:
+        if 'destroyed' in json.loads(path.read_bytes()):
+            say('== the run was destroyed by down; the watchdog stops')
+            return
         remaining = (deadline - clock()).total_seconds()
         if remaining <= 0:
             break
         sleep(min(60, max(1, remaining)))
-    destroy(api, state['tag'], state['key_id'], say)
+    destroy(cloud, state['run'], state['key_id'], say)
 
 
-def start_watchdog(token_path, out):
+def start_watchdog(cloud, out):
     """A detached process that outlives this one."""
     log = open(Path(out) / 'watchdog.log', 'ab')
-    subprocess.Popen([sys.executable, '-I', '-B', str(Path(__file__).resolve()), 'watchdog', '--token', str(token_path),
-                      '--out', str(out)], stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+    subprocess.Popen([sys.executable, '-I', '-B', str(Path(__file__).resolve()), 'watchdog', '--context', cloud.context,
+                      '--hcloud', cloud.binary, '--out', str(out)], stdin=subprocess.DEVNULL, stdout=log, stderr=log,
+                     start_new_session=True)
 
 
 def main():
@@ -267,29 +289,30 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     for name in ('check', 'up', 'down', 'reap', 'watchdog'):
         p = commands.add_parser(name)
-        p.add_argument('--token', type=Path, required=True)
+        p.add_argument('--context', default=CONTEXT)
+        p.add_argument('--hcloud', default='hcloud')
         if name in ('up', 'down', 'watchdog'):
             p.add_argument('--out', type=Path, required=True)
         if name == 'up':
             p.add_argument('--count', type=int, required=True)
             p.add_argument('--hours', type=float, required=True)
-            p.add_argument('--size', default=SIZES[0])
-            p.add_argument('--regions', default=','.join(REGIONS))
+            p.add_argument('--type', default=TYPES[0])
+            p.add_argument('--locations', default=','.join(LOCATIONS))
     args = parser.parse_args()
     try:
-        api = Api(load_token(args.token))
+        cloud = Hcloud(args.context, args.hcloud)
         if args.command == 'check':
-            check(api)
+            check(cloud)
         elif args.command == 'up':
-            up(api, args.out, args.count, args.hours, args.size, args.regions.split(','),
-               watchdog=lambda out: start_watchdog(args.token, out))
+            up(cloud, args.out, args.count, args.hours, args.type, args.locations.split(','),
+               watchdog=lambda out: start_watchdog(cloud, out))
         elif args.command == 'down':
-            down(api, args.out)
+            down(cloud, args.out)
         elif args.command == 'reap':
-            reap(api)
+            reap(cloud)
         else:
-            watch(api, args.out)
-    except (Failed, OSError, KeyError, ValueError, subprocess.CalledProcessError) as error:
+            watch(cloud, args.out)
+    except (Failed, OSError, KeyError, ValueError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
         print(f'load_machines: {error}', file=sys.stderr)
         return 1
     return 0
