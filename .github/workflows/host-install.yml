@@ -66,9 +66,18 @@ jobs:
             ${{ runner.temp }}/release
             ${{ runner.temp }}/release-later
           key: ${{ steps.release-key.outputs.key }}
+      # snapshot.debian.org, which pins the builder's packages, sometimes stops
+      # answering for a few minutes (2 November 2026: apt fetched no index, so
+      # nothing installed). The image is retried; the pinned inputs, and so
+      # the release set's bytes, are the same on every attempt.
       - name: Builder image
         if: steps.release-cache.outputs.cache-hit != 'true'
-        run: docker build --platform linux/amd64 -t dytallix-release-builder release/builder
+        run: |
+          for attempt in 1 2 3; do
+            docker build --platform linux/amd64 -t dytallix-release-builder release/builder && exit 0
+            [ "$attempt" = 3 ] || { echo "::warning::builder image attempt $attempt failed; retrying in $((attempt * 90)) s"; sleep $((attempt * 90)); }
+          done
+          exit 1
       - name: Build the release set
         if: steps.release-cache.outputs.cache-hit != 'true'
         run: |

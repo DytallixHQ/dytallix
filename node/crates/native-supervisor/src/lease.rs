@@ -99,7 +99,7 @@ impl LifecycleLease {
 /// Concurrent tests fork children that hold duplicate lock descriptors until
 /// exec closes them, so a released lock can stay briefly held. Retry the
 /// reacquisition within a bound instead of treating that window as a leak.
-#[cfg(test)]
+#[cfg(any(test, all(target_os = "linux", feature = "qualification-fixtures")))]
 pub(crate) fn eventually<T>(mut attempt: impl FnMut() -> Result<T>) -> T {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
     loop {
