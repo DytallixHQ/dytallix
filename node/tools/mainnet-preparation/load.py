@@ -651,9 +651,11 @@ class Load:
         for record in fleet['wallets']:
             self.wallets[record['label']] = Wallet(record['label'], record['role'], record['address'],
                                                    record['account_id'], self.fleet_dir / record['key_file'])
+        # A load machine's worker has no funder: its wallets were funded already.
         self.funder = Wallet(funder['label'], 'funder', funder['address'], funder['account_id'],
-                             keystore_name=funder['label'])
-        self.wallets[self.funder.label] = self.funder
+                             keystore_name=funder['label']) if funder else None
+        if self.funder:
+            self.wallets[self.funder.label] = self.funder
         # Keystore accounts whose rewards go back to the funder.
         self.sweepers = [Wallet(a['label'], 'sweeper', a['address'], a['account_id'], keystore_name=a['label'])
                          for a in sweepers]

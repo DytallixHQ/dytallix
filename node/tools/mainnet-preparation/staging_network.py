@@ -56,6 +56,14 @@ for 2 minutes in the default mix over the sentry's client channel, with the
 governance steps beside it and one reward sweep back to the funder. Anything but
 PASS fails the step; the evidence is load/run/evidence.json.
 
+load-workers is the load from several workers (simulation plan, T3;
+load_workers.py), the load machines' path on one runner: 18 load wallets and
+6 spare keys in three disjoint shares, each worker in its own network
+namespace with its own address on the bridge, 3 transactions a second in all
+for 2 minutes. The runner funds the fleet and judges the run on every
+worker's rows. Anything but PASS fails the step; the evidence is
+load-workers/run/evidence.json.
+
 checkpoint is the checkpoint recorder (simulation plan, T7; checkpoints.py)
 after the after-load reconciliation: a short schedule of the R07 checks CI can
 source, recorded against that fresh reconciliation and the load run (each
@@ -142,6 +150,7 @@ import faults  # noqa: E402
 import host_install  # noqa: E402
 import launch_dashboard  # noqa: E402
 import load as load_generator  # noqa: E402
+import load_workers  # noqa: E402
 import reconcile  # noqa: E402
 import recovery  # noqa: E402
 import restore_drill as restore_drill_module  # noqa: E402
@@ -1122,6 +1131,70 @@ def load_drill(work):
                                     (out / 'run' / 'transactions.jsonl').read_bytes())
     if record['status'] != load_generator.PASS or checked != record['status']:
         raise Failed(f'the load run is {record["status"]} (verified {checked})')
+
+
+# Load from several addresses (simulation plan, T3): the load machines' path
+# (load_workers.py), proven on one runner with each worker in its own network
+# namespace and address on the staging bridge, so the sentry's channel sees
+# three clients of two connections each.
+LOAD_WORKERS = {'workers': 3, 'wallets': 18, 'spares': 6, 'distributors': 2, 'rate': 3.0, 'duration': 120}
+BRIDGE_FILTERS = ('/proc/sys/net/bridge/bridge-nf-call-iptables', '/proc/sys/net/bridge/bridge-nf-call-ip6tables')
+
+
+def load_workers_drill(work):
+    """The load from several workers: a fresh fleet funded from the ecosystem
+    growth account through two distributors on the runner (the coordinator,
+    which keeps the funder), split into three disjoint shares; each worker
+    runs in its own network namespace with its own address on the bridge,
+    primes its share and, from one start time, sends a third of the rate over
+    its own two channel connections. The coordinator judges the run on every
+    row: nothing lost, none refused, 99% within 2 blocks, the burns matching
+    the merged ledger. The evidence names the three addresses and is checked
+    again from its files; the namespaces are removed after."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'load-workers'
+    env = pinned_cli(work, out)
+    cli = work / 'release-bin' / 'dytallix'
+    load_generator.make_fleet(cli, staging_host.CHAIN_ID, out / 'fleet', LOAD_WORKERS['wallets'], 1,
+                              LOAD_WORKERS['spares'], LOAD_WORKERS['distributors'])
+    validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
+    spaces = [f'dytload{n}' for n in range(LOAD_WORKERS['workers'])]
+    addresses = [f'10.77.0.{20 + n}' for n in range(LOAD_WORKERS['workers'])]
+    # Bridged frames between a namespace and the sentry's VM stay off the
+    # runner's firewall (the validator's), as two hosts' frames on a switch do.
+    filters = {path: Path(path).read_text().strip() for path in BRIDGE_FILTERS if Path(path).exists()}
+    try:
+        for path in filters:
+            Path(path).write_text('0\n')
+        for n, (space, address) in enumerate(zip(spaces, addresses)):
+            sh('ip', 'netns', 'add', space)
+            sh('ip', 'link', 'add', f'dytlv{n}', 'type', 'veth', 'peer', 'name', f'dytlp{n}')
+            sh('ip', 'link', 'set', f'dytlp{n}', 'netns', space)
+            sh('ip', 'link', 'set', f'dytlv{n}', 'master', BRIDGE)
+            sh('ip', 'link', 'set', f'dytlv{n}', 'up')
+            sh('ip', 'netns', 'exec', space, 'ip', 'addr', 'add', f'{address}/24', 'dev', f'dytlp{n}')
+            sh('ip', 'netns', 'exec', space, 'ip', 'link', 'set', f'dytlp{n}', 'up')
+            sh('ip', 'netns', 'exec', space, 'ip', 'link', 'set', 'lo', 'up')
+        settings = load_generator.Settings(rate=LOAD_WORKERS['rate'], duration=LOAD_WORKERS['duration'], max_refused=0)
+        transport = load_workers.LocalTransport(out / 'run' / 'workers', validator, spaces, addresses)
+        record = load_workers.drive(cli, env['HOME'], out / 'fleet', out / 'run',
+                                    chain / 'chain' / 'application-config.json', 'ecosystem-growth', validator,
+                                    settings, transport, LOAD_WORKERS['workers'], show=say,
+                                    passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+        load_workers.report(record, show=say)
+    finally:
+        for n, space in enumerate(spaces):
+            sh('ip', 'netns', 'del', space, check=False)
+            sh('ip', 'link', 'del', f'dytlv{n}', check=False)
+        for path, value in filters.items():
+            Path(path).write_text(value + '\n')
+    checked = load_generator.verify(json.loads((out / 'run' / 'evidence.json').read_bytes()),
+                                    (out / 'run' / 'transactions.jsonl').read_bytes())
+    if record['window']['addresses'] != sorted(addresses):
+        raise Failed(f'the workers sent from {record["window"]["addresses"]}, not {addresses}')
+    if record['status'] != load_generator.PASS or checked != record['status']:
+        raise Failed(f'the load from {len(spaces)} workers is {record["status"]} (verified {checked})')
 
 
 def checkpoint_network(work, timeout=300):
@@ -2201,7 +2274,7 @@ def main():
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'checkpoint', 'adversary-drill',
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
                  'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'stage-later-release',
                  'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
@@ -2231,6 +2304,8 @@ def main():
             reconcile_network(args.work, args.after)
         elif args.command == 'load':
             load_drill(args.work)
+        elif args.command == 'load-workers':
+            load_workers_drill(args.work)
         elif args.command == 'checkpoint':
             checkpoint_network(args.work)
         elif args.command == 'adversary-drill':

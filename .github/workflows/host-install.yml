@@ -269,6 +269,18 @@ jobs:
       # not R07's.
       - name: Checkpoint recorder (T7)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py checkpoint --work "$RUNNER_TEMP/network"
+      # The load machines' path (simulation plan, T3; load_workers.py): the
+      # runner keeps the funder, funds a fresh fleet and splits it into three
+      # disjoint shares; each worker runs in its own network namespace with
+      # its own address on the bridge, primes its share and, from one start
+      # time, sends a third of 3 transactions a second for 2 minutes over its
+      # own two channel connections. The run is judged on every worker's rows
+      # at once (nothing lost or refused, 99% within 2 blocks, the burns
+      # against the merged ledger) and names the three addresses. After the
+      # checkpoint, which binds the single-address load.
+      - name: Load from three addresses (T3)
+        timeout-minutes: 20
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py load-workers --work "$RUNNER_TEMP/network"
       # The adversarial generator (simulation plan, T4) through the client
       # channel: an invalid ML-DSA-65 signature, a decode failure, a stale nonce
       # and an oversized request are each refused at admission; copies of a
