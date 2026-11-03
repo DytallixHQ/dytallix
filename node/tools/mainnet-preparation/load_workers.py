@@ -318,12 +318,16 @@ class SshTransport:
         path = shlex.quote(f'{self.remote}/out/{name}')
         self.call(n, f'cat > {path}.tmp && mv {path}.tmp {path}', (json.dumps(value) + '\n').encode())
 
+    # The bracket keeps the pattern from matching the remote shell that runs
+    # it, whose own command line holds the pattern.
+    WORKER = '"[l]oad_workers.py work"'
+
     def alive(self, n):
-        return self.call(n, 'pgrep -f "load_workers.py work" > /dev/null', check=False).returncode == 0
+        return self.call(n, f'pgrep -f {self.WORKER} > /dev/null', check=False).returncode == 0
 
     def stop(self):
         for n in range(len(self.machines)):
-            self.call(n, 'pkill -f "load_workers.py work" || true', check=False)
+            self.call(n, f'pkill -f {self.WORKER} || true', check=False)
 
 
 # The coordinator

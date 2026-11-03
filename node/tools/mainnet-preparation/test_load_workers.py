@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 import textwrap
@@ -239,6 +240,14 @@ class TransportTests(unittest.TestCase):
         self.assertIsNone(transport.read(0, 'primed.json'))
         transport.write(0, 'start.json', {'start_at': 5})
         self.assertEqual(json.loads(transport.read(0, 'start.json')), {'start_at': 5})
+        # A worker is alive while a process runs it, and the shell that asks
+        # is not taken for one.
+        self.assertFalse(transport.alive(0))
+        worker = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)', 'load_workers.py', 'work'])
+        self.addCleanup(worker.kill)
+        self.assertTrue(transport.alive(0))
+        transport.stop()
+        worker.wait(10)
         self.assertFalse(transport.alive(0))
         calls = [json.loads(line) for line in log.read_text().splitlines()]
         for argv in calls:
