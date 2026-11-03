@@ -1,0 +1,45 @@
+{
+  "schema": "dytallix.launch-result.v1",
+  "scope": "campaign",
+  "date": "2026-11-03",
+  "candidate": {
+    "commit": "2a652c101225b2c72e09b824c55aff9795ab93a0",
+    "release_set_sha256": "b26049c7124535f7fe0aaffa91223410eef39ba4447d5681d9406d7b9f3930fb"
+  },
+  "kpis": [
+    {
+      "id": "campaign.faults.network_heal",
+      "status": "in_progress",
+      "value": 17.0,
+      "unit": "s",
+      "samples": 1,
+      "target": 120,
+      "repetitions": 30
+    },
+    {
+      "id": "campaign.faults.validator_restart",
+      "status": "in_progress",
+      "value": 22.6,
+      "unit": "s",
+      "samples": 1,
+      "target": 300,
+      "repetitions": 30
+    }
+  ],
+  "sources": [
+    {
+      "tool": "faults",
+      "sha256": "910b24ec67c68ac7e039d5939fc74f046de12e5bc50d22b581ad5e40b73a5abb",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "e9039c2b68eccf90749e321976ee90a17e0e9db96c25e272ef1b8d226842b24c",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "FAIL"
+    }
+  ]
+}
