@@ -25,7 +25,8 @@
     "A shorter path: the load reaches the sentry over Hetzner's own network rather than the open internet, so its latency is lower than a distant client's. The machines in sin cross continents; a run's evidence records each machine's location."
   ],
   "supersedes": [
-    "Load machines' provider, D14-Q02 'DigitalOcean, hourly' (P01_T06_AGENT_RECONCILE_2026-10-20): now Hetzner Cloud, hourly, in the hosts' project, without the condition that the load machines run outside the hosts' provider."
+    "Load machines' provider, D14-Q02 'DigitalOcean, hourly' (P01_T06_AGENT_RECONCILE_2026-10-20): now Hetzner Cloud, hourly, in the hosts' project, without the condition that the load machines run outside the hosts' provider.",
+    "Load source, D14-Q02 'Several small load machines' (P01_T06_SIMULATION_PLAN_2026-10-11): its clause that the machines run outside the hosts' providers is dropped; four to eight small rented machines, each with its own address, for the load runs only and holding only rehearsal keys, still stand."
   ],
   "does_not_authorize": [
     "renting any load machine before its run, apart from the one-machine check this record names",
