@@ -1,0 +1,40 @@
+{
+  "decision_id": "P01-2026-11-03-T06-LOAD-MACHINES-HETZNER",
+  "approved": "2026-11-03",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the load machines need another provider, or can be Hetzner servers in the hosts' own project"
+  },
+  "reason": "The load machines were to be rented at a third provider, which needs a new account and a purchase for a few euros of servers. The hosts' Hetzner account already rents by the hour, and the hcloud CLI on the founder's machine is already signed in to the project. What a load machine needs is its own public address, since the sentry's client channel allows 2 connections per address and 16 in all; that holds at Hetzner as well. One machine rented and destroyed by the tool on 3 November 2026 (cpx02 in nbg1, about a minute) proved it against the real project.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "The load machines' provider (D14-Q02)",
+      "selected": "Hetzner Cloud, hourly, in the hosts' project",
+      "rule": "The four to eight load machines are Hetzner Cloud's smallest x86 servers (cpx02, cx23 or cpx12, whichever can be ordered), each with its own public IPv4 address, in nbg1, fsn1 and sin, never in hel1, the sentry's location. They are rented by the hour only for R03, R06 and the campaign's flood runs, hold only rehearsal keys, and are deleted after each use. This drops the condition that they run outside the hosts' provider: they share the hosts' account and project. The tool reaches the project only through the hcloud CLI's named context, so no token passes through it."
+    },
+    {
+      "question": "How a tool in the hosts' project is kept from the hosts",
+      "selected": "Delete protection and guarded deletion",
+      "rule": "Every server in the project that is not a load machine has Hetzner's delete protection, which Hetzner only sets together with rebuild protection; the sentry and the validator got it on 3 November 2026, and the founder's web server already had it. load_machines.py refuses to rent while any such server lacks it. It lists only by a label selector that is never empty, and deletes a server only if it carries the load label (the run's value, for a run), its name starts with dytallix-load- and it is not protected; down deletes only the IDs the run recorded, and SSH keys are deleted only by the load label and name, so the account's own keys stay. A drill that rebuilds or deletes a host (a destroyed sentry, a lost validator host) lifts that host's protection first, at the console, and restores it after."
+    }
+  ],
+  "accepted_risks": [
+    "Account suspension: Hetzner's abuse detection acts on the whole account. If it took R03's floods from the load machines for an attack, it could stop the hosts and the founder's web server with them, which the single-provider disclosure (P01_E05_HOSTING_2026-10-11) already covers for a provider-wide failure. The floods stay within the sentry's production limits (16 connections, 2 per address) and are small; they run only in R03 and the campaign's flood runs.",
+    "A shorter path: the load reaches the sentry over Hetzner's own network rather than the open internet, so its latency is lower than a distant client's. The machines in sin cross continents; a run's evidence records each machine's location."
+  ],
+  "supersedes": [
+    "Load machines' provider, D14-Q02 'DigitalOcean, hourly' (P01_T06_AGENT_RECONCILE_2026-10-20): now Hetzner Cloud, hourly, in the hosts' project, without the condition that the load machines run outside the hosts' provider.",
+    "Load source, D14-Q02 'Several small load machines' (P01_T06_SIMULATION_PLAN_2026-10-11): its clause that the machines run outside the hosts' providers is dropped; four to eight small rented machines, each with its own address, for the load runs only and holding only rehearsal keys, still stand."
+  ],
+  "does_not_authorize": [
+    "renting any load machine before its run, apart from the one-machine check this record names",
+    "rebuilding either host or installing the agent on it, each of which needs its own approval",
+    "lifting a host's delete protection outside a drill",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
