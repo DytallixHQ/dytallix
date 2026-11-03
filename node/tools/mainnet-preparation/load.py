@@ -398,6 +398,9 @@ class Signer:
     def __init__(self, cli, env, scratch):
         self.cli, self.env, self.scratch = cli, env, Path(scratch)
         self.scratch.mkdir(parents=True, exist_ok=True, mode=0o700)
+        # Each transaction's prepare, sign and transport, in milliseconds: the
+        # signing cost that sizes the load machines (one signer thread each).
+        self.sign_ms = []
 
     def run(self, *args):
         result = subprocess.run([str(self.cli), *map(str, args)], capture_output=True, text=True, env=self.env)
@@ -409,6 +412,7 @@ class Signer:
              wallet=None, memo='t3'):
         """(transaction ID, transport bytes)."""
         work = Path(tempfile.mkdtemp(dir=self.scratch))
+        began = time.monotonic()
         try:
             account, context = signing_inputs(profile, account, nonce)
             (work / 'account.json').write_text(json.dumps(account))
@@ -421,6 +425,7 @@ class Signer:
             signer = ('--key-file', key_file) if key_file else ('--wallet', wallet)
             self.run('ordinary', 'sign', *inputs, '--body', work / 'body.json', *signer, '--output', work / 'signed.json')
             self.run('ordinary', 'transport', *inputs, '--signed', work / 'signed.json', '--output', work / 'tx.bin')
+            self.sign_ms.append((time.monotonic() - began) * 1000)
             return prepared['transaction_id'], (work / 'tx.bin').read_bytes()
         finally:
             shutil.rmtree(work, ignore_errors=True)
@@ -1474,7 +1479,8 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
                          'skipped_launches': window['skipped_launches'], 'warmup': warmup,
                          'sweeps': load.sweeps,
                          'gateway_endpoint': gateway.endpoint,
-                         'read_ms': {label: distribution(values) for label, values in sorted(rpc.latency.items())}}
+                         'read_ms': {label: distribution(values) for label, values in sorted(rpc.latency.items())},
+                         'sign_ms': distribution(signer.sign_ms), 'cpus': os.cpu_count()}
         settings_record = {'rate': settings.rate, 'duration': settings.duration, 'mix': settings.mix,
                            'connections': settings.connections, 'batch': settings.batch, 'signers': settings.signers,
                            'expiry_blocks': settings.expiry_blocks, 'fund_drt': settings.fund_drt,
@@ -1608,6 +1614,11 @@ def report(record, show=say):
                               'inclusion': {k: s['inclusion'][k] for k in ('samples', 'share_within_2', 'histogram')},
                               'throughput': s['throughput'], 'block_interval_s': s['block_interval_s'],
                               'response_ms': s['response_ms'], 'governance': record['governance']}}, indent=2))
+    signing = record['window'].get('sign_ms') or {}
+    if signing.get('n'):
+        show(f'== signing: {signing["n"]} transactions, p50 {signing["p50"]} ms, p95 {signing["p95"]} ms each '
+             f'(prepare, sign, transport) on {record["window"].get("cpus")} CPUs: about '
+             f'{1000 / signing["p50"]:.1f} a second per signer thread')
     for row in record['checks']:
         show(f'{row["status"]:<5} {row["check"]}: {row["detail"]}')
     show(f'== load run: {record["status"]} (evidence sha256 {record["sha256"]})')
