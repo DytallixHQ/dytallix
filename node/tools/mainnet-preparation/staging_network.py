@@ -2022,9 +2022,10 @@ def fault_drill(work, label='sentry-1', timeout=300):
 def results_drill(work, drill, native, engine):
     """The results pipeline end to end (P01, 14 October and 2 November 2026),
     with a throwaway results key made by the release's CLI: the two fault
-    records summarized into a campaign summary, signed and verified with the
-    CLI, and read as the launch page's generator reads summaries. Nothing CI
-    makes is published."""
+    records, and the restore drill's and validator recovery drill's records
+    from earlier steps (the heavy faults), summarized into a campaign summary,
+    signed and verified with the CLI, and read as the launch page's generator
+    reads summaries. Nothing CI makes is published."""
     repo = Path(__file__).resolve().parents[3]
     root = drill / 'results'
     for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW,
@@ -2046,13 +2047,16 @@ def results_drill(work, drill, native, engine):
     commit = os.environ.get('GITHUB_SHA') or subprocess.run(['git', '-C', str(repo), 'rev-parse', 'HEAD'],
                                                             capture_output=True, text=True).stdout.strip()
     records = [(drill / 'evidence.json').read_bytes(), (drill / 'validator-1' / 'evidence.json').read_bytes()]
-    summary = result_summaries.summarize_campaign(records, native, engine, timings, release, commit)
+    summary = result_summaries.summarize_campaign(
+        records, native, engine, timings, release, commit, [(work / 'restore-drill' / 'evidence.json').read_bytes()],
+        [(work / 'validator-recovery' / 'evidence.json').read_bytes()])
     path = result_summaries.write_summary(summary, root)
     result_summaries.sign(cli, home, path, root)
     result_summaries.verify(cli, path, root)
     data = launch_dashboard.build(launch_dashboard.gather(root), 0)
     shown = {k['id']: (k['status'], k['value']) for k in data['kpis'] if k['id'].startswith('campaign.faults.')}
-    for kid in ('campaign.faults.network_heal', 'campaign.faults.validator_restart'):
+    for kid in ('campaign.faults.network_heal', 'campaign.faults.validator_restart', 'campaign.faults.sentry_rebuild',
+                'campaign.faults.validator_host'):
         if shown[kid][0] != 'in_progress' or not isinstance(shown[kid][1], (int, float)):
             raise Failed(f'the page would show {kid} as {shown[kid]}, not in progress with a recovery time')
     if launch_dashboard.page_problems(data):

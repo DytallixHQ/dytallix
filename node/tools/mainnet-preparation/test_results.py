@@ -13,7 +13,11 @@ import unittest
 
 import faults
 import launch_dashboard
+import recovery
+import restore_drill
 import results
+import test_recovery
+import test_restore_drill
 
 NATIVE, ENGINE = b'{"accounts": []}', b'{"genesis_time": "2026-11-02T13:49:45Z"}'
 TIMINGS = {'fault_recovery_target_seconds': 120, 'validator_restart_target_seconds': 300}
@@ -35,8 +39,22 @@ def record(rows, target=120, host='sentry-1'):
     return json.dumps(faults.build_run('dytallix-staging-2', NATIVE, ENGINE, rows, target, host)).encode()
 
 
-def summarize(*files, timings=TIMINGS):
-    return results.summarize_campaign(list(files), NATIVE, ENGINE, timings, RELEASE, COMMIT)
+def summarize(*files, timings=TIMINGS, restores=(), recoveries=()):
+    return results.summarize_campaign(list(files), NATIVE, ENGINE, timings, RELEASE, COMMIT, restores, recoveries)
+
+
+def drill(tool, observations, seconds, target=None):
+    """A heavy fault drill's record whose time, declared to its end, is `seconds`."""
+    end = 'caught_up_at' if tool is restore_drill else 'first_block_after_halt_at'
+    observations['instants'][end] = observations['instants']['declared_at'] + seconds
+    target = tool.approved_target() if target is None else target
+    return json.dumps(tool.build('dytallix-staging-2', NATIVE, observations, target)).encode()
+
+
+def rebuild(seconds, **changes): return drill(restore_drill, test_restore_drill.observations(), seconds, **changes)
+
+
+def host_loss(seconds): return drill(recovery, test_recovery.observations(), seconds)
 
 
 def kpi(summary, kid): return next(k for k in summary['kpis'] if k['id'] == kid)
@@ -89,6 +107,40 @@ class Summarize(unittest.TestCase):
         leaky = copy.deepcopy(summary)
         leaky['kpis'][0]['note'] = 'sentry at 10.77.0.11'
         self.assertIn('contains an address', ' '.join(results.summary_problems(leaky)))
+
+    def test_heavy_faults_come_from_the_drills_own_evidence(self):
+        summary = summarize(restores=[rebuild(3600), rebuild(5400.25)], recoveries=[host_loss(7200)])
+        self.assertEqual(kpi(summary, 'campaign.faults.sentry_rebuild'),
+                         {'id': 'campaign.faults.sentry_rebuild', 'status': 'in_progress', 'value': 5400.2,
+                          'unit': 's', 'samples': 2, 'target': 14400, 'repetitions': 3})
+        self.assertEqual(kpi(summary, 'campaign.faults.validator_host')['target'], 28800)
+        self.assertEqual([s['tool'] for s in summary['sources']].count('restore'), 2)
+        self.assertEqual(results.summary_problems(summary), [])
+        # Three within the objective pass; one past it fails the KPI.
+        self.assertEqual(kpi(summarize(restores=[rebuild(3600)] * 3), 'campaign.faults.sentry_rebuild')['status'],
+                         'pass')
+        late = summarize(restores=[rebuild(3600), rebuild(14401)])
+        self.assertEqual((kpi(late, 'campaign.faults.sentry_rebuild')['status'],
+                          kpi(late, 'campaign.faults.sentry_rebuild')['value']), ('fail', 14401.0))
+        # With the quick faults, one cumulative summary.
+        both = summarize(record([row('partition', 20)]), recoveries=[host_loss(600)])
+        self.assertEqual([k['id'] for k in both['kpis']], ['campaign.faults.network_heal',
+                                                           'campaign.faults.validator_host'])
+
+    def test_a_drill_record_must_verify_against_the_approved_objective(self):
+        with self.assertRaisesRegex(results.Failed, 'restore drill record does not verify.*not the approved'):
+            summarize(restores=[rebuild(3600, target=8 * 3600)])
+        edited = json.loads(host_loss(600))
+        edited['observations']['instants']['first_block_after_halt_at'] -= 300
+        with self.assertRaisesRegex(results.Failed, 'recovery drill record does not verify'):
+            summarize(recoveries=[json.dumps(edited).encode()])
+        # An unfinished drill is no sample.
+        unfinished = test_restore_drill.observations()
+        del unfinished['instants']['caught_up_at']
+        raw = json.dumps(restore_drill.build('dytallix-staging-2', NATIVE, unfinished,
+                                             restore_drill.approved_target())).encode()
+        with self.assertRaisesRegex(results.Failed, 'no recovery for a campaign KPI'):
+            summarize(restores=[raw])
 
     def test_a_summary_needs_a_result_kpi_and_a_fault_recovery(self):
         with self.assertRaisesRegex(results.Failed, 'no recovery for a campaign KPI'):

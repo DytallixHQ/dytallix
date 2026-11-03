@@ -4,8 +4,8 @@ and 2 November 2026): it reduces the tools' digest-bound evidence to the
 public result summaries the launch page shows, and signs them with the
 results key.
 
-  results.py summarize campaign --faults FILE [FILE ...] --genesis NATIVE_GENESIS \
-      --engine-genesis ENGINE_GENESIS --release BUILD_RECORD.json --commit SHA [--root DIR]
+  results.py summarize campaign [--faults FILE ...] [--restores FILE ...] [--recoveries FILE ...] \
+      --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS --release BUILD_RECORD.json --commit SHA [--root DIR]
   results.py sign --cli DYTALLIX --home DIR SUMMARY
   results.py verify --cli DYTALLIX SUMMARY [SUMMARY ...]
 
@@ -29,7 +29,17 @@ the approved target for its scenario. A KPI fails once one recovery misses
 its target or never happened; it passes once the repetitions are reached (30
 per quick fault: this tool's reading of the plan's "about 30 repetitions per
 quick fault") and is in progress before that. Its value is the slowest
-recovery. Runs, checkpoints, attacks, performance and endurance follow.
+recovery.
+
+The heavy faults come from the drills' own evidence, each re-verified against
+the native genesis and the approved objective (launch/operations/
+OBJECTIVES.json): the restore drill's (R6, restore_drill.py) sentry rebuild,
+declared to caught up, is campaign.faults.sentry_rebuild against 4 hours,
+and the validator recovery drill's (T9, recovery.py) lost validator host,
+declared to the first block after the halt, is campaign.faults.validator_host
+against 8 hours. They follow the same rules with 3 repetitions (the plan's
+"3 to 5 times" per heavy fault, at its lower end). Runs, checkpoints,
+attacks, performance and endurance follow.
 
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
@@ -39,7 +49,7 @@ checks a summary against the page's rules and its signature against the keys
 RESULTS_KEY.json lists. launch_dashboard.py reads the summaries.
 """
 import argparse
-from datetime import timezone
+from datetime import datetime, timezone
 import hashlib
 import json
 from pathlib import Path
@@ -51,6 +61,8 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import faults  # noqa: E402
 import launch_dashboard  # noqa: E402
+import recovery  # noqa: E402
+import restore_drill  # noqa: E402
 import staging_command  # noqa: E402
 
 ROOT = launch_dashboard.ROOT
@@ -68,6 +80,11 @@ SHA256 = re.compile(r'[0-9a-f]{64}')
 FAULT_KPIS = {'partition': ('campaign.faults.network_heal', 'fault_recovery_target_seconds'),
               'validator_restart': ('campaign.faults.validator_restart', 'validator_restart_target_seconds')}
 QUICK_REPETITIONS = 30
+# A heavy fault's campaign KPI, its evidence tool and the instants its time
+# runs between.
+HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caught_up_at'),
+              'recovery': ('campaign.faults.validator_host', recovery, 'first_block_after_halt_at')}
+HEAVY_REPETITIONS = 3
 
 
 class Failed(Exception):
@@ -100,8 +117,40 @@ def candidate(release_record, commit):
     return {'commit': commit, 'release_set_sha256': found}
 
 
-def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings, release_record, commit):
-    """The campaign summary from every fault record to date (cumulative)."""
+def kpi_row(kpi, rows, target, repetitions):
+    """One campaign KPI from its (status, seconds) samples: a FAIL fails it,
+    the repetitions pass it, and its value is the slowest."""
+    seconds = [s for _, s in rows if isinstance(s, (int, float))]
+    failed = any(status == faults.FAIL for status, _ in rows)
+    status = 'fail' if failed else 'pass' if len(rows) >= repetitions else 'in_progress'
+    return {'id': kpi, 'status': status, 'value': round(max(seconds), 1) if seconds else None, 'unit': 's',
+            'samples': len(rows), 'target': target, 'repetitions': repetitions}
+
+
+def heavy_samples(kind, files, genesis_bytes):
+    """(status, seconds, day) per drill record, and its source rows."""
+    kpi, tool, end = HEAVY_KPIS[kind]
+    samples, sources = [], []
+    for raw in files:
+        record = json.loads(raw)
+        try:
+            status = tool.verify(record, genesis_bytes)
+        except (tool.Failed, KeyError, TypeError) as error:
+            raise Failed(f'a {kind} drill record does not verify: {error}')
+        sources.append({'tool': kind, 'sha256': digest(raw), 'chain_id': record['chain_id'],
+                        'native_genesis_sha256': record['genesis']['native_genesis_sha256'], 'status': status})
+        if status == faults.INCONCLUSIVE:
+            continue
+        instants = record['observations']['instants']
+        samples.append((status, instants[end] - instants['declared_at'],
+                        datetime.fromtimestamp(instants[end], timezone.utc).date().isoformat()))
+    return samples, sources
+
+
+def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings, release_record, commit,
+                       restore_files=(), recovery_files=()):
+    """The campaign summary from every fault record and heavy fault drill
+    record to date (cumulative)."""
     samples = {kpi: [] for kpi, _ in FAULT_KPIS.values()}
     sources, days = [], []
     for raw in fault_files:
@@ -123,17 +172,19 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
             days.append(day(row.get('recovered_at') or row['cleared_at']))
         sources.append({'tool': 'faults', 'sha256': digest(raw), 'chain_id': record['chain_id'],
                         'native_genesis_sha256': record['genesis']['native_genesis_sha256'], 'status': status})
+    heavy = {}
+    for kind, files in (('restore', restore_files), ('recovery', recovery_files)):
+        rows, found = heavy_samples(kind, files, genesis_bytes)
+        heavy[kind] = rows
+        sources += found
+        days += [day for _, _, day in rows]
     require(days, 'the evidence holds no recovery for a campaign KPI')
-    kpis = []
-    for kpi, key in FAULT_KPIS.values():
-        rows = samples[kpi]
-        if not rows:
-            continue
-        seconds = [s for _, s in rows if isinstance(s, (int, float))]
-        failed = any(status == faults.FAIL for status, _ in rows)
-        status = 'fail' if failed else 'pass' if len(rows) >= QUICK_REPETITIONS else 'in_progress'
-        kpis.append({'id': kpi, 'status': status, 'value': round(max(seconds), 1) if seconds else None, 'unit': 's',
-                     'samples': len(rows), 'target': timings[key], 'repetitions': QUICK_REPETITIONS})
+    kpis = [kpi_row(kpi, samples[kpi], timings[key], QUICK_REPETITIONS)
+            for kpi, key in FAULT_KPIS.values() if samples[kpi]]
+    for kind, rows in heavy.items():
+        if rows:
+            kpi, tool, _ = HEAVY_KPIS[kind]
+            kpis.append(kpi_row(kpi, [(s, t) for s, t, _ in rows], tool.approved_target(), HEAVY_REPETITIONS))
     summary = {'schema': SCHEMA, 'scope': 'campaign', 'date': max(days),
                'candidate': candidate(release_record, commit), 'kpis': kpis,
                'sources': sorted(sources, key=lambda s: s['sha256'])}
@@ -214,7 +265,8 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     s = commands.add_parser('summarize')
     s.add_argument('scope', choices=['campaign'])
-    s.add_argument('--faults', type=Path, nargs='+', required=True)
+    for name in ('faults', 'restores', 'recoveries'):
+        s.add_argument(f'--{name}', type=Path, nargs='+', default=[])
     for name in ('genesis', 'engine_genesis', 'release'):
         s.add_argument(f'--{name.replace("_", "-")}', type=Path, required=True)
     s.add_argument('--commit', required=True)
@@ -232,7 +284,9 @@ def main():
             timings = json.loads((ROOT / TIMINGS).read_bytes())
             summary = summarize_campaign([p.read_bytes() for p in args.faults], args.genesis.read_bytes(),
                                          args.engine_genesis.read_bytes(), timings,
-                                         json.loads(args.release.read_bytes()), args.commit)
+                                         json.loads(args.release.read_bytes()), args.commit,
+                                         [p.read_bytes() for p in args.restores],
+                                         [p.read_bytes() for p in args.recoveries])
             path = write_summary(summary, args.root)
             print(f'{path} ({", ".join(f"{k["id"]} {k["status"]}" for k in summary["kpis"])}); sign it next')
         elif args.command == 'sign':
