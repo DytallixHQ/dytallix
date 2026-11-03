@@ -2,6 +2,7 @@
 import copy
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -10,6 +11,12 @@ import launch_dashboard as m
 
 HERE = Path(__file__).resolve().parent
 PLAN = 'launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json'
+
+
+def copy_results(root):
+    """The repository's signed result summaries, under another root."""
+    if (m.ROOT / m.RESULTS).exists():
+        shutil.copytree(m.ROOT / m.RESULTS, root / m.RESULTS)
 
 
 class LaunchDashboardTests(unittest.TestCase):
@@ -82,8 +89,6 @@ class LaunchDashboardTests(unittest.TestCase):
             self.changed(unbuilt)
 
     def test_result_kpis_wait_for_signed_summaries(self):
-        self.assertTrue(all(k['value'] is None for k in self.data['kpis'] if 'results' in
-                            next(d for d in self.found['definitions']['kpis'] if d['id'] == k['id'])['source']))
         self.assertEqual(self.kpi(self.data, 'runs.r01.load')['status'], 'not_applicable')
         self.assertEqual(self.kpi(self.data, 'campaign.transactions.attempts')['target'], 3000)
         with tempfile.TemporaryDirectory() as tmp:
@@ -91,6 +96,11 @@ class LaunchDashboardTests(unittest.TestCase):
             for path in (m.DEFINITIONS, m.WORKFLOW, PLAN):
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
                 (root / path).write_bytes((m.ROOT / path).read_bytes())
+            # With no summary, every result KPI waits with no value.
+            self.assertTrue(all(k['value'] is None for k in m.build(m.gather(root), 0)['kpis'] if 'results' in
+                                next(d for d in self.found['definitions']['kpis'] if d['id'] == k['id'])['source']))
+            # With the repository's signed summaries, they are the repository's KPIs.
+            copy_results(root)
             self.assertEqual(m.build(m.gather(root), 0)['kpis'], self.data['kpis'])
             # A summary counts only with its signature beside it (results.py signs).
             (root / m.RESULTS / 'run').mkdir(parents=True)
@@ -115,6 +125,7 @@ class LaunchDashboardTests(unittest.TestCase):
             for path in (m.DEFINITIONS, m.WORKFLOW, m.DASHBOARD, PLAN):
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
                 (root / path).write_bytes((m.ROOT / path).read_bytes())
+            copy_results(root)
             data = json.loads((root / m.DASHBOARD).read_text())
             # The copy holds one approval record, so its own count is 1.
             data['project']['approval_records'] = 1
