@@ -1,6 +1,6 @@
 {
   "schema": "dytallix.launch-dashboard.v1",
-  "as_of": "2026-11-02",
+  "as_of": "2026-11-03",
   "source": {
     "repo": "https://github.com/DytallixHQ/dytallix",
     "ref": "main",
@@ -12,6 +12,14 @@
       {
         "path": ".github/workflows/host-install.yml",
         "sha256": "eeb20a1d02cac46edc3f5190f3f0bddd5a505811d519b2e1341718fe44bcb76b"
+      },
+      {
+        "path": "launch/simulations/results/campaign/2026-11-03.json",
+        "sha256": "8d9d14f34a105bf88c4d977ea5670dca1c22ef843a18afe54488d5bab3d09d69"
+      },
+      {
+        "path": "launch/simulations/results/campaign/2026-11-03.json.sig",
+        "sha256": "b967b96a486fee73482f504eb8f0469f50d27fb375088212326e307f7f14bdbe"
       },
       {
         "path": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
@@ -28,7 +36,7 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 473,
+    "commits_at_as_of": 480,
     "approval_records": 68
   },
   "phases": [
@@ -62,7 +70,7 @@
       "name": "Statistical campaign",
       "summary": "Thousands of attack attempts per type, repeated faults and an endurance run of at least 15 days, so results carry statistical confidence.",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging",
-      "status": "planned"
+      "status": "in_progress"
     },
     {
       "id": "review",
@@ -786,10 +794,10 @@
       "threshold": "Blocks again within 5 minutes, every time",
       "unit": "s",
       "target": 300,
-      "status": "planned",
-      "value": null,
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria",
-      "updated": "2026-10-11"
+      "status": "in_progress",
+      "value": 22.6,
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/simulations/results/campaign/2026-11-03.json",
+      "updated": "2026-11-03"
     },
     {
       "id": "campaign.faults.network_heal",
@@ -801,10 +809,10 @@
       "threshold": "Caught up within 2 minutes, every time",
       "unit": "s",
       "target": 120,
-      "status": "planned",
-      "value": null,
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria",
-      "updated": "2026-10-11"
+      "status": "in_progress",
+      "value": 17.0,
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/simulations/results/campaign/2026-11-03.json",
+      "updated": "2026-11-03"
     },
     {
       "id": "campaign.faults.sentry_rebuild",
