@@ -182,7 +182,7 @@ mod exit_record_tests {
     #[test]
     fn an_application_exit_names_its_failure_class() {
         let row=|role,code,status|child_exit_record(&OwnedChildExit{role,pid:1,observation:ExitObservation{observed_pid:Some(1),si_code:Some(code),si_status:Some(status),observation_errno:None}})["application_failure_class"].clone();
-        assert_eq!(row(Role::Application,1,12),"supply");assert_eq!(row(Role::Application,1,17),"resource");
+        assert_eq!(row(Role::Application,1,12),"supply");assert_eq!(row(Role::Application,1,17),"resource");assert_eq!(row(Role::Application,1,18),"verifier");
         assert!(row(Role::Application,1,1).is_null());assert!(row(Role::Application,2,12).is_null());assert!(row(Role::Engine,1,12).is_null());
         let error=dytallix_fast_node::failure_class::classify::<()>(Err(anyhow::anyhow!("private detail")),FailureClass::History).unwrap_err();
         let record=record(&error);assert_eq!(record["failure_class"],"history");assert!(!record.to_string().contains("private"));

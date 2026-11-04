@@ -58,6 +58,7 @@ The check tool exits with the same status:
 | 15 | `execution` | Executing a block failed after its inputs passed |
 | 16 | `storage` | The database could not be opened, read or written |
 | 17 | `resource` | The system refused space, memory, descriptors or tasks |
+| 18 | `verifier` | The local signature-check helper failed to run (not a rejection); startup tries it three times first |
 
 A failed block method stops the engine, so the application exits with
 that method's class. A panic exits with 101.
