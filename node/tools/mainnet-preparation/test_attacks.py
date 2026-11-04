@@ -1,7 +1,8 @@
 """The attack campaign (transaction family) without a chain: the mutations,
 the outcome of each answer, and whole campaigns against a stand-in node that
-applies the node's admission rules in order (the envelope, the domain, the
-signature, the expiry, the nonce and the funds) to the campaign's own bytes,
+applies the node's admission rules in order (the size, the envelope, the
+domain, the key, the signature, the expiry, the nonce and the funds) to the
+campaign's own bytes behind the gateway's 1 MiB request limit,
 including a node that admits an attack and one that refuses for another
 reason. The staging network runs it for real in the Host install workflow."""
 import base64
@@ -51,8 +52,8 @@ class FakeNode:
     def admit(self, raw):
         height = self.height()
         with self.lock:
-            if len(raw) > 65_536:
-                return load.RpcError('the request is too large')
+            if len(raw) > 262_144:
+                return load.RpcError(f'Internal error: Tx too large. Max size is 262144, but got {len(raw)}')
             if self.refuse_all:
                 return {'code': 9, 'log': 'invalid ordinary signature; Malformed ordinary envelope; ' + attacks.STALE}
             wire = json.loads(raw)
@@ -62,11 +63,15 @@ class FakeNode:
                 assert len(envelope) - len(json.dumps(body, sort_keys=True).encode()) == attacks.SIGNATURE
             except (ValueError, AssertionError):
                 return {'code': 1, 'log': 'Malformed ordinary envelope'}
-            if body['network'] != 2:
-                return {'code': 1, 'log': self.network_reason or 'Malformed ordinary envelope'}
-            if body['chain'] != CHAIN:
-                return {'code': 4, 'log': 'Ordinary signed domain differs from the chain domain'}
-            account = self.accounts[body['account']]
+            account = self.accounts.get(body['account'])
+            if account is None:  # the first-spend path
+                if (body['network'], body['chain']) != (2, CHAIN):
+                    return {'code': 1, 'log': self.network_reason or 'Ordinary signed domain differs from the chain domain'}
+                return {'code': 1, 'log': 'Uninitialized account requires generation and nonce zero'}
+            if (body['network'], body['chain']) != (2, CHAIN):
+                return {'code': 1, 'log': 'Ordinary signed domain differs from account state'}
+            if body['key'] != account['key']:
+                return {'code': 1, 'log': 'Ordinary key or generation is stale'}
             if envelope[-attacks.SIGNATURE:] != key_sig(envelope[:-attacks.SIGNATURE], account['key']):
                 return {'code': 2, 'log': 'invalid ordinary signature'}
             if body['expiry'] <= height:
@@ -84,6 +89,8 @@ class FakeNode:
             return {'code': 0, 'log': '', 'hash': hashlib.sha256(raw).hexdigest().upper()}
 
     def timed(self, label, requests):
+        if len(json.dumps(requests)) > 1 << 20:
+            raise load.Transport('HTTP 413: {"error":"request body exceeds 1 MiB"}')
         with self.slots:
             out = []
             for method, params in requests:
@@ -125,14 +132,15 @@ class FakeSign:
         held = expiry == 'soon'
         expiry = height + 2 if held else height + 20
         key = self.node.accounts[wallet.account_id]['key']
-        body = {'chain': CHAIN, 'network': 2, 'account': wallet.account_id, 'nonce': nonce, 'amount': amount,
-                'expiry': expiry}
+        if variant == 'wrong_key_signature':
+            key = self.node.accounts[next(w for w in self.wallets if w is not wallet).account_id]['key']
+        body = {'chain': CHAIN, 'network': 2, 'account': wallet.account_id, 'key': key, 'nonce': nonce,
+                'amount': amount, 'expiry': expiry}
         if variant == 'wrong_chain':
             body['chain'] = attacks.OTHER_CHAIN
         elif variant == 'wrong_network':
-            body['network'] = 1
-        elif variant == 'wrong_key_signature':
-            key = self.node.accounts[next(w for w in self.wallets if w is not wallet).account_id]['key']
+            # The account's mainnet identity, which this chain has never seen.
+            body['network'], body['account'] = 1, f'mainnet-{wallet.account_id}'
         raw = json.dumps(body, sort_keys=True).encode()
         envelope = raw + key_sig(raw, key)
         tx = json.dumps({'type': 'ordinary_v2', 'envelope_base64': base64.b64encode(envelope).decode()}).encode()
@@ -183,7 +191,8 @@ class Pieces(unittest.TestCase):
         self.assertEqual(attacks.classify('expired', 5, attacks.STALE), 'refused_other')
         self.assertEqual(attacks.classify('expired', 0, ''), 'admitted')
         self.assertEqual(attacks.classify('expired', None, 'the gateway: reset'), 'transport')
-        self.assertEqual(attacks.classify('oversized_envelope', -1, 'the request is too large'), 'refused')
+        self.assertEqual(attacks.classify('oversized_envelope', -1, 'Internal error: Tx too large. Max size is '
+                                                                    '262144, but got 300046'), 'refused')
         self.assertEqual(attacks.classify('expired', -1, 'Ordinary submission expired'), 'refused_other',
                          'only the types refused before admission may be a JSON-RPC error')
         self.assertEqual(attacks.classify('resigned_copy', -1, adversary.CACHE_REFUSAL, same_bytes=True), 'refused')

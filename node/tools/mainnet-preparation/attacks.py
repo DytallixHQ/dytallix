@@ -77,15 +77,19 @@ STALE = 'Ordinary spending nonce is stale'
 # Each approved transaction attack type (launch-rehearsals.md, Statistical
 # campaign) and the reason the node must refuse it for; None: not built yet.
 # The registry is the code's, never the record's: verify recomputes it.
+# The domain and key reasons follow the node's order (ordinary_authority.rs):
+# a known account's signed domain, then its key, are compared with its state;
+# wrong_network's account is the mainnet identity, which this chain has never
+# seen, so the first-spend path compares its domain with the chain's.
 REASONS = {
     'invalid_signature': 'invalid ordinary signature',
-    'wrong_key_signature': 'invalid ordinary signature',
+    'wrong_key_signature': 'Ordinary key or generation is stale',
     'truncated_signature': 'Malformed ordinary envelope',
     'malformed_envelope': 'Malformed ordinary envelope',
     'non_canonical_envelope': 'Malformed ordinary envelope',
     'oversized_envelope': 'too large',
-    'wrong_chain': 'Ordinary signed domain differs from the chain domain',
-    'wrong_network': 'Malformed ordinary envelope',
+    'wrong_chain': 'Ordinary signed domain differs from account state',
+    'wrong_network': 'Ordinary signed domain differs from the chain domain',
     'expired': 'Ordinary submission expired or exceeds configured lifetime',
     'stale_nonce': STALE,
     'future_nonce': STALE,
@@ -283,9 +287,12 @@ class Campaign:
         self.expected[wallet.label] = wallet.nonce
         base = None
         k = 0
+        # The client channel refuses a request body over 1 MiB (the gateway),
+        # so each oversized transaction goes in a request of its own.
+        size = 1 if kind == 'oversized_envelope' else load.MAX_BATCH - 1
         while self.counted(kind) < self.n and self.tries_left(kind):
             batch = []
-            while len(batch) < load.MAX_BATCH - 1 and self.counted(kind) + len(batch) < self.n:
+            while len(batch) < size and self.counted(kind) + len(batch) < self.n:
                 if kind in MUTATED:
                     if base is None:
                         base = self.sign(wallet, wallet.nonce, 1, 'valid')[1]
