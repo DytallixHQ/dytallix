@@ -64,6 +64,15 @@ for 2 minutes. The runner funds the fleet and judges the run on every
 worker's rows. Anything but PASS fails the step; the evidence is
 load-workers/run/evidence.json.
 
+attack-campaign is the attack campaign's transaction family (statistical
+campaign; attacks.py): a fresh fleet of 4 load wallets funded through two
+distributors; every built attack type attempted 10 times with its own bytes,
+each to be refused for its reason, the pending originals committed and a
+positive control after each type. Every type reports what the node said
+before the step judges; anything but PASS fails it. The record is checked
+again from its files and summarized as the launch page reads it; the
+evidence is attack-campaign/run/attacks.json and attacks.jsonl.
+
 checkpoint is the checkpoint recorder (simulation plan, T7; checkpoints.py)
 after the after-load reconciliation: a short schedule of the R07 checks CI can
 source, recorded against that fresh reconciliation and the load run (each
@@ -145,6 +154,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(1, str(HERE / 'host'))
 import adversary  # noqa: E402
+import attacks  # noqa: E402
 import checkpoints  # noqa: E402
 import faults  # noqa: E402
 import host_install  # noqa: E402
@@ -1195,6 +1205,44 @@ def load_workers_drill(work):
         raise Failed(f'the workers sent from {record["window"]["addresses"]}, not {addresses}')
     if record['status'] != load_generator.PASS or checked != record['status']:
         raise Failed(f'the load from {len(spaces)} workers is {record["status"]} (verified {checked})')
+
+
+# The attack campaign (statistical campaign, transaction family; attacks.py):
+# every built type a few times on the staging network, so each expected
+# reason is checked against the node's own answer. On the real hosts each
+# type runs 3,000 times.
+ATTACK_CAMPAIGN = {'attempts': 10, 'wallets': 4, 'distributors': 2}
+
+
+def attack_campaign(work):
+    """The transaction family's attack types on the staging network: a fresh
+    fleet funded from the ecosystem growth account; each built type attempted
+    ATTACK_CAMPAIGN['attempts'] times with its own bytes, each to be refused
+    for its reason, a positive control after each type and the pending
+    originals committed. Every type runs and reports what the node said
+    before the step judges; the record is checked again from its files and
+    summarized as the launch page reads it."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'attack-campaign'
+    env = pinned_cli(work, out)
+    cli = work / 'release-bin' / 'dytallix'
+    load_generator.make_fleet(cli, staging_host.CHAIN_ID, out / 'fleet', ATTACK_CAMPAIGN['wallets'], 1, 0,
+                              ATTACK_CAMPAIGN['distributors'])
+    validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
+    native = (chain / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (chain / 'chain' / 'genesis.json').read_bytes()
+    kinds = [k for k in attacks.REASONS if attacks.built(k)]
+    record = attacks.run_campaign(cli, env['HOME'], out / 'fleet', out / 'run', chain / 'chain' / 'application-config.json',
+                                  'ecosystem-growth', validator, ATTACK_CAMPAIGN['attempts'], kinds, native, engine,
+                                  show=say, passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+    attacks.report(record, show=say)
+    checked = attacks.verify(json.loads((out / 'run' / 'attacks.json').read_bytes()),
+                             (out / 'run' / 'attacks.jsonl').read_bytes(), native, engine)
+    if record['status'] != attacks.PASS or checked != record['status']:
+        raise Failed(f'the attack campaign is {record["status"]} (verified {checked})')
+    summary_kpis = result_summaries.attack_kpis('transactions', [record])
+    say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
 
 
 def checkpoint_network(work, timeout=300):
@@ -2274,7 +2322,7 @@ def main():
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill', 'attack-campaign',
                  'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'stage-later-release',
                  'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
@@ -2310,6 +2358,8 @@ def main():
             checkpoint_network(args.work)
         elif args.command == 'adversary-drill':
             adversary_drill(args.work)
+        elif args.command == 'attack-campaign':
+            attack_campaign(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
         elif args.command == 'stage-later-release':
@@ -2329,7 +2379,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, attacks.Failed, result_summaries.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0

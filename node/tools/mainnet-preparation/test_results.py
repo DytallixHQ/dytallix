@@ -11,6 +11,7 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 
+import attacks
 import faults
 import launch_dashboard
 import recovery
@@ -58,6 +59,30 @@ def host_loss(seconds): return drill(recovery, test_recovery.observations(), sec
 
 
 def kpi(summary, kid): return next(k for k in summary['kpis'] if k['id'] == kid)
+
+
+def attack_record(per_type, admitted=(), other=(), finished='2026-11-04T09:00:00Z'):
+    """A transaction-family record: per_type refusals of each built type for
+    its reason, the named types' attempts admitted or refused otherwise, and
+    one committed control; with its rows."""
+    rows = []
+    for kind, reason in attacks.REASONS.items():
+        if reason is None:
+            continue
+        code = -1 if kind in attacks.BEFORE_ADMISSION else 1
+        for k in range(per_type):
+            r = {'type': kind, 'k': k, 'wallet': 'load-0001', 'code': code, 'log': reason, 'outcome': 'refused'}
+            if kind == 'resigned_copy':
+                r['same_bytes'] = True
+            rows.append(r)
+        if kind in admitted:
+            rows.append({'type': kind, 'k': per_type, 'wallet': 'load-0001', 'code': 0, 'log': '', 'outcome': 'admitted'})
+        if kind in other:
+            rows.append({'type': kind, 'k': per_type, 'wallet': 'load-0001', 'code': 4, 'log': 'another reason',
+                         'outcome': 'refused_other'})
+    rows.append({'type': 'control', 'wallet': 'load-0001', 'code': 0, 'log': '', 'committed': True})
+    record = attacks.build_record('dytallix-staging-2', NATIVE, ENGINE, rows, per_type, '2026-11-04T08:00:00Z', finished)
+    return json.dumps(record).encode(), attacks.rows_bytes(rows)
 
 
 class Summarize(unittest.TestCase):
@@ -139,11 +164,50 @@ class Summarize(unittest.TestCase):
         del unfinished['instants']['caught_up_at']
         raw = json.dumps(restore_drill.build('dytallix-staging-2', NATIVE, unfinished,
                                              restore_drill.approved_target())).encode()
-        with self.assertRaisesRegex(results.Failed, 'no recovery for a campaign KPI'):
+        with self.assertRaisesRegex(results.Failed, 'no recovery or attack for a campaign KPI'):
             summarize(restores=[raw])
 
+    def test_the_attack_family_counts_its_fewest_type_and_every_success(self):
+        summary = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
+                                             attack_files=[attack_record(2000), attack_record(1500)])
+        self.assertEqual(results.summary_problems(summary), [])
+        attempts, successes = (kpi(summary, 'campaign.transactions.attempts'),
+                               kpi(summary, 'campaign.transactions.successes'))
+        # 3,500 refusals for each built type, but none yet for the two not built.
+        self.assertEqual((attempts['value'], attempts['status'], attempts['target']), (0, 'in_progress', 3000))
+        self.assertEqual((successes['value'], successes['status'], successes['target']), (0, 'in_progress', None))
+        self.assertEqual(summary['date'], '2026-11-04')
+        self.assertEqual({s['tool'] for s in summary['sources']}, {'attacks.transactions'})
+        failed = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
+                                            attack_files=[attack_record(3, admitted={'overspend'})])
+        self.assertEqual((kpi(failed, 'campaign.transactions.successes')['value'],
+                          kpi(failed, 'campaign.transactions.successes')['status'],
+                          kpi(failed, 'campaign.transactions.attempts')['status']), (1, 'fail', 'fail'))
+
+    def test_a_complete_family_passes_only_once_every_type_reaches_the_count(self):
+        saved = dict(attacks.REASONS)
+        try:
+            # As if the two missing types were built (their reasons then exist).
+            attacks.REASONS.update(fee_cap_below_minimum='signed fee cap outside ordinary profile',
+                                   too_many_actions='action count outside profile')
+            summary = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
+                                                 attack_files=[attack_record(3000)])
+            self.assertEqual([kpi(summary, f'campaign.transactions.{k}')['status'] for k in ('attempts', 'successes')],
+                             ['pass', 'pass'])
+        finally:
+            attacks.REASONS.clear()
+            attacks.REASONS.update(saved)
+
+    def test_an_attack_record_refused_otherwise_or_edited_is_not_published(self):
+        with self.assertRaisesRegex(results.Failed, 'refused for another reason .*fix its reason'):
+            results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
+                                       attack_files=[attack_record(2, other={'wrong_network'})])
+        raw, rows = attack_record(2)
+        with self.assertRaisesRegex(results.Failed, 'an attack record does not verify'):
+            results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, attack_files=[(raw, rows + b'{}\n')])
+
     def test_a_summary_needs_a_result_kpi_and_a_fault_recovery(self):
-        with self.assertRaisesRegex(results.Failed, 'no recovery for a campaign KPI'):
+        with self.assertRaisesRegex(results.Failed, 'no recovery or attack for a campaign KPI'):
             summarize(record([row('latency', 9)]))
         summary = summarize(record([row('partition', 20)]))
         summary['kpis'][0]['id'] = 'plan.d14_q02.approval'

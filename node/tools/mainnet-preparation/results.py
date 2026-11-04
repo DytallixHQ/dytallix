@@ -5,6 +5,7 @@ public result summaries the launch page shows, and signs them with the
 results key.
 
   results.py summarize campaign [--faults FILE ...] [--restores FILE ...] [--recoveries FILE ...] \
+      [--attacks FILE ...] \
       --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS --release BUILD_RECORD.json --commit SHA [--root DIR]
   results.py sign --cli DYTALLIX --home DIR SUMMARY
   results.py verify --cli DYTALLIX SUMMARY [SUMMARY ...]
@@ -38,8 +39,18 @@ declared to caught up, is campaign.faults.sentry_rebuild against 4 hours,
 and the validator recovery drill's (T9, recovery.py) lost validator host,
 declared to the first block after the halt, is campaign.faults.validator_host
 against 8 hours. They follow the same rules with 3 repetitions (the plan's
-"3 to 5 times" per heavy fault, at its lower end). Runs, checkpoints,
-attacks, performance and endurance follow.
+"3 to 5 times" per heavy fault, at its lower end).
+
+The attack campaign's records (attacks.py, the transaction family) each come
+with their rows beside them (FILE.json and FILE.jsonl) and are re-verified
+against the genesis files. Each attack type's attempts (refused for its
+reason) are summed over every record to date: campaign.transactions.attempts
+is the fewest over the family's whole registry, so a type not built yet
+counts zero, and passes at the approved count (3,000); and
+campaign.transactions.successes is every attempt the node admitted, failing
+at one. A record with a refusal for another reason is not published: the
+type's reason is fixed and the type run again. Runs, checkpoints,
+performance and endurance follow.
 
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
@@ -59,6 +70,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import attacks  # noqa: E402
 import faults  # noqa: E402
 import launch_dashboard  # noqa: E402
 import recovery  # noqa: E402
@@ -85,6 +97,8 @@ QUICK_REPETITIONS = 30
 HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caught_up_at'),
               'recovery': ('campaign.faults.validator_host', recovery, 'first_block_after_halt_at')}
 HEAVY_REPETITIONS = 3
+# An attack family's evidence tool.
+ATTACK_FAMILIES = {'transactions': attacks}
 
 
 class Failed(Exception):
@@ -147,8 +161,47 @@ def heavy_samples(kind, files, genesis_bytes):
     return samples, sources
 
 
+def attack_kpis(family, records, root=ROOT):
+    """A family's attempts and successes over every record to date."""
+    tool = ATTACK_FAMILIES[family]
+    refused, admitted = {kind: 0 for kind in tool.REASONS}, 0
+    for record in records:
+        for kind, found in record['types'].items():
+            require(kind in tool.REASONS, f'{kind} is not a {family} attack type')
+            require(not found['counts']['refused_other'],
+                    f'{kind} was refused for another reason ({found["first_log"]!r}); fix its reason and run it again')
+            refused[kind] += found['counts']['refused']
+            admitted += found['counts']['admitted']
+    defined = {k['id']: k for k in json.loads((Path(root) / launch_dashboard.DEFINITIONS).read_bytes())['kpis']}
+    target = defined[f'campaign.{family}.attempts']['target']
+    fewest = min(refused.values())
+    complete = fewest >= target
+    return [{'id': f'campaign.{family}.attempts', 'status': 'fail' if admitted else 'pass' if complete else 'in_progress',
+             'value': fewest, 'unit': 'count', 'samples': len(records), 'target': target},
+            {'id': f'campaign.{family}.successes', 'status': 'fail' if admitted else 'pass' if complete else 'in_progress',
+             'value': admitted, 'unit': 'count', 'samples': len(records), 'target': None}]
+
+
+def attack_records(files, genesis_bytes, engine_genesis_bytes):
+    """Each (record, rows) pair re-verified, by family; and its source rows."""
+    families, sources, days = {}, [], []
+    for raw, rows in files:
+        record = json.loads(raw)
+        tool = ATTACK_FAMILIES.get(record.get('family'))
+        require(tool is not None, f'{record.get("family")!r} is not an attack family')
+        try:
+            status = tool.verify(record, rows, genesis_bytes, engine_genesis_bytes)
+        except (tool.Failed, KeyError, TypeError) as error:
+            raise Failed(f'an attack record does not verify: {error}')
+        families.setdefault(record['family'], []).append(record)
+        sources.append({'tool': f'attacks.{record["family"]}', 'sha256': digest(raw), 'chain_id': record['chain_id'],
+                        'native_genesis_sha256': record['genesis']['native_genesis_sha256'], 'status': status})
+        days.append(day(record['finished']))
+    return families, sources, days
+
+
 def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings, release_record, commit,
-                       restore_files=(), recovery_files=()):
+                       restore_files=(), recovery_files=(), attack_files=()):
     """The campaign summary from every fault record and heavy fault drill
     record to date (cumulative)."""
     samples = {kpi: [] for kpi, _ in FAULT_KPIS.values()}
@@ -178,13 +231,18 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
         heavy[kind] = rows
         sources += found
         days += [day for _, _, day in rows]
-    require(days, 'the evidence holds no recovery for a campaign KPI')
+    families, found, attack_days = attack_records(attack_files, genesis_bytes, engine_genesis_bytes)
+    sources += found
+    days += attack_days
+    require(days, 'the evidence holds no recovery or attack for a campaign KPI')
     kpis = [kpi_row(kpi, samples[kpi], timings[key], QUICK_REPETITIONS)
             for kpi, key in FAULT_KPIS.values() if samples[kpi]]
     for kind, rows in heavy.items():
         if rows:
             kpi, tool, _ = HEAVY_KPIS[kind]
             kpis.append(kpi_row(kpi, [(s, t) for s, t, _ in rows], tool.approved_target(), HEAVY_REPETITIONS))
+    for family, records in sorted(families.items()):
+        kpis += attack_kpis(family, records)
     summary = {'schema': SCHEMA, 'scope': 'campaign', 'date': max(days),
                'candidate': candidate(release_record, commit), 'kpis': kpis,
                'sources': sorted(sources, key=lambda s: s['sha256'])}
@@ -265,7 +323,7 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     s = commands.add_parser('summarize')
     s.add_argument('scope', choices=['campaign'])
-    for name in ('faults', 'restores', 'recoveries'):
+    for name in ('faults', 'restores', 'recoveries', 'attacks'):
         s.add_argument(f'--{name}', type=Path, nargs='+', default=[])
     for name in ('genesis', 'engine_genesis', 'release'):
         s.add_argument(f'--{name.replace("_", "-")}', type=Path, required=True)
@@ -286,7 +344,8 @@ def main():
                                          args.engine_genesis.read_bytes(), timings,
                                          json.loads(args.release.read_bytes()), args.commit,
                                          [p.read_bytes() for p in args.restores],
-                                         [p.read_bytes() for p in args.recoveries])
+                                         [p.read_bytes() for p in args.recoveries],
+                                         [(p.read_bytes(), p.with_suffix('.jsonl').read_bytes()) for p in args.attacks])
             path = write_summary(summary, args.root)
             print(f'{path} ({", ".join(f"{k["id"]} {k["status"]}" for k in summary["kpis"])}); sign it next')
         elif args.command == 'sign':

@@ -97,6 +97,8 @@ The attack types cover every core function:
 
 Any successful attack is a defect, fixed before the freeze. Simulation cannot cover events rarer than about once a day with confidence; the audit and the public review cover those. Each attack listed above is one type: at least 3,000 attempts per type for transactions, staking, governance, root controls and recovery, and about 30 per endpoint, RPC and network type, each with zero successes ([simulation inputs approval](../../../launch/approvals/P01_T06_SIMULATION_INPUTS_2026-10-14.json)).
 
+**The transaction family's driver is built** (`attacks.py`): each type attempted with its own bytes through the client channel, counted only when the node refuses it for the type's reason; an admitted attempt is a success, a refusal for another reason fails the type, and a positive control after each type must commit. Fifteen of the seventeen types are built: the release CLI checks a fee cap below the minimum and too many actions before it signs (the profile is bound by its digest), so those two need a signer that skips the CLI's own checks, and until then the family's attempts (the fewest over every type) stay below the target. The results collector publishes the family's attempts and successes. CI runs each built type 10 times; the staging hosts run 3,000. Staking, governance, root controls, recovery, endpoint and network follow.
+
 ## The runs
 
 Each run starts from [Every run](#every-run) and operates for its full period. The brief's full list of required actions is in [launch-rehearsals.json](launch-rehearsals.json).
