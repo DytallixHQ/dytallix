@@ -91,9 +91,9 @@ again). The founder opens results with `dytallix-root-sign history-open`.
 | `status` | the unit's state, the operator status, the application metrics, disk, memory, clock sync |
 | `reconcile-read` | the operator status and the application metrics read together 45 times about a second apart (about 50 s), read-only: the reconciliation's readings (T6) |
 | `journal` (`lines` 1 to 5,000) | the node's newest journal lines |
-| `start`, `stop` | the node's unit |
+| `start`, `stop` | the node's unit; `stop` first cancels a pending kill dead-man (below) |
 | `monitor-run`, `backup-run` | one run of the monitor or the sentry's backup job |
-| `fault-kill` | SIGKILL to the node's main process (T5's process kill), then, after 2 seconds, the unit's state as its proof |
+| `fault-kill` | arms the kill's dead-man ([approval](../../../launch/approvals/P01_T05_KILL_DEAD_MAN_2026-11-04.json)): a one-time 60-second timer, `dytallix-kill-restart`, that starts the node if nothing else has, so a founder machine that drops between the kill and its restart cannot leave the node down (an earlier one still pending is cleared first); then SIGKILL to the node's main process (T5's process kill), then, after 2 seconds, the unit's state as its proof. The founder's `start` normally comes first and the timer's start is then a no-op; if that start fails, the timer is a second start |
 | `fault-netem`, `fault-partition`, `fault-clear` | T5's latency and loss (`tc netem`), its self-expiring p2p partition (`inet dytallix_fault`), and their removal; the first two end with a read-only proof (the qdisc, the fault set) |
 | `fault-peer-drop` | T5's peer drop ([approval](../../../launch/approvals/P01_T06_PEER_DROP_2026-11-02.json)): `ss -K` closes the established p2p connections once and lists them; nothing is blocked, so the nodes redial at once; then the established p2p connections as its read-only proof |
 

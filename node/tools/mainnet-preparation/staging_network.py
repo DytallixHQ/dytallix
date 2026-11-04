@@ -2247,6 +2247,22 @@ def fault_drill(work, label='sentry-1', timeout=300):
                                     'scenarios': {r['name']: r['status'] for r in record['scenarios']}}}, indent=2))
     if status == faults.FAIL:
         raise Failed(f'the fault run is {status}')
+    # The kill's own dead-man (P01, 4 November 2026), outside the evidence: a
+    # kill with no restart after it, as when the founder's machine drops
+    # between the two (round 22 on the real hosts). The host starts the node
+    # itself about KILL_DEAD_MAN_SECONDS after the kill.
+    killed = channel.run('fault-kill', timeout=timeout)
+    if killed['status'] != 'DONE':
+        raise Failed(f'the dead-man kill did not run: {killed.get("steps")}')
+    confirmed = time.monotonic()
+    while guest.run(['systemctl', 'is-active', 'dytallix-node'], check=False)[1].strip() != 'active':
+        if time.monotonic() > confirmed + faults.KILL_DEAD_MAN_SECONDS + 120:
+            raise Failed('the kill dead-man did not start the node')
+        time.sleep(2)
+    say(f'== kill dead-man: the host started the node itself {time.monotonic() - confirmed:.0f} s after the kill '
+        f'was confirmed (timer {faults.KILL_DEAD_MAN_SECONDS} s)')
+    # Nothing pending into the steps that follow.
+    guest.run(['systemctl', 'stop', 'dytallix-kill-restart*.timer'], check=False)
     # Uninstall the agent (not the node) and close the store, so the agent drill
     # (T2) installs fresh.
     wait_height(guest, label, (guest_height(guest) or 0) + 2, timeout)
@@ -2339,6 +2355,9 @@ def validator_restart(work, drill, sentry, native, engine, timeout=300):
     finally:
         host.run(['python3', '-I', '-B', '/root/agent/agent.py', 'remove'], check=False)
         host.run(['systemctl', 'stop', unit], check=False)
+        # The kill's dead-man may still be pending; the steps after this one
+        # stop nodes on purpose (the upgrade drill).
+        host.run(['systemctl', 'stop', 'dytallix-kill-restart*.timer'], check=False)
     row = record['scenarios'][0]
     say(f'== validator_restart: {row["status"]} ({row["detail"]})')
     if status == faults.FAIL:

@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-11-04-T05-KILL-DEAD-MAN",
+  "approved": "2026-11-04",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the kill command restarts the node by itself after a delay"
+  },
+  "reason": "In round 22 of the first staging fault campaign (4 November 2026, UTC), the founder's machine lost its network between sending the validator's kill and its restart, so the single-validator staging chain halted for about 70 minutes until a retry sent the restart. The network faults already clear themselves on the host (a netem dead-man timer, an nftables timeout set); the kill had nothing like it.",
+  "design_ref": "../../node/docs/architecture/staging-agent-v1.md",
+  "decisions": [
+    {
+      "question": "Whether the kill command restarts the node by itself after a delay",
+      "selected": "Yes, after 60 seconds",
+      "rule": "fault-kill first clears any kill dead-man still pending from an earlier kill, then arms a one-time 60-second timer on the host (dytallix-kill-restart) that starts the node, then kills the node's main process; its last step stays the read-only proof. The founder's start normally comes first, and the timer's start is then a no-op; if that start fails, the timer is a second start. stop cancels a pending timer first, so a node stopped on purpose stays stopped; start never cancels it. A kill scenario whose founder restart failed still fails, even when the timer brought the node back, so a failing start is never hidden. The CI fault drill proves it with a kill and no restart, and the host must start the node itself. The agents on the staging hosts are updated in place with the new allowlist after the reruns of 4 and 5 November 2026, as on 4 November (P01_T06_AGENT_POLL_FREE_TIER_2026-11-04), keeping their state."
+    }
+  ],
+  "accepted_risks": [
+    "A start the founder wanted withheld after a kill still happens 60 seconds later unless a stop is sent; every kill on the allowlist is followed by a restart, so no planned step wants that.",
+    "A failing founder start, the startup failure seen in CI on 4 November 2026, still fails its scenario; the timer only keeps the chain from staying halted."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "removing and reinstalling an agent, or installing one on another host",
+    "any agent command beyond the allowlist",
+    "any run on a real host beyond the fault campaign rounds already approved",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
