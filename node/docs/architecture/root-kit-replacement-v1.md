@@ -82,6 +82,11 @@ The node admits a replacement only if:
 - the chain is not frozen and the block has no emergency control (P01,
   8 October 2026,
   [approval](../../../launch/approvals/P01_E05_KIT_REPLACEMENT_FREEZE_2026-10-08.json));
+- its bytes are the control's canonical JSON, as for the other root
+  controls: the same signed control re-encoded (other whitespace, field
+  order or escapes) is refused, so it has one transaction hash (P01,
+  4 November 2026,
+  [approval](../../../launch/approvals/P01_E05_KIT_CANONICAL_2026-11-04.json));
 - three distinct current upgrade keys signed it, within its window, with an
   anchor the node holds;
 - the epoch is the current one and no other replacement is pending;

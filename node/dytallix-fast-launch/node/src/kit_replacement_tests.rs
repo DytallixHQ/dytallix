@@ -594,3 +594,32 @@ fn a_full_control_fits_the_transaction_bound_only_in_base64() {
     // In hex, as the other controls carry signatures, six do not fit.
     assert!(6 * 2 * SIGNATURE_BYTES > config.max_tx_bytes);
 }
+
+#[test]
+fn only_a_controls_canonical_bytes_are_admitted() {
+    let config = config();
+    let policies = policies(&config);
+    let record = policies.current(None);
+    let control = control(&policies, &record, 2, 0xa1);
+    let bytes = serde_json::to_vec(&control).unwrap();
+    assert_eq!(decode_control(&policies, &bytes).unwrap(), control);
+    assert_eq!(canonical_control(&policies, &bytes).unwrap(), bytes);
+    // The same signed control re-encoded: other whitespace, a reordered
+    // field, an escaped character. Each would be another transaction hash.
+    let text = String::from_utf8(bytes.clone()).unwrap();
+    let mut value: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let kind = value.as_object_mut().unwrap().remove("kind").unwrap();
+    value.as_object_mut().unwrap().insert("kind".into(), kind);
+    let reordered = serde_json::to_vec(&value).unwrap();
+    assert_ne!(reordered, bytes);
+    for variant in [
+        serde_json::to_vec_pretty(&control).unwrap(),
+        format!(" {text}").into_bytes(),
+        reordered,
+        text.replacen("\"kind\"", "\"\\u006bind\"", 1).into_bytes(),
+    ] {
+        let error = decode_control(&policies, &variant).unwrap_err();
+        assert!(error.to_string().contains("not canonical"), "{error:#}");
+        assert!(canonical_control(&policies, &variant).is_err());
+    }
+}

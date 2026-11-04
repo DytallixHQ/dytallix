@@ -1,0 +1,25 @@
+{
+  "decision_id": "P01-2026-11-04-E05-KIT-CANONICAL",
+  "approved": "2026-11-04",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How to handle the five attack types the node does not refuse (T4 staking, governance and root-control families)"
+  },
+  "reason": "Building the T4 root-control attack family, a source read found that the node admitted a kit replacement control in any JSON encoding: it decoded the bytes and re-encoded them, where the emergency, upgrade (v1 and v2) and handover controls, and the kit replacement's own receipt, refuse bytes that are not their canonical encoding. Whoever saw a signed replacement could send it again under other transaction hashes. It could still take effect only once (one replacement per block; its sequence is the epoch it creates), and nobody could make one without three upgrade keys, so the effect was duplicate mempool entries and hashes, not a second replacement.",
+  "design_ref": "../../node/docs/architecture/root-kit-replacement-v1.md",
+  "decisions": [
+    {
+      "question": "Non-canonical kit replacement",
+      "selected": "Small node PR: strict decoding",
+      "rule": "A kit replacement control is admitted only as its canonical JSON (the bytes serde_json writes for it), as the other root controls are; any other encoding of the same control is not a kit replacement at all, so admission refuses it as an invalid transaction, as it refuses the other root controls' non-canonical bytes (the decoder's own error is \"Kit replacement record is not canonical\"). The release tools already write canonical bytes, so no honest control changes. The T4 root-control family counts a re-encoded control as refused only when admission refuses it."
+    }
+  ],
+  "does_not_authorize": [
+    "any change to who may sign a replacement, its notice or its scope (P01, 8 October 2026)",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
