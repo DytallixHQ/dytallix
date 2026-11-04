@@ -425,7 +425,7 @@ def main():
 def run_main(args):
     import staging_founder
     try:
-        store = staging_founder.Store(staging_founder.load_store(args.store), args.work / 'store-scratch')
+        store = staging_founder.open_store(args.store, args.work / 'store-scratch')
         channel = staging_founder.Channel(store, args.chain, args.host, args.work, args.cli, args.home, args.key,
                                           args.paper, args.signer)
         try:

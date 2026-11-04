@@ -1,0 +1,40 @@
+{
+  "decision_id": "P01-2026-11-04-T06-AGENT-POLL-FREE-TIER",
+  "approved": "2026-11-04",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the staging agents and the founder's tools stay inside the command store's free tier, with no money for a paid tier"
+  },
+  "reason": "The staging command store is a Backblaze B2 bucket on its free tier: 2,500 listings (class C) and 2,500 downloads (class B) a day, reset at 00:00 UTC, and the founder has no money for more. Each agent listed its next command slot once a minute, so the two hosts alone spent 2,880 listings a day, and the founder's waits listed the results every 10 seconds, about 465 an hour during fault rounds. On 4 November 2026 at 07:39 UTC the store refused with 'Transaction cap exceeded' and the fault campaign stopped at round 26.",
+  "design_ref": "../../node/docs/architecture/staging-agent-v1.md",
+  "decisions": [
+    {
+      "question": "How often the staging agents look in the command store",
+      "selected": "Every 2 minutes on the staging hosts, on the same whole UTC minutes",
+      "rule": "The agent's timer still fires every minute, and every poll uploads its waiting results (uploads cost the store nothing). It lists and fetches commands only on the whole UTC minutes that are multiples of its settings' poll_every_minutes (a whole number from 1 to 10; 1 when absent, as in CI and the drills), so every host looks in the same minute and reconcile-read still starts together. The staging hosts use 2: 720 listings a day each, 1,440 for both. The agents on the staging hosts are updated in place through the console API, with agent.py replaced and the field added to settings.json; their state, and so the next sequence, is kept, never removed and reinstalled."
+    },
+    {
+      "question": "How the founder's tools stay inside what is left",
+      "selected": "List only after the agents' looks, and a daily budget",
+      "rule": "A channel lists a host's commands once and counts on from its own sends. A wait lists the results only 15, 40 and 90 seconds after each of the agent's looks, beginning with the first look after the newest command it waits for, and only the names from the first awaited sequence on. The founder's store record names the hosts' poll_every_minutes and a daily_budget of 900 listings and 1,000 downloads a UTC day, counted across every tool in a ledger beside the record; a call past the budget is refused until 00:00 UTC. With the agents' 1,440 listings that is at most 2,340 of the 2,500 a day. A fault round pair costs the founder about 13 listings and 28 downloads, so the 30 rounds of the campaign fit in a day."
+    }
+  ],
+  "accepted_risks": [
+    "Slower commands: a command starts up to 2 minutes after it is sent, so each fault round takes a few minutes longer. The recovery times are unaffected: they run from the host's own clear to the status page's reading.",
+    "A spent budget stops the founder's tools until 00:00 UTC. The agents keep their own share, so a command sent after the reset still runs.",
+    "Storage: the bucket keeps every version and the sentry backs up hourly, against B2's free 10 GB. The bucket's size is measured after the next reset and before the endurance run."
+  ],
+  "supersedes": [
+    "Agent poll, 'a one-minute poll' (P01_T06_STAGING_AGENT_2026-10-14): the agent still runs every minute, and it looks in the command store every poll_every_minutes minutes, 2 on the staging hosts."
+  ],
+  "does_not_authorize": [
+    "any paid tier or spending at Backblaze or another provider",
+    "removing and reinstalling an agent, or installing one on another host",
+    "any agent command beyond the allowlist",
+    "any run on a real host beyond the fault campaign rounds already approved",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

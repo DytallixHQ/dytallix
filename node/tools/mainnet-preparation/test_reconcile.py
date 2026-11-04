@@ -616,6 +616,20 @@ class ThroughAgentTests(unittest.TestCase):
         _, _, pauses = self.collect({'sentry-1': burst(range(10, 20))}, second=20)
         self.assertNotIn(15, pauses)
 
+    def test_it_sends_before_the_hosts_next_look_when_they_look_every_second_minute(self):
+        # The staging hosts look in the store every 2 minutes (P01, 4 November
+        # 2026): the window runs to 20 s before the even minute.
+        self.assertEqual(rc.send_window(1), (5, 40))
+        self.assertEqual(rc.send_window(2), (5, 100))
+        self.assertEqual([rc.send_pause(1_800_000_000 - 1_800_000_000 % 120 + p, 2) for p in (0, 5, 70, 100, 101, 110)],
+                         [5, 0, 0, 0, 24, 15])
+        channel = FakeChannel(burst(range(10, 20)))
+        channel.every = 2
+        other = FakeChannel(burst(range(10, 20)))
+        with self.assertRaisesRegex(rc.Failed, 'different intervals'):
+            rc.collect_through_agent('c', {'sentry-1': channel, 'validator-1': other}, GENESIS_BYTES,
+                                     say=lambda _: None, sleep=lambda _: None)
+
     def test_a_host_read_both_ways_is_refused(self):
         with self.assertRaises(rc.Failed):
             rc.collect_through_agent('c', {'sentry-1': FakeChannel(burst([]))}, GENESIS_BYTES,

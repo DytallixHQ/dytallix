@@ -27,7 +27,12 @@ passes there passes through the same calls on a real host.
 
 STORE.json (`dytallix.staging-founder-store.v1`) holds the founder's own key
 for the staging bucket, the command prefix and the results prefix (the hosts'
-history upload prefix); it stays on the founder's machine. send signs one
+history upload prefix); it stays on the founder's machine. Two optional
+fields keep a real store inside its free tier (P01, 4 November 2026):
+poll_every_minutes, the hosts' agent setting, so a wait lists the results
+only after each of the agents' looks; and daily_budget, the most LISTs and
+GETs the founder may make in one UTC day, counted in STORE-ledger.json beside
+it across every tool. send signs one
 command with the staging command key at the next free sequence (one past the
 highest the store holds for that host), uploads it, and with --wait opens its
 result. reconcile is the reconciliation report (T6) on console-only hosts:
@@ -39,6 +44,7 @@ founder can make on the real store and hosts.
 """
 import argparse
 from datetime import datetime, timezone
+import fcntl
 import hashlib
 import json
 import os
@@ -66,6 +72,13 @@ COMMAND_NAME = re.compile(r'^([0-9]{10})\.json$')
 S3 = '{http://s3.amazonaws.com/doc/2006-03-01/}'
 MAX_RESULT_BYTES = 4 << 20
 STATUS_FIELDS = ('chain_id', 'height', 'time')
+OPTIONAL_FIELDS = ('poll_every_minutes', 'daily_budget')
+# B2's free transactions a day for each class (LIST is class C, GET class B).
+FREE_PER_DAY = 2500
+# When a wait lists the results: these seconds after each of the agent's looks
+# in the store (whole UTC minutes, every poll_every_minutes). Most commands
+# finish within seconds of the look; reconcile-read takes about 50.
+LOOKS = (15, 40, 90)
 
 
 class Failed(Exception):
@@ -87,7 +100,16 @@ def check_store(store, standin=False):
     """The founder's store record. TLS is only transport; plain HTTP is
     allowed only to a CI stand-in, and only when the caller says so."""
     require(type(store) is dict and store.get('schema') == STORE_SCHEMA, f'not a founder store record ({STORE_SCHEMA})')
-    require(set(store) == {'schema', *STORE_FIELDS}, 'the founder store record has missing or extra fields')
+    require({'schema', *STORE_FIELDS} <= set(store) <= {'schema', *STORE_FIELDS, *OPTIONAL_FIELDS},
+            'the founder store record has missing or extra fields')
+    every = store.get('poll_every_minutes', 1)
+    require(agent.is_int(every) and 1 <= every <= agent.MAX_POLL_EVERY_MINUTES,
+            f'poll_every_minutes is not a whole number from 1 to {agent.MAX_POLL_EVERY_MINUTES}')
+    if 'daily_budget' in store:
+        budget = store['daily_budget']
+        require(type(budget) is dict and set(budget) == {'list', 'get'}
+                and all(agent.is_int(n) and 1 <= n <= FREE_PER_DAY for n in budget.values()),
+                f'daily_budget is {{"list": N, "get": N}}, each 1 to {FREE_PER_DAY}')
     endpoint = urlsplit(store['endpoint'])
     require(endpoint.scheme == 'https' or (standin and endpoint.scheme == 'http'),
             'the store endpoint must use https (plain http only to the CI stand-in)')
@@ -103,6 +125,19 @@ def load_store(path, standin=False):
     return check_store(json.loads(Path(path).read_bytes()), standin)
 
 
+def open_store(path, scratch):
+    """The Store for the record at `path`, its ledger beside it."""
+    path = Path(path)
+    return Store(load_store(path), scratch, ledger=path.with_name(f'{path.stem}-ledger.json'))
+
+
+def next_look(now, every):
+    """The next instant after `now` at which a wait lists the results."""
+    period = 60 * every
+    start = now - now % period
+    return min(t for t in (start + n * period + s for n in (0, 1) for s in LOOKS if s < period) if t > now)
+
+
 def object_url(store, key, query=''):
     return f'{store["endpoint"].rstrip("/")}/{store["bucket"]}/{quote(key, safe="/")}{query}'
 
@@ -112,9 +147,30 @@ class Store:
     founder's key. curl's configuration (and so the key) goes on its standard
     input, never on a command line."""
 
-    def __init__(self, store, scratch, curl='curl', run=subprocess.run):
+    def __init__(self, store, scratch, curl='curl', run=subprocess.run, ledger=None, clock=time.time):
         self.store, self.scratch, self.curl, self.run = store, Path(scratch), curl, run
+        self.ledger, self.clock = ledger, clock
+        require('daily_budget' not in store or ledger, 'a store with a daily budget needs its ledger')
         self.scratch.mkdir(parents=True, exist_ok=True)
+
+    def spend(self, kind):
+        """Counts one LIST or GET against the day's budget (UTC), or refuses
+        it once the budget is spent; the ledger is shared by every tool."""
+        if 'daily_budget' not in self.store:
+            return
+        day = datetime.fromtimestamp(self.clock(), tz=timezone.utc).date().isoformat()
+        with open(self.ledger, 'a+') as file:
+            fcntl.flock(file, fcntl.LOCK_EX)
+            file.seek(0)
+            found = json.loads(file.read() or '{}')
+            spent = found if found.get('day') == day else {'day': day, 'list': 0, 'get': 0}
+            limit = self.store['daily_budget'][kind]
+            require(spent[kind] < limit, f'the founder\'s {kind.upper()} budget for {day} ({limit}) is spent; '
+                                         f'the store\'s free transactions reset at 00:00 UTC')
+            spent[kind] += 1
+            file.seek(0)
+            file.truncate()
+            file.write(json.dumps(spent))
 
     def call(self, lines, what):
         result = self.run([self.curl, '--config', '-'], input=agent.curl_config(self.store, lines),
@@ -124,6 +180,7 @@ class Store:
         return int((result.stdout or b'0').decode().strip() or 0)
 
     def get(self, key, limit=MAX_RESULT_BYTES):
+        self.spend('get')
         target = self.scratch / 'get.bin'
         target.unlink(missing_ok=True)
         status = self.call([f'max-filesize = {limit}', f'output = "{target}"', 'write-out = "%{http_code}"',
@@ -145,11 +202,15 @@ class Store:
             (self.scratch / 'put.out').unlink(missing_ok=True)
         require(status == 200, f'PUT {key} answered HTTP {status}')
 
-    def list(self, prefix):
-        """Every key under the prefix (ListObjectsV2, following continuations)."""
+    def list(self, prefix, start_after=None):
+        """Every key under the prefix, or only those after `start_after`
+        (ListObjectsV2, following continuations; each page is one LIST)."""
         keys, token = [], None
         while True:
+            self.spend('list')
             query = f'?list-type=2&prefix={quote(prefix, safe="")}'
+            if start_after:
+                query += f'&start-after={quote(start_after, safe="")}'
             if token:
                 query += f'&continuation-token={quote(token, safe="")}'
             target = self.scratch / 'list.xml'
@@ -181,8 +242,10 @@ class Channel:
         self.key = staging_command.load_key(key_path) if key_path else None
         self.scratch, self.paper, self.signer = Path(scratch), paper, signer
         self.clock, self.sleep, self.say = clock, sleep, say
+        self.every = store.store.get('poll_every_minutes', 1)
         # Each opened result's object name and digest, which the evidence binds.
         self.sent, self.opened, self.names = {}, {}, {}
+        self.sent_at, self.following = {}, None
         self.scratch.mkdir(parents=True, exist_ok=True)
 
     @property
@@ -195,10 +258,13 @@ class Channel:
 
     def next_sequence(self):
         """One past the highest command the store holds for this host, so a
-        refused or planted object is never reused."""
-        found = [int(m.group(1)) for k in self.store.list(self.commands)
-                 if (m := COMMAND_NAME.match(k[len(self.commands):]))]
-        return max(found, default=0) + 1
+        refused or planted object is never reused: listed once, then counted
+        on from this channel's own sends."""
+        if self.following is None:
+            found = [int(m.group(1)) for k in self.store.list(self.commands)
+                     if (m := COMMAND_NAME.match(k[len(self.commands):]))]
+            self.following = max(found, default=0) + 1
+        return self.following
 
     def send(self, command, args=None, valid_seconds=3600):
         require(self.key and self.cli and self.home, 'sending needs the CLI, its home and the key record')
@@ -210,7 +276,9 @@ class Channel:
                                         int(self.clock()) + valid_seconds)
         raw = staging_command.sign(self.cli, self.home, self.key, unsigned)
         self.store.put(f'{self.commands}{sequence:010}.json', raw)
+        self.following = sequence + 1
         self.sent[sequence] = hashlib.sha256(raw).hexdigest()
+        self.sent_at[sequence] = self.clock()
         self.say(f'== {self.host}: sent {command} {json.dumps(args)} as sequence {sequence}')
         return sequence
 
@@ -221,7 +289,14 @@ class Channel:
         store. Each must be for this chain and host, at the sequence its name
         gives, under its name's digest."""
         require(self.paper and self.signer, 'opening results needs the history code paper and dytallix-root-sign')
-        for key in self.store.list(self.results):
+        after = None
+        if wanted is not None:
+            waiting = [s for s in wanted if s not in self.opened]
+            if not waiting:
+                return self.opened
+            # Names start with the zero-padded sequence: list from the first awaited.
+            after = f'{self.results}{min(waiting):010}'
+        for key in self.store.list(self.results, after):
             found = RESULT_NAME.match(key[len(self.results):])
             if not found or int(found.group(1)) in self.opened:
                 continue
@@ -245,17 +320,26 @@ class Channel:
             self.names[sequence] = {'object': key, 'sha256': found.group(2)}
         return self.opened
 
-    def wait(self, sequences, timeout=600, period=10):
-        """The opened results of the given sequences. A result for a command
-        this channel sent must carry that command file's digest."""
+    def wait(self, sequences, timeout=600):
+        """The opened results of the given sequences, listed only at the
+        LOOKS after each of the agent's looks in the store. A result for a
+        command this channel sent must carry that command file's digest."""
         deadline = self.clock() + timeout
+        # Commands this channel sent have no result before the agent's first
+        # look after the newest of them, so nothing is listed until then.
+        period, sent = 60 * self.every, [self.sent_at.get(s) for s in sequences]
+        not_before = (max(sent) // period + 1) * period if None not in sent else None
+        listing = not_before is None
         while True:
-            self.open_all(set(sequences))
-            if all(s in self.opened for s in sequences):
-                break
-            require(self.clock() < deadline, f'{self.host}: no result for sequence(s) '
+            if listing:
+                self.open_all(set(sequences))
+                if all(s in self.opened for s in sequences):
+                    break
+            now = self.clock()
+            require(now < deadline, f'{self.host}: no result for sequence(s) '
                     f'{[s for s in sequences if s not in self.opened]} within {timeout} s')
-            self.sleep(period)
+            self.sleep(max(0.0, min(next_look(max(now, not_before or now), self.every), deadline) - now))
+            listing = True
         for sequence in sequences:
             if sequence in self.sent:
                 require(self.opened[sequence].get('command_sha256') == self.sent[sequence],
@@ -392,7 +476,7 @@ def main():
         if args.command == 'status-page':
             print(json.dumps(status_page(args.url)))
             return 0
-        store = Store(load_store(args.store), Path(getattr(args, 'work', None) or '.') / 'store-scratch')
+        store = open_store(args.store, Path(getattr(args, 'work', None) or '.') / 'store-scratch')
         if args.command == 'preflight':
             preflight(store, args.chain, args.host, args.status_url)
             return 0
