@@ -91,6 +91,40 @@ class StoreTests(unittest.TestCase):
             sf.check_store(extra, standin=True)
 
 
+    def test_a_listing_can_start_after_a_name(self):
+        for n in (1, 2, 3):
+            self.store.put(f'history/c/agent/h/{n:010}-x.bin', b'r')
+        self.assertEqual(self.store.list('history/c/agent/h/', 'history/c/agent/h/0000000002'),
+                         ['history/c/agent/h/0000000002-x.bin', 'history/c/agent/h/0000000003-x.bin'])
+
+    def test_the_daily_budget_is_shared_by_every_tool_and_resets_at_midnight_utc(self):
+        record = sf.check_store(store_record(self.standin.port, daily_budget={'list': 2, 'get': 3}), standin=True)
+        ledger, now = self.scratch / 'store-ledger.json', [datetime(2026, 11, 4, 23, 59, tzinfo=timezone.utc).timestamp()]
+        one, two = (sf.Store(record, self.scratch, ledger=ledger, clock=lambda: now[0]) for _ in range(2))
+        one.list('commands/')
+        two.list('commands/')
+        with self.assertRaisesRegex(sf.Failed, 'LIST budget for 2026-11-04 \\(2\\) is spent'):
+            one.list('commands/')
+        one.put('commands/c/h/0000000001.json', b'one')  # its GET is one of the three
+        two.get('commands/c/h/0000000001.json')
+        one.get('commands/c/h/0000000001.json')
+        with self.assertRaisesRegex(sf.Failed, 'GET budget'):
+            two.get('commands/c/h/0000000001.json')
+        now[0] += 120
+        self.assertEqual(one.list('commands/c/h/'), ['commands/c/h/0000000001.json'])
+        self.assertEqual(json.loads(ledger.read_text()), {'day': '2026-11-05', 'list': 1, 'get': 0})
+
+    def test_a_budget_is_bounded_by_the_free_tier_and_needs_its_ledger(self):
+        for bad in ({'list': 2501, 'get': 1}, {'list': 1}, {'list': 0, 'get': 1}, [1, 2]):
+            with self.assertRaisesRegex(sf.Failed, 'daily_budget'):
+                sf.check_store(store_record(1, daily_budget=bad), standin=True)
+        for bad in (0, 11, '2'):
+            with self.assertRaisesRegex(sf.Failed, 'poll_every_minutes'):
+                sf.check_store(store_record(1, poll_every_minutes=bad), standin=True)
+        with self.assertRaisesRegex(sf.Failed, 'needs its ledger'):
+            sf.Store(sf.check_store(store_record(1, daily_budget={'list': 1, 'get': 1}), standin=True), self.scratch)
+
+
 SIGNER = '''#!/usr/bin/env python3
 import sys
 args = dict(zip(sys.argv[2::2], sys.argv[3::2]))
@@ -141,6 +175,12 @@ class ChannelTests(unittest.TestCase):
         self.assertEqual((body['host'], body['chain_id'], body['sequence'], body['command']),
                          ('sentry-1', 'chain-1', 6, 'status'))
 
+    def test_a_channel_lists_the_commands_once_and_counts_on(self):
+        self.store.put('commands/chain-1/sentry-1/0000000004.json', b'planted')
+        with mock.patch.object(self.store, 'list', wraps=self.store.list) as listing:
+            self.assertEqual([self.channel.send('status') for _ in range(3)], [5, 6, 7])
+        self.assertEqual(listing.call_count, 1)
+
     def test_send_refuses_what_the_agent_would(self):
         with self.assertRaisesRegex(sf.staging_command.Failed, 'not on the allowlist'):
             self.channel.send('shell')
@@ -179,6 +219,49 @@ class ChannelTests(unittest.TestCase):
         with self.assertRaisesRegex(sf.Failed, 'does not match its name'):
             channel.opened[1] = {}
             channel.open_all()
+
+    def test_a_round_lists_the_results_once_per_wait_after_the_agents_looks(self):
+        # A sentry round's command pattern at the staging hosts' 2-minute look
+        # (P01, 4 November 2026). The agent runs what was put before each look
+        # and its result is up 3 s later; the founder lists only at LOOKS.
+        clock = [60 * 31_666_666 + 7.0]
+        sent_at, done = {}, set()
+
+        def sleep(seconds):
+            before, clock[0] = clock[0], clock[0] + seconds
+            for look in range(int(before // 120) * 120, int(clock[0]) + 1, 120):
+                if before < look + 3 <= clock[0]:
+                    for sequence, at in sent_at.items():
+                        if at < look and sequence not in done:
+                            self.result(sequence, channel.sent[sequence])
+                            done.add(sequence)
+
+        record = sf.check_store(store_record(self.standin.port, poll_every_minutes=2), standin=True)
+        store = sf.Store(record, Path(self.standin.tmp.name) / 'scratch2')
+        channel = sf.Channel(store, 'chain-1', 'sentry-1', Path(self.standin.tmp.name) / 'r4', 'cli', 'home',
+                             self.key_path, self.paper, self.signer, clock=lambda: clock[0], sleep=sleep,
+                             say=lambda m: None)
+        send = channel.send
+        channel.send = lambda *a, **k: sent_at.setdefault(send(*a, **k), clock[0]) and max(sent_at)
+        listings, gets = [], []
+        store.list = mock.Mock(side_effect=lambda *a: listings.append(a) or sf.Store.list(store, *a))
+        store.get = mock.Mock(side_effect=lambda *a, **k: gets.append(a) or sf.Store.get(store, *a, **k))
+        pattern = [['fault-clear'], ['fault-netem'], ['fault-clear'], ['fault-netem'], ['fault-clear'],
+                   ['fault-peer-drop'], ['fault-partition'], ['fault-clear'], ['fault-kill', 'start']]
+        for commands in pattern:
+            args = {'fault-netem': {'delay_ms': 50, 'loss_percent': 5, 'duration_seconds': 45},
+                    'fault-partition': {'duration_seconds': 90}}
+            sequences = [channel.send(c, args.get(c)) for c in commands]
+            self.assertEqual([r['sequence'] for r in channel.wait(sequences)], sequences)
+        results = [a for a in listings if a[0] == channel.results]
+        self.assertEqual(len(listings) - len(results), 1, 'the commands are listed once')
+        self.assertEqual(len(results), len(pattern), 'one listing per wait')
+        self.assertTrue(all(a[1] for a in results), 'each listing starts after the awaited name')
+        self.assertEqual(len(gets), 2 * 10, 'a GET before each PUT and one per result')
+
+    def test_the_next_look_follows_the_agents_minutes(self):
+        self.assertEqual([sf.next_look(t, 1) - 1200 for t in (1200, 1215, 1239.5, 1240)], [15, 40, 40, 75])
+        self.assertEqual([sf.next_look(t, 2) - 1200 for t in (1200, 1215, 1240, 1290, 1300)], [15, 40, 90, 135, 135])
 
     def test_wait_times_out(self):
         clock = iter(range(0, 10_000, 100))

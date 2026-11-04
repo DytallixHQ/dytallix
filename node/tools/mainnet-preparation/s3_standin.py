@@ -46,17 +46,18 @@ def key_name(raw_path):
 
 
 def listing(root, raw_path):
-    """ListObjectsV2 for one bucket: every key under the prefix, in one page,
-    or max-keys of them."""
+    """ListObjectsV2 for one bucket: every key under the prefix (after
+    start-after, if given), in one page, or max-keys of them."""
     split = urlsplit(raw_path)
     parts = PurePosixPath(unquote(split.path)).parts[1:]
     if len(parts) != 1 or parts[0] in ('.', '..'):
         return None
     prefix = list_prefix(raw_path)
     limit = int(parse_qs(split.query).get('max-keys', ['1000'])[0])
+    after = parse_qs(split.query).get('start-after', [''])[0]
     bucket = Path(root) / parts[0]
     keys = sorted(p.relative_to(bucket).as_posix() for p in bucket.rglob('*') if p.is_file()) if bucket.is_dir() else []
-    contents = ''.join(f'<Contents><Key>{escape(k)}</Key></Contents>' for k in [k for k in keys if k.startswith(prefix)][:limit])
+    contents = ''.join(f'<Contents><Key>{escape(k)}</Key></Contents>' for k in [k for k in keys if k.startswith(prefix) and k > after][:limit])
     return ('<?xml version="1.0" encoding="UTF-8"?>'
             '<ListBucketResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">'
             f'<Name>{escape(parts[0])}</Name><Prefix>{escape(prefix)}</Prefix>'

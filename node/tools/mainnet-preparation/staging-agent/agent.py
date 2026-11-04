@@ -9,9 +9,14 @@ the production install, whose install refuses a host that still has it.
                                      install: places the agent, its allowlist,
                                      the settings and its timer
   agent.py poll                      the dytallix-agent unit, every minute
+                                     (it looks in the command store every
+                                     poll_every_minutes of them)
   agent.py remove                    as root: removes the agent
 
-Each poll looks for the next command file, by sequence number, in the
+Each poll on a whole UTC minute that is a multiple of the settings'
+poll_every_minutes (1 when absent; 2 on the staging hosts, to stay inside the
+store's free daily transactions: P01, 4 November 2026) looks for the next
+command file, by sequence number, in the
 command store (an S3-compatible bucket, AWS Signature V4, a read key for one
 prefix) with the host's curl, outbound only: it lists its own prefix for that
 one name and fetches it only when listed, because a prefix-limited read key at
@@ -63,6 +68,8 @@ MAX_OUTPUT_BYTES = 65536
 MAX_VALIDITY_SECONDS = 24 * 3600
 MAX_SEQUENCE = 10**9
 MAX_PER_POLL = 16
+# The store's free tier (B2: 2,500 listings a day) is what bounds this.
+MAX_POLL_EVERY_MINUTES = 10
 POLL_BUDGET_SECONDS = 600
 PUBLIC_KEY_HEX = 2 * 1952
 SIGNATURE_HEX = 2 * 3309
@@ -88,8 +95,9 @@ TimeoutStartSec=3600
 '''
 # On the minute by the host's synchronized clock, so a command sent to every
 # host for one minute starts on each within about a second (reconcile-read;
-# P01, 14 and 20 October 2026). A poll still running at the next minute is
-# not started twice.
+# P01, 14 and 20 October 2026). The store is looked in only on the minutes
+# that are multiples of poll_every_minutes, the same minutes on every host.
+# A poll still running at the next minute is not started twice.
 TIMER_TEXT = '''[Unit]
 Description=Poll for signed staging commands every minute
 
@@ -180,8 +188,11 @@ def check_store(store, what):
 
 def check_settings(settings):
     require(type(settings) is dict and settings.get('schema') == SETTINGS_SCHEMA, f'not agent settings ({SETTINGS_SCHEMA})')
-    require(set(settings) == {'schema', 'label', 'chain_id', 'command_public_key_hex', 'commands'},
-            'the settings have unexpected fields')
+    require(set(settings) - {'poll_every_minutes'} == {'schema', 'label', 'chain_id', 'command_public_key_hex',
+                                                       'commands'}, 'the settings have unexpected fields')
+    every = settings.get('poll_every_minutes', 1)
+    require(is_int(every) and 1 <= every <= MAX_POLL_EVERY_MINUTES,
+            f'poll_every_minutes is not a whole number from 1 to {MAX_POLL_EVERY_MINUTES}')
     for field in ('label', 'chain_id'):
         require(type(settings[field]) is str and NAME.match(settings[field]), f'the settings\' {field} is not a name')
     key = settings['command_public_key_hex']
@@ -400,7 +411,14 @@ def upload_results(host, monitor, now):
     return uploaded
 
 
+def checks_store(settings, now):
+    """Whether the poll at `now` looks in the command store: on the whole UTC
+    minutes that are multiples of poll_every_minutes, the same on every host."""
+    return int(now // 60) % settings.get('poll_every_minutes', 1) == 0
+
+
 def poll(host, clock=time.time, out=print):
+    now = clock()
     settings = check_settings(read_json(host.path(SETTINGS)))
     allowlist = check_allowlist(read_json(host.path(f'{OPT}/ALLOWLIST.json')))
     bin_dir, monitor = node_config(host, settings)
@@ -413,8 +431,11 @@ def poll(host, clock=time.time, out=print):
         uploaded += upload_results(host, monitor, clock())
     except (Failed, OSError, KeyError) as error:
         errors.append(str(error))
+    # Uploads cost the store nothing, so they go every minute; listings and
+    # fetches only on this host's minutes.
+    checked = checks_store(settings, now)
     started = clock()
-    for _ in range(MAX_PER_POLL):
+    for _ in range(MAX_PER_POLL if checked else 0):
         if clock() - started > POLL_BUDGET_SECONDS:
             break
         sequence = state['next_sequence']
@@ -445,7 +466,7 @@ def poll(host, clock=time.time, out=print):
         uploaded += upload_results(host, monitor, clock())
     except (Failed, OSError, KeyError) as error:
         errors.append(str(error))
-    summary = {'status': 'POLLED', 'next_sequence': state['next_sequence'], 'handled': handled,
+    summary = {'status': 'POLLED', 'checked': checked, 'next_sequence': state['next_sequence'], 'handled': handled,
                'uploaded': uploaded, 'errors': errors}
     out(json.dumps(summary))
     return summary

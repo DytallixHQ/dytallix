@@ -276,6 +276,40 @@ class AgentTests(unittest.TestCase):
         state = json.loads(self.host.path(f'{agent.STATE}/state.json').read_text())
         self.assertEqual(state['next_sequence'], 2)
 
+    def every(self, minutes):
+        settings_path = self.host.path(agent.SETTINGS)
+        settings_path.unlink()
+        settings_path.write_text(json.dumps(dict(settings(), poll_every_minutes=minutes)))
+
+    def test_the_store_is_looked_in_only_on_the_hosts_minutes(self):
+        # Every second minute (P01, 4 November 2026): the same whole UTC
+        # minutes on every host, so reconcile-read still starts together.
+        self.every(2)
+        even = 60 * 31_666_666
+        self.store.put(1, signed(1, 'stop'))
+        self.now = even + 60
+        summary = self.poll()
+        self.assertEqual((summary['checked'], summary['handled'], self.store.lists), (False, [], 0))
+        self.now = even + 120
+        self.store.fail_uploads = True
+        self.assertEqual(self.poll()['handled'][0]['status'], 'DONE')
+        lists = self.store.lists
+        # A waiting result goes up on the next minute: uploads cost nothing.
+        self.store.fail_uploads = False
+        self.now += 60
+        summary = self.poll()
+        self.assertEqual((summary['checked'], len(summary['uploaded']), self.store.lists), (False, 1, lists))
+
+    def test_an_idle_day_lists_the_store_720_times_every_second_minute(self):
+        # The store's free tier is 2,500 listings a day for both hosts and the
+        # founder; one minute apart, two hosts alone would spend 2,880.
+        self.every(2)
+        self.now = 60 * 31_666_666
+        for _ in range(24 * 60):
+            self.poll()
+            self.now += 60
+        self.assertEqual(self.store.lists, 720)
+
     def test_state_for_another_chain_never_restarts_the_sequence(self):
         self.store.put(1, signed(1))
         self.assertEqual(self.poll()['next_sequence'], 2)
@@ -289,6 +323,16 @@ class AgentTests(unittest.TestCase):
 class ParsingTests(unittest.TestCase):
     def check(self, raw, expected=1, now=1_900_000_000):
         return agent.check_command(raw, settings(), ALLOWLIST, expected, now, fake_verify)
+
+    def test_the_look_interval_is_a_whole_number_of_minutes_up_to_ten(self):
+        self.assertNotIn('poll_every_minutes', agent.check_settings(settings()))
+        for good in (1, 2, agent.MAX_POLL_EVERY_MINUTES):
+            agent.check_settings(dict(settings(), poll_every_minutes=good))
+        for bad in (0, 11, '2', 2.0, True, None):
+            with self.assertRaisesRegex(agent.Failed, 'poll_every_minutes'):
+                agent.check_settings(dict(settings(), poll_every_minutes=bad))
+        with self.assertRaisesRegex(agent.Failed, 'unexpected fields'):
+            agent.check_settings(dict(settings(), poll_every_seconds=60))
 
     def test_strict_json(self):
         good = json.loads(signed(1))

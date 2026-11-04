@@ -659,12 +659,27 @@ READ_COMMAND = 'reconcile-read'
 # metrics writes, every block.
 BURST_SECONDS = 50
 # The seconds of the minute in which the founder sends, so that every host's
-# next poll, on the minute by its synchronized clock, finds the command.
+# next poll, on the minute by its synchronized clock, finds the command. When
+# the hosts look in the store every N minutes (the channels' `every`), the
+# window runs from second 5 of their look period to 20 s before its end.
 SEND_WINDOW = (5, 40)
 
 
 def iso(seconds):
     return datetime.fromtimestamp(seconds, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+
+
+def send_window(every):
+    """The seconds of the hosts' look period (every `every` minutes, on the
+    minute) in which the founder sends, so their next look finds it."""
+    return SEND_WINDOW[0], 60 * every - (60 - SEND_WINDOW[1])
+
+
+def send_pause(now, every):
+    """How long to wait at `now` before sending inside the window."""
+    period, (first, last) = 60 * every, send_window(every)
+    phase = now % period
+    return 0.0 if first <= phase <= last else (first - phase) % period
 
 
 def burst_readings(collector, label, result):
@@ -715,23 +730,29 @@ def collect_through_agent(chain_id, channels, genesis_bytes, live=None, client=N
     if set(live) & set(channels):
         raise Failed(f'read both live and through the agent: {sorted(set(live) & set(channels))}')
     started = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    every = {getattr(channel, 'every', 1) for channel in channels.values()}
+    if len(every) > 1:
+        raise Failed(f'the hosts look in the store at different intervals ({sorted(every)} minutes)')
+    every = every.pop() if every else 1
+    period = 60 * every
     if align:
-        second = wall() % 60
-        if not SEND_WINDOW[0] <= second <= SEND_WINDOW[1]:
-            pause = (SEND_WINDOW[0] - second) % 60
-            say(f'== waiting {pause:.0f} s to send inside seconds {SEND_WINDOW[0]} to {SEND_WINDOW[1]} of the minute')
+        pause = send_pause(wall(), every)
+        if pause:
+            first, last = send_window(every)
+            say(f'== waiting {pause:.0f} s to send inside seconds {first} to {last} of the hosts\' '
+                f'{every}-minute look')
             sleep(pause)
-    sent, minute = {}, wall() // 60
+    sent, slot = {}, wall() // period
     for label, channel in channels.items():
         sequence = channel.send(READ_COMMAND)
         sent[label] = {'sequence': sequence, 'sent_at': iso(wall())}
-    if align and (wall() // 60 != minute or wall() % 60 > 58):
-        say('== the commands were sent across a minute: the hosts may read a minute apart (INCONCLUSIVE, never a pass)')
+    if align and (wall() // period != slot or wall() % period > period - 2):
+        say('== the commands were sent across a look: the hosts may read apart (INCONCLUSIVE, never a pass)')
     if after_send:
         after_send()
-    # The hosts read from their next poll (the next minute) for BURST_SECONDS.
+    # The hosts read from their next look in the store for BURST_SECONDS.
     now = wall()
-    until = (now - now % 60 + 60 if align else now) + BURST_SECONDS + 5
+    until = (now - now % period + period if align else now) + BURST_SECONDS + 5
     collector = Collector(live, client, clock=clock, sleep=sleep, say=say)
     for label in channels:
         collector.observations['hosts'][label] = {'engine': {}, 'metrics': {}}

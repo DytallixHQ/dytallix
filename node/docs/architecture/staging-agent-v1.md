@@ -51,7 +51,10 @@ of the body's canonical JSON (sorted keys, no spaces, ASCII). The founder
 uploads it to the command store as `PREFIX/CHAIN/HOST/SEQUENCE.json`, the
 sequence in ten digits.
 
-Each poll looks for the next sequence's object with the host's curl (AWS
+Each poll uploads any waiting results. On the whole UTC minutes that are
+multiples of the settings' `poll_every_minutes` (1 when absent; 2 on the
+staging hosts, the same minutes on every host), it also looks for the next
+sequence's object with the host's curl (AWS
 Signature V4, a read key for the command prefix, outbound only; TLS is only
 transport). It lists its own prefix for that one name (ListObjectsV2,
 `max-keys=1`) and fetches the object only when listed; nothing listed ends the
@@ -179,3 +182,8 @@ On 20 October 2026 P01 added `reconcile-read` and put the poll on the minute
 ([approval](../../../launch/approvals/P01_T06_AGENT_RECONCILE_2026-10-20.json));
 on 14 October, the fault commands' read-only proof steps
 ([approval](../../../launch/approvals/P01_T06_REAL_HOST_HARNESS_2026-10-14.json)).
+On 4 November 2026 P01 kept the store inside its free tier
+([approval](../../../launch/approvals/P01_T06_AGENT_POLL_FREE_TIER_2026-11-04.json)):
+the staging hosts look in it every 2 minutes, and the founder's tools list
+the results only after those looks, within a daily budget of 900 listings and
+1,000 downloads counted in a ledger beside the founder's store record.

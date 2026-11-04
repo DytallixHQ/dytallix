@@ -6,7 +6,8 @@ keystore of its own, made by `dytallix wallet create` and used by
 `dytallix crypto sign`. Staging only; never a production key.
 
   staging_command.py key --cli DYTALLIX --home DIR --out KEY.json
-  staging_command.py settings --key KEY.json --label L --chain ID --store READ.json --out FILE
+  staging_command.py settings --key KEY.json --label L --chain ID --store READ.json
+                              [--poll-every-minutes N] --out FILE
   staging_command.py make --cli DYTALLIX --home DIR --key KEY.json --chain ID --host LABEL
                           --sequence N --command NAME [--arg NAME=INT ...] [--valid-minutes M] --out FILE
   staging_command.py package --out DIR
@@ -14,7 +15,8 @@ keystore of its own, made by `dytallix wallet create` and used by
 key makes the staging command key in a new keystore under DIR (the CLI asks
 for its passphrase, or reads DYTALLIX_KEYSTORE_PASSPHRASE_FILE) and writes
 its public record. settings writes one host's agent settings: its label,
-the rehearsal chain, the pinned public key and the command store's read key.
+the rehearsal chain, the pinned public key, the command store's read key and,
+when not 1, how many minutes apart the agent looks in the store.
 make checks the command against the allowlist, signs it, checks the
 signature with the CLI and writes the command file; upload it to the
 command store under the key it prints (the store's prefix first). package
@@ -97,11 +99,14 @@ def make_key(cli, home, out, run=subprocess.run):
     return record
 
 
-def make_settings(key_path, label, chain, store_path, out):
+def make_settings(key_path, label, chain, store_path, out, every=1):
     store = json.loads(Path(store_path).read_bytes())
-    settings = agent.check_settings({
-        'schema': agent.SETTINGS_SCHEMA, 'label': label, 'chain_id': chain, 'command_public_key_hex': load_key(key_path),
-        'commands': {field: store[field] for field in agent.STORE_FIELDS}})
+    settings = {'schema': agent.SETTINGS_SCHEMA, 'label': label, 'chain_id': chain,
+                'command_public_key_hex': load_key(key_path),
+                'commands': {field: store[field] for field in agent.STORE_FIELDS}}
+    if every != 1:
+        settings['poll_every_minutes'] = every
+    settings = agent.check_settings(settings)
     write_new(out, json.dumps(settings, indent=1).encode(), 0o600)
     print(f'agent settings for {label} on {chain}: {out} (it holds the read key; keep it on your own media)')
     return settings
@@ -193,6 +198,7 @@ def main():
     s.add_argument('--label', required=True)
     s.add_argument('--chain', required=True)
     s.add_argument('--store', type=Path, required=True)
+    s.add_argument('--poll-every-minutes', type=int, default=1)
     s.add_argument('--out', type=Path, required=True)
     m = commands.add_parser('make')
     m.add_argument('--cli', type=Path, required=True)
@@ -212,7 +218,7 @@ def main():
         if args.command == 'key':
             make_key(args.cli, args.home, args.out)
         elif args.command == 'settings':
-            make_settings(args.key, args.label, args.chain, args.store, args.out)
+            make_settings(args.key, args.label, args.chain, args.store, args.out, args.poll_every_minutes)
         elif args.command == 'make':
             make(args.cli, args.home, args.key, args.chain, args.host, args.sequence, args.name, parse_args(args.arg),
                  args.valid_minutes, args.out)
