@@ -96,6 +96,7 @@ retired in production activation v1, A5.
 | 15 | `execution` | [halt.md](halt.md) if every validator stops at the same height, else [fork.md](fork.md) |
 | 16 | `storage` | [resource-exhaustion.md](resource-exhaustion.md) first (space and inodes), then [fork.md](fork.md) |
 | 17 | `resource` | [resource-exhaustion.md](resource-exhaustion.md) |
+| 18 | `verifier` | The signature-check helper did not run (startup already tried it three times). Read the helper failure record in the node's journal (`error_text`, `helper_stderr`), then start the node again; if it repeats, keep the record and escalate |
 | 1 | unclassified | Keep the report and escalate |
 | 101 | panic | Keep the report and escalate |
 

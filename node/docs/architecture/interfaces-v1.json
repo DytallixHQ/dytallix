@@ -931,7 +931,7 @@
       "id": "operator-application-exit-status",
       "group": "operator_output",
       "exposure": "operator",
-      "format": "Exit status of consensus_stdio and dytallix-state-check: 10 to 17 name the failure class (configuration, history, supply, replay, release, execution, storage, resource), 1 is unclassified; the native supervisor's report repeats the class.",
+      "format": "Exit status of consensus_stdio and dytallix-state-check: 10 to 18 name the failure class (configuration, history, supply, replay, release, execution, storage, resource, verifier), 1 is unclassified; the native supervisor's report repeats the class.",
       "version": {
         "none": "The statuses are fixed; a new class takes a new status and the old ones keep their meaning."
       },

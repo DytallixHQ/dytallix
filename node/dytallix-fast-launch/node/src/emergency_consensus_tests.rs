@@ -438,15 +438,22 @@ fn actual_emergency_helper_failure_and_corrupt_history_fail_closed() {
     drop(app);
     let mut invalid = root.verifier.clone();
     invalid.helper_path = root._directory.path().join("missing-helper");
-    assert!(ConsensusApplication::open_with_development_emergency(
+    let reopened = ConsensusApplication::open_with_development_emergency(
         directory.path(),
         f.config.clone(),
         f.genesis.clone(),
         &root.source,
         root.root.clone(),
-        invalid
+        invalid,
     )
-    .is_err());
+    .err()
+    .expect("A helper that cannot run must stop startup");
+    // After its retries, a helper that did not run is the verifier class, not
+    // replay (P01, 4 November 2026).
+    assert_eq!(
+        crate::failure_class::class_of(&reopened),
+        Some(crate::failure_class::FailureClass::Verifier)
+    );
     assert!(
         ConsensusApplication::open(directory.path(), f.config.clone(), f.genesis.clone()).is_err()
     );

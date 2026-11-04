@@ -833,6 +833,28 @@ impl VerifiedReleaseAuthority {
     }
 }
 
+/// Startup re-checks the stored root controls through the signature-check
+/// helper. A one-off failure of the helper to run (an infrastructure error,
+/// never a rejection, which checking again would only repeat) is tried again,
+/// three tries in all, 1 s and then 2 s apart; a failure that persists is the
+/// verifier class (P01, 4 November 2026).
+const STARTUP_VERIFIER_ATTEMPTS: u32 = 3;
+const STARTUP_VERIFIER_PAUSE: std::time::Duration = std::time::Duration::from_secs(1);
+
+fn retry_verifier_infrastructure<T>(attempts: u32, pause: std::time::Duration,
+                                    mut check: impl FnMut() -> Result<T>) -> Result<T> {
+    let mut attempt = 1;
+    loop {
+        match check() {
+            Err(error) if attempt < attempts && crate::emergency_verifier::is_infrastructure_error(&error) => {
+                std::thread::sleep(pause * attempt);
+                attempt += 1;
+            }
+            outcome => return outcome,
+        }
+    }
+}
+
 fn check_stored_startup(
     storage: &Storage,
     config: &ConsensusConfig,
@@ -848,7 +870,7 @@ fn check_stored_startup(
         let history = HistoryRead::new(storage);
         let trace = verify_recovery_with(&history)?;
         if let (Some(policy), Some(verifier)) = (&config.emergency, emergency_verifier) {
-            classify((|| {
+            classify(retry_verifier_infrastructure(STARTUP_VERIFIER_ATTEMPTS, STARTUP_VERIFIER_PAUSE, || {
                 root_authority_history(&history, config, &trace, Some(verifier))?;
                 let authority = root_record(storage)?;
                 let policy_at = |height| {
@@ -860,7 +882,7 @@ fn check_stored_startup(
                     "Emergency cryptographic replay differs");
                 let outcomes = upgrade_history(&history, config, &trace, Some(verifier))?;
                 handover_history(&history, config, &trace, &outcomes, Some(verifier))
-            })(), FailureClass::Replay)?;
+            }), FailureClass::Replay)?;
         }
         storage.mark_verified(sequence)?;
         Ok(true)

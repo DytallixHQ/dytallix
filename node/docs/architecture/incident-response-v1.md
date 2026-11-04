@@ -79,12 +79,12 @@ Two other checks follow the service configuration:
 
 ## R-b: failure classes
 
-**Classes.** `failure_class` defines eight classes, each with a fixed exit
-status:
+**Classes.** `failure_class` defines nine classes, each with a fixed exit
+status (`verifier` added by P01, 4 November 2026):
 
-| Class | configuration | history | supply | replay | release | execution | storage | resource |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Exit status | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 |
+| Class | configuration | history | supply | replay | release | execution | storage | resource | verifier |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Exit status | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 |
 
 1 stays unclassified and 101 is a panic.
 
@@ -93,6 +93,12 @@ message it covers, so error text and every downcast are unchanged.
 - The first class attached wins.
 - A refused resource wins over the attached class: ENOSPC, EDQUOT, ENOMEM,
   EMFILE, ENFILE, EAGAIN, or RocksDB reporting no space.
+- Next, a local signature-check helper that failed to run (an infrastructure
+  error, never a rejection) is `verifier`, whatever class was attached. At
+  startup the re-check of the stored root controls tries such a failure three
+  times, 1 s and then 2 s apart, before it stops. The helper failure record in
+  the journal carries the failed check's message and the helper's own stderr,
+  each bounded ([approval](../../../launch/approvals/P01_E04_VERIFIER_CLASS_2026-11-04.json)).
 - An ownership cancellation has no class.
 
 **Classified sites:**
