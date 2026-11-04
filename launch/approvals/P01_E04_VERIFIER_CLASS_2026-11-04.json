@@ -1,0 +1,38 @@
+{
+  "decision_id": "P01-2026-11-04-E04-VERIFIER-CLASS",
+  "approved": "2026-11-04",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "What startup does when the signature-check helper fails to run, the class it then reports, and whether the reason is logged"
+  },
+  "reason": "In the CI staging network on 4 November 2026 (Host install run 41870854133, the fault injector's process kill on the sentry), a node failed to start again: the signature-check helper exited 1 once while startup re-checked the stored root controls, startup stopped at the first such failure, and the failure was classed replay (13), as if the history did not replay. The unit does not restart itself, so the node stayed down. Block processing already treats a helper that did not run apart from a rejection; startup did not, and nothing recorded why the helper failed.",
+  "design_ref": "../../node/docs/architecture/incident-response-v1.md",
+  "decisions": [
+    {
+      "question": "What startup does when the signature-check helper fails to run",
+      "selected": "Retry 3 times, infra only",
+      "rule": "Startup's re-check of the stored emergency, upgrade and handover history runs again when the helper failed to run (an infrastructure error), three tries in all, 1 s and then 2 s apart. A rejection, or any other failure, is never tried again: checking is deterministic, so it would only repeat."
+    },
+    {
+      "question": "The class a helper that still fails reports",
+      "selected": "New class \"verifier\", exit 18",
+      "rule": "A ninth fixed failure class, verifier (exit status 18): the local signature-check helper failed to run. It wins over the class attached to the error, as a refused resource does (which still wins over it), wherever the failure surfaces, at startup or in block processing. This amends the fixed classes of E04 gap 15 (P01, 28 September 2026; node/docs/mainnet/e04-requirement-triage.md)."
+    },
+    {
+      "question": "Whether the helper's reason is written to the node's journal",
+      "selected": "Yes, a short line in the journal",
+      "rule": "The helper failure record the supervisor already writes to the journal also carries error_text, the failed check's message (at most 240 characters), and helper_stderr, what the helper wrote to stderr (at most 480 characters, read once it is reaped), control characters as spaces, so the record stays one line within its 4,096-byte bound; when they do not fit they are left out rather than the record. Neither carries a secret: the helper reads only the public policy and request bytes. This amends the rule that only the class leaves the process, for this record."
+    }
+  ],
+  "supersedes": [
+    "E04 gap 15 (P01, 28 September 2026): eight fixed failure classes, 10 to 17, becomes nine, 10 to 18; and 'the error text stays with the operator's read-only check' gains the helper failure record's bounded reasons."
+  ],
+  "does_not_authorize": [
+    "an automatic restart of the node unit (it stays Restart=no)",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

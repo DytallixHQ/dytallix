@@ -32,8 +32,37 @@ pub(super) fn preserve_error(error: anyhow::Error, cleanup: Result<()>) -> anyho
     }
 }
 
-fn encode(mut binding: Value, error: &anyhow::Error, attempt: u64, cleanup_ok: bool,
-          reaped: bool, exit_status: Option<i32>, elapsed_ms: u64, execution_deadline: Option<Instant>) -> Result<Vec<u8>> {
+/// At most `limit` characters of `raw`, control characters as spaces, so a
+/// record line stays one bounded line.
+fn bounded_text(raw: &str, limit: usize) -> String {
+    raw.chars().map(|c| if c.is_control() { ' ' } else { c }).take(limit).collect()
+}
+
+/// Why the helper failed, for the operator (P01, 4 November 2026): the check
+/// that failed and what the helper itself wrote to stderr, both bounded.
+/// Neither carries a secret: the helper reads only public policy and request
+/// bytes.
+const ERROR_TEXT_CHARS: usize = 240;
+const HELPER_STDERR_CHARS: usize = 480;
+
+fn encode(binding: Value, error: &anyhow::Error, attempt: u64, cleanup_ok: bool,
+          reaped: bool, exit_status: Option<i32>, elapsed_ms: u64, execution_deadline: Option<Instant>,
+          helper_stderr: &[u8]) -> Result<Vec<u8>> {
+    let why = serde_json::json!({
+        "error_text":bounded_text(&format!("{error:#}"),ERROR_TEXT_CHARS),
+        "helper_stderr":bounded_text(&String::from_utf8_lossy(helper_stderr),HELPER_STDERR_CHARS),
+    });
+    // The reasons go only when the record stays within its bound.
+    match encode_row(binding.clone(),error,attempt,cleanup_ok,reaped,exit_status,elapsed_ms,execution_deadline,Some(why)) {
+        Ok(bytes) => Ok(bytes),
+        Err(_) => encode_row(binding,error,attempt,cleanup_ok,reaped,exit_status,elapsed_ms,execution_deadline,None),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn encode_row(mut binding: Value, error: &anyhow::Error, attempt: u64, cleanup_ok: bool,
+              reaped: bool, exit_status: Option<i32>, elapsed_ms: u64, execution_deadline: Option<Instant>,
+              why: Option<Value>) -> Result<Vec<u8>> {
     let row = binding.as_object_mut().context("Helper failure binding is not an object")?;
     row.extend(serde_json::json!({
         "schema":1, "scope":"LOCAL_FAILED_HELPER_LIFECYCLE_V1",
@@ -44,6 +73,9 @@ fn encode(mut binding: Value, error: &anyhow::Error, attempt: u64, cleanup_ok: b
         "reaped":reaped, "exit_status_raw":exit_status,
         "total_elapsed_ms":elapsed_ms
     }).as_object().unwrap().clone());
+    if let Some(why) = why {
+        row.extend(why.as_object().unwrap().clone());
+    }
     let mut bytes=serde_json::to_vec(&binding)?;
     bytes.push(b'\n');
     ensure!(bytes.len()<=4096,"Helper failure diagnostic exceeded bound");
@@ -72,13 +104,15 @@ fn deliver(bytes: &[u8], deadline: Instant,
 }
 
 #[cfg(target_os="linux")]
+#[allow(clippy::too_many_arguments)]
 pub(super) fn emit(binding: Value, error: &anyhow::Error, attempt: u64,
                    cleanup_ok: bool, reaped: bool, exit_status: Option<i32>,
-                   started: Instant, total_deadline: Instant, execution_deadline: Instant) -> Result<()> {
+                   started: Instant, total_deadline: Instant, execution_deadline: Instant,
+                   helper_stderr: &[u8]) -> Result<()> {
     let now=Instant::now();
     ensure!(now<total_deadline,"No remaining helper diagnostic budget");
     let deadline=total_deadline.min(now.checked_add(Duration::from_millis(200)).context("Diagnostic deadline overflow")?);
-    let bytes=encode(binding,error,attempt,cleanup_ok,reaped,exit_status,u64::try_from(started.elapsed().as_millis())?,Some(execution_deadline))?;
+    let bytes=encode(binding,error,attempt,cleanup_ok,reaped,exit_status,u64::try_from(started.elapsed().as_millis())?,Some(execution_deadline),helper_stderr)?;
     send_socket(2,&bytes,deadline)
 }
 
@@ -110,9 +144,26 @@ mod tests {
         let unrelated=causal_class(&text,None);
         flag.store(before,std::sync::atomic::Ordering::SeqCst);
         assert_eq!(unrelated,"OTHER_FAILURE");
-        let raw=encode(serde_json::json!({}),&typed,1,false,false,None,3,None).unwrap();
+        let raw=encode(serde_json::json!({}),&typed,1,false,false,None,3,None,b"").unwrap();
         let row:Value=serde_json::from_slice(&raw).unwrap();
         assert_eq!(row["failure_class"],"CANCELLED");assert_eq!(row["cleanup_status"],"FAILED");assert_eq!(row["reaped"],false);
+    }
+    #[test]
+    fn the_record_says_why_within_its_bound(){
+        // P01, 4 November 2026: the failed check and the helper's own stderr,
+        // bounded, one line; dropped rather than overflowing the record.
+        let error=anyhow::anyhow!("Observed helper READY protocol differs").context("helper run");
+        let raw=encode(serde_json::json!({}),&error,4,true,true,Some(256),56,None,b"policy\nrefused\x07 here").unwrap();
+        let row:Value=serde_json::from_slice(&raw).unwrap();
+        assert_eq!(row["error_text"],"helper run: Observed helper READY protocol differs");
+        assert_eq!(row["helper_stderr"],"policy refused  here");
+        assert_eq!(raw.iter().filter(|&&b|b==b'\n').count(),1);
+        let noisy=encode(serde_json::json!({}),&error,4,true,true,None,1,None,&[b'x';10_000]).unwrap();
+        let row:Value=serde_json::from_slice(&noisy).unwrap();
+        assert_eq!(row["helper_stderr"].as_str().unwrap().chars().count(),HELPER_STDERR_CHARS);
+        let crowded=encode(serde_json::json!({"large":"a".repeat(3500)}),&error,4,true,true,None,1,None,&[b'x';480]).unwrap();
+        let row:Value=serde_json::from_slice(&crowded).unwrap();
+        assert!(row.get("helper_stderr").is_none() && crowded.len()<=4096);
     }
     #[test]
     fn expired_and_blocked_sinks_do_not_extend_deadline(){
@@ -127,7 +178,7 @@ mod tests {
         let mut output=Vec::new();
         deliver(b"record\n",Instant::now()+Duration::from_secs(1),|part|{output.push(part[0]);Ok(1)}).unwrap();
         assert_eq!(output,b"record\n");
-        assert!(encode(serde_json::json!({"large":"a".repeat(4096)}),&anyhow::anyhow!("failure"),1,true,true,Some(9),4,None).is_err());
+        assert!(encode(serde_json::json!({"large":"a".repeat(4096)}),&anyhow::anyhow!("failure"),1,true,true,Some(9),4,None,b"").is_err());
     }
     #[cfg(target_os="linux")]
     #[test]
@@ -182,7 +233,7 @@ mod tests {
         assert_eq!(causal_class(&unrelated,Some(execution)),"OTHER_FAILURE");
         let combined=preserve_error(unrelated,Err(ObservedHelperDeadlineExpired{deadline:total,checked_monotonic_ns:99}.into()));
         assert_eq!(causal_class(&combined,Some(execution)),"OTHER_FAILURE");
-        let raw=encode(serde_json::json!({}),&expired,1,true,true,Some(9),3,Some(execution)).unwrap();
+        let raw=encode(serde_json::json!({}),&expired,1,true,true,Some(9),3,Some(execution),b"").unwrap();
         let row:Value=serde_json::from_slice(&raw).unwrap();
         assert_eq!(row["failure_class"],"EXECUTION_DEADLINE_EXPIRED");assert_eq!(row["deadline_checked_monotonic_ns"],77);
     }

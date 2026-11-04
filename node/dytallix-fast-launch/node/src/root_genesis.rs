@@ -1121,8 +1121,11 @@ mod observed_execution {
         };
         drop(command);
         let mut failure_binding = None;
+        // The channel outlives the attempt, so a failure can still read what
+        // the helper wrote to stderr (P01, 4 November 2026).
+        let mut channel_slot = None;
         let result = (|| {
-            let mut channel = Channel::new(&mut helper.child, policy.max_output_bytes)?;
+            let channel = channel_slot.insert(Channel::new(&mut helper.child, policy.max_output_bytes)?);
             bootstrap.await_ready_with_cancel(ownership::check_cancellation)?;
             owner.check()?;
             let identity = static_helper::capture_owned_child(
@@ -1217,7 +1220,7 @@ mod observed_execution {
             )?;
             channel.write_all(ACK, execution_deadline)?;
             channel.input.take();
-            let status = finish_protocol(&mut helper, &mut channel, execution_deadline)?;
+            let status = finish_protocol(&mut helper, channel, execution_deadline)?;
             owner.check()?;
             let outcome = if prefix[0] == 2 {
                 ensure!(
@@ -1290,6 +1293,16 @@ mod observed_execution {
             Ok(outcome) => Ok(outcome),
             Err(error) => {
                 let cleanup = reap(&mut helper, total_deadline);
+                // What the helper wrote to stderr, read once it is gone, for the
+                // failure record (P01, 4 November 2026); a read failure leaves it short.
+                let helper_errors: Vec<u8> = channel_slot
+                    .as_mut()
+                    .map(|channel: &mut Channel| {
+                        let _ = channel.drain_errors(Instant::now() + Duration::from_millis(50));
+                        channel.error_bytes.clone()
+                    })
+                    .unwrap_or_default();
+                drop(channel_slot);
                 // Diagnostic failure never replaces the original error or cleanup priority.
                 if let Some(binding) = failure_binding {
                     use std::os::unix::process::ExitStatusExt;
@@ -1298,7 +1311,7 @@ mod observed_execution {
                     } else { None };
                     let _ = helper_failure::emit(
                         binding, &error, admission_attempt, cleanup.is_ok(), helper.reaped,
-                        exit_status, started, total_deadline, execution_deadline,
+                        exit_status, started, total_deadline, execution_deadline, &helper_errors,
                     );
                 }
                 Err(helper_failure::preserve_error(error, cleanup))
