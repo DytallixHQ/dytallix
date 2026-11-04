@@ -36,7 +36,11 @@ clock (the injection's finish plus its duration, when the host's own dead-man
 removes it; the restart's finish after a process kill), and the sentry has
 recovered when the page serves a block made at or after that instant, above
 the height it served at the clear, read at the founder's clock. Each
-scenario records which clock each instant came from.
+scenario records which clock each instant came from, and the reader's longest
+gap between readings from the clear to the recovery: a gap can only make a
+recovery look slower, so a scenario that would fail on its timing after a gap
+over READER_GAP_SECONDS (the founder's machine asleep or offline) is
+INCONCLUSIVE and is run again, never counted (P01, 4 November 2026).
 
 The lean scope is the network and process faults driven through the agent:
 latency and loss (`tc netem`) and a peer partition (an `inet dytallix_fault`
@@ -124,6 +128,11 @@ BY_NAME = {spec['name']: spec for spec in SCENARIOS + VALIDATOR_SCENARIOS}
 REDIAL_SECONDS = 75
 BREAKS_PEERS = ('partition', 'process_kill')
 CLOCKS = {'injected_at': 'host', 'cleared_at': 'host', 'recovered_at': 'reader'}
+# The reader reads about once a second, each read waiting at most 5 s. On 4
+# November 2026 (UTC) the founder's laptop slept with its lid closed during
+# rounds 22 and 23, and its late readings failed recoveries that the hosts'
+# own clears and the chain show were on time.
+READER_GAP_SECONDS = 10
 
 
 def kind(name):
@@ -155,6 +164,17 @@ def effect_holds(scenario_kind, effect):
     return False
 
 
+def timed_failure(scenario, detail):
+    """A failure on the reader's timing (no recovery seen, or seen over the
+    target): INCONCLUSIVE after a reader gap over READER_GAP_SECONDS, since
+    nobody watched; otherwise FAIL."""
+    gap = scenario.get('reader_gap_seconds')
+    if isinstance(gap, (int, float)) and not isinstance(gap, bool) and gap > READER_GAP_SECONDS:
+        return INCONCLUSIVE, (f'the reader was not watching for {gap:.0f} s (the founder\'s machine asleep or '
+                              f'offline), so it cannot judge: {detail}; run it again')
+    return FAIL, detail
+
+
 def evaluate(scenario, target):
     """The status and detail of one scenario, derived only from its recorded
     observations. Never reads the recorded status."""
@@ -170,7 +190,7 @@ def evaluate(scenario, target):
     baseline, at_clear = scenario['baseline_height'], scenario['height_at_clear']
     recovered = scenario.get('recovered_height')
     if scenario.get('recovered_at') is None or not is_int(recovered):
-        return FAIL, 'the node did not catch back up within the drill timeout'
+        return timed_failure(scenario, 'the node did not catch back up within the drill timeout')
     if recovered < baseline:
         return FAIL, f'finalized history was lost: the height fell from {baseline} to {recovered}'
     if recovered <= at_clear:
@@ -183,7 +203,7 @@ def evaluate(scenario, target):
                               'awaits the approved recovery target (open P01 decision)')
     if seconds <= target:
         return PASS, f'recovered in {seconds:.0f} s, within the {target} s target'
-    return FAIL, f'recovered in {seconds:.0f} s, over the {target} s target'
+    return timed_failure(scenario, f'recovered in {seconds:.0f} s, over the {target} s target')
 
 
 # Driving the scenarios through the public paths
@@ -245,6 +265,16 @@ class Timeline:
                    and (before is None or instant(p['read_at']).timestamp() <= before)]
         return heights[-1] if heights else None
 
+    def largest_gap(self, start, end):
+        """The longest time between two readings from the last one at or
+        before `start` through the last one at or before `end` (seconds)."""
+        times = [instant(p['read_at']).timestamp() for p in list(self.pages) if p.get('read_at')]
+        before = [t for t in times if t <= start]
+        span = before[-1:] + [t for t in times if start < t <= end]
+        if len(span) < 2:
+            return round(max(end - (span or [start])[0], 0.0), 1)
+        return round(max(b - a for a, b in zip(span, span[1:])), 1)
+
     def recovered(self, cleared_at, above, made):
         """The first page read after the clear that serves a block made at or
         after it, above the height at the clear: (read_at, height) or None."""
@@ -304,7 +334,7 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
             row = {'name': name, 'command': {'command': command, 'args': args, 'status': injected['status']},
                    'clear': clear, 'effect': effect_of(name, injected), 'baseline_height': baseline,
                    'clocks': dict(CLOCKS), 'injected_at': None, 'cleared_at': None, 'height_at_clear': None,
-                   'recovered_at': None, 'recovered_height': None}
+                   'recovered_at': None, 'recovered_height': None, 'reader_gap_seconds': None}
             if injected.get('finished_at') is not None:
                 row['injected_at'] = iso_at(injected['finished_at'])
             if injected['status'] == 'DONE' and cleared_at is not None:
@@ -322,6 +352,8 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
                     sleep(period)
                 if found:
                     row['recovered_at'], row['recovered_height'] = found
+                end = instant(found[0]).timestamp() if found else clock()
+                row['reader_gap_seconds'] = timeline.largest_gap(cleared_at, end)
         if clear['mechanism'] == 'dead-man':
             # The dead-man already removed it; this removes the empty table.
             clear['status'] = channel.run('fault-clear', timeout=result_timeout)['status']

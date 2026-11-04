@@ -304,6 +304,7 @@ class ScenarioTests(unittest.TestCase):
         for row in record['scenarios']:
             self.assertEqual(row['clocks'], faults.CLOCKS)
             self.assertGreater(row['recovered_height'], row['height_at_clear'])
+            self.assertLessEqual(row['reader_gap_seconds'], faults.READER_GAP_SECONDS, 'the reader watched')
 
     def test_the_validator_restart_halts_the_chain_until_blocks_resume(self):
         # With one validator, its kill halts the chain: the sentry keeps serving

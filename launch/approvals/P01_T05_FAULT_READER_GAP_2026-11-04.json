@@ -1,0 +1,35 @@
+{
+  "decision_id": "P01-2026-11-04-T05-FAULT-READER-GAP",
+  "approved": "2026-11-04",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "What a fault trial counts for when the founder's machine was not watching its recovery, and what happens to rounds 22 and 23 of the first staging campaign"
+  },
+  "reason": "Recovery is timed on the sentry's status page, read about once a second from the founder's machine (P01, 14 October 2026). During rounds 22 and 23 of the first staging fault campaign (4 November 2026, UTC) the founder's laptop went to sleep with its lid closed: its power log shows sleep 5 s after round 22's partition was injected and the lid opened 3 s before round 23's last recovery was read. The hosts' own dead-man timers cleared every network fault on time, but the late readings recorded failed recoveries, which would have failed two campaign KPIs on the public dashboard for good. In round 22 the machine also lost its network between sending the validator's kill and its restart, so the validator stayed stopped, and the single-validator chain halted, for about 70 minutes until the retry sent the restart; that record's kill then found the node already down. A kill that restarts itself, like the network faults' dead-man, is a separate change.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "A trial the reader did not watch",
+      "selected": "Inconclusive, and run again",
+      "rule": "Each fault scenario records the reader's longest gap between readings, from the last reading at or before the clear to the recovery reading (or to the end of the wait). A gap can only make a recovery look slower, so a scenario that passes stands. A scenario that would fail on the reader's timing (no recovery seen within the wait, or a recovery seen over the target) after a gap over 10 seconds is INCONCLUSIVE: it counts neither for nor against the network, and the trial is run again. Every other failure (the command did not complete, no measurable effect, finalized history lost, no advance after the clear) stays a failure whatever the gap. verify recomputes the status from the recorded gap, which the record's digest binds."
+    },
+    {
+      "question": "Rounds 22 and 23 of the first staging campaign",
+      "selected": "Void, and run again",
+      "rule": "Their four records were made before this rule and carry no reader gap. They are kept aside with the founder's power log, are not published or counted, and rounds 22 and 23 are run again under this rule."
+    }
+  ],
+  "accepted_risks": [
+    "A genuinely slow recovery that coincides with a reader gap is not counted until a rerun shows it; a rerun cannot hide it, since every conclusive failure counts.",
+    "The 10-second threshold allows a short gap, such as a 5-second read timeout, to stand; a failure measured across such a gap can be up to 10 seconds slower than the truth."
+  ],
+  "does_not_authorize": [
+    "voiding any other record",
+    "more than 30 conclusive rounds of the quick faults",
+    "any change to the recovery targets",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
