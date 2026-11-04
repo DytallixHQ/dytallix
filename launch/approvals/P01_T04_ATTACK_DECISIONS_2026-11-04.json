@@ -1,0 +1,43 @@
+{
+  "decision_id": "P01-2026-11-04-T04-ATTACK-DECISIONS",
+  "approved": "2026-11-04",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the attack campaign counts attacks the node refuses only when the block runs, whether the status page gets a per-address bound, and whether to build an attack client for the endpoint types that need a completed handshake",
+    "selected_as": "the recommended action on each"
+  },
+  "reason": "Building the remaining attack families (launch-rehearsals.md, Statistical campaign) raised three questions. A reading of the node at main b240f0e found that most staking and governance attacks pass admission by design and fail only at block execution: the transaction commits with code 3 and its rule as the log, the fee is charged and the nonce moves (ordinary v2 also keeps a fee receipt; ordinary v3 governance keeps none, only the engine's execution result). Under the transaction family's rule an admitted attempt is a success, so every one of them would count as a successful attack. The status page (status.rs) takes 8 connections in all with no per-address bound, and holds an idle connection until its 2-second header deadline; any connection over the 8 is closed at once, so one address reopening 8 idle connections keeps the uptime checker and the fault campaign's reader out. Three approved endpoint types, an oversized body and a method outside the allowlist at the endpoint (the release's local gateway refuses both before they leave the founder's machine) and a client's wrong pin, need a client that completes the post-quantum handshake, or an endpoint that signs as another key, which plain sockets cannot do.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "An attack the node refuses only when the block runs",
+      "selected": "Refused, when it fails for the type's own reason and nothing but the fee changed",
+      "rule": "An attempt that passes admission and commits counts as refused only when its execution result fails for the type's own reason (code 3 with the type's rule as the log, or the ordinary v2 fee receipt's application failure) and a state read before and after shows nothing changed but the fee the attacker paid and the nonce it spent. Any other change is a success (a defect). A commit with code 0, or a failure for another rule, is not a refusal for the type: the first is a success and the second fails the type, as in the transaction family. Each family's evidence records the execution result and both state reads, and its verify recomputes the outcome from them."
+    },
+    {
+      "question": "The status page's connections from one address",
+      "selected": "A per-address bound of 2, as the client channel has",
+      "rule": "The status page takes at most 8 connections and at most 2 from one address (status.rs MAX_CONNECTIONS_PER_ADDRESS); a connection over either bound is closed at once. It is compiled, like the page's other bounds, and the release rebuilds with it. The endpoint and RPC family's status_connection_flood type tests it: one address opens all 8 idle connections and an honest reader at another address must still get the page."
+    },
+    {
+      "question": "The endpoint types that need a completed handshake",
+      "selected": "A test-only attack client",
+      "rule": "oversized_body, method_outside_allowlist and wrong_pin are built with an attack client written against the client channel crate: it completes the handshake and then sends what the release's own client never would (a body over the endpoint's bound, a method byte outside GET and POST), and it serves as an endpoint signing with another key so that a client's pin check can be attacked. It is built and run only by the campaign and CI, never shipped in a release or a host bundle. Until it exists those three types count zero attempts, and the endpoint and RPC family cannot reach its target."
+    }
+  ],
+  "accepted_risks": [
+    "Four addresses can still fill the status page's 8 connections, as eight can fill the channel's 16 (P01_E05_CAPACITY_VALUES_2026-10-10). The host firewall sets no per-address connection rate, so a flood from many addresses is bounded only by the listeners' connection counts; that is D12-Q01's per-address rates, still open.",
+    "Anything that shows the status page to many readers from one address (such as a website proxying it) is held to 2 connections at once, so it caches the answer rather than open one per visitor.",
+    "Counting a refusal at execution trusts the state reads around it: an attempt whose effect the reads do not cover could pass unseen. Each family's evidence names what it read."
+  ],
+  "does_not_authorize": [
+    "running any attack family on the real staging hosts, whose signature-failure alert the transaction family sets off on the real alert channels",
+    "renting load machines or any other spending",
+    "shipping the attack client in a release",
+    "any change to the approved attack types or their counts",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
