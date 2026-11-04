@@ -173,10 +173,11 @@
       ]
     },
     "stop": {
-      "purpose": "Stop the node",
+      "purpose": "Stop the node, first cancelling a pending kill dead-man (fault-kill) so a node stopped on purpose stays stopped; the pattern matches nothing when none is pending",
       "args": {},
       "timeout_seconds": 120,
       "steps": [
+        ["systemctl", "stop", "dytallix-kill-restart*.timer"],
         ["systemctl", "stop", "dytallix-node.service"]
       ]
     },
@@ -197,10 +198,12 @@
       ]
     },
     "fault-kill": {
-      "purpose": "Kill the node's main process (simulation plan, T5: process kill); only the main process, since the supervisor runs its children in their own PID namespace and signalling the whole control group returns EINVAL. The owner protocol brings the children down with it. Its last step reads the unit's state as the proof the kill took hold (read-only; P01, 14 October 2026)",
+      "purpose": "Kill the node's main process (simulation plan, T5: process kill); only the main process, since the supervisor runs its children in their own PID namespace and signalling the whole control group returns EINVAL. The owner protocol brings the children down with it. First it arms the kill's own dead-man, a one-time timer that starts the node 60 seconds later if nothing else has, so a founder machine that drops between the kill and its restart cannot leave the node down (P01, 4 November 2026); a stale timer from an earlier kill is cleared first, and stop cancels it. Its last step reads the unit's state as the proof the kill took hold (read-only; P01, 14 October 2026)",
       "args": {},
       "timeout_seconds": 60,
       "steps": [
+        ["systemctl", "stop", "dytallix-kill-restart*.timer"],
+        ["systemd-run", "--unit=dytallix-kill-restart", "--on-active=60s", "--timer-property=AccuracySec=1s", "systemctl", "start", "dytallix-node.service"],
         ["systemctl", "kill", "--kill-whom=main", "--signal=SIGKILL", "dytallix-node.service"],
         ["sleep", "2"],
         ["systemctl", "show", "-p", "ActiveState", "--value", "dytallix-node.service"]
