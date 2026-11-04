@@ -22,6 +22,9 @@ pub enum FailureClass {
     Storage,
     /// The system refused space, memory, descriptors or tasks.
     Resource,
+    /// The local signature-check helper failed to run, not a rejection
+    /// (P01, 4 November 2026).
+    Verifier,
 }
 
 const RESOURCE_ERRNOS: [i32; 6] = [
@@ -34,7 +37,7 @@ const RESOURCE_ERRNOS: [i32; 6] = [
 ];
 
 impl FailureClass {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::Configuration,
         Self::History,
         Self::Supply,
@@ -43,6 +46,7 @@ impl FailureClass {
         Self::Execution,
         Self::Storage,
         Self::Resource,
+        Self::Verifier,
     ];
     pub fn name(self) -> &'static str {
         match self {
@@ -54,6 +58,7 @@ impl FailureClass {
             Self::Execution => "execution",
             Self::Storage => "storage",
             Self::Resource => "resource",
+            Self::Verifier => "verifier",
         }
     }
     /// The application's exit status. 1 stays unclassified; 101 is a panic.
@@ -67,6 +72,7 @@ impl FailureClass {
             Self::Execution => 15,
             Self::Storage => 16,
             Self::Resource => 17,
+            Self::Verifier => 18,
         }
     }
     pub fn from_exit_status(status: i32) -> Option<Self> {
@@ -103,7 +109,9 @@ pub fn classify<T>(result: Result<T>, class: FailureClass) -> Result<T> {
 }
 
 /// The error's class. A cancellation has none. A refused resource anywhere
-/// in the chain wins over the mark: the cause is the host, not the state.
+/// in the chain wins over the mark: the cause is the host, not the state. So
+/// does a failure of the local signature-check helper (P01, 4 November 2026):
+/// the history may well replay; the helper did not run.
 pub fn class_of(error: &anyhow::Error) -> Option<FailureClass> {
     if error.is::<dytallix_release_runtime::ownership::OwnershipCancelled>() {
         return None;
@@ -123,6 +131,9 @@ pub fn class_of(error: &anyhow::Error) -> Option<FailureClass> {
     if refused {
         return Some(FailureClass::Resource);
     }
+    if crate::emergency_verifier::is_infrastructure_error(error) {
+        return Some(FailureClass::Verifier);
+    }
     error.downcast_ref::<Classified>().map(|marked| marked.class)
 }
 
@@ -141,11 +152,11 @@ mod tests {
     #[test]
     fn exit_statuses_are_fixed_and_distinct() {
         let statuses: Vec<u8> = FailureClass::ALL.iter().map(|c| c.exit_status()).collect();
-        assert_eq!(statuses, [10, 11, 12, 13, 14, 15, 16, 17]);
+        assert_eq!(statuses, [10, 11, 12, 13, 14, 15, 16, 17, 18]);
         for class in FailureClass::ALL {
             assert_eq!(FailureClass::from_exit_status(class.exit_status().into()), Some(class));
         }
-        for other in [0, 1, 2, 9, 18, 101, 137] {
+        for other in [0, 1, 2, 9, 19, 101, 137] {
             assert_eq!(FailureClass::from_exit_status(other), None);
         }
     }
@@ -176,6 +187,19 @@ mod tests {
         assert!(error.downcast_ref::<Rejected>().is_some());
         assert!(error.chain().any(|cause| cause.is::<Rejected>()));
         assert_eq!(describe(&error), "control refused: rejected");
+    }
+    #[test]
+    fn a_helper_that_did_not_run_is_the_verifier_class() {
+        // P01, 4 November 2026: not "replay", whatever was marked.
+        let failed = crate::emergency_verifier::EmergencyVerifierInfrastructureError(anyhow!("helper exited 1"));
+        let error = classify::<()>(Err(anyhow::Error::new(failed).context("replay check")), FailureClass::Replay)
+            .unwrap_err();
+        assert_eq!(class_of(&error), Some(FailureClass::Verifier));
+        assert_eq!(FailureClass::Verifier.name(), "verifier");
+        // A refused resource still wins: the host is the cause.
+        let starved = crate::emergency_verifier::EmergencyVerifierInfrastructureError(
+            std::io::Error::from_raw_os_error(libc::ENOMEM).into());
+        assert_eq!(class_of(&anyhow::Error::new(starved)), Some(FailureClass::Resource));
     }
     #[test]
     fn a_cancellation_has_no_class() {

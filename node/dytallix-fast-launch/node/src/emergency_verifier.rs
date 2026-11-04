@@ -50,7 +50,7 @@ pub struct EmergencyVerifier {
 /// A local verifier failure is not a deterministic rejection of a proposed block.
 #[derive(Debug, thiserror::Error)]
 #[error("Emergency root verifier infrastructure failed: {0}")]
-pub struct EmergencyVerifierInfrastructureError(#[source] anyhow::Error);
+pub struct EmergencyVerifierInfrastructureError(#[source] pub(crate) anyhow::Error);
 
 pub fn is_infrastructure_error(error: &anyhow::Error) -> bool {
     error

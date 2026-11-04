@@ -479,3 +479,34 @@ mod state_model_tests;
 
 #[path = "observation_contract_tests.rs"]
 mod observation_contract_tests;
+
+/// Startup's re-check retries a helper that did not run, three tries in all,
+/// and nothing else (P01, 4 November 2026).
+#[test]
+fn startup_retries_only_a_helper_that_did_not_run() {
+    use crate::emergency_verifier::{is_infrastructure_error, EmergencyVerifierInfrastructureError};
+    let did_not_run = || -> anyhow::Error { EmergencyVerifierInfrastructureError(anyhow::anyhow!("exit 1")).into() };
+    let mut calls = 0;
+    let recovered = retry_verifier_infrastructure(3, std::time::Duration::ZERO, || {
+        calls += 1;
+        if calls < 3 { Err(did_not_run()) } else { Ok(7) }
+    });
+    assert_eq!((recovered.unwrap(), calls), (7, 3));
+    let mut calls = 0;
+    let persistent = retry_verifier_infrastructure(3, std::time::Duration::ZERO, || -> Result<()> {
+        calls += 1;
+        Err(did_not_run())
+    })
+    .unwrap_err();
+    assert_eq!(calls, 3);
+    assert!(is_infrastructure_error(&persistent));
+    assert_eq!(crate::failure_class::class_of(&persistent), Some(crate::failure_class::FailureClass::Verifier));
+    // A rejection, or any other failure, is never tried again.
+    let mut calls = 0;
+    let rejected = retry_verifier_infrastructure(3, std::time::Duration::ZERO, || -> Result<()> {
+        calls += 1;
+        anyhow::bail!("Emergency cryptographic replay differs")
+    });
+    assert!(rejected.is_err());
+    assert_eq!(calls, 1);
+}
