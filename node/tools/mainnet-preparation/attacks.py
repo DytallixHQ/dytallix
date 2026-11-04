@@ -9,7 +9,7 @@ family.
   attacks.py run --cli DYTALLIX --home HOME --fleet DIR --out DIR
                  --application-config FILE --funder WALLET --validator ID
                  --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS
-                 [--attempts N] [--types T,...]
+                 [--attempts N] [--types T,...] [--attack-client FILE]
   attacks.py verify --evidence FILE --rows FILE --genesis NATIVE_GENESIS
                     --engine-genesis ENGINE_GENESIS
 
@@ -28,6 +28,16 @@ its own bytes:
     held until the chain passes it;
   - stale_nonce (the nonce before the committed one) and overspend (more
     than any balance);
+  - fee_cap_below_minimum and too_many_actions: a valid transaction the
+    release CLI signed, re-signed with the account's own key by the attack
+    client (node/tools/attack-client, test-only, never shipped) after the one
+    change the CLI will not sign: a fee cap below the gas limit times the gas
+    price, or one action more than the profile allows (canonical bytes, the
+    count the only fault). The client checks its signature and that the
+    profile refuses its forgery for that reason, and each row keeps those
+    checks; the node's word for too many actions is its decoder's
+    "Malformed ordinary envelope", so they are what shows the count was the
+    one fault;
   - duplicate, resigned_copy, conflicting_nonce and future_nonce: with each
     wallet's valid original in the same request (mempool rule v1, rule 3),
     so each copy meets the original still pending; the originals must
@@ -42,11 +52,8 @@ moved without a commit of ours marks the attempts since as admitted. After
 each type a positive control (a valid send) must be admitted and commit, so
 a channel that refuses everything cannot pass.
 
-Not built yet: fee_cap_below_minimum and too_many_actions. The release CLI
-checks a fee cap and the action count against the profile before it signs,
-and the profile is bound by its digest, so they need a signer that skips
-the CLI's own checks. Until then they count zero attempts, and the family's
-attempts (the fewest over every type) cannot reach the target.
+Without --attack-client the two forged types are not run, and the
+family's attempts (the fewest over every type) stay below the target.
 
 verify recomputes every count, status and digest from the rows. The rows
 and the evidence name no address; the evidence binds the genesis files.
@@ -59,7 +66,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -97,9 +107,13 @@ REASONS = {
     'duplicate': adversary.CACHE_REFUSAL,
     'resigned_copy': adversary.CACHE_REFUSAL,  # or the identity check, for byte-distinct copies
     'overspend': 'Insufficient current eligible funding for fee cap and actions',
-    'fee_cap_below_minimum': None,
-    'too_many_actions': None,
+    'fee_cap_below_minimum': 'invalid signed gas or cap',
+    'too_many_actions': 'Malformed ordinary envelope',
 }
+# The forged types and what the profile itself says of each forgery (the
+# attack client's own check, protocol-types' words).
+FORGED = {'fee_cap_below_minimum': 'signed fee cap outside ordinary profile',
+          'too_many_actions': 'action count outside profile'}
 # Refused before admission (the RPC size limit, the engine's cache): a
 # JSON-RPC error with the reason, not a CheckTx code.
 BEFORE_ADMISSION = {'oversized_envelope', 'duplicate', 'resigned_copy'}
@@ -136,14 +150,24 @@ def reason(kind, same_bytes=None):
     return REASONS[kind]
 
 
-def classify(kind, code, log, same_bytes=None):
-    """An attempt's outcome from the node's answer alone."""
+def forged_as_named(kind, forged):
+    """The attack client signed it and the profile refuses it for the type's
+    reason, so the type's change was its only fault."""
+    return (isinstance(forged, dict) and forged.get('variant') == kind and forged.get('signature_verifies') is True
+            and forged.get('profile_refusal') == FORGED[kind])
+
+
+def classify(kind, code, log, same_bytes=None, forged=None):
+    """An attempt's outcome from the node's answer (and, for a forged type,
+    the attack client's checks of its forgery)."""
     if not built(kind):
         raise Failed(f'{kind} is not built')
     if kind == 'resigned_copy' and not isinstance(same_bytes, bool):
         raise Failed('a re-signed copy must say whether its bytes were the original\'s')
     if not isinstance(code, int):
         return 'transport'
+    if kind in FORGED and not forged_as_named(kind, forged):
+        return 'refused_other'
     if code == 0:
         return 'admitted'
     if code < 0 and kind not in BEFORE_ADMISSION:
@@ -190,8 +214,8 @@ class Campaign:
     broadcasts [(row, tx)] in one request (load.broadcast)."""
 
     def __init__(self, run, rpc, sign, attempts, show=load.say, sleep=time.sleep, clock=time.monotonic,
-                 block_time=5.0, recipient=None):
-        self.run, self.rpc, self.sign, self.n = run, rpc, sign, attempts
+                 block_time=5.0, recipient=None, forge=None):
+        self.run, self.rpc, self.sign, self.n, self.forge = run, rpc, sign, attempts, forge
         self.show, self.sleep, self.clock, self.block_time = show, sleep, clock, block_time
         self.rows = []
         self.loads = run.role('load')
@@ -222,23 +246,27 @@ class Campaign:
 
     # Rows
 
-    def record(self, kind, k, wallet, row, same_bytes=None):
-        outcome = classify(kind, row.get('code'), row.get('log'), same_bytes)
+    def record(self, kind, k, wallet, row, same_bytes=None, forged=None):
+        outcome = classify(kind, row.get('code'), row.get('log'), same_bytes, forged)
         found = {'type': kind, 'k': k, 'wallet': wallet.label, 'code': row.get('code'),
                  'log': (row.get('log') or '')[:160], 'outcome': outcome}
         if kind == 'resigned_copy':
             found['same_bytes'] = same_bytes
+        if kind in FORGED:
+            found['forged'] = forged
         self.rows.append(found)
         return outcome
 
     def send(self, batch):
-        """[(kind, k, wallet, tx, same_bytes)] in one request; the outcomes."""
+        """[(kind, k, wallet, tx, extra)] in one request, `extra` being a
+        re-signed copy's same_bytes or a forged type's checks; the outcomes."""
         rows = [(load.new_row('attack', kind, wallet), tx) for kind, _, wallet, tx, _ in batch]
         try:
             load.broadcast(self.rpc, rows, 'attack')
         except load.Transport:
             pass  # each row stays without a code: a transport outcome
-        return [self.record(kind, k, wallet, row, same) for (kind, k, wallet, _, same), (row, _) in zip(batch, rows)]
+        return [self.record(kind, k, wallet, row, forged=extra) if kind in FORGED else
+                self.record(kind, k, wallet, row, extra) for (kind, k, wallet, _, extra), (row, _) in zip(batch, rows)]
 
     def guard(self, wallets):
         """A wallet whose nonce moved past what our own commits explain had
@@ -293,17 +321,20 @@ class Campaign:
         while self.counted(kind) < self.n and self.tries_left(kind):
             batch = []
             while len(batch) < size and self.counted(kind) + len(batch) < self.n:
+                extra = None
                 if kind in MUTATED:
                     if base is None:
                         base = self.sign(wallet, wallet.nonce, 1, 'valid')[1]
                     tx = mutate(kind, base, k)
+                elif kind in FORGED:
+                    tx, extra = self.forge(kind, self.sign(wallet, wallet.nonce, 1 + k, 'valid')[1], wallet, k)
                 elif kind == 'stale_nonce':
                     tx = self.sign(wallet, wallet.nonce - 1, 1 + k, 'valid')[1]
                 elif kind == 'overspend':
                     tx = self.sign(wallet, wallet.nonce, OVERSPEND_UDRT + k, 'valid')[1]
                 else:
                     tx = self.sign(wallet, wallet.nonce, 1 + k, kind)[1]
-                batch.append((kind, k, wallet, tx, None))
+                batch.append((kind, k, wallet, tx, extra))
                 k += 1
             outcomes = self.send(batch)
             if 'admitted' in outcomes or 'transport' in outcomes:
@@ -373,7 +404,10 @@ class Campaign:
     def make(self, kinds):
         for kind in kinds:
             if not built(kind):
-                self.show(f'== {kind}: not built yet (the release CLI will not sign it)')
+                self.show(f'== {kind}: not built yet')
+                continue
+            if kind in FORGED and self.forge is None:
+                self.show(f'== {kind}: not run (no attack client)')
                 continue
             if kind in PENDING:
                 # One round makes all four; it runs once, at the first of them.
@@ -420,8 +454,8 @@ def tally(rows, attempts):
 def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, started, finished):
     for row in rows:
         if row['type'] in REASONS and row['type'] not in ('control', 'pending_original'):
-            if classify(row['type'], row['code'], row['log'], row.get('same_bytes')) != row['outcome'] \
-                    and not row.get('moved_nonce'):
+            if classify(row['type'], row['code'], row['log'], row.get('same_bytes'), row.get('forged')) \
+                    != row['outcome'] and not row.get('moved_nonce'):
                 raise Failed(f'a {row["type"]} row\'s outcome does not follow from its code and log')
     raw = rows_bytes(rows)
     types = tally(rows, attempts)
@@ -520,8 +554,33 @@ class Signing:
         return transaction_id, tx
 
 
+class Forger:
+    """forge(kind, tx, wallet, k) -> (transport, checks): the attack client's
+    ordinary-forge on a transport the release CLI signed, with the wallet's
+    own key file and the committed profile the CLI signed against."""
+
+    def __init__(self, client, signing, scratch):
+        self.client, self.signing, self.scratch = str(client), signing, Path(scratch)
+        self.scratch.mkdir(parents=True, exist_ok=True, mode=0o700)
+
+    def __call__(self, kind, tx, wallet, k):
+        profile, _ = self.signing.profile('valid')
+        work = Path(tempfile.mkdtemp(dir=self.scratch))
+        try:
+            (work / 'tx.json').write_bytes(tx)
+            result = subprocess.run([self.client, 'ordinary-forge', '--variant', kind, '--transport', str(work / 'tx.json'),
+                                     '--key-file', str(wallet.key_file), '--profile', str(profile), '--k', str(k),
+                                     '--out', str(work / 'forged.json')], capture_output=True, text=True, timeout=120)
+            if result.returncode != 0:
+                raise Failed(f'the attack client did not forge {kind}: {result.stderr.strip()[:300]}')
+            checks = json.loads(result.stdout.strip().splitlines()[-1])
+            return (work / 'forged.json').read_bytes(), checks
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
+
+
 def run_campaign(cli, home, fleet_dir, out, application_config, funder_label, validator, attempts, kinds,
-                 native_genesis, engine_genesis, show=load.say, passphrase=None, settings=None):
+                 native_genesis, engine_genesis, show=load.say, passphrase=None, settings=None, attack_client=None):
     out, fleet_dir = Path(out), Path(fleet_dir)
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, HOME=str(home))
@@ -545,8 +604,9 @@ def run_campaign(cli, home, fleet_dir, out, application_config, funder_label, va
         run.fund()
         run.first_spends()
         run.refresh_profile()
-        campaign = Campaign(run, rpc, Signing(run, fleet['chain_id'], settings.expiry_blocks), attempts, show=show,
-                            block_time=settings.block_time)
+        signing = Signing(run, fleet['chain_id'], settings.expiry_blocks)
+        forge = Forger(attack_client, signing, out / 'forged') if attack_client else None
+        campaign = Campaign(run, rpc, signing, attempts, show=show, block_time=settings.block_time, forge=forge)
         campaign.nonces(run.role('load'))
         rows = campaign.make(kinds)
         raw = rows_bytes(rows)
@@ -578,6 +638,7 @@ def main():
     r.add_argument('--attempts', type=int, default=TARGET)
     r.add_argument('--types', default=','.join(REASONS))
     r.add_argument('--passphrase', type=Path)
+    r.add_argument('--attack-client', type=Path, help='node/tools/attack-client\'s dytallix-attack')
     v = commands.add_parser('verify')
     for name in ('--evidence', '--rows', '--genesis', '--engine-genesis'):
         v.add_argument(name, type=Path, required=True)
@@ -593,7 +654,8 @@ def main():
             built(kind)
         record = run_campaign(args.cli, args.home, args.fleet, args.out, args.application_config, args.funder,
                               args.validator, args.attempts, kinds, args.genesis.read_bytes(),
-                              args.engine_genesis.read_bytes(), passphrase=args.passphrase)
+                              args.engine_genesis.read_bytes(), passphrase=args.passphrase,
+                              attack_client=args.attack_client)
         report(record)
         return 0 if record['status'] == PASS else 1
     except (Failed, load.Failed, adversary.Failed, OSError, KeyError, ValueError) as error:

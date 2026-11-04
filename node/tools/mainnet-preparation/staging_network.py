@@ -1214,14 +1214,16 @@ def load_workers_drill(work):
 ATTACK_CAMPAIGN = {'attempts': 10, 'wallets': 4, 'distributors': 2}
 
 
-def attack_campaign(work):
+def attack_campaign(work, attack_client=None):
     """The transaction family's attack types on the staging network: a fresh
     fleet funded from the ecosystem growth account; each built type attempted
     ATTACK_CAMPAIGN['attempts'] times with its own bytes, each to be refused
     for its reason, a positive control after each type and the pending
-    originals committed. Every type runs and reports what the node said
-    before the step judges; the record is checked again from its files and
-    summarized as the launch page reads it."""
+    originals committed; with `attack_client` (node/tools/attack-client) the
+    fee cap below the minimum and too many actions as well, which it
+    re-signs. Every type runs and reports what the node said before the step
+    judges; the record is checked again from its files and summarized as the
+    launch page reads it."""
     work = Path(work)
     chain = work / 'net' / 'chain'
     out = work / 'attack-campaign'
@@ -1235,7 +1237,8 @@ def attack_campaign(work):
     kinds = [k for k in attacks.REASONS if attacks.built(k)]
     record = attacks.run_campaign(cli, env['HOME'], out / 'fleet', out / 'run', chain / 'chain' / 'application-config.json',
                                   'ecosystem-growth', validator, ATTACK_CAMPAIGN['attempts'], kinds, native, engine,
-                                  show=say, passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+                                  show=say, passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'],
+                                  attack_client=attack_client)
     attacks.report(record, show=say)
     checked = attacks.verify(json.loads((out / 'run' / 'attacks.json').read_bytes()),
                              (out / 'run' / 'attacks.jsonl').read_bytes(), native, engine)
@@ -2341,10 +2344,13 @@ def main():
     p.add_argument('--release', type=Path, required=True)
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
-    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill', 'attack-campaign',
+    for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
                  'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'stage-later-release',
                  'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
+    a = commands.add_parser('attack-campaign')
+    a.add_argument('--work', type=Path, required=True)
+    a.add_argument('--attack-client', type=Path, help="node/tools/attack-client's dytallix-attack")
     r = commands.add_parser('reconcile')
     r.add_argument('--work', type=Path, required=True)
     r.add_argument('--after', choices=('wallet-drill', 'load'), default='wallet-drill')
@@ -2378,7 +2384,7 @@ def main():
         elif args.command == 'adversary-drill':
             adversary_drill(args.work)
         elif args.command == 'attack-campaign':
-            attack_campaign(args.work)
+            attack_campaign(args.work, args.attack_client)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
         elif args.command == 'stage-later-release':

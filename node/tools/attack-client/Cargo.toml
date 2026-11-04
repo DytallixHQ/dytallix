@@ -1,0 +1,21 @@
+[package]
+name = "dytallix-attack-client"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+publish = false
+description = "The attack campaign's test-only client: never part of a release or a host bundle"
+
+# Its own workspace, apart from the node's and its feature unification.
+[workspace]
+
+[[bin]]
+name = "dytallix-attack"
+path = "src/main.rs"
+
+[dependencies]
+dytallix-protocol-types = { path = "../../crates/protocol-types" }
+anyhow = "=1.0.102"
+base64 = "=0.22.1"
+fips204 = { version = "=0.4.6", default-features = false, features = ["default-rng", "ml-dsa-65"] }
+serde_json = "=1.0.149"
