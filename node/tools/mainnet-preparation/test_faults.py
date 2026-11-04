@@ -109,6 +109,43 @@ class Evaluate(unittest.TestCase):
     def test_never_recovered_fails(self):
         self.assertEqual(self.status(scenario(recovered_at=None, recovered_height=None), target=60), faults.FAIL)
 
+    def test_a_timing_failure_nobody_watched_is_inconclusive(self):
+        # The founder's laptop slept through rounds 22 and 23 (4 November
+        # 2026); a gap only makes a recovery look slower, so only a failure
+        # on the reader's timing becomes INCONCLUSIVE, never a pass.
+        slow = scenario(recovered_at='2026-10-12T14:12:10Z')
+        status, detail = faults.evaluate(dict(slow, reader_gap_seconds=400.0), 120)
+        self.assertEqual(status, faults.INCONCLUSIVE)
+        self.assertIn('not watching for 400 s', detail)
+        self.assertIn('recovered in 400 s, over the 120 s target; run it again', detail)
+        never = scenario(recovered_at=None, recovered_height=None, reader_gap_seconds=900.0)
+        self.assertEqual(self.status(never, target=60), faults.INCONCLUSIVE)
+        self.assertEqual(self.status(dict(slow, reader_gap_seconds=faults.READER_GAP_SECONDS), 120), faults.FAIL)
+        self.assertEqual(self.status(dict(slow, reader_gap_seconds=True), 120), faults.FAIL)
+        self.assertEqual(self.status(scenario(reader_gap_seconds=400.0), target=60), faults.PASS)
+        for broken in ({'command': {'status': 'FAILED'}}, {'recovered_height': 99}, {'effect': {}}):
+            self.assertEqual(self.status(scenario(reader_gap_seconds=400.0, **broken), target=60), faults.FAIL)
+
+    def test_the_readers_longest_gap_runs_from_the_clear_to_the_recovery(self):
+        timeline = faults.Timeline(read=None)
+        t0 = 1_900_000_000
+        page = lambda t, **k: dict({'http': 200, 'read_at': faults.iso_at(t0 + t)}, **k)  # noqa: E731
+        timeline.pages = [page(t) for t in (0, 1, 2, 400, 401, 402)]
+        # Asleep across the clear: from the clear to the next reading.
+        self.assertEqual(timeline.largest_gap(t0 + 2.5, t0 + 401), 397.5)
+        self.assertEqual(timeline.largest_gap(t0 + 1.5, t0 + 401), 398.0)
+        self.assertEqual(timeline.largest_gap(t0 + 400.5, t0 + 402), 1.0)
+        # Readings before the clear do not count; nothing after it is a gap to the end.
+        self.assertEqual(timeline.largest_gap(t0 + 2.5, t0 + 100), 97.5)
+        timeline.pages = []
+        self.assertEqual(timeline.largest_gap(t0 + 10, t0 + 30), 20.0)
+        # Awake but offline: failed reads every few seconds are not answers;
+        # a refused connection (the node down, its host up) is one.
+        timeline.pages = ([page(t, http=None) for t in range(10, 200, 6)] + [page(200)])
+        self.assertEqual(timeline.largest_gap(t0 + 5, t0 + 200), 195.0)
+        timeline.pages = ([page(t, http=None, refused=True) for t in range(10, 200, 6)] + [page(200)])
+        self.assertLessEqual(timeline.largest_gap(t0 + 5, t0 + 200), 6.0)
+
     def test_an_unregistered_scenario_is_refused(self):
         with self.assertRaises(faults.Failed):
             faults.evaluate(scenario('meteor'), None)
@@ -132,6 +169,14 @@ class Evidence(unittest.TestCase):
         record = self.build([scenario('latency'), scenario('process_kill')], target=60)
         self.assertEqual(record['status'], faults.PASS)
         self.assertEqual(faults.verify(record, NATIVE, ENGINE), faults.PASS)
+
+    def test_an_unwatched_run_is_inconclusive_and_its_gap_is_bound(self):
+        unwatched = scenario('partition', recovered_at='2026-10-12T14:12:10Z', reader_gap_seconds=400.0)
+        record = self.build([scenario('latency'), unwatched], target=120)
+        self.assertEqual((record['status'], faults.verify(record, NATIVE, ENGINE)), (faults.INCONCLUSIVE,) * 2)
+        record['scenarios'][1]['reader_gap_seconds'] = 5.0
+        with self.assertRaises(faults.Failed):
+            faults.verify(record, NATIVE, ENGINE)
 
     def test_a_tampered_digest_is_caught(self):
         record = self.build([scenario()])

@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
+import socket
 import sys
 import tempfile
 import threading
@@ -297,7 +298,14 @@ class StatusPageTests(unittest.TestCase):
         self.assertEqual((stale['http'], stale['height']), (503, 12))
 
     def test_no_answer_and_garbage(self):
-        self.assertIsNone(sf.status_page('http://127.0.0.1:9/status', timeout=1)['http'])
+        refused = sf.status_page('http://127.0.0.1:9/status', timeout=1)
+        self.assertEqual((refused['http'], refused.get('refused')), (None, True), 'nothing listens: the host answered')
+        silent = socket.socket()
+        silent.bind(('127.0.0.1', 0))
+        silent.listen(1)
+        self.addCleanup(silent.close)
+        unanswered = sf.status_page(f'http://127.0.0.1:{silent.getsockname()[1]}/status', timeout=0.5)
+        self.assertEqual((unanswered['http'], unanswered.get('refused')), (None, None), 'a timeout is no answer')
         self.assertNotIn('height', sf.status_page(self.serve(200, 'not json')))
 
     def test_block_instant(self):
@@ -354,7 +362,7 @@ class FakePage:
     def read(self):
         now = time.time()
         if self.down:
-            return {'http': None, 'read_at': sf.iso(now)}
+            return {'http': None, 'refused': True, 'read_at': sf.iso(now)}
         if now >= self.stalled_until and now - self.last >= 0.05:
             self.height, self.last = self.height + 1, now
         made = datetime.fromtimestamp(self.last, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -387,6 +395,7 @@ class ScenarioTests(unittest.TestCase):
         for row in record['scenarios']:
             self.assertEqual(row['clocks'], faults.CLOCKS)
             self.assertGreater(row['recovered_height'], row['height_at_clear'])
+            self.assertLessEqual(row['reader_gap_seconds'], faults.READER_GAP_SECONDS, 'the reader watched')
 
     def test_the_validator_restart_halts_the_chain_until_blocks_resume(self):
         # With one validator, its kill halts the chain: the sentry keeps serving
