@@ -440,7 +440,8 @@ class Places:
 
     @staticmethod
     def release(process):
-        process.stdin.close()
+        # communicate() closes stdin itself, which ends the hold; closed here
+        # first, its flush raises on Python 3.12 (the runner's).
         out, _ = process.communicate(timeout=30)
         return json.loads(out.splitlines()[-1]) if out.strip() else {'held': 0, 'open': 0}
 

@@ -438,6 +438,13 @@ class Probes(Fast):
         self.assertEqual((seen['held_open'], seen['extra_bytes']), (2, 0))
         self.assertIsNotNone(seen['extra_closed_after'])
 
+    def test_a_held_process_reports_when_released(self):
+        host, port = self.listen(FakeChannel(deadline=30))
+        places = endpoints.Places()
+        process = places.hold(None, {'step': 'hold', 'host': host, 'port': port, 'count': 2, 'seconds': 30})
+        self.assertEqual(places.ready(process), 2)
+        self.assertEqual(places.release(process), {'held': 2, 'open': 2})
+
     def test_a_listener_that_cannot_be_reached_is_made_again_then_stops(self):
         server = socket.socket()
         server.bind(('127.0.0.1', 0))
