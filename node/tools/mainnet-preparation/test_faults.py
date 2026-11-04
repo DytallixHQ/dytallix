@@ -126,16 +126,25 @@ class Evaluate(unittest.TestCase):
         for broken in ({'command': {'status': 'FAILED'}}, {'recovered_height': 99}, {'effect': {}}):
             self.assertEqual(self.status(scenario(reader_gap_seconds=400.0, **broken), target=60), faults.FAIL)
 
-    def test_the_readers_longest_gap_spans_the_clear_to_the_recovery(self):
+    def test_the_readers_longest_gap_runs_from_the_clear_to_the_recovery(self):
         timeline = faults.Timeline(read=None)
-        at = lambda t: faults.iso_at(1_900_000_000 + t)  # noqa: E731
-        timeline.pages = [{'read_at': at(t)} for t in (0, 1, 2, 400, 401, 402)]
-        self.assertEqual(timeline.largest_gap(1_900_000_001.5, 1_900_000_401), 398.0)
-        self.assertEqual(timeline.largest_gap(1_900_000_400.5, 1_900_000_402), 1.0)
-        timeline.pages = timeline.pages[:2]
-        self.assertEqual(timeline.largest_gap(1_900_000_001.5, 1_900_000_100), 99.0)
+        t0 = 1_900_000_000
+        page = lambda t, **k: dict({'http': 200, 'read_at': faults.iso_at(t0 + t)}, **k)  # noqa: E731
+        timeline.pages = [page(t) for t in (0, 1, 2, 400, 401, 402)]
+        # Asleep across the clear: from the clear to the next reading.
+        self.assertEqual(timeline.largest_gap(t0 + 2.5, t0 + 401), 397.5)
+        self.assertEqual(timeline.largest_gap(t0 + 1.5, t0 + 401), 398.0)
+        self.assertEqual(timeline.largest_gap(t0 + 400.5, t0 + 402), 1.0)
+        # Readings before the clear do not count; nothing after it is a gap to the end.
+        self.assertEqual(timeline.largest_gap(t0 + 2.5, t0 + 100), 97.5)
         timeline.pages = []
-        self.assertEqual(timeline.largest_gap(1_900_000_010, 1_900_000_030), 20.0)
+        self.assertEqual(timeline.largest_gap(t0 + 10, t0 + 30), 20.0)
+        # Awake but offline: failed reads every few seconds are not answers;
+        # a refused connection (the node down, its host up) is one.
+        timeline.pages = ([page(t, http=None) for t in range(10, 200, 6)] + [page(200)])
+        self.assertEqual(timeline.largest_gap(t0 + 5, t0 + 200), 195.0)
+        timeline.pages = ([page(t, http=None, refused=True) for t in range(10, 200, 6)] + [page(200)])
+        self.assertLessEqual(timeline.largest_gap(t0 + 5, t0 + 200), 6.0)
 
     def test_an_unregistered_scenario_is_refused(self):
         with self.assertRaises(faults.Failed):

@@ -270,15 +270,18 @@ class Channel:
 
 def status_page(url, timeout=5, clock=time.time):
     """One reading of the public status page: the HTTP status, its fields and
-    the reader's clock. 503 still carries the fields; no answer is None."""
+    the reader's clock. 503 still carries the fields; no answer is None, and
+    `refused` marks a connection the host refused (its node down): the host
+    answered, unlike a timeout or a network error on the reader's side."""
     read_at = clock()
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:
             code, raw = response.status, response.read(4096)
     except urllib.error.HTTPError as error:
         code, raw = error.code, error.read(4096)
-    except (urllib.error.URLError, OSError):
-        return {'http': None, 'read_at': iso(read_at)}
+    except (urllib.error.URLError, OSError) as error:
+        refused = isinstance(getattr(error, 'reason', error), ConnectionRefusedError)
+        return {'http': None, 'read_at': iso(read_at), **({'refused': True} if refused else {})}
     try:
         page = json.loads(raw)
         fields = {k: page[k] for k in STATUS_FIELDS}

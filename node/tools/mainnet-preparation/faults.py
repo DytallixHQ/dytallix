@@ -37,10 +37,11 @@ removes it; the restart's finish after a process kill), and the sentry has
 recovered when the page serves a block made at or after that instant, above
 the height it served at the clear, read at the founder's clock. Each
 scenario records which clock each instant came from, and the reader's longest
-gap between readings from the clear to the recovery: a gap can only make a
-recovery look slower, so a scenario that would fail on its timing after a gap
-over READER_GAP_SECONDS (the founder's machine asleep or offline) is
-INCONCLUSIVE and is run again, never counted (P01, 4 November 2026).
+gap without an answer from the sentry's host (a status, or a refused
+connection while its node is down) from the clear to the recovery: a gap can
+only make a recovery look slower, so a scenario that would fail on its timing
+after a gap over READER_GAP_SECONDS (the founder's machine asleep or offline)
+is INCONCLUSIVE and is run again, never counted (P01, 4 November 2026).
 
 The lean scope is the network and process faults driven through the agent:
 latency and loss (`tc netem`) and a peer partition (an `inet dytallix_fault`
@@ -266,13 +267,13 @@ class Timeline:
         return heights[-1] if heights else None
 
     def largest_gap(self, start, end):
-        """The longest time between two readings from the last one at or
-        before `start` through the last one at or before `end` (seconds)."""
-        times = [instant(p['read_at']).timestamp() for p in list(self.pages) if p.get('read_at')]
-        before = [t for t in times if t <= start]
-        span = before[-1:] + [t for t in times if start < t <= end]
-        if len(span) < 2:
-            return round(max(end - (span or [start])[0], 0.0), 1)
+        """The longest time from `start` to `end` (seconds) without a reading
+        the sentry's host answered: an HTTP status, or a refused connection
+        (its node down). A timeout or a network error on the reader's side is
+        not an answer."""
+        answered = [instant(p['read_at']).timestamp() for p in list(self.pages)
+                    if p.get('read_at') and (p.get('http') is not None or p.get('refused'))]
+        span = [start] + [t for t in answered if start < t <= end] + [max(end, start)]
         return round(max(b - a for a, b in zip(span, span[1:])), 1)
 
     def recovered(self, cleared_at, above, made):
