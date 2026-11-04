@@ -281,8 +281,8 @@ class FakePage:
 class ScenarioTests(unittest.TestCase):
     SCENARIOS = (
         {'name': 'latency', 'command': 'fault-netem', 'args': {'delay_ms': 400, 'loss_percent': 5, 'duration_seconds': 1}},
-        {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 1}},
         {'name': 'peer_drop', 'command': 'fault-peer-drop', 'args': {}},
+        {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 1}},
         {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
     )
 
@@ -298,9 +298,9 @@ class ScenarioTests(unittest.TestCase):
         self.assertEqual(cleared, ['latency', 'partition'])
         # The kill and its restart go out together; each self-expiring network
         # fault is cleaned up, and the peer drop leaves nothing to clean.
-        self.assertEqual(channel.commands, ['fault-netem', 'fault-clear', 'fault-partition', 'fault-clear',
-                                            'fault-peer-drop', 'fault-kill', 'start'])
-        self.assertEqual(record['scenarios'][2]['clear'], {'mechanism': 'redial'})
+        self.assertEqual(channel.commands, ['fault-netem', 'fault-clear', 'fault-peer-drop', 'fault-partition',
+                                            'fault-clear', 'fault-kill', 'start'])
+        self.assertEqual(record['scenarios'][1]['clear'], {'mechanism': 'redial'})
         for row in record['scenarios']:
             self.assertEqual(row['clocks'], faults.CLOCKS)
             self.assertGreater(row['recovered_height'], row['height_at_clear'])
@@ -350,7 +350,7 @@ class ScenarioTests(unittest.TestCase):
             page.stalled_until = time.time() + 3600  # the fault never lets go
             return sequence
         channel.send = stuck
-        rows = faults.run_scenarios(channel, page.read, sf.block_instant, self.SCENARIOS[1:2], result_timeout=5,
+        rows = faults.run_scenarios(channel, page.read, sf.block_instant, self.SCENARIOS[2:3], result_timeout=5,
                                     recovery_timeout=0.5, say=lambda m: None, period=0.02)
         record = faults.build_run('c', b'{}', b'{}', rows, 120, 'sentry-1')
         self.assertEqual(record['scenarios'][0]['status'], 'FAIL')

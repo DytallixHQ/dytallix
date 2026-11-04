@@ -108,8 +108,8 @@ SCENARIOS = (
      'args': {'delay_ms': 400, 'loss_percent': 5, 'duration_seconds': 45}},
     {'name': 'loss', 'command': 'fault-netem',
      'args': {'delay_ms': 50, 'loss_percent': 40, 'duration_seconds': 45}},
-    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
     {'name': 'peer_drop', 'command': 'fault-peer-drop', 'args': {}},
+    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
     {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
 )
 # R02's validator process restart, on the validator through its own agent.
@@ -117,6 +117,12 @@ VALIDATOR_SCENARIOS = (
     {'name': 'validator_restart', 'command': 'fault-kill', 'args': {}},
 )
 BY_NAME = {spec['name']: spec for spec in SCENARIOS + VALIDATOR_SCENARIOS}
+# After a partition or a process kill the nodes redial within 60 s (launch
+# rehearsals, One validator). A peer drop sooner finds no connection to close
+# and proves nothing (round 1 on the real hosts, 3 November 2026), so it waits
+# that long, with a margin, whatever the order.
+REDIAL_SECONDS = 75
+BREAKS_PEERS = ('partition', 'process_kill')
 CLOCKS = {'injected_at': 'host', 'cleared_at': 'host', 'recovered_at': 'reader'}
 
 
@@ -251,6 +257,16 @@ class Timeline:
         return None
 
 
+def settle(broke_at, clock=time.time, sleep=time.sleep, say=print):
+    """Waits until REDIAL_SECONDS have passed since a scenario that broke
+    the peer connections ended (broke_at, or None); returns the wait."""
+    wait = 0.0 if broke_at is None else broke_at + REDIAL_SECONDS - clock()
+    if wait > 0:
+        say(f'== waiting {wait:.0f} s for the nodes to redial before the peer drop')
+        sleep(wait)
+    return max(0.0, wait)
+
+
 def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=600, recovery_timeout=600,
                   clock=time.time, sleep=time.sleep, say=print, period=1.0, on_cleared=None):
     """Each scenario through the agent channel, timed on the status page.
@@ -258,9 +274,11 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
     `made(page)` its block time in seconds. `on_cleared(name)`, if given, runs
     once a network fault's dead-man time has passed (the CI drill checks there
     that the host removed it). Returns the raw observations."""
-    rows = []
+    rows, broke_at = [], None
     for spec in scenarios:
         name, command, args = spec['name'], spec['command'], dict(spec['args'])
+        if name == 'peer_drop':
+            settle(broke_at, clock, sleep, say)
         say(f'== fault scenario: {name}')
         with Timeline(read_page, sleep, period) as timeline:
             began = clock()
@@ -309,6 +327,8 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
             clear['status'] = channel.run('fault-clear', timeout=result_timeout)['status']
         say(f'== {name}: {"caught back up at " + str(row["recovered_height"]) if row["recovered_at"] else "no recovery"}')
         rows.append(row)
+        if name in BREAKS_PEERS:
+            broke_at = clock()
     return rows
 
 
