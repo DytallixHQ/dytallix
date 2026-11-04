@@ -108,6 +108,14 @@ class Summarize(unittest.TestCase):
         enough = summarize(record([row('partition', 20 + i) for i in range(30)]))
         self.assertEqual(kpi(enough, 'campaign.faults.network_heal')['status'], 'pass')
 
+    def test_a_fault_command_that_never_completed_fails_its_kpi(self):
+        stuck = dict(row('validator_restart', 20), cleared_at=None, height_at_clear=None, recovered_at=None,
+                     recovered_height=None, command={'command': 'fault-kill', 'args': {}, 'status': 'FAILED'})
+        summary = summarize(record([stuck], target=300, host='validator-1'))
+        self.assertEqual((kpi(summary, 'campaign.faults.validator_restart')['status'],
+                          kpi(summary, 'campaign.faults.validator_restart')['value']), ('fail', None))
+        self.assertEqual(summary['date'], stuck['injected_at'][:10], 'the injection\'s day')
+
     def test_the_approved_target_is_required(self):
         with self.assertRaisesRegex(results.Failed, 'judged against 600 s, not the approved 120 s'):
             summarize(record([row('partition', 20)], target=600))
