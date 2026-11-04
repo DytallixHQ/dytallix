@@ -222,7 +222,9 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
             if row['status'] == faults.INCONCLUSIVE:
                 continue
             samples[kpi].append((row['status'], row.get('recovery_seconds')))
-            days.append(day(row.get('recovered_at') or row['cleared_at']))
+            # A command that never ran to completion has no clear or
+            # recovery; its day is the injection's.
+            days.append(day(row.get('recovered_at') or row.get('cleared_at') or row['injected_at']))
         sources.append({'tool': 'faults', 'sha256': digest(raw), 'chain_id': record['chain_id'],
                         'native_genesis_sha256': record['genesis']['native_genesis_sha256'], 'status': status})
     heavy = {}
