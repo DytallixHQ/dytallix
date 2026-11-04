@@ -236,6 +236,25 @@ class AgentTests(unittest.TestCase):
         for chain, match in (('out', 'dport'), ('out', 'sport'), ('in', 'dport'), ('in', 'sport')):
             self.assertIn(['nft', 'add', 'rule', 'inet', 'dytallix_fault', chain, 'tcp', match, '@blocked', 'drop'], cmds)
 
+    def test_a_kill_arms_its_dead_man_first_and_stop_cancels_it(self):
+        # P01, 4 November 2026: the timer exists before the node goes down.
+        import faults
+        kill = ALLOWLIST['commands']['fault-kill']['steps']
+        clear = ['systemctl', 'stop', 'dytallix-kill-restart*.timer']
+        arm = ['systemd-run', '--unit=dytallix-kill-restart', f'--on-active={faults.KILL_DEAD_MAN_SECONDS}s',
+               '--timer-property=AccuracySec=1s', 'systemctl', 'start', 'dytallix-node.service']
+        self.assertEqual(kill[:3], [clear, arm, ['systemctl', 'kill', '--kill-whom=main', '--signal=SIGKILL',
+                                                 'dytallix-node.service']])
+        # The proof stays the last step, as faults.effect_of reads it.
+        self.assertEqual(kill[-1][:4], ['systemctl', 'show', '-p', 'ActiveState'])
+        self.assertEqual(ALLOWLIST['commands']['stop']['steps'], [clear, ['systemctl', 'stop', 'dytallix-node.service']])
+        # start never cancels it: if the founder's start fails, the timer is a second start.
+        self.assertNotIn(clear, ALLOWLIST['commands']['start']['steps'])
+        self.store.put(1, signed(1, 'fault-kill'))
+        self.poll()
+        self.assertEqual(self.results()[1]['status'], 'DONE')
+        self.assertLess(self.host.commands.index(arm), self.host.commands.index(kill[2]))
+
     def test_a_slot_is_spent_before_its_command_runs(self):
         self.store.put(1, signed(1, 'stop'))
         self.store.fail_uploads = True

@@ -122,6 +122,11 @@ VALIDATOR_SCENARIOS = (
     {'name': 'validator_restart', 'command': 'fault-kill', 'args': {}},
 )
 BY_NAME = {spec['name']: spec for spec in SCENARIOS + VALIDATOR_SCENARIOS}
+# The kill's own dead-man (P01, 4 November 2026; ALLOWLIST.json fault-kill):
+# the host starts the node this long after a kill if nothing else has, so a
+# founder machine that drops between the kill and its restart cannot leave
+# the node down. The founder's start normally comes first.
+KILL_DEAD_MAN_SECONDS = 60
 # After a partition or a process kill the nodes redial within 60 s (launch
 # rehearsals, One validator). A peer drop sooner finds no connection to close
 # and proves nothing (round 1 on the real hosts, 3 November 2026), so it waits
@@ -183,6 +188,12 @@ def evaluate(scenario, target):
     command = scenario.get('command') or {}
     if command.get('status') != 'DONE':
         return FAIL, 'the fault command did not run to completion'
+    # The founder's restart is part of a kill scenario: if it failed, the
+    # scenario fails even when the kill's dead-man brought the node back
+    # (P01, 4 November 2026), so a failing start is never hidden.
+    clear = scenario.get('clear') or {}
+    if clear.get('mechanism') == 'restart' and clear.get('status') != 'DONE':
+        return FAIL, 'the restart command did not run to completion'
     if not effect_holds(this, scenario.get('effect') or {}):
         return FAIL, 'the fault had no measurable effect'
     for field in ('baseline_height', 'height_at_clear'):

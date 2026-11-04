@@ -100,6 +100,15 @@ class Evaluate(unittest.TestCase):
     def test_a_fault_that_did_not_run_fails(self):
         self.assertEqual(self.status(scenario(command={'status': 'FAILED'}), target=60), faults.FAIL)
 
+    def test_a_kill_whose_restart_failed_fails_even_if_the_node_came_back(self):
+        # P01, 4 November 2026: the kill's dead-man can bring the node back,
+        # but a failed founder restart is the defect to see.
+        failed = scenario('process_kill', clear={'mechanism': 'restart', 'status': 'FAILED'})
+        self.assertEqual(self.status(failed, target=60), faults.FAIL)
+        self.assertEqual(faults.evaluate(failed, 60)[1], 'the restart command did not run to completion')
+        done = scenario('process_kill', clear={'mechanism': 'restart', 'status': 'DONE'})
+        self.assertEqual(self.status(done, target=60), faults.PASS)
+
     def test_lost_finalized_history_fails(self):
         self.assertEqual(self.status(scenario(recovered_height=99), target=60), faults.FAIL)
 
