@@ -67,6 +67,21 @@ class Effect(unittest.TestCase):
         self.assertFalse(faults.effect_holds('process', {'active': 'active'}))
 
 
+class Order(unittest.TestCase):
+    def test_the_peer_drop_runs_before_the_faults_that_break_the_peers(self):
+        names = [s['name'] for s in faults.SCENARIOS]
+        self.assertLess(names.index('peer_drop'), min(names.index(n) for n in faults.BREAKS_PEERS))
+
+    def test_a_peer_drop_waits_for_the_redial_after_a_partition_or_a_kill(self):
+        slept, said = [], []
+        self.assertEqual(faults.settle(None, clock=lambda: 500.0, sleep=slept.append, say=said.append), 0.0)
+        self.assertEqual(faults.settle(100.0, clock=lambda: 200.0, sleep=slept.append, say=said.append), 0.0)
+        self.assertEqual(faults.settle(100.0, clock=lambda: 120.0, sleep=slept.append, say=said.append),
+                         faults.REDIAL_SECONDS - 20)
+        self.assertEqual(slept, [faults.REDIAL_SECONDS - 20])
+        self.assertIn('redial before the peer drop', said[0])
+
+
 class Evaluate(unittest.TestCase):
     def status(self, scn, target=None):
         return faults.evaluate(scn, target)[0]
