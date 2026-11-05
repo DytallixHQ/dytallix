@@ -1,0 +1,30 @@
+{
+  "decision_id": "P01-2026-11-05-T04-CAMPAIGN-OPERATOR",
+  "approved": "2026-11-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the staking family's two registration attacks get an approved, unregistered validator ID; then, once that proved to need a node change, whether to make it; then how to keep it out of mainnet, since staging chains are production builds",
+    "selected_as": "Staging genesis entry; Node change, refused in production; Refuse it on mainnet"
+  },
+  "reason": "Two planned staking attacks, a validator registration whose self-bond is below the minimum and one that reuses a consensus key, reach their own checks (VALIDATOR_SELF_BOND_MINIMUM, CONSENSUS_KEY_ALREADY_USED) only for a validator ID that is approved but not registered: for every other ID the node first refuses VALIDATOR_OPERATOR_REQUIRED (at admission) or VALIDATOR_ALREADY_REGISTERED. Genesis approved exactly its validators, all registered, and approving another ID otherwise takes a governance registry-add, whose vote never opens in CI and takes about 2.5 hours and the operators' votes on the staging hosts. The genesis builder had no input for such an operator, and staging chains are built by the production builder, so a guard on the build's mode would refuse them too.",
+  "design_ref": "../../node/docs/mainnet/e05-genesis-builder.md",
+  "decisions": [
+    {
+      "question": "An approved, unregistered validator ID for the registration attacks",
+      "selected": "A genesis input, refused on mainnet",
+      "rule": "The genesis builder takes an optional approved_operators input: validator IDs, each with the label of an owner account, approved to register a validator that genesis does not register. They join the validators' own operators in lifecycle.approved_operators; they register nothing and receive no stake, and a delegation to one is still refused. The builder refuses any when the network is mainnet; the input resolver passes them from the records, and a resolution with any is never production-eligible. The staging chain approves one, campaign-validator, owned by campaign-operator, an account holding a validator's self-bond (100,000 DGT) carved from Ecosystem growth and 1,000 DRT."
+    }
+  ],
+  "accepted_risks": [
+    "The staging chain's genesis now differs from mainnet's by one approved operator and one account. A drill that counts accounts or approved operators sees them."
+  ],
+  "does_not_authorize": [
+    "any approved operator in a mainnet genesis",
+    "registering campaign-validator, or any validator, on a staging chain except as a refused attack",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

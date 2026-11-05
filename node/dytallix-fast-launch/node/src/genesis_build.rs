@@ -120,6 +120,19 @@ pub struct Inputs {
     pub accounts: Vec<Account>,
     pub validators: Vec<Validator>,
     pub delegations: Vec<Delegation>,
+    /// Operators approved to register a validator that genesis does not
+    /// register: a staging chain's attack campaign (P01, 5 November 2026).
+    /// A mainnet genesis refuses any.
+    #[serde(default)]
+    pub approved_operators: Vec<ApprovedOperator>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ApprovedOperator {
+    pub validator_id: String,
+    /// The label of the operator's owner account.
+    pub operator: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -639,6 +652,21 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
             d.validator_id
         );
     }
+    // Operators approved to register later, beside the validators' own.
+    ensure!(
+        inputs.approved_operators.is_empty() || inputs.network != Network::Mainnet,
+        "A mainnet genesis approves only its validators' operators"
+    );
+    let mut approved = operators.clone();
+    for extra in &inputs.approved_operators {
+        identifier(&extra.validator_id, "validator_id")?;
+        let owner = member(&extra.operator)?.address.clone();
+        ensure!(
+            approved.insert(extra.validator_id.clone(), owner).is_none(),
+            "Duplicate validator {}",
+            extra.validator_id
+        );
+    }
     let mut staked: BTreeMap<String, u128> = BTreeMap::new();
     let mut power: BTreeMap<String, u128> = BTreeMap::new();
     for ((owner, validator), amount) in &positions {
@@ -703,7 +731,7 @@ pub fn build(inputs: &Inputs, inputs_bytes: &[u8]) -> Result<Built> {
         version: 1,
         profile: crate::build_profile::LIFECYCLE_PROFILE.into(),
         chain_id: chain.into(),
-        approved_operators: operators.clone(),
+        approved_operators: approved,
         min_self_bond: inputs.lifecycle.min_self_bond,
         max_active: inputs.lifecycle.max_active,
         evidence_max_age_blocks: inputs.lifecycle.evidence_max_age_blocks,

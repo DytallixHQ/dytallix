@@ -112,6 +112,11 @@ REHEARSAL_ROWS = (
     ('treasury', 'Treasury account', 0, 1_000),
 ) + tuple((f'kit-holder-{n}', f'Root key holder {n}\'s grant', HOLDER_GRANT_DGT, 2_000) for n in range(1, HOLDERS + 1))
 OPERATOR_DRT = 1_000
+# The attack campaign's operator (P01, 5 November 2026): approved to register
+# a validator genesis does not register, holding a validator's self-bond
+# carved from Ecosystem growth, so the staking family can attempt a self-bond
+# below the minimum and a reused consensus key. Never in a mainnet genesis.
+CAMPAIGN_OPERATOR, CAMPAIGN_VALIDATOR = 'campaign-operator', 'campaign-validator'
 
 
 class Invalid(ValueError):
@@ -165,7 +170,7 @@ def staging_records(plan, rehearsal, genesis_time):
 
 def rehearsal_labels(validators):
     """Every rehearsal account, in the records' order."""
-    return [row[0] for row in REHEARSAL_ROWS] + [f'operator-{n}' for n in range(1, validators + 1)]
+    return [row[0] for row in REHEARSAL_ROWS] + [f'operator-{n}' for n in range(1, validators + 1)] + [CAMPAIGN_OPERATOR]
 
 
 def rehearsal_wallets(cli, out, labels, show):
@@ -207,13 +212,15 @@ def spendable_records(plan, rehearsal, genesis_time, public_keys):
     operators = [f'operator-{n}' for n in range(1, validators + 1)]
     for n, validator in enumerate(records['validators'], 1):
         validator['operator'], validator['self_bond_udgt'] = f'operator-{n}', str(SELF_BOND_DGT * DGT)
-    others_drt = sum(drt for _, _, _, drt in REHEARSAL_ROWS if drt is not None) + OPERATOR_DRT * validators
-    rows = [(label, dgt - SELF_BOND_DGT * validators if drt is None else dgt, DRT_BOOTSTRAP - others_drt if drt is None else drt)
+    others_drt = sum(drt for _, _, _, drt in REHEARSAL_ROWS if drt is not None) + OPERATOR_DRT * (validators + 1)
+    rows = [(label, dgt - SELF_BOND_DGT * (validators + 1) if drt is None else dgt,
+             DRT_BOOTSTRAP - others_drt if drt is None else drt)
             for label, _, dgt, drt in REHEARSAL_ROWS]
-    rows += [(label, SELF_BOND_DGT, OPERATOR_DRT) for label in operators]
+    rows += [(label, SELF_BOND_DGT, OPERATOR_DRT) for label in operators + [CAMPAIGN_OPERATOR]]
     records['accounts'] = [{'label': label, 'origin_public_key_base64': public_keys[label], 'udgt': str(dgt * DGT),
                             'udrt': str(drt * DRT), 'vesting': {'kind': 'unlocked'}} for label, dgt, drt in rows]
     records['delegations'] = []
+    records['approved_operators'] = [{'validator_id': CAMPAIGN_VALIDATOR, 'operator': CAMPAIGN_OPERATOR}]
     require(sum(int(a['udgt']) for a in records['accounts']) == 10**9 * DGT, 'the rehearsal accounts do not hold the whole DGT total')
     require(sum(int(a['udrt']) for a in records['accounts']) == DRT_BOOTSTRAP * DRT, 'the rehearsal accounts do not hold the DRT bootstrap')
     return records
@@ -227,7 +234,10 @@ def mapping(records, native_genesis, chain):
     accounts = []
     for account, built in zip(records['accounts'], native):
         label = account['label']
-        row = stands_for[label] if label in stands_for else f"Validator {label.split('-')[1]}'s operator, holding its self-bond"
+        if label == CAMPAIGN_OPERATOR:
+            row = "The attack campaign's operator, approved to register a validator genesis does not, holding a self-bond"
+        else:
+            row = stands_for[label] if label in stands_for else f"Validator {label.split('-')[1]}'s operator, holding its self-bond"
         accounts.append({'label': label, 'wallet': label, 'address': built['address'], 'stands_for': row,
                          'udgt': account['udgt'], 'udrt': account['udrt']})
     return {'schema': 'dytallix.rehearsal-accounts.v1', 'chain_id': chain, 'boundary': BOUNDARY,

@@ -232,7 +232,10 @@ def resolve(values, proposals, records, mode='rehearsal', identity=None):
         place(inputs, path, value)
         resolution.append({'name': name, 'source': source, 'reference': reference, 'value': value})
 
-    exact(records, {'schema', 'status', 'boundary', 'chain_id', 'genesis_time', 'network', 'accounts', 'validators', 'delegations', 'governance_action_classes', 'root'}, 'records')
+    # A staging chain's attack campaign may approve operators genesis does not
+    # register (P01, 5 November 2026); the builder refuses any on mainnet.
+    extra = {'approved_operators'} & set(records) if isinstance(records, dict) else set()
+    exact(records, {'schema', 'status', 'boundary', 'chain_id', 'genesis_time', 'network', 'accounts', 'validators', 'delegations', 'governance_action_classes', 'root'} | extra, 'records')
     if records['status'] not in {'SYNTHETIC', 'ACCEPTED'}: raise ValueError('records status must be SYNTHETIC or ACCEPTED')
     governance = inputs['governance']
     classes = {c['class']: c['approval_digest'] for c in records['governance_action_classes']}
@@ -255,6 +258,12 @@ def resolve(values, proposals, records, mode='rehearsal', identity=None):
     built_root['upgrade']['authority'] = root['upgrade']['authority']
     for field in ('chain_id', 'genesis_time', 'network', 'accounts', 'validators', 'delegations'):
         inputs[field] = records[field]
+    if extra:
+        approved = records['approved_operators']
+        if not isinstance(approved, list) or not approved: raise ValueError('records.approved_operators must be a non-empty list')
+        for n, row in enumerate(approved): exact(row, {'validator_id', 'operator'}, f'records.approved_operators[{n}]')
+        inputs['approved_operators'] = approved
+        resolution.append({'name': 'record:approved_operators', 'source': 'RECORD_' + records['status'], 'reference': 'records', 'value': None})
     inputs.update({'schema': INPUTS_SCHEMA, 'mode': mode})
     for field in ('chain_id', 'genesis_time', 'network', 'accounts', 'validators', 'delegations', 'governance_action_classes', 'root'):
         resolution.append({'name': 'record:' + field, 'source': 'RECORD_' + records['status'], 'reference': 'records', 'value': None})
@@ -262,7 +271,7 @@ def resolve(values, proposals, records, mode='rehearsal', identity=None):
     for item in resolution: counts[item['source']] = counts.get(item['source'], 0) + 1
     # The approved chain ID, network and genesis time procedure (D13-Q01).
     differences = network_identity.record_errors(identity, records)
-    eligible = mode == 'production' and set(counts) <= {'APPROVED', 'RECORD_ACCEPTED'} and not differences
+    eligible = mode == 'production' and set(counts) <= {'APPROVED', 'RECORD_ACCEPTED'} and not differences and not extra
     report = {
         'schema': RESOLUTION_SCHEMA,
         'mode': mode,

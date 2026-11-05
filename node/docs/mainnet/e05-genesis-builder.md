@@ -94,6 +94,7 @@ profile names, the ML-DSA-65 algorithm, activation heights and sequences of
 | `app_state_sha256`, recovery and governance genesis digests, root policy `genesis_sha256` | SHA-256 of the exact native genesis bytes |
 | Reward positions and `staking.delegations` | Each validator's self-bond from its operator account, plus delegations |
 | Validator power | The stake bonded to it, in uDGT |
+| `lifecycle.approved_operators` | Each validator's operator; a staging chain may add operators approved to register a validator genesis does not register (the input's optional `approved_operators`), which a mainnet genesis refuses ([approval](../../../launch/approvals/P01_T04_CAMPAIGN_OPERATOR_2026-11-05.json)) |
 | `reward_v2.max_validators` | The governed `max_active` upper bound (E05-a rule 4) |
 | Ordinary `max_fee_cap` | `max_transaction_gas` × the highest governed gas price (E05-a rule 3) |
 | Recovery `max_fee_cap` | `max_transaction_gas` × gas price |
