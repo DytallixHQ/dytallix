@@ -432,7 +432,6 @@ dependencies = [
  "hex",
  "jmt",
  "libc",
- "log",
  "rand",
  "rand_core",
  "rocksdb",

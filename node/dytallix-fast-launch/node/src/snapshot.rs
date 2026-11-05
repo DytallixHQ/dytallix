@@ -284,7 +284,11 @@ impl SnapshotWriter {
             return Ok(());
         }
         if let Err(error) = self.wait() {
-            log::warn!("Snapshot writer failed: {error:#}");
+            use crate::consensus_settlement::{node_warning, NodeWarning};
+            node_warning(
+                NodeWarning::SnapshotWrite,
+                format_args!("Snapshot writer failed: {error:#}"),
+            );
         }
         remove_partial(&self.config.dir)?;
         let checkpoint = checkpoint_dir(&self.config.dir, header.height);

@@ -89,8 +89,9 @@ tests.
   records pruned and admission queue entries; the latest snapshot comes
   from the snapshot directory at write time. `consensus_stdio ...
   --metrics-dir DIR --metrics-interval-seconds 15` writes
-  `dytallix-app.prom`. A recording failure is logged and never affects the
-  committed block.
+  `dytallix-app.prom`. A recording failure never affects the committed
+  block; it is written to the journal as a `METRICS` node warning
+  ([incident response](incident-response-v1.md#r-b-failure-classes)).
 - **Names.** Engine metrics are `dytallix_engine_{subsystem}_{name}`,
   application metrics `dytallix_app_{name}`; supply amounts are exact
   integers in base units.

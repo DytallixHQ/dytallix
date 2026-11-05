@@ -13,7 +13,10 @@ the host: `verify` and `wipe.sh` read its install manifest.
 - `systemctl status dytallix-node`: running, or how it last stopped.
 - `journalctl -u dytallix-node -o cat`: the supervisor's report, one JSON
   object per line; a stop ends with `failure`
-  ([where to look](README.md#where-to-look)).
+  ([where to look](README.md#where-to-look)). `LOCAL_NODE_WARNING_V1`
+  lines there are the node's own failures that did not stop it: a snapshot
+  restore or write, or metrics not recorded; at most one a minute for each
+  kind ([node warnings](../architecture/incident-response-v1.md#r-b-failure-classes)).
 - `/var/lib/dytallix/metrics/dytallix-app.prom` and `dytallix-engine.prom`:
   `dytallix_app_height` is the committed height, and a stale
   `dytallix_metrics_written_timestamp_seconds` means a process stopped

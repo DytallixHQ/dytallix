@@ -174,14 +174,55 @@ pub(crate) fn send_held(record: &[u8]) -> Result<()> {
     send_socket(2,record,admission_deadline()?)
 }
 
+/// A node warning (P01, 5 November 2026): a snapshot restore or snapshot
+/// write that failed, or metrics not recorded at a commit. One bounded line
+/// with the warnings of its kind since the process started and those of its
+/// kind not written since its last line. The caller's gate allows one a
+/// minute for each kind.
+fn encode_warning(kind: &str, text: &str, total: u64, unwritten: u64) -> Result<Vec<u8>> {
+    let mut bytes=serde_json::to_vec(&serde_json::json!({
+        "schema":1, "scope":"LOCAL_NODE_WARNING_V1",
+        "production_qualified":false, "release_authority":false,
+        "kind":kind, "warnings_total":total, "unwritten_since_last_line":unwritten,
+        "error_text":bounded_text(text,ERROR_TEXT_CHARS)
+    }))?;
+    bytes.push(b'\n');
+    ensure!(bytes.len()<=4096,"Node warning line exceeded bound");
+    Ok(bytes)
+}
+
+/// Commit writes some of those lines while it holds the execution lock, so
+/// none waits for the journal (P01, 5 November 2026): a line the journal
+/// takes nothing of is dropped at once, and one it takes part of is finished
+/// within 5 ms or dropped.
+fn deliver_now(bytes: &[u8], mut send: impl FnMut(&[u8])->std::io::Result<usize>) -> Result<()> {
+    let deadline=Instant::now().checked_add(Duration::from_millis(5)).context("Diagnostic deadline overflow")?;
+    deliver(bytes,deadline,|part|match send(part) {
+        Err(error) if error.kind()==std::io::ErrorKind::WouldBlock && part.len()==bytes.len()=>
+            Err(std::io::Error::other("Journal did not take the node warning")),
+        sent=>sent,
+    })
+}
+
+#[cfg(target_os="linux")]
+pub(crate) fn emit_warning(kind: &str, text: &str, total: u64, unwritten: u64) -> Result<()> {
+    deliver_now(&encode_warning(kind,text,total,unwritten)?,socket(2)?)
+}
+
 #[cfg(target_os="linux")]
 fn send_socket(fd: libc::c_int, bytes: &[u8], deadline: Instant) -> Result<()> {
     ensure!(Instant::now()<deadline,"Helper failure diagnostic deadline expired");
+    deliver(bytes,deadline,socket(fd)?)
+}
+
+/// Sends on `fd`, which must be the inherited journal socket, never waiting.
+#[cfg(target_os="linux")]
+fn socket(fd: libc::c_int) -> Result<impl FnMut(&[u8])->std::io::Result<usize>> {
     let mut stat:libc::stat=unsafe{std::mem::zeroed()};
     ensure!(unsafe{libc::fstat(fd,&mut stat)}==0 && stat.st_mode&libc::S_IFMT==libc::S_IFSOCK,
         "Helper diagnostic requires inherited socket FD2");
     // MSG_DONTWAIT does not change shared open-file flags. No pipe/file fallback.
-    deliver(bytes,deadline,|part|{
+    Ok(move |part:&[u8]|{
         let count=unsafe{libc::send(fd,part.as_ptr() as *const _,part.len(),libc::MSG_DONTWAIT|libc::MSG_NOSIGNAL)};
         if count<0 {Err(std::io::Error::last_os_error())} else {Ok(count as usize)}
     })
@@ -251,6 +292,39 @@ mod tests {
         assert_eq!(hold(b"four\n".to_vec()),Some(b"four\n".to_vec()));
     }
     #[test]
+    fn a_node_warning_is_one_bounded_record(){
+        // P01, 5 November 2026: the kind and the warning, bounded, with the counts.
+        let text=format!("Snapshot chunk 3 refused: {}\n{}","x".repeat(300),"tail");
+        let raw=encode_warning("STATE_SYNC_RESTORE",&text,9,4).unwrap();
+        assert_eq!(raw.iter().filter(|&&b|b==b'\n').count(),1);assert!(raw.ends_with(b"\n"));
+        let row:Value=serde_json::from_slice(&raw).unwrap();
+        assert_eq!((row["scope"].as_str(),row["kind"].as_str(),row["warnings_total"].as_u64(),row["unwritten_since_last_line"].as_u64()),
+                   (Some("LOCAL_NODE_WARNING_V1"),Some("STATE_SYNC_RESTORE"),Some(9),Some(4)));
+        assert_eq!((row["production_qualified"].as_bool(),row["release_authority"].as_bool()),(Some(false),Some(false)));
+        let text=row["error_text"].as_str().unwrap();
+        assert!(text.starts_with("Snapshot chunk 3 refused: xxx"));
+        assert_eq!(text.chars().count(),ERROR_TEXT_CHARS);
+    }
+    #[test]
+    fn a_node_warning_never_waits_for_a_full_journal(){
+        // P01, 5 November 2026: taken in nothing, dropped at once, with no retry.
+        let mut calls=0;
+        assert!(deliver_now(b"warning\n",|_|{calls+=1;Err(std::io::ErrorKind::WouldBlock.into())}).is_err());
+        assert_eq!(calls,1);
+        // Taken in part, finished, so no half line joins the next one.
+        let (mut output,mut full)=(Vec::new(),true);
+        deliver_now(b"warning\n",|part|{
+            if output.is_empty() {output.extend_from_slice(&part[..3]);return Ok(3);}
+            if std::mem::take(&mut full) {return Err(std::io::ErrorKind::WouldBlock.into());}
+            output.extend_from_slice(part);Ok(part.len())
+        }).unwrap();
+        assert_eq!(output,b"warning\n");
+        // Or dropped at its 5 ms deadline.
+        let (start,mut taken)=(Instant::now(),false);
+        assert!(deliver_now(b"warning\n",|_|if std::mem::replace(&mut taken,true) {Err(std::io::ErrorKind::WouldBlock.into())} else {Ok(1)}).is_err());
+        assert!(start.elapsed()<Duration::from_millis(200));
+    }
+    #[test]
     fn expired_and_blocked_sinks_do_not_extend_deadline(){
         let mut calls=0;
         assert!(deliver(b"record\n",Instant::now(), |_| {calls+=1;Ok(1)}).is_err());assert_eq!(calls,0);
@@ -282,6 +356,8 @@ mod tests {
             if n<0 {assert_eq!(std::io::Error::last_os_error().kind(),std::io::ErrorKind::WouldBlock);break;}
         }
         assert!(send_socket(fd,b"record\n",Instant::now()+Duration::from_millis(2)).is_err());
+        // A node warning is dropped at once on the full socket (P01, 5 November 2026).
+        assert!(deliver_now(b"record\n",socket(fd).unwrap()).is_err());
         assert_eq!(unsafe{libc::fcntl(fd,libc::F_GETFL)},flags);
         assert_eq!(unsafe{libc::fcntl(fd,libc::F_GETFD)},descriptor_flags);
         drop(receiver);

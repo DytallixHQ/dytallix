@@ -519,6 +519,44 @@ fn the_admission_journal_line_is_written_once_a_minute() {
     assert_eq!(gate.due(start + 3 * minute), Some((6, 1)));
 }
 
+/// Each kind of node warning has its own gate, so a peer offering bad
+/// snapshots cannot hide the node's own snapshot or metrics failures, and a
+/// due line the journal did not take is counted in the next one (P01,
+/// 5 November 2026).
+#[test]
+fn each_kind_of_node_warning_has_its_own_gate() {
+    use std::time::{Duration, Instant};
+    let kinds = [
+        NodeWarning::StateSyncRestore,
+        NodeWarning::SnapshotWrite,
+        NodeWarning::Metrics,
+    ];
+    assert_eq!(
+        kinds.map(NodeWarning::kind),
+        ["STATE_SYNC_RESTORE", "SNAPSHOT_WRITE", "METRICS"]
+    );
+    let gates = kinds.map(NodeWarning::gate);
+    for (index, gate) in gates.iter().enumerate() {
+        assert!(!std::ptr::eq(*gate, &ADMISSION_HELPER_JOURNAL));
+        assert!(gates[index + 1..]
+            .iter()
+            .all(|other| !std::ptr::eq(*gate, *other)));
+    }
+    let before = STATE_SYNC_RESTORE_JOURNAL.lock().unwrap().refused;
+    node_warning(
+        NodeWarning::StateSyncRestore,
+        format_args!("Snapshot chunk 1 refused: test"),
+    );
+    assert!(STATE_SYNC_RESTORE_JOURNAL.lock().unwrap().refused > before);
+    let minute = Duration::from_secs(60);
+    let start = Instant::now();
+    let mut gate = JournalGate::new(minute);
+    assert_eq!(gate.due(start), Some((1, 0)));
+    gate.unsent();
+    assert_eq!(gate.due(start + Duration::from_secs(1)), None);
+    assert_eq!(gate.due(start + minute), Some((3, 2)));
+}
+
 /// Startup's re-check retries a helper that did not run, three tries in all,
 /// and nothing else (P01, 4 November 2026).
 #[test]
