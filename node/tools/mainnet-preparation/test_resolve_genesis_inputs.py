@@ -156,6 +156,18 @@ class ResolverTests(unittest.TestCase):
         self.records['root']['upgrade']['parameter_set'] = 'SLH-DSA-SHA2-256s'
         self.refused('SLH-DSA-SHAKE-256s')
 
+    def test_records_may_approve_operators_genesis_does_not_register(self):
+        # A staging chain's attack campaign (P01, 5 November 2026): passed to
+        # the builder, which refuses any on mainnet, and never eligible.
+        self.records['approved_operators'] = [{'validator_id': 'validator-9', 'operator': 'operator-1'}]
+        inputs, report = self.resolve()
+        self.assertEqual(inputs['approved_operators'], [{'validator_id': 'validator-9', 'operator': 'operator-1'}])
+        self.assertIn('record:approved_operators', [v['name'] for v in report['values']])
+        self.records['approved_operators'] = [{'validator_id': 'validator-9'}]
+        self.refused('exact fields')
+        self.records['approved_operators'] = []
+        self.refused('non-empty list')
+
     def test_records_have_exact_fields(self):
         extra = copy.deepcopy(self.records)
         extra['operator_contacts'] = []

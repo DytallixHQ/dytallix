@@ -251,6 +251,47 @@ fn delegations_name_a_genesis_validator() {
     assert!(error.contains("unknown validator"), "{error}");
 }
 
+/// Build from the rehearsal inputs after `change`.
+fn built_with(change: impl FnOnce(&mut Value)) -> Built {
+    let mut value: Value = serde_json::from_slice(&inputs_bytes()).unwrap();
+    change(&mut value);
+    let bytes = serde_json::to_vec(&value).unwrap();
+    build(&read_inputs(&bytes).unwrap(), &bytes).unwrap()
+}
+
+fn campaign_operator(v: &mut Value, network: &str) {
+    v["network"] = network.into();
+    v["approved_operators"] = serde_json::json!([{"validator_id": "validator-9", "operator": "operator-1"}]);
+}
+
+/// A staging chain may approve an operator to register a validator genesis
+/// does not register; a mainnet genesis may not (P01, 5 November 2026).
+#[test]
+fn an_extra_approved_operator_is_approved_not_registered_and_never_on_mainnet() {
+    let b = built_with(|v| campaign_operator(v, "testnet"));
+    let config: Value = serde_json::from_slice(&b.application_config).unwrap();
+    let approved = &config["lifecycle"]["approved_operators"];
+    assert_eq!(approved["validator-9"], approved["validator-1"], "operator-1 owns both");
+    let native: Value = serde_json::from_slice(&b.native_genesis).unwrap();
+    assert!(!native["staking"].to_string().contains("validator-9"), "validator-9 is not registered");
+    // Without one, the same inputs approve only the validators.
+    let plain = built_with(|v| v["network"] = "testnet".into());
+    let config: Value = serde_json::from_slice(&plain.application_config).unwrap();
+    assert!(config["lifecycle"]["approved_operators"].get("validator-9").is_none());
+    let error = refused(|v| campaign_operator(v, "mainnet"));
+    assert!(error.contains("approves only its validators' operators"), "{error}");
+    let error = refused(|v| {
+        campaign_operator(v, "testnet");
+        v["approved_operators"][0]["validator_id"] = "validator-1".into();
+    });
+    assert!(error.contains("Duplicate validator validator-1"), "{error}");
+    let error = refused(|v| {
+        campaign_operator(v, "testnet");
+        v["delegations"][0]["validator_id"] = "validator-9".into();
+    });
+    assert!(error.contains("unknown validator"), "{error}");
+}
+
 #[test]
 fn genesis_time_is_explicit_whole_seconds() {
     for bad in [

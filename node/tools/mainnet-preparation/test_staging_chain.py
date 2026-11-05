@@ -160,11 +160,17 @@ class StagingChainTests(unittest.TestCase):
         # The validator's self-bond comes out of Ecosystem growth, the holders'
         # grants out of Team and advisors (genesis framework, section 1).
         self.assertEqual((dgt['ecosystem-growth'], dgt['operator-1'], dgt['team-and-advisors']),
-                         (299_900_000, 100_000, 199_900_000))
+                         (299_800_000, 100_000, 199_900_000))
+        # The attack campaign's operator: a self-bond's DGT, approved for a
+        # validator genesis does not register (P01, 5 November 2026).
+        self.assertEqual((dgt[sc.CAMPAIGN_OPERATOR], drt[sc.CAMPAIGN_OPERATOR]), (100_000, 1_000))
+        self.assertEqual(records['approved_operators'],
+                         [{'validator_id': 'campaign-validator', 'operator': 'campaign-operator'}])
+        self.assertNotIn('campaign-validator', [v['validator_id'] for v in records['validators']])
         self.assertEqual([dgt[f'kit-holder-{n}'] for n in range(1, 6)], [20_000] * 5)
         self.assertEqual((dgt['public-sale'], dgt['private-sale'], dgt['reserve'], dgt['treasury']),
                          (150_000_000, 150_000_000, 200_000_000, 0))
-        self.assertEqual(drt['ecosystem-growth'], 1_000_000 - 1_000 - 5 * 2_000 - 1_000)
+        self.assertEqual(drt['ecosystem-growth'], 1_000_000 - 1_000 - 5 * 2_000 - 2 * 1_000)
         self.assertTrue(all(a['vesting'] == {'kind': 'unlocked'} for a in records['accounts']))
         self.assertTrue(all(a['origin_public_key_base64'] == f'key-{a["label"]}' for a in records['accounts']))
         self.assertEqual(records['delegations'], [])
@@ -178,7 +184,7 @@ class StagingChainTests(unittest.TestCase):
         records = sc.spendable_records(plan, self.rehearsal, '2026-10-06T12:00:00Z', self.keys(2))
         accounts = {a['label']: int(a['udgt']) // sc.DGT for a in records['accounts']}
         self.assertEqual((accounts['ecosystem-growth'], accounts['operator-1'], accounts['operator-2']),
-                         (299_800_000, 100_000, 100_000))
+                         (299_700_000, 100_000, 100_000))
         self.assertEqual(sum(accounts.values()), 1_000_000_000)
 
     def test_public_keys_come_from_the_keystore(self):
@@ -204,6 +210,7 @@ class StagingChainTests(unittest.TestCase):
         rows = {a['label']: a for a in result['accounts']}
         self.assertEqual(rows['kit-holder-3']['stands_for'], "Root key holder 3's grant")
         self.assertIn('self-bond', rows['operator-1']['stands_for'])
+        self.assertIn('attack campaign', rows['campaign-operator']['stands_for'])
         self.assertEqual(rows['treasury']['address'], 'tdytallix1treasury')
         self.assertIn('Not for any network', result['boundary'])
         with self.assertRaises(sc.Invalid):
