@@ -116,6 +116,29 @@ pub(super) fn emit(binding: Value, error: &anyhow::Error, attempt: u64,
     send_socket(2,&bytes,deadline)
 }
 
+/// A transaction CheckTx or the mempool's recheck refused because the helper
+/// did not run (P01, 5 November 2026): one bounded line, the refusals since
+/// the process started and those left unwritten since the last line. The
+/// caller's gate allows one a minute.
+fn encode_admission(error: &anyhow::Error, refused: u64, unwritten: u64) -> Result<Vec<u8>> {
+    let mut bytes=serde_json::to_vec(&serde_json::json!({
+        "schema":1, "scope":"LOCAL_ADMISSION_HELPER_FAILURE_V1",
+        "production_qualified":false, "release_authority":false,
+        "refused_total":refused, "unwritten_since_last_line":unwritten,
+        "error_text":bounded_text(&format!("{error:#}"),ERROR_TEXT_CHARS)
+    }))?;
+    bytes.push(b'\n');
+    ensure!(bytes.len()<=4096,"Admission helper failure line exceeded bound");
+    Ok(bytes)
+}
+
+/// Sent as the failure record is; a short budget, since CheckTx waits on it.
+#[cfg(target_os="linux")]
+pub(crate) fn emit_admission(error: &anyhow::Error, refused: u64, unwritten: u64) -> Result<()> {
+    let deadline=Instant::now().checked_add(Duration::from_millis(50)).context("Diagnostic deadline overflow")?;
+    send_socket(2,&encode_admission(error,refused,unwritten)?,deadline)
+}
+
 #[cfg(target_os="linux")]
 fn send_socket(fd: libc::c_int, bytes: &[u8], deadline: Instant) -> Result<()> {
     ensure!(Instant::now()<deadline,"Helper failure diagnostic deadline expired");
@@ -164,6 +187,20 @@ mod tests {
         let crowded=encode(serde_json::json!({"large":"a".repeat(3500)}),&error,4,true,true,None,1,None,&[b'x';480]).unwrap();
         let row:Value=serde_json::from_slice(&crowded).unwrap();
         assert!(row.get("helper_stderr").is_none() && crowded.len()<=4096);
+    }
+    #[test]
+    fn the_admission_line_is_one_bounded_record(){
+        // P01, 5 November 2026: the error, bounded, with the counts.
+        let error=anyhow::anyhow!("{}\n{}","x".repeat(300),"tail").context("Emergency helper execution failed");
+        let raw=encode_admission(&error,7,3).unwrap();
+        assert_eq!(raw.iter().filter(|&&b|b==b'\n').count(),1);assert!(raw.ends_with(b"\n"));
+        let row:Value=serde_json::from_slice(&raw).unwrap();
+        assert_eq!((row["scope"].as_str(),row["refused_total"].as_u64(),row["unwritten_since_last_line"].as_u64()),
+                   (Some("LOCAL_ADMISSION_HELPER_FAILURE_V1"),Some(7),Some(3)));
+        assert_eq!((row["production_qualified"].as_bool(),row["release_authority"].as_bool()),(Some(false),Some(false)));
+        let text=row["error_text"].as_str().unwrap();
+        assert!(text.starts_with("Emergency helper execution failed: xxx"));
+        assert_eq!(text.chars().count(),ERROR_TEXT_CHARS);
     }
     #[test]
     fn expired_and_blocked_sinks_do_not_extend_deadline(){

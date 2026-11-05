@@ -65,6 +65,13 @@ tests.
      votes and proposals (successful signatures only).
    Fees, issuance, supply, staking and penalties stay the supply buckets.
    The counters start at zero with the process.
+4. Added to the set (P01, 5 November 2026,
+   [approval](../../../launch/approvals/P01_E04_CHECKTX_HELPER_FAILURES_2026-11-05.json)):
+   application `admission_helper_failures_total`, the transactions CheckTx or
+   the mempool's recheck refused with code 2 because the local
+   signature-check helper did not run (the node keeps running; see
+   [incident response v1](incident-response-v1.md)). No monitor rule reads it
+   yet.
 
 ## Implementation notes
 

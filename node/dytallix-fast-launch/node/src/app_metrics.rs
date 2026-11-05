@@ -46,6 +46,9 @@ struct Values {
     gas_used: u64,
     evidence: u64,
     root_controls: BTreeMap<&'static str, u64>,
+    /// Transactions CheckTx or the mempool's recheck refused because the
+    /// root helper did not run (P01, 5 November 2026).
+    admission_helper_failures: u64,
 }
 
 /// What one committed block carried, for the counters.
@@ -115,6 +118,11 @@ impl AppMetrics {
                 *v.root_controls.entry(kind).or_default() += 1;
             }
         });
+    }
+    /// A transaction CheckTx or the mempool's recheck refused, with code 2,
+    /// because the root helper did not run.
+    pub(crate) fn admission_helper_failed(&self) {
+        self.with(|v| v.admission_helper_failures += 1);
     }
     /// One commit: its time, the new head, the retained window, the block
     /// records it removed, the supply it leaves and the admission queue.
@@ -219,6 +227,10 @@ impl AppMetrics {
                 .iter()
                 .map(|(kind, n)| (format!("{{kind=\"{kind}\"}}"), *n))
                 .collect(),
+        );
+        counter(
+            "admission_helper_failures_total",
+            vec![(String::new(), v.admission_helper_failures)],
         );
         // Signature verifications: ML-DSA-65 by the runtime crypto, SLH-DSA
         // by the root helper.
@@ -355,6 +367,7 @@ mod tests {
             "dytallix_app_validator_evidence_total 0",
             "# TYPE dytallix_app_transactions_total counter",
             "# TYPE dytallix_app_root_controls_total counter",
+            "dytallix_app_admission_helper_failures_total 0",
         ] {
             assert!(
                 empty.lines().any(|l| l == line),
@@ -378,6 +391,8 @@ mod tests {
         });
         helper_verified(true, Duration::from_millis(5));
         helper_verified(false, Duration::from_millis(5));
+        metrics.admission_helper_failed();
+        metrics.admission_helper_failed();
         let text = metrics.render(0, None);
         for line in [
             "dytallix_app_transactions_total{kind=\"ordinary\",result=\"ok\"} 2",
@@ -386,6 +401,7 @@ mod tests {
             "dytallix_app_gas_used_total 100",
             "dytallix_app_validator_evidence_total 1",
             "dytallix_app_root_controls_total{kind=\"kit_replacement\"} 1",
+            "dytallix_app_admission_helper_failures_total 2",
         ] {
             assert!(text.lines().any(|l| l == line), "missing {line} in\n{text}");
         }
