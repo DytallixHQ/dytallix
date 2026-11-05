@@ -608,6 +608,9 @@ class Desk:
                        == BOND_DGT * load.UNIT)
         early = roles['early_withdrawal']
         self.online(early, 'stake', 'unbond', '--validator', self.validator, '--amount', str(EARLY_UNBOND_DGT))
+        # Like a bond, an unbond takes effect two blocks after it commits;
+        # only then does its entry exist.
+        self.until(f'{early.label}\'s unbonding entry', lambda: self.summary(early)['unbonds'])
         entries = self.summary(early)['unbonds']
         if len(entries) != 1:
             raise Failed(f'{early.label} has {len(entries)} unbonding entries, not one')

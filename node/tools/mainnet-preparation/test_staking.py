@@ -579,5 +579,79 @@ class DeskChannel(DeskCase, unittest.TestCase):
         self.assertNotIn(['broadcast_tx_sync'], desk.rpc.calls)
 
 
+
+class SlowChain:
+    """A stand-in chain for the setup: a bond or unbond takes effect two
+    blocks after it commits, as the node's do, and each block pays every
+    bonded wallet. `leak` keeps paying the claimer after it unbonds."""
+
+    def __init__(self, desk, leak=False):
+        self.desk, self.leak, self.height, self.pending, self.receipts, self.sent = desk, leak, 100, [], {}, []
+        self.state = {w.address: {'liquid_udrt': 0 if w is desk.operator else 10 ** 12, 'bonded': 0,
+                                  'unbonds': [], 'claimable': 0} for w in desk.wallets.values()}
+        desk.summary, desk.head, desk.online, desk.sleep = self.summary, lambda: self.height, self.online, self.tick
+        desk.run.prime, desk.run.gas_price = (lambda pairs: None), 10
+        desk.run.funder = load.Wallet('ecosystem-growth', 'funder', 'dytallix1funder', 'cc' * 32)
+        self.state['dytallix1funder'] = {'liquid_udrt': 10 ** 15, 'bonded': 0, 'unbonds': [], 'claimable': 0}
+        desk.rpc = StubRpc(abci_query=lambda p: query_result(self.receipts[p['path']]))
+
+    def tick(self, _=None):
+        self.height += 1
+        for when, effect in [p for p in self.pending if p[0] == self.height]:
+            effect()
+        for address, s in self.state.items():
+            if s['bonded'] or (self.leak and address == 'dytallix1load-4'):
+                s['claimable'] += 5
+
+    def summary(self, wallet):
+        s = self.state[wallet.address]
+        return {'liquid_udrt': str(s['liquid_udrt']), 'bonded_udgt': str(s['bonded']), 'unbonds': list(s['unbonds']),
+                'claimable_rewards_udrt': str(s['claimable'])}
+
+    def online(self, wallet, *args):
+        self.tick()
+        s, ident = self.state[wallet.address], f'tx-{len(self.sent)}'
+        self.sent.append((wallet.label, args))
+        amount = int(args[-1]) * load.UNIT if args[0] == 'stake' and args[1] != 'claim' else 0
+        if args[0] == 'send':
+            self.state[args[2]]['liquid_udrt'] += int(args[4]) * load.UNIT
+        elif args[1] == 'bond':
+            self.pending.append((self.height + 2, lambda: s.update(bonded=s['bonded'] + amount)))
+        elif args[1] == 'unbond':
+            def effect():
+                s.update(bonded=s['bonded'] - amount)
+                s['unbonds'].append({'unbond_id': f'u-{ident}', 'validator_id': VALIDATOR, 'amount_udgt': str(amount)})
+            self.pending.append((self.height + 2, effect))
+        else:
+            s.update(liquid_udrt=s['liquid_udrt'] + s['claimable'], claimable=0)
+        s['liquid_udrt'] -= CHARGE
+        self.receipts[f'/ordinary/receipt/{ident}'] = {
+            'transaction_id': ident, 'outcome': 'success', 'rule_code': None, 'charge': str(CHARGE),
+            'nonce_before': '1', 'nonce_after': '2', 'block_height': str(self.height)}
+        return {'id': ident, 'charge_udrt': str(CHARGE)}
+
+
+class DeskSetup(DeskCase, unittest.TestCase):
+    def test_the_setup_waits_for_each_bond_and_unbond_to_take_effect(self):
+        desk = self.desk()
+        chain = SlowChain(desk)
+        desk.prepare(2)
+        need = (2 * 2 + 10) * load.FUNDING_GAS_LIMIT * 10 // load.UNIT
+        self.assertEqual(chain.sent[0], ('ecosystem-growth', ('send', '--to', 'dytallix1op', '--amount', str(need),
+                                                              '--token', 'drt')))
+        early = chain.state['dytallix1load-3']
+        self.assertEqual(desk.unbond_id, early['unbonds'][0]['unbond_id'])
+        self.assertEqual(early['bonded'], (staking.BOND_DGT - staking.EARLY_UNBOND_DGT) * load.UNIT)
+        self.assertGreater(int(desk.first_claim['paid_udrt']), 0)
+        self.assertEqual(desk.first_claim['receipt']['outcome'], 'success')
+        self.assertEqual(chain.state['dytallix1load-4']['bonded'], 0)
+
+    def test_a_claimer_still_paid_after_unbonding_fails_the_setup(self):
+        desk = self.desk()
+        SlowChain(desk, leak=True)
+        with self.assertRaisesRegex(staking.Failed, 'still accrues rewards'):
+            desk.prepare(2)
+
+
 if __name__ == '__main__':
     unittest.main()
