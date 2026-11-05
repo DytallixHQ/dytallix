@@ -66,22 +66,56 @@ jobs:
             ${{ runner.temp }}/release
             ${{ runner.temp }}/release-later
           key: ${{ steps.release-key.outputs.key }}
+      # The builder image is kept in the Actions cache, keyed by release/builder
+      # (its Dockerfile pins the base image by digest and the Debian snapshot
+      # by date), so a run that rebuilds the release set does not need
+      # snapshot.debian.org at all. The Mainnet release workflow still builds
+      # the image itself on both of its runners: that is the reproducibility
+      # proof (E06), and this cache is not part of it.
+      - name: Builder image key
+        if: steps.release-cache.outputs.cache-hit != 'true'
+        id: builder-key
+        run: |
+          key=$(git ls-tree -r HEAD -- release/builder | sha256sum | cut -c1-64)
+          echo "key=h4-builder-image-$key" >> "$GITHUB_OUTPUT"
+      - name: Cached builder image
+        if: steps.release-cache.outputs.cache-hit != 'true'
+        id: builder-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/builder-image.tar.zst
+          key: ${{ steps.builder-key.outputs.key }}
       # snapshot.debian.org, which pins the builder's packages, sometimes stops
       # answering for a few minutes (2 November 2026: apt fetched no index, so
-      # nothing installed), and sometimes hangs instead (4 November 2026: the
-      # package index answered 504 and apt-get update never returned, until
-      # the job's limit). The image is retried, each attempt bounded at 10
-      # minutes (a build takes about one), so a hang is retried too; the
-      # pinned inputs, and so the release set's bytes, are the same on every
-      # attempt.
+      # nothing installed), and sometimes hangs instead (4 and 5 November 2026:
+      # the package index answered 504, or never arrived, and apt-get update
+      # never returned, until the job's limit). Without a cached image, the
+      # image is built and retried, each attempt bounded at 10 minutes (a
+      # build takes about one), so a hang is retried too; the pinned inputs,
+      # and so the release set's bytes, are the same on every attempt.
       - name: Builder image
         if: steps.release-cache.outputs.cache-hit != 'true'
+        env:
+          CACHED: ${{ steps.builder-cache.outputs.cache-hit }}
         run: |
+          if [ "$CACHED" = true ]; then
+            zstd -dc "$RUNNER_TEMP/builder-image.tar.zst" | docker load
+            exit 0
+          fi
           for attempt in 1 2 3; do
-            timeout --kill-after=30 600 docker build --platform linux/amd64 -t dytallix-release-builder release/builder && exit 0
+            if timeout --kill-after=30 600 docker build --platform linux/amd64 -t dytallix-release-builder release/builder; then
+              docker save dytallix-release-builder | zstd -T0 -3 -q -o "$RUNNER_TEMP/builder-image.tar.zst"
+              exit 0
+            fi
             [ "$attempt" = 3 ] || { echo "::warning::builder image attempt $attempt failed; retrying in $((attempt * 90)) s"; sleep $((attempt * 90)); }
           done
           exit 1
+      - name: Save the builder image
+        if: steps.release-cache.outputs.cache-hit != 'true' && steps.builder-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/builder-image.tar.zst
+          key: ${{ steps.builder-key.outputs.key }}
       - name: Build the release set
         if: steps.release-cache.outputs.cache-hit != 'true'
         run: |
