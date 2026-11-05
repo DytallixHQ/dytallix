@@ -1,0 +1,30 @@
+{
+  "decision_id": "P01-2026-11-05-E04-CHECKTX-VERIFIER",
+  "approved": "2026-11-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the node handles a signature helper that fails to run while checking a transaction for the mempool",
+    "selected_as": "Refuse the tx, keep running"
+  },
+  "reason": "In the CI staging network on 5 November 2026 (Host install run 41956418390, the kit replacement drill), the sentry stopped while admitting the drill's resume control. Its signature-check helper failed to run once (the helper failure record's stderr: \"owner startup guard: ready_and_release: interrupted system call\", fixed separately), CheckTx returned that infrastructure error to the engine instead of an answer, and the engine stopped its mempool connection and the node. The unit does not restart itself. CheckTx runs the helper for any well-formed root control, which anyone can send to a public sentry, so every helper failure there could stop the node.",
+  "design_ref": "../../node/docs/architecture/incident-response-v1.md",
+  "decisions": [
+    {
+      "question": "A signature helper that fails to run during CheckTx",
+      "selected": "Refuse the transaction with code 2; the node keeps running",
+      "rule": "When the local signature-check helper fails to run (an infrastructure error, never a rejection) while CheckTx or the mempool's recheck checks a transaction, that transaction is refused and not charged with code 2 and the log \"Control verifier infrastructure failure: ...\" (interfaces v1's infrastructure failure), and the node keeps running. The helper failure record is still written to the journal. PrepareProposal, ProcessProposal and FinalizeBlock still stop the node on it, with the verifier class (P01_E04_VERIFIER_CLASS_2026-11-04), so consensus still fails closed."
+    }
+  ],
+  "accepted_risks": [
+    "A root control refused this way is not admitted; whoever sent it sends it again. A helper that keeps failing refuses every root control, while the node keeps running, until the operator reads the helper failure records in the node's journal; nothing stops the node to draw attention to it."
+  ],
+  "does_not_authorize": [
+    "any change to how a proposal or block treats a helper failure",
+    "an automatic restart of the node unit (it stays Restart=no)",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
