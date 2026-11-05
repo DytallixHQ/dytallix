@@ -130,6 +130,27 @@ message it covers, so error text and every downcast are unchanged.
 engine-stopping method, which a later successful commit clears, or with the
 class of its startup failure. It writes no text.
 
+**Node warnings.** Failures that never stop the node are written to the
+journal as `LOCAL_NODE_WARNING_V1` lines, in three kinds:
+- `STATE_SYNC_RESTORE`: a snapshot chunk, or the database restored from a
+  snapshot, refused. Any peer offering a snapshot can cause one.
+- `SNAPSHOT_WRITE`: a due snapshot not started, or its background writer
+  failed.
+- `METRICS`: metrics not recorded at a commit.
+
+Each kind has its own gate: at most one line a minute, with the warning's
+message bounded to 240 characters, the warnings of that kind since the
+process started and those not written since its last line. A peer's
+refused snapshots therefore cannot hide the node's own snapshot or metrics
+failures. Commit writes some of these lines while it holds the execution
+lock, so a line never waits for the journal. A line the journal takes
+nothing of is dropped at once, and one it takes part of is finished within
+5 ms or dropped; the next line counts either. Like the other records, the
+lines go only to an inherited journal socket on FD2. Until this decision
+the application passed these warnings to the `log` crate, which had no
+logger, so they were lost
+([approval](../../../launch/approvals/P01_E04_NODE_WARNINGS_2026-11-05.json)).
+
 **Supervisor.** The failure record gains `application_failure_class` (from
 the application's exit status) and `failure_class` (from a failed
 preflight).

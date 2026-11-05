@@ -1,0 +1,46 @@
+{
+  "decision_id": "P01-2026-11-05-E04-NODE-WARNINGS",
+  "approved": "2026-11-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the node's silent log::warn! lines reach the journal, how they are limited, and how long a send may wait while commit holds the execution lock",
+    "selected_as": "(b) Journal records (Recommended); 1/min per kind (Recommended); No wait (Recommended)"
+  },
+  "reason": "The consensus application (dytallix-fast-node, consensus_stdio) passed five failures that never stop the node to the log crate: a snapshot chunk refused, a restored snapshot refused, a due snapshot not started, the snapshot writer failed, and metrics not recorded at a commit. No logger was ever installed, so log's maximum level stayed Off and every one was dropped. consensus_stdio's main() keeps the inherited journal socket (FD2) for bounded records only and adds no generic fallback onto it; the supervisor deliberately does not relay the application's FD2; stdout is the consensus protocol pipe.",
+  "design_ref": "../../node/docs/architecture/incident-response-v1.md",
+  "decisions": [
+    {
+      "question": "How the warnings reach the journal",
+      "selected": "Explicit journal records; the log dependency is removed",
+      "rule": "Each of the five warnings is written as one bounded single-line JSON record, scope LOCAL_NODE_WARNING_V1 (schema 1, production_qualified false, release_authority false), with its kind, the warning's message bounded to 240 characters with control characters as spaces (as the helper failure record's error_text), warnings_total (the warnings of that kind since the process started) and unwritten_since_last_line. It is sent only to the inherited journal socket on FD2, non-blocking (MSG_DONTWAIT), and never to stdout, a pipe or a file. No log::Log logger is installed, and the application no longer depends on the log crate."
+    },
+    {
+      "question": "The rate limit",
+      "selected": "At most one line a minute for each of three kinds",
+      "rule": "STATE_SYNC_RESTORE (a snapshot chunk or the database restored from a snapshot refused; any peer offering a snapshot can cause one), SNAPSHOT_WRITE (a due snapshot not started, or its background writer failed) and METRICS (metrics not recorded at a commit) each have their own gate, separate from each other and from the admission line's: at most one line a minute per kind. Between lines a warning is counted, not written."
+    },
+    {
+      "question": "How long a send may wait",
+      "selected": "No wait",
+      "rule": "A node warning line never waits for the journal. A line the journal takes nothing of is dropped at once, with no retry; a line it takes part of is finished within 5 ms or dropped. Either way the next line of that kind counts it in unwritten_since_last_line. The question named the two lines written while commit holds the execution lock (snapshot not started, metrics not recorded); the snapshot writer's own failure is reported from the same locked call (SnapshotWriter::start), and the rule applies to all five lines, the two state-sync lines included."
+    }
+  ],
+  "accepted_risks": [
+    "Between lines, a warning's own message is not in the journal; the next line of its kind carries the count of those not written and its own message only.",
+    "A line the journal took part of and that is then dropped at its 5 ms deadline leaves a partial line, which the next write to the journal socket continues.",
+    "With a non-socket FD2 (development runs, test harnesses, pipes) nothing is written, as for the other records.",
+    "runtime-crypto's tracing::error! in verify_default and the jmt crate's tracing events are still dropped (no tracing subscriber is installed); the application does not call verify_default."
+  ],
+  "does_not_authorize": [
+    "a log::Log logger or a tracing subscriber",
+    "any change to the helper failure record or the admission line (P01_E04_CHECKTX_HELPER_FAILURES_2026-11-05, P01_E04_CHECKTX_HELPER_RECORDS_2026-11-05)",
+    "a metrics counter or a monitor alert rule for these warnings, or any new monitor threshold value",
+    "any change to how a snapshot, a restore or metrics affect consensus (they still never do)",
+    "an automatic restart of the node unit (it stays Restart=no)",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

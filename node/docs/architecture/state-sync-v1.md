@@ -122,7 +122,8 @@ records chain back from any trusted head.
   thread writes the files from the checkpoint and removes it. The checkpoint
   uses hard links, so the directory should be on the database's filesystem.
   A snapshot still being written makes the next due height skip. A failure
-  is logged and never affects commit.
+  never affects commit; it is written to the journal as a `SNAPSHOT_WRITE`
+  node warning ([incident response](incident-response-v1.md#r-b-failure-classes)).
 - **Content.** Every database entry except the state tree's records
   (`merkle:`), which a joining node rebuilds: committed state, block records
   (window and pinned), head, window start and the local metadata the startup
@@ -169,7 +170,9 @@ records chain back from any trusted head.
   root genesis receipt, the complete check over the retained window, the
   control replays with the local verifier, and under handover the active
   release. Any failure rejects the snapshot, removes the staging database
-  and leaves the node empty.
+  and leaves the node empty. A refused chunk or restored database is
+  written to the journal as a `STATE_SYNC_RESTORE` node warning
+  ([incident response](incident-response-v1.md#r-b-failure-classes)).
 - **Swap.** The live handle closes first (RocksDB locks a database by path
   within a process, so a read-only handle to the staging database holds its
   place), the empty live database is renamed to `{db}.replaced`, the staging

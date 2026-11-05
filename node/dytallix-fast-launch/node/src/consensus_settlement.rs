@@ -761,6 +761,10 @@ impl JournalGate {
             }
         }
     }
+    /// The due line was not written; the next line counts it.
+    fn unsent(&mut self) {
+        self.unwritten = self.unwritten.saturating_add(1);
+    }
 }
 static ADMISSION_HELPER_JOURNAL: Mutex<JournalGate> =
     Mutex::new(JournalGate::new(std::time::Duration::from_secs(60)));
@@ -773,6 +777,76 @@ fn send_held(held: Vec<Vec<u8>>) {
     }
     #[cfg(not(target_os = "linux"))]
     let _ = held;
+}
+/// What a node warning is about. Each kind has its own gate, so a peer
+/// offering bad snapshots cannot hide the node's own snapshot or metrics
+/// failures (P01, 5 November 2026).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum NodeWarning {
+    /// A snapshot chunk, or the database restored from a snapshot, refused.
+    /// Any peer offering a snapshot can cause it.
+    StateSyncRestore,
+    /// A due snapshot not started, or its background writer failed.
+    SnapshotWrite,
+    /// Metrics not recorded at a commit.
+    Metrics,
+}
+impl NodeWarning {
+    const fn kind(self) -> &'static str {
+        match self {
+            Self::StateSyncRestore => "STATE_SYNC_RESTORE",
+            Self::SnapshotWrite => "SNAPSHOT_WRITE",
+            Self::Metrics => "METRICS",
+        }
+    }
+    fn gate(self) -> &'static Mutex<JournalGate> {
+        match self {
+            Self::StateSyncRestore => &STATE_SYNC_RESTORE_JOURNAL,
+            Self::SnapshotWrite => &SNAPSHOT_WRITE_JOURNAL,
+            Self::Metrics => &METRICS_JOURNAL,
+        }
+    }
+}
+static STATE_SYNC_RESTORE_JOURNAL: Mutex<JournalGate> =
+    Mutex::new(JournalGate::new(std::time::Duration::from_secs(60)));
+static SNAPSHOT_WRITE_JOURNAL: Mutex<JournalGate> =
+    Mutex::new(JournalGate::new(std::time::Duration::from_secs(60)));
+static METRICS_JOURNAL: Mutex<JournalGate> =
+    Mutex::new(JournalGate::new(std::time::Duration::from_secs(60)));
+/// A node warning, written to the journal through its kind's gate: at most
+/// one line a minute for each kind, with the warnings of that kind since the
+/// process started and those not written since its last line. Commit writes
+/// some while it holds the execution lock, so a line never waits for the
+/// journal; one the journal does not take is dropped, and the next line
+/// counts it (P01, 5 November 2026).
+pub(crate) fn node_warning(warning: NodeWarning, message: std::fmt::Arguments<'_>) {
+    let gate = warning.gate();
+    let due = gate
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .due(std::time::Instant::now());
+    let Some((total, unwritten)) = due else {
+        return;
+    };
+    #[cfg(target_os = "linux")]
+    let written = crate::root_genesis::helper_failure::emit_warning(
+        warning.kind(),
+        &message.to_string(),
+        total,
+        unwritten,
+    )
+    .is_ok();
+    // There is no journal socket elsewhere.
+    #[cfg(not(target_os = "linux"))]
+    let written = {
+        let _ = (warning.kind(), message, total, unwritten);
+        false
+    };
+    if !written {
+        gate.lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .unsent();
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -6616,13 +6690,19 @@ impl ConsensusApplication {
                 match self.finish_restore(restore) {
                     Ok(()) => Ok(SnapshotChunk::Accept),
                     Err(error) => {
-                        log::warn!("Restored snapshot refused: {error:#}");
+                        node_warning(
+                            NodeWarning::StateSyncRestore,
+                            format_args!("Restored snapshot refused: {error:#}"),
+                        );
                         Ok(SnapshotChunk::RejectSnapshot)
                     }
                 }
             }
             Err(error) => {
-                log::warn!("Snapshot chunk {index} refused: {error:#}");
+                node_warning(
+                    NodeWarning::StateSyncRestore,
+                    format_args!("Snapshot chunk {index} refused: {error:#}"),
+                );
                 self.restore
                     .take()
                     .context("Restore vanished")?
@@ -6854,7 +6934,10 @@ impl ConsensusApplication {
                     retained_from: retained_from(&self.storage)?,
                 };
                 if let Err(error) = writer.start(&self.storage.db, header) {
-                    log::warn!("Snapshot at {} not started: {error:#}", expected_next.height);
+                    node_warning(
+                        NodeWarning::SnapshotWrite,
+                        format_args!("Snapshot at {} not started: {error:#}", expected_next.height),
+                    );
                 }
             }
         }
@@ -6885,7 +6968,10 @@ impl ConsensusApplication {
                 Ok(())
             })();
             if let Err(error) = recorded {
-                log::warn!("Metrics not recorded at {}: {error:#}", expected_next.height);
+                node_warning(
+                    NodeWarning::Metrics,
+                    format_args!("Metrics not recorded at {}: {error:#}", expected_next.height),
+                );
             }
         }
         drop(guard);
