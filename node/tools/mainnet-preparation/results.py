@@ -75,6 +75,7 @@ import faults  # noqa: E402
 import launch_dashboard  # noqa: E402
 import recovery  # noqa: E402
 import restore_drill  # noqa: E402
+import root_controls  # noqa: E402
 import staging_command  # noqa: E402
 
 ROOT = launch_dashboard.ROOT
@@ -98,7 +99,7 @@ HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caug
               'recovery': ('campaign.faults.validator_host', recovery, 'first_block_after_halt_at')}
 HEAVY_REPETITIONS = 3
 # An attack family's evidence tool.
-ATTACK_FAMILIES = {'transactions': attacks}
+ATTACK_FAMILIES = {'transactions': attacks, 'root_controls': root_controls}
 
 
 class Failed(Exception):

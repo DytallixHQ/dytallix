@@ -312,6 +312,15 @@ jobs:
       # replacement K4; P01, 8 October 2026).
       - name: Kit replacement drill (K4)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py kit-drill --work "$RUNNER_TEMP/network"
+      # The attack campaign's root-control family (statistical campaign; T4):
+      # from the genuine controls the release tools and the staging kits make
+      # after the kit drill, too few signatures, a replaced key, non-canonical
+      # bytes, an expired window, replayed controls and a kit replacement
+      # while frozen, each attempted 10 times and refused for its reason. The
+      # chain is frozen for the last type and resumed whatever froze it.
+      - name: Root-control attacks (T4)
+        timeout-minutes: 30
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py root-control-campaign --work "$RUNNER_TEMP/network"
       # The sentry's monitor reports to a stand-in alerting service, with the
       # approved rules: a restart loop, a full disk, a halt (the validator
       # stopped) and a stopped monitor each alert and resolve (monitoring v1,
