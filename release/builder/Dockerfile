@@ -12,6 +12,9 @@ ARG DEBIAN_SNAPSHOT=20250721T000000Z
 ARG GO_VERSION=1.25.14
 ARG GO_SHA256=a21ae5633a269bcd7e90cf767e48225633795e99d831742cbf3397064fee7712
 
+# Every index and package download is retried: snapshot.debian.org sometimes
+# answers a few of them 503 or 504 (4 November 2026), and one failed package
+# failed the whole image. Retries change no pinned version.
 RUN set -eux; \
     rm -f /etc/apt/sources.list.d/debian.sources; \
     printf '%s\n' \
@@ -20,7 +23,7 @@ RUN set -eux; \
       "deb [check-valid-until=no] https://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bookworm-security main" \
       > /etc/apt/sources.list; \
     apt-get -o Acquire::Retries=5 update; \
-    apt-get install -y --no-install-recommends \
+    apt-get -o Acquire::Retries=5 install -y --no-install-recommends \
       binutils clang curl g++ libclang-dev make pkg-config python3; \
     rm -rf /var/lib/apt/lists/*
 
