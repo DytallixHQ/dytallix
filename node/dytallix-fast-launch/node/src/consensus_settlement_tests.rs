@@ -480,6 +480,28 @@ mod state_model_tests;
 #[path = "observation_contract_tests.rs"]
 mod observation_contract_tests;
 
+/// CheckTx refuses what a helper that did not run could not check, with code
+/// 2, instead of stopping the node; every other failure is refused as before
+/// (P01, 5 November 2026).
+#[test]
+fn admission_refuses_a_transaction_its_helper_could_not_check() {
+    use crate::emergency_verifier::EmergencyVerifierInfrastructureError;
+    let did_not_run: anyhow::Error = EmergencyVerifierInfrastructureError(anyhow::anyhow!("exit 1")).into();
+    let refused = admission(Err(did_not_run.context("Emergency helper execution failed")));
+    assert_eq!(
+        (refused.code, refused.log.as_str()),
+        (2, "Control verifier infrastructure failure: Emergency helper execution failed")
+    );
+    let invalid = admission(Err(anyhow::anyhow!("Emergency signature threshold")));
+    assert_eq!(
+        (invalid.code, invalid.log.as_str()),
+        (1, "Invalid transaction or observation: Emergency signature threshold")
+    );
+    assert_eq!(admission(Ok(None)), TxResult::observation());
+    let admitted = TxResult { code: 0, gas_wanted: 5, gas_used: 4, log: String::new() };
+    assert_eq!(admission(Ok(Some(admitted.clone()))), admitted);
+}
+
 /// Startup's re-check retries a helper that did not run, three tries in all,
 /// and nothing else (P01, 4 November 2026).
 #[test]
