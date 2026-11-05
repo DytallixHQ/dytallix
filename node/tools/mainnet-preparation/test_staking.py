@@ -567,7 +567,11 @@ class DeskChannel(DeskCase, unittest.TestCase):
         def check(params):
             checked.append(params['tx'])
             return {'log': ''}  # a zero code may be left out
-        desk = self.desk(StubRpc(abci_query=query, check_tx=check))
+        # The check holds the operator's counter until the next block, so
+        # the control returns only once the head has moved past it.
+        heads = iter([70, 70, 71])
+        desk = self.desk(StubRpc(abci_query=query, check_tx=check,
+                                 abci_info=lambda p: {'response': {'last_block_height': str(next(heads))}}))
         found = desk.accounts(['campaign-operator', 'load-4'])
         self.assertEqual(found, {'campaign-operator': summaries['/account/dytallix1op'],
                                  'load-4': summaries['/account/dytallix1load-4']})
@@ -576,6 +580,9 @@ class DeskChannel(DeskCase, unittest.TestCase):
         self.assertEqual(desk.control('registration'), {'code': 0, 'log': ''})
         self.assertEqual(desk.proofs[-1], ('fresh', 7, 71, MINIMUM))
         self.assertEqual(len(checked), 1)
+        self.assertIsNone(next(heads, None))
+        calls = [m for call in desk.rpc.calls for m in call if m != 'abci_query']
+        self.assertEqual(calls, ['check_tx', 'abci_info', 'abci_info', 'abci_info'])
         self.assertNotIn(['broadcast_tx_sync'], desk.rpc.calls)
 
 

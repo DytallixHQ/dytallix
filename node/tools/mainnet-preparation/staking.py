@@ -561,6 +561,11 @@ class Desk:
             action, _ = self.registration('registration_control', 0, validators)
             row, tx = self.run.sign(load.new_row('attack', 'control', wallet), wallet, [action], load.FUNDING_GAS_LIMIT)
             answer = self.rpc.one('check', 'check_tx', {'tx': base64.b64encode(tx).decode()})
+            # The node's CheckTx holds the operator's counter until the next
+            # block, though the transaction never enters the mempool: an
+            # attempt at that counter sooner is refused for it.
+            height = self.head()
+            self.until('the block after the registration control', lambda: self.head() > height)
             return {'code': int(answer.get('code') or 0), 'log': (answer.get('log') or '')[:200]}
         kind = {'bond': 'bond_to_unknown_validator', 'unbond': 'unbond_more_than_bonded'}[what]
         wallet = self.wallets[self.roles[kind]]
