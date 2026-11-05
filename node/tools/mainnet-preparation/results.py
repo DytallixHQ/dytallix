@@ -42,16 +42,16 @@ against 8 hours. They follow the same rules with 3 repetitions (the plan's
 "3 to 5 times" per heavy fault, at its lower end).
 
 The attack campaign's records (attacks.py, the transaction family;
-endpoints.py, the endpoint and RPC family; root_controls.py and staking.py)
-each come with their rows beside
+endpoints.py, the endpoint and RPC family; root_controls.py, staking.py and
+governance.py) each come with their rows beside
 them (FILE.json and FILE.jsonl) and are re-verified against the genesis
 files. Each attack type's attempts (refused for its
 reason) are summed over every record to date: campaign.transactions.attempts
 is the fewest over the family's whole registry, so a type not built yet
 counts zero, and passes at the approved count (3,000; 30 for endpoint_rpc);
 and campaign.transactions.successes is every attempt the node admitted (for
-endpoint_rpc, every attempt a listener served; for staking, every attempt
-the chain accepted or that changed what it must not), failing at one. A record with a refusal for another reason is not published: the
+endpoint_rpc, every attempt a listener served; for staking and governance,
+every attempt the chain accepted or that changed what it must not), failing at one. A record with a refusal for another reason is not published: the
 type's reason is fixed and the type run again. Runs, checkpoints,
 performance and endurance follow.
 
@@ -76,6 +76,7 @@ sys.path.insert(0, str(HERE))
 import attacks  # noqa: E402
 import endpoints  # noqa: E402
 import faults  # noqa: E402
+import governance  # noqa: E402
 import launch_dashboard  # noqa: E402
 import recovery  # noqa: E402
 import restore_drill  # noqa: E402
@@ -105,7 +106,7 @@ HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caug
 HEAVY_REPETITIONS = 3
 # An attack family's evidence tool.
 ATTACK_FAMILIES = {'transactions': attacks, 'endpoint_rpc': endpoints, 'root_controls': root_controls,
-                   'staking': staking}
+                   'staking': staking, 'governance': governance}
 
 
 class Failed(Exception):
