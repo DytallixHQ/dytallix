@@ -41,14 +41,15 @@ declared to the first block after the halt, is campaign.faults.validator_host
 against 8 hours. They follow the same rules with 3 repetitions (the plan's
 "3 to 5 times" per heavy fault, at its lower end).
 
-The attack campaign's records (attacks.py, the transaction family) each come
-with their rows beside them (FILE.json and FILE.jsonl) and are re-verified
-against the genesis files. Each attack type's attempts (refused for its
+The attack campaign's records (attacks.py, the transaction family;
+endpoints.py, the endpoint and RPC family) each come with their rows beside
+them (FILE.json and FILE.jsonl) and are re-verified against the genesis
+files. Each attack type's attempts (refused for its
 reason) are summed over every record to date: campaign.transactions.attempts
 is the fewest over the family's whole registry, so a type not built yet
-counts zero, and passes at the approved count (3,000); and
-campaign.transactions.successes is every attempt the node admitted, failing
-at one. A record with a refusal for another reason is not published: the
+counts zero, and passes at the approved count (3,000; 30 for endpoint_rpc);
+and campaign.transactions.successes is every attempt the node admitted (for
+endpoint_rpc, every attempt a listener served), failing at one. A record with a refusal for another reason is not published: the
 type's reason is fixed and the type run again. Runs, checkpoints,
 performance and endurance follow.
 
@@ -71,6 +72,7 @@ import sys
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import attacks  # noqa: E402
+import endpoints  # noqa: E402
 import faults  # noqa: E402
 import launch_dashboard  # noqa: E402
 import recovery  # noqa: E402
@@ -98,7 +100,7 @@ HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caug
               'recovery': ('campaign.faults.validator_host', recovery, 'first_block_after_halt_at')}
 HEAVY_REPETITIONS = 3
 # An attack family's evidence tool.
-ATTACK_FAMILIES = {'transactions': attacks}
+ATTACK_FAMILIES = {'transactions': attacks, 'endpoint_rpc': endpoints}
 
 
 class Failed(Exception):

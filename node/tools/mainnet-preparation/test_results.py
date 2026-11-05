@@ -12,11 +12,13 @@ from types import SimpleNamespace
 import unittest
 
 import attacks
+import endpoints
 import faults
 import launch_dashboard
 import recovery
 import restore_drill
 import results
+import test_endpoints
 import test_recovery
 import test_restore_drill
 
@@ -205,6 +207,26 @@ class Summarize(unittest.TestCase):
         finally:
             attacks.REASONS.clear()
             attacks.REASONS.update(saved)
+
+    def test_the_endpoint_family_counts_like_the_transaction_family(self):
+        rows = test_endpoints.sample_rows(30)
+        record = endpoints.build_record('dytallix-staging-2', NATIVE, ENGINE, rows, 30, '2026-11-04T08:00:00Z',
+                                        '2026-11-04T08:30:00Z')
+        summary = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, attack_files=[
+            (json.dumps(record).encode(), endpoints.rows_bytes(rows))])
+        self.assertEqual(results.summary_problems(summary), [])
+        attempts = kpi(summary, 'campaign.endpoint_rpc.attempts')
+        # Three types refused 30 times each; the rest not run or not built yet.
+        self.assertEqual((attempts['value'], attempts['status'], attempts['target']), (0, 'in_progress', 30))
+        self.assertEqual(kpi(summary, 'campaign.endpoint_rpc.successes')['value'], 0)
+        self.assertEqual({s['tool'] for s in summary['sources']}, {'attacks.endpoint_rpc'})
+        served = test_endpoints.sample_rows(30, admitted='connection_flood_address')
+        record = endpoints.build_record('dytallix-staging-2', NATIVE, ENGINE, served, 30, '2026-11-04T08:00:00Z',
+                                        '2026-11-04T08:30:00Z')
+        failed = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, attack_files=[
+            (json.dumps(record).encode(), endpoints.rows_bytes(served))])
+        self.assertEqual((kpi(failed, 'campaign.endpoint_rpc.successes')['value'],
+                          kpi(failed, 'campaign.endpoint_rpc.successes')['status']), (1, 'fail'))
 
     def test_an_attack_record_refused_otherwise_or_edited_is_not_published(self):
         with self.assertRaisesRegex(results.Failed, 'refused for another reason .*fix its reason'):
