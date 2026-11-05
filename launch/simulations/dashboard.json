@@ -1,6 +1,6 @@
 {
   "schema": "dytallix.launch-dashboard.v1",
-  "as_of": "2026-11-03",
+  "as_of": "2026-11-05",
   "source": {
     "repo": "https://github.com/DytallixHQ/dytallix",
     "ref": "main",
@@ -22,6 +22,14 @@
         "sha256": "b967b96a486fee73482f504eb8f0469f50d27fb375088212326e307f7f14bdbe"
       },
       {
+        "path": "launch/simulations/results/campaign/2026-11-05.json",
+        "sha256": "6d84611fbb64324bf190e442f29392ff1306a58e124c22d9d667bccd5d3f5b85"
+      },
+      {
+        "path": "launch/simulations/results/campaign/2026-11-05.json.sig",
+        "sha256": "f863754385bfff2ae671988d5c1aff6c6ca9b565fb1122f807e0b6e912c13a9e"
+      },
+      {
         "path": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
         "sha256": "bb0bcf6937758d9abb9a45b3bd04119ded75df75f1ac96d302d6d13aea9902ce"
       }
@@ -36,7 +44,7 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 487,
+    "commits_at_as_of": 520,
     "approval_records": 74
   },
   "phases": [
@@ -794,10 +802,10 @@
       "threshold": "Blocks again within 5 minutes, every time",
       "unit": "s",
       "target": 300,
-      "status": "in_progress",
-      "value": 22.6,
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/simulations/results/campaign/2026-11-03.json",
-      "updated": "2026-11-03"
+      "status": "pass",
+      "value": 28.0,
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/simulations/results/campaign/2026-11-05.json",
+      "updated": "2026-11-05"
     },
     {
       "id": "campaign.faults.network_heal",
@@ -809,10 +817,10 @@
       "threshold": "Caught up within 2 minutes, every time",
       "unit": "s",
       "target": 120,
-      "status": "in_progress",
-      "value": 17.0,
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/simulations/results/campaign/2026-11-03.json",
-      "updated": "2026-11-03"
+      "status": "pass",
+      "value": 20.6,
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/simulations/results/campaign/2026-11-05.json",
+      "updated": "2026-11-05"
     },
     {
       "id": "campaign.faults.sentry_rebuild",
