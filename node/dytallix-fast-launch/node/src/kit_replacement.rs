@@ -192,12 +192,15 @@ pub fn decode_receipt(policies: &Policies, bytes: &[u8]) -> Result<Receipt> {
     ensure!(receipt.schema == SCHEMA, "Kit replacement receipt schema");
     Ok(receipt)
 }
+/// Only a control's canonical bytes are admitted, as for the other root
+/// controls: otherwise one signed control could be sent under many
+/// transaction hashes.
 pub fn decode_control(policies: &Policies, bytes: &[u8]) -> Result<Control> {
     ensure!(
         bytes.len() <= policies.upgrade_v2.max_control_bytes,
         "Kit replacement byte limit"
     );
-    let control: Control = serde_json::from_slice(bytes)?;
+    let control: Control = canonical(bytes)?;
     ensure!(
         control.kind == CONTROL_KIND
             && !control.signatures.is_empty()
