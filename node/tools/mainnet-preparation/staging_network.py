@@ -20,6 +20,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py validator-recovery-drill --work DIR
   sudo staging_network.py restore-drill --work DIR
   sudo staging_network.py kit-drill --work DIR
+  sudo staging_network.py root-control-campaign --work DIR
   sudo staging_network.py monitor-drill --work DIR
   sudo staging_network.py stage-later-release --work DIR
   sudo staging_network.py upgrade-drill --work DIR
@@ -127,6 +128,17 @@ After the staging notice of 20 blocks the old kit is refused (by the signer,
 and, signed from a stale key list, by assembly and the node) and the new kit
 freezes and resumes the chain. It prints the evidence.
 
+root-control-campaign is the attack campaign's root-control family
+(statistical campaign; root_controls.py), after the kit drill: the release
+tools and the staging kits make a fresh freeze, the same freeze with a
+24-block window, a signature by the freeze key the kit drill replaced and a
+fresh kit replacement for seat 4, and the kit drill's committed freeze and
+resume are replayed. Each type is attempted 10 times, each to be refused for
+its reason, with a positive control after each type; the fresh freeze holds
+the chain for the kit replacement while frozen, and the chain is resumed
+whatever froze it. Anything but PASS fails the step; the evidence is
+root-controls/run/root-controls.json and root-controls.jsonl.
+
 monitor-drill is the monitoring drill (monitoring v1, M5): the sentry's
 monitor reports to a stand-in alerting service on its loopback, with the
 approved rules. A restart loop (three restarts of its node), a full disk
@@ -177,6 +189,7 @@ import load_workers  # noqa: E402
 import reconcile  # noqa: E402
 import recovery  # noqa: E402
 import restore_drill as restore_drill_module  # noqa: E402
+import root_controls  # noqa: E402
 import results as result_summaries  # noqa: E402
 import staging_chain  # noqa: E402
 import staging_command  # noqa: E402
@@ -1792,6 +1805,183 @@ UPGRADE_SEATS = (1, 2, 3)
 RELEASE_REFUSAL = re.compile(r'Committed release requires a different runtime executable')
 
 
+# The root-control family (T4): each type's attempts; a short window for the
+# expired freeze (it runs out while the types before it run); and seat 4 for
+# the fresh kit replacement (seat 5's kit is the kit drill's new one).
+ROOT_CONTROL_ATTEMPTS = 10
+EXPIRED_WINDOW_BLOCKS = 24
+REPLACED_SEAT = 4
+
+
+class RootDesk:
+    """The genuine controls the root-control family (root_controls.py) starts
+    from, made as the founder makes them, with the release tools and the
+    staging kits after the kit drill: a fresh freeze (sent only to freeze the
+    chain for the last type), the same freeze signed for a short window, a
+    signature by the freeze key the kit drill replaced (from a stale key
+    list), the kit drill's committed freeze and resume, and a fresh kit
+    replacement for seat 4 (never sent unfrozen). Each attempt goes to the
+    public node through the release CLI."""
+
+    def __init__(self, work, out, timeout=900):
+        self.work, self.out, self.timeout = Path(work), Path(out), timeout
+        self.bins = self.work / 'release-bin'
+        self.kits = self.work / 'net' / 'chain' / 'control-kits'
+        drill = self.work / 'kit-drill'
+        self.desks = {name: Controls(work, self.out / name, timeout)
+                      for name in ('attempts', 'expired', 'template', 'replacement', 'resume')}
+        self.node = self.desks['attempts']
+        _, view = self.node.status()
+        if view['emergency_control']['frozen'] or view['root_authority']['pending']:
+            raise Failed(f'the campaign needs no freeze and nothing pending: {view["root_authority"]}')
+        self.incident = hashlib.sha256(b'root-control campaign').hexdigest()
+        self.requests, self.resume_path, self.resume_control, self.admitted = {}, None, None, []
+        self.expired = self.freeze_control('expired', '--window-blocks', EXPIRED_WINDOW_BLOCKS).read_bytes()
+        self.template_path = self.freeze_control('template')
+        self.template = self.template_path.read_bytes()
+        self.old_signature = self.replaced_key_signature(drill)
+        self.replacement = self.fresh_replacement()
+        self.consumed = {name: (drill / f'{name}-control.json').read_bytes() for name in ('freeze', 'resume')}
+
+    def freeze_control(self, name, *window):
+        desk = self.desks[name]
+        request_path, request = desk.prepare('freeze', '--incident-sha256', self.incident, *window)
+        self.requests[name] = request_path, request
+        return desk.assemble(request_path, request, desk.sign(request_path, request, UPGRADE_SEATS, 'freeze'))
+
+    def replaced_key_signature(self, drill):
+        """The template's envelope signed by seat 5's old freeze key, as an
+        old kit given a stale key list signs it (the kit drill's check)."""
+        request_path, request = self.requests['template']
+        private = self.kits / f'kit-{SEAT}' / f'kit-{SEAT}-freeze.key'
+        public = self.kits / 'public' / f'kit-{SEAT}-freeze.json'
+        arriving = json.loads((drill / 'new-public' / f'kit-{SEAT}-freeze.json').read_bytes())['key_id']
+        old = json.loads(public.read_bytes())
+        stale = json.loads(request_path.read_bytes())
+        keys = [k for k in stale['authority']['keys'] if k['key_id'] != arriving]
+        if len(keys) == len(stale['authority']['keys']):
+            raise Failed('the freeze request does not list the kit drill\'s new key')
+        stale['authority']['keys'] = sorted(keys + [{'key_id': old['key_id'], 'public_key_hex': old['public_key_hex']}],
+                                            key=lambda k: k['key_id'])
+        drill_dir = self.desks['template'].drill
+        stale_path = drill_dir / 'freeze-stale-request.json'
+        stale_path.write_text(json.dumps(stale, indent=2))
+        out = drill_dir / 'freeze-replaced-key.sig.json'
+        tool(self.bins / 'dytallix-root-sign', 'sign-control', '-request', stale_path, '-private-key', private,
+             '-public-key', public, '-operation', 'freeze', '-sequence', request['envelope']['sequence'],
+             '-out', out, quiet=True)
+        signed = json.loads(out.read_bytes())
+        return {'key_id': signed['key_id'], 'signature_hex': signed['signature_hex']}
+
+    def fresh_replacement(self):
+        """Seat 4's kit replaced by a new one, signed by three upgrade keys
+        and the new kit's three: a replacement the node would admit."""
+        desk = self.desks['replacement']
+        new_kit, new_public = desk.drill / 'new-kit', desk.drill / 'new-public'
+        for path in (new_kit, new_public):
+            path.mkdir(mode=0o700)
+        tool(self.bins / 'dytallix-root-sign', 'kit', '-number', REPLACED_SEAT, '-private-out', new_kit,
+             '-public-out', new_public, quiet=True)
+        request_path, request = desk.prepare('kit-replacement', '--seat', REPLACED_SEAT, '--old-kit',
+                                             self.kits / 'public', '--new-kit', new_public)
+        signatures = desk.sign(request_path, request, UPGRADE_SEATS, 'upgrade')
+        for purpose in ('upgrade', 'freeze', 'resume'):
+            out = desk.drill / f'kit-replacement-new-{purpose}.sig.json'
+            tool(self.bins / 'dytallix-root-sign', 'sign-control', '-request', request_path, '-private-key',
+                 new_kit / f'kit-{REPLACED_SEAT}-{purpose}.key', '-public-key',
+                 new_public / f'kit-{REPLACED_SEAT}-{purpose}.json', '-operation', request['operation'],
+                 '-sequence', request['envelope']['sequence'], '-out', out, quiet=True)
+            signatures.append(out)
+        return desk.assemble(request_path, request, signatures).read_bytes()
+
+    def send(self, command, raw):
+        path = self.out / 'attempt.json'
+        path.write_bytes(raw)
+        result = subprocess.run([str(self.bins / 'dytallix'), 'control', command, str(path)], capture_output=True,
+                                text=True, env=self.node.env)
+        try:
+            answer = json.loads(result.stdout)
+            answer = {'code': int(answer['code']), 'log': answer.get('log') or ''}
+        except (ValueError, KeyError, TypeError):
+            raise root_controls.Unavailable((result.stderr or result.stdout).strip()[-300:])
+        if command == 'submit' and answer['code'] == 0:
+            self.admitted.append(raw)
+        return answer
+
+    def check(self, raw):
+        return self.send('check', raw)
+
+    def submit(self, raw):
+        return self.send('submit', raw)
+
+    def height(self):
+        return int(self.node.status()[1]['height'])
+
+    def wait_expired(self):
+        last = json.loads(self.expired)['payload']['v2']['not_after_height']
+        self.node.wait('the short window has passed', lambda view: view['height'] > last)
+
+    def freeze(self):
+        self.desks['template'].send(self.template_path, 'freeze')
+        self.node.wait('the chain is frozen', lambda view: view['emergency_control']['frozen'])
+        self.resume_path = self.prepare_resume(self.desks['resume'], self.incident)
+        self.resume_control = self.resume_path.read_bytes()
+
+    @staticmethod
+    def prepare_resume(desk, incident):
+        """A resume for the freeze in force; it names that freeze's incident."""
+        readiness = hashlib.sha256(b'root-control campaign readiness').hexdigest()
+        request_path, request = desk.prepare('resume', '--incident-sha256', incident, '--readiness-sha256', readiness)
+        return desk.assemble(request_path, request, desk.sign(request_path, request, UPGRADE_SEATS, 'resume'))
+
+    def resume(self, path=None):
+        self.desks['resume'].send(path or self.resume_path, 'resume')
+        self.node.wait('the chain resumes', lambda view: not view['emergency_control']['frozen'])
+
+    def leave_running(self):
+        """The chain resumed if the campaign left it frozen: by its own
+        freeze, or by a freeze an attack got admitted (a defect), whose
+        incident the resume must name."""
+        if not self.node.status()[1]['emergency_control']['frozen']:
+            return
+        controls = [json.loads(raw) for raw in self.admitted]
+        attacks_frozen = [c for c in controls if c.get('kind') == root_controls.EMERGENCY_KIND
+                          and c['payload']['action'] == 'freeze']
+        if not attacks_frozen and self.resume_path is not None:
+            return self.resume()
+        incident = attacks_frozen[-1]['payload']['v2']['incident_sha256'] if attacks_frozen else self.incident
+        say(f'== the chain is still frozen; resuming it (incident {incident})')
+        self.resume(self.prepare_resume(Controls(self.work, self.out / 'leave-running', self.timeout), incident))
+
+
+def root_control_campaign(work, timeout=900):
+    """The root-control family's attack types on the staging network, after
+    the kit drill: each attempted ROOT_CONTROL_ATTEMPTS times from the
+    genuine controls the release tools and the staging kits make, each to be
+    refused for its reason, with a positive control after each type; the
+    chain is frozen for the last type and left running whatever froze it. Every type
+    reports what the node said before the step judges; the record is checked
+    again from its files and summarized as the launch page reads it."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'root-controls'
+    native = (chain / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (chain / 'chain' / 'genesis.json').read_bytes()
+    desk = RootDesk(work, out, timeout)
+    try:
+        record = root_controls.run_campaign(desk, out / 'run', ROOT_CONTROL_ATTEMPTS, list(root_controls.REASONS),
+                                            staging_host.CHAIN_ID, native, engine, show=say)
+    finally:
+        desk.leave_running()
+    root_controls.report(record, show=say)
+    checked = root_controls.verify(json.loads((out / 'run' / 'root-controls.json').read_bytes()),
+                                   (out / 'run' / 'root-controls.jsonl').read_bytes(), native, engine)
+    if record['status'] != root_controls.PASS or checked != record['status']:
+        raise Failed(f'the root-control campaign is {record["status"]} (verified {checked})')
+    summary_kpis = result_summaries.attack_kpis('root_controls', [record])
+    say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
+
+
 def reconcile_now(work, name, timeout=300):
     """The reconciliation (T6) of both nodes and the client: one block and
     application hash per height, and the supply rules. No account is
@@ -2401,7 +2591,8 @@ def main():
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill', 'attack-campaign',
-                 'endpoint-campaign', 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'stage-later-release',
+                 'endpoint-campaign', 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
+                 'root-control-campaign', 'monitor-drill', 'stage-later-release',
                  'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     r = commands.add_parser('reconcile')
@@ -2452,6 +2643,8 @@ def main():
             restore_drill(args.work)
         elif args.command == 'kit-drill':
             kit_drill(args.work)
+        elif args.command == 'root-control-campaign':
+            root_control_campaign(args.work)
         elif args.command == 'monitor-drill':
             monitor_drill(args.work)
         elif args.command == 'agent-drill':
