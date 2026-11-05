@@ -371,6 +371,16 @@ jobs:
       - name: Upgrade drill (T8)
         timeout-minutes: 40
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py upgrade-drill --work "$RUNNER_TEMP/network"
+      # The attack campaign's endpoint and RPC family (statistical campaign,
+      # endpoints.py): from nine namespaces on the bridge, connection floods
+      # over the channel's per-address and total bounds and over the status
+      # page's, stalled connections, invalid handshakes and header floods,
+      # each type 30 times, each refused by the listener while the runner's
+      # own client is still served and the chain advances. Before the agent
+      # drill, whose wipe ends the network.
+      - name: Endpoint attacks (T4)
+        timeout-minutes: 20
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py endpoint-campaign --work "$RUNNER_TEMP/network"
       # The staging agent (simulation plan, T2) on the sentry: signed status
       # and journal commands run; tampered, unsigned, replayed,
       # non-allowlisted and expired ones are refused; the results open with

@@ -23,6 +23,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py monitor-drill --work DIR
   sudo staging_network.py stage-later-release --work DIR
   sudo staging_network.py upgrade-drill --work DIR
+  sudo staging_network.py endpoint-campaign --work DIR
   sudo staging_network.py agent-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
@@ -72,6 +73,16 @@ positive control after each type. Every type reports what the node said
 before the step judges; anything but PASS fails it. The record is checked
 again from its files and summarized as the launch page reads it; the
 evidence is attack-campaign/run/attacks.json and attacks.jsonl.
+
+endpoint-campaign is the attack campaign's endpoint and RPC family
+(endpoints.py), after the upgrade drill and before the agent drill's wipe:
+each built type 30 times against the sentry's client channel and status
+page, from nine network namespaces with addresses of their own on the bridge
+(one more than fills the channel's 16 connections at 2 each), each refused
+by the listener, with a positive control from the runner's own address after
+each type (the height through the channel and the status page, rising).
+Anything but PASS fails the step; the evidence is
+endpoint-campaign/run/endpoints.json and endpoints.jsonl.
 
 checkpoint is the checkpoint recorder (simulation plan, T7; checkpoints.py)
 after the after-load reconciliation: a short schedule of the R07 checks CI can
@@ -136,6 +147,7 @@ on the runner. Last, wipe.sh removes the node and the agent together.
 """
 import argparse
 import base64
+import contextlib
 import hashlib
 import json
 import os
@@ -156,6 +168,7 @@ sys.path.insert(1, str(HERE / 'host'))
 import adversary  # noqa: E402
 import attacks  # noqa: E402
 import checkpoints  # noqa: E402
+import endpoints  # noqa: E402
 import faults  # noqa: E402
 import host_install  # noqa: E402
 import launch_dashboard  # noqa: E402
@@ -1151,6 +1164,34 @@ LOAD_WORKERS = {'workers': 3, 'wallets': 18, 'spares': 6, 'distributors': 2, 'ra
 BRIDGE_FILTERS = ('/proc/sys/net/bridge/bridge-nf-call-iptables', '/proc/sys/net/bridge/bridge-nf-call-ip6tables')
 
 
+@contextlib.contextmanager
+def bridge_namespaces(spaces, addresses, link):
+    """Each network namespace with its own address on the staging bridge,
+    removed after. Bridged frames between a namespace and the sentry's VM
+    stay off the runner's firewall (the validator's), as two hosts' frames on
+    a switch do."""
+    filters = {path: Path(path).read_text().strip() for path in BRIDGE_FILTERS if Path(path).exists()}
+    try:
+        for path in filters:
+            Path(path).write_text('0\n')
+        for n, (space, address) in enumerate(zip(spaces, addresses)):
+            sh('ip', 'netns', 'add', space)
+            sh('ip', 'link', 'add', f'{link}v{n}', 'type', 'veth', 'peer', 'name', f'{link}p{n}')
+            sh('ip', 'link', 'set', f'{link}p{n}', 'netns', space)
+            sh('ip', 'link', 'set', f'{link}v{n}', 'master', BRIDGE)
+            sh('ip', 'link', 'set', f'{link}v{n}', 'up')
+            sh('ip', 'netns', 'exec', space, 'ip', 'addr', 'add', f'{address}/24', 'dev', f'{link}p{n}')
+            sh('ip', 'netns', 'exec', space, 'ip', 'link', 'set', f'{link}p{n}', 'up')
+            sh('ip', 'netns', 'exec', space, 'ip', 'link', 'set', 'lo', 'up')
+        yield
+    finally:
+        for n, space in enumerate(spaces):
+            sh('ip', 'netns', 'del', space, check=False)
+            sh('ip', 'link', 'del', f'{link}v{n}', check=False)
+        for path, value in filters.items():
+            Path(path).write_text(value + '\n')
+
+
 def load_workers_drill(work):
     """The load from several workers: a fresh fleet funded from the ecosystem
     growth account through two distributors on the runner (the coordinator,
@@ -1171,21 +1212,7 @@ def load_workers_drill(work):
     validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
     spaces = [f'dytload{n}' for n in range(LOAD_WORKERS['workers'])]
     addresses = [f'10.77.0.{20 + n}' for n in range(LOAD_WORKERS['workers'])]
-    # Bridged frames between a namespace and the sentry's VM stay off the
-    # runner's firewall (the validator's), as two hosts' frames on a switch do.
-    filters = {path: Path(path).read_text().strip() for path in BRIDGE_FILTERS if Path(path).exists()}
-    try:
-        for path in filters:
-            Path(path).write_text('0\n')
-        for n, (space, address) in enumerate(zip(spaces, addresses)):
-            sh('ip', 'netns', 'add', space)
-            sh('ip', 'link', 'add', f'dytlv{n}', 'type', 'veth', 'peer', 'name', f'dytlp{n}')
-            sh('ip', 'link', 'set', f'dytlp{n}', 'netns', space)
-            sh('ip', 'link', 'set', f'dytlv{n}', 'master', BRIDGE)
-            sh('ip', 'link', 'set', f'dytlv{n}', 'up')
-            sh('ip', 'netns', 'exec', space, 'ip', 'addr', 'add', f'{address}/24', 'dev', f'dytlp{n}')
-            sh('ip', 'netns', 'exec', space, 'ip', 'link', 'set', f'dytlp{n}', 'up')
-            sh('ip', 'netns', 'exec', space, 'ip', 'link', 'set', 'lo', 'up')
+    with bridge_namespaces(spaces, addresses, 'dytl'):
         settings = load_generator.Settings(rate=LOAD_WORKERS['rate'], duration=LOAD_WORKERS['duration'], max_refused=0)
         transport = load_workers.LocalTransport(out / 'run' / 'workers', validator, spaces, addresses)
         record = load_workers.drive(cli, env['HOME'], out / 'fleet', out / 'run',
@@ -1193,12 +1220,6 @@ def load_workers_drill(work):
                                     settings, transport, LOAD_WORKERS['workers'], show=say,
                                     passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
         load_workers.report(record, show=say)
-    finally:
-        for n, space in enumerate(spaces):
-            sh('ip', 'netns', 'del', space, check=False)
-            sh('ip', 'link', 'del', f'dytlv{n}', check=False)
-        for path, value in filters.items():
-            Path(path).write_text(value + '\n')
     checked = load_generator.verify(json.loads((out / 'run' / 'evidence.json').read_bytes()),
                                     (out / 'run' / 'transactions.jsonl').read_bytes())
     if record['window']['addresses'] != sorted(addresses):
@@ -1245,6 +1266,44 @@ def attack_campaign(work, attack_client=None):
     if record['status'] != attacks.PASS or checked != record['status']:
         raise Failed(f'the attack campaign is {record["status"]} (verified {checked})')
     summary_kpis = result_summaries.attack_kpis('transactions', [record])
+    say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
+
+
+# The attack campaign's endpoint and RPC family (endpoints.py): each built
+# type 30 times (its approved count) against the sentry's client channel and
+# status page, from addresses of their own on the bridge (one more than
+# fills the channel's 16 connections at 2 each), the positive controls from
+# the runner's own.
+ENDPOINT_ATTEMPTS = 30
+
+
+def endpoint_campaign(work):
+    """The endpoint and RPC family on the staging network: connection floods
+    over the channel's per-address and total bounds and over the status
+    page's, stalled connections, invalid handshakes and header floods, each
+    refused by the listener while an honest client at another address is
+    still served and the chain advances. The record is checked again from
+    its files and summarized as the launch page reads it."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'endpoint-campaign'
+    env = pinned_cli(work, out / 'client')
+    native = (chain / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (chain / 'chain' / 'genesis.json').read_bytes()
+    count = endpoints.needed_for_total()
+    spaces = [f'dytatk{n}' for n in range(count)]
+    addresses = [f'10.77.0.{30 + n}' for n in range(count)]
+    kinds = [k for k in endpoints.REASONS if endpoints.built(k)]
+    with bridge_namespaces(spaces, addresses, 'dyta'):
+        record = endpoints.run_campaign(work / 'net' / 'keys' / f'{PUBLIC}.channel-pin.json',
+                                        f'http://{ADDRESSES[PUBLIC]}:8080/status', work / 'release-bin' / 'dytallix',
+                                        env, out / 'run', ENDPOINT_ATTEMPTS, kinds, spaces, native, engine, show=say)
+    endpoints.report(record, show=say)
+    checked = endpoints.verify(json.loads((out / 'run' / 'endpoints.json').read_bytes()),
+                               (out / 'run' / 'endpoints.jsonl').read_bytes(), native, engine)
+    if record['status'] != endpoints.PASS or checked != record['status']:
+        raise Failed(f'the endpoint campaign is {record["status"]} (verified {checked})')
+    summary_kpis = result_summaries.attack_kpis('endpoint_rpc', [record])
     say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
 
 
@@ -2345,7 +2404,8 @@ def main():
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
-                 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill', 'stage-later-release',
+                 'endpoint-campaign', 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill', 'monitor-drill',
+                 'stage-later-release',
                  'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     a = commands.add_parser('attack-campaign')
@@ -2385,6 +2445,8 @@ def main():
             adversary_drill(args.work)
         elif args.command == 'attack-campaign':
             attack_campaign(args.work, args.attack_client)
+        elif args.command == 'endpoint-campaign':
+            endpoint_campaign(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
         elif args.command == 'stage-later-release':
@@ -2404,7 +2466,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, attacks.Failed, result_summaries.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, attacks.Failed, endpoints.Failed, result_summaries.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0
