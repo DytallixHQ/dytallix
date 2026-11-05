@@ -23,6 +23,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py root-control-campaign --work DIR
   sudo staging_network.py monitor-drill --work DIR
   sudo staging_network.py staking-campaign --work DIR
+  sudo staging_network.py governance-campaign --work DIR
   sudo staging_network.py stage-later-release --work DIR
   sudo staging_network.py upgrade-drill --work DIR
   sudo staging_network.py endpoint-campaign --work DIR
@@ -85,6 +86,17 @@ first claim, a bond and an unbond committed). The reused key is the runner's
 own validator key, read where it is installed. Every type reports what the
 node said before the step judges; anything but PASS fails it. The evidence
 is staking-campaign/run/staking.json and staking.jsonl.
+
+governance-campaign is the attack campaign's governance family
+(governance.py), after the staking family: a fresh fleet of 2 load wallets
+(never bonded), a proposer, a depositor and 4 voters (bonded); the two types
+that need no vote attempted 10 times each, each to be refused for its reason
+with its wallet's account read before and after, and the positive controls
+(an in-bounds proposal before and after). The staging chain keeps the
+production governance periods, so no vote opens and the three vote types
+are not run here (P01_T04_ATTACK_TYPES_2026-11-04). Every type reports what
+the node said before the step judges; anything but PASS fails it. The
+evidence is governance-campaign/run/governance.json and governance.jsonl.
 
 endpoint-campaign is the attack campaign's endpoint and RPC family
 (endpoints.py), after the upgrade drill and before the agent drill's wipe:
@@ -193,6 +205,7 @@ import attacks  # noqa: E402
 import checkpoints  # noqa: E402
 import endpoints  # noqa: E402
 import faults  # noqa: E402
+import governance  # noqa: E402
 import host_files  # noqa: E402
 import host_install  # noqa: E402
 import launch_dashboard  # noqa: E402
@@ -1337,6 +1350,45 @@ def staking_campaign(work):
     if record['status'] != staking.PASS or checked != record['status']:
         raise Failed(f'the staking campaign is {record["status"]} (verified {checked})')
     summary_kpis = result_summaries.attack_kpis('staking', [record])
+    say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
+
+
+# The attack campaign's governance family (governance.py): the two types
+# that need no open vote, each 10 times on the staging network. On the real
+# hosts, under the rehearsal timings, all five run 3,000 times.
+GOVERNANCE_CAMPAIGN = {'attempts': 10, 'wallets': 2, 'voters': 4}
+
+
+def governance_campaign(work):
+    """The governance family's attack types on the staging network: a fresh
+    fleet funded from the ecosystem growth account, its governance wallets
+    bonded to the validator; the proposals below the deposit and the
+    out-of-bounds changes attempted GOVERNANCE_CAMPAIGN['attempts'] times,
+    each to be refused for its reason with nothing changed but the fee, and
+    the positive controls. Every type reports what the node said before the
+    step judges; the record is checked again from its files and summarized
+    as the launch page reads it."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'governance-campaign'
+    env = pinned_cli(work, out)
+    bins = work / 'release-bin'
+    load_generator.make_fleet(bins / 'dytallix', staging_host.CHAIN_ID, out / 'fleet', GOVERNANCE_CAMPAIGN['wallets'],
+                              GOVERNANCE_CAMPAIGN['voters'])
+    records = json.loads((chain / 'genesis' / 'records.json').read_bytes())
+    validator = next(v['validator_id'] for v in records['validators'])
+    native = (chain / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (chain / 'chain' / 'genesis.json').read_bytes()
+    record = governance.run_campaign(bins / 'dytallix', env['HOME'], out / 'fleet', out / 'run',
+                                     chain / 'chain' / 'application-config.json', 'ecosystem-growth', validator,
+                                     GOVERNANCE_CAMPAIGN['attempts'], list(governance.CI_KINDS), native, engine,
+                                     show=say, passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+    governance.report(record, show=say)
+    checked = governance.verify(json.loads((out / 'run' / 'governance.json').read_bytes()),
+                                (out / 'run' / 'governance.jsonl').read_bytes(), native, engine)
+    if record['status'] != governance.PASS or checked != record['status']:
+        raise Failed(f'the governance campaign is {record["status"]} (verified {checked})')
+    summary_kpis = result_summaries.attack_kpis('governance', [record])
     say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
 
 
@@ -2653,7 +2705,8 @@ def main():
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
                  'endpoint-campaign', 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
-                 'root-control-campaign', 'monitor-drill', 'staking-campaign', 'stage-later-release',
+                 'root-control-campaign', 'monitor-drill', 'staking-campaign', 'governance-campaign',
+                 'stage-later-release',
                  'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
     a = commands.add_parser('attack-campaign')
@@ -2695,6 +2748,8 @@ def main():
             attack_campaign(args.work, args.attack_client)
         elif args.command == 'staking-campaign':
             staking_campaign(args.work)
+        elif args.command == 'governance-campaign':
+            governance_campaign(args.work)
         elif args.command == 'endpoint-campaign':
             endpoint_campaign(args.work)
         elif args.command == 'fault-drill':
@@ -2718,7 +2773,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, attacks.Failed, endpoints.Failed, staking.Failed, result_summaries.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, attacks.Failed, endpoints.Failed, staking.Failed, governance.Failed, result_summaries.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0

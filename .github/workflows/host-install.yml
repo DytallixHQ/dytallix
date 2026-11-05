@@ -402,6 +402,19 @@ jobs:
       - name: Attack campaign, staking (T4)
         timeout-minutes: 30
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py staking-campaign --work "$RUNNER_TEMP/network"
+      # The attack campaign's governance family (statistical campaign;
+      # governance.py): proposals that stay below the minimum deposit (none,
+      # or 1 + k udgt) and proposals of the active set size or the minimum
+      # self-bond just outside the genesis bounds. Each 10 times, refused for
+      # its reason (the below-deposit proposals still collecting, below the
+      # minimum, with no vote) with its wallet's account read before and
+      # after, and an in-bounds proposal committing before and after. The
+      # three vote types need a vote open, which the production periods kept
+      # here never reach; they first run on the real hosts under the
+      # rehearsal timings, where each type runs 3,000 times.
+      - name: Attack campaign, governance (T4)
+        timeout-minutes: 30
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py governance-campaign --work "$RUNNER_TEMP/network"
       # The fault injector (simulation plan, T5) on the sentry, through the
       # signed agent: latency and loss (tc netem), a p2p partition (a
       # self-expiring nftables table) and a process kill each take hold while

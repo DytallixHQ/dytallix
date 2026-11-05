@@ -1,0 +1,30 @@
+{
+  "decision_id": "P01-2026-11-05-T04-LATE-VOTES",
+  "approved": "2026-11-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the governance family's vote_after_period counts, since a vote sent after a proposal's voting period almost never gets the node's VOTING_CLOSED answer",
+    "selected_as": "Unknown counts, if proven (Recommended)"
+  },
+  "reason": "Building the governance family found that a proposal leaves voting at the block after its end height, is kept finished for that one block, and is then removed (governance_store.rs); a vote that commits later finds no proposal and is refused GOVERNANCE_PROPOSAL_UNKNOWN, not GOVERNANCE_VOTING_CLOSED. VOTING_CLOSED answers a late vote only in that one block, or while a passed proposal waits out its timelock, and the campaign's wallets cannot pass a proposal (the quorum counts the validators' self-bonds). So 3,000 late votes could never all be refused VOTING_CLOSED.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "What a vote after the period counts as",
+      "selected": "VOTING_CLOSED or PROPOSAL_UNKNOWN, when the row proves the vote was late",
+      "rule": "A vote_after_period attempt counts as refused when the block fails it with GOVERNANCE_VOTING_CLOSED or GOVERNANCE_PROPOSAL_UNKNOWN and its row proves the vote was late: the campaign read the proposal in voting, with its end height and the voter's snapshot weight (so the voter was eligible and had not voted), and signed the vote at a head past that end height. Nothing may change but the fee and the one nonce. Any other answer is a refusal for another reason, and a vote the block counts is a success (a defect). A PROPOSAL_UNKNOWN without that proof counts for nothing. This amends, for this type, the rule of P01_T04_ATTACK_DECISIONS_2026-11-04 that a refusal at execution needs the type's one failure code."
+    }
+  ],
+  "accepted_risks": [
+    "PROPOSAL_UNKNOWN is also the node's answer for a proposal that never existed; the row's earlier read of the proposal in voting is what tells a late vote apart."
+  ],
+  "does_not_authorize": [
+    "any node change to keep finished proposals",
+    "running any attack family on the real staging hosts",
+    "any change to CI's or the rehearsal's timing profiles",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
