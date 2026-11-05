@@ -394,7 +394,10 @@ fn actual_emergency_helper_failure_and_corrupt_history_fail_closed() {
     assert!(app
         .prepare_proposal(1, 10, 0, vec![control.clone()], 1_048_576)
         .is_err());
-    assert_ne!(app.check_tx(&control).code, 0);
+    // CheckTx refuses it with code 2 and the node keeps running (P01,
+    // 5 November 2026).
+    let refused = app.check_tx_result(&control).unwrap();
+    assert_eq!(refused.code, 2, "{}", refused.log);
     assert_eq!(data(&app), before);
     app.emergency_verifier =
         Some(crate::emergency_verifier::EmergencyVerifier::new(root.verifier.clone()).unwrap());
