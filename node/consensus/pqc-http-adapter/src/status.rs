@@ -9,7 +9,7 @@
 //! PQC-only boundary; it is unauthenticated, a liveness hint and never a
 //! source of chain state. Every other request gets a fixed error.
 
-use crate::{engine, Limits, Reply, LOCAL_CALLER};
+use crate::{channel::AddressSlots, engine, Limits, Reply, LOCAL_CALLER};
 use bytes::Bytes;
 use http_body_util::Full;
 use hyper::{body::Incoming, header, Method, Request, Response, StatusCode};
@@ -25,6 +25,9 @@ use tokio::{net::TcpListener, sync::Semaphore, time::Instant};
 
 /// Fixed limits: the page takes no request body and answers a few bytes.
 pub const MAX_CONNECTIONS: usize = 8;
+/// One address holds at most two of them, so idle connections from a single
+/// address cannot keep the uptime checker out (P01, 4 November 2026).
+pub const MAX_CONNECTIONS_PER_ADDRESS: usize = 2;
 pub const DEADLINE: Duration = Duration::from_secs(2);
 const MAX_HEADERS: usize = 16;
 const MAX_HEADER_BYTES: usize = crate::MIN_HEADER_BYTES;
@@ -187,16 +190,18 @@ async fn handle(
 }
 
 /// Serves the status page: one request per connection, at most
-/// `MAX_CONNECTIONS` at once, each within `DEADLINE`. A head older than
-/// `max_age` answers 503.
+/// `MAX_CONNECTIONS` at once and `MAX_CONNECTIONS_PER_ADDRESS` from one
+/// address, each within `DEADLINE`. A connection over either bound is closed
+/// at once. A head older than `max_age` answers 503.
 pub async fn serve(
     listener: TcpListener,
     socket: Arc<PathBuf>,
     max_age: Duration,
 ) -> Result<(), String> {
     let capacity = Arc::new(Semaphore::new(MAX_CONNECTIONS));
+    let addresses = AddressSlots::new(MAX_CONNECTIONS_PER_ADDRESS);
     loop {
-        let (stream, _) = listener
+        let (stream, peer) = listener
             .accept()
             .await
             .map_err(|_| "Status listener failed")?;
@@ -204,9 +209,12 @@ pub async fn serve(
             Ok(permit) => permit,
             Err(_) => continue,
         };
+        let Some(slot) = addresses.acquire(peer.ip()) else {
+            continue;
+        };
         let socket = socket.clone();
         tokio::spawn(async move {
-            let _permit = permit;
+            let _held = (permit, slot);
             let deadline = Instant::now() + DEADLINE;
             let service =
                 hyper::service::service_fn(move |req| handle(req, socket.clone(), max_age));
@@ -423,6 +431,33 @@ mod tests {
                 assert_eq!(request(address, line).await.0, code, "{line}");
             }
         }
+    }
+
+    #[tokio::test]
+    async fn one_address_holds_at_most_two_connections() {
+        use tokio::io::AsyncReadExt;
+        let home = home("held", Some("2027-01-07T14:00:35Z"));
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let socket = Arc::new(home.0.join("data/rpc.sock"));
+        tokio::spawn(serve(listener, socket, Duration::from_secs(60)));
+        let connect = || tokio::net::TcpStream::connect(address);
+        // Two idle connections are held; a third from the address is closed
+        // at once, while the first two stay open.
+        let mut held = [connect().await.unwrap(), connect().await.unwrap()];
+        let mut third = connect().await.unwrap();
+        let mut byte = [0u8; 1];
+        let closed = tokio::time::timeout(Duration::from_millis(500), third.read(&mut byte)).await;
+        assert!(matches!(closed, Ok(Ok(0)) | Ok(Err(_))), "{closed:?}");
+        for stream in &mut held {
+            let open =
+                tokio::time::timeout(Duration::from_millis(200), stream.read(&mut byte)).await;
+            assert!(open.is_err(), "{open:?}");
+        }
+        // Once they are gone, the address is served again.
+        drop(held);
+        tokio::time::sleep(DEADLINE + Duration::from_millis(100)).await;
+        assert_eq!(request(address, "GET /status HTTP/1.1").await.0, 200);
     }
 
     #[test]
