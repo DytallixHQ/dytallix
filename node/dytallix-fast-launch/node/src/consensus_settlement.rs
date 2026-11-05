@@ -699,6 +699,32 @@ impl TxResult {
             log: String::new(),
         }
     }
+    /// A transaction the local signature-check helper could not check:
+    /// refused and not charged, as an infrastructure failure (interfaces v1,
+    /// code 2).
+    fn verifier_unavailable(error: &anyhow::Error) -> Self {
+        Self {
+            code: 2,
+            gas_wanted: 0,
+            gas_used: 0,
+            log: format!("Control verifier infrastructure failure: {error}"),
+        }
+    }
+}
+/// CheckTx's answer from its checks. A helper that failed to run refuses the
+/// one transaction it was checking and leaves the node running: admission is
+/// no consensus path, and a well-formed control anyone can send must not be
+/// able to stop a public node by meeting a helper failure. Proposals and
+/// blocks still stop the node on it (P01, 5 November 2026).
+fn admission(checked: Result<Option<TxResult>>) -> TxResult {
+    match checked {
+        Ok(Some(result)) => result,
+        Ok(None) => TxResult::observation(),
+        Err(error) if crate::emergency_verifier::is_infrastructure_error(&error) => {
+            TxResult::verifier_unavailable(&error)
+        }
+        Err(error) => TxResult::invalid(&format!("Invalid transaction or observation: {error}")),
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -5373,14 +5399,7 @@ impl ConsensusApplication {
                 }
             }
         })();
-        match checked {
-            Ok(Some(result)) => Ok(result),
-            Ok(None) => Ok(TxResult::observation()),
-            Err(error) if crate::emergency_verifier::is_infrastructure_error(&error) => Err(error),
-            Err(error) => Ok(TxResult::invalid(&format!(
-                "Invalid transaction or observation: {error}"
-            ))),
-        }
+        Ok(admission(checked))
     }
     /// Trusted local queue maintenance. This method changes no committed state.
     /// No unauthenticated transport route exposes this operation.

@@ -99,6 +99,11 @@ message it covers, so error text and every downcast are unchanged.
   times, 1 s and then 2 s apart, before it stops. The helper failure record in
   the journal carries the failed check's message and the helper's own stderr,
   each bounded ([approval](../../../launch/approvals/P01_E04_VERIFIER_CLASS_2026-11-04.json)).
+  CheckTx and the mempool's recheck are the exception: there such a failure
+  refuses only the transaction being checked, with code 2 ("Control
+  verifier infrastructure failure"), and the node keeps running, since
+  anyone can send a well-formed root control to a public node; proposals
+  and blocks still stop it ([approval](../../../launch/approvals/P01_E04_CHECKTX_VERIFIER_2026-11-05.json)).
 - An ownership cancellation has no class.
 
 **Classified sites:**
