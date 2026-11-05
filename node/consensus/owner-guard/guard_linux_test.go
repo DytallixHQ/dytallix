@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -205,4 +206,47 @@ func TestLinuxQueuedReleaseAfterClose(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLinuxPollNowSurvivesPreemptionSignals(t *testing.T) {
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	pair, e := unix.Socketpair(unix.AF_UNIX, unix.SOCK_SEQPACKET|unix.SOCK_CLOEXEC, 0)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer unix.Close(pair[0])
+	defer unix.Close(pair[1])
+	pid, tid := unix.Getpid(), unix.Gettid()
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	// The runtime's own preemption signal, sent to this thread as fast as
+	// possible while it polls a descriptor with nothing to read.
+	go func() {
+		defer close(done)
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				_ = unix.Tgkill(pid, tid, unix.SIGURG)
+			}
+		}
+	}()
+	now, e := monotonic()
+	if e != nil {
+		t.Fatal(e)
+	}
+	deadline := now + int64(60*time.Second)
+	for i := 0; i < 5000; i++ {
+		p := []unix.PollFd{{Fd: int32(pair[0]), Events: unix.POLLIN}}
+		n, e := pollNow(p, deadline)
+		if e != nil || n != 0 || p[0].Revents != 0 {
+			close(stop)
+			<-done
+			t.Fatalf("poll %d: n=%d revents=%d error=%v", i, n, p[0].Revents, e)
+		}
+	}
+	close(stop)
+	<-done
 }
