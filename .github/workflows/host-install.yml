@@ -367,15 +367,29 @@ jobs:
       # signatures; malformed, trailing-byte and oversized envelopes; the
       # wrong chain and network; expired transactions; stale, future and
       # conflicting nonces; duplicates and re-signed copies of a pending
-      # original; overspending) 10 times with its own bytes, each refused for
-      # its reason, with positive controls committed. Every type reports the
-      # node's own words before the step judges. On the real hosts each type
-      # runs 3,000 times. After the monitor drill: its invalid signatures set
-      # off the sentry's signature-failure alert (ten in ten minutes), which
-      # the monitor drill must not find firing when it starts.
+      # original; overspending; a fee cap below the minimum and too many
+      # actions, which the attack client re-signs) 10 times with its own
+      # bytes, each refused for its reason, with positive controls committed.
+      # Every type reports the node's own words before the step judges. On the
+      # real hosts each type runs 3,000 times. After the monitor drill: its
+      # invalid signatures set off the sentry's signature-failure alert (ten
+      # in ten minutes), which the monitor drill must not find firing when it
+      # starts.
+      #
+      # The attack client (node/tools/attack-client) is test-only: built here
+      # with the node's toolchain, never part of the release set.
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+        with:
+          toolchain: 1.88.0
+      - name: Attack client (T4)
+        timeout-minutes: 15
+        working-directory: node/tools/attack-client
+        run: cargo build --release --locked --target-dir "$RUNNER_TEMP/attack-client"
       - name: Attack campaign, transactions (T4)
         timeout-minutes: 25
-        run: sudo python3 node/tools/mainnet-preparation/staging_network.py attack-campaign --work "$RUNNER_TEMP/network"
+        run: |
+          sudo python3 node/tools/mainnet-preparation/staging_network.py attack-campaign --work "$RUNNER_TEMP/network" \
+            --attack-client "$RUNNER_TEMP/attack-client/release/dytallix-attack"
       # The fault injector (simulation plan, T5) on the sentry, through the
       # signed agent: latency and loss (tc netem), a p2p partition (a
       # self-expiring nftables table) and a process kill each take hold while

@@ -8,15 +8,21 @@ reason. The staging network runs it for real in the Host install workflow."""
 import base64
 import hashlib
 import json
+from pathlib import Path
+import tempfile
 import threading
 import time
+from types import SimpleNamespace
 import unittest
+import unittest.mock
 
 import adversary
 import attacks
 import load
 
 CHAIN = 'dytallix-staging-1'
+# The stand-in profile: the gas limit times the gas price, and its action limit.
+MIN_CAP, MAX_ACTIONS = 2_000_000, 16
 GENESIS, ENGINE = b'{"native": 1}', b'{"engine": 1}'
 
 
@@ -29,11 +35,13 @@ class FakeNode:
     """Blocks every `block_time` seconds; the mempool admits an account's
     committed nonce once; each block commits it all."""
 
-    def __init__(self, accounts, block_time=0.05, admit_overspend=False, network_reason=None, refuse_all=False):
+    def __init__(self, accounts, block_time=0.05, admit_overspend=False, network_reason=None, refuse_all=False,
+                 admit_low_cap=False):
         self.block_time, self.started = block_time, time.monotonic()
         self.accounts = accounts  # id -> {'nonce', 'balance', 'key'}
         self.mempool, self.receipts, self.lock, self.committed_height = [], {}, threading.Lock(), 0
         self.admit_overspend, self.network_reason, self.refuse_all = admit_overspend, network_reason, refuse_all
+        self.admit_low_cap = admit_low_cap
         self.connections, self.slots, self.latency = 2, threading.BoundedSemaphore(2), {}
 
     def height(self):
@@ -63,6 +71,8 @@ class FakeNode:
                 assert len(envelope) - len(json.dumps(body, sort_keys=True).encode()) == attacks.SIGNATURE
             except (ValueError, AssertionError):
                 return {'code': 1, 'log': 'Malformed ordinary envelope'}
+            if body.get('actions', 1) > MAX_ACTIONS:  # the decoder's count bound
+                return {'code': 1, 'log': 'Malformed ordinary envelope'}
             account = self.accounts.get(body['account'])
             if account is None:  # the first-spend path
                 if (body['network'], body['chain']) != (2, CHAIN):
@@ -72,6 +82,9 @@ class FakeNode:
                 return {'code': 1, 'log': 'Ordinary signed domain differs from account state'}
             if body['key'] != account['key']:
                 return {'code': 1, 'log': 'Ordinary key or generation is stale'}
+            # The meter checks the signed gas and cap before the signature.
+            if body.get('cap', MIN_CAP) < MIN_CAP and not self.admit_low_cap:
+                return {'code': 4, 'log': 'invalid signed gas or cap'}
             if envelope[-attacks.SIGNATURE:] != key_sig(envelope[:-attacks.SIGNATURE], account['key']):
                 return {'code': 2, 'log': 'invalid ordinary signature'}
             if body['expiry'] <= height:
@@ -135,7 +148,7 @@ class FakeSign:
         if variant == 'wrong_key_signature':
             key = self.node.accounts[next(w for w in self.wallets if w is not wallet).account_id]['key']
         body = {'chain': CHAIN, 'network': 2, 'account': wallet.account_id, 'key': key, 'nonce': nonce,
-                'amount': amount, 'expiry': expiry}
+                'amount': amount, 'expiry': expiry, 'cap': MIN_CAP, 'actions': 1}
         if variant == 'wrong_chain':
             body['chain'] = attacks.OTHER_CHAIN
         elif variant == 'wrong_network':
@@ -149,6 +162,27 @@ class FakeSign:
         return hashlib.sha256(raw).hexdigest(), tx
 
 
+class FakeForge:
+    """The attack client: the CLI's transport re-signed with the account's
+    own key after the one change, with the client's checks."""
+
+    def __init__(self, node, broken=False):
+        self.node, self.broken = node, broken
+
+    def __call__(self, kind, tx, wallet, k):
+        envelope = base64.b64decode(json.loads(tx)['envelope_base64'])
+        body = json.loads(envelope[:-attacks.SIGNATURE])
+        if kind == 'fee_cap_below_minimum':
+            body['cap'] = MIN_CAP - 1 - k
+        else:
+            body['actions'] = MAX_ACTIONS + 1
+        raw = json.dumps(body, sort_keys=True).encode()
+        envelope = raw + key_sig(raw, self.node.accounts[wallet.account_id]['key'])
+        checks = {'variant': kind, 'k': k, 'signature_verifies': True,
+                  'profile_refusal': 'not refused' if self.broken else attacks.FORGED[kind]}
+        return json.dumps({'type': 'ordinary_v2', 'envelope_base64': base64.b64encode(envelope).decode()}).encode(), checks
+
+
 class FakeRun:
     def __init__(self, wallets, funder):
         self.wallets = {w.label: w for w in wallets}
@@ -158,14 +192,15 @@ class FakeRun:
         return [w for w in self.wallets.values() if w.role in roles]
 
 
-def campaign(attempts=6, wallets=3, **node_options):
+def campaign(attempts=6, wallets=3, forge=False, **node_options):
     loads = [load.Wallet(f'load-{n:04}', 'load', f'tdytallix1w{n}', hashlib.sha256(f'w{n}'.encode()).hexdigest())
              for n in range(1, wallets + 1)]
     funder = load.Wallet('ecosystem-growth', 'funder', 'tdytallix1f', 'ff' * 32)
     node = FakeNode({w.account_id: {'nonce': 1, 'balance': 10**12, 'key': f'key-{w.label}'} for w in loads + [funder]},
                     **node_options)
     run = FakeRun(loads, funder)
-    c = attacks.Campaign(run, node, FakeSign(node, loads), attempts, show=lambda m: None, block_time=0.05)
+    c = attacks.Campaign(run, node, FakeSign(node, loads), attempts, show=lambda m: None, block_time=0.05,
+                         forge=FakeForge(node, broken=forge == 'broken') if forge else None)
     c.nonces(loads)
     return c
 
@@ -199,22 +234,57 @@ class Pieces(unittest.TestCase):
         self.assertEqual(attacks.classify('resigned_copy', 2, adversary.IDENTITY_REFUSAL, same_bytes=False), 'refused')
         with self.assertRaisesRegex(attacks.Failed, 'must say whether'):
             attacks.classify('resigned_copy', 2, 'x')
-        with self.assertRaisesRegex(attacks.Failed, 'not built'):
-            attacks.classify('too_many_actions', 1, 'x')
+        with unittest.mock.patch.dict(attacks.REASONS, {'too_many_actions': None}):
+            with self.assertRaisesRegex(attacks.Failed, 'not built'):
+                attacks.classify('too_many_actions', 1, 'x')
         with self.assertRaisesRegex(attacks.Failed, 'not an approved'):
             attacks.classify('flood', 1, 'x')
 
     def test_the_registry_is_the_plans_list(self):
         self.assertEqual(len(attacks.REASONS), 17)
-        self.assertEqual({k for k, v in attacks.REASONS.items() if v is None},
-                         {'fee_cap_below_minimum', 'too_many_actions'})
-        made = set(attacks.MUTATED) | set(attacks.SIGNED) | set(attacks.PENDING) | {'expired'}
-        self.assertEqual(made, {k for k, v in attacks.REASONS.items() if v is not None})
+        self.assertEqual({k for k, v in attacks.REASONS.items() if v is None}, set())
+        made = set(attacks.MUTATED) | set(attacks.SIGNED) | set(attacks.PENDING) | {'expired'} | set(attacks.FORGED)
+        self.assertEqual(made, set(attacks.REASONS))
+
+    def test_a_forged_attempt_counts_only_with_the_clients_checks(self):
+        checks = {'variant': 'too_many_actions', 'signature_verifies': True,
+                  'profile_refusal': 'action count outside profile'}
+        self.assertEqual(attacks.classify('too_many_actions', 1, 'Malformed ordinary envelope', forged=checks),
+                         'refused')
+        for broken in (None, dict(checks, signature_verifies=False), dict(checks, variant='fee_cap_below_minimum'),
+                       dict(checks, profile_refusal='noncanonical ordinary body')):
+            self.assertEqual(attacks.classify('too_many_actions', 1, 'Malformed ordinary envelope', forged=broken),
+                             'refused_other', broken)
+        self.assertEqual(attacks.classify('too_many_actions', None, '', forged=None), 'transport')
+
+    def test_the_forger_runs_the_attack_client_on_the_clis_transport(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            scratch = Path(scratch)
+            client = scratch / 'dytallix-attack'
+            client.write_text('#!/usr/bin/env python3\n'
+                              'import json, sys\n'
+                              'a = dict(zip(sys.argv[2::2], sys.argv[3::2]))\n'
+                              'tx = json.load(open(a["--transport"]))\n'
+                              'open(a["--out"], "w").write(json.dumps(dict(tx, forged=a["--variant"])))\n'
+                              'print(json.dumps({"variant": a["--variant"], "k": int(a["--k"]), '
+                              '"profile": a["--profile"], "key": a["--key-file"], "command": sys.argv[1]}))\n')
+            client.chmod(0o755)
+            signing = SimpleNamespace(profile=lambda variant: (scratch / f'{variant}.json', None))
+            wallet = SimpleNamespace(key_file=scratch / 'load-0001.json')
+            forge = attacks.Forger(client, signing, scratch / 'forged')
+            tx, checks = forge('too_many_actions', b'{"type": "ordinary_v2", "envelope_base64": "QUJD"}', wallet, 7)
+            self.assertEqual(json.loads(tx)['forged'], 'too_many_actions')
+            self.assertEqual(checks, {'variant': 'too_many_actions', 'k': 7, 'profile': str(scratch / 'valid.json'),
+                                      'key': str(scratch / 'load-0001.json'), 'command': 'ordinary-forge'})
+            self.assertEqual(list((scratch / 'forged').iterdir()), [], 'nothing left behind')
+            client.write_text('#!/bin/sh\necho "the key file is not the transaction\'s account key" >&2; exit 1\n')
+            with self.assertRaisesRegex(attacks.Failed, 'did not forge too_many_actions: the key file'):
+                forge('too_many_actions', b'{}', wallet, 0)
 
 
 class Campaigns(unittest.TestCase):
     def test_every_built_type_is_refused_for_its_reason_and_the_record_verifies(self):
-        c = campaign()
+        c = campaign(forge=True)
         rows = c.make(list(attacks.REASONS))
         record = attacks.build_record(CHAIN, GENESIS, ENGINE, rows, 6, 'a', 'b')
         self.assertEqual(record['status'], attacks.PASS, json.dumps(record['types'], indent=1))
@@ -263,6 +333,25 @@ class Campaigns(unittest.TestCase):
                          [attacks.PASS, attacks.PASS], 'each attack alone looks refused')
         self.assertEqual(record['controls']['committed'], 0)
         self.assertEqual((record['checks']['controls'], record['status']), (False, attacks.FAIL))
+
+    def test_the_forged_types_need_the_attack_client(self):
+        rows = campaign().make(list(attacks.FORGED))
+        record = attacks.build_record(CHAIN, GENESIS, ENGINE, rows, 6, 'a', 'b')
+        self.assertEqual({record['types'][k]['status'] for k in attacks.FORGED}, {'not_run'})
+        rows = campaign(forge='broken').make(['too_many_actions'])
+        record = attacks.build_record(CHAIN, GENESIS, ENGINE, rows, 6, 'a', 'b')
+        self.assertEqual((record['types']['too_many_actions']['status'],
+                          record['types']['too_many_actions']['counts']['refused_other']), (attacks.FAIL, 18),
+                         'a forgery the profile does not refuse for its reason tests nothing')
+
+    def test_a_node_that_takes_a_cap_below_the_minimum_is_a_success(self):
+        rows = campaign(forge=True, admit_low_cap=True).make(['fee_cap_below_minimum', 'too_many_actions'])
+        record = attacks.build_record(CHAIN, GENESIS, ENGINE, rows, 6, 'a', 'b')
+        self.assertEqual(record['types']['fee_cap_below_minimum']['status'], attacks.FAIL)
+        self.assertGreater(record['successes'], 0)
+        self.assertEqual(record['types']['too_many_actions']['status'], attacks.PASS)
+        forged = next(r['forged'] for r in rows if r['type'] == 'too_many_actions')
+        self.assertEqual(forged['profile_refusal'], 'action count outside profile')
 
     def test_a_tampered_record_or_rows_are_found(self):
         c = campaign(attempts=3)

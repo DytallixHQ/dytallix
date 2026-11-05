@@ -1,0 +1,451 @@
+{
+  "schema": "dytallix.launch-result.v1",
+  "scope": "campaign",
+  "date": "2026-11-05",
+  "candidate": {
+    "commit": "2a652c101225b2c72e09b824c55aff9795ab93a0",
+    "release_set_sha256": "b26049c7124535f7fe0aaffa91223410eef39ba4447d5681d9406d7b9f3930fb"
+  },
+  "kpis": [
+    {
+      "id": "campaign.faults.network_heal",
+      "status": "pass",
+      "value": 20.6,
+      "unit": "s",
+      "samples": 30,
+      "target": 120,
+      "repetitions": 30
+    },
+    {
+      "id": "campaign.faults.validator_restart",
+      "status": "pass",
+      "value": 28.0,
+      "unit": "s",
+      "samples": 30,
+      "target": 300,
+      "repetitions": 30
+    }
+  ],
+  "sources": [
+    {
+      "tool": "faults",
+      "sha256": "01c0c7004e38d8ff2369b08ab3c7a2cfd64461340d58e908ba79563001e98d38",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "026e25c9aa6147838f4fd627de9484ac318aaeb035c90fec242a122a05f24587",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "03314e0a467c2cf91930ee56fad614e9aa4c812340f713a2aedfe431a0d2ff79",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "03c952c89ec56488e934f6dcc915aed3d720ac0dbb7bbc4f5dc23eb3af7bee7c",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "09b8a53c35c9972e433d7741da0a5cc845ce188dfba3480b0a5c4d53a6b76f06",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "16cf52ba427419974f9c914ec56db2ef415a2f46b57fd0942039745a91d6dd7d",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "16f608cc6fff2b610a6c0fb2f80cd9964f293002f5b2e13df697de2cda47aa3f",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "1d86c0e169b72a8f188e7bc64dac2f3e3a5768aeac0e702869d2b92c27420078",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "2473f0cdce74422b01649d1f32035791d2ad3c6203dbea812cb3e538d852c3de",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "24e49bba3b7a7e6a18dec84bf542878ccbf9a38313fc7405375d7cebb9567fb5",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "25da9ef5d88a113216f91f674bbc49fd707e9d54fbfc8fe5ec5b5ebd5486388c",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "2dfb2aefafadd4e3e746faafb50edbab556f800cdd619dd4513dcc2f61473172",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "302e78cb875da08c3c9d4145acb42556fef139f412da160384d79040a0c07cb6",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "33de7e5433ba85bb6344ba15d7432cca62f5efeec5f5d3f6592f0a4aca6e234a",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "396291d19f1752561a0b270fcf1324303cbdda2ca63eb0650c742ccf9b4d5880",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "3ea46ca42f6fdcc2317e8ec83954ea72aa746088cabfbb79f22492ba985471b7",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "4919e12e55e14a4033d97ba68a910160606887b193e0d6e4b4e3407d18e4bc86",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "4f714f1b5808f5634e6890e9d5d0abadf47753d29d0f686783c15f8eab5f5955",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "526d9b43e67d0dcadb68281fff931f8293497b385dd3ecd1c47ca9c0894e597a",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "53a85ac614000f66b9a10ca3c8c83e52220263708307c783c8bfc5188b68996d",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "5535f098ea941bb71c3e25874a5d8398d25fbf45d0bacaaf987a1424ac3013bb",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "56b1a623eb3807b543ba1bcb23e4e5472149b30c23e416f5a704ff3fff2ca542",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "59b104daacbfb9d85f6f9c536c83691ac57a7606b0881bda1feefee66f81523c",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "6011e59e8a4c3d942c71e93657b251d1556e21a101ae0f2cb24923381ddf54b3",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "6a7e3134faed0380ceea9f4861b99ef4120ea96b8d8d0cbf569ab11fce619ddf",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "73336648416f0a69283658bf6c3fcd3fb81f3b235560033958c4e5ec8ca39340",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "76bc8638de860ea06da4b76f44999b15b5e94308df21562d4abcc8d56d3217ab",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "7db38c814dbe2b22ed2d075fae2b30155e38b652e96db795ee58073267432d0f",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "8a3774d2aed0b1ff2dfb8b46fdbf2b33c651da424870d0f5588819c65ba646a9",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "8da8caae6a362c0276916fe6248ffa762a0421be5238ded9e9447a604ed28106",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "901633c385b5bcc5fc49d847b791ddaf4ebcf6ba82600feaec5c0efd9aa710e5",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "90fbedb199ca29545a12e8cce93416182130af01beecae61ec00964d68335cdd",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "910b24ec67c68ac7e039d5939fc74f046de12e5bc50d22b581ad5e40b73a5abb",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "994f8375d5f052218121a92df572940229ccc4b740cd68633ad91d7810210eb1",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "a3064b6f9ed561390cb420fba2bceeb5a684b149b4be4de8cb91b1e77fdc7622",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "ac5cf155f776de781eb58838a1a00e47b86db36670c732eae256cb5f9fb1a0c0",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "ac861ea63ac09f73c13cf8192c1e919cb7bcce84f54e25f2da39c8b4c1708c43",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "af5d7c40ea3b683822012dc7115bf6e7a0e8646a6228adb2428692631f9cf36a",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "b07bbf4748553d03b773bca743512f1b1713c4994786cd1e2a471e51d827be64",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "b42e1131cce5aa183aa803a6e98494b6aa1db18945cd588ca66959ed8ac84220",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "b79124295ff31a58a87db5789fee0af5495de5374df9c9330bdb48394eeaebfa",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "bb943c96ecb9988367b6beaae239aaf325d8486c41e9a78f58307692e2e2658e",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "bd398b8eb97ac42fe425b49b0404a03c6771b045de53172f84960abb139bf1a9",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "c114fb34d15ca32c08ad5dc757db2b978f89a29d5197b47b018f6a38d56f1e61",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "c9980992dbbecc9b6c0d8a28d209429c21428ecb9922dbc945550f526bd83f9a",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "caa28cdd7944b8359dba1091bca537fe144570f6c1074933ea88277d8cb31ec2",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "cc3f7a30a8c76172d60e01459763bd99461cf53a1a853f863445c47750355ed8",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "cd1198513891dceb0a0cbe0970f15c45b6b5d623fefbd66348755d2accc0aa46",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "d343245749ca1f880288ef1b19615d510dbec29503aa256eb622257220079cd7",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "d4f1b602e045bc24983bbf4ee72e5099a2ed10e8a43dfccc1da39e5867eb97cd",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "d5778b03f6fb896c9007379d221d807813c132ef01b00b3aa2858b5b3d288bf3",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "d975aec2cd3b7f0353448a18e1852fb5902a533cb41644e2bc757b0fd395c46d",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "dba4788b7d75e47018931bdb4ecfe85435248e26511a9faa0810e39dd133b964",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "e9039c2b68eccf90749e321976ee90a17e0e9db96c25e272ef1b8d226842b24c",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "FAIL"
+    },
+    {
+      "tool": "faults",
+      "sha256": "efb907c8216356c3293cc4f3c00e698348b8407e3da7ee1cf691b23d18b5908d",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "f0114c5b92274f2046aeaf9ec5f7290412827c929c7cb32bf12149ad2eb7491d",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "f02dfc46b805d9b164f1d62d6aaac3890c9e3af2bf31d961a5e838936687a18f",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "f11b4289c9fe04c034385343b4c476c8238f086c53db88a9b1228a09b7051a7a",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "f55b6477c840e5be16178aaf9d22316529ec016a03dd16fbb9330a6bd93209f4",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    },
+    {
+      "tool": "faults",
+      "sha256": "faf91bd78f783d2bcc348a8b2fe861ecbeddddd6649431380371f355709b0785",
+      "chain_id": "dytallix-staging-2",
+      "native_genesis_sha256": "858764b70a18986b7b0e0fd99f5787f186a41fe25e1697e7ad9d7f1bf21f9e87",
+      "status": "PASS"
+    }
+  ]
+}
