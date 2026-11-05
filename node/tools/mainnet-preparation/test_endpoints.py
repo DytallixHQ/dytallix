@@ -379,6 +379,25 @@ class Records(unittest.TestCase):
         rows[-1]['page_height'] = None
         self.assertEqual(self.record(rows)['checks']['controls'], False)
 
+    def test_a_control_waits_for_the_next_block_but_not_for_a_stopped_chain(self):
+        def campaign(heights):
+            readings = iter(heights)
+            control = lambda: {'channel_height': next(readings), 'page_status': 200, 'page_height': 5}
+            return endpoints.Campaign(FakePlaces(), None, None, NETWORK, KEY, control, 2, show=lambda *_: None,
+                                      sleep=lambda _: None)
+        # A type quicker than a block: the same height twice, then the next.
+        quick = campaign([10, 10, 10, 11])
+        quick.positive('start')
+        quick.positive('invalid_handshake')
+        self.assertEqual([r['channel_height'] for r in quick.rows], [10, 11])
+        # A chain that stopped is read until the wait ends, and does not advance.
+        stopped = campaign(itertools.repeat(10))
+        stopped.positive('start')
+        ticks = itertools.count(0, 10)
+        stopped.positive('header_flood', clock=lambda: next(ticks))
+        self.assertEqual([r['channel_height'] for r in stopped.rows], [10, 10])
+        self.assertLess(next(ticks), 10 * (endpoints.ADVANCE_WAIT / 10 + 4))
+
     def test_the_results_collector_reads_the_family(self):
         import results
         self.assertIs(results.ATTACK_FAMILIES['endpoint_rpc'], endpoints)

@@ -104,6 +104,10 @@ SLACK = 5.0
 # A listener frees a closed connection's slot a moment after the close; the
 # next flood waits this long, so it meets the bound and not the last flood.
 SETTLE = 0.5
+# Blocks come about every 5 seconds, and some types make their attempts in
+# less; the control after a type waits up to this long for a block newer
+# than the last control's, so only a chain that stopped fails to advance.
+ADVANCE_WAIT = 30.0
 # The client channel's handshake (client-channel-v1.md; handshake.rs).
 MAGIC, VERSION = b'DYCH', 1
 HELLO, OFFER, FINISH = 1, 2, 3
@@ -554,8 +558,14 @@ class Campaign:
                                                'wait': AT_ONCE + LIMITS['page_deadline']})
         return self.record('header_flood', k, variant, seen)
 
-    def positive(self, after):
-        row = {'type': 'control', 'after': after, **self.control()}
+    def positive(self, after, clock=time.monotonic):
+        last = next((r.get('channel_height') for r in reversed(self.rows) if r['type'] == 'control'), None)
+        reading, deadline = self.control(), clock() + ADVANCE_WAIT
+        while (answered(last) and answered(reading.get('channel_height')) and reading['channel_height'] <= last
+               and clock() < deadline):
+            self.sleep(1)
+            reading = self.control()
+        row = {'type': 'control', 'after': after, **reading}
         self.rows.append(row)
         return row
 
