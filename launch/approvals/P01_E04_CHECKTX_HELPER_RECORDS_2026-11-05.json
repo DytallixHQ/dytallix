@@ -18,7 +18,7 @@
     {
       "question": "A monitor alert on the count",
       "selected": "Severity 2 on every host, on any rise",
-      "rule": "The host monitor's rule admission_helper_failures (severity 2, validator, sentry and endpoint) fires when dytallix_app_admission_helper_failures_total rose since the monitor's last sample, and resolves at the next sample without a rise. A restart resets the counter, so what it counted since the restart is the rise. It has no threshold value. Runbook: node/docs/operations/monitoring.md, Admission helper failures."
+      "rule": "The host monitor's rule admission_helper_failures (severity 2, validator, sentry and endpoint) fires when dytallix_app_admission_helper_failures_total rose since the monitor's last sample, and resolves at the next sample without a rise. A new start of the node (a different unit invocation) resets the counter, so all it counted since is the rise. It has no threshold value. Runbook: node/docs/operations/monitoring.md, Admission helper failures."
     }
   ],
   "supersedes": [
@@ -28,8 +28,7 @@
     }
   ],
   "accepted_risks": [
-    "Between lines, a CheckTx helper failure's own record is dropped; the next line carries the count and the latest refusal's message only.",
-    "The alert fires for one monitor run per rise, so a helper that keeps failing fires and resolves again each minute rather than staying firing."
+    "Between lines, a CheckTx helper failure's own record is dropped; the next line carries the count and the latest refusal's message only."
   ],
   "does_not_authorize": [
     "any limit on the helper failure record at startup or in a proposal or block",

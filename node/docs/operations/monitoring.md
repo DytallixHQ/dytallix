@@ -190,6 +190,8 @@ journal: at most one `LOCAL_ADMISSION_HELPER_FAILURE_V1` line a minute, with
 the helper's own failure record before it when there is one, gives the
 cause and how many refusals were not written. Fix the helper (its binary,
 its AppArmor profile, the host's resources) before any root control is due.
+The alert resolves at the next run with no new refusal, which means only
+that no control arrived since; it does not mean the helper works again.
 
 ### Restart loop
 

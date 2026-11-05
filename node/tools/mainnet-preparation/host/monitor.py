@@ -326,9 +326,12 @@ def evaluate(config, state, sample, now):
     if failures is not None:
         results['signature_failures'] = (failures >= t['signature_failures'], failures, t['signature_failures'])
 
-    # Since the last run; a restart resets the counter.
+    # Since the last run. A new start of the node resets the counter, so all
+    # it counted since is new.
     if sample['helper_failures'] is not None and previous and previous.get('helper_failures') is not None:
-        new = sample['helper_failures'] - previous['helper_failures']
+        restarted = None not in (sample['invocation'], previous.get('invocation')) \
+            and sample['invocation'] != previous['invocation']
+        new = sample['helper_failures'] if restarted else sample['helper_failures'] - previous['helper_failures']
         new = sample['helper_failures'] if new < 0 else new
         results['admission_helper_failures'] = (new > 0, new, 0)
 

@@ -314,7 +314,12 @@ class ValidatorTests(MonitorJob):
         self.assertEqual((alert['severity'], alert['runbook'].rsplit('#', 1)[1]), (2, 'admission-helper-failures'))
         summary, _ = self.tick()
         self.assertNotIn('admission_helper_failures', summary['firing'])
-        # A restart resets the counter; what it counted since then is new.
+        # A restart resets the counter; all it counted since is new, even
+        # when that reaches the old count within one run.
+        self.invocation = 'b' * 32
+        summary, _ = self.tick()
+        self.assertIn('admission_helper_failures', summary['firing'])
+        self.invocation = 'c' * 32
         self.chain['helper_failures'] = 0
         summary, _ = self.tick()
         self.assertNotIn('admission_helper_failures', summary['firing'])
