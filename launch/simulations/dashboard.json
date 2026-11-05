@@ -7,11 +7,11 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "aeb983983b5f1b2aeebfa64d202adb2c0e496ccbcc3ebd7fcb7ad13543cdea3d"
+        "sha256": "5e5de9c3de06e2f54aaedee0a6371adcf6c04204d8224a4b4a0f2d262aad1268"
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "ffef3ba1a448e72111d134045c7a786bdb609e5ebe03025bf31cbf18b878f25c"
+        "sha256": "0c18143b97903ae3181746204cd9940f05a44343ae8973e6362dd96f82162788"
       },
       {
         "path": "launch/simulations/results/campaign/2026-11-03.json",
@@ -44,8 +44,8 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 523,
-    "approval_records": 75
+    "commits_at_as_of": 535,
+    "approval_records": 76
   },
   "phases": [
     {
@@ -208,13 +208,13 @@
       "id": "staking",
       "phase": "campaign",
       "name": "Staking",
-      "summary": "Bonds below the minimum or to unknown validators, over-unbonding, early withdrawal, repeated reward claims, bad validator registrations."
+      "summary": "A validator's self-bond below the minimum, bonds to unknown validators, over-unbonding, early withdrawal, repeated reward claims, validator registrations with a bad proof or a reused key."
     },
     {
       "id": "governance",
       "phase": "campaign",
       "name": "Governance",
-      "summary": "Proposals below the deposit, votes without a bond, repeated or late votes, replayed execution, out-of-bounds parameter changes."
+      "summary": "Proposals below the deposit, votes without a bond, repeated or late votes, out-of-bounds parameter changes."
     },
     {
       "id": "root_controls",
@@ -623,7 +623,7 @@
       "phase": "campaign",
       "group": "staking",
       "name": "Staking: attempts",
-      "measures": "Attempts made per attack type. Covers: Bonds below the minimum or to unknown validators, over-unbonding, early withdrawal, repeated reward claims, bad validator registrations.",
+      "measures": "Attempts made per attack type. Covers: A validator's self-bond below the minimum, bonds to unknown validators, over-unbonding, early withdrawal, repeated reward claims, validator registrations with a bad proof or a reused key.",
       "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
       "threshold": "At least 3,000 per attack type",
       "unit": "count",
@@ -652,7 +652,7 @@
       "phase": "campaign",
       "group": "governance",
       "name": "Governance: attempts",
-      "measures": "Attempts made per attack type. Covers: Proposals below the deposit, votes without a bond, repeated or late votes, replayed execution, out-of-bounds parameter changes.",
+      "measures": "Attempts made per attack type. Covers: Proposals below the deposit, votes without a bond, repeated or late votes, out-of-bounds parameter changes.",
       "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
       "threshold": "At least 3,000 per attack type",
       "unit": "count",

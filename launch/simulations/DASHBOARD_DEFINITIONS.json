@@ -163,13 +163,13 @@
       "id": "staking",
       "phase": "campaign",
       "name": "Staking",
-      "summary": "Bonds below the minimum or to unknown validators, over-unbonding, early withdrawal, repeated reward claims, bad validator registrations."
+      "summary": "A validator's self-bond below the minimum, bonds to unknown validators, over-unbonding, early withdrawal, repeated reward claims, validator registrations with a bad proof or a reused key."
     },
     {
       "id": "governance",
       "phase": "campaign",
       "name": "Governance",
-      "summary": "Proposals below the deposit, votes without a bond, repeated or late votes, replayed execution, out-of-bounds parameter changes."
+      "summary": "Proposals below the deposit, votes without a bond, repeated or late votes, out-of-bounds parameter changes."
     },
     {
       "id": "root_controls",
@@ -596,7 +596,7 @@
       "phase": "campaign",
       "group": "staking",
       "name": "Staking: attempts",
-      "measures": "Attempts made per attack type. Covers: Bonds below the minimum or to unknown validators, over-unbonding, early withdrawal, repeated reward claims, bad validator registrations.",
+      "measures": "Attempts made per attack type. Covers: A validator's self-bond below the minimum, bonds to unknown validators, over-unbonding, early withdrawal, repeated reward claims, validator registrations with a bad proof or a reused key.",
       "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
       "threshold": "At least 3,000 per attack type",
       "unit": "count",
@@ -625,7 +625,7 @@
       "phase": "campaign",
       "group": "governance",
       "name": "Governance: attempts",
-      "measures": "Attempts made per attack type. Covers: Proposals below the deposit, votes without a bond, repeated or late votes, replayed execution, out-of-bounds parameter changes.",
+      "measures": "Attempts made per attack type. Covers: Proposals below the deposit, votes without a bond, repeated or late votes, out-of-bounds parameter changes.",
       "why": "At least 3,000 attempts with zero successes bounds the success rate below 1 in 1,000 at 95% confidence (rule of three).",
       "threshold": "At least 3,000 per attack type",
       "unit": "count",

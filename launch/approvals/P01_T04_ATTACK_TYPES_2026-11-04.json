@@ -1,0 +1,55 @@
+{
+  "decision_id": "P01-2026-11-04-T04-ATTACK-TYPES",
+  "approved": "2026-11-04",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How to handle the five attack types the node does not refuse (4 November 2026), and where the three vote attacks first run against a real chain (5 November 2026)",
+    "selected_as": "All five as recommended; staging hosts only"
+  },
+  "reason": "A reading of the node for the staking, governance, root-control and recovery families found five planned attacks that the node does not refuse: a delegation bond has no minimum; a repeated reward claim commits with code 0 and pays nothing; a proposal below the deposit commits and is refunded at its deposit close; a governance execution has no transaction that could replay it; and a re-encoded kit replacement was admitted. The last was a defect, fixed by P01_E05_KIT_CANONICAL_2026-11-04. The other four are decided here. Building the governance family then found that a vote opens only when a proposal's deposit period closes, and CI's staging chain keeps the production periods (120,960 blocks each), so no CI proposal ever reaches its vote.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "Bonds below the minimum",
+      "selected": "A validator's self-bond below its minimum; the delegation case dropped",
+      "rule": "The staking family's bond_below_minimum type is a validator registration whose self-bond is below min_self_bond, refused when the block runs. A delegation bond has no minimum by design (only a bond of zero is refused, at admission); a small delegation pays its own fee. The delegation case is not an attack type, and this is its written reason."
+    },
+    {
+      "question": "Replayed governance execution",
+      "selected": "Dropped, with this written reason",
+      "rule": "No transaction can start or repeat a governance execution: an approved change runs once, at its due height, by the block itself. There is nothing for an attacker to send, so the type is not in the governance family; the execution's once-only rule stays covered by the node's own tests."
+    },
+    {
+      "question": "A repeated reward claim",
+      "selected": "Refused when the state read shows nothing changed but the fee and nonce",
+      "rule": "The second and later claims commit with code 0 and pay nothing. Such a claim counts as refused when a state read before and after it shows nothing changed but the fee the attacker paid and the nonce it spent (its claimable rewards stay 0 and no reward reaches it); any reward paid is a success (a defect). This amends, for this type, the rule of P01_T04_ATTACK_DECISIONS_2026-11-04 that a refusal at execution needs the type's failure code."
+    },
+    {
+      "question": "A proposal below the deposit",
+      "selected": "Refused when the state read shows it never reaches voting",
+      "rule": "A proposal whose deposit is below the minimum commits and collects until its deposit close, where it is refunded as BelowMinimum and never opens a vote. It counts as refused when the state read after it shows it collecting with less than the minimum deposited and no vote open; in a run whose deposit period ends within it (the rehearsal timings, 720 blocks), the read after the close must also show the refund and no vote. A proposal that reaches voting below the minimum is a success (a defect). This amends the same rule for this type."
+    },
+    {
+      "question": "Where the three vote attacks first run against a real chain",
+      "selected": "The staging hosts only",
+      "rule": "vote_without_bond, repeated_vote and vote_after_period need a proposal whose vote is open, which happens only at its deposit close. CI keeps its timings (the production governance periods) and runs the family's other types; these three are built and tested against the stand-in node, and first run against a real chain in the first rehearsal-profile run on the staging hosts, where a vote opens after 720 blocks (about an hour). CI's timing profile is not changed for them, since a proposal that closes there would move DGT through refunds and change what the load and reconciliation drills check."
+    }
+  ],
+  "supersedes": [
+    "The simulation inputs' list of staking and governance attack types (P01_T06_SIMULATION_INPUTS_2026-10-14; launch-rehearsals.md, Statistical campaign): \"bonds below the minimum\" is a validator's self-bond only, and \"replayed execution\" is not an attack type."
+  ],
+  "accepted_risks": [
+    "The three vote attacks have no real-chain run until the first rehearsal on the staging hosts; a defect in their harness shows only there.",
+    "A repeated claim and a proposal below the deposit are judged by state reads: an effect the reads do not cover could pass unseen. The evidence names what each read covers."
+  ],
+  "does_not_authorize": [
+    "running any attack family on the real staging hosts",
+    "reading any staging host's validator key for the reused-key registration",
+    "any change to CI's or the rehearsal's timing profiles",
+    "renting load machines or any other spending",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
