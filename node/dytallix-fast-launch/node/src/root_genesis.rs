@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(any(target_os = "linux", test))]
 #[path = "root_genesis/helper_failure.rs"]
-mod helper_failure;
+pub(crate) mod helper_failure;
 
 #[path = "root_genesis/threshold.rs"]
 mod threshold;

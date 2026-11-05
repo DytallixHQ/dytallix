@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-11-05-E04-CHECKTX-HELPER-FAILURES",
+  "approved": "2026-11-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether to close the trace gap for a signature helper that fails to run while CheckTx checks a transaction",
+    "selected_as": "Counter + throttled log (Recommended)"
+  },
+  "reason": "Since P01_E04_CHECKTX_VERIFIER_2026-11-05, CheckTx and the mempool's recheck refuse a transaction with code 2 when the local signature-check helper fails to run, and the node keeps running. The helper's own failure record is written only once the helper has passed its owner admission and pause checks, and only to a journal socket; a failure before that (the helper not starting, its readiness, its identity capture) left no trace at the node on the CheckTx path, where before that decision the node stopped and its supervisor recorded why. Only the client saw the refusal.",
+  "design_ref": "../../node/docs/architecture/incident-response-v1.md",
+  "decisions": [
+    {
+      "question": "A transaction CheckTx refuses because the helper did not run",
+      "selected": "A metrics counter, and a journal line at most once a minute with how many were not written",
+      "rule": "Each transaction that CheckTx or the mempool's recheck refuses with code 2 because the local signature-check helper did not run is counted in the application metrics as dytallix_app_admission_helper_failures_total (metrics v1's file, dytallix-app.prom). The node also writes one bounded line to the journal for such a refusal, at most one each minute: a LOCAL_ADMISSION_HELPER_FAILURE_V1 record with the failed check's message (bounded as the helper failure record's), the refusals since the process started and those not written since the last line. A line the journal does not take within 50 ms is dropped; the counter is unaffected. Anyone can send a well-formed root control to a public node, so each refusal cannot have its own line."
+    }
+  ],
+  "accepted_risks": [
+    "Between lines, a refusal's own message is not in the journal; the next line carries the count of those not written and the latest message only."
+  ],
+  "does_not_authorize": [
+    "any limit on the helper's own failure record or a monitor alert rule, decided separately (P01_E04_CHECKTX_HELPER_RECORDS_2026-11-05)",
+    "any change to how a proposal or block treats a helper failure",
+    "an automatic restart of the node unit (it stays Restart=no)",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

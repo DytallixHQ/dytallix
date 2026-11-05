@@ -502,6 +502,23 @@ fn admission_refuses_a_transaction_its_helper_could_not_check() {
     assert_eq!(admission(Ok(Some(admitted.clone()))), admitted);
 }
 
+/// Those refusals reach the journal at most once a minute, each line with
+/// the refusals so far and those left unwritten since the last line (P01,
+/// 5 November 2026).
+#[test]
+fn the_admission_journal_line_is_written_once_a_minute() {
+    use std::time::{Duration, Instant};
+    let minute = Duration::from_secs(60);
+    let start = Instant::now();
+    let mut gate = JournalGate::new(minute);
+    assert_eq!(gate.due(start), Some((1, 0)));
+    assert_eq!(gate.due(start + Duration::from_secs(1)), None);
+    assert_eq!(gate.due(start + Duration::from_secs(59)), None);
+    assert_eq!(gate.due(start + minute), Some((4, 2)));
+    assert_eq!(gate.due(start + minute), None);
+    assert_eq!(gate.due(start + 3 * minute), Some((6, 1)));
+}
+
 /// Startup's re-check retries a helper that did not run, three tries in all,
 /// and nothing else (P01, 4 November 2026).
 #[test]

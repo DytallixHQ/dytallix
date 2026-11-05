@@ -395,9 +395,15 @@ fn actual_emergency_helper_failure_and_corrupt_history_fail_closed() {
         .prepare_proposal(1, 10, 0, vec![control.clone()], 1_048_576)
         .is_err());
     // CheckTx refuses it with code 2 and the node keeps running (P01,
-    // 5 November 2026).
+    // 5 November 2026), and the metrics count it.
+    let metrics = std::sync::Arc::new(crate::app_metrics::AppMetrics::new());
+    app.metrics = Some(metrics.clone());
     let refused = app.check_tx_result(&control).unwrap();
     assert_eq!(refused.code, 2, "{}", refused.log);
+    assert!(metrics
+        .render(0, None)
+        .lines()
+        .any(|l| l == "dytallix_app_admission_helper_failures_total 1"));
     assert_eq!(data(&app), before);
     app.emergency_verifier =
         Some(crate::emergency_verifier::EmergencyVerifier::new(root.verifier.clone()).unwrap());

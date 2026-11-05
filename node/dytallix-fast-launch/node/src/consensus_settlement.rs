@@ -726,6 +726,54 @@ fn admission(checked: Result<Option<TxResult>>) -> TxResult {
         Err(error) => TxResult::invalid(&format!("Invalid transaction or observation: {error}")),
     }
 }
+/// The gate on the journal line for those refusals: at most one line each
+/// `interval`, with the refusals since the process started and those left
+/// unwritten since the last line. Anyone can send a well-formed control to a
+/// public node, so each refusal cannot have its own line (P01, 5 November
+/// 2026).
+#[derive(Debug)]
+struct JournalGate {
+    interval: std::time::Duration,
+    last: Option<std::time::Instant>,
+    refused: u64,
+    unwritten: u64,
+}
+impl JournalGate {
+    const fn new(interval: std::time::Duration) -> Self {
+        Self {
+            interval,
+            last: None,
+            refused: 0,
+            unwritten: 0,
+        }
+    }
+    /// One more refusal; the counts for a line when one is due.
+    fn due(&mut self, now: std::time::Instant) -> Option<(u64, u64)> {
+        self.refused = self.refused.saturating_add(1);
+        match self.last {
+            Some(last) if now.saturating_duration_since(last) < self.interval => {
+                self.unwritten = self.unwritten.saturating_add(1);
+                None
+            }
+            _ => {
+                self.last = Some(now);
+                Some((self.refused, std::mem::take(&mut self.unwritten)))
+            }
+        }
+    }
+}
+static ADMISSION_HELPER_JOURNAL: Mutex<JournalGate> =
+    Mutex::new(JournalGate::new(std::time::Duration::from_secs(60)));
+/// Sends helper failure records held in CheckTx's scope; one the journal
+/// does not take is dropped.
+fn send_held(held: Vec<Vec<u8>>) {
+    #[cfg(target_os = "linux")]
+    for record in &held {
+        let _ = crate::root_genesis::helper_failure::send_held(record);
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = held;
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FinalizeResult {
@@ -5128,7 +5176,7 @@ impl ConsensusApplication {
     }
     pub fn check_tx_result(&self, raw: &[u8]) -> Result<TxResult> {
         self.ensure_active_runtime()?;
-        let checked = (|| -> Result<Option<TxResult>> {
+        let check = || -> Result<Option<TxResult>> {
             let _guard = self.storage.lock_execution()?;
             ensure!(
                 self.storage.db.get(MODE_KEY)?.is_some(),
@@ -5398,8 +5446,42 @@ impl ConsensusApplication {
                     anyhow::bail!("Epoch observations are derived by the proposer, not submitted");
                 }
             }
-        })();
+        };
+        // The records of helpers that fail inside the check are held for the
+        // journal gate (P01, 5 November 2026).
+        #[cfg(target_os = "linux")]
+        let (checked, held) = crate::root_genesis::helper_failure::holding_records(check);
+        #[cfg(not(target_os = "linux"))]
+        let (checked, held) = (check(), Vec::new());
+        match &checked {
+            Err(error) if crate::emergency_verifier::is_infrastructure_error(error) => {
+                self.helper_failed_at_admission(error, held)
+            }
+            // A record from a check that ended otherwise is sent as before.
+            _ => send_held(held),
+        }
         Ok(admission(checked))
+    }
+    /// A transaction refused because the helper did not run: counted in the
+    /// metrics, and written to the journal through the gate, its helper's
+    /// record first. Between lines both are dropped; the next line counts
+    /// them.
+    fn helper_failed_at_admission(&self, error: &anyhow::Error, held: Vec<Vec<u8>>) {
+        if let Some(metrics) = &self.metrics {
+            metrics.admission_helper_failed();
+        }
+        let due = ADMISSION_HELPER_JOURNAL
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .due(std::time::Instant::now());
+        if let Some((refused, unwritten)) = due {
+            send_held(held);
+            // A line the journal does not take is dropped; the metric stays.
+            #[cfg(target_os = "linux")]
+            let _ = crate::root_genesis::helper_failure::emit_admission(error, refused, unwritten);
+            #[cfg(not(target_os = "linux"))]
+            let _ = (error, refused, unwritten);
+        }
     }
     /// Trusted local queue maintenance. This method changes no committed state.
     /// No unauthenticated transport route exposes this operation.

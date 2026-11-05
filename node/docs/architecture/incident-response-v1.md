@@ -104,6 +104,17 @@ message it covers, so error text and every downcast are unchanged.
   verifier infrastructure failure"), and the node keeps running, since
   anyone can send a well-formed root control to a public node; proposals
   and blocks still stop it ([approval](../../../launch/approvals/P01_E04_CHECKTX_VERIFIER_2026-11-05.json)).
+  Each such refusal is counted in the metrics
+  (`dytallix_app_admission_helper_failures_total`), and at most one a
+  minute is written to the journal as a `LOCAL_ADMISSION_HELPER_FAILURE_V1`
+  line: the failed check's message, bounded, the refusals since the process
+  started and those not written since the last line. On this path the
+  helper failure record, when there is one, is held and written just before
+  that line, through the same once-a-minute gate; between lines both are
+  dropped and counted. Startup, proposals and blocks write every record. A
+  failure before the helper's owner admission writes no helper failure
+  record, so the line is then its only trace in the journal
+  ([approval](../../../launch/approvals/P01_E04_CHECKTX_HELPER_FAILURES_2026-11-05.json)).
 - An ownership cancellation has no class.
 
 **Classified sites:**
