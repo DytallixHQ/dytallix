@@ -10,6 +10,7 @@ import shutil
 import tempfile
 from types import SimpleNamespace
 import unittest
+import unittest.mock
 
 import attacks
 import endpoints
@@ -72,16 +73,20 @@ def attack_record(per_type, admitted=(), other=(), finished='2026-11-04T09:00:00
         if reason is None:
             continue
         code = -1 if kind in attacks.BEFORE_ADMISSION else 1
+        # A forged type's rows carry the attack client's checks.
+        forged = ({'forged': {'variant': kind, 'signature_verifies': True, 'profile_refusal': attacks.FORGED[kind]}}
+                  if kind in attacks.FORGED else {})
         for k in range(per_type):
-            r = {'type': kind, 'k': k, 'wallet': 'load-0001', 'code': code, 'log': reason, 'outcome': 'refused'}
+            r = {'type': kind, 'k': k, 'wallet': 'load-0001', 'code': code, 'log': reason, 'outcome': 'refused', **forged}
             if kind == 'resigned_copy':
                 r['same_bytes'] = True
             rows.append(r)
         if kind in admitted:
-            rows.append({'type': kind, 'k': per_type, 'wallet': 'load-0001', 'code': 0, 'log': '', 'outcome': 'admitted'})
+            rows.append({'type': kind, 'k': per_type, 'wallet': 'load-0001', 'code': 0, 'log': '', 'outcome': 'admitted',
+                         **forged})
         if kind in other:
             rows.append({'type': kind, 'k': per_type, 'wallet': 'load-0001', 'code': 4, 'log': 'another reason',
-                         'outcome': 'refused_other'})
+                         'outcome': 'refused_other', **forged})
     rows.append({'type': 'control', 'wallet': 'load-0001', 'code': 0, 'log': '', 'committed': True})
     record = attacks.build_record('dytallix-staging-2', NATIVE, ENGINE, rows, per_type, '2026-11-04T08:00:00Z', finished)
     return json.dumps(record).encode(), attacks.rows_bytes(rows)
@@ -183,9 +188,9 @@ class Summarize(unittest.TestCase):
         self.assertEqual(results.summary_problems(summary), [])
         attempts, successes = (kpi(summary, 'campaign.transactions.attempts'),
                                kpi(summary, 'campaign.transactions.successes'))
-        # 3,500 refusals for each built type, but none yet for the two not built.
-        self.assertEqual((attempts['value'], attempts['status'], attempts['target']), (0, 'in_progress', 3000))
-        self.assertEqual((successes['value'], successes['status'], successes['target']), (0, 'in_progress', None))
+        # 3,500 refusals for every type of the seventeen, none admitted.
+        self.assertEqual((attempts['value'], attempts['status'], attempts['target']), (3500, 'pass', 3000))
+        self.assertEqual((successes['value'], successes['status'], successes['target']), (0, 'pass', None))
         self.assertEqual(summary['date'], '2026-11-04')
         self.assertEqual({s['tool'] for s in summary['sources']}, {'attacks.transactions'})
         failed = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
@@ -195,18 +200,16 @@ class Summarize(unittest.TestCase):
                           kpi(failed, 'campaign.transactions.attempts')['status']), (1, 'fail', 'fail'))
 
     def test_a_complete_family_passes_only_once_every_type_reaches_the_count(self):
-        saved = dict(attacks.REASONS)
-        try:
-            # As if the two missing types were built (their reasons then exist).
-            attacks.REASONS.update(fee_cap_below_minimum='signed fee cap outside ordinary profile',
-                                   too_many_actions='action count outside profile')
+        for count, status in ((2999, 'in_progress'), (3000, 'pass')):
+            summary = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
+                                                 attack_files=[attack_record(count)])
+            self.assertEqual([kpi(summary, f'campaign.transactions.{k}')['status'] for k in ('attempts', 'successes')],
+                             [status, status])
+        # A type not built counts zero, so the family waits for it.
+        with unittest.mock.patch.dict(attacks.REASONS, {'too_many_actions': None}):
             summary = results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
                                                  attack_files=[attack_record(3000)])
-            self.assertEqual([kpi(summary, f'campaign.transactions.{k}')['status'] for k in ('attempts', 'successes')],
-                             ['pass', 'pass'])
-        finally:
-            attacks.REASONS.clear()
-            attacks.REASONS.update(saved)
+            self.assertEqual(kpi(summary, 'campaign.transactions.attempts')['value'], 0)
 
     def test_the_endpoint_family_counts_like_the_transaction_family(self):
         rows = test_endpoints.sample_rows(30)
