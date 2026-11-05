@@ -390,6 +390,18 @@ jobs:
         run: |
           sudo python3 node/tools/mainnet-preparation/staging_network.py attack-campaign --work "$RUNNER_TEMP/network" \
             --attack-client "$RUNNER_TEMP/attack-client/release/dytallix-attack"
+      # The attack campaign's staking family (statistical campaign;
+      # staking.py): the campaign validator's registration by the operator
+      # the staging genesis approves for it, below the minimum self-bond,
+      # with the validator's own (already used) key and with a bad proof; a
+      # bond to an unknown validator; unbonding more than is bonded; an early
+      # withdrawal; and a repeated reward claim by a wallet that accrues
+      # nothing. Each 10 times, refused for its reason with its wallet's
+      # account read before and after (nothing changed but the fee), with the
+      # positive controls. On the real hosts each type runs 3,000 times.
+      - name: Attack campaign, staking (T4)
+        timeout-minutes: 30
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py staking-campaign --work "$RUNNER_TEMP/network"
       # The fault injector (simulation plan, T5) on the sentry, through the
       # signed agent: latency and loss (tc netem), a p2p partition (a
       # self-expiring nftables table) and a process kill each take hold while
