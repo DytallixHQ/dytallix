@@ -336,7 +336,7 @@
         },
         {
           "path": "consensus/owner-guard/guard_linux.go",
-          "sha256": "09e75cde80c41a003ba469aa5d793c698a9d66252fb0cc9a976256fb4e384b72"
+          "sha256": "b93a99e04f8d8fbc673d747a1911fc3eb85d81879f6b3b874e0abf783644477d"
         }
       ],
       "policy": "No asymmetric helper signature",
