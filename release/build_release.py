@@ -40,6 +40,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import tomllib
 
 SET_SCHEMA = 'dytallix.release-set.v1'
@@ -167,6 +168,24 @@ def run(command, cwd, env):
     subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
+# Each build's locked dependencies are downloaded before it builds, and the
+# download is asked again after a failure: a dropped stream from the Go
+# module proxy (5 November 2026) once failed a whole release build.
+# Cargo.lock and go.sum verify every download, so a retry changes no byte.
+FETCH_TRIES = 3
+
+
+def fetch(command, cwd, env, tries=FETCH_TRIES, sleep=time.sleep):
+    for attempt in range(1, tries + 1):
+        try:
+            return run(command, cwd, env)
+        except subprocess.CalledProcessError:
+            if attempt == tries:
+                raise
+            print(f'fetch attempt {attempt} failed; retrying in {30 * attempt} s', file=sys.stderr, flush=True)
+            sleep(30 * attempt)
+
+
 def check_rust_pin(src, data):
     """Every Rust workspace pins the builder's toolchain version."""
     pinned = os.environ.get('RUSTUP_TOOLCHAIN', '')
@@ -188,6 +207,8 @@ def build(src, out, work, offline, set_path):
         if b['kind'] == 'cargo':
             target = work/'cargo'/b['workspace'].replace('/', '_')
             env.update(CARGO_TARGET_DIR=str(target), RUSTFLAGS=' '.join(RUSTFLAGS))
+            if not offline:
+                fetch(['cargo', 'fetch', '--locked', '--target', RUST_TARGET], src/b['workspace'], env)
             command = ['cargo', 'build', '--locked', '--release', '--target', RUST_TARGET]
             command += (['--offline'] if offline else []) + b['args']
             command += [arg for name in b['bins'] for arg in ('--bin', name)]
@@ -197,6 +218,7 @@ def build(src, out, work, offline, set_path):
         else:
             env.update(GOOS='linux', GOARCH='amd64', CGO_ENABLED='0', GOCACHE=str(work/'gocache'))
             if offline: env.update(GOPROXY='off', GOFLAGS='-mod=readonly')
+            else: fetch(['go', 'mod', 'download'], src/b['module'], env)
             command = ['go', 'build', '-trimpath', '-buildvcs=false', '-ldflags=-buildid=', '-o', str(out/'bin') + '/']
             if b['tags']: command += ['-tags', ','.join(b['tags'])]
             run(command + b['packages'], src/b['module'], env)

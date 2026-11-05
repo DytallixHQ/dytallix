@@ -121,6 +121,42 @@ class StaticTests(unittest.TestCase):
         self.assertTrue((MAINNET/r.MIGRATION_REGISTRY).is_file())
 
 
+class FetchTests(unittest.TestCase):
+    """Each build's locked dependencies are downloaded first, with retries."""
+    def test_a_failed_download_is_asked_again_up_to_three_times(self):
+        calls, sleeps = [], []
+        def flaky(failures):
+            def run(command, cwd, env):
+                calls.append(command)
+                if len(calls) <= failures:
+                    raise r.subprocess.CalledProcessError(1, command)
+            return run
+        with unittest.mock.patch.object(r, 'run', flaky(2)):
+            r.fetch(['go', 'mod', 'download'], HERE, {}, sleep=sleeps.append)
+        self.assertEqual((len(calls), sleeps), (3, [30, 60]))
+        calls.clear()
+        with unittest.mock.patch.object(r, 'run', flaky(3)), self.assertRaises(r.subprocess.CalledProcessError):
+            r.fetch(['go', 'mod', 'download'], HERE, {}, sleep=lambda _: None)
+        self.assertEqual(len(calls), 3)
+
+    def test_an_online_build_fetches_before_it_builds_and_an_offline_one_never(self):
+        class Stop(Exception):
+            pass
+        for offline in (False, True):
+            commands = []
+            def run(command, cwd, env):
+                commands.append(command)
+                if command[1] == 'build':
+                    raise Stop()
+            with tempfile.TemporaryDirectory() as tmp, unittest.mock.patch.object(r, 'run', run), \
+                    unittest.mock.patch.object(r, 'check_rust_pin'), self.assertRaises(Stop):
+                r.build(MAINNET, Path(tmp)/'out', Path(tmp)/'work', offline, HERE/'RELEASE_SET.json')
+            fetches = [c for c in commands if c[1] in ('fetch', 'mod')]
+            self.assertEqual(bool(fetches), not offline, commands)
+            if not offline:
+                self.assertEqual(commands[0][:3], ['cargo', 'fetch', '--locked'])
+
+
 class VariantTests(unittest.TestCase):
     """The upgrade drill's second release (T8): one member recompiled."""
     def setUp(self):
