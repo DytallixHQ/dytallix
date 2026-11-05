@@ -148,6 +148,7 @@ the monitor job (M4a).
 | Reward distribution, DRT issuance, DGT supply, burns | App: supply buckets (emitted, the reward pools, burned, DGT issued) |
 | Delegation activity, slashing events, governance events | App: staked, bonding and unbonding buckets; `validator_evidence_total` and the penalty reserve; `transactions_total{kind="governance"}` and `root_controls_total{kind}` |
 | Signature verification failures; PQC signing and verification time | App: `signature_verifications_total{scheme, result}`, `signature_verification_seconds{scheme}`; engine: `privval_sign_seconds` |
+| Root helper failures at admission | App: `admission_helper_failures_total` |
 | Node restarts | Monitor: `systemctl` restart count |
 | CPU, memory, disk, disk growth, network traffic | Monitor: `/proc`, `statvfs` |
 | RPC latency and error rate | Monitor on each host serving clients (the sentry, with two seats): a local timed status request; uptime checker from outside |
@@ -169,6 +170,7 @@ do for each is in the [monitoring runbook](../operations/monitoring.md).
 | Abnormal staking event | Staked DGT changes by more than 5% in an hour | 2 | Validator |
 | Abnormal governance event | Any governance proposal or execution event | 3 | Validator |
 | Repeated signature verification failures | 10 or more in 10 minutes | 2 | All hosts |
+| Root helper failures at admission | Any transaction CheckTx refused because the root helper did not run (P01, 5 November 2026) | 2 | All hosts |
 | Node restart loop | 3 or more restarts in 15 minutes | 1 | All hosts |
 | Stale metrics | A metric file older than 60 s | 2 | All hosts |
 | Stale backup | No upload for 26 hours | 2 | Sentry |

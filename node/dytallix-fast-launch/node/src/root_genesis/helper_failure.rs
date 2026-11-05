@@ -113,7 +113,7 @@ pub(super) fn emit(binding: Value, error: &anyhow::Error, attempt: u64,
     ensure!(now<total_deadline,"No remaining helper diagnostic budget");
     let deadline=total_deadline.min(now.checked_add(Duration::from_millis(200)).context("Diagnostic deadline overflow")?);
     let bytes=encode(binding,error,attempt,cleanup_ok,reaped,exit_status,u64::try_from(started.elapsed().as_millis())?,Some(execution_deadline),helper_stderr)?;
-    send_socket(2,&bytes,deadline)
+    match hold(bytes) {Some(bytes)=>send_socket(2,&bytes,deadline), None=>Ok(())}
 }
 
 /// A transaction CheckTx or the mempool's recheck refused because the helper
@@ -132,11 +132,46 @@ fn encode_admission(error: &anyhow::Error, refused: u64, unwritten: u64) -> Resu
     Ok(bytes)
 }
 
+// CheckTx's scope (P01, 5 November 2026): the record of a helper that fails
+// inside it is held for the caller's once-a-minute gate instead of sent, since
+// anyone can send a control to a public node. Startup, proposals and blocks
+// send every record.
+thread_local!{static HELD: std::cell::RefCell<Option<Vec<Vec<u8>>>> = const{std::cell::RefCell::new(None)};}
+
+/// Runs `check` holding the records of the helpers that fail inside it, and
+/// returns them with its result. An enclosing scope keeps them instead.
+pub(crate) fn holding_records<T>(check: impl FnOnce()->T) -> (T, Vec<Vec<u8>>) {
+    if HELD.with(|held|held.borrow().is_some()) {return (check(),Vec::new());}
+    struct Scope;
+    impl Drop for Scope {fn drop(&mut self){HELD.with(|held|held.borrow_mut().take());}}
+    HELD.with(|held|*held.borrow_mut()=Some(Vec::new()));
+    let scope=Scope;
+    let result=check();
+    let records=HELD.with(|held|held.borrow_mut().take()).unwrap_or_default();
+    drop(scope);
+    (result,records)
+}
+
+/// The record back to send now, or None when a scope holds it.
+fn hold(record: Vec<u8>) -> Option<Vec<u8>> {
+    HELD.with(|held|match held.borrow_mut().as_mut() {Some(records)=>{records.push(record);None}, None=>Some(record)})
+}
+
 /// Sent as the failure record is; a short budget, since CheckTx waits on it.
 #[cfg(target_os="linux")]
+fn admission_deadline() -> Result<Instant> {
+    Instant::now().checked_add(Duration::from_millis(50)).context("Diagnostic deadline overflow")
+}
+
+#[cfg(target_os="linux")]
 pub(crate) fn emit_admission(error: &anyhow::Error, refused: u64, unwritten: u64) -> Result<()> {
-    let deadline=Instant::now().checked_add(Duration::from_millis(50)).context("Diagnostic deadline overflow")?;
-    send_socket(2,&encode_admission(error,refused,unwritten)?,deadline)
+    send_socket(2,&encode_admission(error,refused,unwritten)?,admission_deadline()?)
+}
+
+/// A record held in CheckTx's scope, sent when the gate allows it.
+#[cfg(target_os="linux")]
+pub(crate) fn send_held(record: &[u8]) -> Result<()> {
+    send_socket(2,record,admission_deadline()?)
 }
 
 #[cfg(target_os="linux")]
@@ -201,6 +236,19 @@ mod tests {
         let text=row["error_text"].as_str().unwrap();
         assert!(text.starts_with("Emergency helper execution failed: xxx"));
         assert_eq!(text.chars().count(),ERROR_TEXT_CHARS);
+    }
+    #[test]
+    fn a_check_holds_its_helpers_records_for_the_gate(){
+        let (value,records)=holding_records(||{
+            assert!(hold(b"one\n".to_vec()).is_none());
+            let (_,inner)=holding_records(||assert!(hold(b"two\n".to_vec()).is_none()));
+            assert!(inner.is_empty());
+            7
+        });
+        assert_eq!((value,records),(7,vec![b"one\n".to_vec(),b"two\n".to_vec()]));
+        assert_eq!(hold(b"three\n".to_vec()),Some(b"three\n".to_vec()));
+        assert!(std::panic::catch_unwind(||holding_records(||panic!("check failed"))).is_err());
+        assert_eq!(hold(b"four\n".to_vec()),Some(b"four\n".to_vec()));
     }
     #[test]
     fn expired_and_blocked_sinks_do_not_extend_deadline(){

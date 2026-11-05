@@ -179,6 +179,18 @@ Severity 2, every host: 10 or more invalid signature verifications in 10
 minutes. Usually a broken or hostile client; check the request logs of the
 host serving clients and the scheme in `dytallix_app_signature_verifications_total`.
 
+### Admission helper failures
+
+Severity 2, every host: CheckTx or the mempool's recheck refused a
+transaction because the root signature helper did not run
+(`dytallix_app_admission_helper_failures_total` rose since the last run).
+The node keeps running, but it refuses every root control until the helper
+runs again, and a proposal or block carrying one stops it. Read the node's
+journal: at most one `LOCAL_ADMISSION_HELPER_FAILURE_V1` line a minute, with
+the helper's own failure record before it when there is one, gives the
+cause and how many refusals were not written. Fix the helper (its binary,
+its AppArmor profile, the host's resources) before any root control is due.
+
 ### Restart loop
 
 Severity 1, every host: the node started 3 or more times in 15 minutes. The

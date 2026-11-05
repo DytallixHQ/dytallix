@@ -56,7 +56,7 @@ class MonitorJob(unittest.TestCase):
         self.now = START
         self.height = 100
         self.chain = {'emitted': 0, 'burned': 0, 'issued': 10**15, 'staked': 4 * 10**14, 'tx': 0, 'gov': 0,
-                      'invalid': 0, 'missed': 0}
+                      'invalid': 0, 'missed': 0, 'helper_failures': 0}
         self.invocation = 'a' * 32
         self.free = 50.0
         self.curl_exit = 0
@@ -88,6 +88,7 @@ class MonitorJob(unittest.TestCase):
                 f'dytallix_app_transactions_total{{kind="governance",result="ok"}} {c["gov"]}',
                 f'dytallix_app_signature_verifications_total{{result="valid",scheme="ml_dsa_65"}} 900',
                 f'dytallix_app_signature_verifications_total{{result="invalid",scheme="ml_dsa_65"}} {c["invalid"]}',
+                f'dytallix_app_admission_helper_failures_total {c["helper_failures"]}',
                 f'dytallix_app_supply_udrt{{bucket="genesis"}} {GENESIS}',
                 f'dytallix_app_supply_udrt{{bucket="emitted"}} {c["emitted"]}',
                 f'dytallix_app_supply_udrt{{bucket="burned"}} {c["burned"]}',
@@ -301,6 +302,25 @@ class ValidatorTests(MonitorJob):
                          [3])
         summary, _ = self.tick()
         self.assertNotIn('governance_event', summary['firing'])
+
+    def test_admission_helper_failures_fire_on_any_rise(self):
+        self.tick()
+        summary, _ = self.tick()
+        self.assertNotIn('admission_helper_failures', summary['firing'])
+        self.chain['helper_failures'] = 1
+        summary, sent = self.tick()
+        self.assertIn('admission_helper_failures', summary['firing'])
+        alert = next(s['payload'] for s in sent if s['payload'].get('condition') == 'admission_helper_failures')
+        self.assertEqual((alert['severity'], alert['runbook'].rsplit('#', 1)[1]), (2, 'admission-helper-failures'))
+        summary, _ = self.tick()
+        self.assertNotIn('admission_helper_failures', summary['firing'])
+        # A restart resets the counter; what it counted since then is new.
+        self.chain['helper_failures'] = 0
+        summary, _ = self.tick()
+        self.assertNotIn('admission_helper_failures', summary['firing'])
+        self.chain['helper_failures'] = 2
+        summary, _ = self.tick()
+        self.assertIn('admission_helper_failures', summary['firing'])
 
     def test_history_rolls_over_compresses_and_expires(self):
         history = self.state / 'history'

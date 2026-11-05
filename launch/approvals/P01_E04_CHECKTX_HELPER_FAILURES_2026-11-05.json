@@ -20,8 +20,7 @@
     "Between lines, a refusal's own message is not in the journal; the next line carries the count of those not written and the latest message only."
   ],
   "does_not_authorize": [
-    "any limit on the helper's own failure record (LOCAL_FAILED_HELPER_LIFECYCLE_V1), which is still written for each failure that reaches it",
-    "a monitor alert rule on the new counter, or any new monitor threshold value",
+    "any limit on the helper's own failure record or a monitor alert rule, decided separately (P01_E04_CHECKTX_HELPER_RECORDS_2026-11-05)",
     "any change to how a proposal or block treats a helper failure",
     "an automatic restart of the node unit (it stays Restart=no)",
     "any run on a real host",

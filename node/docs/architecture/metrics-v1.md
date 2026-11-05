@@ -70,8 +70,8 @@ tests.
    application `admission_helper_failures_total`, the transactions CheckTx or
    the mempool's recheck refused with code 2 because the local
    signature-check helper did not run (the node keeps running; see
-   [incident response v1](incident-response-v1.md)). No monitor rule reads it
-   yet.
+   [incident response v1](incident-response-v1.md)); the monitor alerts on
+   any rise ([monitoring v1](monitoring-v1.md)).
 
 ## Implementation notes
 

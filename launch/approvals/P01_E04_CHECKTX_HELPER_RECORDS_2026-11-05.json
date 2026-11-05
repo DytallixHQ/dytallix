@@ -1,0 +1,43 @@
+{
+  "decision_id": "P01-2026-11-05-E04-CHECKTX-HELPER-RECORDS",
+  "approved": "2026-11-05",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the helper's own failure record goes under the once-a-minute limit on the CheckTx path, and whether the host monitor alerts on the new count",
+    "selected_as": "Limit it on CheckTx (Recommended); Severity 2, any rise (Recommended)"
+  },
+  "reason": "After P01_E04_CHECKTX_HELPER_FAILURES_2026-11-05, the helper's own failure record (LOCAL_FAILED_HELPER_LIFECYCLE_V1, up to 4 KiB) was still written for every helper failure that reaches it, on the CheckTx path too. Before P01_E04_CHECKTX_VERIFIER_2026-11-05 that could not repeat, because the first failure stopped the node. Now, while the helper is broken, anyone can send well-formed controls to a public node and each one writes a record, which can push the unit past the journal's rate limit, where the supervisor's own records are dropped. The new count was in the metrics file, but nothing alerted on it.",
+  "design_ref": "../../node/docs/architecture/incident-response-v1.md",
+  "decisions": [
+    {
+      "question": "The helper's own failure record on the CheckTx path",
+      "selected": "Under the same once-a-minute gate on CheckTx and recheck only",
+      "rule": "While CheckTx or the mempool's recheck checks a transaction, the record of a helper that fails inside the check is held, not sent. If the check ends in a helper failure, the record goes through the admission line's once-a-minute gate: when a line is due, the record is written just before it; otherwise both are dropped and counted in the next line. A record from a check that ends otherwise is written as before. Startup, PrepareProposal, ProcessProposal and FinalizeBlock write every record, as P01_E04_VERIFIER_CLASS_2026-11-04 decided."
+    },
+    {
+      "question": "A monitor alert on the count",
+      "selected": "Severity 2 on every host, on any rise",
+      "rule": "The host monitor's rule admission_helper_failures (severity 2, validator, sentry and endpoint) fires when dytallix_app_admission_helper_failures_total rose since the monitor's last sample, and resolves at the next sample without a rise. A restart resets the counter, so what it counted since the restart is the rise. It has no threshold value. Runbook: node/docs/operations/monitoring.md, Admission helper failures."
+    }
+  ],
+  "supersedes": [
+    {
+      "decision_id": "P01-2026-11-04-E04-VERIFIER-CLASS",
+      "part": "On the CheckTx and recheck path only, the helper failure record is written at most once a minute, with the count of those not written; elsewhere every record is still written."
+    }
+  ],
+  "accepted_risks": [
+    "Between lines, a CheckTx helper failure's own record is dropped; the next line carries the count and the latest refusal's message only.",
+    "The alert fires for one monitor run per rise, so a helper that keeps failing fires and resolves again each minute rather than staying firing."
+  ],
+  "does_not_authorize": [
+    "any limit on the helper failure record at startup or in a proposal or block",
+    "any monitor threshold value",
+    "deploying the new monitor to any host (the staging hosts' agents need their own approval)",
+    "any change to how a proposal or block treats a helper failure",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

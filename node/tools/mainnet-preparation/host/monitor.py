@@ -78,6 +78,9 @@ RULES = {
     'staking_change': (2, ('validator',)),
     'governance_event': (3, ('validator',)),
     'signature_failures': (2, ROLES),
+    # Any transaction CheckTx refused because the root helper did not run
+    # (P01, 5 November 2026).
+    'admission_helper_failures': (2, ROLES),
     'restart_loop': (1, ROLES),
     'stale_metrics': (2, ROLES),
     'stale_backup': (2, ('sentry',)),
@@ -323,6 +326,12 @@ def evaluate(config, state, sample, now):
     if failures is not None:
         results['signature_failures'] = (failures >= t['signature_failures'], failures, t['signature_failures'])
 
+    # Since the last run; a restart resets the counter.
+    if sample['helper_failures'] is not None and previous and previous.get('helper_failures') is not None:
+        new = sample['helper_failures'] - previous['helper_failures']
+        new = sample['helper_failures'] if new < 0 else new
+        results['admission_helper_failures'] = (new > 0, new, 0)
+
     starts = [s for s in state['starts'] if s >= now - t['restarts_window_seconds']]
     state['starts'] = starts
     results['restart_loop'] = (len(starts) >= t['restarts'], len(starts), t['restarts'])
@@ -510,6 +519,7 @@ def collect(config, state, now, run, statvfs):
         'peers': value(engine, 'dytallix_engine_p2p_peers'),
         'mempool': value(engine, 'dytallix_engine_mempool_size'),
         'signature_invalid': total(app, 'dytallix_app_signature_verifications_total', result='invalid'),
+        'helper_failures': value(app, 'dytallix_app_admission_helper_failures_total'),
         'transactions': total(app, 'dytallix_app_transactions_total'),
         'governance': total(app, 'dytallix_app_transactions_total', kind='governance'),
         'drt_total': value(app, 'dytallix_app_supply_udrt', bucket='total'),
@@ -639,8 +649,8 @@ def run_once(config_path, run=subprocess.run, clock=time.time, statvfs=os.statvf
         state['delivery_failures'] = 0
 
     state['samples'] = [s for s in state['samples'] if s['t'] >= now - SAMPLE_SPAN] + [
-        {k: sample[k] for k in ('t', 'height', 'missed', 'signature_invalid', 'transactions', 'governance', 'staked',
-                                'emitted', 'burned', 'invocation')}]
+        {k: sample[k] for k in ('t', 'height', 'missed', 'signature_invalid', 'helper_failures', 'transactions',
+                                'governance', 'staked', 'emitted', 'burned', 'invocation')}]
     save_state(state_dir, state)
     history(config, state_dir, {
         't': round(now), 'h': sample['height'], 'node': sample['node'], 'cpu': sample['cpu_percent'],
