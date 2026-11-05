@@ -184,7 +184,7 @@ func ownerLive(f frame) error {
 		return errAdmission
 	}
 	p := []unix.PollFd{{Fd: parentFD, Events: unix.POLLIN}}
-	n, e := unix.Poll(p, 0)
+	n, e := pollNow(p, f.deadline)
 	if e != nil {
 		return e
 	}
@@ -195,6 +195,22 @@ func ownerLive(f frame) error {
 		return errAdmission
 	}
 	return before(f.deadline)
+}
+
+// pollNow polls without waiting. A zero-timeout poll that finds nothing
+// ready still fails with EINTR when a signal is pending, and the Go runtime
+// signals its own threads (asynchronous preemption), so it is asked again
+// until the deadline.
+func pollNow(p []unix.PollFd, deadline int64) (int, error) {
+	for {
+		n, e := unix.Poll(p, 0)
+		if e != unix.EINTR {
+			return n, e
+		}
+		if e = before(deadline); e != nil {
+			return 0, e
+		}
+	}
 }
 func observedDeathSignal() (int, error) {
 	// PR_GET_PDEATHSIG writes an int pointer; it does not return the signal.

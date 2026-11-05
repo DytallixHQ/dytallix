@@ -21,7 +21,7 @@ The bootstrap contains 128 bytes. Integer fields use big endian encoding:
 
 The child binds socket peer credentials, role, UID, owner PID, pidfd identity and live state. It requires NoNewPrivs1 and seccomp mode2. A helper also hashes its actual `/proc/self/exe` and requires a match with the context SHA512. Engine and bridge context authorization belongs to the parent catalog and artifact checks.
 
-The child sets SIGKILL as its parent-death signal, reads it on the same OS thread, and checks the owner again. It returns the complete frame with DYTRDY01 as its magic. The parent must independently inspect the owned child before sending the exact DYTGO001 token. The child checks the owner and signal again before calling the executable callback.
+The child sets SIGKILL as its parent-death signal, reads it on the same OS thread, and checks the owner again. It returns the complete frame with DYTRDY01 as its magic. The parent must independently inspect the owned child before sending the exact DYTGO001 token. The child checks the owner and signal again before calling the executable callback. Every wait, and the owner check's zero-timeout poll, is asked again when a signal interrupts it (EINTR): the Go runtime signals its own threads to preempt them, so an interrupted call is routine, never a refusal; the startup deadline still bounds every retry.
 
 The parent must bind the exact executable, security label, mount policy, release and unit before GO. The bootstrap alone does not supply those trusted policy values. Guard readiness is not full production admission.
 
