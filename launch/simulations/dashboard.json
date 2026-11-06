@@ -7,7 +7,7 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "5e5de9c3de06e2f54aaedee0a6371adcf6c04204d8224a4b4a0f2d262aad1268"
+        "sha256": "69ef47538491f85c63e8856d79cdd2e91a662883dd576ea9dc753306ded4e929"
       },
       {
         "path": ".github/workflows/host-install.yml",
@@ -44,8 +44,8 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 563,
-    "approval_records": 81
+    "commits_at_as_of": 565,
+    "approval_records": 82
   },
   "phases": [
     {
@@ -528,7 +528,7 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: each step's time recorded at the real hosts' consoles",
+      "value": "Built and proven in the CI staging network; still to come: its first run on the staging hosts, each step timed at their consoles",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/69",
       "updated": "2026-10-28"
     },

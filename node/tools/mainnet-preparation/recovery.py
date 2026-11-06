@@ -35,15 +35,47 @@ objective.
 
 The lean scope is the CI drill on the staging network (`staging_network.py
 validator-recovery-drill`), where the runner's wipe.sh stands for the
-provider deleting the old server. On the real hosts each step is at a
-console (install types the seal code), so the founder records the instants
-there; recording them through public paths follows.
+provider deleting the old server.
+
+On the real hosts each step is at a console (the provider's for the fence,
+the hosts' for the rest; install types the seal code), so the founder marks
+each step as it is done and the readings come through the public paths only
+(staging_founder.py): the sentry's status page, the release CLI pinned to
+its client channel, and reconcile-read through each host's agent. Every
+instant is the founder's clock. A run is a directory holding run.json, the
+observations so far:
+
+  recovery.py start --run DIR --cli DYTALLIX --client-home DIR
+  recovery.py mark --run DIR fenced|wal_set_aside|installed|sentry_started|validator_started
+                   [--moved-to PATH]
+  recovery.py halt --run DIR --status-url URL
+  recovery.py first-block --run DIR --status-url URL [--timeout S]
+  recovery.py finish --run DIR --store STORE.json --chain ID --validator LABEL --sentry LABEL
+                     --cli DYTALLIX --home DIR --key KEY.json --paper FILE --signer DYTALLIX_ROOT_SIGN
+                     --work DIR --client-home DIR --genesis NATIVE_GENESIS --host-verify-exit N
+                     --out FILE
+
+start is the declaration: the validator set read through the client
+channel, then the instant. Each mark is one console step done, at the
+founder's clock, recorded once and as done: a step marked out of the
+procedure's order is kept, and the order check fails it. halt reads the
+status page twice, a minute apart, after the fence: H. first-block polls
+the status page from the validator's start until it serves a height above
+H (with one validator, only the replacement can have signed it), and keeps
+the reader's longest gap between answers, which can only make the recovery
+look slower. finish sends reconcile-read to both hosts' agents for the same
+look (the replacement's agent installed again after it started), compares
+the highest height both read at least AFTER blocks past H, reads the
+validator set again, takes the replacement's `host_install.py verify` exit
+as read at its console, and writes the evidence; it exits 0 only on PASS.
 """
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import sys
+import time
 
 HERE = Path(__file__).resolve().parent
 OBJECTIVES = HERE.parents[2] / 'launch' / 'operations' / 'OBJECTIVES.json'
@@ -167,20 +199,276 @@ def verify(record, genesis_bytes, target=None):
     return status
 
 
+# The real-host run, from the founder's machine.
+
+RUN = 'run.json'
+RUN_SCHEMA = 'dytallix.validator-recovery-run.v1'
+CLOCK = "the founder's machine"
+# The steps done at a console, in the procedure's order.
+MARKS = ('fenced', 'wal_set_aside', 'installed', 'sentry_started', 'validator_started')
+# The runbook reads the sentry's height twice, a minute apart.
+HALT_GAP = 60
+# Catch-up from genesis is most of the 8-hour objective.
+FIRST_BLOCK_TIMEOUT = 8 * 3600
+
+
+def load_run(directory):
+    path = Path(directory) / RUN
+    try:
+        run = json.loads(path.read_bytes())
+    except FileNotFoundError:
+        raise Failed(f'no run at {directory}: start one first') from None
+    if run.get('schema') != RUN_SCHEMA:
+        raise Failed(f'{path} is not a validator recovery run')
+    return run
+
+
+def save_run(directory, run):
+    path = Path(directory) / RUN
+    partial = path.with_name(RUN + '.partial')
+    partial.write_text(json.dumps(run, indent=2) + '\n')
+    os.replace(partial, path)
+
+
+def validator_set(client):
+    found = client.status().get('effective_validators')
+    if not found:
+        raise Failed('the client\'s status view lists no validator')
+    return found
+
+
+def start(directory, client, clock=time.time):
+    """Declared: the validator set read through the client channel before
+    anything is fenced, then the instant."""
+    directory = Path(directory)
+    if (directory / RUN).exists():
+        raise Failed(f'a run is already at {directory}')
+    before = validator_set(client)
+    directory.mkdir(parents=True, exist_ok=True)
+    run = {'schema': RUN_SCHEMA,
+           'observations': {'clock': CLOCK, 'instants': {'declared_at': clock()}, 'validators_before': before}}
+    save_run(directory, run)
+    return run
+
+
+def mark(directory, step, clock=time.time, moved_to=None):
+    """One console step done, at the founder's clock, recorded once and as
+    done: a step out of the procedure's order is kept for the order check to
+    fail, never refused."""
+    if step not in MARKS:
+        raise Failed(f'{step} is not a step of the procedure ({", ".join(MARKS)})')
+    run = load_run(directory)
+    obs = run['observations']
+    if f'{step}_at' in obs['instants']:
+        raise Failed(f'{step} is already marked')
+    obs['instants'][f'{step}_at'] = clock()
+    if step == 'wal_set_aside' and moved_to:
+        obs['wal_set_aside'] = {'host': 'sentry', 'moved_to': moved_to}
+    save_run(directory, run)
+    return obs['instants'][f'{step}_at']
+
+
+def page_height(page):
+    height = page.get('height')
+    return height if isinstance(height, int) and not isinstance(height, bool) else None
+
+
+def halt(directory, read_page, sleep=time.sleep, gap=HALT_GAP):
+    """The halt height H: the sentry's status page read twice, `gap` seconds
+    apart, after the fence. A page without a height is kept as no reading,
+    and the pair is read again (the earlier pages kept) until both have a
+    height, while the old votes are not yet set aside."""
+    run = load_run(directory)
+    obs = run['observations']
+    if 'fenced_at' not in obs['instants']:
+        raise Failed('the halt is read after the fence: mark it first')
+    readings = obs.get('halt_readings')
+    if readings and None not in readings:
+        raise Failed('the halt is already read')
+    if readings and 'wal_set_aside_at' in obs['instants']:
+        raise Failed('the old votes are already set aside: the halt can no longer be read')
+    if readings:
+        obs.setdefault('halt_unread', []).append(obs.pop('halt_pages'))
+    pages = [read_page()]
+    sleep(gap)
+    pages.append(read_page())
+    obs['halt_readings'] = [page_height(p) for p in pages]
+    obs['halt_pages'] = pages
+    save_run(directory, run)
+    return obs['halt_readings']
+
+
+def first_block(directory, read_page, clock=time.time, sleep=time.sleep, timeout=FIRST_BLOCK_TIMEOUT, period=1):
+    """The first block after the halt, at the founder's clock: the status page
+    polled until it serves a height above H. With one validator only the
+    replacement can have signed it. The reader's longest gap between answers
+    (a status, or a refused connection) is kept: a gap can only make the
+    recovery look slower."""
+    run = load_run(directory)
+    obs = run['observations']
+    if 'validator_started_at' not in obs['instants']:
+        raise Failed('the first block is awaited after the validator starts: mark it first')
+    if 'first_block_after_halt_at' in obs['instants']:
+        raise Failed('the first block after the halt is already read')
+    readings = obs.get('halt_readings') or []
+    if len(readings) < 2 or readings[-1] is None:
+        raise Failed('no halt height: read the halt first')
+    height = readings[-1]
+    deadline = last = clock()
+    deadline += timeout
+    gap = 0.0
+    while clock() < deadline:
+        page = read_page()
+        now = clock()
+        if page.get('http') is not None or page.get('refused'):
+            gap, last = max(gap, now - last), now
+        if (page_height(page) or 0) > height:
+            obs['instants']['first_block_after_halt_at'] = now
+            obs['first_block'] = {'height': page['height'], 'block_time': page.get('time'),
+                                  'read_at': page.get('read_at'), 'reader_gap_seconds': round(gap, 1)}
+            save_run(directory, run)
+            return page['height']
+        sleep(period)
+    raise Failed(f'the sentry did not pass H = {height} within {timeout} s')
+
+
+def engine_readings(result):
+    """{height: {block_hash, app_hash}} from a reconcile-read result: each
+    operator status that answered."""
+    import reconcile
+    found = {}
+    if result.get('status') not in ('DONE', 'FAILED'):
+        return found
+    for step in result.get('steps') or []:
+        if (step.get('argv') or [])[-1:] != ['status'] or step.get('exit') != 0:
+            continue
+        try:
+            height, block, app = reconcile.engine_status(step.get('stdout') or '')
+        except reconcile.Missing:
+            continue
+        found[height] = {'block_hash': block, 'app_hash': app}
+    return found
+
+
+def finish(directory, channels, client, chain_id, genesis_bytes, host_verify_exit, target, say=print,
+           wall=time.time, sleep=time.sleep, timeout=900):
+    """Signing again: reconcile-read through the validator's and the sentry's
+    agents (`channels`, by role) for the same look, the highest height both
+    read that is AFTER blocks past H compared, the validator set read again,
+    and the replacement's verify exit as read at its console. Returns the
+    evidence; run again, it reads again."""
+    import reconcile
+    run = load_run(directory)
+    obs = run['observations']
+    if 'first_block_after_halt_at' not in obs['instants']:
+        raise Failed('finish after the first block after the halt')
+    height = obs['halt_readings'][-1]
+    every = {getattr(channel, 'every', 1) for channel in channels.values()}
+    if len(every) > 1:
+        raise Failed(f'the hosts look in the store at different intervals ({sorted(every)} minutes)')
+    every = every.pop()
+    pause = reconcile.send_pause(wall(), every)
+    if pause:
+        say(f'== waiting {pause:.0f} s to send inside the hosts\' {every}-minute look')
+        sleep(pause)
+    sent = {role: channel.send(reconcile.READ_COMMAND) for role, channel in channels.items()}
+    read, bound = {}, {}
+    for role, channel in channels.items():
+        result = channel.wait([sent[role]], timeout)[0]
+        read[role] = engine_readings(result)
+        bound[role] = {'host': channel.host, 'sequence': sent[role], 'status': result.get('status'),
+                       'command_sha256': result.get('command_sha256'), 'finished_at': result.get('finished_at'),
+                       'result': (getattr(channel, 'names', None) or {}).get(sent[role])}
+        say(f'== {role}: {reconcile.READ_COMMAND} {result.get("status")}, {len(read[role])} heights read')
+    obs['agent'] = bound
+    obs['reached'] = {role: max(found, default=None) for role, found in read.items()}
+    both = [h for h in set(read.get('validator') or {}) & set(read.get('sentry') or {}) if h >= height + AFTER]
+    obs.pop('compared', None)
+    if both:
+        at = max(both)
+        obs['compared'] = {role: {'height': at, **read[role][at]} for role in ('validator', 'sentry')}
+    obs['validators_after'] = validator_set(client)
+    obs['host_verify_exit'] = host_verify_exit
+    save_run(directory, run)
+    return build(chain_id, genesis_bytes, obs, target)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest='command', required=True)
     v = commands.add_parser('verify')
     v.add_argument('--evidence', type=Path, required=True)
     v.add_argument('--genesis', type=Path, required=True, help='native-genesis.json')
+    s = commands.add_parser('start')
+    m = commands.add_parser('mark')
+    m.add_argument('step', choices=MARKS)
+    m.add_argument('--moved-to', help='where the sentry\'s consensus log was set aside')
+    h = commands.add_parser('halt')
+    b = commands.add_parser('first-block')
+    b.add_argument('--timeout', type=int, default=FIRST_BLOCK_TIMEOUT)
+    f = commands.add_parser('finish')
+    for name in ('store', 'home', 'key', 'paper', 'signer', 'work', 'genesis', 'out'):
+        f.add_argument(f'--{name}', type=Path, required=True)
+    for name in ('chain', 'validator', 'sentry'):
+        f.add_argument(f'--{name}', required=True)
+    f.add_argument('--host-verify-exit', type=int, required=True,
+                   help='the replacement\'s host_install.py verify exit, read at its console')
+    for p in (s, m, h, b, f):
+        p.add_argument('--run', type=Path, required=True)
+    for p in (s, f):
+        p.add_argument('--cli', type=Path, required=True)
+        p.add_argument('--client-home', type=Path, required=True)
+    for p in (h, b):
+        p.add_argument('--status-url', required=True)
     args = parser.parse_args()
     try:
-        status = verify(json.loads(args.evidence.read_bytes()), args.genesis.read_bytes())
+        if args.command == 'verify':
+            status = verify(json.loads(args.evidence.read_bytes()), args.genesis.read_bytes())
+        else:
+            return run_main(args)
     except (Failed, OSError, KeyError, ValueError) as error:
         print(f'recovery: {error}', file=sys.stderr)
         return 1
     print(status)
     return 0 if status == PASS else 1
+
+
+def run_main(args):
+    import reconcile
+    import staging_founder
+    try:
+        return run_step(args, reconcile, staging_founder)
+    except (staging_founder.Failed, staging_founder.staging_command.Failed, reconcile.Failed) as error:
+        raise Failed(str(error)) from None
+
+
+def run_step(args, reconcile, staging_founder):
+    page = lambda: staging_founder.status_page(args.status_url)  # noqa: E731
+    client = lambda: reconcile.Client(args.cli, dict(os.environ, HOME=str(args.client_home)), args.run)  # noqa: E731
+    if args.command == 'start':
+        start(args.run, client())
+        print(f'== declared; the validator set read: {RUN} at {args.run}')
+    elif args.command == 'mark':
+        mark(args.run, args.step, moved_to=args.moved_to)
+        print(f'== {args.step} marked')
+    elif args.command == 'halt':
+        print(f'== the sentry read {halt(args.run, page)} a minute apart')
+    elif args.command == 'first-block':
+        print(f'== the sentry served height {first_block(args.run, page, timeout=args.timeout)}, past the halt')
+    else:
+        store = staging_founder.open_store(args.store, args.work / 'store-scratch')
+        channels = {role: staging_founder.Channel(store, args.chain, label, args.work / 'results' / label,
+                                                  args.cli, args.home, args.key, args.paper, args.signer)
+                    for role, label in (('validator', args.validator), ('sentry', args.sentry))}
+        record = finish(args.run, channels, client(), args.chain, args.genesis.read_bytes(),
+                        args.host_verify_exit, approved_target())
+        args.out.write_text(json.dumps(record, indent=2) + '\n')
+        for row in record['checks']:
+            print(f'{row["status"]:<12} {row["check"]}: {row["detail"]}')
+        status = verify(json.loads(args.out.read_bytes()), args.genesis.read_bytes())
+        print(f'{status} (evidence sha256 {record["sha256"]})')
+        return 0 if status == PASS else 1
+    return 0
 
 
 if __name__ == '__main__':
