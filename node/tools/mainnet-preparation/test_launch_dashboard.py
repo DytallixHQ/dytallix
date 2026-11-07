@@ -74,7 +74,7 @@ class LaunchDashboardTests(unittest.TestCase):
         self.assertEqual(self.kpi(self.data, 'tools.t8.ready')['status'], 'pass')
         t9 = self.kpi(self.data, 'tools.t9.ready')
         self.assertEqual(t9['status'], 'in_progress')
-        self.assertIn('still to come: each step\'s time recorded', t9['value'])
+        self.assertIn('still to come: its first run on the staging hosts', t9['value'])
         self.assertEqual(t9['updated'], '2026-10-28')
         self.assertEqual(self.kpi(self.data, 'plan.d14_q02.approval')['value'], 'Approved 11 October 2026')
 

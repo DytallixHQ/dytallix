@@ -1,0 +1,38 @@
+{
+  "decision_id": "P01-2026-11-06-T06-VALIDATOR-RECOVERY-STAGING",
+  "approved": "2026-11-06",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the validator recovery drill (T9) first runs on the staging hosts, and whether the old validator's disk is kept"
+  },
+  "reason": "The validator recovery drill is built and proven in the CI staging network, where the runner's wipe.sh stands for the provider deleting the old server. Its remaining item is the procedure (validator recovery, F17) on the real staging hosts with each step timed at their consoles. The procedure's fence powers the old validator off and deletes or reinstalls it, so the drill cannot run without a reinstall of the staging validator.",
+  "design_ref": "../../node/docs/operations/validator-recovery.md",
+  "decisions": [
+    {
+      "question": "How the validator recovery drill first runs on the staging hosts",
+      "selected": "Reinstall the staging validator",
+      "rule": "The real-host recorder (recovery.py start, mark, halt, first-block and finish) is built first and merged. Then the founder's machine runs the procedure on the staging chain, in the runbook's order:\n- Fence: the provider reinstalls the staging validator's operating system on the same server, keeping its public address, so the pin plan, the sentry's pins and firewall, and the validator's bundle all stand.\n- Set aside: the sentry's consensus log is moved aside, never deleted.\n- Install: the replacement gets the host base setup, then the staging validator bundle, checked against its SHA-256, with its seal code typed at its console.\n- Start: the sentry first, then the validator.\nAfter the validator starts, its staging agent is installed again, keeping its command sequence so that no command already consumed can run again, and its monitor settings are applied again. finish then reads both nodes through their agents. The staging chain halts from the fence until the first block after H. The staging monitors alert meanwhile, as the procedure expects. The evidence is judged against the approved 8-hour validator recovery objective."
+    },
+    {
+      "question": "Whether the old validator's disk is kept",
+      "selected": "Snapshot first",
+      "rule": "Before the fence, a provider snapshot of the staging validator is taken on the existing provider account and seen complete. It is kept, retired rather than deleted, and costs cents a month. Nothing is restored from it: the procedure never restores signing state from a backup."
+    }
+  ],
+  "accepted_risks": [
+    "The staging chain makes no blocks from the fence until the replacement signs again. That is the provisioning, the install, and the replacement's block sync from the sentry to H.",
+    "Every instant is the founder's clock, and the first block after the halt is the founder's reading of the sentry's status page. A gap in that reading (a machine asleep or offline) can only make the recovery look slower. The longest gap is recorded with it, and the founder's machine stays awake and online from the declaration to the first block.",
+    "The snapshot holds the old validator's sealed staging keys. They are staging rehearsal identities only, sealed, and the snapshot stays in the founder's provider account."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "a reinstall of the sentry or of any other host",
+    "a second run of the drill on the staging hosts",
+    "deleting the snapshot",
+    "any agent command beyond the allowlist",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

@@ -81,7 +81,14 @@ Severity 1.
     H and the bundle's SHA-256, against the 8-hour objective. The quarterly
     restore drill runs this procedure on staging and records the same; the
     CI `validator-recovery-drill` (simulation plan, T9; `recovery.py`) runs it
-    on the staging network.
+    on the staging network. On real hosts the founder's machine records the
+    drill as it goes, every instant on its clock: `recovery.py start` at
+    step 1 (it reads the validator set first), `recovery.py mark` as each
+    console step is done (`fenced`, `wal_set_aside`, `installed`,
+    `sentry_started`, `validator_started`), `recovery.py halt` for step 4,
+    `recovery.py first-block` after step 8, and `recovery.py finish` for
+    step 9, once the replacement's staging agent is installed again. Keep
+    the machine awake and online from the declaration to the first block.
 
 ## Not covered
 
