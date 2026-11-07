@@ -11,7 +11,7 @@
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "f99d2e07aea40707e659aee95124d17a92b98d851c1cb629c5def4bb128a5a76"
+        "sha256": "9005a7a1928d5a6caa4270c39bc5f3056657728436b167cb9fc5579e9e928222"
       },
       {
         "path": "launch/simulations/results/campaign/2026-11-03.json",

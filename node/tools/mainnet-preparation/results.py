@@ -42,8 +42,8 @@ against 8 hours. They follow the same rules with 3 repetitions (the plan's
 "3 to 5 times" per heavy fault, at its lower end).
 
 The attack campaign's records (attacks.py, the transaction family;
-endpoints.py, the endpoint and RPC family; root_controls.py, staking.py and
-governance.py) each come with their rows beside
+endpoints.py, the endpoint and RPC family; root_controls.py, staking.py,
+governance.py and account_recovery.py) each come with their rows beside
 them (FILE.json and FILE.jsonl) and are re-verified against the genesis
 files. Each attack type's attempts (refused for its
 reason) are summed over every record to date: campaign.transactions.attempts
@@ -73,6 +73,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import account_recovery  # noqa: E402
 import attacks  # noqa: E402
 import endpoints  # noqa: E402
 import faults  # noqa: E402
@@ -106,7 +107,7 @@ HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caug
 HEAVY_REPETITIONS = 3
 # An attack family's evidence tool.
 ATTACK_FAMILIES = {'transactions': attacks, 'endpoint_rpc': endpoints, 'root_controls': root_controls,
-                   'staking': staking, 'governance': governance}
+                   'staking': staking, 'governance': governance, 'recovery': account_recovery}
 
 
 class Failed(Exception):

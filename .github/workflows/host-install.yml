@@ -415,6 +415,18 @@ jobs:
       - name: Attack campaign, governance (T4)
         timeout-minutes: 30
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py governance-campaign --work "$RUNNER_TEMP/network"
+      # The attack campaign's recovery family (statistical campaign;
+      # account_recovery.py): two targets enroll fresh guardian keys, then
+      # take replays of their committed enrollments (the committed bytes
+      # asked at admission directly, or the operation sponsored again) and
+      # recovery starts signed by keys that are no guardian (outsiders, or
+      # the account's own active key). Each 10 times, refused at admission
+      # for its reason with the target's recovery state and the sponsor read
+      # before and after, and a fresh enrollment committing after each type.
+      # On the real hosts each type runs 3,000 times.
+      - name: Attack campaign, recovery (T4)
+        timeout-minutes: 30
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py recovery-campaign --work "$RUNNER_TEMP/network"
       # The fault injector (simulation plan, T5) on the sentry, through the
       # signed agent: latency and loss (tc netem), a p2p partition (a
       # self-expiring nftables table) and a process kill each take hold while
