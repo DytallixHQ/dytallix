@@ -501,7 +501,7 @@
       "source": {
         "tool": "T9",
         "built": "2026-10-28",
-        "remaining": "each step's time recorded at the real hosts' consoles"
+        "remaining": "its first run on the staging hosts, each step timed at their consoles"
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/69"
     },
