@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-11-09-T06-NETWORK-SOURCES",
+  "approved": "2026-11-09",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "What the campaign's network family (campaign.network) is read from"
+  },
+  "reason": "campaign.network covers latency, packet loss, partitions, peer instability, and wrong-key and malformed peers, and the results collector had no summarizer for it. The fault injector already runs the first four; the peer cases come from the E03 runner, which awaits its formal independent review (P02) and per-case staging-host approval.",
+  "design_ref": "../../node/tools/mainnet-preparation/results.py",
+  "decisions": [
+    {
+      "question": "Whether the fault injector's network scenarios count as network attack attempts",
+      "selected": "Yes",
+      "rule": "Each latency, loss, partition and peer_drop scenario in the fault records counts as one attempt of its type: the sentry caught back up with nothing lost is refused; lost finalized history or no recovery is a success (a defect); an INCONCLUSIVE scenario is not counted. The same records still feed the fault KPIs."
+    },
+    {
+      "question": "How E03's wrong-key and malformed peers appear until E03 runs",
+      "selected": "Count zero until E03 runs",
+      "rule": "Both types are registered with zero attempts, so campaign.network stays in progress until E03's cases run and their evidence is read."
+    }
+  ],
+  "accepted_risks": [],
+  "supersedes": [],
+  "does_not_authorize": [
+    "any E03 run or staging-host contact",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
