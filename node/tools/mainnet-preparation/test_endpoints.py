@@ -297,6 +297,7 @@ class Outcomes(unittest.TestCase):
             (row('oversized_body', **handshake, response_status=200, ended='response'), 'admitted'),
             (row('oversized_body', **handshake, response_status=None, ended='timed out'), 'refused_other'),
             (row('oversized_body', **handshake, response_status=502, ended='response'), 'refused_other'),
+            (row('oversized_body', **handshake, response_status=400, ended='response'), 'refused'),
             (row('oversized_body', handshake=False, error='connection refused'), 'transport'),
             (row('method_outside_allowlist', **handshake, response_status=400, ended='response'), 'refused'),
             (row('method_outside_allowlist', **handshake, response_status=200, ended='response'), 'admitted'),

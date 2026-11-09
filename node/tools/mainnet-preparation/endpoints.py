@@ -36,8 +36,9 @@ refusing it:
   - header_flood: a status page request over its header bounds (16 headers,
     8 KiB) is answered 400 or 431, or closed, never served.
   - oversized_body: the attack client completes the handshake and sends a
-    POST whose body is one byte over the channel's bound; the endpoint closes
-    the connection with no reply (or answers 413), never serves it;
+    POST whose body is one byte over the channel's 1 MiB; the endpoint
+    answers 400 (the request codec refuses it) or 413 (over the adapter's
+    lowered limit), or closes with no reply, and never serves it;
   - method_outside_allowlist: the attack client completes the handshake and
     sends a request whose method byte is neither GET nor POST; the endpoint
     answers 400, never serves it;
@@ -95,7 +96,7 @@ REASONS = {
     'slow_client': 'a stalled connection is closed within the listener\'s deadline',
     'invalid_handshake': 'an invalid handshake is closed with no reply',
     'header_flood': 'a request over the header bounds is not served',
-    'oversized_body': 'a body over the bound is closed with no reply, or answered 413',
+    'oversized_body': 'a body over the bound is answered 400 or 413, or closed with no reply',
     'method_outside_allowlist': 'a method outside GET and POST is answered 400, never served',
     'wrong_pin': 'the release client refuses an endpoint that signs with another key',
 }
@@ -181,7 +182,12 @@ def classify(row):
             # Closed with no reply; a connection merely left open is not a refusal.
             held = any(word in (seen.get('ended') or '') for word in ('timed out', 'would block'))
             return 'refused_other' if held or kind == 'method_outside_allowlist' else 'refused'
-        return 'refused' if status == (413 if kind == 'oversized_body' else 400) else 'refused_other'
+        # A body over the channel's 1 MiB is refused by the request codec (400,
+        # Malformed channel request; the message bound leaves room for the
+        # longest path and query, so the message still arrives whole); one
+        # over the adapter's lowered body limit is answered 413.
+        allowed = (400, 413) if kind == 'oversized_body' else (400,)
+        return 'refused' if status in allowed else 'refused_other'
     if kind == 'wrong_pin':
         if not seen.get('hello') or not seen.get('offer_sent'):
             return 'transport'
