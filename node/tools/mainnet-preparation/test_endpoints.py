@@ -532,7 +532,10 @@ class Addresses(Fast):
             rows = campaign.run([k for k in endpoints.REASONS if endpoints.REASONS[k]])
             record = endpoints.build_record(NETWORK, GENESIS, ENGINE, rows, 2, 's', 'f')
             self.assertEqual(record['status'], endpoints.PASS, (record['checks'], record['types']))
-            self.assertEqual({t['status'] for k, t in record['types'].items() if endpoints.REASONS[k]}, {'PASS'})
+            # The attack client's types need --attack-client, which this campaign has not.
+            self.assertEqual({t['status'] for k, t in record['types'].items()
+                              if endpoints.REASONS[k] and k not in endpoints.CLIENT_TYPES}, {'PASS'})
+            self.assertEqual({record['types'][k]['status'] for k in endpoints.CLIENT_TYPES}, {'not_run'})
             self.assertEqual(endpoints.verify(record, endpoints.rows_bytes(rows), GENESIS, ENGINE), endpoints.PASS)
 
 
