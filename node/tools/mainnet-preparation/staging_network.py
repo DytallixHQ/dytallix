@@ -1494,7 +1494,7 @@ def recovery_campaign(work):
 ENDPOINT_ATTEMPTS = 30
 
 
-def endpoint_campaign(work):
+def endpoint_campaign(work, attack_client=None):
     """The endpoint and RPC family on the staging network: connection floods
     over the channel's per-address and total bounds and over the status
     page's, stalled connections, invalid handshakes and header floods, each
@@ -1514,7 +1514,8 @@ def endpoint_campaign(work):
     with bridge_namespaces(spaces, addresses, 'dyta'):
         record = endpoints.run_campaign(work / 'net' / 'keys' / f'{PUBLIC}.channel-pin.json',
                                         f'http://{ADDRESSES[PUBLIC]}:8080/status', work / 'release-bin' / 'dytallix',
-                                        env, out / 'run', ENDPOINT_ATTEMPTS, kinds, spaces, native, engine, show=say)
+                                        env, out / 'run', ENDPOINT_ATTEMPTS, kinds, spaces, native, engine, show=say,
+                                        attack_client=attack_client)
     endpoints.report(record, show=say)
     checked = endpoints.verify(json.loads((out / 'run' / 'endpoints.json').read_bytes()),
                                (out / 'run' / 'endpoints.jsonl').read_bytes(), native, engine)
@@ -2848,15 +2849,16 @@ def main():
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
-                 'endpoint-campaign', 'fault-drill', 'host-loss-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
+                 'fault-drill', 'host-loss-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
                  'root-control-campaign', 'monitor-drill', 'staking-campaign', 'governance-campaign',
                  'recovery-campaign',
                  'stage-later-release',
                  'upgrade-drill', 'agent-drill', 'diagnostics'):
         commands.add_parser(name).add_argument('--work', type=Path, required=True)
-    a = commands.add_parser('attack-campaign')
-    a.add_argument('--work', type=Path, required=True)
-    a.add_argument('--attack-client', type=Path, help="node/tools/attack-client's dytallix-attack")
+    for name in ('attack-campaign', 'endpoint-campaign'):
+        a = commands.add_parser(name)
+        a.add_argument('--work', type=Path, required=True)
+        a.add_argument('--attack-client', type=Path, help="node/tools/attack-client's dytallix-attack")
     r = commands.add_parser('reconcile')
     r.add_argument('--work', type=Path, required=True)
     r.add_argument('--after', choices=('wallet-drill', 'load'), default='wallet-drill')
@@ -2898,7 +2900,7 @@ def main():
         elif args.command == 'recovery-campaign':
             recovery_campaign(args.work)
         elif args.command == 'endpoint-campaign':
-            endpoint_campaign(args.work)
+            endpoint_campaign(args.work, args.attack_client)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
         elif args.command == 'host-loss-drill':

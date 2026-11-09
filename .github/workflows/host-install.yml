@@ -455,12 +455,17 @@ jobs:
       # endpoints.py): from nine namespaces on the bridge, connection floods
       # over the channel's per-address and total bounds and over the status
       # page's, stalled connections, invalid handshakes and header floods,
+      # and through the test-only attack client a body over the bound, a
+      # method outside GET and POST, and an endpoint signing with another key
+      # that the release CLI must refuse (P01, 4 November 2026),
       # each type 30 times, each refused by the listener while the runner's
       # own client is still served and the chain advances. Before the agent
       # drill, whose wipe ends the network.
       - name: Endpoint attacks (T4)
-        timeout-minutes: 20
-        run: sudo python3 node/tools/mainnet-preparation/staging_network.py endpoint-campaign --work "$RUNNER_TEMP/network"
+        timeout-minutes: 30
+        run: |
+          sudo python3 node/tools/mainnet-preparation/staging_network.py endpoint-campaign --work "$RUNNER_TEMP/network" \
+            --attack-client "$RUNNER_TEMP/attack-client/release/dytallix-attack"
       # Host loss (T5; P01, 9 November 2026): the sentry VM's QEMU process
       # killed (power pulled), held off 30 s and booted again on the same
       # disk; the sentry's status page must serve a block made after the

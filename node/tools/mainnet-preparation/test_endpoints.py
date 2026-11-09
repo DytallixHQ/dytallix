@@ -280,11 +280,37 @@ class Outcomes(unittest.TestCase):
         for row, outcome in cases:
             self.assertEqual(endpoints.classify(row), outcome, row)
 
-    def test_only_approved_types_exist_and_three_await_the_attack_client(self):
-        self.assertEqual({k for k, v in endpoints.REASONS.items() if v is None},
-                         {'oversized_body', 'method_outside_allowlist', 'wrong_pin'})
+    def test_only_approved_types_exist_and_every_one_is_built(self):
+        self.assertEqual({k for k, v in endpoints.REASONS.items() if v is None}, set())
+        self.assertEqual(set(endpoints.CLIENT_TYPES), {'oversized_body', 'method_outside_allowlist', 'wrong_pin'})
         with self.assertRaises(endpoints.Failed):
             endpoints.built('teardrop')
+
+    def test_the_attack_client_types(self):
+        def row(kind, **seen):
+            return {'type': kind, 'variant': kind, 'observed': seen}
+        handshake = {'handshake': True, 'write_error': None, 'response_bytes': 0}
+        cases = [
+            (row('oversized_body', **handshake, response_status=None, ended='eof'), 'refused'),
+            (row('oversized_body', **handshake, response_status=None, ended='connection reset'), 'refused'),
+            (row('oversized_body', **handshake, response_status=413, ended='response'), 'refused'),
+            (row('oversized_body', **handshake, response_status=200, ended='response'), 'admitted'),
+            (row('oversized_body', **handshake, response_status=None, ended='timed out'), 'refused_other'),
+            (row('oversized_body', **handshake, response_status=502, ended='response'), 'refused_other'),
+            (row('oversized_body', handshake=False, error='connection refused'), 'transport'),
+            (row('method_outside_allowlist', **handshake, response_status=400, ended='response'), 'refused'),
+            (row('method_outside_allowlist', **handshake, response_status=200, ended='response'), 'admitted'),
+            (row('method_outside_allowlist', **handshake, response_status=None, ended='eof'), 'refused_other'),
+            (row('wrong_pin', hello=True, offer_sent=True, after_offer_bytes=0, finished=False, cli_exit=1),
+             'refused'),
+            (row('wrong_pin', hello=True, offer_sent=True, after_offer_bytes=40, finished=True, cli_exit=1),
+             'admitted'),
+            (row('wrong_pin', hello=True, offer_sent=True, after_offer_bytes=0, finished=False, cli_exit=0),
+             'admitted'),
+            (row('wrong_pin', hello=False, error='no client connected', cli_exit=1), 'transport'),
+        ]
+        for one, outcome in cases:
+            self.assertEqual(endpoints.classify(one), outcome, one)
 
     def test_the_bytes_of_each_invalid_handshake(self):
         good = endpoints.hello_payload(NETWORK, KEY)
@@ -340,8 +366,8 @@ class Records(unittest.TestCase):
         self.assertEqual({k: t['status'] for k, t in record['types'].items()}, {
             'connection_flood_address': 'PASS', 'connection_flood_total': 'not_run',
             'status_connection_flood': 'not_run', 'slow_client': 'not_run', 'invalid_handshake': 'PASS',
-            'header_flood': 'PASS', 'oversized_body': 'not_built', 'method_outside_allowlist': 'not_built',
-            'wrong_pin': 'not_built'})
+            'header_flood': 'PASS', 'oversized_body': 'not_run', 'method_outside_allowlist': 'not_run',
+            'wrong_pin': 'not_run'})
         raw = endpoints.rows_bytes(rows)
         self.assertEqual(endpoints.verify(record, raw, GENESIS, ENGINE), endpoints.PASS)
         edited = raw.replace(b'"extra_closed_after":0.0', b'"extra_closed_after":null', 1)

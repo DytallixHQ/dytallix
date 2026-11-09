@@ -18,6 +18,8 @@
 //! The forgery is checked too: the profile must refuse it for the variant's
 //! reason, and the variant's change must be the only one. It writes the
 //! transport and prints the checks as one JSON line.
+mod channel;
+
 use anyhow::{anyhow, bail, ensure, Context, Result};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use dytallix_protocol_types::ordinary::{self, Limits, SignedOrdinary};
@@ -270,6 +272,11 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 fn run(args: &[String]) -> Result<Value> {
+    match args.first().map(String::as_str) {
+        Some("channel-request") => return channel::channel_request(&args[1..]),
+        Some("wrong-key-endpoint") => return channel::wrong_key_endpoint(&args[1..]),
+        _ => {}
+    }
     let forge_args = parse(args)?;
     let profile = fee_profile(&read_json(&forge_args.profile)?)?;
     let original = envelope(&read_json(&forge_args.transport)?)?;
