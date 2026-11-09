@@ -2720,8 +2720,9 @@ def fault_drill(work, label='sentry-1', timeout=300):
 def results_drill(work, drill, native, engine):
     """The results pipeline end to end (P01, 14 October and 2 November 2026),
     with a throwaway results key made by the release's CLI: the two fault
-    records, and the restore drill's and validator recovery drill's records
-    from earlier steps (the heavy faults), summarized into a campaign summary,
+    records, the restore drill's and validator recovery drill's records
+    from earlier steps (the heavy faults) and the load run's evidence (the
+    performance KPIs), summarized into a campaign summary,
     signed and verified with the CLI, and read as the launch page's generator
     reads summaries. Nothing CI makes is published."""
     repo = Path(__file__).resolve().parents[3]
@@ -2747,7 +2748,9 @@ def results_drill(work, drill, native, engine):
     records = [(drill / 'evidence.json').read_bytes(), (drill / 'validator-1' / 'evidence.json').read_bytes()]
     summary = result_summaries.summarize_campaign(
         records, native, engine, timings, release, commit, [(work / 'restore-drill' / 'evidence.json').read_bytes()],
-        [(work / 'validator-recovery' / 'evidence.json').read_bytes()])
+        [(work / 'validator-recovery' / 'evidence.json').read_bytes()],
+        load_files=[((work / 'load' / 'run' / 'evidence.json').read_bytes(),
+                     (work / 'load' / 'run' / 'transactions.jsonl').read_bytes())])
     path = result_summaries.write_summary(summary, root)
     result_summaries.sign(cli, home, path, root)
     result_summaries.verify(cli, path, root)
@@ -2757,6 +2760,15 @@ def results_drill(work, drill, native, engine):
                 'campaign.faults.validator_host'):
         if shown[kid][0] != 'in_progress' or not isinstance(shown[kid][1], (int, float)):
             raise Failed(f'the page would show {kid} as {shown[kid]}, not in progress with a recovery time')
+    # The CI load run: short and at low rate, so every performance KPI is
+    # recorded and none can pass yet.
+    performance = {k['id']: (k['status'], k['value']) for k in data['kpis'] if k['id'].startswith('campaign.performance.')}
+    for kid, (status, value) in performance.items():
+        if status != 'in_progress' or not isinstance(value, (int, float)):
+            raise Failed(f'the page would show {kid} as {(status, value)}, not recorded from the load run')
+    if len(performance) != 6:
+        raise Failed(f'the page shows {len(performance)} performance KPIs from the load run, not 6')
+    shown.update(performance)
     if launch_dashboard.page_problems(data):
         raise Failed(f'the page would refuse the data: {launch_dashboard.page_problems(data)}')
     say(json.dumps({'results_drill': {'summary': str(path.relative_to(root)), 'shown': shown}}, indent=2))

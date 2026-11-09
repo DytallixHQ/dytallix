@@ -11,8 +11,10 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 import unittest.mock
+from unittest import mock
 
 import attacks
+import load
 import endpoints
 import faults
 import launch_dashboard
@@ -179,7 +181,7 @@ class Summarize(unittest.TestCase):
         del unfinished['instants']['caught_up_at']
         raw = json.dumps(restore_drill.build('dytallix-staging-2', NATIVE, unfinished,
                                              restore_drill.approved_target())).encode()
-        with self.assertRaisesRegex(results.Failed, 'no recovery or attack for a campaign KPI'):
+        with self.assertRaisesRegex(results.Failed, 'no recovery, attack or load run for a campaign KPI'):
             summarize(restores=[raw])
 
     def test_the_attack_family_counts_its_fewest_type_and_every_success(self):
@@ -240,7 +242,7 @@ class Summarize(unittest.TestCase):
             results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, attack_files=[(raw, rows + b'{}\n')])
 
     def test_a_summary_needs_a_result_kpi_and_a_fault_recovery(self):
-        with self.assertRaisesRegex(results.Failed, 'no recovery or attack for a campaign KPI'):
+        with self.assertRaisesRegex(results.Failed, 'no recovery, attack or load run for a campaign KPI'):
             summarize(record([row('latency', 9)]))
         summary = summarize(record([row('partition', 20)]))
         summary['kpis'][0]['id'] = 'plan.d14_q02.approval'
@@ -328,3 +330,63 @@ class SignAndRead(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class Performance(unittest.TestCase):
+    """campaign.performance from the load runs' evidence (load runs only)."""
+
+    def load_record(self, per_block=1, interval=5, heights=6, late=0):
+        import test_load
+        rows = [test_load.tx_row('run', 'send_drt', block=11, submit=10) for _ in range(per_block)]
+        rows += [test_load.tx_row('run', 'send_drt', block=14, submit=10) for _ in range(late)]
+        raw = load.rows_jsonl(rows)
+        ledger = load.ledger(rows, 10, 10)
+        charged = sum(int(e['charge_udrt']) for e in ledger['entries'])
+        times = {str(10 + h): f'2026-11-09T00:{(h * interval) // 60:02d}:{(h * interval) % 60:02d}Z'
+                 for h in range(heights)}
+        settings = dict(test_load.SETTINGS, max_refused=None)
+        record = load.evidence(test_load.CHAIN, settings, {}, raw, ledger, test_load.supply(0, 10),
+                               test_load.supply(charged, 16), times, {}, {}, '2026-11-09T00:00:00Z',
+                               '2026-11-09T01:00:00Z')
+        return json.dumps(record).encode(), raw
+
+    def kpis(self, loads):
+        return {k['id']: k for k in results.performance_kpis(*results.load_samples(loads)[:2])}
+
+    def test_a_short_run_records_values_in_progress(self):
+        found = self.kpis([self.load_record()])
+        self.assertEqual(found['campaign.performance.block_interval_p50']['value'], 5.0)
+        self.assertEqual({k['status'] for k in found.values()}, {'in_progress'})
+        self.assertEqual(found['campaign.performance.inclusion_within_2_blocks']['value'], 100.0)
+        self.assertEqual(found['campaign.performance.response_time_p99']['value'], 0.02)
+        self.assertTrue(all(k['target'] is None for k in found.values()))
+
+    def test_bounds_fail_at_once(self):
+        found = self.kpis([self.load_record(interval=7)])
+        self.assertEqual(found['campaign.performance.block_interval_p50']['status'], 'fail')
+        found = self.kpis([self.load_record(per_block=98, late=2)])
+        self.assertEqual(found['campaign.performance.inclusion_within_2_blocks']['status'], 'fail')
+
+    def test_half_capacity_and_a_day_pass(self):
+        found = self.kpis([self.load_record(per_block=95)])
+        self.assertEqual(found['campaign.performance.inclusion_within_2_blocks']['status'], 'pass')
+        self.assertEqual(found['campaign.performance.response_time_p99']['status'], 'pass')
+        with mock.patch.object(results, 'DAY_INTERVALS', 5):
+            found = self.kpis([self.load_record(per_block=95)])
+        for name in ('block_interval_p50', 'block_interval_p99', 'block_interval_p95'):
+            self.assertEqual(found[f'campaign.performance.{name}']['status'], 'pass', name)
+        self.assertEqual(found['campaign.performance.block_interval_p99_9']['status'], 'in_progress')
+
+    def test_samples_pool_over_runs_and_an_edited_run_is_refused(self):
+        a, b = self.load_record(), self.load_record(interval=4)
+        found = self.kpis([a, b])
+        self.assertEqual(found['campaign.performance.block_interval_p50']['samples'], 10)
+        record = json.loads(a[0])
+        record['summary']['inclusion']['within_2'] = 0
+        with self.assertRaises(results.Failed):
+            results.load_samples([(json.dumps(record).encode(), a[1])])
+
+    def test_the_kpis_pass_the_page_checks(self):
+        summary = {'schema': results.SCHEMA, 'scope': 'campaign', 'date': '2026-11-09',
+                   'kpis': list(self.kpis([self.load_record()]).values())}
+        self.assertEqual(results.summary_problems(summary), [])
