@@ -203,7 +203,7 @@ jobs:
     name: Staging network (H4 two seats)
     needs: install
     runs-on: ubuntu-24.04
-    timeout-minutes: 105
+    timeout-minutes: 130
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Release cache key
@@ -461,6 +461,14 @@ jobs:
       - name: Endpoint attacks (T4)
         timeout-minutes: 20
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py endpoint-campaign --work "$RUNNER_TEMP/network"
+      # The flood family (T4; P01, 9 November 2026): 10 transaction floods
+      # past the CI chain's 64-entry admission queue (the excess refused, none
+      # admitted evicted) and 10 request floods from 7 addresses holding 14 of
+      # the channel's 16 connections while an honest client is served and the
+      # chain advances. Before host loss, which reboots the sentry.
+      - name: Flood attacks (T4)
+        timeout-minutes: 35
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py flood-campaign --work "$RUNNER_TEMP/network"
       # Host loss (T5; P01, 9 November 2026): the sentry VM's QEMU process
       # killed (power pulled), held off 30 s and booted again on the same
       # disk; the sentry's status page must serve a block made after the
