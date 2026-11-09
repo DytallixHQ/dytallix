@@ -432,6 +432,42 @@ class ScenarioTests(unittest.TestCase):
         record = faults.build_run('c', b'{}', b'{}', rows, 300, 'validator-1')
         self.assertEqual(record['scenarios'][0]['status'], 'FAIL')
 
+    def test_host_loss_powers_the_sentry_off_and_on_through_the_founder_s_controller(self):
+        page = FakePage()
+
+        class Power:
+            def __init__(self, on_status='DONE'):
+                self.calls, self.on_status = [], on_status
+
+            def off(self):
+                self.calls.append('off')
+                page.down = True
+                return {'status': 'DONE', 'finished_at': time.time(), 'stopped': True}
+
+            def on(self):
+                self.calls.append('on')
+                page.down = self.on_status != 'DONE'
+                return {'status': self.on_status, 'finished_at': time.time()}
+
+        spec = dict(faults.HOST_LOSS, args={'off_seconds': 0.3})
+        power = Power()
+        row = faults.run_host_loss(power, page.read, sf.block_instant, spec, recovery_timeout=10,
+                                   say=lambda m: None, period=0.02)
+        record = faults.build_run('c', b'{}', b'{}', [row], 600, 'sentry-1')
+        built = record['scenarios'][0]
+        self.assertEqual((built['kind'], built['status']), ('host', 'PASS'), built)
+        self.assertEqual(power.calls, ['off', 'on'])
+        self.assertEqual(built['clocks'], faults.HOST_CLOCKS)
+        self.assertGreater(built['effect']['reads_while_off'], 0)
+        self.assertEqual(built['effect']['served_while_off'], 0)
+        self.assertEqual(faults.verify(json.loads(json.dumps(record)), b'{}', b'{}'), 'PASS')
+
+        # A machine that does not come back fails.
+        page = FakePage()
+        row = faults.run_host_loss(Power('FAILED'), page.read, sf.block_instant, spec, recovery_timeout=0.5,
+                                   say=lambda m: None, period=0.02)
+        self.assertEqual(faults.build_run('c', b'{}', b'{}', [row], 600, 'sentry-1')['status'], 'FAIL')
+
     def test_a_sentry_that_never_recovers_fails(self):
         page = FakePage()
         channel = FakeChannel(page)

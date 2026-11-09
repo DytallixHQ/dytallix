@@ -320,7 +320,7 @@ class FaultDrillTests(unittest.TestCase):
     def test_every_scenario_name_is_a_registered_fault_kind(self):
         for scenario in self.faults.SCENARIOS + self.faults.VALIDATOR_SCENARIOS:
             self.assertIn(scenario['name'], self.faults.KINDS)
-        self.assertEqual(set(self.faults.BY_NAME), set(self.faults.KINDS))
+        self.assertEqual(set(self.faults.BY_NAME) | {self.faults.HOST_LOSS['name']}, set(self.faults.KINDS))
 
     def test_the_recovery_target_is_approved_and_wired(self):
         root = Path(__file__).resolve().parents[3]
@@ -336,6 +336,13 @@ class FaultDrillTests(unittest.TestCase):
         plan = json.loads((root / 'launch' / 'approvals' / 'P01_T06_SIMULATION_PLAN_2026-10-11.json').read_bytes())
         self.assertIn('blocks again within 5 minutes of a validator process restart', json.dumps(plan))
         self.assertEqual(self.faults.kind('validator_restart'), 'process')
+
+    def test_the_host_loss_target_is_the_approved_ten_minutes(self):
+        root = Path(__file__).resolve().parents[3]
+        timings = json.loads((root / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())
+        self.assertEqual(timings['host_loss_target_seconds'], 10 * 60)
+        self.assertTrue((root / 'launch' / 'approvals' / 'P01_T05_HOST_LOSS_2026-11-09.json').exists())
+        self.assertEqual(self.faults.kind('host_loss'), 'host')
 
 
 if __name__ == '__main__':

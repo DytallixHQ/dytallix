@@ -55,7 +55,16 @@ validator, through its own agent, as its own record (`--host validator-1
 --scenarios validator_restart`): with one validator the chain halts while it
 is down, so recovery is the next block the sentry's status page serves, judged
 against the approved 5-minute target (TIMINGS.json
-validator_restart_target_seconds). Host loss follows.
+validator_restart_target_seconds). Host loss (`host_loss`) is the sentry's
+whole machine powered off hard and on again from the founder's machine, not
+through the agent (a host cannot bring itself back): the disk survives, and
+recovery is the sentry serving a block made after the power-on, judged against
+its own approved 10-minute target (TIMINGS.json host_loss_target_seconds; P01,
+9 November 2026). Its injection and clear are timed on the founder's clock,
+and its reader gap counts only the reader's own silences (no attempt at all),
+since a host that is off or booting answers nothing. It is built for the CI
+staging network (the VM's power); the real hosts' power path (the provider's
+API) is not built yet.
 """
 import argparse
 from datetime import datetime, timezone
@@ -82,7 +91,7 @@ PASS, FAIL, INCONCLUSIVE = reconcile.PASS, reconcile.FAIL, reconcile.INCONCLUSIV
 # recomputes the kind from the name, so a record cannot file a scenario under
 # a softer kind.
 KINDS = {'latency': 'netem', 'loss': 'netem', 'partition': 'partition', 'peer_drop': 'peers',
-         'process_kill': 'process', 'validator_restart': 'process'}
+         'process_kill': 'process', 'validator_restart': 'process', 'host_loss': 'host'}
 
 
 class Failed(Exception):
@@ -122,6 +131,9 @@ VALIDATOR_SCENARIOS = (
     {'name': 'validator_restart', 'command': 'fault-kill', 'args': {}},
 )
 BY_NAME = {spec['name']: spec for spec in SCENARIOS + VALIDATOR_SCENARIOS}
+# Host loss (P01, 9 November 2026): the sentry's machine powered off hard, held
+# off, then powered on, by the founder's power controller rather than the agent.
+HOST_LOSS = {'name': 'host_loss', 'command': 'power-cycle', 'args': {'off_seconds': 30}}
 # The kill's own dead-man (P01, 4 November 2026; ALLOWLIST.json fault-kill):
 # the host starts the node this long after a kill if nothing else has, so a
 # founder machine that drops between the kill and its restart cannot leave
@@ -134,6 +146,8 @@ KILL_DEAD_MAN_SECONDS = 60
 REDIAL_SECONDS = 75
 BREAKS_PEERS = ('partition', 'process_kill')
 CLOCKS = {'injected_at': 'host', 'cleared_at': 'host', 'recovered_at': 'reader'}
+# Host loss is injected and cleared from the founder's machine, the reader's.
+HOST_CLOCKS = {'injected_at': 'reader', 'cleared_at': 'reader', 'recovered_at': 'reader'}
 # The reader reads about once a second, each read waiting at most 5 s. On 4
 # November 2026 (UTC) the founder's laptop slept with its lid closed during
 # rounds 22 and 23, and its late readings failed recoveries that the hosts'
@@ -167,6 +181,11 @@ def effect_holds(scenario_kind, effect):
         return bool(closed) and not set(closed) & set(after)
     if scenario_kind == 'process':
         return (effect.get('active') or '') in ('inactive', 'failed', 'deactivating')
+    if scenario_kind == 'host':
+        # The controller saw the machine stop, the reader read while it was
+        # off, and the status page served nothing in that time.
+        return (effect.get('powered_off') is True and is_int(effect.get('reads_while_off'))
+                and effect['reads_while_off'] > 0 and effect.get('served_while_off') == 0)
     return False
 
 
@@ -194,6 +213,8 @@ def evaluate(scenario, target):
     clear = scenario.get('clear') or {}
     if clear.get('mechanism') == 'restart' and clear.get('status') != 'DONE':
         return FAIL, 'the restart command did not run to completion'
+    if clear.get('mechanism') == 'power-on' and clear.get('status') != 'DONE':
+        return FAIL, 'the power-on did not run to completion'
     if not effect_holds(this, scenario.get('effect') or {}):
         return FAIL, 'the fault had no measurable effect'
     for field in ('baseline_height', 'height_at_clear'):
@@ -277,13 +298,15 @@ class Timeline:
                    and (before is None or instant(p['read_at']).timestamp() <= before)]
         return heights[-1] if heights else None
 
-    def largest_gap(self, start, end):
+    def largest_gap(self, start, end, answered_only=True):
         """The longest time from `start` to `end` (seconds) without a reading
         the sentry's host answered: an HTTP status, or a refused connection
         (its node down). A timeout or a network error on the reader's side is
-        not an answer."""
+        not an answer. With `answered_only` False (host loss, where the host
+        itself is off or booting), any attempt counts: only a reader that did
+        not read at all (asleep) leaves a gap."""
         answered = [instant(p['read_at']).timestamp() for p in list(self.pages)
-                    if p.get('read_at') and (p.get('http') is not None or p.get('refused'))]
+                    if p.get('read_at') and (not answered_only or p.get('http') is not None or p.get('refused'))]
         span = [start] + [t for t in answered if start < t <= end] + [max(end, start)]
         return round(max(b - a for a, b in zip(span, span[1:])), 1)
 
@@ -374,6 +397,60 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
         if name in BREAKS_PEERS:
             broke_at = clock()
     return rows
+
+
+def run_host_loss(power, read_page, made, spec=HOST_LOSS, recovery_timeout=900, clock=time.time,
+                  sleep=time.sleep, say=print, period=1.0):
+    """Host loss (P01, 9 November 2026) through a power controller on the
+    founder's machine: `power.off()` stops the machine hard and returns
+    {'status', 'finished_at', 'stopped'}; `power.on()` starts it again on the
+    same disk and returns {'status', 'finished_at'}. Recovery is timed on the
+    status page as for the other faults, from the power-on. Returns the raw
+    observation."""
+    name, off_seconds = spec['name'], spec['args']['off_seconds']
+    say(f'== fault scenario: {name} (powered off for {off_seconds} s)')
+    with Timeline(read_page, sleep, period) as timeline:
+        began = clock()
+        while timeline.last_height() is None:
+            if clock() > began + recovery_timeout:
+                raise Failed(f'{name}: the status page served no height')
+            sleep(period)
+        baseline = timeline.last_height()
+        off = power.off()
+        off_at = off.get('finished_at')
+        if off['status'] == 'DONE' and off_at is not None:
+            while clock() < off_at + off_seconds:
+                sleep(period)
+            on = power.on()
+        else:
+            on = {'status': 'NOT_RUN', 'finished_at': None}
+        cleared_at = on.get('finished_at')
+        pages = [p for p in list(timeline.pages) if p.get('read_at') and off_at is not None
+                 and cleared_at is not None and off_at <= instant(p['read_at']).timestamp() < cleared_at]
+        row = {'name': name, 'command': {'command': spec['command'], 'args': dict(spec['args']),
+                                         'status': off['status']},
+               'clear': {'mechanism': 'power-on', 'status': on['status']},
+               'effect': {'powered_off': off.get('stopped') is True, 'reads_while_off': len(pages),
+                          'served_while_off': sum(1 for p in pages if p.get('http') is not None)},
+               'baseline_height': baseline, 'clocks': dict(HOST_CLOCKS), 'injected_at': None, 'cleared_at': None,
+               'height_at_clear': None, 'recovered_at': None, 'recovered_height': None, 'reader_gap_seconds': None}
+        if off_at is not None:
+            row['injected_at'] = iso_at(off_at)
+        if on['status'] == 'DONE' and cleared_at is not None:
+            row['cleared_at'] = iso_at(cleared_at)
+            row['height_at_clear'] = timeline.last_height(before=cleared_at)
+            deadline = cleared_at + recovery_timeout
+            while True:
+                found = timeline.recovered(cleared_at, row['height_at_clear'], made)
+                if found or clock() > deadline:
+                    break
+                sleep(period)
+            if found:
+                row['recovered_at'], row['recovered_height'] = found
+            end = instant(found[0]).timestamp() if found else clock()
+            row['reader_gap_seconds'] = timeline.largest_gap(cleared_at, end, answered_only=False)
+    say(f'== {name}: {"caught back up at " + str(row["recovered_height"]) if row["recovered_at"] else "no recovery"}')
+    return row
 
 
 def run_status(statuses):
@@ -472,6 +549,9 @@ def run_main(args):
         store = staging_founder.open_store(args.store, args.work / 'store-scratch')
         channel = staging_founder.Channel(store, args.chain, args.host, args.work, args.cli, args.home, args.key,
                                           args.paper, args.signer)
+        if 'host_loss' in args.scenarios.split(','):
+            raise Failed('host_loss needs a power controller: it runs in the CI staging network only, '
+                         'the real hosts\' power path (the provider\'s API) is not built yet')
         try:
             scenarios = tuple(BY_NAME[name] for name in args.scenarios.split(','))
         except KeyError as error:

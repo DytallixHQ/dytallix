@@ -203,7 +203,7 @@ jobs:
     name: Staging network (H4 two seats)
     needs: install
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 105
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Release cache key
@@ -461,6 +461,15 @@ jobs:
       - name: Endpoint attacks (T4)
         timeout-minutes: 20
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py endpoint-campaign --work "$RUNNER_TEMP/network"
+      # Host loss (T5; P01, 9 November 2026): the sentry VM's QEMU process
+      # killed (power pulled), held off 30 s and booted again on the same
+      # disk; the sentry's status page must serve a block made after the
+      # power-on within the approved 10 minutes. Its own step, after the
+      # steps that use the sentry's transient stand-ins and before the agent
+      # drill, whose wipe ends the network.
+      - name: Host loss (T5)
+        timeout-minutes: 25
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py host-loss-drill --work "$RUNNER_TEMP/network"
       # The staging agent (simulation plan, T2) on the sentry: signed status
       # and journal commands run; tampered, unsigned, replayed,
       # non-allowlisted and expired ones are refused; the results open with
