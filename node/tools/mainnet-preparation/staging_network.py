@@ -219,6 +219,7 @@ import attacks  # noqa: E402
 import checkpoints  # noqa: E402
 import endpoints  # noqa: E402
 import faults  # noqa: E402
+import floods  # noqa: E402
 import governance  # noqa: E402
 import host_files  # noqa: E402
 import host_install  # noqa: E402
@@ -1522,6 +1523,46 @@ def endpoint_campaign(work):
         raise Failed(f'the endpoint campaign is {record["status"]} (verified {checked})')
     summary_kpis = result_summaries.attack_kpis('endpoint_rpc', [record])
     say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
+
+
+def flood_campaign(work):
+    """The flood family (T4; P01, 9 November 2026) on the staging network:
+    10 transaction floods past the CI chain's 64-entry admission queue (the
+    excess refused as the queue is full, nothing admitted evicted), then 10
+    request floods from 7 addresses holding 14 of the channel's 16
+    connections while the honest client on the runner's address is served
+    every time and the chain advances, then two control transfers that
+    commit. The record is checked again from its files and summarized as
+    the launch page reads it."""
+    work = Path(work)
+    chain = work / 'net' / 'chain'
+    out = work / 'flood-campaign'
+    env = pinned_cli(work, out / 'client')
+    cli = work / 'release-bin' / 'dytallix'
+    config = json.loads((chain / 'chain' / 'application-config.json').read_bytes())
+    bound = int(config['ordinary']['queue_max_entries'])
+    load_generator.make_fleet(cli, staging_host.CHAIN_ID, out / 'fleet', bound + floods.FLOOD_EXTRA, voters=0,
+                              spares=0, distributors=4)
+    validator = next(v['validator_id'] for v in json.loads((chain / 'genesis' / 'records.json').read_bytes())['validators'])
+    native = (chain / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (chain / 'chain' / 'genesis.json').read_bytes()
+    spaces = [f'dytfl{n}' for n in range(floods.FLOODERS)]
+    addresses = [f'10.77.0.{60 + n}' for n in range(floods.FLOODERS)]
+    with bridge_namespaces(spaces, addresses, 'dytf'):
+        record = floods.run_campaign(cli, env['HOME'], out / 'fleet', out / 'run',
+                                     chain / 'chain' / 'application-config.json', 'ecosystem-growth', validator,
+                                     native, engine, FLOOD_ATTEMPTS, tuple(floods.REASONS), spaces, show=say,
+                                     passphrase=env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'])
+    floods.report(record, show=say)
+    checked = floods.verify(json.loads((out / 'run' / 'floods.json').read_bytes()),
+                            (out / 'run' / 'floods.jsonl').read_bytes(), native, engine)
+    if record['status'] != floods.PASS or checked != record['status']:
+        raise Failed(f'the flood campaign is {record["status"]} (verified {checked})')
+    summary_kpis = result_summaries.attack_kpis('floods', [record])
+    say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
+
+
+FLOOD_ATTEMPTS = 10
 
 
 def checkpoint_network(work, timeout=300):
@@ -2854,7 +2895,7 @@ def main():
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
-                 'endpoint-campaign', 'fault-drill', 'host-loss-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
+                 'endpoint-campaign', 'flood-campaign', 'fault-drill', 'host-loss-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
                  'root-control-campaign', 'monitor-drill', 'staking-campaign', 'governance-campaign',
                  'recovery-campaign',
                  'stage-later-release',
@@ -2907,6 +2948,8 @@ def main():
             endpoint_campaign(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
+        elif args.command == 'flood-campaign':
+            flood_campaign(args.work)
         elif args.command == 'host-loss-drill':
             host_loss_drill(args.work)
         elif args.command == 'stage-later-release':

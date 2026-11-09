@@ -1,0 +1,49 @@
+{
+  "decision_id": "P01-2026-11-09-T04-FLOODS",
+  "approved": "2026-11-09",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Adversarial generator (T4): the transaction and request floods"
+  },
+  "reason": "T4's request and transaction floods were the part of the adversarial generator not yet built (adversary.py: \"Transaction and request floods follow with the load machines (R03)\").",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "Which flood types the driver runs",
+      "selected": "Transaction and request floods",
+      "rule": "A transaction flood: funded wallets send valid transactions past the admission queue's entry bound; the excess is refused and never evicts what is pending, the chain keeps producing, and a control transaction is admitted after. A request flood: flooders send requests over the client channel at their connection bounds while a separate client is still served and the chain advances."
+    },
+    {
+      "question": "Attempts per flood type in the statistical campaign",
+      "selected": "10",
+      "rule": "Each flood type is made 10 times (campaign.floods.attempts, target 10)."
+    },
+    {
+      "question": "Sequence",
+      "selected": "CI first, Hetzner later",
+      "rule": "The floods are built and proven in the CI staging network first. The real-host run, with the load machines on Hetzner, needs its own approval naming the machine count, the hours and the window."
+    },
+    {
+      "question": "The queue bound in CI",
+      "selected": "64 entries for the whole CI staging chain",
+      "rule": "The queue bound is a genesis value, so the sentry cannot run another one alone. The CI staging chain is built with queue_max_entries 64 (launch/simulations/TIMINGS.json, ci profile); the production and rehearsal profiles keep 2,000. A flood record names the bound it was judged against."
+    },
+    {
+      "question": "The request flood's connections",
+      "selected": "At most 14; the honest client keeps 2",
+      "rule": "The flooders hold at most 14 of the client channel's 16 connections, so the honest client's address keeps its 2 and must be served each time while the chain advances."
+    }
+  ],
+  "accepted_risks": [
+    "Until the real-host run, the transaction flood has met only the CI chain's 64-entry queue, not the production 2,000."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "renting any load machine",
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

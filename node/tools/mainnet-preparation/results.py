@@ -86,6 +86,7 @@ sys.path.insert(0, str(HERE))
 import account_recovery  # noqa: E402
 import attacks  # noqa: E402
 import endpoints  # noqa: E402
+import floods  # noqa: E402
 import faults  # noqa: E402
 import governance  # noqa: E402
 import launch_dashboard  # noqa: E402
@@ -121,7 +122,7 @@ HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caug
 HEAVY_REPETITIONS = 3
 # An attack family's evidence tool.
 ATTACK_FAMILIES = {'transactions': attacks, 'endpoint_rpc': endpoints, 'root_controls': root_controls,
-                   'staking': staking, 'governance': governance, 'recovery': account_recovery}
+                   'staking': staking, 'governance': governance, 'recovery': account_recovery, 'floods': floods}
 
 
 class Failed(Exception):
