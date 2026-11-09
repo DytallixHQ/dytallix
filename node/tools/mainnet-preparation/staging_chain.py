@@ -334,8 +334,12 @@ def timing_values(profile, snapshot_interval=None, timings=None):
         require(row is not None and row['status'] == 'APPROVED', f'{path} is not an approved E05 value')
         production = row['approved']
         row['approved'] = str(value) if isinstance(production, str) else value
-        row['approval_record'] = spec['approval_record']
-        changed.append({'path': path, 'production': production, 'value': row['approved']})
+        # A value approved apart from the profile names its own record.
+        row['approval_record'] = spec.get('value_approvals', {}).get(path, spec['approval_record'])
+        change = {'path': path, 'production': production, 'value': row['approved']}
+        if row['approval_record'] != spec['approval_record']:
+            change['approval_record'] = row['approval_record']
+        changed.append(change)
     record = {'profile': profile, 'approval_record': spec['approval_record'], 'changed': changed,
               'derived': timing_checks(rows, timings, profile)}
     return values, record

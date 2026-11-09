@@ -79,16 +79,22 @@ class StagingChainTests(unittest.TestCase):
             before, after = changed[c['path']]
             self.assertEqual((before['approved'], after['approved']), (c['production'], c['value']))
             self.assertEqual(type(before['approved']), type(after['approved']))
-            self.assertEqual(after['approval_record'], record['approval_record'])
-            self.assertTrue((sc.MAINNET / record['approval_record']).is_file())
+            self.assertEqual(after['approval_record'], c.get('approval_record', record['approval_record']))
+            self.assertTrue((sc.MAINNET / after['approval_record']).is_file())
         return changed, record
 
-    def test_the_ci_profile_replaces_only_the_notice_and_the_snapshot_interval(self):
+    def test_the_ci_profile_replaces_only_the_notice_the_snapshot_interval_and_the_queue(self):
         changed, _ = self.changed('ci', 10)
         self.assertEqual(sorted(changed), sorted(['upgrade.min_notice_blocks', 'release_handover.v2.min_notice_blocks',
-                                                  sc.SNAPSHOT_PATH]))
+                                                  'ordinary.queue_max_entries', sc.SNAPSHOT_PATH]))
         self.assertEqual(changed['upgrade.min_notice_blocks'][1]['approved'], 20)
-        self.assertEqual(sorted(self.changed('ci')[0]), ['release_handover.v2.min_notice_blocks', 'upgrade.min_notice_blocks'])
+        # The flood campaign's queue (P01, 9 November 2026), under its own approval.
+        self.assertEqual((changed['ordinary.queue_max_entries'][0]['approved'],
+                          changed['ordinary.queue_max_entries'][1]['approved']), (2000, 64))
+        self.assertEqual(changed['ordinary.queue_max_entries'][1]['approval_record'],
+                         'launch/approvals/P01_T04_FLOODS_2026-11-09.json')
+        self.assertEqual(sorted(self.changed('ci')[0]), ['ordinary.queue_max_entries', 'release_handover.v2.min_notice_blocks',
+                                                         'upgrade.min_notice_blocks'])
 
     def test_the_production_profile_replaces_nothing(self):
         values, record = sc.timing_values('production')

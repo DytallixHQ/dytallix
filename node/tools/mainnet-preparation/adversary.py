@@ -30,8 +30,8 @@ refused as such; a byte-distinct copy from a randomized signer must be refused
 by the node's identity check. The case records which it was (`same_bytes`),
 and the reason it must be refused for follows from that, never from the log. The original itself must be
 admitted and commit once (`pending_original`), and a record with those copies
-but no original does not verify. Transaction and request floods follow with
-the load machines (R03).
+but no original does not verify. Transaction and request floods are their
+own family (floods.py).
 
 The byte-level mutations here are offline and unit-tested: a valid transport is
 decoded, exactly the field under test is changed, and it is re-wrapped. The
