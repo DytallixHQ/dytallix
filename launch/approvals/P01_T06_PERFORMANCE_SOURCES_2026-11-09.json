@@ -1,0 +1,25 @@
+{
+  "decision_id": "P01-2026-11-09-T06-PERFORMANCE-SOURCES",
+  "approved": "2026-11-09",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Which runs the campaign's performance KPIs are read from"
+  },
+  "reason": "The campaign.performance KPIs (block interval percentiles, inclusion within 2 blocks, response time) are defined outside injected faults, and the results collector had no summarizer for them.",
+  "design_ref": "../../node/tools/mainnet-preparation/results.py",
+  "decisions": [
+    {
+      "question": "Which runs count for the performance KPIs",
+      "selected": "Load runs only",
+      "rule": "The performance KPIs are read from the load runs' evidence (load.py run) only, so every sample is outside injected faults."
+    }
+  ],
+  "accepted_risks": [],
+  "supersedes": [],
+  "does_not_authorize": [
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
