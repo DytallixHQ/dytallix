@@ -5,7 +5,7 @@ public result summaries the launch page shows, and signs them with the
 results key.
 
   results.py summarize campaign [--faults FILE ...] [--restores FILE ...] [--recoveries FILE ...] \
-      [--attacks FILE ...] \
+      [--attacks FILE ...] [--loads EVIDENCE ...] \
       --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS --release BUILD_RECORD.json --commit SHA [--root DIR]
   results.py sign --cli DYTALLIX --home DIR SUMMARY
   results.py verify --cli DYTALLIX SUMMARY [SUMMARY ...]
@@ -54,6 +54,27 @@ endpoint_rpc, every attempt a listener served; for staking and governance,
 every attempt the chain accepted or that changed what it must not), failing at one. A record with a refusal for another reason is not published: the
 type's reason is fixed and the type run again.
 
+The performance KPIs come from the load runs' evidence (load.py run, T3,
+each EVIDENCE with its transactions.jsonl beside it; P01, 9 November 2026,
+launch/approvals/P01_T06_PERFORMANCE_SOURCES_2026-11-09.json), re-verified with
+load.verify; load runs only, so every sample is outside injected faults.
+The samples are pooled over every run to date, never averaged: the block
+intervals between consecutive committed headers, each committed run
+transaction's inclusion delay in blocks, and each offline broadcast's
+response time. The statuses:
+  - block_interval_p50 and _p99 fail over 6 s and 10 s (load.py's own
+    bounds) and pass at a day's intervals (17,280) within them; in progress
+    before that;
+  - block_interval_p95 passes, recorded, at a day's intervals; p99_9 stays
+    in progress, recorded over the endurance run, which follows;
+  - inclusion_within_2_blocks fails under 99% and passes at 99% or more once
+    a run held half capacity (a mean of at least 90 committed a block, half
+    of the approved about 180 basic Sends); in progress before that;
+  - response_time_p99 passes, recorded, once a run at half capacity gave
+    response times.
+A load run names its chain but not its genesis, so its source row has no
+genesis digest.
+
 The network family (campaign.network; P01, 9 November 2026,
 launch/approvals/P01_T06_NETWORK_SOURCES_2026-11-09.json) reads the same
 fault records: each latency, loss, partition and peer_drop scenario is one
@@ -63,7 +84,8 @@ recovered is a success (a defect). A scenario that is INCONCLUSIVE, or
 whose fault did not run or had no effect, is no attempt. Wrong-key and
 malformed peers come from the E03 runner and count zero until its evidence
 is read, so the family's attempts (the fewest over its types) stay in
-progress until then. Runs, checkpoints, performance and endurance follow.
+progress until then. Runs, checkpoints and endurance
+follow.
 
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
@@ -90,6 +112,7 @@ import floods  # noqa: E402
 import faults  # noqa: E402
 import governance  # noqa: E402
 import launch_dashboard  # noqa: E402
+import load  # noqa: E402
 import recovery  # noqa: E402
 import restore_drill  # noqa: E402
 import root_controls  # noqa: E402
@@ -111,6 +134,12 @@ SHA256 = re.compile(r'[0-9a-f]{64}')
 FAULT_KPIS = {'partition': ('campaign.faults.network_heal', 'fault_recovery_target_seconds'),
               'validator_restart': ('campaign.faults.validator_restart', 'validator_restart_target_seconds')}
 QUICK_REPETITIONS = 30
+# The performance KPIs (load runs only): load.py's own block interval
+# bounds, a day of 5-second blocks, and half the approved capacity of about
+# 180 basic Sends a block.
+DAY_INTERVALS = 17280
+HALF_CAPACITY_PER_BLOCK = 90
+INCLUSION_SHARE = 0.99
 # The network family's types: the fault injector's four network scenarios,
 # and E03's two peer cases, which count zero until E03's evidence is read.
 NETWORK_FAULTS = ('latency', 'loss', 'partition', 'peer_drop')
@@ -224,6 +253,59 @@ def attack_records(files, genesis_bytes, engine_genesis_bytes):
     return families, sources, days
 
 
+def load_samples(files):
+    """Each (evidence, transactions) pair re-verified; the pooled samples,
+    whether a run held half capacity, the sources and the days."""
+    pooled = {'intervals': [], 'delays': [], 'response_s': []}
+    half, sources, days = False, [], []
+    for raw, rows_bytes in files:
+        record = json.loads(raw)
+        try:
+            status = load.verify(record, rows_bytes)
+        except (load.Failed, KeyError, TypeError, ValueError) as error:
+            raise Failed(f'a load record does not verify: {error}')
+        rows = [json.loads(line) for line in rows_bytes.splitlines() if line.strip()]
+        times = sorted((int(h), load.header_seconds(t)) for h, t in record['block_times'].items())
+        pooled['intervals'] += [b[1] - a[1] for a, b in zip(times, times[1:]) if b[0] == a[0] + 1]
+        pooled['delays'] += [r['block_height'] - r['submit_height'] for r in rows if r['phase'] == 'run'
+                             and r['status'] == 'committed' and r['submit_height'] is not None]
+        pooled['response_s'] += [r['broadcast_ms'] / 1000 for r in rows
+                                 if r['path'] == 'offline' and r['broadcast_ms'] is not None]
+        mean = record['summary']['throughput']['per_block_mean']
+        half = half or (mean is not None and mean >= HALF_CAPACITY_PER_BLOCK)
+        sources.append({'tool': 'load', 'sha256': digest(raw), 'chain_id': record['chain_id'],
+                        'native_genesis_sha256': None, 'status': status})
+        days.append(day(record['finished']))
+    return pooled, half, sources, days
+
+
+def performance_kpis(pooled, half):
+    """The campaign.performance KPIs from the pooled load samples."""
+    def row(name, status, value, unit, samples):
+        return {'id': f'campaign.performance.{name}', 'status': status,
+                'value': None if value is None else round(value, 3), 'unit': unit, 'samples': samples, 'target': None}
+
+    intervals, delays, response = pooled['intervals'], pooled['delays'], pooled['response_s']
+    out = []
+    if intervals:
+        n, day_long = len(intervals), len(intervals) >= DAY_INTERVALS
+        for name, fraction, bound in (('block_interval_p50', 0.50, load.BLOCK_INTERVAL_P50_S),
+                                      ('block_interval_p99', 0.99, load.BLOCK_INTERVAL_P99_S)):
+            value = load.percentile(intervals, fraction)
+            out.append(row(name, 'fail' if value > bound else 'pass' if day_long else 'in_progress', value, 's', n))
+        out.append(row('block_interval_p95', 'pass' if day_long else 'in_progress',
+                       load.percentile(intervals, 0.95), 's', n))
+        out.append(row('block_interval_p99_9', 'in_progress', load.percentile(intervals, 0.999), 's', n))
+    if delays:
+        share = sum(d <= 2 for d in delays) / len(delays)
+        status = 'fail' if share < INCLUSION_SHARE else 'pass' if half else 'in_progress'
+        out.append(row('inclusion_within_2_blocks', status, 100 * share, '%', len(delays)))
+    if response:
+        out.append(row('response_time_p99', 'pass' if half else 'in_progress', load.percentile(response, 0.99), 's',
+                       len(response)))
+    return out
+
+
 def network_outcome(row):
     """A network fault scenario as an attack attempt: 'refused', 'success'
     or None (no attempt)."""
@@ -259,7 +341,7 @@ def network_kpis(rows, root=ROOT):
 
 
 def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings, release_record, commit,
-                       restore_files=(), recovery_files=(), attack_files=()):
+                       restore_files=(), recovery_files=(), attack_files=(), load_files=()):
     """The campaign summary from every fault record and heavy fault drill
     record to date (cumulative)."""
     samples = {kpi: [] for kpi, _ in FAULT_KPIS.values()}
@@ -295,7 +377,10 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
     families, found, attack_days = attack_records(attack_files, genesis_bytes, engine_genesis_bytes)
     sources += found
     days += attack_days
-    require(days, 'the evidence holds no recovery or attack for a campaign KPI')
+    pooled, half, found, load_days = load_samples(load_files)
+    sources += found
+    days += load_days
+    require(days, 'the evidence holds no recovery, attack or load run for a campaign KPI')
     kpis = [kpi_row(kpi, samples[kpi], timings[key], QUICK_REPETITIONS)
             for kpi, key in FAULT_KPIS.values() if samples[kpi]]
     for kind, rows in heavy.items():
@@ -304,6 +389,7 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
             kpis.append(kpi_row(kpi, [(s, t) for s, t, _ in rows], tool.approved_target(), HEAVY_REPETITIONS))
     for family, records in sorted(families.items()):
         kpis += attack_kpis(family, records)
+    kpis += performance_kpis(pooled, half)
     if network:
         kpis += network_kpis(network)
     summary = {'schema': SCHEMA, 'scope': 'campaign', 'date': max(days),
@@ -386,7 +472,7 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     s = commands.add_parser('summarize')
     s.add_argument('scope', choices=['campaign'])
-    for name in ('faults', 'restores', 'recoveries', 'attacks'):
+    for name in ('faults', 'restores', 'recoveries', 'attacks', 'loads'):
         s.add_argument(f'--{name}', type=Path, nargs='+', default=[])
     for name in ('genesis', 'engine_genesis', 'release'):
         s.add_argument(f'--{name.replace("_", "-")}', type=Path, required=True)
@@ -408,7 +494,9 @@ def main():
                                          json.loads(args.release.read_bytes()), args.commit,
                                          [p.read_bytes() for p in args.restores],
                                          [p.read_bytes() for p in args.recoveries],
-                                         [(p.read_bytes(), p.with_suffix('.jsonl').read_bytes()) for p in args.attacks])
+                                         [(p.read_bytes(), p.with_suffix('.jsonl').read_bytes()) for p in args.attacks],
+                                         [(p.read_bytes(), (p.parent / 'transactions.jsonl').read_bytes())
+                                          for p in args.loads])
             path = write_summary(summary, args.root)
             print(f'{path} ({", ".join(f"{k["id"]} {k["status"]}" for k in summary["kpis"])}); sign it next')
         elif args.command == 'sign':
