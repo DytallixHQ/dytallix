@@ -66,6 +66,14 @@ class Effect(unittest.TestCase):
         self.assertTrue(faults.effect_holds('process', {'active': 'inactive'}))
         self.assertFalse(faults.effect_holds('process', {'active': 'active'}))
 
+    def test_host_effect_needs_the_machine_off_and_the_page_silent(self):
+        off = {'powered_off': True, 'reads_while_off': 25, 'served_while_off': 0}
+        self.assertTrue(faults.effect_holds('host', off))
+        self.assertFalse(faults.effect_holds('host', dict(off, powered_off=False)), 'never stopped')
+        self.assertFalse(faults.effect_holds('host', dict(off, served_while_off=1)), 'still serving: a no-op')
+        self.assertFalse(faults.effect_holds('host', dict(off, reads_while_off=0)), 'nobody looked')
+        self.assertFalse(faults.effect_holds('host', {}))
+
 
 class Order(unittest.TestCase):
     def test_the_peer_drop_runs_before_the_faults_that_break_the_peers(self):
@@ -154,6 +162,23 @@ class Evaluate(unittest.TestCase):
         self.assertEqual(timeline.largest_gap(t0 + 5, t0 + 200), 195.0)
         timeline.pages = ([page(t, http=None, refused=True) for t in range(10, 200, 6)] + [page(200)])
         self.assertLessEqual(timeline.largest_gap(t0 + 5, t0 + 200), 6.0)
+
+    def test_a_host_loss_whose_power_on_failed_fails(self):
+        row = scenario('host_loss', effect={'powered_off': True, 'reads_while_off': 25, 'served_while_off': 0},
+                       clear={'mechanism': 'power-on', 'status': 'FAILED'})
+        self.assertEqual(faults.evaluate(row, 600)[0], faults.FAIL)
+        row['clear']['status'] = 'DONE'
+        self.assertEqual(faults.evaluate(row, 600)[0], faults.PASS)
+        self.assertEqual(faults.evaluate(row, 10)[0], faults.FAIL, 'over its target')
+
+    def test_a_host_loss_gap_counts_only_the_readers_own_silences(self):
+        timeline = faults.Timeline(read=None)
+        t0 = 1_900_000_000
+        # A booting host times out every read; the reader kept trying.
+        timeline.pages = ([{'http': None, 'read_at': faults.iso_at(t0 + t)} for t in range(0, 120, 6)]
+                          + [{'http': 200, 'read_at': faults.iso_at(t0 + 120)}])
+        self.assertEqual(timeline.largest_gap(t0, t0 + 120), 120.0)
+        self.assertLessEqual(timeline.largest_gap(t0, t0 + 120, answered_only=False), 6.0)
 
     def test_an_unregistered_scenario_is_refused(self):
         with self.assertRaises(faults.Failed):

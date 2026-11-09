@@ -437,7 +437,7 @@
       "source": {
         "tool": "T5",
         "built": "2026-11-02",
-        "remaining": "host loss"
+        "remaining": "host loss on the real hosts (the provider's power path; built in CI, P01 9 November 2026)"
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78"
     },

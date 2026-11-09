@@ -1,0 +1,39 @@
+{
+  "decision_id": "P01-2026-11-09-T05-HOST-LOSS",
+  "approved": "2026-11-09",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Fault injector (T5): what host loss injects, its recovery target and the real hosts' power path"
+  },
+  "reason": "Host loss was the last fault T5 had not built (P01_E05_FAULT_RECOVERY_2026-10-13: \"peer drops and host loss are a later addition and may carry their own targets\"). The agent cannot bring its own host back after a power-off, so host loss needs a power path outside it.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "What host loss injects on the sentry",
+      "selected": "A hard power-off and power-on of the sentry's machine, from the founder's machine",
+      "rule": "Host loss powers the sentry's machine off hard and on again on the same disk, from a power controller on the founder's machine rather than the agent; the node starts from its disk and catches up while the validator keeps producing. It is distinct from T9 (the validator's host rebuilt) and from R02's sentry destroyed and restored from its snapshot."
+    },
+    {
+      "question": "Host loss recovery target",
+      "selected": "10 minutes",
+      "rule": "After the power-on, the sentry's public status page serves a block made after the power-on within 600 seconds, or the scenario fails. Recorded in launch/simulations/TIMINGS.json (host_loss_target_seconds)."
+    },
+    {
+      "question": "The real hosts' power path",
+      "selected": "CI staging network only for now",
+      "rule": "Host loss is built and proven in the CI staging network only. The real hosts' power path (the provider's power API, and the credential it needs on the founder's machine) is a later decision."
+    }
+  ],
+  "accepted_risks": [
+    "Until the real hosts' power path is decided, host loss has no real-host evidence; the CI proof is a VM's power, not the provider's."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "a provider API credential on the founder's machine",
+    "powering off any real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

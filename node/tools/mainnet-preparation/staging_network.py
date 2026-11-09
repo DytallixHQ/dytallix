@@ -202,6 +202,7 @@ from pathlib import Path
 import random
 import re
 import shutil
+import signal
 import socket
 import tarfile
 import subprocess
@@ -464,15 +465,7 @@ def vms_up(work, image):
            *[str(seed / name) for name in names])
         sh('qemu-img', 'create', '-q', '-f', 'qcow2', '-F', 'qcow2', '-b', str(Path(image).resolve()),
            str(vm / f'{label}.qcow2'), '20G')
-        sh('qemu-system-x86_64', '-name', label, '-machine', 'q35,accel=kvm', '-cpu', 'host', '-smp', '2', '-m', '4096',
-           '-drive', f'file={vm / f"{label}.qcow2"},if=virtio,format=qcow2',
-           '-drive', f'file={vm / f"{label}-seed.iso"},if=virtio,format=raw,readonly=on',
-           '-netdev', f'tap,id=net0,ifname={TAPS[label]},script=no,downscript=no',
-           '-device', f'virtio-net-pci,netdev=net0,mac={MACS[label]}',
-           '-chardev', f'socket,path={vm / f"{label}.qga"},server=on,wait=off,id=qga0',
-           '-device', 'virtio-serial', '-device', 'virtserialport,chardev=qga0,name=org.qemu.guest_agent.0',
-           '-display', 'none', '-serial', f'file:{vm / f"{label}.console.log"}',
-           '-daemonize', '-pidfile', str(vm / f'{label}.pid'))
+        boot_vm(work, label)
     for label in VMS:
         say(f'== waiting for {label}\'s guest agent (cloud-init installs it)')
         guest = agent(work, label)
@@ -481,6 +474,52 @@ def vms_up(work, image):
         say(out.strip())
         if code not in (0, 2):
             raise Failed(f'{label}: cloud-init failed')
+
+
+def boot_vm(work, label):
+    """Powers a VM on from its disk and seed (its first boot, or after a
+    power-off: the disk keeps everything since)."""
+    vm = Path(work) / 'vm'
+    sh('qemu-system-x86_64', '-name', label, '-machine', 'q35,accel=kvm', '-cpu', 'host', '-smp', '2', '-m', '4096',
+       '-drive', f'file={vm / f"{label}.qcow2"},if=virtio,format=qcow2',
+       '-drive', f'file={vm / f"{label}-seed.iso"},if=virtio,format=raw,readonly=on',
+       '-netdev', f'tap,id=net0,ifname={TAPS[label]},script=no,downscript=no',
+       '-device', f'virtio-net-pci,netdev=net0,mac={MACS[label]}',
+       '-chardev', f'socket,path={vm / f"{label}.qga"},server=on,wait=off,id=qga0',
+       '-device', 'virtio-serial', '-device', 'virtserialport,chardev=qga0,name=org.qemu.guest_agent.0',
+       '-display', 'none', '-serial', f'file:{vm / f"{label}.console.log"}',
+       '-daemonize', '-pidfile', str(vm / f'{label}.pid'))
+
+
+class VmPower:
+    """CI's power controller for host loss (faults.run_host_loss; P01, 9
+    November 2026): SIGKILL to the VM's QEMU process is the plug pulled (no
+    shutdown, nothing flushed), and power-on boots the same disk again."""
+
+    def __init__(self, work, label):
+        self.work, self.label = Path(work), label
+        self.pidfile = self.work / 'vm' / f'{label}.pid'
+
+    def off(self, timeout=30):
+        pid = int(self.pidfile.read_text().strip())
+        os.kill(pid, signal.SIGKILL)
+        deadline = time.monotonic() + timeout
+        while os.path.exists(f'/proc/{pid}'):
+            if time.monotonic() > deadline:
+                return {'status': 'FAILED', 'finished_at': time.time(), 'stopped': False}
+            time.sleep(0.2)
+        return {'status': 'DONE', 'finished_at': time.time(), 'stopped': True}
+
+    def on(self):
+        console = self.work / 'vm' / f'{self.label}.console.log'
+        if console.exists():
+            console.rename(console.with_suffix('.before-host-loss.log'))
+        try:
+            boot_vm(self.work, self.label)
+        except (Failed, subprocess.CalledProcessError, OSError) as error:
+            say(f'== {self.label}: power-on failed: {error}')
+            return {'status': 'FAILED', 'finished_at': time.time()}
+        return {'status': 'DONE', 'finished_at': time.time()}
 
 
 def require_kvm():
@@ -2725,6 +2764,44 @@ def validator_restart(work, drill, sentry, native, engine, timeout=300):
     return status
 
 
+def host_loss_drill(work, label='sentry-1', timeout=900):
+    """Host loss (T5; P01, 9 November 2026) on the sentry: its VM powered off
+    hard (the QEMU process killed: no shutdown, nothing flushed), held off,
+    and booted again on the same disk, from the runner as the founder's
+    machine, while the validator keeps producing. Recovery is the sentry's
+    public status page serving a block made after the power-on, judged
+    against the approved 10-minute target (TIMINGS.json
+    host_loss_target_seconds). Its evidence is its own file. Then the host
+    is waited back into the state the later steps expect (guest agent,
+    clock, chain). Its own step, after the steps that need the sentry's
+    transient stand-ins and before the agent drill, whose wipe ends the
+    network."""
+    work = Path(work)
+    sub = work / 'host-loss-drill'
+    sub.mkdir()
+    native = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (work / 'net' / 'chain' / 'chain' / 'genesis.json').read_bytes()
+    timings = json.loads((Path(__file__).resolve().parents[3] / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())
+    target = timings['host_loss_target_seconds']
+    url = f'http://{ADDRESSES[PUBLIC]}:8080/status'
+    row = faults.run_host_loss(VmPower(work, label), lambda: staging_founder.status_page(url),
+                               staging_founder.block_instant, recovery_timeout=timeout, say=say)
+    record = faults.build_run(staging_host.CHAIN_ID, native, engine, [row], target, label)
+    (sub / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
+    status = faults.verify(json.loads((sub / 'evidence.json').read_bytes()), native, engine)
+    built = record['scenarios'][0]
+    say(f'== host_loss: {built["status"]} ({built["detail"]})')
+    if status == faults.FAIL:
+        raise Failed(f'the host loss is {status}')
+    guest = agent(work, label)
+    guest.wait(300)
+    wait_synchronized(guest, label)
+    wait_height(guest, label, (guest_height(guest) or 0) + 2, 300)
+    say(f'== {label}: powered off hard and booted again on the same disk, then caught back up; judged against the '
+        f'approved {target} s target (the run is {status})')
+    return status
+
+
 def diagnostics(work):
     work = Path(work)
     for label in VMS:
@@ -2759,7 +2836,7 @@ def main():
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
-                 'endpoint-campaign', 'fault-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
+                 'endpoint-campaign', 'fault-drill', 'host-loss-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
                  'root-control-campaign', 'monitor-drill', 'staking-campaign', 'governance-campaign',
                  'recovery-campaign',
                  'stage-later-release',
@@ -2812,6 +2889,8 @@ def main():
             endpoint_campaign(args.work)
         elif args.command == 'fault-drill':
             fault_drill(args.work)
+        elif args.command == 'host-loss-drill':
+            host_loss_drill(args.work)
         elif args.command == 'stage-later-release':
             stage_later_release(args.work)
         elif args.command == 'upgrade-drill':
