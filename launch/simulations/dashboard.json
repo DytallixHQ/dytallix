@@ -7,11 +7,11 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "ce881c0a284fb23fd9ac06c9b57081535ee9368c5962f73a815f6f886dd9fe53"
+        "sha256": "3b07bc03b973c2ad27f79670387fe7a4960e8e526a952906041f9598d377fa93"
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "bb7494504efbaa9301be9c664e43c68c771e01ee7aad6a5fd8e15a4fd0309492"
+        "sha256": "c7e7978d74e25236a342bd4872a4ec7091579b592121fe0b34d116b1085dad4e"
       },
       {
         "path": "launch/simulations/results/campaign/2026-11-03.json",
@@ -45,7 +45,7 @@
   "project": {
     "since": "2026-09-26",
     "commits_at_as_of": 566,
-    "approval_records": 83
+    "approval_records": 84
   },
   "phases": [
     {
@@ -233,6 +233,12 @@
       "phase": "campaign",
       "name": "Endpoint and RPC",
       "summary": "Oversized bodies, connection floods beyond the limits, slow clients, invalid handshakes, methods outside the allowlist."
+    },
+    {
+      "id": "floods",
+      "phase": "campaign",
+      "name": "Floods",
+      "summary": "Transaction floods past the admission queue bound and request floods over the client channel."
     },
     {
       "id": "network",
@@ -458,7 +464,7 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: request and transaction floods, with the load machines (R03)",
+      "value": "Built and proven in the CI staging network; still to come: request and transaction floods on the real hosts, with the load machines (R03); built in CI, P01 9 November 2026",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64",
       "updated": "2026-11-02"
     },
@@ -755,6 +761,35 @@
       "group": "endpoint_rpc",
       "name": "Endpoint and RPC: successes",
       "measures": "Attempts that the chain accepted or that changed state when it should not have.",
+      "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
+      "threshold": "0",
+      "unit": "count",
+      "status": "planned",
+      "value": null,
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging",
+      "updated": "2026-10-11"
+    },
+    {
+      "id": "campaign.floods.attempts",
+      "phase": "campaign",
+      "group": "floods",
+      "name": "Floods: attempts",
+      "measures": "Attempts made per flood type. Covers: Transaction floods past the admission queue bound and request floods over the client channel.",
+      "why": "Each flood is a heavy run; 10 repetitions each show consistent behavior (P01, 9 November 2026).",
+      "threshold": "10 per flood type",
+      "unit": "count",
+      "target": 10,
+      "status": "planned",
+      "value": null,
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#statistical-campaign-staging",
+      "updated": "2026-10-11"
+    },
+    {
+      "id": "campaign.floods.successes",
+      "phase": "campaign",
+      "group": "floods",
+      "name": "Floods: successes",
+      "measures": "Floods that evicted an admitted transaction, overfilled the queue or kept an honest client from being served.",
       "why": "Any success is a defect, fixed before the release freeze. Details are published only after the fix.",
       "threshold": "0",
       "unit": "count",

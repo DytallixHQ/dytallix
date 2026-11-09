@@ -40,11 +40,15 @@
       }
     },
     "ci": {
-      "use": "The CI staging network's kit replacement drill: a notice of 20 blocks; its snapshot interval is given on the command line.",
+      "use": "The CI staging network's kit replacement drill: a notice of 20 blocks; its snapshot interval is given on the command line. Its flood campaign: an admission queue of 64 entries, so a transaction flood can fill it from one runner (the production bound is 2,000).",
       "approval_record": "launch/approvals/P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08.json",
       "values": {
         "upgrade.min_notice_blocks": 20,
-        "release_handover.v2.min_notice_blocks": 20
+        "release_handover.v2.min_notice_blocks": 20,
+        "ordinary.queue_max_entries": 64
+      },
+      "value_approvals": {
+        "ordinary.queue_max_entries": "launch/approvals/P01_T04_FLOODS_2026-11-09.json"
       }
     }
   }
