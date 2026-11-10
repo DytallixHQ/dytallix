@@ -1,0 +1,40 @@
+{
+  "decision_id": "P01-2026-11-10-T06-R03-LOAD-MACHINES-RUN",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The first real-host flood run (R03): load machines, hours and window"
+  },
+  "reason": "The flood family (T4, floods.py; P01_T04_FLOODS_2026-11-09) is proven in the CI staging network against a 64-entry queue. Its remaining item is the floods against the real staging sentry at the production queue bound (2,000), from Hetzner load machines (P01_T06_LOAD_MACHINES_HETZNER_2026-11-03), which excludes any real-host run and any rental before its run.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "How many load machines",
+      "selected": "7",
+      "rule": "load_machines.py up --count N: the smallest x86 type, spread over nbg1, fsn1 and sin, never hel1; each its own address, labelled with the run. A transaction flood at the production bound needs about 2,016 funded, primed wallets per attempt, shared over the machines. Seven machines let the request flood hold 14 of the channel's 16 connections at 2 each (flood_workers.py, PR #125) without the drive's idle connection taking it past 16."
+    },
+    {
+      "question": "How long they may run",
+      "selected": "4 hours",
+      "rule": "load_machines.py up --hours H starts the watchdog, which deletes the run's machines and key at the deadline whatever else happens; down deletes them at once when the run ends."
+    },
+    {
+      "question": "When",
+      "selected": "Thursday 12 November 2026, 14:00-18:00 UTC",
+      "rule": "Within the window: up, fund and prime the fleet, run floods.py against the staging sentry (10 transaction floods past 2,000, 10 request floods holding 14 of the channel's 16 connections), then down and load_machines.py check showing nothing left."
+    }
+  ],
+  "accepted_risks": [
+    "The staging sentry runs at its production limits under the floods; the staging chain may slow or refuse honest traffic for the window. That is what the run measures.",
+    "Load machines share the hosts' Hetzner project; deletion is guarded by label, name and delete protection, and load_machines.py check runs before and after."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "more than the machines, hours and window named here",
+    "rebuilding either host or lifting a host's delete protection",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
