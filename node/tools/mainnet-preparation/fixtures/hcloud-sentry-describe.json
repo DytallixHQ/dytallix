@@ -1,0 +1,17 @@
+{
+  "id": 120260174,
+  "name": "ubuntu-4gb-hel1-2",
+  "status": "running",
+  "location": {
+    "name": "hel1"
+  },
+  "public_net": {
+    "ipv4": {
+      "ip": "89.167.52.129"
+    }
+  },
+  "protection": {
+    "delete": true,
+    "rebuild": true
+  }
+}

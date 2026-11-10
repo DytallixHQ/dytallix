@@ -62,9 +62,29 @@ recovery is the sentry serving a block made after the power-on, judged against
 its own approved 10-minute target (TIMINGS.json host_loss_target_seconds; P01,
 9 November 2026). Its injection and clear are timed on the founder's clock,
 and its reader gap counts only the reader's own silences (no attempt at all),
-since a host that is off or booting answers nothing. It is built for the CI
-staging network (the VM's power); the real hosts' power path (the provider's
-API) is not built yet.
+since a host that is off or booting answers nothing. The CI staging network
+powers its VM; on the real hosts it is its own command:
+
+  faults.py host-loss --chain ID --genesis NATIVE_GENESIS \
+      --engine-genesis ENGINE_GENESIS --out FILE [--execute] \
+      [--context NAME] [--hcloud PATH]
+
+host-loss (P01, 10 November 2026,
+launch/approvals/P01_T05_HOST_LOSS_REAL_2026-11-10.json) power-cycles only the
+staging sentry through the hcloud CLI on the founder's machine, with the
+context named on every call and HCLOUD_* removed from its environment
+(load_machines.Hcloud), so no token passes through it. Without --execute it
+prints the exact hcloud calls and runs nothing. With it, it refuses unless
+hcloud reports server 120260174 named ubuntu-4gb-hel1-2 in hel1 at
+89.167.52.129 (checked
+before the run and again just before the power-off), powers it off hard
+(`server poweroff`, not an ACPI shutdown) until hcloud reports it off, holds
+it off, and powers it on; once a power-off was sent the power-on is always
+attempted, whatever failed, an interrupt included. Recovery is read on
+http://89.167.52.129:8080/status, judged against host_loss_target_seconds,
+and the record is the CI drill's, with a `power` field (digest-covered)
+naming the real controller and server. It refuses to overwrite --out: the
+approval allows one run.
 """
 import argparse
 from datetime import datetime, timezone
@@ -72,6 +92,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import signal
 import sys
 import threading
 import time
@@ -405,13 +426,15 @@ def run_scenarios(channel, read_page, made, scenarios=SCENARIOS, result_timeout=
 
 
 def run_host_loss(power, read_page, made, spec=HOST_LOSS, recovery_timeout=900, clock=time.time,
-                  sleep=time.sleep, say=print, period=1.0):
+                  sleep=time.sleep, say=print, period=1.0, always_on=False):
     """Host loss (P01, 9 November 2026) through a power controller on the
     founder's machine: `power.off()` stops the machine hard and returns
     {'status', 'finished_at', 'stopped'}; `power.on()` starts it again on the
     same disk and returns {'status', 'finished_at'}. Recovery is timed on the
     status page as for the other faults, from the power-on. Returns the raw
-    observation."""
+    observation. With `always_on` (a real host, whose power-off can fail
+    after the machine stopped) the power-on runs even when the power-off did
+    not report DONE; CI's VM is never booted twice."""
     name, off_seconds = spec['name'], spec['args']['off_seconds']
     say(f'== fault scenario: {name} (powered off for {off_seconds} s)')
     with Timeline(read_page, sleep, period) as timeline:
@@ -426,6 +449,8 @@ def run_host_loss(power, read_page, made, spec=HOST_LOSS, recovery_timeout=900, 
         if off['status'] == 'DONE' and off_at is not None:
             while clock() < off_at + off_seconds:
                 sleep(period)
+            on = power.on()
+        elif always_on:
             on = power.on()
         else:
             on = {'status': 'NOT_RUN', 'finished_at': None}
@@ -458,6 +483,147 @@ def run_host_loss(power, read_page, made, spec=HOST_LOSS, recovery_timeout=900, 
     return row
 
 
+# Host loss on a real host (P01, 10 November 2026,
+# launch/approvals/P01_T05_HOST_LOSS_REAL_2026-11-10.json): only the staging
+# sentry, by its ID, after hcloud reports that ID with this name and location.
+SENTRY_SERVER = {'id': 120260174, 'name': 'ubuntu-4gb-hel1-2', 'location': 'hel1'}
+SENTRY_IPV4 = '89.167.52.129'
+SENTRY_HOST = 'sentry-1'
+SENTRY_STATUS_URL = f'http://{SENTRY_IPV4}:8080/status'
+# Never power-cycled, whatever else matched (the validator, the web server).
+NEVER_IDS = (131186483,)
+NEVER_NAMES = ('ubuntu-4gb-fsn1-1', 'docker-ce-ubuntu-4gb-ash-1')
+# The page is polled this long after the power-on, as in CI; the approved
+# target (TIMINGS.json host_loss_target_seconds) judges the recovery.
+REAL_RECOVERY_TIMEOUT = 900
+OFF_CONFIRM_SECONDS = 120
+POWER_ON_TRIES = 3
+
+
+def server_locations(server):
+    """Every location name hcloud reports for a server (the top-level
+    location, and the datacenter's)."""
+    found = set()
+    for place in (server.get('location'), (server.get('datacenter') or {}).get('location')):
+        if isinstance(place, dict) and place.get('name'):
+            found.add(place['name'])
+    return found
+
+
+def check_sentry(server):
+    """Refuses any server but the approved staging sentry: its ID, name,
+    location and IPv4 must all match, and no reported location may be another."""
+    server = server if isinstance(server, dict) else {}
+    ident, name, places = server.get('id'), server.get('name'), server_locations(server)
+    if ident in NEVER_IDS or name in NEVER_NAMES:
+        raise Failed(f'refused: server {ident} {name!r} is never power-cycled (P01, 10 November 2026)')
+    if ident != SENTRY_SERVER['id'] or name != SENTRY_SERVER['name']:
+        raise Failed(f'refused: server {ident} {name!r} is not the staging sentry '
+                     f'({SENTRY_SERVER["id"]} {SENTRY_SERVER["name"]!r})')
+    if places != {SENTRY_SERVER['location']}:
+        raise Failed(f'refused: server {ident} reports location {sorted(places) or "none"}, '
+                     f'not {SENTRY_SERVER["location"]!r}')
+    # The status page read for its recovery must be this server's.
+    address = ((server.get('public_net') or {}).get('ipv4') or {}).get('ip')
+    if address != SENTRY_IPV4:
+        raise Failed(f'refused: server {ident} reports IPv4 {address}, not {SENTRY_IPV4} (the status page\'s)')
+    return server
+
+
+class HcloudPower:
+    """The real power controller for host loss: the hcloud CLI
+    (load_machines.Hcloud, the context named on every call), addressing only
+    SENTRY_SERVER's ID. off() and on() return what run_host_loss reads and
+    never raise on hcloud's errors; off() raises only when the guard refuses,
+    before any power call."""
+
+    def __init__(self, cloud, clock=time.time, sleep=time.sleep, say=print, confirm_seconds=OFF_CONFIRM_SECONDS,
+                 on_tries=POWER_ON_TRIES):
+        self.cloud, self.clock, self.sleep, self.say = cloud, clock, sleep, say
+        self.confirm_seconds, self.on_tries = confirm_seconds, on_tries
+        self.ident = str(SENTRY_SERVER['id'])
+        self.off_sent = self.on_sent = False
+
+    def plan(self):
+        """The exact hcloud calls, in order, for the dry run."""
+        return [('guard: id, name and location must match', self.cloud.command('server', 'describe', self.ident)),
+                ('guard again, then the hard power-off',
+                 self.cloud.command('server', 'poweroff', self.ident, output=False)),
+                ('every 2 s until its status is off', self.cloud.command('server', 'describe', self.ident)),
+                ('power-on, after the hold', self.cloud.command('server', 'poweron', self.ident, output=False))]
+
+    def describe(self):
+        return self.cloud.call('server', 'describe', self.ident)
+
+    def guard(self):
+        return check_sentry(self.describe())
+
+    def off(self):
+        self.guard()
+        self.off_sent = True
+        try:
+            self.cloud.call('server', 'poweroff', self.ident, output=False)
+        except Exception as error:  # noqa: BLE001 - the power-on must still follow
+            self.say(f'== power-off failed: {error}')
+            return {'status': 'FAILED', 'finished_at': self.clock(), 'stopped': False}
+        deadline = self.clock() + self.confirm_seconds
+        while True:
+            try:
+                status = (self.describe() or {}).get('status')
+            except Exception as error:  # noqa: BLE001
+                self.say(f'== describe failed: {error}')
+                status = None
+            if status == 'off':
+                return {'status': 'DONE', 'finished_at': self.clock(), 'stopped': True}
+            if self.clock() > deadline:
+                self.say(f'== server {self.ident} was not reported off within {self.confirm_seconds} s')
+                return {'status': 'FAILED', 'finished_at': self.clock(), 'stopped': False}
+            self.sleep(2)
+
+    def on(self):
+        self.on_sent = True
+        for attempt in range(1, self.on_tries + 1):
+            try:
+                self.cloud.call('server', 'poweron', self.ident, output=False)
+                return {'status': 'DONE', 'finished_at': self.clock()}
+            except Exception as error:  # noqa: BLE001
+                self.say(f'== power-on attempt {attempt} failed: {error}')
+                if attempt < self.on_tries:
+                    self.sleep(5)
+        self.say('== THE SENTRY MAY STILL BE OFF: power it on by hand: '
+                 + ' '.join(self.cloud.command('server', 'poweron', self.ident, output=False)))
+        return {'status': 'FAILED', 'finished_at': self.clock()}
+
+    def record(self):
+        return {'controller': 'hcloud', 'real_host': True, 'context': self.cloud.context,
+                'server': dict(SENTRY_SERVER)}
+
+
+def run_real_host_loss(power, read_page, made, spec=HOST_LOSS, recovery_timeout=REAL_RECOVERY_TIMEOUT,
+                       clock=time.time, sleep=time.sleep, say=print, period=1.0):
+    """run_host_loss through the real controller: the guard first, the
+    power-on always attempted once a power-off was sent (a failure, an error
+    or SIGINT/SIGTERM in between included)."""
+    power.guard()
+    previous = {}
+
+    def on_signal(number, _frame):
+        raise Failed(f'stopped by signal {number}')
+    for number in (signal.SIGINT, signal.SIGTERM):
+        previous[number] = signal.signal(number, on_signal)
+    try:
+        return run_host_loss(power, read_page, made, spec, recovery_timeout, clock, sleep, say, period,
+                             always_on=True)
+    finally:
+        try:
+            if power.off_sent and not power.on_sent:
+                say('== powering the sentry on after an interrupted run')
+                power.on()
+        finally:
+            for number, handler in previous.items():
+                signal.signal(number, handler)
+
+
 def run_status(statuses):
     if FAIL in statuses:
         return FAIL
@@ -475,7 +641,7 @@ def build_scenario(scenario, target):
     return row
 
 
-def build_run(chain_id, genesis_bytes, engine_genesis_bytes, scenarios, target, host):
+def build_run(chain_id, genesis_bytes, engine_genesis_bytes, scenarios, target, host, power=None):
     """Assemble the run record. `scenarios` are the raw observations; the status
     of each (and of the run) comes from the same `evaluate` that `verify` re-runs,
     so the two always agree. `target` is the approved recovery target in seconds,
@@ -486,6 +652,9 @@ def build_run(chain_id, genesis_bytes, engine_genesis_bytes, scenarios, target, 
                         'engine_genesis_sha256': digest(engine_genesis_bytes)},
             'recovery_target_seconds': target, 'scenarios': rows,
             'status': run_status([row['status'] for row in rows])}
+    if power is not None:
+        # The power controller (host-loss on a real host); covered by the digest.
+        body['power'] = power
     body['sha256'] = digest(canonical(body))
     return body
 
@@ -535,9 +704,18 @@ def main():
     r.add_argument('--target', type=int, required=True, help='the approved recovery target in seconds')
     r.add_argument('--scenarios', default=','.join(spec['name'] for spec in SCENARIOS),
                    help='comma-separated (default: the sentry\'s four; validator_restart on the validator)')
+    h = commands.add_parser('host-loss', help='host loss on the real staging sentry (dry run unless --execute)')
+    h.add_argument('--chain', required=True)
+    for name in ('genesis', 'engine_genesis', 'out'):
+        h.add_argument(f'--{name.replace("_", "-")}', type=Path, required=True)
+    h.add_argument('--context', default='dytallix')
+    h.add_argument('--hcloud', default='hcloud')
+    h.add_argument('--execute', action='store_true', help='power-cycle the sentry (without it: print the calls)')
     args = parser.parse_args()
     if args.command == 'run':
         return run_main(args)
+    if args.command == 'host-loss':
+        return host_loss_main(args)
     try:
         record = json.loads(args.evidence.read_bytes())
         status = verify(record, args.genesis.read_bytes(), args.engine_genesis.read_bytes())
@@ -555,8 +733,7 @@ def run_main(args):
         channel = staging_founder.Channel(store, args.chain, args.host, args.work, args.cli, args.home, args.key,
                                           args.paper, args.signer)
         if 'host_loss' in args.scenarios.split(','):
-            raise Failed('host_loss needs a power controller: it runs in the CI staging network only, '
-                         'the real hosts\' power path (the provider\'s API) is not built yet')
+            raise Failed('host_loss needs a power controller, not the agent: use faults.py host-loss')
         try:
             scenarios = tuple(BY_NAME[name] for name in args.scenarios.split(','))
         except KeyError as error:
@@ -577,6 +754,48 @@ def run_main(args):
     for row in record['scenarios']:
         print(f'{row["name"]}: {row["status"]} ({row["detail"]})')
     print(status)
+    return 0 if status == PASS else 1
+
+
+
+def host_target(root=HERE.parents[2]):
+    return json.loads((Path(root) / 'launch' / 'simulations' / 'TIMINGS.json').read_bytes())['host_loss_target_seconds']
+
+
+def host_loss_main(args, run=None, read_page=None, sleep=time.sleep, say=print, **drive):
+    """faults.py host-loss: a dry run unless args.execute. `run` (hcloud's
+    subprocess.run), `read_page` and `drive` (run_real_host_loss's spec,
+    period, recovery_timeout) are given only by the tests."""
+    import load_machines
+    import staging_founder
+    try:
+        cloud = load_machines.Hcloud(args.context, args.hcloud, **({'run': run} if run else {}))
+        power = HcloudPower(cloud, sleep=sleep, say=say)
+        target = host_target()
+        if args.out.exists():
+            raise Failed(f'{args.out} exists: host loss runs once on the real sentry (P01, 10 November 2026)')
+        native, engine = args.genesis.read_bytes(), args.engine_genesis.read_bytes()
+        if not args.execute:
+            say(f'dry run (nothing runs; add --execute in the approved window): host loss on server '
+                f'{SENTRY_SERVER["id"]} {SENTRY_SERVER["name"]} ({SENTRY_SERVER["location"]}), chain {args.chain}')
+            for why, command in power.plan():
+                say(f'  {" ".join(command)}    # {why}')
+            say(f'  hold {HOST_LOSS["args"]["off_seconds"]} s off between the power-off and the power-on')
+            say(f'  read {SENTRY_STATUS_URL} about once a second, for up to {REAL_RECOVERY_TIMEOUT} s after '
+                f'the power-on; PASS needs a block made after the power-on within {target} s')
+            say(f'  write {args.out}')
+            return 0
+        row = run_real_host_loss(power, read_page or (lambda: staging_founder.status_page(SENTRY_STATUS_URL)),
+                                 staging_founder.block_instant, sleep=sleep, say=say, **drive)
+        record = build_run(args.chain, native, engine, [row], target, SENTRY_HOST, power=power.record())
+        args.out.write_text(json.dumps(record, indent=2) + '\n')
+        status = verify(json.loads(args.out.read_bytes()), native, engine)
+    except (Failed, load_machines.Failed, reconcile.Failed, OSError, KeyError, ValueError) as error:
+        say(f'faults: {error}')
+        return 1
+    built = record['scenarios'][0]
+    say(f'host_loss: {built["status"]} ({built["detail"]})')
+    say(status)
     return 0 if status == PASS else 1
 
 

@@ -2486,7 +2486,19 @@ def upgrade_drill(work, timeout=900):
                             for name, r in (('validator', ours), ('sentry', theirs))}
 
     def settle(part, bundles, controls):
-        _, view = controls.status()
+        # The sentry's client channel can still be starting after switch.sh
+        # although both engines already follow (startup time grows with the
+        # chain's height): poll it, bounded, rather than read it once.
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                _, view = controls.status()
+                break
+            except Failed as error:
+                if time.monotonic() > deadline:
+                    raise Failed(f'the sentry\'s client channel did not answer within {timeout} s: {error}')
+                say(f'== the client channel is not answering yet ({error}); retrying')
+                time.sleep(5)
         part['active'] = {'release': view['release_handover']['active_release_sha512'],
                           'handover_schema': view['release_handover']['active_schema'],
                           'upgrade_schema': (view.get('upgrade') or {}).get('active_schema')}
