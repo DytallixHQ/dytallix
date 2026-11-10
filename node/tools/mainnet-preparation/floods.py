@@ -33,6 +33,7 @@ load wallets. Each type and what counts as the node refusing it:
     flooders' first errors and the runner's load averages, so a miss can
     be traced (P01, 9 November 2026). A
     flood that sent nothing is made again.
+flood_workers.py runs the same campaign from the load machines (R03).
 The queue bound is the chain's (genesis) value: the CI staging chain is
 built with 64 (TIMINGS.json, ci profile), the production and rehearsal
 chains with 2,000, and the record names the bound it was judged against.
@@ -218,20 +219,26 @@ def wait_new_head(rpc, timeout=60, sleep=time.sleep, clock=time.monotonic):
     raise Failed(f'the head stayed at {start} for {timeout} s')
 
 
-def transaction_flood(run, rpc, wallets, funder, bound, show):
-    """One flood: every wallet's transfer signed, then sent at once just
-    after a block, then followed to its receipt or its expiry."""
+def sign_share(run, wallets, recipient_hex):
+    """Every wallet's transfer to the recipient, signed at its committed
+    nonce against a fresh profile view."""
     run.refresh_profile()
     run.sync(wallets)
-    actions = load.actions_for('send_drt', recipient_hex=funder.account_id)
+    actions = load.actions_for('send_drt', recipient_hex=recipient_hex)
 
     def sign(wallet):
         return run.sign(load.new_row('flood', 'transaction_flood', wallet), wallet, actions)
 
     with ThreadPoolExecutor(max(1, run.s.signers)) as pool:
-        signed = list(pool.map(sign, wallets))
+        return list(pool.map(sign, wallets))
+
+
+def send_signed(run, rpc, signed, wait):
+    """The signed transfers sent at once over every connection as soon as
+    wait() returns (a fresh block), then followed to their receipts or
+    their expiry. The rows, and the transport errors met."""
     batches = [signed[n:n + load.MAX_BATCH - 1] for n in range(0, len(signed), load.MAX_BATCH - 1)]
-    wait_new_head(rpc)
+    wait()
     errors = []
 
     def send(share):
@@ -252,6 +259,14 @@ def transaction_flood(run, rpc, wallets, funder, bound, show):
         if row['status'] in ('admitted', 'uncertain'):
             run.tracker.add(row)
     run.tracker.drain(run.s.block_time * (run.s.expiry_blocks + 12), interval=run.s.poll_interval)
+    return rows, errors
+
+
+def transaction_flood(run, rpc, wallets, funder, bound, show):
+    """One flood: every wallet's transfer signed, then sent at once just
+    after a block, then followed to its receipt or its expiry."""
+    signed = sign_share(run, wallets, funder.account_id)
+    rows, errors = send_signed(run, rpc, signed, lambda: wait_new_head(rpc))
     observed = transaction_observed(rows, bound)
     if errors:
         observed['error'] = errors[0]
@@ -301,6 +316,20 @@ def request_flood(rpc, cli, env, spaces, show, seconds=FLOOD_SECONDS):
                '--seconds', str(seconds)]
     flooders = [subprocess.Popen(['ip', 'netns', 'exec', space, *command], stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, text=True, env=env) for space in spaces[:FLOODERS]]
+    honest = honest_reads(rpc, seconds)
+    counts, failures = [], []
+    for flooder in flooders:
+        out, err = flooder.communicate(timeout=seconds + 60)
+        try:
+            counts.append(json.loads(out.strip().splitlines()[-1]))
+        except (ValueError, IndexError):
+            failures.append(err.strip()[-200:])
+    return request_observed(len(flooders), counts, failures, honest, show)
+
+
+def honest_reads(rpc, seconds):
+    """The honest client on this address: the head about once a second
+    while the flooders run."""
     reads, served, heights, misses, slowest = 0, 0, [], [], 0.0
     # The flooders' gateways start first.
     time.sleep(3)
@@ -318,14 +347,14 @@ def request_flood(rpc, cli, env, spaces, show, seconds=FLOOD_SECONDS):
             misses.append({'after_s': round(time.monotonic() - began, 2), 'error': str(error)[:160]})
         slowest = max(slowest, time.monotonic() - began)
         time.sleep(HONEST_PERIOD)
-    counts, failures = [], []
-    for flooder in flooders:
-        out, err = flooder.communicate(timeout=seconds + 60)
-        try:
-            counts.append(json.loads(out.strip().splitlines()[-1]))
-        except (ValueError, IndexError):
-            failures.append(err.strip()[-200:])
-    observed = {'flooders': len(flooders), 'flood_served': sum(c['served'] for c in counts),
+    return reads, served, heights, misses, slowest
+
+
+def request_observed(flooders, counts, failures, honest, show):
+    """One request flood's observations: each flooder's counts (or why it
+    did not report) and the honest reads."""
+    reads, served, heights, misses, slowest = honest
+    observed = {'flooders': flooders, 'flood_served': sum(c['served'] for c in counts),
                 'flood_errors': sum(c['errors'] for c in counts), 'honest_reads': reads, 'honest_served': served,
                 'honest_heights': [heights[0], heights[-1]] if heights else [None, None],
                 'honest_slowest_s': round(slowest, 2), 'honest_misses': misses[:3],
