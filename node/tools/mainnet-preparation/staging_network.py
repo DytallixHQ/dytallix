@@ -2674,6 +2674,7 @@ def fault_drill(work, label='sentry-1', timeout=300):
     the host's own dead-man removed each network fault. Then the validator's
     process restart (validator_restart) runs on the validator."""
     work = Path(work)
+    alerts_rule_again(work)
     guest = agent(work, label)
     drill = work / 'fault-drill'
     drill.mkdir()
@@ -2860,6 +2861,7 @@ def host_loss_drill(work, label='sentry-1', timeout=900):
     transient stand-ins and before the agent drill, whose wipe ends the
     network."""
     work = Path(work)
+    alerts_rule_again(work)
     sub = work / 'host-loss-drill'
     sub.mkdir()
     native = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
@@ -2926,6 +2928,14 @@ def runner_alert_rule(host):
     if f'ip saddr {ADDRESSES[PUBLIC]} tcp dport {RUNNER_ALERTS_PORT} accept' not in listing:
         host.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES[PUBLIC],
                   'tcp', 'dport', str(RUNNER_ALERTS_PORT), 'accept'], check=False)
+
+
+def alerts_rule_again(work):
+    """Before a fault drill: the runner's firewall rule for the stand-in
+    again, when the stand-in is up, since switch.sh (T8) restarts nftables,
+    which reloads the table without it."""
+    if runner_alerts(work).exists():
+        runner_alert_rule(reconcile.LocalHost())
 
 
 def alert_settings(work, label):
@@ -3016,6 +3026,7 @@ def fault_alerts_drill(work, timeout=600):
     results collector's reading of it. Which alert each fault must raise is
     not decided, so every fault is INCONCLUSIVE and the KPI stays in progress."""
     work = Path(work)
+    alerts_rule_again(work)
     start = time.time()
     for label in ('validator-1', PUBLIC):
         heartbeat_from(work, label, start)
