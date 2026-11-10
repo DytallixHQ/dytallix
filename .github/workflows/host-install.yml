@@ -273,6 +273,13 @@ jobs:
             --work "$RUNNER_TEMP/network/net" --height 3 --timeout 300
       - name: Network run (sync, status page, snapshot, backup)
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py run --work "$RUNNER_TEMP/network"
+      # Fault alerts (T5; P01, 9 November 2026): a stand-in alerting service
+      # on the runner, which a lost sentry cannot take away, with both hosts'
+      # monitors reporting to it (the sentry's through a relay on its
+      # loopback), before the first in-scope fault (T9).
+      - name: Alert stand-in on the runner (T5 fault alerts)
+        timeout-minutes: 10
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py alerts-up --work "$RUNNER_TEMP/network"
       # The rehearsal wallets transact over the sentry's client channel: a
       # DRT transfer creating an account, a DGT transfer, a bond and a reward
       # claim, with the supply rule before and after (simulation plan, T1).
@@ -483,6 +490,14 @@ jobs:
       - name: Host loss (T5)
         timeout-minutes: 25
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py host-loss-drill --work "$RUNNER_TEMP/network"
+      # What fired and resolved at the runner's stand-in within each in-scope
+      # fault's window (the partition, host loss, the sentry rebuild and the
+      # validator host), as digest-bound evidence. Which alert each fault
+      # must raise is not decided, so each is INCONCLUSIVE and the KPI stays
+      # in progress; the step fails only on missing plumbing.
+      - name: Fault alerts (T5)
+        timeout-minutes: 15
+        run: sudo python3 node/tools/mainnet-preparation/staging_network.py fault-alerts --work "$RUNNER_TEMP/network"
       # The staging agent (simulation plan, T2) on the sentry: signed status
       # and journal commands run; tampered, unsigned, replayed,
       # non-allowlisted and expired ones are refused; the results open with

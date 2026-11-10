@@ -5,7 +5,7 @@ public result summaries the launch page shows, and signs them with the
 results key.
 
   results.py summarize campaign [--faults FILE ...] [--restores FILE ...] [--recoveries FILE ...] \
-      [--attacks FILE ...] [--loads EVIDENCE ...] \
+      [--attacks FILE ...] [--loads EVIDENCE ...] [--alerts FILE ...] \
       --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS --release BUILD_RECORD.json --commit SHA [--root DIR]
   results.py sign --cli DYTALLIX --home DIR SUMMARY
   results.py verify --cli DYTALLIX SUMMARY [SUMMARY ...]
@@ -87,6 +87,14 @@ is read, so the family's attempts (the fewest over its types) stay in
 progress until then. Runs, checkpoints and endurance
 follow.
 
+Fault alerts (campaign.faults.alerts; P01, 9 November 2026,
+launch/approvals/P01_T05_FAULT_ALERTS_2026-11-09.json) come from the fault
+alerts records (fault_alerts.py), re-verified against the native genesis:
+each in-scope fault is one sample, its value the share of conclusive
+samples that raised their alert and resolved it. It fails at one fault
+that did not; it never passes yet, since which alert each fault must raise
+and how many repetitions the KPI needs are not decided.
+
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
 'dytallix-launch-results-v1:' and the SHA-256 of the summary's exact bytes,
@@ -109,6 +117,7 @@ import account_recovery  # noqa: E402
 import attacks  # noqa: E402
 import endpoints  # noqa: E402
 import floods  # noqa: E402
+import fault_alerts  # noqa: E402
 import faults  # noqa: E402
 import governance  # noqa: E402
 import launch_dashboard  # noqa: E402
@@ -149,6 +158,7 @@ NETWORK_TYPES = NETWORK_FAULTS + ('wrong_key_peer', 'malformed_peer')
 HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caught_up_at'),
               'recovery': ('campaign.faults.validator_host', recovery, 'first_block_after_halt_at')}
 HEAVY_REPETITIONS = 3
+ALERTS_KPI = 'campaign.faults.alerts'
 # An attack family's evidence tool.
 ATTACK_FAMILIES = {'transactions': attacks, 'endpoint_rpc': endpoints, 'root_controls': root_controls,
                    'staking': staking, 'governance': governance, 'recovery': account_recovery, 'floods': floods}
@@ -340,8 +350,35 @@ def network_kpis(rows, root=ROOT):
              'samples': samples, 'target': None}]
 
 
+def alert_samples(files, genesis_bytes):
+    """Each fault alerts record re-verified; its conclusive faults' statuses,
+    the sources and the days."""
+    statuses, sources, days = [], [], []
+    for raw in files:
+        record = json.loads(raw)
+        try:
+            status = fault_alerts.verify(record, genesis_bytes)
+        except (fault_alerts.Failed, KeyError, TypeError) as error:
+            raise Failed(f'a fault alerts record does not verify: {error}')
+        statuses += [row['status'] for row in record['faults'] if row['status'] != faults.INCONCLUSIVE]
+        sources.append({'tool': 'fault_alerts', 'sha256': digest(raw), 'chain_id': record['chain_id'],
+                        'native_genesis_sha256': record['genesis']['native_genesis_sha256'], 'status': status})
+        days.append(day(record['finished']))
+    return statuses, sources, days
+
+
+def alert_kpi(statuses):
+    """campaign.faults.alerts: the share of conclusive faults that alerted
+    and resolved. A miss fails it; it stays in progress otherwise, since its
+    alerts and repetitions are not decided (no pass)."""
+    passed = sum(status == faults.PASS for status in statuses)
+    return {'id': ALERTS_KPI, 'status': 'fail' if faults.FAIL in statuses else 'in_progress',
+            'value': round(100 * passed / len(statuses), 1) if statuses else None, 'unit': '%',
+            'samples': len(statuses), 'target': None}
+
+
 def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings, release_record, commit,
-                       restore_files=(), recovery_files=(), attack_files=(), load_files=()):
+                       restore_files=(), recovery_files=(), attack_files=(), load_files=(), alert_files=()):
     """The campaign summary from every fault record and heavy fault drill
     record to date (cumulative)."""
     samples = {kpi: [] for kpi, _ in FAULT_KPIS.values()}
@@ -380,7 +417,10 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
     pooled, half, found, load_days = load_samples(load_files)
     sources += found
     days += load_days
-    require(days, 'the evidence holds no recovery, attack or load run for a campaign KPI')
+    alert_statuses, found, alert_days = alert_samples(alert_files, genesis_bytes)
+    sources += found
+    days += alert_days
+    require(days, 'the evidence holds no recovery, attack, load run or fault alerts for a campaign KPI')
     kpis = [kpi_row(kpi, samples[kpi], timings[key], QUICK_REPETITIONS)
             for kpi, key in FAULT_KPIS.values() if samples[kpi]]
     for kind, rows in heavy.items():
@@ -392,6 +432,8 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
     kpis += performance_kpis(pooled, half)
     if network:
         kpis += network_kpis(network)
+    if alert_files:
+        kpis.append(alert_kpi(alert_statuses))
     summary = {'schema': SCHEMA, 'scope': 'campaign', 'date': max(days),
                'candidate': candidate(release_record, commit), 'kpis': kpis,
                'sources': sorted(sources, key=lambda s: s['sha256'])}
@@ -472,7 +514,7 @@ def main():
     commands = parser.add_subparsers(dest='command', required=True)
     s = commands.add_parser('summarize')
     s.add_argument('scope', choices=['campaign'])
-    for name in ('faults', 'restores', 'recoveries', 'attacks', 'loads'):
+    for name in ('faults', 'restores', 'recoveries', 'attacks', 'loads', 'alerts'):
         s.add_argument(f'--{name}', type=Path, nargs='+', default=[])
     for name in ('genesis', 'engine_genesis', 'release'):
         s.add_argument(f'--{name.replace("_", "-")}', type=Path, required=True)
@@ -496,7 +538,8 @@ def main():
                                          [p.read_bytes() for p in args.recoveries],
                                          [(p.read_bytes(), p.with_suffix('.jsonl').read_bytes()) for p in args.attacks],
                                          [(p.read_bytes(), (p.parent / 'transactions.jsonl').read_bytes())
-                                          for p in args.loads])
+                                          for p in args.loads],
+                                         [p.read_bytes() for p in args.alerts])
             path = write_summary(summary, args.root)
             print(f'{path} ({", ".join(f"{k["id"]} {k["status"]}" for k in summary["kpis"])}); sign it next')
         elif args.command == 'sign':

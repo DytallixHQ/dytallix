@@ -13,6 +13,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py install-vms --work DIR
   sudo staging_host.py install --work DIR/net --label validator-1 ...
   sudo staging_network.py run --work DIR
+  sudo staging_network.py alerts-up --work DIR
   sudo staging_network.py wallet-drill --work DIR
   sudo staging_network.py reconcile --work DIR
   sudo staging_network.py load --work DIR
@@ -28,6 +29,7 @@ Invented records and throwaway keys only.
   sudo staging_network.py stage-later-release --work DIR
   sudo staging_network.py upgrade-drill --work DIR
   sudo staging_network.py endpoint-campaign --work DIR
+  sudo staging_network.py fault-alerts --work DIR
   sudo staging_network.py agent-drill --work DIR
   sudo staging_network.py diagnostics --work DIR
 
@@ -182,6 +184,19 @@ a stopped monitor (its timer stopped; only the service sees it) must each
 alert and then resolve, and nothing may be firing after. It prints the
 evidence.
 
+alerts-up and fault-alerts are the fault alerts (T5, campaign.faults.alerts;
+P01, 9 November 2026): alerts-up, after run, starts a stand-in alerting
+service on the runner (its loopback and bridge address), where a lost sentry
+cannot take it away, a relay on the sentry's loopback that starts again
+after a power-on, and points both hosts' monitors at it; the validator
+recovery and restore drills, which reinstall a host, and the monitoring
+drill, which repoints the sentry's monitor, point it back once their own
+timings are recorded. fault-alerts, after host loss, records what fired and
+resolved within each in-scope fault's window (the partition, host loss, the
+sentry rebuild and the validator host) as digest-bound evidence
+(fault_alerts.py). Which alert each fault must raise is not decided, so
+every fault is INCONCLUSIVE and the KPI stays in progress.
+
 agent-drill is the staging agent drill (simulation plan, T2): the founder's
 staging command key is made with the release's CLI on the runner and the
 agent installed on the sentry beside its node. Signed status and journal
@@ -218,6 +233,7 @@ import adversary  # noqa: E402
 import attacks  # noqa: E402
 import checkpoints  # noqa: E402
 import endpoints  # noqa: E402
+import fault_alerts  # noqa: E402
 import faults  # noqa: E402
 import floods  # noqa: E402
 import governance  # noqa: E402
@@ -750,6 +766,7 @@ def restore_drill(work, timeout=900):
         raise Failed(f'the restore drill is {record["status"]}')
     say(f'== the sentry was wiped, reinstalled and restored from the copy of height {copy["height"]}, '
         f'and matches the validator at height {ours[0]}; evidence sha256 {record["sha256"]}')
+    alerts_resume(work, 'sentry-1')
 
 
 # The validator recovery drill (simulation plan, T9; validator recovery F17)
@@ -809,6 +826,10 @@ def validator_recovery_drill(work, timeout=900):
     if result.returncode != 0:
         raise Failed('install.sh failed on the replacement')
     instants['installed_at'] = time.time()
+    if runner_alerts(work).exists():
+        # CI only (fault alerts): the reinstall recreated the runner's firewall
+        # table; the sentry's alerts reach the runner's stand-in again.
+        runner_alert_rule(reconcile.LocalHost())
     sentry.run(['systemctl', 'start', 'dytallix-node'], timeout=120)
     instants['sentry_started_at'] = time.time()
     subprocess.run(['systemctl', 'start', 'dytallix-node.service'], check=True)
@@ -849,6 +870,7 @@ def validator_recovery_drill(work, timeout=900):
     if record['status'] != recovery.PASS or recovery.verify(json.loads(path.read_bytes()), genesis) != recovery.PASS:
         raise Failed(f'the validator recovery drill is {record["status"]}')
     say(f'== the validator was fenced, replaced and signs again past H = {halt}; evidence sha256 {record["sha256"]}')
+    alerts_resume(work, 'validator-1')
 
 
 # The kit replacement drill (root kit replacement v1, K4)
@@ -1821,6 +1843,7 @@ def monitor_drill(work, label='sentry-1'):
         indent=2))
     guest.run(['systemctl', 'stop', 'dytallix-alert-standin'], check=False)
     say(f'== {label}: a restart loop, a full disk, a halt and a stopped monitor each alerted and resolved')
+    alerts_resume(work, label)
 
 
 # The staging agent (simulation plan, T2)
@@ -2874,6 +2897,173 @@ def host_loss_drill(work, label='sentry-1', timeout=900):
     return status
 
 
+# Fault alerts (T5; P01, 9 November 2026): the stand-in alerting service on
+# the runner, which the in-scope fault drills cannot take away.
+
+RUNNER_ALERTS_UNIT = 'dytallix-ci-alerts'
+RUNNER_ALERTS_PORT = 9100
+# The sentry's relay on its loopback (its monitor posts only to https or its
+# own loopback), on a port beside the monitoring drill's own stand-in (9100).
+RELAY_UNIT = 'dytallix-ci-alert-relay'
+RELAY_PORT = 9101
+RELAY_FILE = f'/etc/systemd/system/{RELAY_UNIT}.service'
+
+
+def runner_alerts(work):
+    return Path(work) / 'alerts'
+
+
+def runner_events(work):
+    path = runner_alerts(work) / 'events.jsonl'
+    return path.read_bytes() if path.exists() else b''
+
+
+def runner_alert_rule(host):
+    """CI only: the runner's host firewall drops what it does not list; let
+    the sentry reach the runner's stand-in. Idempotent: the validator's
+    reinstall (T9) recreates the table without it."""
+    _, listing, _ = host.run(['nft', 'list', 'chain', 'inet', 'dytallix_node', 'input'], check=False)
+    if f'ip saddr {ADDRESSES[PUBLIC]} tcp dport {RUNNER_ALERTS_PORT} accept' not in listing:
+        host.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES[PUBLIC],
+                  'tcp', 'dport', str(RUNNER_ALERTS_PORT), 'accept'], check=False)
+
+
+def alert_settings(work, label):
+    """Points a host's monitor at the runner's stand-in with the host's own
+    monitor-settings.sh, as the founder runs it: the validator (the runner)
+    on its loopback, the sentry through its relay."""
+    port = RUNNER_ALERTS_PORT if label == 'validator-1' else RELAY_PORT
+    base = f'http://127.0.0.1:{port}'
+    settings = json.dumps({'schema': 'dytallix.monitor-settings.v1', 'label': label, 'heartbeat_url': f'{base}/heartbeat',
+                           'alert_url': f'{base}/alert', 'escalation_url': f'{base}/escalation'})
+    if label == 'validator-1':
+        path = runner_alerts(work) / 'monitor-settings.json'
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descriptor, 'w') as file:
+            file.write(settings)
+        bundle = staging_host.unpack(Path(work) / 'net', label)
+        result = subprocess.run([str(bundle / 'monitor-settings.sh'), str(path)], capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Failed(f'{label}: monitor-settings.sh failed: {result.stderr.strip() or result.stdout.strip()}')
+        say(result.stdout.strip())
+        return
+    guest = agent(work, label)
+    guest.run(['sh', '-c', 'umask 077 && cat > /root/monitor-settings.json'], stdin=settings)
+    _, out, _ = guest.run(['/root/node/dytallix-host/monitor-settings.sh', '/root/monitor-settings.json'], timeout=180)
+    say(out.strip())
+
+
+def heartbeat_from(work, label, after, timeout=240):
+    """A heartbeat from the host that the runner's stand-in received after
+    the moment (the runner's clock)."""
+    deadline = time.monotonic() + timeout
+    while True:
+        for event in fault_alerts.parse_events(runner_events(work)):
+            if event['to'] == 'heartbeat' and event['body'].get('host') == label and event['received'] > after:
+                return event
+        if time.monotonic() > deadline:
+            raise Failed(f'{label}: no heartbeat reached the runner\'s stand-in in {timeout} s')
+        time.sleep(5)
+
+
+def alerts_up(work):
+    """The stand-in alerting service on the runner, on its loopback and its
+    bridge address, with the approved 3-minute heartbeat rule; the sentry's
+    relay as a unit that starts again after a power-on; and both hosts'
+    monitor settings pointed at it. Before the first in-scope fault (T9)."""
+    work = Path(work)
+    root = runner_alerts(work)
+    root.mkdir()
+    subprocess.run(['systemd-run', f'--unit={RUNNER_ALERTS_UNIT}', sys.executable, str(HERE / 'alert_standin.py'),
+                    '--root', str(root), '--port', str(RUNNER_ALERTS_PORT), '--bind', '127.0.0.1',
+                    '--bind', ADDRESSES['validator-1'], '--missing-seconds', str(MONITORING_DOWN_SECONDS)], check=True)
+    runner_alert_rule(reconcile.LocalHost())
+    guest = agent(work, PUBLIC)
+    put_file(guest, RELAY_FILE, '[Unit]\nDescription=CI only: relay to the runner\'s stand-in alerting service\n'
+             'After=network-online.target\nWants=network-online.target\n\n[Service]\n'
+             f'ExecStart=/usr/bin/python3 /root/alert_standin.py --relay http://{ADDRESSES["validator-1"]}:'
+             f'{RUNNER_ALERTS_PORT} --port {RELAY_PORT}\nRestart=always\n\n[Install]\nWantedBy=multi-user.target\n')
+    guest.run(['systemctl', 'daemon-reload'])
+    guest.run(['systemctl', 'enable', '--now', RELAY_UNIT])
+    start = time.time()
+    for label in ('validator-1', PUBLIC):
+        alert_settings(work, label)
+    for label in ('validator-1', PUBLIC):
+        event = heartbeat_from(work, label, start)
+        say(f'== {label}: heartbeat at the runner\'s stand-in, firing {event["body"].get("firing")}')
+
+
+def alerts_resume(work, label):
+    """After a step that reinstalls a host (R6, T9) or repoints its monitor
+    (M5): its monitor settings again, once the step's timings are recorded.
+    Nothing when the runner's stand-in is not up."""
+    work = Path(work)
+    if not runner_alerts(work).exists():
+        return
+    if label == 'validator-1':
+        runner_alert_rule(reconcile.LocalHost())
+    start = time.time()
+    alert_settings(work, label)
+    heartbeat_from(work, label, start)
+    say(f'== {label}: its monitor reports to the runner\'s stand-in again')
+
+
+def fault_alerts_drill(work, timeout=600):
+    """Fault alerts (T5; P01, 9 November 2026), after the last in-scope fault
+    (host loss): waits until nothing is firing at the runner's stand-in (or
+    the timeout), then writes digest-bound evidence (fault_alerts.py) of what
+    fired and resolved in each in-scope fault's window, and checks the
+    results collector's reading of it. Which alert each fault must raise is
+    not decided, so every fault is INCONCLUSIVE and the KPI stays in progress."""
+    work = Path(work)
+    start = time.time()
+    for label in ('validator-1', PUBLIC):
+        heartbeat_from(work, label, start)
+    deadline = time.monotonic() + timeout
+    while True:
+        still = fault_alerts.firing(fault_alerts.parse_events(runner_events(work)))
+        if not still or time.monotonic() > deadline:
+            break
+        time.sleep(10)
+    if still:
+        say(f'== still firing after {timeout} s: {still}')
+    events = runner_events(work)
+    native = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
+    engine = (work / 'net' / 'chain' / 'chain' / 'genesis.json').read_bytes()
+    evidence = {name: json.loads((work / path / 'evidence.json').read_bytes()) for name, path in
+                (('faults', 'fault-drill'), ('host_loss', 'host-loss-drill'), ('restore', 'restore-drill'),
+                 ('recovery', 'validator-recovery'))}
+    windows = fault_alerts.windows(evidence['faults'], evidence['host_loss'], evidence['restore'], evidence['recovery'])
+    out = work / 'fault-alerts'
+    out.mkdir()
+    (out / 'events.jsonl').write_bytes(events)
+    finished = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    record = fault_alerts.build(staging_host.CHAIN_ID, native, windows, events, finished)
+    (out / 'evidence.json').write_text(json.dumps(record, indent=2) + '\n')
+    status = fault_alerts.verify(json.loads((out / 'evidence.json').read_bytes()), native)
+    for row in record['faults']:
+        took = None if row['recovered_at'] is None else round(row['recovered_at'] - row['injected_at'], 1)
+        say(f'== {row["fault"]}: {row["status"]} (window {took} s; {row["detail"]})')
+    say(json.dumps({'fault_alerts': {'status': status, 'faults': {
+        r['fault']: [{k: e[k] for k in ('host', 'condition', 'fired_at', 'resolved_at')} for e in r['observed']]
+        for r in record['faults']}, 'episodes': fault_alerts.episodes(fault_alerts.parse_events(events))}}, indent=2))
+    if status == fault_alerts.FAIL:
+        raise Failed(f'the fault alerts are {status}')
+    # The results collector's reading: in progress, never a pass, while the
+    # alerts each fault must raise are not decided.
+    release = json.loads((work / 'net' / 'chain' / 'release' / 'BUILD_RECORD.json').read_bytes())
+    commit = os.environ.get('GITHUB_SHA') or subprocess.run(['git', '-C', str(HERE), 'rev-parse', 'HEAD'],
+                                                            capture_output=True, text=True).stdout.strip()
+    timings = json.loads((HERE.parents[2] / result_summaries.TIMINGS).read_bytes())
+    summary = result_summaries.summarize_campaign([], native, engine, timings, release, commit,
+                                                  alert_files=[(out / 'evidence.json').read_bytes()])
+    shown = {k['id']: (k['status'], k['value'], k['samples']) for k in summary['kpis']}
+    if list(shown) != [result_summaries.ALERTS_KPI] or shown[result_summaries.ALERTS_KPI][0] != 'in_progress':
+        raise Failed(f'the results collector reads the fault alerts as {shown}, not in progress')
+    say(json.dumps({'fault_alerts_summary': shown}, indent=2))
+    subprocess.run(['systemctl', 'stop', RUNNER_ALERTS_UNIT], check=False)
+
+
 def diagnostics(work):
     work = Path(work)
     for label in VMS:
@@ -2908,7 +3098,7 @@ def main():
     p.add_argument('--later-release', type=Path, help="the upgrade drill's second release (T8)")
     p.add_argument('--work', type=Path, required=True)
     for name in ('network-up', 'install-vms', 'run', 'wallet-drill', 'load', 'load-workers', 'checkpoint', 'adversary-drill',
-                 'flood-campaign', 'fault-drill', 'host-loss-drill', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
+                 'flood-campaign', 'fault-drill', 'host-loss-drill', 'alerts-up', 'fault-alerts', 'validator-recovery-drill', 'restore-drill', 'kit-drill',
                  'root-control-campaign', 'monitor-drill', 'staking-campaign', 'governance-campaign',
                  'recovery-campaign',
                  'stage-later-release',
@@ -2966,6 +3156,10 @@ def main():
             flood_campaign(args.work)
         elif args.command == 'host-loss-drill':
             host_loss_drill(args.work)
+        elif args.command == 'alerts-up':
+            alerts_up(args.work)
+        elif args.command == 'fault-alerts':
+            fault_alerts_drill(args.work)
         elif args.command == 'stage-later-release':
             stage_later_release(args.work)
         elif args.command == 'upgrade-drill':
@@ -2985,7 +3179,7 @@ def main():
         else:
             diagnostics(args.work)
     except (Failed, staging_host.Failed, reconcile.Failed, load_generator.Failed, checkpoints.Failed,
-            faults.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, attacks.Failed, endpoints.Failed, staking.Failed, governance.Failed, account_recovery.Failed, account_recovery.Unavailable, result_summaries.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
+            faults.Failed, fault_alerts.Failed, recovery.Failed, restore_drill_module.Failed, upgrade_drill_module.Failed, adversary.Failed, attacks.Failed, endpoints.Failed, staking.Failed, governance.Failed, account_recovery.Failed, account_recovery.Unavailable, result_summaries.Failed, staging_founder.Failed, staging_command.Failed, OSError, KeyError, ValueError) as error:
         print(f'staging_network: {error}', file=sys.stderr)
         return 1
     return 0
