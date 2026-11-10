@@ -85,19 +85,25 @@ the complete check, as before, and may exceed `startup_millis`: the
 supervisor then stops it (`BOUNDED_STARTUP_FAILURE`). Run the complete check
 once instead, outside the startup budget:
 
-1. Install a release that has the checkpoint (its `dytallix-state-check`
-   prints `--write-startup-checkpoint` in its usage).
+1. Install a release built from this change (PR #136): its
+   `dytallix-state-check` prints `--write-startup-checkpoint` in its usage.
+   The staging-2 hosts' installed release does not have it.
 2. Stop the node: `systemctl stop dytallix-node`.
-3. As the application owner:
+3. Run it as the application user, `dytallix`, never as root: a writable
+   open as root leaves root-owned database files the node cannot open.
 
    ```text
-   /opt/dytallix/RELEASE/bin/dytallix-state-check --config APPLICATION_CONFIG \
-     --genesis NATIVE_GENESIS --db HOME/appdb --write-startup-checkpoint
+   sudo -u dytallix /opt/dytallix/RELEASE/bin/dytallix-state-check \
+     --config /etc/dytallix/RELEASE/application-config.json \
+     --genesis /etc/dytallix/RELEASE/native-genesis.json \
+     --db /var/lib/dytallix/node/appdb --write-startup-checkpoint
    ```
 
    It prints `"result":"pass"` with `startup_checkpoint_height`, the head.
    A failure prints its class; do not start the node.
-4. Start the node. Its startup checks only what came after the checkpoint.
+4. Check that `find /var/lib/dytallix/node/appdb ! -user dytallix` prints
+   nothing.
+5. Start the node. Its startup checks only what came after the checkpoint.
 
 For the staging sentry from 2026-11-10 (173,074 blocks) the measured
 0.19 ms a block (debug build, empty blocks) gives at least 33 s; expect more
