@@ -1431,6 +1431,9 @@ struct HistoryRead<'a> {
     checkpoint: Option<StartupCheckpoint>,
     /// The bound checkpoint, set by `verify_history` before any replay.
     floor: std::cell::RefCell<Option<StartupCheckpoint>>,
+    /// Heights below the bound checkpoint that control replays read besides
+    /// its control heights (the anchors and restart blocks a window keeps).
+    floor_anchors: std::cell::RefCell<BTreeSet<u64>>,
     /// The checkpoint a passed check would write.
     next_checkpoint: std::cell::RefCell<Option<StartupCheckpoint>>,
     #[cfg(test)]
@@ -1458,6 +1461,7 @@ impl<'a> HistoryRead<'a> {
             release_trace: Default::default(),
             checkpoint: None,
             floor: Default::default(),
+            floor_anchors: Default::default(),
             next_checkpoint: Default::default(),
             #[cfg(test)]
             block_decodes: Default::default(),
@@ -1507,10 +1511,17 @@ impl<'a> HistoryRead<'a> {
     /// kept below the retained window, then the window.
     fn heights(&self, height: u64) -> Result<Vec<u64>> {
         // From a bound checkpoint: the records below it that carry a control
-        // (as a window keeps them), then the checkpoint's record and on.
+        // or that a control names (as a window keeps them), then the
+        // checkpoint's record and on.
         if let Some(floor) = &*self.floor.borrow() {
-            let mut heights: Vec<u64> =
-                floor.controls.iter().copied().filter(|h| *h < floor.height).collect();
+            let below: BTreeSet<u64> = floor
+                .controls
+                .iter()
+                .chain(self.floor_anchors.borrow().iter())
+                .copied()
+                .filter(|h| *h < floor.height)
+                .collect();
+            let mut heights: Vec<u64> = below.into_iter().collect();
             heights.extend(floor.height..=height);
             return Ok(heights);
         }
@@ -8117,6 +8128,13 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         }
         _ => None,
     };
+    *history.floor_anchors.borrow_mut() = match &floor {
+        Some(floor) => control_anchors(storage, &config)?
+            .into_iter()
+            .filter(|h| (1..floor.height).contains(h))
+            .collect(),
+        None => BTreeSet::new(),
+    };
     *history.floor.borrow_mut() = floor.clone();
     let base = floor.as_ref().map_or(retained, |floor| floor.height);
     let start = match (from, &floor) {
@@ -8715,8 +8733,12 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                 "Startup checkpoint control height holds no control"
             );
         }
-        // The anchors recorded controls name, which the replays read.
-        for h in control_anchors(storage, &config)?.into_iter().filter(|h| *h < floor.height) {
+        // The anchors recorded controls name, which the replays read. An
+        // anchor at height 0 is the genesis commitment, which has no record.
+        for h in control_anchors(storage, &config)?
+            .into_iter()
+            .filter(|h| (1..floor.height).contains(h))
+        {
             let record = history.block(h)?;
             input_limits(&config, &record.input)?;
             check_record(&config, h, &record)?;
