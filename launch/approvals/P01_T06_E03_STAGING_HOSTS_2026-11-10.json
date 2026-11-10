@@ -19,7 +19,7 @@
   "unset": [
     "How the runner reaches the hosts (they are console-only and the runner uses SSH)",
     "The amd64 inert check: where and when it runs",
-    "Who performs the P02 independent review: not chosen (no budget for one); E03 cannot dispatch without it",
+    "Who performs the P02 independent review: not chosen; E03 cannot dispatch without it",
     "Re-pinning the runner and its reviewed preflight to the rebuilt hosts (changes the runner's hash)"
   ],
   "supersedes": [],

@@ -97,8 +97,9 @@ samples that raised their alert and resolved it. It fails at one fault
 that did not; it never passes yet, since which alert each fault must raise
 and how many repetitions the KPI needs are not decided.
 
-The staging summary of staging.hosts.ready (P01, 10 November 2026,
-launch/approvals/P01_T06_STAGING_HOSTS_EVIDENCE_2026-11-10.json) reads one
+The staging summary of staging.hosts.ready is built ahead of its approval:
+launch/approvals/P01_T06_STAGING_HOSTS_EVIDENCE_2026-11-10.json leaves the
+results path unset (P01, 10 November 2026). It reads one
 staging hosts record (staging_hosts.py), re-verified against the chain's
 STAGING.json, the native genesis and the T9 validator recovery record it
 binds. Its value is the hosts whose host_install.py verify exited 0, of 2.
