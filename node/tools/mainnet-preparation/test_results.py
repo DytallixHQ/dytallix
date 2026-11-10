@@ -182,7 +182,7 @@ class Summarize(unittest.TestCase):
         del unfinished['instants']['caught_up_at']
         raw = json.dumps(restore_drill.build('dytallix-staging-2', NATIVE, unfinished,
                                              restore_drill.approved_target())).encode()
-        with self.assertRaisesRegex(results.Failed, 'no recovery, attack or load run for a campaign KPI'):
+        with self.assertRaisesRegex(results.Failed, 'no recovery, attack, load run or fault alerts for a campaign KPI'):
             summarize(restores=[raw])
 
     def test_the_attack_family_counts_its_fewest_type_and_every_success(self):
@@ -243,7 +243,7 @@ class Summarize(unittest.TestCase):
             results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, attack_files=[(raw, rows + b'{}\n')])
 
     def test_a_summary_needs_a_result_kpi_and_a_fault_recovery(self):
-        with self.assertRaisesRegex(results.Failed, 'no recovery, attack or load run for a campaign KPI'):
+        with self.assertRaisesRegex(results.Failed, 'no recovery, attack, load run or fault alerts for a campaign KPI'):
             summarize(record([row('latency', 9)]))
         summary = summarize(record([row('partition', 20)]))
         summary['kpis'][0]['id'] = 'plan.d14_q02.approval'
@@ -437,3 +437,37 @@ class Network(unittest.TestCase):
     def test_a_process_kill_is_not_a_network_attempt(self):
         attempts, _ = self.network([self.scenario('partition'), row('process_kill', 20)])
         self.assertEqual(attempts['samples'], 1)
+
+
+class FaultAlerts(unittest.TestCase):
+    def alerts(self, **decided):
+        import fault_alerts
+        import test_fault_alerts
+        with unittest.mock.patch.dict(fault_alerts.EXPECTED, decided):
+            raw = json.dumps(test_fault_alerts.build()).encode()
+            return raw, results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, alert_files=[raw])
+
+    def test_undecided_alerts_keep_the_kpi_in_progress_with_no_value(self):
+        _, summary = self.alerts()
+        self.assertEqual(kpi(summary, 'campaign.faults.alerts'),
+                         {'id': 'campaign.faults.alerts', 'status': 'in_progress', 'value': None, 'unit': '%',
+                          'samples': 0, 'target': None})
+        self.assertEqual(summary['date'], '2026-11-10')
+        self.assertEqual(summary['sources'][0]['tool'], 'fault_alerts')
+        self.assertEqual(results.summary_problems(summary), [])
+
+    def test_a_missed_alert_fails_and_all_raised_never_passes_yet(self):
+        import test_fault_alerts
+        _, summary = self.alerts(**test_fault_alerts.DECIDED)
+        found = kpi(summary, 'campaign.faults.alerts')
+        self.assertEqual((found['status'], found['value'], found['samples']), ('in_progress', 100.0, 4))
+        missed = results.alert_kpi(['PASS', 'FAIL', 'PASS', 'PASS'])
+        self.assertEqual((missed['status'], missed['value']), ('fail', 75.0))
+
+    def test_an_edited_alerts_record_is_refused(self):
+        raw, _ = self.alerts()
+        edited = json.loads(raw)
+        edited['faults'][1]['status'] = 'PASS'
+        with self.assertRaisesRegex(results.Failed, 'fault alerts record does not verify'):
+            results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
+                                       alert_files=[json.dumps(edited).encode()])

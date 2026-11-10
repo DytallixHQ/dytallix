@@ -1,0 +1,39 @@
+{
+  "decision_id": "P01-2026-11-09-T05-FAULT-ALERTS",
+  "approved": "2026-11-09",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Which injected faults campaign.faults.alerts (injected faults that raised their alert and resolved it after recovery) covers, and where it runs"
+  },
+  "reason": "The launch rehearsals require every injected fault to raise its alert and resolve after recovery, and campaign.faults.alerts had no source. The monitoring drill's stand-in alerting service ran on the sentry's own loopback, so it could not observe a fault that takes the sentry away.",
+  "design_ref": "../../node/tools/mainnet-preparation/fault_alerts.py",
+  "decisions": [
+    {
+      "question": "Which injected faults count",
+      "selected": "Only faults past a threshold: network partition, host loss, sentry rebuild, validator host",
+      "rule": "campaign.faults.alerts covers the network partition, host loss, the sentry rebuild and the validator host recovery."
+    },
+    {
+      "question": "Where it runs",
+      "selected": "CI only",
+      "rule": "Fault alerts are built and observed in the CI staging network only."
+    }
+  ],
+  "unset": [
+    "Which alert (host and condition) each in-scope fault must raise",
+    "Host loss: whether its outage (30 s off, about 35 s to recover in CI) must cross an alert threshold, and how",
+    "Network partition: whether a 90 s cut must reliably raise the 60 s consensus halt alert, given the monitor runs once a minute",
+    "When the alert must fire and resolve relative to the fault's window (fired within injection to recovery; resolved after the clear or after the recovery reading)",
+    "How many repetitions of each fault the KPI needs, and whether CI evidence can count for it on the public page",
+    "Whether reinstalling a host's monitor settings is part of the sentry rebuild and validator host recovery procedures"
+  ],
+  "accepted_risks": [],
+  "supersedes": [],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
