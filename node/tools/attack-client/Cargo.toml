@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 dytallix-protocol-types = { path = "../../crates/protocol-types" }
+dytallix-client-channel = { path = "../../crates/client-channel" }
 anyhow = "=1.0.102"
 base64 = "=0.22.1"
 fips204 = { version = "=0.4.6", default-features = false, features = ["default-rng", "ml-dsa-65"] }
