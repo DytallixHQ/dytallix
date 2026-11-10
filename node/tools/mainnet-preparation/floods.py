@@ -27,7 +27,11 @@ load wallets. Each type and what counts as the node refusing it:
     as fast as they are answered for FLOOD_SECONDS, while an honest client
     at another address keeps its 2 and reads the head about once a second.
     Every honest read must be served and the head must advance; a read the
-    channel did not serve, or a chain that stood still, is a success. A
+    channel did not serve, or a chain that stood still, is a success. Each
+    attempt also records, outside the judgement, the honest client's misses
+    (its error and how long the read took) and its slowest read, the
+    flooders' first errors and the runner's load averages, so a miss can
+    be traced (P01, 9 November 2026). A
     flood that sent nothing is made again.
 The queue bound is the chain's (genesis) value: the CI staging chain is
 built with 64 (TIMINGS.json, ci profile), the production and rehearsal
@@ -263,7 +267,7 @@ def hammer(cli, seconds, threads=2):
     are answered, from `threads` connections. Prints its counts."""
     env = dict(os.environ)
     gateway = load.Gateway(cli, env, os.devnull)
-    served, errors = [0], [0]
+    served, errors, first = [0], [0], []
     lock = threading.Lock()
     try:
         rpc = load.Rpc(gateway.url, threads, timeout=10)
@@ -275,9 +279,11 @@ def hammer(cli, seconds, threads=2):
                     load.head_height(rpc.one('flood', 'abci_info', {}))
                     with lock:
                         served[0] += 1
-                except load.Failed:
+                except load.Failed as error:
                     with lock:
                         errors[0] += 1
+                        if len(first) < 3:
+                            first.append(str(error)[:160])
         workers = [threading.Thread(target=loop) for _ in range(threads)]
         for worker in workers:
             worker.start()
@@ -285,7 +291,7 @@ def hammer(cli, seconds, threads=2):
             worker.join()
     finally:
         gateway.stop()
-    print(json.dumps({'served': served[0], 'errors': errors[0]}))
+    print(json.dumps({'served': served[0], 'errors': errors[0], 'first_errors': first}))
 
 
 def request_flood(rpc, cli, env, spaces, show, seconds=FLOOD_SECONDS):
@@ -295,17 +301,22 @@ def request_flood(rpc, cli, env, spaces, show, seconds=FLOOD_SECONDS):
                '--seconds', str(seconds)]
     flooders = [subprocess.Popen(['ip', 'netns', 'exec', space, *command], stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE, text=True, env=env) for space in spaces[:FLOODERS]]
-    reads, served, heights = 0, 0, []
+    reads, served, heights, misses, slowest = 0, 0, [], [], 0.0
     # The flooders' gateways start first.
     time.sleep(3)
     end = time.monotonic() + seconds - 4
     while time.monotonic() < end:
         reads += 1
+        began = time.monotonic()
         try:
             heights.append(load.head_height(rpc.one('honest', 'abci_info', {})))
             served += 1
-        except load.Failed:
-            pass
+        except load.Failed as error:
+            # Diagnostics (P01, 9 November 2026: one honest read in 30
+            # attempts was not served; the cause is to be found, the
+            # criterion stays): what the read got and how long it took.
+            misses.append({'after_s': round(time.monotonic() - began, 2), 'error': str(error)[:160]})
+        slowest = max(slowest, time.monotonic() - began)
         time.sleep(HONEST_PERIOD)
     counts, failures = [], []
     for flooder in flooders:
@@ -316,7 +327,10 @@ def request_flood(rpc, cli, env, spaces, show, seconds=FLOOD_SECONDS):
             failures.append(err.strip()[-200:])
     observed = {'flooders': len(flooders), 'flood_served': sum(c['served'] for c in counts),
                 'flood_errors': sum(c['errors'] for c in counts), 'honest_reads': reads, 'honest_served': served,
-                'honest_heights': [heights[0], heights[-1]] if heights else [None, None]}
+                'honest_heights': [heights[0], heights[-1]] if heights else [None, None],
+                'honest_slowest_s': round(slowest, 2), 'honest_misses': misses[:3],
+                'flood_first_errors': [e for c in counts for e in c.get('first_errors', [])][:3],
+                'runner_load': [round(v, 2) for v in os.getloadavg()]}
     if failures or len(counts) < FLOODERS:
         observed['error'] = f'a flooder did not report: {failures[:1]}'
     show(f'== request_flood: flooders served {observed["flood_served"]} ({observed["flood_errors"]} not), '
