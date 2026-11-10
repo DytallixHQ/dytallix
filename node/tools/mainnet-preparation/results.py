@@ -7,6 +7,8 @@ results key.
   results.py summarize campaign [--faults FILE ...] [--restores FILE ...] [--recoveries FILE ...] \
       [--attacks FILE ...] [--loads EVIDENCE ...] [--alerts FILE ...] \
       --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS --release BUILD_RECORD.json --commit SHA [--root DIR]
+  results.py summarize staging --hosts FILE --staging STAGING.json --recovery T9_EVIDENCE.json \
+      --genesis NATIVE_GENESIS [--root DIR]
   results.py sign --cli DYTALLIX --home DIR SUMMARY
   results.py verify --cli DYTALLIX SUMMARY [SUMMARY ...]
 
@@ -95,6 +97,18 @@ samples that raised their alert and resolved it. It fails at one fault
 that did not; it never passes yet, since which alert each fault must raise
 and how many repetitions the KPI needs are not decided.
 
+The staging summary of staging.hosts.ready is built ahead of its approval:
+launch/approvals/P01_T06_STAGING_HOSTS_EVIDENCE_2026-11-10.json leaves the
+results path unset (P01, 10 November 2026). It reads one
+staging hosts record (staging_hosts.py), re-verified against the chain's
+STAGING.json, the native genesis and the T9 validator recovery record it
+binds. Its value is the hosts whose host_install.py verify exited 0, of 2.
+It fails once the record fails, passes once it passes, and is in progress
+while a reading is missing. Only the count, the two records' digests and
+the chain leave the evidence: no country, region, address or host name. It
+is written as launch/simulations/results/staging/DATE.json, DATE the day of
+the sentry's verify.
+
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
 'dytallix-launch-results-v1:' and the SHA-256 of the summary's exact bytes,
@@ -126,6 +140,7 @@ import recovery  # noqa: E402
 import restore_drill  # noqa: E402
 import root_controls  # noqa: E402
 import staging_command  # noqa: E402
+import staging_hosts  # noqa: E402
 import staking  # noqa: E402
 
 ROOT = launch_dashboard.ROOT
@@ -442,6 +457,33 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
     return summary
 
 
+HOSTS_KPI = 'staging.hosts.ready'
+HOSTS_STATUS = {staging_hosts.PASS: 'pass', staging_hosts.FAIL: 'fail', staging_hosts.INCONCLUSIVE: 'in_progress'}
+
+
+def summarize_staging_hosts(hosts_raw, staging, genesis_bytes, recovery_raw):
+    """The staging summary of staging.hosts.ready from one hosts record."""
+    record = json.loads(hosts_raw)
+    try:
+        status = staging_hosts.verify(record, staging, genesis_bytes, recovery_raw)
+    except (staging_hosts.Failed, KeyError, TypeError) as error:
+        raise Failed(f'the staging hosts record does not verify: {error}')
+    at = record['observations'].get('verified_at')
+    require(isinstance(at, str), 'the staging hosts record has no verified_at')
+    genesis = record['genesis']['native_genesis_sha256']
+    sources = [{'tool': 'staging_hosts', 'sha256': digest(hosts_raw), 'chain_id': record['chain_id'],
+                'native_genesis_sha256': genesis, 'status': status},
+               {'tool': 'recovery', 'sha256': record['recovery']['sha256'], 'chain_id': record['chain_id'],
+                'native_genesis_sha256': genesis, 'status': record['recovery']['status']}]
+    summary = {'schema': SCHEMA, 'scope': 'staging', 'date': day(at),
+               'kpis': [{'id': HOSTS_KPI, 'status': HOSTS_STATUS[status], 'value': staging_hosts.verified(record),
+                         'unit': 'count', 'target': 2}],
+               'sources': sorted(sources, key=lambda s: s['sha256'])}
+    problems = summary_problems(summary)
+    require(not problems, '; '.join(problems))
+    return summary
+
+
 def summary_problems(summary, root=ROOT):
     """launch_dashboard's own check of a summary, with the page's definitions."""
     definitions = json.loads((Path(root) / launch_dashboard.DEFINITIONS).read_bytes())
@@ -513,12 +555,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest='command', required=True)
     s = commands.add_parser('summarize')
-    s.add_argument('scope', choices=['campaign'])
+    s.add_argument('scope', choices=['campaign', 'staging'])
     for name in ('faults', 'restores', 'recoveries', 'attacks', 'loads', 'alerts'):
         s.add_argument(f'--{name}', type=Path, nargs='+', default=[])
-    for name in ('genesis', 'engine_genesis', 'release'):
-        s.add_argument(f'--{name.replace("_", "-")}', type=Path, required=True)
-    s.add_argument('--commit', required=True)
+    for name in ('hosts', 'staging', 'recovery'):
+        s.add_argument(f'--{name}', type=Path)
+    s.add_argument('--genesis', type=Path, required=True)
+    for name in ('engine_genesis', 'release'):
+        s.add_argument(f'--{name.replace("_", "-")}', type=Path)
+    s.add_argument('--commit')
     s.add_argument('--root', type=Path, default=ROOT)
     g = commands.add_parser('sign')
     g.add_argument('--cli', required=True)
@@ -529,7 +574,15 @@ def main():
     v.add_argument('summary', type=Path, nargs='+')
     args = parser.parse_args()
     try:
-        if args.command == 'summarize':
+        if args.command == 'summarize' and args.scope == 'staging':
+            require(args.hosts and args.staging and args.recovery, 'staging needs --hosts, --staging and --recovery')
+            summary = summarize_staging_hosts(args.hosts.read_bytes(), json.loads(args.staging.read_bytes()),
+                                              args.genesis.read_bytes(), args.recovery.read_bytes())
+            path = write_summary(summary, args.root)
+            print(f'{path} ({", ".join(f"{k["id"]} {k["status"]}" for k in summary["kpis"])}); sign it next')
+        elif args.command == 'summarize':
+            require(args.engine_genesis and args.release and args.commit,
+                    'campaign needs --engine-genesis, --release and --commit')
             timings = json.loads((ROOT / TIMINGS).read_bytes())
             summary = summarize_campaign([p.read_bytes() for p in args.faults], args.genesis.read_bytes(),
                                          args.engine_genesis.read_bytes(), timings,
