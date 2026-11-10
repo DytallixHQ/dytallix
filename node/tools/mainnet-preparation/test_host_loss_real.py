@@ -137,6 +137,18 @@ class Guard(Base):
     def test_no_location_is_refused(self):
         self.assertIn('none', self.refused(dict(SENTRY, location=None, datacenter={})))
 
+    def test_the_real_describe_output_passes_the_guard(self):
+        # Trimmed from `hcloud --context dytallix server describe 120260174 -o
+        # json` (10 November 2026): the location is top-level only, with no
+        # datacenter field.
+        real = json.loads((Path(__file__).resolve().parent / 'fixtures' / 'hcloud-sentry-describe.json').read_bytes())
+        self.assertIs(faults.check_sentry(real), real)
+        self.assertNotIn('datacenter', real)
+        cloud = FakeHcloud(real)
+        _, record = self.drive(cloud)
+        self.assertEqual(record['scenarios'][0]['status'], 'PASS')
+        self.assertIn('not the staging sentry', self.refused(dict(real, id=131186484)))
+
     def test_another_address_is_refused(self):
         self.assertIn('IPv4', self.refused(dict(SENTRY, public_net={'ipv4': {'ip': '89.167.52.130'}})))
         self.assertIn('IPv4', self.refused(dict(SENTRY, public_net={})))
