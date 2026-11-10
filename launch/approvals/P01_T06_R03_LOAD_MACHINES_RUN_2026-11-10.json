@@ -11,8 +11,8 @@
   "decisions": [
     {
       "question": "How many load machines",
-      "selected": "7",
-      "rule": "load_machines.py up --count N: the smallest x86 type, spread over nbg1, fsn1 and sin, never hel1; each its own address, labelled with the run. A transaction flood at the production bound needs about 2,016 funded, primed wallets per attempt, shared over the machines. Seven machines let the request flood hold 14 of the channel's 16 connections at 2 each (flood_workers.py, PR #125) without the drive's idle connection taking it past 16."
+      "selected": "2 on Thursday (transaction floods); 7 for the request floods, after the IPv4 limit increase",
+      "rule": "load_machines.py up --count N: the smallest x86 type, spread over nbg1, fsn1 and sin, never hel1; each its own address, labelled with the run. A transaction flood at the production bound needs about 2,016 funded, primed wallets per attempt, shared over the machines. Split (P01, 10 November 2026): the account has 2 free primary IPv4 addresses until Hetzner raises the limit, so Thursday runs only the 10 transaction floods (flood_workers.py drive --workers 2 --types transaction_flood), and the 10 request floods (7 machines, 2 connections each, 14 of 16) run in a later window, which needs its own approval of hours and window."
     },
     {
       "question": "How long they may run",
@@ -21,7 +21,7 @@
     },
     {
       "question": "When",
-      "selected": "Thursday 12 November 2026, 14:00-18:00 UTC",
+      "selected": "Thursday 12 November 2026, 14:00-18:00 UTC (transaction floods); request floods: a later window, not yet chosen",
       "rule": "Within the window: up, fund and prime the fleet, run floods.py against the staging sentry (10 transaction floods past 2,000, 10 request floods holding 14 of the channel's 16 connections), then down and load_machines.py check showing nothing left."
     }
   ],
@@ -31,6 +31,7 @@
   ],
   "supersedes": [],
   "does_not_authorize": [
+    "the request floods before their own window is approved",
     "more than the machines, hours and window named here",
     "rebuilding either host or lifting a host's delete protection",
     "production activation of any chain",
