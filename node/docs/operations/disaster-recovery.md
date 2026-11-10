@@ -111,7 +111,12 @@ but no client can reach it.
      shows the same block and application hash at the same height;
    - a restored sentry writes its next snapshot and its backup uploads it
      (`journalctl -u dytallix-backup`), and the status page of a restored
-     host serving clients answers.
+     host serving clients answers;
+   - its monitor settings are installed again (the install does not carry
+     them): `./dytallix-host/monitor-settings.sh FILE` with the host's
+     settings file from your own media ([monitoring](monitoring.md)); the
+     heartbeat service shows the host again and the outage's alerts resolve
+     (P01, 10 November 2026).
 9. **Delete the copy** from the host (`rm -r /root/copy`); `restore.sh`
    already removed the opened one.
 10. **Record** the times (declared, fenced, installed, restored, caught up),

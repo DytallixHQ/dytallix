@@ -7,11 +7,11 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "3b07bc03b973c2ad27f79670387fe7a4960e8e526a952906041f9598d377fa93"
+        "sha256": "93ec38fb683d5d0fa6858b8f936fa9f42fa78df5a8c9f1a63f6133a2caa902cd"
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "c0274997a0f5952ee066ab4492dd3bdd317c0607ebb0f09d7de2e8cc9f2e8bd4"
+        "sha256": "cd29b05a6f683e7aab1808686f8f3c8f660060851a961724d4ab2b2623f02905"
       },
       {
         "path": "launch/simulations/results/campaign/2026-11-03.json",
@@ -45,7 +45,7 @@
   "project": {
     "since": "2026-09-26",
     "commits_at_as_of": 566,
-    "approval_records": 93
+    "approval_records": 95
   },
   "phases": [
     {
@@ -478,7 +478,7 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: host loss on the real hosts (the provider's power path; built in CI, P01 9 November 2026)",
+      "value": "Built and proven in the CI staging network; still to come: host loss on the real staging sentry, once (faults.py host-loss; P01 10 November 2026): built, its window not chosen yet",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78",
       "updated": "2026-11-02"
     },

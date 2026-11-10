@@ -482,7 +482,8 @@ jobs:
         timeout-minutes: 35
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py flood-campaign --work "$RUNNER_TEMP/network"
       # Host loss (T5; P01, 9 November 2026): the sentry VM's QEMU process
-      # killed (power pulled), held off 30 s and booted again on the same
+      # killed (power pulled), held off 210 s (past the 3-minute heartbeat
+      # rule, so its alert must fire) and booted again on the same
       # disk; the sentry's status page must serve a block made after the
       # power-on within the approved 10 minutes. Its own step, after the
       # steps that use the sentry's transient stand-ins and before the agent
@@ -492,9 +493,9 @@ jobs:
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py host-loss-drill --work "$RUNNER_TEMP/network"
       # What fired and resolved at the runner's stand-in within each in-scope
       # fault's window (the partition, host loss, the sentry rebuild and the
-      # validator host), as digest-bound evidence. Which alert each fault
-      # must raise is not decided, so each is INCONCLUSIVE and the KPI stays
-      # in progress; the step fails only on missing plumbing.
+      # validator host), as digest-bound evidence. Each fault's decided
+      # alerts must fire before its recovery and resolve after it (P01, 10
+      # November 2026), or the step fails.
       - name: Fault alerts (T5)
         timeout-minutes: 15
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py fault-alerts --work "$RUNNER_TEMP/network"

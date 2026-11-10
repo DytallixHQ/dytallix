@@ -94,8 +94,11 @@ launch/approvals/P01_T05_FAULT_ALERTS_2026-11-09.json) come from the fault
 alerts records (fault_alerts.py), re-verified against the native genesis:
 each in-scope fault is one sample, its value the share of conclusive
 samples that raised their alert and resolved it. It fails at one fault
-that did not; it never passes yet, since which alert each fault must raise
-and how many repetitions the KPI needs are not decided.
+that did not, and passes once each fault has the repetitions the fault
+campaign uses for it (P01, 10 November 2026): 30 for the partition and
+for host loss, 3 for the sentry rebuild and the validator host. Only real
+staging-host runs are published, and their alert pipeline is deferred to
+staging; CI's fault alerts count toward the tools phase only.
 
 The staging summary of staging.hosts.ready is built ahead of its approval:
 launch/approvals/P01_T06_STAGING_HOSTS_EVIDENCE_2026-11-10.json leaves the
@@ -174,6 +177,10 @@ HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caug
               'recovery': ('campaign.faults.validator_host', recovery, 'first_block_after_halt_at')}
 HEAVY_REPETITIONS = 3
 ALERTS_KPI = 'campaign.faults.alerts'
+# Each fault's alert repetitions: the fault campaign's own count for it (P01,
+# 10 November 2026); host loss the partition's.
+ALERT_REPETITIONS = {'partition': QUICK_REPETITIONS, 'host_loss': QUICK_REPETITIONS, 'sentry_rebuild': HEAVY_REPETITIONS,
+                     'validator_host': HEAVY_REPETITIONS}
 # An attack family's evidence tool.
 ATTACK_FAMILIES = {'transactions': attacks, 'endpoint_rpc': endpoints, 'root_controls': root_controls,
                    'staking': staking, 'governance': governance, 'recovery': account_recovery, 'floods': floods}
@@ -366,8 +373,8 @@ def network_kpis(rows, root=ROOT):
 
 
 def alert_samples(files, genesis_bytes):
-    """Each fault alerts record re-verified; its conclusive faults' statuses,
-    the sources and the days."""
+    """Each fault alerts record re-verified; its conclusive faults' (fault,
+    status) pairs, the sources and the days."""
     statuses, sources, days = [], [], []
     for raw in files:
         record = json.loads(raw)
@@ -375,7 +382,7 @@ def alert_samples(files, genesis_bytes):
             status = fault_alerts.verify(record, genesis_bytes)
         except (fault_alerts.Failed, KeyError, TypeError) as error:
             raise Failed(f'a fault alerts record does not verify: {error}')
-        statuses += [row['status'] for row in record['faults'] if row['status'] != faults.INCONCLUSIVE]
+        statuses += [(row['fault'], row['status']) for row in record['faults'] if row['status'] != faults.INCONCLUSIVE]
         sources.append({'tool': 'fault_alerts', 'sha256': digest(raw), 'chain_id': record['chain_id'],
                         'native_genesis_sha256': record['genesis']['native_genesis_sha256'], 'status': status})
         days.append(day(record['finished']))
@@ -383,11 +390,14 @@ def alert_samples(files, genesis_bytes):
 
 
 def alert_kpi(statuses):
-    """campaign.faults.alerts: the share of conclusive faults that alerted
-    and resolved. A miss fails it; it stays in progress otherwise, since its
-    alerts and repetitions are not decided (no pass)."""
-    passed = sum(status == faults.PASS for status in statuses)
-    return {'id': ALERTS_KPI, 'status': 'fail' if faults.FAIL in statuses else 'in_progress',
+    """campaign.faults.alerts from (fault, status) pairs: the share of
+    conclusive faults that alerted and resolved. A miss fails it; it passes
+    once every fault has its repetitions."""
+    passed = sum(status == faults.PASS for _, status in statuses)
+    complete = all(needed is not None and sum(f == fault for f, _ in statuses) >= needed
+                   for fault, needed in ALERT_REPETITIONS.items())
+    failed = any(status == faults.FAIL for _, status in statuses)
+    return {'id': ALERTS_KPI, 'status': 'fail' if failed else 'pass' if complete else 'in_progress',
             'value': round(100 * passed / len(statuses), 1) if statuses else None, 'unit': '%',
             'samples': len(statuses), 'target': None}
 

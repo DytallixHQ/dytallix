@@ -194,8 +194,8 @@ drill, which repoints the sentry's monitor, point it back once their own
 timings are recorded. fault-alerts, after host loss, records what fired and
 resolved within each in-scope fault's window (the partition, host loss, the
 sentry rebuild and the validator host) as digest-bound evidence
-(fault_alerts.py). Which alert each fault must raise is not decided, so
-every fault is INCONCLUSIVE and the KPI stays in progress.
+(fault_alerts.py): each fault's decided alerts must fire before its
+recovery and resolve after it (P01, 10 November 2026), or the step fails.
 
 agent-drill is the staging agent drill (simulation plan, T2): the founder's
 staging command key is made with the release's CLI on the runner and the
@@ -718,6 +718,7 @@ def restore_drill(work, timeout=900):
     _, out, _ = sentry.run(['/root/node/dytallix-host/wipe.sh'], stdin='wipe sentry-1\n', timeout=300)
     say(out.strip())
     instants['wiped_at'] = time.time()
+    alerts_hold(work, instants['wiped_at'], 'the wiped sentry')
     say('== reinstall it from its bundle (typing its seal code)')
     _, out, _ = sentry.run(['/root/node/dytallix-host/install.sh'], stdin=codes['sentry-1'] + '\n', timeout=900)
     say(out.strip())
@@ -767,6 +768,8 @@ def restore_drill(work, timeout=900):
     say(f'== the sentry was wiped, reinstalled and restored from the copy of height {copy["height"]}, '
         f'and matches the validator at height {ours[0]}; evidence sha256 {record["sha256"]}')
     alerts_resume(work, 'sentry-1')
+    # Its alert resolves before the next step can wipe or fault a host.
+    alerts_settled(work, [('sentry-1', 'monitoring_down')])
 
 
 # The validator recovery drill (simulation plan, T9; validator recovery F17)
@@ -815,6 +818,7 @@ def validator_recovery_drill(work, timeout=900):
     second = engine(sentry)
     obs['halt_readings'] = [r[0] if r else None for r in (first, second)]
     halt = obs['halt_readings'][-1]
+    alerts_hold(work, instants['fenced_at'], 'the fenced validator')
     say(f'== the sentry stayed at {obs["halt_readings"]}: H = {halt}')
     say('== on the sentry, set the old votes aside')
     sentry.run(['systemctl', 'stop', 'dytallix-node'], timeout=120)
@@ -900,6 +904,9 @@ def validator_recovery_drill(work, timeout=900):
         raise Failed(f'the validator recovery drill is {record["status"]}')
     say(f'== the validator was fenced, replaced and signs again past H = {halt}; evidence sha256 {record["sha256"]}')
     alerts_resume(work, 'validator-1')
+    # The sentry's halt resolves on its next monitor run; the restore drill
+    # (next) wipes the sentry, and with it the resolve.
+    alerts_settled(work, [(PUBLIC, 'consensus_halt'), ('validator-1', 'monitoring_down')])
 
 
 # The kit replacement drill (root kit replacement v1, K4)
@@ -2508,7 +2515,19 @@ def upgrade_drill(work, timeout=900):
                             for name, r in (('validator', ours), ('sentry', theirs))}
 
     def settle(part, bundles, controls):
-        _, view = controls.status()
+        # The sentry's client channel can still be starting after switch.sh
+        # although both engines already follow (startup time grows with the
+        # chain's height): poll it, bounded, rather than read it once.
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                _, view = controls.status()
+                break
+            except Failed as error:
+                if time.monotonic() > deadline:
+                    raise Failed(f'the sentry\'s client channel did not answer within {timeout} s: {error}')
+                say(f'== the client channel is not answering yet ({error}); retrying')
+                time.sleep(5)
         part['active'] = {'release': view['release_handover']['active_release_sha512'],
                           'handover_schema': view['release_handover']['active_schema'],
                           'upgrade_schema': (view.get('upgrade') or {}).get('active_schema')}
@@ -2575,6 +2594,8 @@ def upgrade_drill(work, timeout=900):
         raise Failed(f'the upgrade drill is {record["status"]}')
     say(f'== handover {source[:16]} to {target[:16]} with the migration, and the return: PASS '
         f'(evidence sha256 {record["sha256"]})')
+    # switch.sh restarted nftables on the runner (fault alerts, CI only).
+    alerts_rule_again(work)
 
 
 def agent_drill(work, label='sentry-1', timeout=300):
@@ -2726,7 +2747,7 @@ def fault_drill(work, label='sentry-1', timeout=300):
     the host's own dead-man removed each network fault. Then the validator's
     process restart (validator_restart) runs on the validator."""
     work = Path(work)
-    alerts_rule_again(work)
+    alerts_ready(work, label)
     guest = agent(work, label)
     drill = work / 'fault-drill'
     drill.mkdir()
@@ -2913,7 +2934,7 @@ def host_loss_drill(work, label='sentry-1', timeout=900):
     transient stand-ins and before the agent drill, whose wipe ends the
     network."""
     work = Path(work)
-    alerts_rule_again(work)
+    alerts_ready(work, PUBLIC)
     sub = work / 'host-loss-drill'
     sub.mkdir()
     native = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
@@ -2980,6 +3001,47 @@ def runner_alert_rule(host):
     if f'ip saddr {ADDRESSES[PUBLIC]} tcp dport {RUNNER_ALERTS_PORT} accept' not in listing:
         host.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES[PUBLIC],
                   'tcp', 'dport', str(RUNNER_ALERTS_PORT), 'accept'], check=False)
+
+
+def alerts_hold(work, since, what):
+    """CI only, when the runner's stand-in is up: holds a heavy fault down
+    as long as host loss is held off (P01, 10 November 2026), past the
+    alerting service's 3-minute heartbeat rule, so its alerts must fire.
+    The hold is inside the drill's own timing."""
+    if not runner_alerts(work).exists():
+        return
+    hold = faults.HOST_LOSS['args']['off_seconds']
+    say(f'== {what}: held down {hold} s for its alerts (fault alerts, CI only)')
+    time.sleep(max(since + hold - time.time(), 0))
+
+
+def alerts_settled(work, alerts, timeout=300):
+    """CI only, when the runner's stand-in is up: waits until none of the
+    (host, condition) alerts is still firing there. A host wiped while its
+    alert fires never sends the resolve, and an open alert hides the next
+    fault's own (run 42851854442: the sentry's halt from T9, wiped by R6)."""
+    if not runner_alerts(work).exists():
+        return
+    deadline = time.monotonic() + timeout
+    while True:
+        still = [a for a in fault_alerts.firing(fault_alerts.parse_events(runner_events(work))) if a in alerts]
+        if not still:
+            return
+        if time.monotonic() > deadline:
+            raise Failed(f'still firing at the runner\'s stand-in after {timeout} s: {still}')
+        time.sleep(5)
+
+
+def alerts_ready(work, label, timeout=300):
+    """CI only, when the runner's stand-in is up: before a fault, the host's
+    heartbeat reaches the stand-in again and none of its in-scope alerts is
+    still firing from an earlier step, so the fault's own alert can fire."""
+    if not runner_alerts(work).exists():
+        return
+    alerts_rule_again(work)
+    heartbeat_from(work, label, time.time(), timeout)
+    alerts_settled(work, [(label, 'monitoring_down'), (label, 'consensus_halt')], timeout)
+    say(f'== {label}: reporting to the runner\'s stand-in, monitoring_down and consensus_halt not firing')
 
 
 def alerts_rule_again(work):
@@ -3075,8 +3137,9 @@ def fault_alerts_drill(work, timeout=600):
     (host loss): waits until nothing is firing at the runner's stand-in (or
     the timeout), then writes digest-bound evidence (fault_alerts.py) of what
     fired and resolved in each in-scope fault's window, and checks the
-    results collector's reading of it. Which alert each fault must raise is
-    not decided, so every fault is INCONCLUSIVE and the KPI stays in progress."""
+    results collector's reading of it. Each fault's decided alerts must fire
+    before its recovery and resolve after it (P01, 10 November 2026); anything
+    but PASS fails the step."""
     work = Path(work)
     alerts_rule_again(work)
     start = time.time()
@@ -3110,10 +3173,10 @@ def fault_alerts_drill(work, timeout=600):
     say(json.dumps({'fault_alerts': {'status': status, 'faults': {
         r['fault']: [{k: e[k] for k in ('host', 'condition', 'fired_at', 'resolved_at')} for e in r['observed']]
         for r in record['faults']}, 'episodes': fault_alerts.episodes(fault_alerts.parse_events(events))}}, indent=2))
-    if status == fault_alerts.FAIL:
+    if status != fault_alerts.PASS:
         raise Failed(f'the fault alerts are {status}')
-    # The results collector's reading: in progress, never a pass, while the
-    # alerts each fault must raise are not decided.
+    # The results collector's reading: one repetition of each fault, all
+    # alerted, so 100% and in progress (CI counts toward the tools phase only).
     release = json.loads((work / 'net' / 'chain' / 'release' / 'BUILD_RECORD.json').read_bytes())
     commit = os.environ.get('GITHUB_SHA') or subprocess.run(['git', '-C', str(HERE), 'rev-parse', 'HEAD'],
                                                             capture_output=True, text=True).stdout.strip()
@@ -3121,8 +3184,8 @@ def fault_alerts_drill(work, timeout=600):
     summary = result_summaries.summarize_campaign([], native, engine, timings, release, commit,
                                                   alert_files=[(out / 'evidence.json').read_bytes()])
     shown = {k['id']: (k['status'], k['value'], k['samples']) for k in summary['kpis']}
-    if list(shown) != [result_summaries.ALERTS_KPI] or shown[result_summaries.ALERTS_KPI][0] != 'in_progress':
-        raise Failed(f'the results collector reads the fault alerts as {shown}, not in progress')
+    if list(shown) != [result_summaries.ALERTS_KPI] or shown[result_summaries.ALERTS_KPI][:2] != ('in_progress', 100.0):
+        raise Failed(f'the results collector reads the fault alerts as {shown}, not 100% in progress')
     say(json.dumps({'fault_alerts_summary': shown}, indent=2))
     subprocess.run(['systemctl', 'stop', RUNNER_ALERTS_UNIT], check=False)
 
