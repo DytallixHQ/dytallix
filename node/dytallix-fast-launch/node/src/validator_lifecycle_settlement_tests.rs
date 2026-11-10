@@ -232,6 +232,8 @@ fn data(app: &ConsensusApplication) -> Writes {
             let (k, v) = entry.unwrap();
             (k.to_vec(), v.to_vec())
         })
+        // The startup checkpoint is node-local, not consensus data.
+        .filter(|(key, _)| key.as_slice() != CHECKPOINT_KEY.as_bytes())
         .collect()
 }
 fn liquid(app: &ConsensusApplication, owner: &str) -> u128 {

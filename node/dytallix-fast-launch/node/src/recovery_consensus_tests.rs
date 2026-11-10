@@ -341,6 +341,8 @@ fn data(app: &ConsensusApplication) -> BTreeMap<Vec<u8>, Vec<u8>> {
             let (k, v) = e.unwrap();
             (k.to_vec(), v.to_vec())
         })
+        // The startup checkpoint is node-local, not consensus data.
+        .filter(|(key, _)| key.as_slice() != CHECKPOINT_KEY.as_bytes())
         .collect()
 }
 fn book(app: &ConsensusApplication) -> RecoveryBook {
@@ -1613,6 +1615,7 @@ fn legacy_consensus_state_never_converts_and_unsupported_recovery_book_never_rew
             let (k, v) = entry.unwrap();
             (k.to_vec(), v.to_vec())
         })
+        .filter(|(key, _)| key.as_slice() != CHECKPOINT_KEY.as_bytes())
         .collect();
     assert_eq!(after, original);
     assert!(RecoveryBook::load(&raw).unwrap().is_none());

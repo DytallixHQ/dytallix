@@ -376,6 +376,8 @@ fn data(app: &ConsensusApplication) -> BTreeMap<Vec<u8>, Vec<u8>> {
             let (k, v) = e.unwrap();
             (k.to_vec(), v.to_vec())
         })
+        // The startup checkpoint is node-local, not consensus data.
+        .filter(|(key, _)| key.as_slice() != CHECKPOINT_KEY.as_bytes())
         .collect()
 }
 fn book(app: &ConsensusApplication) -> RecoveryBook {

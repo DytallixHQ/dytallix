@@ -154,6 +154,8 @@ fn data(app: &ConsensusApplication) -> BTreeMap<Vec<u8>, Vec<u8>> {
             let (key, value) = entry.unwrap();
             (key.to_vec(), value.to_vec())
         })
+        // The startup checkpoint is node-local, not consensus data.
+        .filter(|(key, _)| key.as_slice() != CHECKPOINT_KEY.as_bytes())
         .collect()
 }
 
@@ -476,6 +478,9 @@ fn production_classical_validators_and_changed_binding_cannot_change_existing_mo
 
 #[path = "state_model_tests.rs"]
 mod state_model_tests;
+
+#[path = "startup_checkpoint_tests.rs"]
+mod startup_checkpoint_tests;
 
 #[path = "observation_contract_tests.rs"]
 mod observation_contract_tests;
