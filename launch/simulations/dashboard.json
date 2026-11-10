@@ -11,7 +11,7 @@
       },
       {
         "path": ".github/workflows/host-install.yml",
-        "sha256": "583d69afa3e0be086b0f6f2b546c0de0d924baa8c58cb103568c41d1bf379714"
+        "sha256": "cd29b05a6f683e7aab1808686f8f3c8f660060851a961724d4ab2b2623f02905"
       },
       {
         "path": "launch/simulations/results/campaign/2026-11-03.json",
@@ -45,7 +45,7 @@
   "project": {
     "since": "2026-09-26",
     "commits_at_as_of": 566,
-    "approval_records": 88
+    "approval_records": 89
   },
   "phases": [
     {

@@ -509,3 +509,20 @@ jobs:
       - name: Diagnostics
         if: failure()
         run: sudo python3 node/tools/mainnet-preparation/staging_network.py diagnostics --work "$RUNNER_TEMP/network"
+      # A failed flood campaign's record and the VMs' journals from its start
+      # (staging_network.flood_journals), so a missed honest read can be
+      # explained after the run.
+      - name: Flood evidence
+        if: failure()
+        run: sudo chmod -R a+rX "$RUNNER_TEMP/network/flood-campaign" || true
+      - name: Upload flood evidence
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flood-evidence-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/network/flood-campaign/run/floods.json
+            ${{ runner.temp }}/network/flood-campaign/run/floods.jsonl
+            ${{ runner.temp }}/network/flood-campaign/diag/
+          if-no-files-found: ignore
+          retention-days: 14

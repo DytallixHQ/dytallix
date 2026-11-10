@@ -3,10 +3,14 @@ follows from its observations, that a flood that met no full queue proves
 nothing, and the digest-bound record. The live floods through the client
 channel are exercised by the Host install workflow's flood step; here the
 observations are synthetic."""
+import base64
 import json
+import threading
 import unittest
+from unittest import mock
 
 import floods
+import load
 
 NATIVE, ENGINE = b'{"native": 1}', b'{"engine": 1}'
 
@@ -141,6 +145,127 @@ class Record(unittest.TestCase):
     def test_the_request_flood_leaves_the_honest_address_its_connections(self):
         self.assertLessEqual(floods.FLOODERS * floods.CHANNEL['channel_per_address'],
                              floods.CHANNEL['channel_total'] - floods.CHANNEL['channel_per_address'])
+
+
+# The CI path with stand-ins for the chain and the flooders: what the runner
+# observes stays as it was before the load-machine mode.
+
+class FakeTracker:
+    def __init__(self):
+        self.rows = []
+
+    def add(self, row):
+        self.rows.append(row)
+
+    def drain(self, timeout, interval=1.0):
+        for row in self.rows:
+            row['status'] = 'committed'
+        self.rows = []
+
+
+class FakeRun:
+    def __init__(self):
+        self.s = load.Settings(signers=2, block_time=1.0, expiry_blocks=2, poll_interval=0.0)
+        self.tracker = FakeTracker()
+        self.calls = []
+
+    def refresh_profile(self):
+        self.calls.append('profile')
+
+    def sync(self, wallets):
+        self.calls.append(('sync', len(wallets)))
+
+    def sign(self, row, wallet, actions):
+        row.update(id=wallet.label, nonce=0)
+        return row, wallet.label.encode()
+
+
+class QueueRpc:
+    """A sentry whose queue takes `bound` transactions; the head is read
+    from `heads` in turn and the batches meet the last."""
+
+    def __init__(self, bound, heads=(120, 121), connections=2):
+        self.bound, self.heads, self.connections = bound, list(heads), connections
+        self.queued, self.lock, self.reads = 0, threading.Lock(), 0
+
+    def one(self, label, method, params):
+        with self.lock:
+            self.reads += 1
+            head = self.heads[min(self.reads, len(self.heads)) - 1]
+        return {'response': {'last_block_height': str(head)}}
+
+    def timed(self, label, requests):
+        out = [{'response': {'last_block_height': str(self.heads[-1])}}]
+        with self.lock:
+            for _, params in requests[1:]:
+                tx = base64.b64decode(params['tx'])
+                if self.queued < self.bound:
+                    self.queued += 1
+                    out.append({'code': 0, 'hash': load.sha256(tx)})
+                else:
+                    out.append({'code': 20, 'log': floods.QUEUE_REFUSAL})
+        return out, 1.0
+
+
+def flood_wallets(n, start=0):
+    return [load.Wallet(f'load-{k:04}', 'load', f'dyt1{k}', f'{k:064x}') for k in range(start, start + n)]
+
+
+FUNDER = load.Wallet('funder', 'funder', 'dyt1f', 'f' * 64)
+
+
+class CiPath(unittest.TestCase):
+    def test_the_transaction_flood_observes_a_full_queue(self):
+        run, rpc = FakeRun(), QueueRpc(5)
+        seen = floods.transaction_flood(run, rpc, flood_wallets(21), FUNDER, 5, lambda m: None)
+        self.assertEqual(seen, {'bound': 5, 'sent': 21, 'heads': [121], 'admitted': 5, 'committed': 5, 'lost': 0,
+                                'queue_refused': 16, 'other_refusals': []})
+        self.assertEqual(run.calls, ['profile', ('sync', 21)])
+        self.assertEqual(floods.finish('transaction_flood', 0, seen)['outcome'], 'refused')
+
+    def test_the_request_flood_observes_the_honest_reads_and_the_flooders(self):
+        clock = [0.0]
+
+        class Time:
+            @staticmethod
+            def monotonic():
+                return clock[0]
+
+            @staticmethod
+            def sleep(s):
+                clock[0] += s
+
+        class Flooder:
+            def communicate(self, timeout):
+                return json.dumps({'served': 100, 'errors': 1, 'first_errors': ['busy']}) + '\n', ''
+
+        class Honest:
+            def __init__(self):
+                self.n = 0
+
+            def one(self, label, method, params):
+                self.n += 1
+                clock[0] += 0.5
+                if self.n == 2:
+                    raise load.Transport('the gateway: timed out')
+                return {'response': {'last_block_height': str(100 + self.n)}}
+
+        started = []
+
+        def popen(argv, **kwargs):
+            started.append(argv)
+            return Flooder()
+        with mock.patch.object(floods, 'time', Time), \
+                mock.patch.object(floods.os, 'getloadavg', return_value=(1.0, 0.5, 0.25)), \
+                mock.patch.object(floods.subprocess, 'Popen', side_effect=popen):
+            seen = floods.request_flood(Honest(), 'dytallix', {}, [f'ns{n}' for n in range(8)], lambda m: None,
+                                        seconds=8)
+        self.assertEqual(len(started), floods.FLOODERS)
+        self.assertEqual(started[0][:4], ['ip', 'netns', 'exec', 'ns0'])
+        self.assertEqual(seen, {'flooders': 7, 'flood_served': 700, 'flood_errors': 7, 'honest_reads': 3,
+                                'honest_served': 2, 'honest_heights': [101, 103], 'honest_slowest_s': 0.5,
+                                'honest_misses': [{'after_s': 0.5, 'error': 'the gateway: timed out'}],
+                                'flood_first_errors': ['busy', 'busy', 'busy'], 'runner_load': [1.0, 0.5, 0.25]})
 
 
 if __name__ == '__main__':
