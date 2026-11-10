@@ -13,6 +13,7 @@ import tempfile
 import threading
 import time
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import flood_workers as fw
@@ -187,7 +188,14 @@ class CoordinatorRun:
     def role(self, *roles):
         return [w for w in self.wallets.values() if w.role in roles]
 
-    def fund(self):
+    cap = 2 * load.UNIT
+
+    def summary(self, wallet):
+        return {'liquid_udrt': str(10**12), 'liquid_udgt': str(10**12)}
+
+    def fund(self, budget=None):
+        if budget:
+            budget((10**9, 10**9))
         self.funded = True
         for w in self.role('load'):
             w.drt, w.dgt = 200 * load.UNIT, 500 * load.UNIT
@@ -210,7 +218,7 @@ class Campaign(unittest.TestCase):
         self.root = Path(self.tmp.name)
 
     def campaign(self, workers=7, wallets=BOUND + floods.FLOOD_EXTRA, kinds=tuple(floods.REASONS), attempts=2,
-                 **transport):
+                 settings=None, funding=None, **transport):
         fleet = make_fleet(self.root / 'fleet', wallets=wallets, spares=0, distributors=0)
         sentry = Sentry(BOUND)
         run = CoordinatorRun(fleet, sentry)
@@ -219,8 +227,9 @@ class Campaign(unittest.TestCase):
         out.mkdir()
         with mock.patch.object(floods, 'honest_reads', return_value=HONEST):
             rows, summary = fw.campaign(run, CoordinatorRpc(sentry), fleet, self.transport, workers, out, BOUND,
-                                        kinds, attempts, load.Settings(), {}, lead=0.0, show=lambda m: None,
-                                        sleep=lambda s: time.sleep(min(s, 0.01)), poll=0.005)
+                                        kinds, attempts, settings or load.Settings(), {}, lead=0.0,
+                                        show=lambda m: None, sleep=lambda s: time.sleep(min(s, 0.01)), poll=0.005,
+                                        funding=funding)
         return fleet, run, rows, summary
 
     def test_seven_machines_make_a_record_floods_verify_accepts(self):
@@ -279,6 +288,33 @@ class Campaign(unittest.TestCase):
         with self.assertRaisesRegex(load.Failed, 'needs 7 machines'):
             self.campaign(workers=6)
         self.assertFalse((self.root / 'workers').exists())
+
+
+    def test_the_drive_settings_reach_the_shards_and_the_funding_is_checked_first(self):
+        settings = fw.settings_from(SimpleNamespace(expiry_blocks=120, fund_drt=20.0, fund_dgt=1.0, prime_parallel=2,
+                                                    retries=4))
+        self.assertEqual((settings.expiry_blocks, settings.fund_drt, settings.fund_dgt, settings.resume),
+                         (120, 20 * load.UNIT, load.UNIT, True))
+        funding = {}
+        self.campaign(workers=7, attempts=2, settings=settings, funding=funding)
+        shard = json.loads((self.root / 'run' / 'shards' / '00' / 'fleet.json').read_bytes())['settings']
+        self.assertEqual((shard['expiry_blocks'], shard['resume'], shard['retries'], shard['prime_parallel']),
+                         (120, True, 4, 2))
+        self.assertEqual(funding['needs_udrt'], str(10**9))
+
+    def test_too_little_funding_for_the_attempts_starts_nothing(self):
+        # R03's fund_drt=10 covers two attempts (2 + 2 x 3 + 6 = 14 > 10 for the control wallet; one is 2 + 3 + 6).
+        settings = load.Settings(fund_drt=10 * load.UNIT)
+        with self.assertRaisesRegex(load.Failed, 'needs 8 DRT \\(14 for the control'):
+            self.campaign(attempts=2, settings=settings)
+        self.assertFalse((self.root / 'workers').exists())
+
+    def test_a_funder_short_of_the_funding_is_refused_with_the_shortfall(self):
+        run = SimpleNamespace(cap=2 * load.UNIT, funder=None,
+                              summary=lambda w: {'liquid_udrt': str(5000 * load.UNIT), 'liquid_udgt': '0'})
+        check = fw.preflight(run, load.Settings(), 2, tuple(floods.REASONS), lambda m: None, {})
+        with self.assertRaisesRegex(load.Failed, 'short 1000 DRT, 1 DGT'):
+            check((6000 * load.UNIT, load.UNIT))
 
 
 class Pieces(unittest.TestCase):

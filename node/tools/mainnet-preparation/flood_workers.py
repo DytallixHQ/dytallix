@@ -13,6 +13,8 @@ into the same record, so `floods.py verify` checks it unchanged.
                          --workers N (--machines RUN_DIR [--worker-cli DYTALLIX]
                                       | --local [--namespaces NS,... --addresses A,...])
                          [--attempts N] [--types T,...] [--lead S]
+                         [--expiry-blocks N] [--fund-drt DRT] [--fund-dgt DGT]
+                         [--prime-parallel N] [--retries N]
   flood_workers.py work --cli DYTALLIX --home HOME --shard DIR --out DIR
                         --application-config FILE --validator ID
 
@@ -44,6 +46,14 @@ SSH and local transports, the file handshake) and floods.py's own pieces:
      It needs FLOODERS machines, each with its own address: the approved
      plan is 7 addresses x 2 connections, 14 of the channel's 16;
   5. after both, the workers stop and drive makes the two control transfers.
+
+drive is restart-safe (P01, 10 November 2026, after R03's setup failures):
+funding pays only what the chain shows still missing and priming skips a
+wallet whose spending nonce has moved, so a failed run is made again on the
+same fleet; a first spend whose call timed out is tried again with backoff.
+Before sending anything it checks that the funder holds what the funding
+costs and that each load wallet's funding covers its spends, and refuses
+with the shortfall otherwise.
 
 The record and the rows are floods.py's (build_record), so they name no
 address. Each worker's address, share size, priming time and send heads go in
@@ -78,6 +88,8 @@ LEAD = 15.0
 HEAD_POLL = 0.2
 
 Failed = load.Failed
+# The settings drive's flags set, recorded in workers.json.
+RECORDED = ('expiry_blocks', 'fund_drt', 'fund_dgt', 'prime_parallel', 'retries', 'resume')
 
 
 # The worker
@@ -307,8 +319,42 @@ def check_plan(count, kinds, separate, flooders=floods.FLOODERS):
                          f'channel\'s {load_workers.CHANNEL_CONNECTIONS}); {count} were given')
 
 
+def wallet_needs(cap, attempts, kinds):
+    """The DRT a flood wallet spends: its first spend's fee (it sends 1 DRT
+    and gets 1 DRT back from the wallet before it), then 1 DRT and a fee cap
+    for each transaction flood; wallets[0] makes the two controls too."""
+    floods_made = attempts if 'transaction_flood' in kinds else 0
+    each = cap + floods_made * (load.UNIT + cap)
+    return each, each + 2 * (load.UNIT + cap)
+
+
+def preflight(run, settings, attempts, kinds, show, budget):
+    """Refuses before anything is sent: the funding must cover each load
+    wallet's spends, and the funder what the funding costs. Returns the funder
+    check run.fund makes; it fills `budget` with the funder's side."""
+    each, first = wallet_needs(run.cap, attempts, kinds)
+    if settings.fund_drt < first:
+        raise Failed(f'--fund-drt {settings.fund_drt / load.UNIT:g} does not cover a flood wallet\'s spends over '
+                     f'{attempts} attempts: it needs {each / load.UNIT:g} DRT ({first / load.UNIT:g} for the control '
+                     f'wallet); fund more or make fewer attempts')
+
+    def check(needs):
+        drt, dgt = needs
+        held = run.summary(run.funder)
+        liquid_drt, liquid_dgt = int(held['liquid_udrt']), int(held.get('liquid_udgt') or 0)
+        short = {d: n - h for d, n, h in (('DRT', drt, liquid_drt), ('DGT', dgt, liquid_dgt)) if n > h}
+        show(f'== funding needs {drt / load.UNIT:g} DRT and {dgt / load.UNIT:g} DGT of the funder\'s '
+             f'{liquid_drt / load.UNIT:g} DRT and {liquid_dgt / load.UNIT:g} DGT')
+        if short:
+            raise Failed('the funder cannot cover the funding: short ' +
+                         ', '.join(f'{v / load.UNIT:g} {d}' for d, v in short.items()))
+        budget.update(funder_udrt=str(liquid_drt), funder_udgt=str(liquid_dgt), needs_udrt=str(drt),
+                      needs_udgt=str(dgt))
+    return check
+
+
 def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, settings, files, lead=LEAD,
-             show=load.say, clock=time.time, sleep=time.sleep, poll=None, prime_timeout=3600):
+             show=load.say, clock=time.time, sleep=time.sleep, poll=None, prime_timeout=3600, funding=None):
     """Funding, the shares, the floods from the workers and the controls:
     the rows floods.build_record judges, and each worker's summary."""
     out = Path(out)
@@ -316,7 +362,8 @@ def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, set
     wallets = run.role('load')
     if len(wallets) < bound + floods.FLOOD_EXTRA:
         raise Failed(f'the transaction flood needs {bound + floods.FLOOD_EXTRA} load wallets for a queue of {bound}')
-    run.fund()
+    check = preflight(run, settings, attempts, kinds, show, {} if funding is None else funding)
+    run.fund(budget=check)
     funded = {w.label: (w.drt, w.dgt) for w in run.wallets.values()}
     flood_labels = {w.label for w in wallets[:bound + floods.FLOOD_EXTRA]}
     shares = load_workers.split(dict(fleet, wallets=[w for w in fleet['wallets'] if w['label'] in flood_labels]),
@@ -326,7 +373,8 @@ def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, set
     try:
         for n, share in enumerate(shares):
             shared = {key: getattr(settings, key) for key in load_workers.SHARED}
-            shared.update(seed=settings.seed + n)
+            shared.update(seed=settings.seed + n, resume=settings.resume, retries=settings.retries,
+                          retry_backoff=settings.retry_backoff, prime_parallel=settings.prime_parallel)
             load_workers.write_shard(fleet, share, n, out / 'shards' / f'{n:02}', funded, shared)
             transport.ship(n, out / 'shards' / f'{n:02}', files)
             transport.start(n)
@@ -389,15 +437,26 @@ def drive(cli, home, fleet_dir, out, application_config, funder_label, validator
         rpc = load.Rpc(gateway.url, load_workers.PER_ADDRESS)
         run = load.Load(rpc, load.Signer(cli, env, out / 'scratch'), env, cli, fleet, out, settings, funder,
                         validator, config, show=show)
+        funding = {}
         rows, summary = campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, settings, files,
-                                 lead, show)
+                                 lead, show, funding=funding)
     finally:
         gateway.stop()
     record = floods.build_record(chain_id, native, engine, rows, attempts, bound, started, floods.stamp())
     (out / 'floods.jsonl').write_bytes(floods.rows_bytes(rows))
     (out / 'floods.json').write_text(json.dumps(record, indent=2) + '\n')
-    (out / 'workers.json').write_text(json.dumps({'workers': summary, 'lead_s': lead}, indent=2) + '\n')
+    used = {key: getattr(settings, key) for key in RECORDED}
+    (out / 'workers.json').write_text(json.dumps({'workers': summary, 'lead_s': lead, 'settings': used,
+                                                         'funding': funding}, indent=2) + '\n')
     return record
+
+
+def settings_from(args):
+    if args.expiry_blocks < 1 or args.prime_parallel < 1 or args.retries < 0 or args.fund_drt < 0 or args.fund_dgt < 0:
+        raise Failed('--expiry-blocks and --prime-parallel are at least 1; --retries and the funding are not negative')
+    return load.Settings(expiry_blocks=args.expiry_blocks, fund_drt=round(args.fund_drt * load.UNIT),
+                         fund_dgt=round(args.fund_dgt * load.UNIT), prime_parallel=args.prime_parallel,
+                         retries=args.retries, resume=True)
 
 
 def main():
@@ -424,6 +483,14 @@ def main():
     d.add_argument('--types', default=','.join(floods.REASONS))
     d.add_argument('--lead', type=float, default=LEAD)
     d.add_argument('--passphrase', type=Path)
+    defaults = load.Settings()
+    d.add_argument('--expiry-blocks', type=int, default=defaults.expiry_blocks,
+                   help='a transaction\'s lifetime in blocks (slow signing needs more)')
+    d.add_argument('--fund-drt', type=float, default=defaults.fund_drt / load.UNIT, help='DRT each load wallet holds')
+    d.add_argument('--fund-dgt', type=float, default=defaults.fund_dgt / load.UNIT, help='DGT each load wallet holds')
+    d.add_argument('--prime-parallel', type=int, default=load_workers.PER_ADDRESS,
+                   help='concurrent first spends (each holds one of the address\'s channel connections)')
+    d.add_argument('--retries', type=int, default=4, help='tries again for a timed-out read or first spend')
     args = parser.parse_args()
     try:
         if args.command == 'work':
@@ -445,7 +512,8 @@ def main():
             transport = LocalTransport(args.out / 'workers', args.validator, spaces, addresses)
         record = drive(args.cli, args.home, args.fleet, args.out, args.application_config, args.funder,
                        args.validator, args.genesis.read_bytes(), args.engine_genesis.read_bytes(), transport,
-                       args.workers, args.attempts, kinds, args.worker_cli, args.lead, passphrase=args.passphrase)
+                       args.workers, args.attempts, kinds, args.worker_cli, args.lead, passphrase=args.passphrase,
+                       settings=settings_from(args))
         floods.report(record)
         return 0 if record['status'] == floods.PASS else 1
     except (floods.Failed, Failed, OSError, KeyError, ValueError, subprocess.SubprocessError) as error:

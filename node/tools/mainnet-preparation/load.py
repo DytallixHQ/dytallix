@@ -630,6 +630,15 @@ class Settings:
         self.sweep_keep = 100 * UNIT
         self.governance_bond = 100 * UNIT
         self.seed = 1
+        # flood_workers.py drive: funding and priming skip what the chain
+        # shows done, so a run can be made again on the same fleet; a
+        # timed-out read or first spend is tried again up to `retries` times
+        # with doubling backoff; `prime_parallel` bounds the concurrent first
+        # spends (each holds a channel slot, so at most `connections`).
+        self.resume = False
+        self.retries = 0
+        self.retry_backoff = 2.0
+        self.prime_parallel = None
         self.min_within_2 = 0.99
         self.max_refused = None
         self.block_time = 5.0
@@ -674,6 +683,8 @@ class Load:
         self.views = None
         self.governance = {}
         self.last_poll = None
+        # Wallets whose account the chain already holds (resume only).
+        self.existing = set()
 
     def role(self, *roles):
         return [w for w in self.wallets.values() if w.role in roles]
@@ -686,7 +697,7 @@ class Load:
     # Views
 
     def refresh_profile(self):
-        profile = query(self.rpc, 'profile', '/ordinary/profile')
+        profile = self.read(lambda: query(self.rpc, 'profile', '/ordinary/profile'))
         if not profile.get('enabled'):
             raise Failed('ordinary transactions are disabled on this chain')
         if self.profile and profile['config']['fee_profile'] != self.profile['config']['fee_profile']:
@@ -709,13 +720,46 @@ class Load:
 
     def sync(self, wallets):
         """Each wallet's account view and committed nonce."""
-        views = queries(self.rpc, 'accounts', [f'/ordinary/account/{w.account_id}' for w in wallets])
+        views = self.read(lambda: queries(self.rpc, 'accounts', [f'/ordinary/account/{w.account_id}' for w in wallets]))
         for wallet, view in zip(wallets, views):
             if view is None:
                 raise Failed(f'{wallet.label} has no account')
             if view['account_id'] != wallet.account_id:
                 raise Failed(f'the node returned another account for {wallet.label}')
             wallet.view, wallet.nonce, wallet.needs_sync = view, int(view['spending_nonce']), False
+
+    def read(self, fetch):
+        """A read, tried again on Transport up to `retries` times."""
+        for attempt in range(self.s.retries + 1):
+            try:
+                return fetch()
+            except Transport:
+                if attempt == self.s.retries:
+                    raise
+                self.sleep(self.backoff(attempt))
+
+    def backoff(self, attempt):
+        return min(self.s.retry_backoff * 2 ** attempt, 60.0)
+
+    def remaining(self, plan):
+        """What is still to pay of [(wallet, udrt, udgt)] targets: a wallet
+        the chain already holds gets only its shortfall (and its tracked
+        funds become its liquid balance); one it does not, the whole."""
+        wallets = [w for w, _, _ in plan]
+        views = self.read(lambda: queries(self.rpc, 'accounts', [f'/ordinary/account/{w.account_id}' for w in wallets]))
+        held = [w for w, view in zip(wallets, views) if view is not None]
+        liquid = dict(zip([w.label for w in held], self.read(
+            lambda: queries(self.rpc, 'accounts', [f'/account/{w.address}' for w in held])) if held else []))
+        left = []
+        for wallet, drt, dgt in plan:
+            if wallet.label in liquid:
+                self.existing.add(wallet.label)
+                wallet.drt = int(liquid[wallet.label]['liquid_udrt'])
+                wallet.dgt = int(liquid[wallet.label].get('liquid_udgt') or 0)
+                drt, dgt = max(0, drt - wallet.drt), max(0, dgt - wallet.dgt)
+            if drt or dgt:
+                left.append((wallet, drt, dgt))
+        return left
 
     def sign(self, row, wallet, actions, gas_limit=GAS_LIMIT):
         """Signs the row's transaction at the wallet's tracked nonce against
@@ -739,39 +783,58 @@ class Load:
 
     # Setup
 
-    def fund(self):
+    def fund(self, budget=None):
         """Funds the load wallets (and, with --governance, the governance
         wallets). Without distributors the funder pays them all, sixteen
         transfers a transaction, one transaction at a time. With them it
         fans out (P01, 12 October 2026): the funder pays each distributor
         what its share needs, each distributor makes its priming spend, then
         every distributor pays its share at once, one transaction in flight
-        each. The transfers create the accounts."""
+        each. The transfers create the accounts. budget((udrt, udgt)), if
+        given, sees what the funder is to pay before anything is sent."""
         self.refresh_profile()
         self.sync([self.funder])
         plan = [(w, self.s.fund_drt, self.s.fund_dgt) for w in self.role('load')]
         if self.s.governance:
             plan += [(w, self.s.fund_drt, self.s.governance_bond) for w in self.role('proposer', 'voter')]
             plan += [(w, self.s.fund_drt, self.s.governance_bond + self.minimum_deposit) for w in self.role('depositor')]
+        if self.s.resume:
+            plan = self.remaining(plan)
         distributors = self.role('distributor')
         if not distributors:
+            if budget:
+                budget(self.funder_needs(plan))
             self.show(f'== funding {len(plan)} wallets from {self.funder.label}')
             self.pay({self.funder: plan})
             return
         shares = {d: plan[n::len(distributors)] for n, d in enumerate(distributors)}
+        first = [(d, *self.distributor_needs(share)) for d, share in shares.items()]
+        if self.s.resume:
+            first = self.remaining(first)
+        if budget:
+            budget(self.funder_needs(first))
         self.show(f'== funding {len(plan)} wallets through {len(distributors)} distributors '
                   f'(up to {max(len(v) for v in shares.values())} each)')
-        self.pay({self.funder: [(d, *self.distributor_needs(share)) for d, share in shares.items()]})
+        self.pay({self.funder: first})
         self.prime([(d, ('send', '--to', self.funder.address, '--amount', '1', '--token', 'drt'))
                     for d in distributors])
         self.pay({d: share for d, share in shares.items() if share})
+
+    def funder_needs(self, plan):
+        """What the funder pays for [(wallet, udrt, udgt)]: the transfers,
+        each account they create and a full funding fee cap a transaction."""
+        transactions = -(-2 * len(plan) // FUNDING_ACTIONS)
+        created = sum(1 for w, _, _ in plan if w.label not in self.existing)
+        return (sum(d for _, d, _ in plan) + created * self.creation_fee
+                + transactions * FUNDING_GAS_LIMIT * self.gas_price, sum(g for _, _, g in plan))
 
     def distributor_needs(self, share):
         """What a distributor needs to pay its share: the transfers, each
         created account's fee, a full fee cap for each of its transactions
         and its priming spend (1 DRT and its cap)."""
         transactions = -(-2 * len(share) // FUNDING_ACTIONS)
-        drt = (sum(d for _, d, _ in share) + len(share) * self.creation_fee
+        created = sum(1 for w, _, _ in share if getattr(w, 'label', None) not in self.existing)
+        drt = (sum(d for _, d, _ in share) + created * self.creation_fee
                + transactions * FUNDING_GAS_LIMIT * self.gas_price + self.cap + UNIT)
         return drt, sum(g for _, _, g in share)
 
@@ -779,6 +842,9 @@ class Load:
         """Each payer pays its recipients [(wallet, udrt, udgt)], sixteen
         transfers a transaction; the payers run in parallel, one transaction
         in flight each, broadcast together."""
+        plan = {payer: recipients for payer, recipients in plan.items() if recipients}
+        if not plan:
+            return
         timeout = timeout or self.s.block_time * (self.s.expiry_blocks + 6) * (
             1 + max(-(-2 * len(r) // FUNDING_ACTIONS) for r in plan.values()))
         per_tx = FUNDING_ACTIONS // 2
@@ -796,22 +862,38 @@ class Load:
                     jobs = []
                     for payer in ready:
                         chunk = queues[payer].popleft()
-                        actions = [a for w, drt, dgt in chunk for a in
-                                   (send_action(w.account_id, 'udrt', drt), send_action(w.account_id, 'udgt', dgt))]
+                        actions = [send_action(w.account_id, denomination, amount) for w, drt, dgt in chunk
+                                   for denomination, amount in (('udrt', drt), ('udgt', dgt)) if amount]
                         row = self.record(new_row('setup', 'fund', payer))
-                        row['created_accounts'], row['recipients'] = len(chunk), [w.label for w, _, _ in chunk]
+                        row['created_accounts'] = sum(1 for w, _, _ in chunk if w.label not in self.existing)
+                        row['recipients'] = [w.label for w, _, _ in chunk]
                         row['_chunk'] = chunk
                         jobs.append(pool.submit(self.sign, row, payer, actions, FUNDING_GAS_LIMIT))
                     signed = [job.result() for job in jobs]
                     for n in range(0, len(signed), MAX_BATCH - 1):
                         batch = signed[n:n + MAX_BATCH - 1]
-                        broadcast(self.rpc, batch, 'setup')
+                        try:
+                            broadcast(self.rpc, batch, 'setup')
+                        except Transport:
+                            # The outcome is unknown: the receipts or the
+                            # expiry decide these rows.
+                            if not self.s.retries:
+                                raise
                         for row, _ in batch:
+                            if row['status'] == 'uncertain':
+                                self.tracker.add(row)
+                                pending[self.wallets[row['wallet']]] = row
+                                continue
                             if row['status'] != 'admitted':
                                 raise Failed(f'a funding transaction was refused: {row["log"]}')
                             self.tracker.add(row)
                             pending[self.wallets[row['wallet']]] = row
-                resolved = self.tracker.poll(self.tracker.due(self.tracker.head))
+                try:
+                    resolved = self.tracker.poll(self.tracker.due(self.tracker.head))
+                except Transport:
+                    if not self.s.retries:
+                        raise
+                    resolved = []
                 for row in resolved:
                     if row['status'] != 'committed' or row['outcome'] != 'success':
                         raise Failed(f'a funding transaction failed: {row}')
@@ -857,16 +939,29 @@ class Load:
     def prime(self, jobs):
         """Each wallet's first spend through the CLI's online path, before
         the measured window, then its account view."""
+        everything = [w for w, _ in jobs]
+        if self.s.resume:
+            # A wallet whose spending nonce has moved has made its first spend.
+            self.sync(everything)
+            jobs = [(w, args) for w, args in jobs if w.nonce == 0]
         self.show(f'== {len(jobs)} priming spends through the online path')
-        self.tracker.head = head_height(self.rpc.one('head', 'abci_info', {}))
-        with ThreadPoolExecutor(max_workers=self.rpc.connections) as pool:
-            rows = list(pool.map(lambda job: self.online(job[0], job[1], kind='first_spend'), jobs))
+        self.tracker.head = head_height(self.read(lambda: self.rpc.one('head', 'abci_info', {})))
+        with ThreadPoolExecutor(max_workers=self.s.prime_parallel or self.rpc.connections) as pool:
+            rows = list(pool.map(lambda job: self.first_spend(*job), jobs))
+        done = [(job, row) for job, row in zip(jobs, rows) if row is not None]
+        rows = [row for _, row in done]
         for row in rows:
-            row['nonce'] = 0
+            if row['nonce'] is None and not self.s.resume:
+                row['nonce'] = 0
             if row['status'] != 'admitted':
                 raise Failed(f'{row["wallet"]}\'s first spend was refused: {row["log"]}')
         self.wait(rows, self.s.block_time * (self.s.expiry_blocks + 6))
-        for (wallet, args), row in zip(jobs, rows):
+        if self.s.resume:
+            # What each holds now, read from the chain rather than tracked.
+            self.sync(everything)
+            self.remaining([(w, 0, 0) for w in everything])
+            return rows
+        for (wallet, args), row in done:
             wallet.drt -= int(row['charge_udrt'])
             if args[0] == 'send':
                 wallet.drt -= UNIT
@@ -878,6 +973,29 @@ class Load:
                 wallet.bonded, wallet.bond_height = self.s.governance_bond, row['block_height']
         self.sync([w for w, _ in jobs])
         return rows
+
+    def first_spend(self, wallet, args):
+        """One priming spend, tried again while the CLI's call times out (the
+        outcome unknown, so a refusal of its nonce after one may be that
+        spend pending). None once the chain shows the spend made."""
+        unknown = False
+        for attempt in range(self.s.retries + 1):
+            row = self.online(wallet, args, kind='first_spend')
+            log = (row['log'] or '').lower()
+            # After a timeout the spend may be pending: a refusal of its
+            # nonce or of its ID is not final.
+            transient = 'timed out' in log or (unknown and ('nonce' in log or 'already' in log))
+            if row['status'] == 'admitted' or not transient or attempt == self.s.retries:
+                return row
+            unknown = True
+            # Two blocks at least, for a spend that did reach the mempool to commit.
+            wait = max(self.backoff(attempt), 2 * self.s.block_time)
+            self.show(f'== {wallet.label}\'s first spend: {row["log"]}; again in {wait:.0f} s')
+            self.sleep(wait)
+            self.sync([wallet])
+            if wallet.nonce > 0:
+                return None
+        return row
 
     def first_spends(self):
         """The priming spends: a load wallet sends 1 DRT to the next one, a
