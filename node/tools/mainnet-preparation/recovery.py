@@ -427,8 +427,10 @@ def hold(directory, read_height, process, clock=time.time, sleep=time.sleep, per
     record = {'process': {name: process[name] for name in HOLD_BOUNDS}, 'from': clock(), 'readings': []}
     obs['sentry_hold'] = record
     while True:
-        found = read_height()
+        # The instant the read is sent: the engine cannot have been read
+        # before it, and an agent's answer may come minutes later.
         now = clock()
+        found = read_height()
         record['readings'].append({'at': now, 'height': found})
         say(f'== the sentry\'s engine read {found} at {now - record["from"]:.0f} s into the hold')
         status, detail = held(obs, height, pending=True)

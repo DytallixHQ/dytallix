@@ -111,7 +111,8 @@ Severity 1.
    python3 -I -B dytallix-host/host_install.py guard H
    ```
 
-   It refuses a running node and never lowers a state. It prints
+   It refuses a running node and a node that has run (one with an engine
+   store: wipe it and install it again), and never lowers a state. It prints
    `guarded H`; check the number is H, and on the founder's machine run
    `recovery.py mark guarded --height H`.
 9. **Start the sentry** (`systemctl start dytallix-node`). Leave the
@@ -164,6 +165,14 @@ Severity 1.
   6-hour catch-up objective.
 - Bundles sealed before the guard carry a `host_install.py` without it
   (step 7 stops on them).
+- The staging replacement from 2026-11-10 holds the forked chain in its
+  stores: before any retry it is wiped and installed again, never guarded
+  and restarted (the guard refuses it). A retry needs a new approval; the
+  2026-11-06 one does not authorize a second run.
+- The hold budget is the sentry's startup, stop and kill bounds plus 60 s,
+  not its 6-hour catch-up budget, inside which it may still exit. Nothing
+  yet watches the sentry stay up after the validator starts beyond
+  `recovery.py first-block` polling its status page.
 
 ## Not covered
 

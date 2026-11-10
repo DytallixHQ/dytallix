@@ -477,6 +477,14 @@ class SigningGuardTests(HostNetwork):
         with self.assertRaisesRegex(hi.Refused, 'only a validator signs'):
             hi.guard(sentry, host, 40, out=lambda _: None)
 
+    def test_the_guard_refuses_a_node_that_has_run(self):
+        # The incident's replacement held a forked chain in its stores.
+        bundle, host, _, _ = self.install('validator-1')
+        host.path(f'{hi.HOME}/data/blockstore.db').mkdir()
+        with self.assertRaisesRegex(hi.Refused, 'this node has run'):
+            hi.guard(bundle, host, 40, out=lambda _: None)
+        self.assertNotEqual(host.path(hi.SIGNING_STATE).read_bytes(), hi.guard_state(40))
+
     def test_the_command_line_takes_only_a_height(self):
         for argv in (['x', 'guard'], ['x', 'guard', '-1'], ['x', 'guard', '4x'], ['x', 'guard', '1', '2']):
             with mock.patch('sys.stderr'):

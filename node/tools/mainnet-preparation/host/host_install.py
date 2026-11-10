@@ -37,7 +37,8 @@ from the unpacked bundle, through install.sh and wipe.sh:
            install and before its first start: raises its signing state to
            the halt height H, so that its key refuses every proposal and
            vote at or below H and signs only from H + 1. It is a floor, not
-           a restore: it never lowers a state, and the node must be stopped.
+           a restore: it never lowers a state, the node must be stopped, and
+           a node that has run (an engine store) is refused.
   wipe     removes the node from the host (staging before production):
            /opt/dytallix, /etc/dytallix, /var/lib/dytallix, the unit, the
            profiles, the firewall table, the journal setting, the monitor
@@ -595,6 +596,11 @@ def guard(bundle, host, height, out=say):
     state = host.run(['systemctl', 'is-active', f'{UNIT}.service'], check=False).stdout.strip()
     require(state not in ('active', 'activating', 'reloading', 'deactivating'),
             f'{UNIT} is {state}: the guard is set before the validator\'s first start (systemctl stop {UNIT})')
+    # A first start only: a node that has run holds blocks it made or took
+    # (incident 2026-11-10: a new chain from genesis), which a guard cannot undo.
+    held = [path for path in (f'{HOME}/data/blockstore.db', f'{HOME}/data/state.db') if os.path.lexists(host.path(path))]
+    require(not held, f'{", ".join(held)} holds chain state: this node has run. The guard is set before its first '
+                      'start: wipe it and install it again (wipe.sh, then install.sh), then guard it')
     raw = guard_state(height)
     secret = next(s for s in manifest['secrets'] if s['path'] == SIGNING_STATE)
     target = host.path(SIGNING_STATE)

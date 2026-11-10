@@ -466,6 +466,19 @@ class RealHostRunTests(unittest.TestCase):
         with self.assertRaisesRegex(rv.Failed, 'takes --height'):
             rv.mark(self.run, 'installed', clock=self.clock, height=40)
 
+    def test_a_slow_agent_answer_counts_from_when_the_read_was_sent(self):
+        # Each read takes 100 s to come back: the reading sent at 200 s is
+        # the first past the 160 s budget, not the one received at 200 s.
+        self.until_sentry_started()
+        start = self.clock.now
+
+        def slow():
+            self.clock.sleep(100)
+            return 40
+        rv.hold(self.run, slow, PROCESS, clock=self.clock, sleep=self.clock.sleep, period=0, say=lambda _: None)
+        readings = rv.load_run(self.run)['observations']['sentry_hold']['readings']
+        self.assertEqual([r['at'] - start for r in readings], [0, 100, 200])
+
     def test_the_hold_is_before_the_validator_starts(self):
         self.until_sentry_started()
         self.step('validator_started')

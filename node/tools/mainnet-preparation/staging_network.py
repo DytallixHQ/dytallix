@@ -850,8 +850,9 @@ def validator_recovery_drill(work, timeout=900):
     obs['sentry_hold'] = {'process': {name: process[name] for name in recovery.HOLD_BOUNDS},
                           'from': instants['sentry_started_at'], 'readings': []}
     while True:
+        sent = time.time()
         found = engine(sentry)
-        obs['sentry_hold']['readings'].append({'at': time.time(), 'height': found[0] if found else None})
+        obs['sentry_hold']['readings'].append({'at': sent, 'height': found[0] if found else None})
         status, detail = recovery.held(obs, halt, pending=True)
         if status == recovery.PASS:
             instants['sentry_held_at'] = obs['sentry_hold']['readings'][-1]['at']
