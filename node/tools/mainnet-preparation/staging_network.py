@@ -718,6 +718,7 @@ def restore_drill(work, timeout=900):
     _, out, _ = sentry.run(['/root/node/dytallix-host/wipe.sh'], stdin='wipe sentry-1\n', timeout=300)
     say(out.strip())
     instants['wiped_at'] = time.time()
+    alerts_hold(work, instants['wiped_at'], 'the wiped sentry')
     say('== reinstall it from its bundle (typing its seal code)')
     _, out, _ = sentry.run(['/root/node/dytallix-host/install.sh'], stdin=codes['sentry-1'] + '\n', timeout=900)
     say(out.strip())
@@ -812,6 +813,7 @@ def validator_recovery_drill(work, timeout=900):
     second = engine(sentry)
     obs['halt_readings'] = [r[0] if r else None for r in (first, second)]
     halt = obs['halt_readings'][-1]
+    alerts_hold(work, instants['fenced_at'], 'the fenced validator')
     say(f'== the sentry stayed at {obs["halt_readings"]}: H = {halt}')
     say('== on the sentry, set the old votes aside')
     sentry.run(['systemctl', 'stop', 'dytallix-node'], timeout=120)
@@ -2928,6 +2930,18 @@ def runner_alert_rule(host):
     if f'ip saddr {ADDRESSES[PUBLIC]} tcp dport {RUNNER_ALERTS_PORT} accept' not in listing:
         host.run(['nft', 'insert', 'rule', 'inet', 'dytallix_node', 'input', 'ip', 'saddr', ADDRESSES[PUBLIC],
                   'tcp', 'dport', str(RUNNER_ALERTS_PORT), 'accept'], check=False)
+
+
+def alerts_hold(work, since, what):
+    """CI only, when the runner's stand-in is up: holds a heavy fault down
+    as long as host loss is held off (P01, 10 November 2026), past the
+    alerting service's 3-minute heartbeat rule, so its alerts must fire.
+    The hold is inside the drill's own timing."""
+    if not runner_alerts(work).exists():
+        return
+    hold = faults.HOST_LOSS['args']['off_seconds']
+    say(f'== {what}: held down {hold} s for its alerts (fault alerts, CI only)')
+    time.sleep(max(since + hold - time.time(), 0))
 
 
 def alerts_rule_again(work):

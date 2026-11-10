@@ -109,10 +109,12 @@ class Judge(unittest.TestCase):
         self.assertEqual([(e['host'], e['condition']) for e in rows['validator_host']['observed']],
                          [('sentry-1', 'consensus_halt'), ('validator-1', 'monitoring_down')])
 
-    def test_a_resolve_before_the_recovery_or_none_fails(self):
-        # The partition's halt resolved at T0 + 120: a recovery read at T0 + 130 is after it.
-        rows = {r['fault']: r for r in build(windows=dict(all_windows(), partition=window(T0, T0 + 130)))['faults']}
-        self.assertEqual(rows['partition']['status'], fault_alerts.FAIL)
+    def test_a_resolve_more_than_one_monitor_period_before_the_recovery_or_none_fails(self):
+        self.assertEqual(fault_alerts.RESOLVE_GRACE_SECONDS, 60)
+        # The partition's halt fired at T0 + 70 and resolved at T0 + 120.
+        for recovered, status in ((T0 + 180, fault_alerts.PASS), (T0 + 181, fault_alerts.FAIL)):
+            rows = {r['fault']: r for r in build(windows=dict(all_windows(), partition=window(T0, recovered)))['faults']}
+            self.assertEqual(rows['partition']['status'], status)
         self.assertIn('resolved after the recovery: sentry-1 consensus_halt', rows['partition']['detail'])
         raw = EVENTS.replace(b'"monitoring_down", "status": "resolved"', b'"monitoring_down", "status": "other"')
         rows = {r['fault']: r for r in build(raw)['faults']}

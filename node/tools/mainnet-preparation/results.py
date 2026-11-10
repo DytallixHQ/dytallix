@@ -93,10 +93,10 @@ alerts records (fault_alerts.py), re-verified against the native genesis:
 each in-scope fault is one sample, its value the share of conclusive
 samples that raised their alert and resolved it. It fails at one fault
 that did not, and passes once each fault has the repetitions the fault
-campaign uses for it (P01, 10 November 2026): 30 for the partition, 3 for
-the sentry rebuild and the validator host. Host loss has no campaign
-count yet, so the KPI does not pass. Only real staging-host runs are
-published; CI's fault alerts count toward the tools phase only.
+campaign uses for it (P01, 10 November 2026): 30 for the partition and
+for host loss, 3 for the sentry rebuild and the validator host. Only real
+staging-host runs are published, and their alert pipeline is deferred to
+staging; CI's fault alerts count toward the tools phase only.
 
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
@@ -163,8 +163,8 @@ HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caug
 HEAVY_REPETITIONS = 3
 ALERTS_KPI = 'campaign.faults.alerts'
 # Each fault's alert repetitions: the fault campaign's own count for it (P01,
-# 10 November 2026). Host loss has none yet (None), which keeps it from passing.
-ALERT_REPETITIONS = {'partition': QUICK_REPETITIONS, 'host_loss': None, 'sentry_rebuild': HEAVY_REPETITIONS,
+# 10 November 2026); host loss the partition's.
+ALERT_REPETITIONS = {'partition': QUICK_REPETITIONS, 'host_loss': QUICK_REPETITIONS, 'sentry_rebuild': HEAVY_REPETITIONS,
                      'validator_host': HEAVY_REPETITIONS}
 # An attack family's evidence tool.
 ATTACK_FAMILIES = {'transactions': attacks, 'endpoint_rpc': endpoints, 'root_controls': root_controls,

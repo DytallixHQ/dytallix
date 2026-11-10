@@ -455,18 +455,16 @@ class FaultAlerts(unittest.TestCase):
         self.assertEqual(results.summary_problems(summary), [])
 
     def test_a_miss_fails_and_each_faults_campaign_count_passes(self):
-        self.assertEqual(results.ALERT_REPETITIONS, {'partition': 30, 'host_loss': None, 'sentry_rebuild': 3,
+        self.assertEqual(results.ALERT_REPETITIONS, {'partition': 30, 'host_loss': 30, 'sentry_rebuild': 3,
                                                      'validator_host': 3})
         missed = results.alert_kpi([('partition', 'PASS'), ('host_loss', 'FAIL'), ('sentry_rebuild', 'PASS'),
                                     ('validator_host', 'PASS')])
         self.assertEqual((missed['status'], missed['value']), ('fail', 75.0))
-        full = ([('partition', 'PASS')] * 30 + [('host_loss', 'PASS')] * 3 + [('sentry_rebuild', 'PASS')] * 3
+        full = ([('partition', 'PASS')] * 30 + [('host_loss', 'PASS')] * 30 + [('sentry_rebuild', 'PASS')] * 3
                 + [('validator_host', 'PASS')] * 3)
-        # Host loss has no campaign count yet, so it never passes.
-        self.assertEqual(results.alert_kpi(full)['status'], 'in_progress')
-        with unittest.mock.patch.dict(results.ALERT_REPETITIONS, {'host_loss': 3}):
-            self.assertEqual(results.alert_kpi(full)['status'], 'pass')
-            self.assertEqual(results.alert_kpi(full[1:])['status'], 'in_progress')
+        self.assertEqual(results.alert_kpi(full)['status'], 'pass')
+        self.assertEqual(results.alert_kpi(full[1:])['status'], 'in_progress')
+        self.assertEqual(results.alert_kpi(full[:59] + full[60:])['status'], 'in_progress')
 
     def test_an_edited_alerts_record_is_refused(self):
         raw, _ = self.alerts()

@@ -5,7 +5,11 @@
   "approval_source": {
     "kind": "user_reply",
     "question_set": "The six questions P01_T05_FAULT_ALERTS_2026-11-09 left unset",
-    "reply": "go with the recs"
+    "reply": "go with the recs",
+    "follow_up": {
+      "question_set": "Four follow-ups from the first CI run of the decisions (PR #128)",
+      "reply": "1-4 are good"
+    }
   },
   "design_ref": "../../node/tools/mainnet-preparation/fault_alerts.py",
   "decisions": [
@@ -38,6 +42,26 @@
       "question": "Whether reinstalling a host's monitor settings is part of the sentry rebuild and validator host recovery procedures",
       "selected": "Yes",
       "rule": "Redoing the monitor settings is part of the rebuild and replacement procedures; the procedure documents say so."
+    },
+    {
+      "question": "The CI sentry rebuild (45 s) and validator host (55 s) end before any alert threshold",
+      "selected": "Hold them down past 180 s, as for host loss",
+      "rule": "In CI the sentry-rebuild and validator-host drills are held down past 180 s, as long as host loss is held off, so their alerts must fire."
+    },
+    {
+      "question": "Host loss has no repetition count in the fault campaign",
+      "selected": "The same count as the partition",
+      "rule": "Host loss needs the same number of repetitions as the partition."
+    },
+    {
+      "question": "An alert seen resolving by the once-a-minute monitor before the reader records recovery",
+      "selected": "Allow one monitor period",
+      "rule": "An alert that resolves up to one monitor period (60 s) before the recorded recovery still counts as resolving after recovery."
+    },
+    {
+      "question": "The real-host alert pipeline",
+      "selected": "Deferred to staging",
+      "rule": "The real-host alert pipeline is deferred to staging. CI evidence counts toward the tools phase only."
     }
   ],
   "accepted_risks": [],

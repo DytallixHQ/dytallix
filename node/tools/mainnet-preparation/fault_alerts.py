@@ -25,7 +25,10 @@ the partition and host loss the sentry's consensus halt and monitoring down
 sentry's monitoring down, and the validator host the sentry's consensus halt
 and the validator's monitoring down. A fault passes when each of its alerts
 fired before its recovery (from its injection) and resolved after its
-recovery; it fails otherwise. A fault whose drill saw no recovery is
+recovery, where a resolve up to one monitor period (RESOLVE_GRACE_SECONDS)
+before the recorded recovery counts as after it (P01, 10 November 2026: the
+monitor and the reader see the recovery at different moments); it fails
+otherwise. A fault whose drill saw no recovery is
 INCONCLUSIVE here (its own KPI fails it).
 """
 import argparse
@@ -42,6 +45,9 @@ SCHEMA = 'dytallix.fault-alerts.v1'
 PASS, FAIL, INCONCLUSIVE = faults.PASS, faults.FAIL, faults.INCONCLUSIVE
 # The in-scope faults (P01, 9 November 2026).
 FAULTS = ('partition', 'host_loss', 'sentry_rebuild', 'validator_host')
+# A resolve this long before the recorded recovery still counts as after it:
+# one monitor period (P01, 10 November 2026).
+RESOLVE_GRACE_SECONDS = 60
 # Which alerts each fault must raise, as [[host, condition], ...] (P01, 10
 # November 2026). Host loss raises the alerting service's heartbeat rule.
 EXPECTED = {'partition': [['sentry-1', 'consensus_halt']],
@@ -139,7 +145,7 @@ def evaluate(fault, window, seen, expected):
     missing = []
     for host, condition in expected:
         if not any(e['host'] == host and e['condition'] == condition and e['resolved_at'] is not None
-                   and e['resolved_at'] >= window['recovered_at'] for e in seen):
+                   and e['resolved_at'] >= window['recovered_at'] - RESOLVE_GRACE_SECONDS for e in seen):
             missing.append(f'{host} {condition}')
     if missing:
         return FAIL, f'not fired before and resolved after the recovery: {", ".join(missing)}; seen: {shown}'
