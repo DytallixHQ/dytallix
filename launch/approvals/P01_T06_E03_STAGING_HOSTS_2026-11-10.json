@@ -1,0 +1,34 @@
+{
+  "decision_id": "P01-2026-11-10-T06-E03-STAGING-HOSTS",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether E03's negative-peer cases may target the current staging hosts, and how the runner reaches them"
+  },
+  "reason": "E03 refuses dispatch until (a) its hosts run only Dytallix (E03 dedicated-hosts decision, 29 September 2026), with the runner and its reviewed preflight re-pinned to them, (b) its inert checks pass on the v3 binaries, and (c) a formally independent review (P02) approves one bounded case. The production hosts were rebuilt for dytallix-staging-2 and are console-only, while the runner reaches hosts over SSH. This record covers only the founder's part; it is not and does not replace the P02 review.",
+  "design_ref": "../../node/docs/mainnet/e03-negative-peer-method.md",
+  "decisions": [
+    {
+      "question": "Do the staging hosts now count as dedicated",
+      "selected": "Yes: the hosts are dedicated (nothing else runs on them) during E03",
+      "rule": "The hosts run only Dytallix for the whole of E03."
+    }
+  ],
+  "accepted_risks": [],
+  "unset": [
+    "How the runner reaches the hosts (they are console-only and the runner uses SSH)",
+    "The amd64 inert check: where and when it runs",
+    "Who performs the P02 independent review: not chosen; E03 cannot dispatch without it",
+    "Re-pinning the runner and its reviewed preflight to the rebuilt hosts (changes the runner's hash)"
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "any E03 dispatch before the P02 review record exists",
+    "the malformed-peer case before a separate first-case decision on the wrong-key case",
+    "rebuilding either host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

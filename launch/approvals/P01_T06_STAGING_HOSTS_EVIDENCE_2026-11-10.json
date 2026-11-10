@@ -1,0 +1,38 @@
+{
+  "decision_id": "P01-2026-11-10-T06-STAGING-HOSTS-EVIDENCE",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the staging item 'production hosts in service' is evidenced"
+  },
+  "reason": "staging.hosts.ready reads from results, and no summarizer or evidence format exists for it. The rehearsal chain dytallix-staging-2 has run on both production hosts since 2 November 2026, installed from its sealed bundles, but no approval record covers that install, and the validator is reinstalled by T9 (P01_T06_VALIDATOR_RECOVERY_STAGING_2026-11-06).",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "Whether the dytallix-staging-2 install counts for the item",
+      "selected": "Count the dytallix-staging-2 install",
+      "rule": "If counted: the sentry's 2 November install and the validator's T9 reinstall, each from its sealed bundle checked against its SHA-256, are the item's installs; the validator and the sentry are in different countries of one provider."
+    },
+    {
+      "question": "How each host is verified",
+      "selected": "T9's validator verify, plus a host_install.py verify of the sentry at its console after T9",
+      "rule": "Each host's verify exits 0 at its console after T9; the exit codes, the bundle digests and the countries go into a digest-bound record. The summary shows only the count, never addresses, host names or server IDs."
+    }
+  ],
+  "accepted_risks": [
+    "A console verify reads the host; it does not stop or change the node."
+  ],
+  "unset": [
+    "Results path: whether staging.hosts.ready is summarized by results.py from a digest-bound hosts record, signed with the results key and published by pull request (the summarizer is built as engineering; this record does not approve it)"
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "rebuilding or reinstalling either host beyond T9's approved reinstall",
+    "opening either host's firewall",
+    "any agent command beyond the allowlist",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

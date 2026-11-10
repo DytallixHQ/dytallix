@@ -1,0 +1,44 @@
+{
+  "decision_id": "P01-2026-11-10-T06-T05-CAPACITY-RUN",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The capacity measurement (T05) on the staging hosts: load machines, rate steps, pass rule and window"
+  },
+  "reason": "P01_E05_CAPACITY_VALUES and P01_E05_QUEUE_BOUNDS leave the T05 measurements on the staging hosts unset, and P01_E05_TWO_SEATS makes T05 the test of the 4 GB servers and the 3 GiB node memory limit. The load machines (P01_T06_LOAD_MACHINES_HETZNER_2026-11-03) are approved for R03, R06 and the campaign's flood runs only, and the campaign's performance parts on a real host are excluded (P01_T06_AGENT_INSTALL_2026-11-02).",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "What 'confirms about 180 basic Sends a block' means",
+      "selected": "At least 180 basic Sends a block, held for 30 minutes, with nothing lost",
+      "rule": "The run passes when a rate of at least 180 basic Sends a block is held for 30 minutes with no valid transaction lost; a measured value that differs from the approved basis goes to a new approval."
+    },
+    {
+      "question": "When",
+      "selected": "After R03, once the Hetzner IPv4 limit increase is granted",
+      "rule": "Within the window: check, reconcile, up, fleet, the steps, reconcile, down, check. The window itself is not chosen."
+    }
+  ],
+  "accepted_risks": [
+    "The staging chain may slow or refuse honest traffic during the window; that is what the run measures.",
+    "Load machines share the hosts' Hetzner project; deletion is guarded as in P01_T06_LOAD_MACHINES_HETZNER_2026-11-03."
+  ],
+  "unset": [
+    "How many load machines (1 to 8; each needs its own IPv4)",
+    "How long they may run (hours, and the watchdog deadline)",
+    "Rate steps and how long each is held",
+    "Memory and CPU: build a resource reading into the evidence, or not measured in this run",
+    "The UTC window"
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "renting any load machine or starting T05 before its machines, hours and window are approved",
+    "more than the machines, hours, steps and window named here",
+    "rebuilding either host or lifting a host's delete protection",
+    "any change to the approved capacity, queue or connection values",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
