@@ -96,8 +96,11 @@ class Hcloud:
         self.context, self.binary, self.run = context, str(binary), run
         self.env = {k: v for k, v in os.environ.items() if not k.startswith('HCLOUD_')}
 
+    def command(self, *args, output=True):
+        return [self.binary, '--context', self.context, *args] + (['-o', 'json'] if output else [])
+
     def call(self, *args, output=True):
-        command = [self.binary, '--context', self.context, *args] + (['-o', 'json'] if output else [])
+        command = self.command(*args, output=output)
         done = self.run(command, capture_output=True, text=True, env=self.env, timeout=900)
         require(done.returncode == 0, f'hcloud {" ".join(args[:2])} failed: '
                                       f'{(done.stderr or done.stdout or "").strip()[:300]}')

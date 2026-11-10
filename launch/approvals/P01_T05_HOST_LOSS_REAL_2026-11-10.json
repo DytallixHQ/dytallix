@@ -1,0 +1,38 @@
+{
+  "decision_id": "P01-2026-11-10-T05-HOST-LOSS-REAL",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Host loss on a real host (T5): the power controller's credential, which server it may power-cycle, how often and when"
+  },
+  "reason": "Host loss is built and proven in the CI staging network only (P01_T05_HOST_LOSS_2026-11-09), which left the real hosts' power path (the provider's power API and the credential it needs on the founder's machine) to a later decision. Without it T5 has no real-host evidence for host loss.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "P01_T05_HOST_LOSS_2026-11-09, the real hosts' power path: the power controller's credential",
+      "selected": "The existing dytallix hcloud context on the founder's Mac; no new token",
+      "rule": "The power controller is the hcloud CLI on the founder's machine with the context named on every call (--context dytallix), the context load_machines.py already uses, so the project's token stays in hcloud's own configuration; HCLOUD_* variables are removed from its environment, so an environment token can never pick another project. No new token is made and no token passes through the tool or the repository."
+    },
+    {
+      "question": "Which server real-host host loss may power-cycle, how often and against what target",
+      "selected": "Only the staging sentry (ubuntu-4gb-hel1-2, id 120260174, hel1), once, in a window after the T9 drill (Friday 13 November 2026), against the same 600 s target",
+      "rule": "faults.py host-loss powers off hard (hcloud server poweroff) and on again only the server with id 120260174, and only after hcloud reports that id with the name ubuntu-4gb-hel1-2 in location hel1; any other server, the validator (ubuntu-4gb-fsn1-1, id 131186483) and the founder's web server (docker-ce-ubuntu-4gb-ash-1) included, is refused before any power call. It runs once, in a window after the T9 validator host drill of Friday 13 November 2026. After the power-on, the sentry's public status page http://89.167.52.129:8080/status must serve a block made after the power-on within 600 seconds (TIMINGS.json host_loss_target_seconds), or the run fails. Its evidence is the CI drill's record (faults.py build_run), marked as a real-host run by the controller it names."
+    }
+  ],
+  "unset": [
+    "The run's date and window (after Friday 13 November 2026's T9 drill): not chosen yet; host loss is not run on the real sentry until it is"
+  ],
+  "supersedes": [
+    "P01_T05_HOST_LOSS_2026-11-09, decision \"The real hosts' power path\" (CI staging network only for now); its other decisions stand"
+  ],
+  "does_not_authorize": [
+    "powering off, rebuilding or deleting any server other than id 120260174",
+    "more than one real-host host loss run",
+    "a run before its window is chosen",
+    "a new provider token, or any change to a server's protection",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
