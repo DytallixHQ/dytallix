@@ -1571,6 +1571,7 @@ def flood_campaign(work):
     engine = (chain / 'chain' / 'genesis.json').read_bytes()
     spaces = [f'dytfl{n}' for n in range(floods.FLOODERS)]
     addresses = [f'10.77.0.{60 + n}' for n in range(floods.FLOODERS)]
+    started = int(time.time())
     with bridge_namespaces(spaces, addresses, 'dytf'):
         record = floods.run_campaign(cli, env['HOME'], out / 'fleet', out / 'run',
                                      chain / 'chain' / 'application-config.json', 'ecosystem-growth', validator,
@@ -1580,12 +1581,34 @@ def flood_campaign(work):
     checked = floods.verify(json.loads((out / 'run' / 'floods.json').read_bytes()),
                             (out / 'run' / 'floods.jsonl').read_bytes(), native, engine)
     if record['status'] != floods.PASS or checked != record['status']:
+        flood_journals(work, out / 'diag', started)
         raise Failed(f'the flood campaign is {record["status"]} (verified {checked})')
     summary_kpis = result_summaries.attack_kpis('floods', [record])
     say(f'== on the launch page: {[(k["id"], k["status"], k["value"]) for k in summary_kpis]}')
 
 
 FLOOD_ATTEMPTS = 10
+
+
+def flood_journals(work, out, since):
+    """On a failed flood campaign, each VM's journal (node and kernel) from
+    the campaign's start, for the CI artifact: why an honest read was missed
+    is in the window the job's end-of-run diagnostics no longer reach."""
+    out.mkdir(parents=True, exist_ok=True)
+    for label in VMS:
+        for name, args in (('node', ['journalctl', '-u', 'dytallix-node', '-o', 'short-iso-precise', '--no-pager',
+                                     '--since', f'@{since}']),
+                           ('kernel', ['journalctl', '-k', '-o', 'short-iso-precise', '--no-pager',
+                                       '--since', f'@{since}'])):
+            try:
+                _, text, err = agent(work, label).run(args, check=False, timeout=120)
+            except (Failed, OSError) as error:
+                text, err = '', f'no guest agent ({error})'
+            (out / f'{label}.{name}.journal.txt').write_text(text + err)
+    with open(out / 'runner.txt', 'w') as f:
+        for args in (['uptime'], ['free', '-m'], ['nproc'], ['journalctl', '-k', '--no-pager', '--since', f'@{since}']):
+            r = subprocess.run(args, capture_output=True, text=True, check=False)
+            f.write(f'$ {" ".join(args)}\n{r.stdout}{r.stderr}\n')
 
 
 def checkpoint_network(work, timeout=300):
