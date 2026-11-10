@@ -428,6 +428,61 @@ class HostBundleTests(HostNetwork):
             hi.install(bundle, host, out=lambda _: None)
 
 
+class SigningGuardTests(HostNetwork):
+    """The replacement validator's signing guard (validator recovery, F17):
+    its state raised to the halt height before its first start."""
+
+    def test_the_guard_bytes_are_the_engine_tests_fixture(self):
+        # guard_test.go loads this file through the engine's signer.
+        self.assertEqual(hi.guard_state(173074), (HERE / 'fixtures' / 'signing-guard-state.json').read_bytes())
+
+    def test_the_guard_raises_the_fresh_state_and_keeps_its_owner_and_mode(self):
+        bundle, host, manifest, _ = self.install('validator-1')
+        printed = []
+        self.assertEqual(hi.guard(bundle, host, 40, out=printed.append), 40)
+        path = host.path(hi.SIGNING_STATE)
+        self.assertEqual(path.read_bytes(), hi.guard_state(40))
+        self.assertEqual(hi.signing_floor(path.read_bytes()), (40, 2**31 - 1, 3))
+        self.assertEqual(stat.S_IMODE(os.lstat(path).st_mode), 0o600)
+        self.assertEqual(host.owner(hi.SIGNING_STATE), (41001, 41001))
+        self.assertFalse(os.path.lexists(host.path(hi.SIGNING_STATE + '.guard')))
+        self.assertIn('guarded 40', printed[-1])
+        # The host still verifies: after the install the state's contents are not compared.
+        self.assertEqual(hi.verify(bundle, host), [])
+
+    def test_the_guard_never_lowers_a_state(self):
+        bundle, host, _, _ = self.install('validator-1')
+        hi.guard(bundle, host, 40, out=lambda _: None)
+        self.assertEqual(hi.guard(bundle, host, 30, out=lambda _: None), 40)
+        self.assertEqual(host.path(hi.SIGNING_STATE).read_bytes(), hi.guard_state(40))
+        signed = b'{"height": "45", "round": 0, "step": 2}'
+        host.path(hi.SIGNING_STATE).write_bytes(signed)
+        self.assertEqual(hi.guard(bundle, host, 44, out=lambda _: None), 45)
+        self.assertEqual(host.path(hi.SIGNING_STATE).read_bytes(), signed)
+        # The same height at a lower round or step is raised.
+        host.path(hi.SIGNING_STATE).write_bytes(b'{"height": "45", "round": 2, "step": 3}')
+        hi.guard(bundle, host, 45, out=lambda _: None)
+        self.assertEqual(host.path(hi.SIGNING_STATE).read_bytes(), hi.guard_state(45))
+
+    def test_the_guard_refuses_a_running_node_another_role_and_no_height(self):
+        bundle, host, _, _ = self.install('validator-1')
+        host.active.add('dytallix-node.service')
+        with self.assertRaisesRegex(hi.Refused, 'before the validator.s first start'):
+            hi.guard(bundle, host, 40, out=lambda _: None)
+        host.active.clear()
+        for bad in (0, -1, True, '40'):
+            with self.assertRaisesRegex(hi.Refused, 'positive integer'):
+                hi.guard(bundle, host, bad, out=lambda _: None)
+        sentry, host, _, _ = self.install('sentry-1')
+        with self.assertRaisesRegex(hi.Refused, 'only a validator signs'):
+            hi.guard(sentry, host, 40, out=lambda _: None)
+
+    def test_the_command_line_takes_only_a_height(self):
+        for argv in (['x', 'guard'], ['x', 'guard', '-1'], ['x', 'guard', '4x'], ['x', 'guard', '1', '2']):
+            with mock.patch('sys.stderr'):
+                self.assertEqual(hi.main(argv), 2)
+
+
 class DisabledUfwTests(HostNetwork):
     def test_install_accepts_ufw_disabled_with_its_unit_still_active(self):
         # GitHub's runners and a host after `ufw disable`: the oneshot unit
