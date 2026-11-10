@@ -194,8 +194,8 @@ drill, which repoints the sentry's monitor, point it back once their own
 timings are recorded. fault-alerts, after host loss, records what fired and
 resolved within each in-scope fault's window (the partition, host loss, the
 sentry rebuild and the validator host) as digest-bound evidence
-(fault_alerts.py). Which alert each fault must raise is not decided, so
-every fault is INCONCLUSIVE and the KPI stays in progress.
+(fault_alerts.py): each fault's decided alerts must fire before its
+recovery and resolve after it (P01, 10 November 2026), or the step fails.
 
 agent-drill is the staging agent drill (simulation plan, T2): the founder's
 staging command key is made with the release's CLI on the runner and the
@@ -3023,8 +3023,9 @@ def fault_alerts_drill(work, timeout=600):
     (host loss): waits until nothing is firing at the runner's stand-in (or
     the timeout), then writes digest-bound evidence (fault_alerts.py) of what
     fired and resolved in each in-scope fault's window, and checks the
-    results collector's reading of it. Which alert each fault must raise is
-    not decided, so every fault is INCONCLUSIVE and the KPI stays in progress."""
+    results collector's reading of it. Each fault's decided alerts must fire
+    before its recovery and resolve after it (P01, 10 November 2026); anything
+    but PASS fails the step."""
     work = Path(work)
     alerts_rule_again(work)
     start = time.time()
@@ -3058,10 +3059,10 @@ def fault_alerts_drill(work, timeout=600):
     say(json.dumps({'fault_alerts': {'status': status, 'faults': {
         r['fault']: [{k: e[k] for k in ('host', 'condition', 'fired_at', 'resolved_at')} for e in r['observed']]
         for r in record['faults']}, 'episodes': fault_alerts.episodes(fault_alerts.parse_events(events))}}, indent=2))
-    if status == fault_alerts.FAIL:
+    if status != fault_alerts.PASS:
         raise Failed(f'the fault alerts are {status}')
-    # The results collector's reading: in progress, never a pass, while the
-    # alerts each fault must raise are not decided.
+    # The results collector's reading: one repetition of each fault, all
+    # alerted, so 100% and in progress (CI counts toward the tools phase only).
     release = json.loads((work / 'net' / 'chain' / 'release' / 'BUILD_RECORD.json').read_bytes())
     commit = os.environ.get('GITHUB_SHA') or subprocess.run(['git', '-C', str(HERE), 'rev-parse', 'HEAD'],
                                                             capture_output=True, text=True).stdout.strip()
@@ -3069,8 +3070,8 @@ def fault_alerts_drill(work, timeout=600):
     summary = result_summaries.summarize_campaign([], native, engine, timings, release, commit,
                                                   alert_files=[(out / 'evidence.json').read_bytes()])
     shown = {k['id']: (k['status'], k['value'], k['samples']) for k in summary['kpis']}
-    if list(shown) != [result_summaries.ALERTS_KPI] or shown[result_summaries.ALERTS_KPI][0] != 'in_progress':
-        raise Failed(f'the results collector reads the fault alerts as {shown}, not in progress')
+    if list(shown) != [result_summaries.ALERTS_KPI] or shown[result_summaries.ALERTS_KPI][:2] != ('in_progress', 100.0):
+        raise Failed(f'the results collector reads the fault alerts as {shown}, not 100% in progress')
     say(json.dumps({'fault_alerts_summary': shown}, indent=2))
     subprocess.run(['systemctl', 'stop', RUNNER_ALERTS_UNIT], check=False)
 

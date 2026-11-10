@@ -38,20 +38,22 @@ def all_windows():
             'sentry_rebuild': window(T0 + 2000, T0 + 2400), 'validator_host': window(T0 + 3000, T0 + 3300)}
 
 
-# A run in which every in-scope fault raised an alert that resolved.
+# A run in which every in-scope fault raised its alert before its recovery
+# and resolved it after.
 EVENTS = events_raw(
     event(T0 - 10, 'heartbeat', 'sentry-1'),
     event(T0 + 70, 'alert', 'sentry-1', 'consensus_halt', 'firing'),
-    event(T0 + 100, 'alert', 'sentry-1', 'consensus_halt', 'resolved'),
-    event(T0 + 1040, 'alert', 'sentry-1', 'consensus_halt', 'firing'),
-    event(T0 + 1080, 'alert', 'sentry-1', 'consensus_halt', 'resolved'),
+    event(T0 + 120, 'alert', 'sentry-1', 'consensus_halt', 'resolved'),
+    event(T0 + 1050, 'service', 'sentry-1', 'monitoring_down', 'firing'),
+    event(T0 + 1080, 'service', 'sentry-1', 'monitoring_down', 'resolved'),
     event(T0 + 2190, 'service', 'sentry-1', 'monitoring_down', 'firing'),
     event(T0 + 2420, 'service', 'sentry-1', 'monitoring_down', 'resolved'),
     event(T0 + 3070, 'alert', 'sentry-1', 'consensus_halt', 'firing'),
     event(T0 + 3190, 'service', 'validator-1', 'monitoring_down', 'firing'),
-    event(T0 + 3290, 'alert', 'sentry-1', 'consensus_halt', 'resolved'),
+    event(T0 + 3310, 'alert', 'sentry-1', 'consensus_halt', 'resolved'),
     event(T0 + 3320, 'service', 'validator-1', 'monitoring_down', 'resolved'))
-DECIDED = {'partition': [['sentry-1', 'consensus_halt']], 'host_loss': [['sentry-1', 'consensus_halt']],
+# The decided alerts (P01, 10 November 2026).
+DECIDED = {'partition': [['sentry-1', 'consensus_halt']], 'host_loss': [['sentry-1', 'monitoring_down']],
            'sentry_rebuild': [['sentry-1', 'monitoring_down']],
            'validator_host': [['sentry-1', 'consensus_halt'], ['validator-1', 'monitoring_down']]}
 
@@ -65,9 +67,9 @@ class Episodes(unittest.TestCase):
         found = fault_alerts.episodes(fault_alerts.parse_events(EVENTS + b'{"half a line'))
         self.assertEqual(len(found), 5)
         self.assertEqual(found[0], {'host': 'sentry-1', 'condition': 'consensus_halt', 'severity': 1,
-                                    'fired_at': T0 + 70, 'resolved_at': T0 + 100})
+                                    'fired_at': T0 + 70, 'resolved_at': T0 + 120})
         self.assertEqual([(e['host'], e['condition'], e['resolved_at']) for e in found[3:5]],
-                         [('sentry-1', 'consensus_halt', T0 + 3290), ('validator-1', 'monitoring_down', T0 + 3320)])
+                         [('sentry-1', 'consensus_halt', T0 + 3310), ('validator-1', 'monitoring_down', T0 + 3320)])
 
     def test_a_repeated_firing_or_a_stray_resolve_adds_nothing_and_an_open_one_is_firing(self):
         raw = events_raw(event(1, 'alert', 'a', 'x', 'resolved'), event(2, 'alert', 'a', 'x', 'firing'),
@@ -96,40 +98,44 @@ class Windows(unittest.TestCase):
 
 
 class Judge(unittest.TestCase):
-    def test_while_the_alerts_are_not_decided_every_fault_is_inconclusive_with_what_it_saw(self):
-        self.assertTrue(all(v is None for v in fault_alerts.EXPECTED.values()))
+    def test_the_decided_alerts_are_recorded(self):
+        self.assertEqual(fault_alerts.EXPECTED, DECIDED)
+
+    def test_a_fault_passes_when_its_alerts_fired_before_and_resolved_after_its_recovery(self):
         record = build()
-        self.assertEqual(record['status'], fault_alerts.INCONCLUSIVE)
-        self.assertEqual({r['status'] for r in record['faults']}, {fault_alerts.INCONCLUSIVE})
+        self.assertEqual(record['status'], fault_alerts.PASS, [r['detail'] for r in record['faults']])
+        self.assertEqual(fault_alerts.verify(json.loads(json.dumps(record)), NATIVE), fault_alerts.PASS)
         rows = {r['fault']: r for r in record['faults']}
         self.assertEqual([(e['host'], e['condition']) for e in rows['validator_host']['observed']],
                          [('sentry-1', 'consensus_halt'), ('validator-1', 'monitoring_down')])
-        self.assertIn('not decided; seen: sentry-1 monitoring_down resolved', rows['sentry_rebuild']['detail'])
-        self.assertEqual(fault_alerts.verify(json.loads(json.dumps(record)), NATIVE), fault_alerts.INCONCLUSIVE)
 
-    def test_once_decided_a_fault_passes_only_when_its_alerts_fired_in_its_window_and_resolved(self):
-        with mock.patch.dict(fault_alerts.EXPECTED, DECIDED):
-            record = build()
-            self.assertEqual(record['status'], fault_alerts.PASS)
-            self.assertEqual(fault_alerts.verify(record, NATIVE), fault_alerts.PASS)
-            # The validator's monitoring_down never resolved; host loss's alert came after its recovery.
-            raw = EVENTS.replace(b'"monitoring_down", "status": "resolved"', b'"monitoring_down", "status": "other"')
-            windows = dict(all_windows(), host_loss=window(T0 + 1000, T0 + 1030))
-            rows = {r['fault']: r for r in build(raw, windows)['faults']}
-            self.assertEqual(rows['validator_host']['status'], fault_alerts.FAIL)
-            self.assertIn('not fired and resolved: validator-1 monitoring_down', rows['validator_host']['detail'])
-            self.assertEqual(rows['host_loss']['status'], fault_alerts.FAIL)
-            self.assertEqual(rows['partition']['status'], fault_alerts.PASS)
+    def test_a_resolve_before_the_recovery_or_none_fails(self):
+        # The partition's halt resolved at T0 + 120: a recovery read at T0 + 130 is after it.
+        rows = {r['fault']: r for r in build(windows=dict(all_windows(), partition=window(T0, T0 + 130)))['faults']}
+        self.assertEqual(rows['partition']['status'], fault_alerts.FAIL)
+        self.assertIn('resolved after the recovery: sentry-1 consensus_halt', rows['partition']['detail'])
+        raw = EVENTS.replace(b'"monitoring_down", "status": "resolved"', b'"monitoring_down", "status": "other"')
+        rows = {r['fault']: r for r in build(raw)['faults']}
+        self.assertEqual(rows['validator_host']['status'], fault_alerts.FAIL)
+        self.assertEqual(rows['partition']['status'], fault_alerts.PASS)
+
+    def test_an_alert_that_fired_after_the_recovery_or_another_alert_fails(self):
+        # Host loss's monitoring_down fired at T0 + 1050, after a recovery at T0 + 1030.
+        rows = {r['fault']: r for r in build(windows=dict(all_windows(), host_loss=window(T0 + 1000, T0 + 1030)))['faults']}
+        self.assertEqual(rows['host_loss']['status'], fault_alerts.FAIL)
+        raw = EVENTS.replace(b'"service", "body": {"host": "sentry-1", "kind": "change", "condition": "monitoring_down"',
+                             b'"service", "body": {"host": "sentry-1", "kind": "change", "condition": "disk_low"')
+        rows = {r['fault']: r for r in build(raw)['faults']}
+        self.assertEqual((rows['host_loss']['status'], rows['sentry_rebuild']['status']), (fault_alerts.FAIL,) * 2)
 
     def test_a_fault_with_no_recovery_is_inconclusive(self):
-        with mock.patch.dict(fault_alerts.EXPECTED, DECIDED):
-            rows = {r['fault']: r for r in build(windows=dict(all_windows(), partition=window(T0, None)))['faults']}
+        rows = {r['fault']: r for r in build(windows=dict(all_windows(), partition=window(T0, None)))['faults']}
         self.assertEqual(rows['partition']['status'], fault_alerts.INCONCLUSIVE)
         self.assertEqual(rows['partition']['observed'], [])
 
 
 class Verify(unittest.TestCase):
-    def test_an_edit_another_genesis_or_undecided_alerts_are_refused(self):
+    def test_an_edit_another_genesis_or_other_alerts_are_refused(self):
         record = build()
         edited = json.loads(json.dumps(record))
         edited['faults'][0]['observed'] = []
@@ -137,18 +143,18 @@ class Verify(unittest.TestCase):
             fault_alerts.verify(edited, NATIVE)
         with self.assertRaises(fault_alerts.Failed):
             fault_alerts.verify(record, b'{}')
-        # A record judged against alerts nobody decided, digest made to match.
-        with mock.patch.dict(fault_alerts.EXPECTED, DECIDED):
-            decided = build()
+        # A record judged against other alerts, digest made to match.
+        with mock.patch.dict(fault_alerts.EXPECTED, {'partition': [['sentry-1', 'disk_low']]}):
+            other = build()
         with self.assertRaisesRegex(fault_alerts.Failed, 'other alerts than the decided'):
-            fault_alerts.verify(decided, NATIVE)
+            fault_alerts.verify(other, NATIVE)
 
     def test_an_observed_alert_outside_its_window_is_refused(self):
         record = build()
-        record['faults'][0]['observed'].append({'host': 'sentry-1', 'condition': 'disk_low', 'severity': 2,
-                                                'fired_at': T0 + 5000, 'resolved_at': None})
-        record['faults'][0]['detail'] = fault_alerts.evaluate('partition', record['faults'][0],
-                                                              record['faults'][0]['observed'], None)[1]
+        row = record['faults'][0]
+        row['observed'].append({'host': 'sentry-1', 'condition': 'disk_low', 'severity': 2,
+                                'fired_at': T0 + 5000, 'resolved_at': None})
+        row['status'], row['detail'] = fault_alerts.evaluate('partition', row, row['observed'], row['expected'])
         body = {k: v for k, v in record.items() if k != 'sha256'}
         record['sha256'] = fault_alerts.digest(fault_alerts.canonical(body))
         with self.assertRaisesRegex(fault_alerts.Failed, 'outside its window'):

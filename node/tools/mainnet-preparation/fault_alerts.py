@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Fault alerts (simulation plan, T5; campaign.faults.alerts): whether each
 injected fault raised its alert and resolved it after recovery. Scope
-(P01, 9 November 2026; launch/approvals/P01_T05_FAULT_ALERTS_2026-11-09.json):
+(P01, 9 November 2026; launch/approvals/P01_T05_FAULT_ALERTS_2026-11-09.json;
+alerts, timing and repetitions P01, 10 November 2026,
+launch/approvals/P01_T05_FAULT_ALERTS_2026-11-10.json):
 the faults past an alert threshold only (the network partition, host loss,
 the sentry rebuild and the validator host recovery), in the CI staging
 network only, observed by a stand-in alerting service on the runner.
@@ -17,12 +19,14 @@ resolve if one came) the stand-in recorded from either host is paired up
 from its events, and those that fired within a window are the fault's
 observed alerts, recorded with the time each fired and resolved.
 
-Which alert each fault must raise is not decided (an open P01 question), so
-EXPECTED holds None for every fault and each fault's status is INCONCLUSIVE:
-the record shows what fired and resolved, and nothing counts as a pass. Once
-decided, a fault passes when each of its (host, condition) alerts fired
-within its window and resolved after it fired; it fails otherwise. A fault
-whose drill saw no recovery is INCONCLUSIVE here (its own KPI fails it).
+Each fault must raise its decided alerts (EXPECTED; P01, 10 November 2026):
+the partition and host loss the sentry's consensus halt and monitoring down
+(the alerting service's heartbeat rule) respectively, the sentry rebuild the
+sentry's monitoring down, and the validator host the sentry's consensus halt
+and the validator's monitoring down. A fault passes when each of its alerts
+fired before its recovery (from its injection) and resolved after its
+recovery; it fails otherwise. A fault whose drill saw no recovery is
+INCONCLUSIVE here (its own KPI fails it).
 """
 import argparse
 import hashlib
@@ -38,9 +42,12 @@ SCHEMA = 'dytallix.fault-alerts.v1'
 PASS, FAIL, INCONCLUSIVE = faults.PASS, faults.FAIL, faults.INCONCLUSIVE
 # The in-scope faults (P01, 9 November 2026).
 FAULTS = ('partition', 'host_loss', 'sentry_rebuild', 'validator_host')
-# Which alerts each fault must raise, as [[host, condition], ...]: not decided
-# yet (open P01 question). None keeps the fault INCONCLUSIVE.
-EXPECTED = {fault: None for fault in FAULTS}
+# Which alerts each fault must raise, as [[host, condition], ...] (P01, 10
+# November 2026). Host loss raises the alerting service's heartbeat rule.
+EXPECTED = {'partition': [['sentry-1', 'consensus_halt']],
+            'host_loss': [['sentry-1', 'monitoring_down']],
+            'sentry_rebuild': [['sentry-1', 'monitoring_down']],
+            'validator_host': [['sentry-1', 'consensus_halt'], ['validator-1', 'monitoring_down']]}
 
 
 class Failed(Exception):
@@ -129,15 +136,13 @@ def evaluate(fault, window, seen, expected):
         return INCONCLUSIVE, 'the drill saw no recovery, so no resolve can be judged'
     shown = ', '.join(f'{e["host"]} {e["condition"]}' + (' resolved' if e['resolved_at'] is not None else ' firing')
                       for e in seen) or 'no alert'
-    if expected is None:
-        return INCONCLUSIVE, f'which alert {fault} must raise is not decided; seen: {shown}'
     missing = []
     for host, condition in expected:
         if not any(e['host'] == host and e['condition'] == condition and e['resolved_at'] is not None
-                   and e['resolved_at'] >= e['fired_at'] for e in seen):
+                   and e['resolved_at'] >= window['recovered_at'] for e in seen):
             missing.append(f'{host} {condition}')
     if missing:
-        return FAIL, f'not fired and resolved: {", ".join(missing)}; seen: {shown}'
+        return FAIL, f'not fired before and resolved after the recovery: {", ".join(missing)}; seen: {shown}'
     return PASS, f'fired and resolved: {shown}'
 
 

@@ -1,0 +1,56 @@
+{
+  "decision_id": "P01-2026-11-10-T05-FAULT-ALERTS",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The six questions P01_T05_FAULT_ALERTS_2026-11-09 left unset",
+    "reply": "go with the recs"
+  },
+  "design_ref": "../../node/tools/mainnet-preparation/fault_alerts.py",
+  "decisions": [
+    {
+      "question": "Which alert (host and condition) each in-scope fault must raise",
+      "selected": "As recommended",
+      "rule": "The partition raises the sentry's consensus_halt; host loss the sentry's heartbeat alert (monitoring_down, the alerting service's 180 s rule); the sentry rebuild the sentry's monitoring_down; the validator host the sentry's consensus_halt and the validator's monitoring_down."
+    },
+    {
+      "question": "Host loss: whether its outage must cross an alert threshold, and how",
+      "selected": "Keep the 180 s heartbeat rule; lengthen the CI host-loss down time past 180 s",
+      "rule": "The CI host-loss drill holds the sentry off for more than 180 s so its heartbeat alert must fire. The 10-minute recovery target is still measured from the power-on."
+    },
+    {
+      "question": "Network partition: whether a 90 s cut must reliably raise the 60 s consensus halt alert",
+      "selected": "Lengthen the partition to at least 150 s",
+      "rule": "The partition lasts at least 150 s, rather than accepting a miss with the once-a-minute monitor."
+    },
+    {
+      "question": "When the alert must fire and resolve relative to the fault's window",
+      "selected": "Fire before recovery, resolve after recovery",
+      "rule": "Each alert must fire before the fault's recovery and resolve after its recovery."
+    },
+    {
+      "question": "How many repetitions the KPI needs, and whether CI evidence can count for it on the public page",
+      "selected": "The fault campaign's count for each fault; CI counts toward the tools phase only",
+      "rule": "Each fault needs the same number of repetitions as the fault campaign uses for it. CI evidence counts toward the tools phase only; only real staging-host runs count on the public page."
+    },
+    {
+      "question": "Whether reinstalling a host's monitor settings is part of the sentry rebuild and validator host recovery procedures",
+      "selected": "Yes",
+      "rule": "Redoing the monitor settings is part of the rebuild and replacement procedures; the procedure documents say so."
+    }
+  ],
+  "accepted_risks": [],
+  "supersedes": [
+    {
+      "decision_id": "P01-2026-11-09-T05-FAULT-ALERTS",
+      "part": "Its unset list: each item is decided here."
+    }
+  ],
+  "does_not_authorize": [
+    "any run on a real host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
