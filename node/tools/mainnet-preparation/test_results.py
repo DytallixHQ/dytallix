@@ -167,7 +167,8 @@ class Summarize(unittest.TestCase):
         # With the quick faults, one cumulative summary.
         both = summarize(record([row('partition', 20)]), recoveries=[host_loss(600)])
         self.assertEqual([k['id'] for k in both['kpis']], ['campaign.faults.network_heal',
-                                                           'campaign.faults.validator_host'])
+                                                           'campaign.faults.validator_host',
+                                                           'campaign.network.attempts', 'campaign.network.successes'])
 
     def test_a_drill_record_must_verify_against_the_approved_objective(self):
         with self.assertRaisesRegex(results.Failed, 'restore drill record does not verify.*not the approved'):
@@ -390,3 +391,49 @@ class Performance(unittest.TestCase):
         summary = {'schema': results.SCHEMA, 'scope': 'campaign', 'date': '2026-11-09',
                    'kpis': list(self.kpis([self.load_record()]).values())}
         self.assertEqual(results.summary_problems(summary), [])
+
+
+class Network(unittest.TestCase):
+    """campaign.network from the fault records' network scenarios; E03's
+    peer types count zero until its evidence is read (P01, 9 November 2026)."""
+
+    def scenario(self, name, **over):
+        base = row(name, 20)
+        base['effect'] = {'installed': True} if name == 'partition' else \
+            {'qdisc': 'netem delay 400ms'} if name in ('latency', 'loss') else \
+            {'closed': ['a:26656 b:1'], 'after': []}
+        base.update(over)
+        return base
+
+    def network(self, rows):
+        summary = summarize(record(rows))
+        return kpi(summary, 'campaign.network.attempts'), kpi(summary, 'campaign.network.successes')
+
+    def test_the_peer_types_keep_the_family_in_progress(self):
+        rows = [self.scenario(n) for n in results.NETWORK_FAULTS for _ in range(30)]
+        attempts, successes = self.network(rows)
+        self.assertEqual((attempts['status'], attempts['value'], attempts['target']), ('in_progress', 0, 30))
+        self.assertEqual((successes['value'], attempts['samples']), (0, 120))
+        # With E03's two types at 30 too, the family would pass.
+        refused = [r for r in rows]
+        with unittest.mock.patch.object(results, 'NETWORK_TYPES', results.NETWORK_FAULTS):
+            self.assertEqual(results.network_kpis(refused)[0]['status'], 'pass')
+
+    def test_lost_history_or_no_recovery_is_a_success(self):
+        _, successes = self.network([self.scenario('partition', recovered_height=90)])
+        self.assertEqual((successes['value'], successes['status']), (1, 'fail'))
+        lost = self.scenario('latency', recovered_at=None, recovered_height=None)
+        self.assertEqual(results.network_outcome(dict(lost, status='FAIL')), 'success')
+
+    def test_what_is_no_attempt(self):
+        self.assertIsNone(results.network_outcome(dict(self.scenario('loss'), status='INCONCLUSIVE')))
+        self.assertIsNone(results.network_outcome(dict(self.scenario('loss', effect={'qdisc': 'pfifo'}),
+                                                       status='FAIL')))
+        broken = self.scenario('peer_drop', command={'command': 'fault-peer-drop', 'args': {}, 'status': 'FAILED'})
+        self.assertIsNone(results.network_outcome(dict(broken, status='FAIL')))
+        # A slow recovery fails the fault KPI but is a refused attempt here.
+        self.assertEqual(results.network_outcome(dict(self.scenario('partition'), status='FAIL')), 'refused')
+
+    def test_a_process_kill_is_not_a_network_attempt(self):
+        attempts, _ = self.network([self.scenario('partition'), row('process_kill', 20)])
+        self.assertEqual(attempts['samples'], 1)

@@ -73,7 +73,19 @@ response time. The statuses:
   - response_time_p99 passes, recorded, once a run at half capacity gave
     response times.
 A load run names its chain but not its genesis, so its source row has no
-genesis digest. Runs, checkpoints and endurance follow.
+genesis digest.
+
+The network family (campaign.network; P01, 9 November 2026,
+launch/approvals/P01_T06_NETWORK_SOURCES_2026-11-09.json) reads the same
+fault records: each latency, loss, partition and peer_drop scenario is one
+attempt of its type. One whose fault took hold and whose sentry caught back
+up with nothing lost is refused; one that lost finalized history or never
+recovered is a success (a defect). A scenario that is INCONCLUSIVE, or
+whose fault did not run or had no effect, is no attempt. Wrong-key and
+malformed peers come from the E03 runner and count zero until its evidence
+is read, so the family's attempts (the fewest over its types) stay in
+progress until then. Runs, checkpoints and endurance
+follow.
 
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
@@ -128,6 +140,10 @@ QUICK_REPETITIONS = 30
 DAY_INTERVALS = 17280
 HALF_CAPACITY_PER_BLOCK = 90
 INCLUSION_SHARE = 0.99
+# The network family's types: the fault injector's four network scenarios,
+# and E03's two peer cases, which count zero until E03's evidence is read.
+NETWORK_FAULTS = ('latency', 'loss', 'partition', 'peer_drop')
+NETWORK_TYPES = NETWORK_FAULTS + ('wrong_key_peer', 'malformed_peer')
 # A heavy fault's campaign KPI, its evidence tool and the instants its time
 # runs between.
 HEAVY_KPIS = {'restore': ('campaign.faults.sentry_rebuild', restore_drill, 'caught_up_at'),
@@ -290,18 +306,53 @@ def performance_kpis(pooled, half):
     return out
 
 
+def network_outcome(row):
+    """A network fault scenario as an attack attempt: 'refused', 'success'
+    or None (no attempt)."""
+    if row.get('status') == faults.INCONCLUSIVE or (row.get('command') or {}).get('status') != 'DONE':
+        return None
+    if not faults.effect_holds(faults.kind(row['name']), row.get('effect') or {}):
+        return None
+    recovered, baseline = row.get('recovered_height'), row.get('baseline_height')
+    if row.get('recovered_at') is None or not isinstance(recovered, int) or recovered < baseline:
+        return 'success'
+    return 'refused'
+
+
+def network_kpis(rows, root=ROOT):
+    """campaign.network's attempts (the fewest over its types) and
+    successes, from the fault records' network scenarios."""
+    refused, successes = {kind: 0 for kind in NETWORK_TYPES}, 0
+    for row in rows:
+        outcome = network_outcome(row)
+        if outcome == 'refused':
+            refused[row['name']] += 1
+        elif outcome == 'success':
+            successes += 1
+    defined = {k['id']: k for k in json.loads((Path(root) / launch_dashboard.DEFINITIONS).read_bytes())['kpis']}
+    target = defined['campaign.network.attempts']['target']
+    fewest = min(refused.values())
+    status = 'fail' if successes else 'pass' if fewest >= target else 'in_progress'
+    samples = sum(refused.values()) + successes
+    return [{'id': 'campaign.network.attempts', 'status': status, 'value': fewest, 'unit': 'count',
+             'samples': samples, 'target': target},
+            {'id': 'campaign.network.successes', 'status': status, 'value': successes, 'unit': 'count',
+             'samples': samples, 'target': None}]
+
+
 def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings, release_record, commit,
                        restore_files=(), recovery_files=(), attack_files=(), load_files=()):
     """The campaign summary from every fault record and heavy fault drill
     record to date (cumulative)."""
     samples = {kpi: [] for kpi, _ in FAULT_KPIS.values()}
-    sources, days = [], []
+    sources, days, network = [], [], []
     for raw in fault_files:
         record = json.loads(raw)
         try:
             status = faults.verify(record, genesis_bytes, engine_genesis_bytes)
         except (faults.Failed, KeyError, TypeError) as error:
             raise Failed(f'a fault record does not verify: {error}')
+        network += [row for row in record['scenarios'] if row['name'] in NETWORK_FAULTS]
         for row in record['scenarios']:
             if row['name'] not in FAULT_KPIS:
                 continue
@@ -339,6 +390,8 @@ def summarize_campaign(fault_files, genesis_bytes, engine_genesis_bytes, timings
     for family, records in sorted(families.items()):
         kpis += attack_kpis(family, records)
     kpis += performance_kpis(pooled, half)
+    if network:
+        kpis += network_kpis(network)
     summary = {'schema': SCHEMA, 'scope': 'campaign', 'date': max(days),
                'candidate': candidate(release_record, commit), 'kpis': kpis,
                'sources': sorted(sources, key=lambda s: s['sha256'])}

@@ -2769,6 +2769,12 @@ def results_drill(work, drill, native, engine):
     if len(performance) != 6:
         raise Failed(f'the page shows {len(performance)} performance KPIs from the load run, not 6')
     shown.update(performance)
+    # The fault records' network scenarios feed campaign.network; E03's peer
+    # types count zero, so it stays in progress with no success.
+    network = {k['id']: (k['status'], k['value']) for k in data['kpis'] if k['id'].startswith('campaign.network.')}
+    if network != {'campaign.network.attempts': ('in_progress', 0), 'campaign.network.successes': ('in_progress', 0)}:
+        raise Failed(f'the page would show the network family as {network}')
+    shown.update(network)
     if launch_dashboard.page_problems(data):
         raise Failed(f'the page would refuse the data: {launch_dashboard.page_problems(data)}')
     say(json.dumps({'results_drill': {'summary': str(path.relative_to(root)), 'shown': shown}}, indent=2))
