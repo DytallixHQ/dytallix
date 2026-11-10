@@ -2525,6 +2525,8 @@ def upgrade_drill(work, timeout=900):
         raise Failed(f'the upgrade drill is {record["status"]}')
     say(f'== handover {source[:16]} to {target[:16]} with the migration, and the return: PASS '
         f'(evidence sha256 {record["sha256"]})')
+    # switch.sh restarted nftables on the runner (fault alerts, CI only).
+    alerts_rule_again(work)
 
 
 def agent_drill(work, label='sentry-1', timeout=300):
@@ -2863,7 +2865,7 @@ def host_loss_drill(work, label='sentry-1', timeout=900):
     transient stand-ins and before the agent drill, whose wipe ends the
     network."""
     work = Path(work)
-    alerts_rule_again(work)
+    alerts_ready(work, PUBLIC)
     sub = work / 'host-loss-drill'
     sub.mkdir()
     native = (work / 'net' / 'chain' / 'chain' / 'native-genesis.json').read_bytes()
@@ -2942,6 +2944,22 @@ def alerts_hold(work, since, what):
     hold = faults.HOST_LOSS['args']['off_seconds']
     say(f'== {what}: held down {hold} s for its alerts (fault alerts, CI only)')
     time.sleep(max(since + hold - time.time(), 0))
+
+
+def alerts_ready(work, label, timeout=300):
+    """CI only, when the runner's stand-in is up: before a fault, the host's
+    heartbeat reaches the stand-in again and its monitoring_down is not
+    still firing from an earlier step, so the fault's own alert can fire."""
+    if not runner_alerts(work).exists():
+        return
+    alerts_rule_again(work)
+    start, deadline = time.time(), time.monotonic() + timeout
+    heartbeat_from(work, label, start, timeout)
+    while (label, 'monitoring_down') in fault_alerts.firing(fault_alerts.parse_events(runner_events(work))):
+        if time.monotonic() > deadline:
+            raise Failed(f'{label}: monitoring_down still firing at the runner\'s stand-in after {timeout} s')
+        time.sleep(5)
+    say(f'== {label}: reporting to the runner\'s stand-in, monitoring_down not firing')
 
 
 def alerts_rule_again(work):
