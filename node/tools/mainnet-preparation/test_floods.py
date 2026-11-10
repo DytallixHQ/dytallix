@@ -59,6 +59,13 @@ class Classify(unittest.TestCase):
         self.assertEqual(req(honest_heights=[120, 120])['outcome'], 'admitted')
         self.assertEqual(req(honest_reads=0, honest_served=0)['outcome'], 'admitted')
 
+    def test_the_diagnostics_do_not_change_the_judgement(self):
+        seen = dict(honest_slowest_s=4.2, honest_misses=[], flood_first_errors=['the gateway: timed out'],
+                    runner_load=[3.1, 2.0, 1.5])
+        self.assertEqual(req(**seen)['outcome'], 'refused')
+        missed = dict(seen, honest_served=15, honest_misses=[{'after_s': 45.0, 'error': 'the gateway: timed out'}])
+        self.assertEqual(req(**missed)['outcome'], 'admitted')
+
     def test_a_flood_that_sent_nothing_is_made_again(self):
         self.assertEqual(req(flood_served=0)['outcome'], 'transport')
 
