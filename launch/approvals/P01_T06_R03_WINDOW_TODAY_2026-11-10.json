@@ -1,0 +1,32 @@
+{
+  "decision_id": "P01-2026-11-10-T06-R03-WINDOW-TODAY",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "R03 window moved forward: \"this can be done now\" (10 November 2026)"
+  },
+  "reason": "The user moved the transaction-flood half of R03 from Thursday 12 November to the same day. Everything else in P01_T06_R03_LOAD_MACHINES_RUN_2026-11-10 stands.",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "When",
+      "selected": "Tuesday 10 November 2026, 17:00-21:00 UTC (transaction floods, 2 machines, at most 4 hours)",
+      "rule": "Replaces only the Thursday window of P01_T06_R03_LOAD_MACHINES_RUN_2026-11-10; the request floods still wait for their own window."
+    }
+  ],
+  "accepted_risks": [
+    "The staging sentry runs at its production limits under the floods; the staging chain may slow or refuse honest traffic for the window. That is what the run measures.",
+    "Load machines share the hosts' Hetzner project; deletion is guarded by label, name and delete protection, and load_machines.py check runs before and after."
+  ],
+  "supersedes": [
+    "P01_T06_R03_LOAD_MACHINES_RUN_2026-11-10.json (its window only)"
+  ],
+  "does_not_authorize": [
+    "more than the machines, hours and window named here",
+    "rebuilding either host or lifting a host's delete protection",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
