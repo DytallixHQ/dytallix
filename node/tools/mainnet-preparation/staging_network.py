@@ -768,6 +768,8 @@ def restore_drill(work, timeout=900):
     say(f'== the sentry was wiped, reinstalled and restored from the copy of height {copy["height"]}, '
         f'and matches the validator at height {ours[0]}; evidence sha256 {record["sha256"]}')
     alerts_resume(work, 'sentry-1')
+    # Its alert resolves before the next step can wipe or fault a host.
+    alerts_settled(work, [('sentry-1', 'monitoring_down')])
 
 
 # The validator recovery drill (simulation plan, T9; validator recovery F17)
@@ -873,6 +875,9 @@ def validator_recovery_drill(work, timeout=900):
         raise Failed(f'the validator recovery drill is {record["status"]}')
     say(f'== the validator was fenced, replaced and signs again past H = {halt}; evidence sha256 {record["sha256"]}')
     alerts_resume(work, 'validator-1')
+    # The sentry's halt resolves on its next monitor run; the restore drill
+    # (next) wipes the sentry, and with it the resolve.
+    alerts_settled(work, [(PUBLIC, 'consensus_halt'), ('validator-1', 'monitoring_down')])
 
 
 # The kit replacement drill (root kit replacement v1, K4)
@@ -2701,7 +2706,7 @@ def fault_drill(work, label='sentry-1', timeout=300):
     the host's own dead-man removed each network fault. Then the validator's
     process restart (validator_restart) runs on the validator."""
     work = Path(work)
-    alerts_rule_again(work)
+    alerts_ready(work, label)
     guest = agent(work, label)
     drill = work / 'fault-drill'
     drill.mkdir()
@@ -2969,20 +2974,33 @@ def alerts_hold(work, since, what):
     time.sleep(max(since + hold - time.time(), 0))
 
 
+def alerts_settled(work, alerts, timeout=300):
+    """CI only, when the runner's stand-in is up: waits until none of the
+    (host, condition) alerts is still firing there. A host wiped while its
+    alert fires never sends the resolve, and an open alert hides the next
+    fault's own (run 42851854442: the sentry's halt from T9, wiped by R6)."""
+    if not runner_alerts(work).exists():
+        return
+    deadline = time.monotonic() + timeout
+    while True:
+        still = [a for a in fault_alerts.firing(fault_alerts.parse_events(runner_events(work))) if a in alerts]
+        if not still:
+            return
+        if time.monotonic() > deadline:
+            raise Failed(f'still firing at the runner\'s stand-in after {timeout} s: {still}')
+        time.sleep(5)
+
+
 def alerts_ready(work, label, timeout=300):
     """CI only, when the runner's stand-in is up: before a fault, the host's
-    heartbeat reaches the stand-in again and its monitoring_down is not
+    heartbeat reaches the stand-in again and none of its in-scope alerts is
     still firing from an earlier step, so the fault's own alert can fire."""
     if not runner_alerts(work).exists():
         return
     alerts_rule_again(work)
-    start, deadline = time.time(), time.monotonic() + timeout
-    heartbeat_from(work, label, start, timeout)
-    while (label, 'monitoring_down') in fault_alerts.firing(fault_alerts.parse_events(runner_events(work))):
-        if time.monotonic() > deadline:
-            raise Failed(f'{label}: monitoring_down still firing at the runner\'s stand-in after {timeout} s')
-        time.sleep(5)
-    say(f'== {label}: reporting to the runner\'s stand-in, monitoring_down not firing')
+    heartbeat_from(work, label, time.time(), timeout)
+    alerts_settled(work, [(label, 'monitoring_down'), (label, 'consensus_halt')], timeout)
+    say(f'== {label}: reporting to the runner\'s stand-in, monitoring_down and consensus_halt not firing')
 
 
 def alerts_rule_again(work):
