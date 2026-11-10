@@ -35,11 +35,20 @@ refusing it:
     after the endpoint's real offer; it is closed with no reply;
   - header_flood: a status page request over its header bounds (16 headers,
     8 KiB) is answered 400 or 431, or closed, never served.
-Not built yet: oversized_body, method_outside_allowlist and wrong_pin need a
-client that completes the handshake (or an endpoint that signs as another
-key), the attack client of P01's 4 November 2026 decision. Until then they
-count zero attempts, and the family's attempts (the fewest over every type)
-cannot reach the target.
+  - oversized_body: the attack client completes the handshake and sends a
+    POST whose body is one byte over the channel's 1 MiB; the endpoint
+    answers 400 (the request codec refuses it) or 413 (over the adapter's
+    lowered limit), or closes with no reply, and never serves it;
+  - method_outside_allowlist: the attack client completes the handshake and
+    sends a request whose method byte is neither GET nor POST; the endpoint
+    answers 400, never serves it;
+  - wrong_pin: the attack client listens as an endpoint that signs with a
+    fresh key, and the release CLI, pinned to the real key at that address,
+    asks it for the status; the CLI must fail and send nothing after the
+    endpoint's offer.
+These three need --attack-client (node/tools/attack-client, test-only, never
+shipped); without it they count zero attempts, and the family's attempts
+(the fewest over every type) cannot reach the target.
 
 An attempt the listener served is a success (a defect); one refused in
 another way than the type names (a forged finish whose valid hello was never
@@ -87,10 +96,12 @@ REASONS = {
     'slow_client': 'a stalled connection is closed within the listener\'s deadline',
     'invalid_handshake': 'an invalid handshake is closed with no reply',
     'header_flood': 'a request over the header bounds is not served',
-    'oversized_body': None,
-    'method_outside_allowlist': None,
-    'wrong_pin': None,
+    'oversized_body': 'a body over the bound is answered 400 or 413, or closed with no reply',
+    'method_outside_allowlist': 'a method outside GET and POST is answered 400, never served',
+    'wrong_pin': 'the release client refuses an endpoint that signs with another key',
 }
+# The attack client's types (node/tools/attack-client; P01, 4 November 2026).
+CLIENT_TYPES = ('oversized_body', 'method_outside_allowlist', 'wrong_pin')
 # The approved bounds (launch/E05_VALUES.json, D12-Q01: the channel's 16 and
 # 2; the adapter's compiled deadlines; the status page's 8 and 2, P01, 4
 # November 2026).
@@ -161,6 +172,28 @@ def classify(row):
         return 'refused' if not seen['reply_bytes'] and seen['closed_after'] is not None else 'admitted'
     if kind == 'header_flood':
         return 'refused' if seen['status'] in (None, 400, 431) else 'admitted'
+    if kind in ('oversized_body', 'method_outside_allowlist'):
+        if not seen.get('handshake'):
+            return 'transport'
+        status = seen['response_status']
+        if isinstance(status, int) and 200 <= status < 300:
+            return 'admitted'
+        if status is None:
+            # Closed with no reply; a connection merely left open is not a refusal.
+            held = any(word in (seen.get('ended') or '') for word in ('timed out', 'would block'))
+            return 'refused_other' if held or kind == 'method_outside_allowlist' else 'refused'
+        # A body over the channel's 1 MiB is refused by the request codec (400,
+        # Malformed channel request; the message bound leaves room for the
+        # longest path and query, so the message still arrives whole); one
+        # over the adapter's lowered body limit is answered 413.
+        allowed = (400, 413) if kind == 'oversized_body' else (400,)
+        return 'refused' if status in allowed else 'refused_other'
+    if kind == 'wrong_pin':
+        if not seen.get('hello') or not seen.get('offer_sent'):
+            return 'transport'
+        if seen['finished'] or seen['after_offer_bytes'] or seen['cli_exit'] == 0:
+            return 'admitted'
+        return 'refused'
     raise Failed(f'{kind!r} has no observations to judge')
 
 
@@ -398,8 +431,17 @@ def http_status(raw):
         return None
 
 
+def probe_attack(plan):
+    """The attack client's channel-request, run from this address: its one
+    JSON line."""
+    result = subprocess.run(plan['argv'], capture_output=True, text=True, timeout=120)
+    if result.returncode != 0:
+        return {'handshake': False, 'error': result.stderr.strip()[-200:]}
+    return json.loads(result.stdout.strip().splitlines()[-1])
+
+
 PROBES = {'cap': probe_cap, 'hold': probe_hold, 'slow': probe_slow, 'handshake': probe_handshake,
-          'http': probe_http}
+          'http': probe_http, 'attack': probe_attack}
 
 
 def probe(plan):
@@ -453,7 +495,10 @@ class Places:
 # The campaign
 
 class Campaign:
-    def __init__(self, places, channel, page, network, key, control, attempts, show=print, sleep=time.sleep):
+    def __init__(self, places, channel, page, network, key, control, attempts, show=print, sleep=time.sleep,
+                 attack_client=None, pin=None, cli=None, env=None, scratch=None):
+        self.attack_client, self.pin, self.cli, self.env = attack_client, pin, cli, env
+        self.scratch = Path(scratch) if scratch else None
         self.places, self.channel, self.page = places, channel, page
         self.network, self.key, self.control = network, key, control
         self.attempts, self.show, self.sleep, self.rows = attempts, show, sleep, []
@@ -558,6 +603,47 @@ class Campaign:
                                                'wait': AT_ONCE + LIMITS['page_deadline']})
         return self.record('header_flood', k, variant, seen)
 
+    def client_request(self, kind):
+        def attempt(k):
+            seen = self.places.run(self.attacker, {'step': 'attack', 'argv': [
+                str(self.attack_client), 'channel-request', '--pin', str(self.pin), '--variant', kind,
+                '--wait', str(AT_ONCE + LIMITS['channel_deadline'])]})
+            self.sleep(SETTLE)
+            return self.record(kind, k, kind, seen)
+        return attempt
+
+    def wrong_pin(self, k):
+        """The release CLI, pinned to the real key at the attack endpoint's
+        address, asks it for the status."""
+        with socket.socket() as probe_socket:
+            probe_socket.bind(('127.0.0.1', 0))
+            port = probe_socket.getsockname()[1]
+        endpoint = subprocess.Popen([str(self.attack_client), 'wrong-key-endpoint', '--listen', f'127.0.0.1:{port}',
+                                     '--network', self.network, '--wait', str(AT_ONCE + LIMITS['channel_deadline'])],
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            ready = endpoint.stdout.readline()
+            if not ready.strip() or not json.loads(ready).get('ready'):
+                endpoint.kill()
+                return self.record('wrong_pin', k, 'other_key', {'hello': False, 'error': 'not ready'})
+            home = self.scratch / f'wrong-pin-{k}'
+            (home / '.dytallix').mkdir(parents=True, exist_ok=True)
+            chain = json.loads((Path(self.env['HOME']) / '.dytallix' / 'chain.json').read_bytes())
+            chain['endpoint'] = f'127.0.0.1:{port}'
+            (home / '.dytallix' / 'chain.json').write_text(json.dumps(chain))
+            cli = subprocess.run([str(self.cli), 'control', 'status', '--out', str(home / 'status.json')],
+                                 capture_output=True, text=True, env=dict(self.env, HOME=str(home)), timeout=60)
+            out, _ = endpoint.communicate(timeout=60)
+        finally:
+            if endpoint.poll() is None:
+                endpoint.kill()
+        try:
+            seen = json.loads(out.strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            seen = {'hello': False, 'error': 'no report'}
+        seen['cli_exit'] = cli.returncode
+        return self.record('wrong_pin', k, 'other_key', seen)
+
     def positive(self, after, clock=time.monotonic):
         last = next((r.get('channel_height') for r in reversed(self.rows) if r['type'] == 'control'), None)
         reading, deadline = self.control(), clock() + ADVANCE_WAIT
@@ -572,13 +658,19 @@ class Campaign:
     def run(self, kinds):
         attempt = {'connection_flood_address': self.flood_address, 'connection_flood_total': self.flood_total,
                    'status_connection_flood': self.status_flood, 'slow_client': self.slow,
-                   'invalid_handshake': self.handshake, 'header_flood': self.header_flood}
+                   'invalid_handshake': self.handshake, 'header_flood': self.header_flood,
+                   'oversized_body': self.client_request('oversized_body'),
+                   'method_outside_allowlist': self.client_request('method_outside_allowlist'),
+                   'wrong_pin': self.wrong_pin}
         self.positive('start')
         for kind in kinds:
             if not built(kind):
                 continue
             if kind == 'connection_flood_total' and len(self.places.spaces) < needed_for_total():
                 self.show(f'== {kind}: needs {needed_for_total()} addresses; not run')
+                continue
+            if kind in CLIENT_TYPES and not self.attack_client:
+                self.show(f'== {kind}: needs --attack-client; not run')
                 continue
             if kind == 'status_connection_flood' and not self.places.spaces:
                 self.show(f'== {kind}: needs an address besides the runner\'s; not run')
@@ -711,7 +803,7 @@ def stamp():
 
 
 def run_campaign(pin, page_url, cli, env, out, attempts, kinds, spaces, genesis_bytes, engine_genesis_bytes,
-                 show=print):
+                 show=print, attack_client=None):
     """`env` runs the release CLI pinned to the endpoint (its HOME)."""
     network, channel, key = read_pin(pin)
     parts = urllib.parse.urlsplit(page_url)
@@ -720,7 +812,8 @@ def run_campaign(pin, page_url, cli, env, out, attempts, kinds, spaces, genesis_
     out.mkdir(parents=True, exist_ok=True)
     client = reconcile.Client(cli, env, out)
     started = stamp()
-    campaign = Campaign(Places(spaces), channel, page, network, key, honest_reader(client, page), attempts, show)
+    campaign = Campaign(Places(spaces), channel, page, network, key, honest_reader(client, page), attempts, show,
+                        attack_client=attack_client, pin=pin, cli=cli, env=env, scratch=out / 'scratch')
     rows = campaign.run(kinds)
     record = build_record(network, genesis_bytes, engine_genesis_bytes, rows, attempts, started, stamp())
     (out / 'endpoints.jsonl').write_bytes(rows_bytes(rows))
@@ -745,6 +838,7 @@ def main():
     r.add_argument('--attempts', type=int, default=TARGET)
     r.add_argument('--types', default=','.join(k for k in REASONS if REASONS[k]))
     r.add_argument('--spaces', default='', help='network namespaces, one address each')
+    r.add_argument('--attack-client', type=Path, help="node/tools/attack-client's dytallix-attack")
     commands.add_parser('probe')
     v = commands.add_parser('verify')
     for name in ('--evidence', '--rows', '--genesis', '--engine-genesis'):
@@ -766,7 +860,7 @@ def main():
         record = run_campaign(args.pin, args.page, args.cli, dict(os.environ, HOME=str(args.cli_home)), args.out,
                               args.attempts, kinds,
                               [s for s in args.spaces.split(',') if s], args.genesis.read_bytes(),
-                              args.engine_genesis.read_bytes())
+                              args.engine_genesis.read_bytes(), attack_client=args.attack_client)
         report(record)
         return 0 if record['status'] == PASS else 1
     except (Failed, reconcile.Failed, OSError, KeyError, ValueError) as error:
