@@ -144,7 +144,9 @@ SCENARIOS = (
     {'name': 'loss', 'command': 'fault-netem',
      'args': {'delay_ms': 50, 'loss_percent': 40, 'duration_seconds': 45}},
     {'name': 'peer_drop', 'command': 'fault-peer-drop', 'args': {}},
-    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 90}},
+    # At least 150 s, so the once-a-minute monitor must see the 60 s halt
+    # rule fire (P01, 10 November 2026; P01_T05_FAULT_ALERTS_2026-11-10).
+    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 150}},
     {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
 )
 # R02's validator process restart, on the validator through its own agent.
@@ -154,7 +156,10 @@ VALIDATOR_SCENARIOS = (
 BY_NAME = {spec['name']: spec for spec in SCENARIOS + VALIDATOR_SCENARIOS}
 # Host loss (P01, 9 November 2026): the sentry's machine powered off hard, held
 # off, then powered on, by the founder's power controller rather than the agent.
-HOST_LOSS = {'name': 'host_loss', 'command': 'power-cycle', 'args': {'off_seconds': 30}}
+# Held off past the alerting service's 3-minute heartbeat rule, so its alert
+# must fire (P01, 10 November 2026; P01_T05_FAULT_ALERTS_2026-11-10); the
+# recovery target is still timed from the power-on.
+HOST_LOSS = {'name': 'host_loss', 'command': 'power-cycle', 'args': {'off_seconds': 210}}
 # The kill's own dead-man (P01, 4 November 2026; ALLOWLIST.json fault-kill):
 # the host starts the node this long after a kill if nothing else has, so a
 # founder machine that drops between the kill and its restart cannot leave

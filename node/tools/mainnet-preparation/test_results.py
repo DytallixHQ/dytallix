@@ -440,34 +440,36 @@ class Network(unittest.TestCase):
 
 
 class FaultAlerts(unittest.TestCase):
-    def alerts(self, **decided):
-        import fault_alerts
+    def alerts(self):
         import test_fault_alerts
-        with unittest.mock.patch.dict(fault_alerts.EXPECTED, decided):
-            raw = json.dumps(test_fault_alerts.build()).encode()
-            return raw, results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, alert_files=[raw])
+        raw = json.dumps(test_fault_alerts.build()).encode()
+        return raw, results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT, alert_files=[raw])
 
-    def test_undecided_alerts_keep_the_kpi_in_progress_with_no_value(self):
+    def test_one_run_of_every_fault_alerted_is_100_percent_in_progress(self):
         _, summary = self.alerts()
         self.assertEqual(kpi(summary, 'campaign.faults.alerts'),
-                         {'id': 'campaign.faults.alerts', 'status': 'in_progress', 'value': None, 'unit': '%',
-                          'samples': 0, 'target': None})
+                         {'id': 'campaign.faults.alerts', 'status': 'in_progress', 'value': 100.0, 'unit': '%',
+                          'samples': 4, 'target': None})
         self.assertEqual(summary['date'], '2026-11-10')
         self.assertEqual(summary['sources'][0]['tool'], 'fault_alerts')
         self.assertEqual(results.summary_problems(summary), [])
 
-    def test_a_missed_alert_fails_and_all_raised_never_passes_yet(self):
-        import test_fault_alerts
-        _, summary = self.alerts(**test_fault_alerts.DECIDED)
-        found = kpi(summary, 'campaign.faults.alerts')
-        self.assertEqual((found['status'], found['value'], found['samples']), ('in_progress', 100.0, 4))
-        missed = results.alert_kpi(['PASS', 'FAIL', 'PASS', 'PASS'])
+    def test_a_miss_fails_and_each_faults_campaign_count_passes(self):
+        self.assertEqual(results.ALERT_REPETITIONS, {'partition': 30, 'host_loss': 30, 'sentry_rebuild': 3,
+                                                     'validator_host': 3})
+        missed = results.alert_kpi([('partition', 'PASS'), ('host_loss', 'FAIL'), ('sentry_rebuild', 'PASS'),
+                                    ('validator_host', 'PASS')])
         self.assertEqual((missed['status'], missed['value']), ('fail', 75.0))
+        full = ([('partition', 'PASS')] * 30 + [('host_loss', 'PASS')] * 30 + [('sentry_rebuild', 'PASS')] * 3
+                + [('validator_host', 'PASS')] * 3)
+        self.assertEqual(results.alert_kpi(full)['status'], 'pass')
+        self.assertEqual(results.alert_kpi(full[1:])['status'], 'in_progress')
+        self.assertEqual(results.alert_kpi(full[:59] + full[60:])['status'], 'in_progress')
 
     def test_an_edited_alerts_record_is_refused(self):
         raw, _ = self.alerts()
         edited = json.loads(raw)
-        edited['faults'][1]['status'] = 'PASS'
+        edited['faults'][1]['status'] = 'FAIL'
         with self.assertRaisesRegex(results.Failed, 'fault alerts record does not verify'):
             results.summarize_campaign([], NATIVE, ENGINE, TIMINGS, RELEASE, COMMIT,
                                        alert_files=[json.dumps(edited).encode()])

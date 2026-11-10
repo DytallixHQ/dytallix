@@ -76,7 +76,12 @@ Severity 1.
      `python3 -I -B dytallix-host/host_install.py verify` passes;
    - the sentry's height (and any endpoint's) follows;
    - the status view over the sentry's client channel lists the same
-     validator set as before H.
+     validator set as before H;
+   - its monitor settings are installed again (the install does not carry
+     them): `./dytallix-host/monitor-settings.sh FILE` with the replacement's
+     settings file from your own media ([monitoring](monitoring.md)); the
+     heartbeat service shows the host again and the outage's alerts resolve
+     (P01, 10 November 2026).
 10. **Record** the times (declared, fenced, installed, first block after H),
     H and the bundle's SHA-256, against the 8-hour objective. The quarterly
     restore drill runs this procedure on staging and records the same; the
