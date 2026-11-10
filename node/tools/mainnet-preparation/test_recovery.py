@@ -510,6 +510,15 @@ class StagingTests(unittest.TestCase):
         self.assertTrue(callable(staging_network.validator_recovery_drill))
         self.assertIs(staging_network.OPERATOR_STATUS, __import__('reconcile').OPERATOR_STATUS)
 
+    def test_the_drill_guards_and_holds_before_the_validator_starts(self):
+        import inspect
+        import staging_network
+        drill = inspect.getsource(staging_network.validator_recovery_drill)
+        guard, hold, start = (drill.index(s) for s in ("'guard', str(halt)", 'recovery.held(', "'dytallix-node.service'"))
+        self.assertLess(guard, hold)
+        self.assertLess(hold, start)
+        self.assertNotIn("'guard'", inspect.getsource(staging_network.restore_drill))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -722,13 +722,6 @@ def restore_drill(work, timeout=900):
     _, out, _ = sentry.run(['/root/node/dytallix-host/install.sh'], stdin=codes['sentry-1'] + '\n', timeout=900)
     say(out.strip())
     instants['installed_at'] = time.time()
-    say(f'== set the replacement\'s signing guard at H = {halt}')
-    subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'guard', str(halt)], check=True)
-    floor = json.loads(Path(SIGNING_STATE).read_bytes())
-    obs['signing_guard'] = {'height': int(floor['height'])}
-    if (obs['signing_guard']['height'], floor['round'], floor['step']) != (halt, 2**31 - 1, 3):
-        raise Failed(f'the signing guard did not hold: {floor}')
-    instants['guarded_at'] = time.time()
     say('== restore it from the copy (typing the backup code)')
     code, out, err = sentry.run(['/root/node/dytallix-host/restore.sh', '/root/restore-copy'],
                                 stdin=codes['backup'] + '\n', timeout=timeout, check=False)
@@ -836,6 +829,13 @@ def validator_recovery_drill(work, timeout=900):
     if result.returncode != 0:
         raise Failed('install.sh failed on the replacement')
     instants['installed_at'] = time.time()
+    say(f'== set the replacement\'s signing guard at H = {halt}')
+    subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'guard', str(halt)], check=True)
+    floor = json.loads(Path(SIGNING_STATE).read_bytes())
+    obs['signing_guard'] = {'height': int(floor['height'])}
+    if (obs['signing_guard']['height'], floor['round'], floor['step']) != (halt, 2**31 - 1, 3):
+        raise Failed(f'the signing guard did not hold: {floor}')
+    instants['guarded_at'] = time.time()
     if runner_alerts(work).exists():
         # CI only (fault alerts): the reinstall recreated the runner's firewall
         # table; the sentry's alerts reach the runner's stand-in again.
