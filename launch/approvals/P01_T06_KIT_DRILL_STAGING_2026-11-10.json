@@ -1,0 +1,40 @@
+{
+  "decision_id": "P01-2026-11-10-T06-KIT-DRILL-STAGING",
+  "approved": "2026-11-10",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The root kit drill on the staging hosts: which control, which notice, who signs, when"
+  },
+  "reason": "staging.kits.drill needs three of five rehearsal kits to prepare, sign and submit a root control end to end on the staging hosts. The kit replacement drill (K4) is approved for the CI staging network only (P01_E05_KIT_REPLACEMENT_DRILL_2026-10-08), which leaves 'a replacement drill on real hosts with the full notice' unset, and staging_network.py kit-drill has no real-host mode.",
+  "design_ref": "../../node/docs/architecture/root-kit-replacement-v1.md",
+  "decisions": [
+    {
+      "question": "Which control the drill runs",
+      "selected": "Freeze then resume",
+      "rule": "Each control is made with the release tools from the dytallix-staging-2 rehearsal kits and submitted over the sentry's client channel; admission with 3 of 5 signatures is the pass."
+    },
+    {
+      "question": "Who signs",
+      "selected": "The founder signs, using the 3 rehearsal kits",
+      "rule": "Only rehearsal kits; never production kits or fobs."
+    }
+  ],
+  "accepted_risks": [
+    "The staging chain is frozen between the freeze and the resume."
+  ],
+  "unset": [
+    "Which notice a kit replacement uses: none runs under this record (the control is freeze then resume); a kit replacement drill on real hosts needs its own answer",
+    "Tooling: build a real-host kit drill driver and staging summarizer first, or run the release tools by hand and record",
+    "When: the drill's UTC window (a freeze halts the staging chain until its resume is admitted)"
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "any production kit, fob or key",
+    "any upgrade or handover on a real host (T8 has its own approval)",
+    "any change to who may sign a replacement, its notice or its scope in production",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
