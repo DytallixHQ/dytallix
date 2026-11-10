@@ -697,7 +697,7 @@ class Load:
     # Views
 
     def refresh_profile(self):
-        profile = query(self.rpc, 'profile', '/ordinary/profile')
+        profile = self.read(lambda: query(self.rpc, 'profile', '/ordinary/profile'))
         if not profile.get('enabled'):
             raise Failed('ordinary transactions are disabled on this chain')
         if self.profile and profile['config']['fee_profile'] != self.profile['config']['fee_profile']:
@@ -872,13 +872,28 @@ class Load:
                     signed = [job.result() for job in jobs]
                     for n in range(0, len(signed), MAX_BATCH - 1):
                         batch = signed[n:n + MAX_BATCH - 1]
-                        broadcast(self.rpc, batch, 'setup')
+                        try:
+                            broadcast(self.rpc, batch, 'setup')
+                        except Transport:
+                            # The outcome is unknown: the receipts or the
+                            # expiry decide these rows.
+                            if not self.s.retries:
+                                raise
                         for row, _ in batch:
+                            if row['status'] == 'uncertain':
+                                self.tracker.add(row)
+                                pending[self.wallets[row['wallet']]] = row
+                                continue
                             if row['status'] != 'admitted':
                                 raise Failed(f'a funding transaction was refused: {row["log"]}')
                             self.tracker.add(row)
                             pending[self.wallets[row['wallet']]] = row
-                resolved = self.tracker.poll(self.tracker.due(self.tracker.head))
+                try:
+                    resolved = self.tracker.poll(self.tracker.due(self.tracker.head))
+                except Transport:
+                    if not self.s.retries:
+                        raise
+                    resolved = []
                 for row in resolved:
                     if row['status'] != 'committed' or row['outcome'] != 'success':
                         raise Failed(f'a funding transaction failed: {row}')
@@ -967,12 +982,16 @@ class Load:
         for attempt in range(self.s.retries + 1):
             row = self.online(wallet, args, kind='first_spend')
             log = (row['log'] or '').lower()
-            transient = 'timed out' in log or (unknown and 'nonce' in log)
+            # After a timeout the spend may be pending: a refusal of its
+            # nonce or of its ID is not final.
+            transient = 'timed out' in log or (unknown and ('nonce' in log or 'already' in log))
             if row['status'] == 'admitted' or not transient or attempt == self.s.retries:
                 return row
             unknown = True
-            self.show(f'== {wallet.label}\'s first spend: {row["log"]}; again in {self.backoff(attempt):.0f} s')
-            self.sleep(self.backoff(attempt))
+            # Two blocks at least, for a spend that did reach the mempool to commit.
+            wait = max(self.backoff(attempt), 2 * self.s.block_time)
+            self.show(f'== {wallet.label}\'s first spend: {row["log"]}; again in {wait:.0f} s')
+            self.sleep(wait)
             self.sync([wallet])
             if wallet.nonce > 0:
                 return None

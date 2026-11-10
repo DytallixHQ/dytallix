@@ -620,6 +620,19 @@ class TimingOut(SimulatedLoad):
         return row
 
 
+class FlakyRpc(ChainRpc):
+    """Loses the first funding broadcast's response (the chain took it)
+    and the first receipt poll's."""
+
+    def timed(self, label, requests):
+        self.lost = getattr(self, 'lost', set())
+        if label in ('setup', 'receipts') and label not in self.lost:
+            self.lost.add(label)
+            super().timed(label, requests)
+            raise load.Transport('the gateway: timed out')
+        return super().timed(label, requests)
+
+
 class ResumeTests(unittest.TestCase):
     """flood_workers.py drive's setup, made again on the same fleet (R03,
     10 November 2026)."""
@@ -638,12 +651,12 @@ class ResumeTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
 
-    def load(self, cls=SimulatedLoad, **values):
+    def load(self, cls=SimulatedLoad, rpc=ChainRpc, **values):
         config = {'ordinary': {'fee_profile': {'account_creation_fee_udrt': str(Chain.FEE), 'gas_price': '10'}},
                   'lifecycle': {'max_active': 16}, 'governance': {'deposit': {'minimum_deposit_udgt': 10**10}}}
         settings = load.Settings(**dict(dict(block_time=0.05, poll_interval=0.02, fund_drt=10 * load.UNIT,
                                              fund_dgt=10 * load.UNIT, retry_backoff=0.05), **values))
-        return cls(ChainRpc(self.chain), ChainSigner(), {}, 'dytallix', self.fleet, self.tmp.name, settings,
+        return cls(rpc(self.chain), ChainSigner(), {}, 'dytallix', self.fleet, self.tmp.name, settings,
                    {'label': self.funder.label, 'address': self.funder.address, 'account_id': self.funder.account_id},
                    'validator-1', config, show=lambda m: None)
 
@@ -702,6 +715,15 @@ class ResumeTests(unittest.TestCase):
         for d in run.role('distributor'):
             # The first spend, then its share's funding transaction: no second spend.
             self.assertEqual(self.chain.accounts[d.account_id]['nonce'], 2)
+
+    def test_a_lost_funding_response_is_followed_to_its_receipt(self):
+        with self.assertRaises(load.Transport):
+            self.load(rpc=FlakyRpc).fund()
+        self.setUp()
+        run = self.load(rpc=FlakyRpc, resume=True, retries=2)
+        run.fund()
+        self.assertEqual({w.drt for w in run.role('load')}, {10 * load.UNIT})
+        self.assertTrue(all(r['status'] == 'committed' for r in run.rows if r['kind'] == 'fund'))
 
     def test_the_expiry_follows_the_settings(self):
         run = self.load(expiry_blocks=120)
