@@ -587,3 +587,50 @@ fn startup_retries_only_a_helper_that_did_not_run() {
     assert!(rejected.is_err());
     assert_eq!(calls, 1);
 }
+
+/// T06 reproducer: the application's open (which runs before it answers the
+/// supervisor's `info` probe, bounded by process.startup_millis) replays the
+/// complete retained history. On an archive node that is every block from 1,
+/// so open time grows linearly with height. Run with
+/// `DYTALLIX_T06_HEIGHTS=500,2000,8000 cargo test --release startup_open_time -- --ignored --nocapture`.
+#[test]
+#[ignore = "timing reproducer, not a pass/fail check"]
+fn startup_open_time_grows_with_archive_height() {
+    let heights: Vec<u64> = std::env::var("DYTALLIX_T06_HEIGHTS")
+        .unwrap_or_else(|_| "500,2000".into())
+        .split(',')
+        .map(|h| h.parse().unwrap())
+        .collect();
+    let inputs = Inputs::new();
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("db");
+    let mut app = inputs.initialized(&path).with_block_history(BlockHistory::Archive);
+    let mut committed = 0;
+    let mut rows = Vec::new();
+    for target in heights {
+        for h in committed + 1..=target {
+            // Epoch boundaries (two-block epochs) carry the derived observation.
+            let parent = block(h - 1, vec![]).hash;
+            let txs = derived_observation_wire(&app.storage, &app.config, 2, h, &parent)
+                .unwrap()
+                .into_iter()
+                .collect();
+            app.finalize_block(block(h, txs)).unwrap();
+            app.commit().unwrap();
+        }
+        committed = target;
+        drop(app);
+        let started = std::time::Instant::now();
+        app = inputs.open(&path).with_block_history(BlockHistory::Archive);
+        let open = started.elapsed();
+        let started = std::time::Instant::now();
+        let info = app.info().unwrap();
+        let info_time = started.elapsed();
+        assert_eq!(info.height, target);
+        rows.push((target, open, info_time));
+        eprintln!("T06 height={target} open_ms={} info_ms={} per_block_us={:.1}",
+            open.as_millis(), info_time.as_millis(),
+            open.as_secs_f64() * 1e6 / target as f64);
+    }
+    assert!(rows.len() >= 1);
+}
