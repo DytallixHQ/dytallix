@@ -579,5 +579,137 @@ class WholeRunTests(unittest.TestCase):
         self.assertEqual(len(record['summary']['lost']), 1)
 
 
+
+class FundedChain(Chain):
+    """The simulated chain, also moving what each Send carries."""
+
+    def commit(self, height):
+        for tx in self.mempool:
+            if tx['id'] in self.drop:
+                continue
+            for action in tx.get('actions', []):
+                if action['type'] == 'Send':
+                    key = 'liquid' if action['denomination'] == 'udrt' else 'dgt'
+                    recipient = self.accounts.setdefault(bytes(action['recipient']).hex(), {'nonce': 0, 'liquid': 0})
+                    recipient[key] = recipient.get(key, 0) + int(action['amount'])
+                    sender = self.accounts[tx['actor']]
+                    sender[key] = sender.get(key, 0) - int(action['amount'])
+        super().commit(height)
+
+    def query(self, path, height):
+        value = super().query(path, height)
+        if path.startswith('/account/'):
+            value['liquid_udgt'] = str(self.accounts[ADDRESSES[path.rsplit('/', 1)[1]]].get('dgt', 0))
+        return value
+
+
+class TimingOut(SimulatedLoad):
+    """The CLI's online call times out on each wallet's first `times` tries;
+    with `lands`, the spend reached the chain all the same."""
+    times, lands = 1, False
+
+    def online(self, wallet, args, phase='setup', kind=None):
+        self.tries = getattr(self, 'tries', {})
+        self.tries[wallet.label] = self.tries.get(wallet.label, 0) + 1
+        if self.tries[wallet.label] > self.times:
+            return super().online(wallet, args, phase, kind)
+        if self.lands:
+            super().online(wallet, args, phase, kind)
+        row = self.record(load.new_row(phase, kind or args[0], wallet, path='online'))
+        row.update(status='refused', code=-1, log='Error: ordinary: RPC request timed out')
+        return row
+
+
+class ResumeTests(unittest.TestCase):
+    """flood_workers.py drive's setup, made again on the same fleet (R03,
+    10 November 2026)."""
+
+    def setUp(self):
+        self.fleet = {'_dir': '.', 'chain_id': CHAIN, 'wallets': []}
+        for label, role in load.fleet_labels(6, 0, 0, 2):
+            w = wallet(label, role)
+            ADDRESSES[w.address] = w.account_id
+            self.fleet['wallets'].append({'label': label, 'role': role, 'address': w.address,
+                                          'account_id': w.account_id, 'key_file': f'keys/{label}.json'})
+        self.funder = wallet('ecosystem-growth', 'funder')
+        ADDRESSES[self.funder.address] = self.funder.account_id
+        self.chain = FundedChain(0.05, [self.funder.account_id])
+        self.chain.accounts[self.funder.account_id]['dgt'] = 10**12
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def load(self, cls=SimulatedLoad, **values):
+        config = {'ordinary': {'fee_profile': {'account_creation_fee_udrt': str(Chain.FEE), 'gas_price': '10'}},
+                  'lifecycle': {'max_active': 16}, 'governance': {'deposit': {'minimum_deposit_udgt': 10**10}}}
+        settings = load.Settings(**dict(dict(block_time=0.05, poll_interval=0.02, fund_drt=10 * load.UNIT,
+                                             fund_dgt=10 * load.UNIT, retry_backoff=0.05), **values))
+        return cls(ChainRpc(self.chain), ChainSigner(), {}, 'dytallix', self.fleet, self.tmp.name, settings,
+                   {'label': self.funder.label, 'address': self.funder.address, 'account_id': self.funder.account_id},
+                   'validator-1', config, show=lambda m: None)
+
+    def test_a_second_run_on_a_primed_fleet_failed_on_the_receipt_and_now_skips_it(self):
+        self.load().fund()
+        with self.assertRaisesRegex(load.Failed, 'another transaction'):
+            self.load().fund()  # the old behaviour: distributors' first spends again
+        run = self.load(resume=True)
+        run.fund()
+        self.assertEqual([r for r in run.rows if r['kind'] in ('fund', 'first_spend')], [])
+        self.assertEqual({w.drt for w in run.role('load')}, {10 * load.UNIT})
+        self.assertEqual({w.dgt for w in run.role('load')}, {10 * load.UNIT})
+
+    def test_a_resumed_run_pays_only_the_shortfall_and_creates_nothing_twice(self):
+        self.load(resume=True).fund()
+        run = self.load(resume=True, fund_drt=12 * load.UNIT)
+        run.fund()
+        funding = [r for r in run.rows if r['kind'] == 'fund']
+        self.assertTrue(funding)
+        self.assertEqual(sum(r['created_accounts'] for r in funding), 0)
+        self.assertEqual({w.drt for w in run.role('load')}, {12 * load.UNIT})
+        self.assertEqual({self.chain.accounts[w.account_id]['dgt'] for w in run.role('load')}, {10 * load.UNIT})
+        self.assertEqual([r for r in run.rows if r['kind'] == 'first_spend'], [])
+
+    def test_the_budget_refuses_before_anything_is_sent(self):
+        run = self.load(resume=True)
+        seen = []
+
+        def budget(needs):
+            seen.append(needs)
+            raise load.Failed('short')
+        with self.assertRaises(load.Failed):
+            run.fund(budget=budget)
+        self.assertEqual((run.rows, self.chain.receipts), ([], {}))
+        # Six wallets of 10 DRT, their accounts and the distributors' caps,
+        # their own accounts, priming spends and the funder's one transaction.
+        drt, dgt = seen[0]
+        self.assertEqual(dgt, 6 * 10 * load.UNIT)
+        self.assertEqual(drt, sum(run.distributor_needs([(w, 10 * load.UNIT, 0)] * 3)[0] for w in range(2))
+                         + 2 * Chain.FEE + load.FUNDING_GAS_LIMIT * 10)
+
+    def test_a_timed_out_first_spend_is_tried_again(self):
+        with self.assertRaisesRegex(load.Failed, 'timed out'):
+            self.load(cls=TimingOut).fund()
+        self.chain = FundedChain(0.05, [self.funder.account_id])
+        self.chain.accounts[self.funder.account_id]['dgt'] = 10**12
+        run = self.load(cls=TimingOut, resume=True, retries=2)
+        run.fund()
+        self.assertEqual({w.drt for w in run.role('load')}, {10 * load.UNIT})
+
+    def test_a_timed_out_first_spend_that_landed_is_not_made_twice(self):
+        TimingOut.lands = True
+        self.addCleanup(setattr, TimingOut, 'lands', False)
+        run = self.load(cls=TimingOut, resume=True, retries=3)
+        run.fund()
+        for d in run.role('distributor'):
+            # The first spend, then its share's funding transaction: no second spend.
+            self.assertEqual(self.chain.accounts[d.account_id]['nonce'], 2)
+
+    def test_the_expiry_follows_the_settings(self):
+        run = self.load(expiry_blocks=120)
+        run.refresh_profile()
+        run.sync([run.funder])
+        row, _ = run.sign(load.new_row('setup', 'fund', run.funder), run.funder, [])
+        self.assertEqual(row['expiry_height'], int(run.profile['context']['height']) + 121)
+
+
 if __name__ == '__main__':
     unittest.main()
