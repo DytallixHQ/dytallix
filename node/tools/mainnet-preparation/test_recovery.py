@@ -328,6 +328,19 @@ class RealHostRunTests(unittest.TestCase):
         with self.assertRaises(rv.Failed):
             rv.start(self.run, Client(SET), clock=self.clock)
 
+    def test_start_makes_the_run_directory_before_the_client_writes_into_it(self):
+        class WritingClient(Client):
+            def __init__(self, directory, *views):
+                super().__init__(*views)
+                self.directory = directory
+
+            def status(self):
+                (self.directory / 'reconcile-status-1.json').write_text('{}')
+                return super().status()
+
+        rv.start(self.run, WritingClient(self.run, SET), clock=self.clock)
+        self.assertEqual(rv.load_run(self.run)['observations']['validators_before'], SET)
+
     def test_no_validator_listed_is_no_declaration(self):
         with self.assertRaises(rv.Failed):
             rv.start(self.run, Client([]), clock=self.clock)

@@ -336,8 +336,9 @@ def start(directory, client, clock=time.time):
     directory = Path(directory)
     if (directory / RUN).exists():
         raise Failed(f'a run is already at {directory}')
-    before = validator_set(client)
+    # The client writes its status view into the run directory.
     directory.mkdir(parents=True, exist_ok=True)
+    before = validator_set(client)
     run = {'schema': RUN_SCHEMA,
            'observations': {'clock': CLOCK, 'instants': {'declared_at': clock()}, 'validators_before': before}}
     save_run(directory, run)
