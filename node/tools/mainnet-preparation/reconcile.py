@@ -454,7 +454,11 @@ class Client:
         return result.stdout
 
     def status(self):
+        # The CLI never overwrites, and an earlier process (recovery.py start
+        # before finish) may have saved views here already: take the next free name.
         self.saved += 1
+        while (self.scratch / f'reconcile-status-{self.saved}.json').exists():
+            self.saved += 1
         path = self.scratch / f'reconcile-status-{self.saved}.json'
         self.call('control', 'status', '--out', path)
         return json.loads(path.read_bytes())
