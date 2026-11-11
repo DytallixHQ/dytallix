@@ -17,7 +17,12 @@
     {
       "question": "Whether the R03 floods run on dytallix-staging-3",
       "selected": "Yes, after T9",
-      "rule": "Once the drill has passed, the R03 transaction and request flood campaign runs on dytallix-staging-3 from the existing load machines on the existing provider account, under the flood rules already approved (P01_T04_FLOODS_2026-11-09, P01_T06_R03_LOAD_MACHINES_RUN_2026-11-10). The results are reported."
+      "rule": "Once the drill has passed, the R03 transaction and request flood campaign runs on dytallix-staging-3 under the flood rules already approved (P01_T04_FLOODS_2026-11-09) and the machine rules of P01_T06_R03_LOAD_MACHINES_RUN_2026-11-10. The results are reported."
+    },
+    {
+      "question": "When the R03 floods run, on how many load machines, and at what cost (asked after the drill passed)",
+      "selected": "Today, once prep is done",
+      "rule": "11 November 2026, after the drill passed, once the no-cost preparation is done (the wallet fleet made, and funding and priming tried with no load machine up):\n- 7 new load machines, made by load_machines.py up --count 7 --hours 4: the cheapest x86 type in nbg1, fsn1 and sin, never hel1. At 0.012 to 0.0144 EUR an hour each, about 0.40 EUR at most.\n- The watchdog deletes them at 4 hours, whatever else happens. down deletes them when the run ends, and load_machines.py check must show nothing left.\n- 10 transaction floods, then 10 request floods, against the dytallix-staging-3 sentry.\nThis is the request floods' own window, which P01_T06_R03_WINDOW_TODAY_2026-11-10 left open."
     }
   ],
   "accepted_risks": [
