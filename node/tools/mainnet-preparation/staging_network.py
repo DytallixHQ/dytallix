@@ -307,10 +307,25 @@ def network_plan():
     return plan
 
 
+# Ubuntu mirrors outside Canonical, current on 11 November 2026; the same
+# list as .github/actions/apt-install/install.sh.
+FALLBACK_MIRRORS = ('https://mirrors.edge.kernel.org/ubuntu', 'https://mirror.math.princeton.edu/pub/ubuntu')
+
+
 def user_data(label):
     return '\n'.join([
         '#cloud-config',
         f'hostname: {label}',
+        # The first mirror whose name resolves serves the packages: Canonical's,
+        # else two outside Canonical (Canonical outage, 11 November 2026). apt
+        # accepts any of them only under Ubuntu's archive key.
+        'apt:',
+        '  primary:',
+        '    - arches: [default]',
+        f'      search: [http://archive.ubuntu.com/ubuntu, {", ".join(FALLBACK_MIRRORS)}]',
+        '  security:',
+        '    - arches: [default]',
+        f'      search: [http://security.ubuntu.com/ubuntu, {", ".join(FALLBACK_MIRRORS)}]',
         'package_update: true',
         'packages: [qemu-guest-agent, apparmor-utils, nftables]',
         'runcmd:',

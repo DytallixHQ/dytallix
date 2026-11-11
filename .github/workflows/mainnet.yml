@@ -58,7 +58,9 @@ jobs:
         # progressing mirror finish. apparmor_parser loads the native process
         # tests' profiles.
         timeout-minutes: 20
-        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y clang libclang-dev cmake pkg-config apparmor
+        uses: ./.github/actions/apt-install
+        with:
+          packages: clang libclang-dev cmake pkg-config apparmor
       - name: Module boundaries
         run: |
           python3 scripts/check_module_boundaries.py
@@ -207,7 +209,9 @@ jobs:
         # for 85 minutes, 7 October 2026); this backstop lets a slow but
         # progressing mirror finish.
         timeout-minutes: 20
-        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update && sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y apparmor apparmor-utils gcc libc6-dev linux-libc-dev clang libclang-dev cmake pkg-config
+        uses: ./.github/actions/apt-install
+        with:
+          packages: apparmor apparmor-utils gcc libc6-dev linux-libc-dev clang libclang-dev cmake pkg-config
       - name: Build helper, fixture and Rust fixtures
         run: |
           out="$RUNNER_TEMP/e02"
