@@ -236,31 +236,54 @@ jobs:
           sudo chmod 0755 /opt
           ls -l /dev/kvm
       # Canonical's published image, checked against its SHA256SUMS and
-      # cached by that digest.
+      # cached by that digest. When cloud-images.ubuntu.com does not answer
+      # (Canonical outage, 11 November 2026), the image last cached is used:
+      # its key is the digest it was checked against when saved, and it is
+      # checked against that digest again here.
       - name: Ubuntu 24.04 cloud image digest
         id: image
         run: |
-          curl -fsSL --retry 3 https://cloud-images.ubuntu.com/releases/noble/release/SHA256SUMS -o "$RUNNER_TEMP/SHA256SUMS"
-          sum=$(grep ' \*ubuntu-24.04-server-cloudimg-amd64.img$' "$RUNNER_TEMP/SHA256SUMS" | cut -d' ' -f1)
-          test -n "$sum"
-          echo "sum=$sum" >> "$GITHUB_OUTPUT"
+          if curl -fsSL --retry 3 --max-time 120 https://cloud-images.ubuntu.com/releases/noble/release/SHA256SUMS -o "$RUNNER_TEMP/SHA256SUMS"; then
+            sum=$(grep ' \*ubuntu-24.04-server-cloudimg-amd64.img$' "$RUNNER_TEMP/SHA256SUMS" | cut -d' ' -f1)
+            test -n "$sum"
+            echo "sum=$sum" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning title=Ubuntu cloud images unreachable::cloud-images.ubuntu.com did not answer; using the cached image, checked against the digest it was cached under."
+          fi
       - name: Cached cloud image
         id: image-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/cloud.img
           key: ubuntu-cloud-${{ steps.image.outputs.sum }}
+          restore-keys: ${{ steps.image.outputs.sum == '' && 'ubuntu-cloud-' || '' }}
+          fail-on-cache-miss: ${{ steps.image.outputs.sum == '' }}
+      - name: Cloud image digest to check
+        id: digest
+        env:
+          SUM: ${{ steps.image.outputs.sum }}
+          MATCHED: ${{ steps.image-cache.outputs.cache-matched-key }}
+        run: |
+          sum=$SUM
+          if [ -z "$sum" ]; then sum=${MATCHED#ubuntu-cloud-}; fi
+          if ! [[ $sum =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::No cloud image digest: Canonical gave none and no cached image matched"
+            exit 1
+          fi
+          echo "sum=$sum" >> "$GITHUB_OUTPUT"
       - name: Download the cloud image
-        if: steps.image-cache.outputs.cache-hit != 'true'
+        if: steps.image-cache.outputs.cache-matched-key == ''
         run: curl -fSL --retry 3 https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-amd64.img -o "$RUNNER_TEMP/cloud.img"
       - name: Check the cloud image
-        run: echo "${{ steps.image.outputs.sum }}  $RUNNER_TEMP/cloud.img" | sha256sum -c
+        env:
+          SUM: ${{ steps.digest.outputs.sum }}
+        run: echo "$SUM  $RUNNER_TEMP/cloud.img" | sha256sum -c
       - name: Save the cloud image
-        if: steps.image-cache.outputs.cache-hit != 'true'
+        if: steps.image-cache.outputs.cache-matched-key == ''
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/cloud.img
-          key: ubuntu-cloud-${{ steps.image.outputs.sum }}
+          key: ubuntu-cloud-${{ steps.digest.outputs.sum }}
       - name: Staging chain and bundles
         run: |
           python3 node/tools/mainnet-preparation/staging_network.py prepare \
