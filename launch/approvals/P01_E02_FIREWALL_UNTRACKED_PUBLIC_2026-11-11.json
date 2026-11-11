@@ -1,0 +1,29 @@
+{
+  "decision_id": "P01-2026-11-11-E02-FIREWALL-UNTRACKED-PUBLIC",
+  "approved": "2026-11-11",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How to fix the connection-tracking weakness the request flood found on the sentry"
+  },
+  "reason": "The request flood in CI (run 42944358679, #138) filled the CI sentry's connection-tracking table: its kernel logged 'nf_conntrack: table full, dropping packet' 97 times between 03:45:43 and 03:46:47 UTC. The node firewall tracked every accepted connection, the public listeners and loopback included. Once the table was full, the kernel dropped every new packet, including the adapter's loopback calls to the engine. An honest read then waited 30 s for 'HTTP 502: RPC request timed out', and the request flood counted as admitted. Every sentry and endpoint firewall is rendered the same way, so the real hosts have the same weakness.",
+  "design_ref": "../../node/tools/native-execution-policy/README.md",
+  "decisions": [
+    {
+      "question": "How to fix the connection-tracking weakness",
+      "selected": "Stop tracking the public ports",
+      "rule": "The rendered host firewall (native-execution-policy render.py) adds two raw-priority chains. On the way in (prerouting) and on the way out (output), loopback and the declared public listeners, matched on the node's address and their ports, are marked notrack. The input chain still drops by default and still accepts the public listeners and loopback explicitly, so untracked packets to those ports are admitted statelessly and nothing else changes. The P2P listener stays tracked and open to the pinned peers only. A validator, which has no public listener, untracks loopback only. The change takes effect with bundles rendered after it, starting with dytallix-staging-3."
+    }
+  ],
+  "accepted_risks": [
+    "Untracked public-port packets are matched by port alone. Port scans and SYN floods on those ports reach the listeners, which already bound their connections (the adapter's connection limits) and rely on the kernel's SYN cookies.",
+    "ICMP errors for untracked flows are not related to a connection. The input chain accepts the listed ICMP types explicitly, so path MTU discovery still works."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "loading new rules on a running host outside an install or a reviewed release",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

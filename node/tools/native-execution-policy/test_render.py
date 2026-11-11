@@ -54,6 +54,15 @@ class ProductionRenderingTests(unittest.TestCase):
         self.assertIn('ip daddr 10.20.0.2 tcp dport 26670 accept',rules)
         # Nothing else is admitted: one pinned-source rule and one public listener.
         self.assertEqual(sum(' accept' in line and 'dport' in line for line in rules.splitlines()),2)
+        # A client flood cannot fill the tracking table: loopback and the public
+        # listener are untracked both ways; the P2P listener stays tracked.
+        self.assertIn('type filter hook prerouting priority raw;',rules)
+        self.assertIn('type filter hook output priority raw;',rules)
+        self.assertIn('iif "lo" notrack',rules)
+        self.assertIn('oif "lo" notrack',rules)
+        self.assertIn('ip daddr 10.20.0.2 tcp dport { 26670 } notrack',rules)
+        self.assertIn('ip saddr 10.20.0.2 tcp sport { 26670 } notrack',rules)
+        self.assertFalse(any('26656' in line and 'notrack' in line for line in rules.splitlines()))
         self.assertIn('host-firewall.nft',json.loads(out['FILE_HASHES.json']))
         requirements=json.loads(out['live-verification-requirements.json'])['mandatory']
         self.assertTrue(set(render.ROUTED_REQUIREMENTS)<=set(requirements))
@@ -63,6 +72,9 @@ class ProductionRenderingTests(unittest.TestCase):
         raw,m,r,transport=production_fixture(public=())
         rules=render.render(raw,m,r,transport)['host-firewall.nft'].decode()
         self.assertEqual(sum('dport' in line for line in rules.splitlines()),1)
+        # A validator has no public listener: only loopback is untracked.
+        self.assertEqual([line.strip() for line in rules.splitlines() if 'notrack' in line],
+                         ['iif "lo" notrack','oif "lo" notrack'])
         raw,m,r,transport=production_fixture(peers=('[2001:db8::3]:26656',),listen='[2001:db8::2]:26656',public=())
         r['network']['sockets']=[{'family':'inet6','type':'stream'}]
         rules=render.render(raw,m,r,transport)['host-firewall.nft'].decode()

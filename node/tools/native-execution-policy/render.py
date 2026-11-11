@@ -25,7 +25,7 @@ TRANSPORT_KEYS = ['version', 'profile', 'network', 'local_public_key_base64', 'p
 MAX_PINS = 64
 MAX_PUBLIC_LISTENERS = 4
 ROUTED_REQUIREMENTS = [
-    'Load host-firewall.nft before the unit starts. Verify the effective input policy drops every source except the pinned peers at the P2P listener, the declared public listeners, established replies, loopback and the listed ICMP types.',
+    'Load host-firewall.nft before the unit starts. Verify the effective input policy drops every source except the pinned peers at the P2P listener, the declared public listeners, established replies, loopback and the listed ICMP types, and that loopback and the public listeners are not connection-tracked while the P2P listener is.',
     'Verify the node listens on and sends from its single address; a public sentry uses static 1:1 NAT without port translation (P01, 30 September 2026).',
     'Render and load the rules again with each reviewed pin change, before the restart that applies it.',
 ]
@@ -161,12 +161,24 @@ def firewall_sources(spec, transport, chain_id):
 
 def firewall_rules(listen, public, peers):
     """Inbound rules for nft: only pinned peers reach the P2P listener, so an
-    unpinned source is dropped before the handshake. Outbound is unchanged."""
+    unpinned source is dropped before the handshake. Outbound is unchanged.
+    Loopback and the public listeners are not connection-tracked (P01, 11
+    November 2026): a flood of client connections would otherwise fill the
+    kernel's tracking table, which then drops every new packet, the node's
+    own loopback calls included. The P2P listener stays tracked."""
     family = 'ip' if listen[0].version == 4 else 'ip6'
+    ports = ', '.join(str(port) for _, port in sorted(public, key=lambda x: x[1]))
+    untracked_in, untracked_out = ['    iif "lo" notrack'], ['    oif "lo" notrack']
+    if public:
+        untracked_in.append(f'    {family} daddr {listen[0].compressed} tcp dport {{ {ports} }} notrack')
+        untracked_out.append(f'    {family} saddr {listen[0].compressed} tcp sport {{ {ports} }} notrack')
     lines = ['#!/usr/sbin/nft -f',
              '# Dytallix host firewall (production activation v1). Rendering does not load it.',
              'table inet dytallix_node', 'delete table inet dytallix_node',
-             'table inet dytallix_node {', '  chain input {',
+             'table inet dytallix_node {',
+             '  chain untracked_in {', '    type filter hook prerouting priority raw;', *untracked_in, '  }',
+             '  chain untracked_out {', '    type filter hook output priority raw;', *untracked_out, '  }',
+             '  chain input {',
              '    type filter hook input priority filter; policy drop;',
              '    ct state invalid drop', '    ct state established,related accept', '    iif "lo" accept',
              '    icmp type { destination-unreachable, time-exceeded, parameter-problem } accept',

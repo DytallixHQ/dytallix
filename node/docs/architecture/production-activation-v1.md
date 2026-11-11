@@ -346,7 +346,7 @@ production-profile staging chains signed with test keys:
 - **State sync.** Optional light block exports, required exactly when the engine enables state sync, are passed with `--light-blocks`.
 - **Readiness** waits for catch-up up to the required per-host budget `catch_up_millis` (P01, 1 October 2026; E05 value, unset). It rechecks the children, the locks and the supervisor's security while waiting.
 - **Observation** (P01, 1 October 2026). The engine, application, bridge and adapter are observed once at startup. Later ticks check liveness, locks and each child's security state without pausing; helpers keep paused checks.
-- **Host policy.** The renderer accepts the production catalog in a `routed` network mode only. It renders `host-firewall.nft` from the node's exact transport file: only pinned peers reach the P2P listener, and the declared public listeners are open.
+- **Host policy.** The renderer accepts the production catalog in a `routed` network mode only. It renders `host-firewall.nft` from the node's exact transport file: only pinned peers reach the P2P listener, and the declared public listeners are open. Loopback and the public listeners are not connection-tracked, so a client flood cannot fill the tracking table (P01, 11 November 2026).
 - **Python supervisor retired**, with its unit and manifest templates.
 - **Not yet.**
   - The catch-up budget and every other operating value (E05).
