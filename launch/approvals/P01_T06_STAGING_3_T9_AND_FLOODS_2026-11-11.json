@@ -1,0 +1,44 @@
+{
+  "decision_id": "P01-2026-11-11-T06-STAGING-3-T9-AND-FLOODS",
+  "approved": "2026-11-11",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the validator recovery drill (T9) and then the R03 floods run on dytallix-staging-3"
+  },
+  "reason": "dytallix-staging-3 was installed on 11 November under P01_T06_STAGING_3_INSTALL_2026-11-11, with the signing guard and the start gate (#134), the startup and readiness fixes (#135 to #138) and the untracked public listeners (#140). On dytallix-staging-2 the drill ended in the double sign of 10 November and the request flood failed in CI on the connection-tracking table. Both now run again on the new chain, by the amended procedure.",
+  "design_ref": "../../node/docs/operations/validator-recovery.md",
+  "decisions": [
+    {
+      "question": "Whether the validator recovery drill runs on dytallix-staging-3 now",
+      "selected": "Run T9 now",
+      "rule": "One run of the drill on dytallix-staging-3, as P01_T06_VALIDATOR_RECOVERY_STAGING_2026-11-06 ran it on dytallix-staging-2, by the procedure as amended after the double sign:\n- Snapshot: the staging validator is snapshotted first and seen available. The snapshot is kept.\n- Fence: the provider reinstalls the staging validator on the same server and address. Delete and rebuild protection are lifted for the reinstall and turned back on.\n- Halt, set aside and install: H is read twice. The sentry's consensus log is moved aside at its console, never deleted. The replacement is installed over SSH while port 22 is still open.\n- Signing guard: host_install.py guard H on the replacement before anything starts it, then marked guarded.\n- Start gate: the sentry starts first. The validator starts only after recovery.py hold prints GO.\n- After the first block, the agent is installed again with its command sequence carried. host_install.py verify runs, and finish writes the evidence.\nAny STOP or FAIL halts the run, and it is reported before anything else is done."
+    },
+    {
+      "question": "Whether the R03 floods run on dytallix-staging-3",
+      "selected": "Yes, after T9",
+      "rule": "Once the drill has passed, the R03 transaction and request flood campaign runs on dytallix-staging-3 under the flood rules already approved (P01_T04_FLOODS_2026-11-09) and the machine rules of P01_T06_R03_LOAD_MACHINES_RUN_2026-11-10. The results are reported."
+    },
+    {
+      "question": "When the R03 floods run, on how many load machines, and at what cost (asked after the drill passed)",
+      "selected": "Today, once prep is done",
+      "rule": "11 November 2026, after the drill passed, once the no-cost preparation is done (the wallet fleet made, and funding and priming tried with no load machine up):\n- 7 new load machines, made by load_machines.py up --count 7 --hours 4: the cheapest x86 type in nbg1, fsn1 and sin, never hel1. At 0.012 to 0.0144 EUR an hour each, about 0.40 EUR at most.\n- The watchdog deletes them at 4 hours, whatever else happens. down deletes them when the run ends, and load_machines.py check must show nothing left.\n- 10 transaction floods, then 10 request floods, against the dytallix-staging-3 sentry.\nThis is the request floods' own window, which P01_T06_R03_WINDOW_TODAY_2026-11-10 left open."
+    }
+  ],
+  "accepted_risks": [
+    "dytallix-staging-3 is young, so the slow application open at a large height from 10 November is not exercised again. The drill exercises the signing guard and the start gate. The startup bound at a large height is still an open item from the incident.",
+    "The staging chain makes no blocks from the fence until the replacement signs again, and the staging monitors alert meanwhile.",
+    "The snapshot holds the old validator's sealed staging keys. They are staging rehearsal identities only, and the snapshot stays in the founder's provider account."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "a reinstall of the sentry or of any other host",
+    "a second run of the drill",
+    "the floods before the drill has passed",
+    "deleting any snapshot",
+    "any agent command beyond the allowlist",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
