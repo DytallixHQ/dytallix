@@ -5,7 +5,9 @@ recovery drill."""
 import copy
 import json
 import unittest
+from pathlib import Path
 
+import reconcile
 import recovery as rv
 
 GENESIS = b'{"accounts": []}'
@@ -327,6 +329,41 @@ class RealHostRunTests(unittest.TestCase):
             rv.mark(self.run, 'started', clock=self.clock)
         with self.assertRaises(rv.Failed):
             rv.start(self.run, Client(SET), clock=self.clock)
+
+    def test_start_makes_the_run_directory_before_the_client_writes_into_it(self):
+        class WritingClient(Client):
+            def __init__(self, directory, *views):
+                super().__init__(*views)
+                self.directory = directory
+
+            def status(self):
+                (self.directory / 'reconcile-status-1.json').write_text('{}')
+                return super().status()
+
+        rv.start(self.run, WritingClient(self.run, SET), clock=self.clock)
+        self.assertEqual(rv.load_run(self.run)['observations']['validators_before'], SET)
+
+    def test_a_second_client_on_the_run_directory_never_overwrites_the_first_views(self):
+        import os, stat, textwrap
+        cli = Path(self.directory.name) / 'fake-cli'
+        cli.write_text(textwrap.dedent('''\
+            #!/usr/bin/env python3
+            import json, os, sys
+            out = sys.argv[sys.argv.index('--out') + 1]
+            fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            os.write(fd, json.dumps({'effective_validators': [sys.argv[0][-3:]]}).encode())
+            '''))
+        cli.chmod(cli.stat().st_mode | stat.S_IXUSR)
+        self.run.mkdir(parents=True)
+        first = reconcile.Client(cli, dict(os.environ), self.run)
+        first.status()
+        before = (self.run / 'reconcile-status-1.json').read_bytes()
+        second = reconcile.Client(cli, dict(os.environ), self.run)
+        second.status()
+        second.status()
+        self.assertEqual((self.run / 'reconcile-status-1.json').read_bytes(), before)
+        self.assertEqual(sorted(p.name for p in self.run.iterdir()),
+                         ['reconcile-status-1.json', 'reconcile-status-2.json', 'reconcile-status-3.json'])
 
     def test_no_validator_listed_is_no_declaration(self):
         with self.assertRaises(rv.Failed):
