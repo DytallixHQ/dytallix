@@ -1,0 +1,36 @@
+{
+  "decision_id": "P01-2026-11-11-T06-STAGING-DOUBLE-SIGN-CLOSEOUT",
+  "approved": "2026-11-11",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How staging comes back after the double sign in the validator recovery drill of 10 November 2026, and whether the forked validator disk is kept before it is wiped"
+  },
+  "reason": "During the validator recovery drill on dytallix-staging-2 (10 November 2026), the sentry failed to start and the replacement validator, alone and the only validator, signed heights 1 to 1,401 of a fork with the key that had signed the real chain to 173,074. The fork stayed on the replacement. The causes and the fixes (#134, #136, #137, #138) are in the incident record.",
+  "design_ref": "../operations/incidents/2026-11-10-staging-double-sign.md",
+  "decisions": [
+    {
+      "question": "How staging comes back",
+      "selected": "A new chain, dytallix-staging-3",
+      "rule": "dytallix-staging-2 is retired and not restarted. Its records and snapshots are kept. Staging comes back as dytallix-staging-3:\n- a release built from main with #134, #136, #137 and #138;\n- every bundle sealed again, so the signing guard ships in host_install.py;\n- a new genesis;\n- both hosts reinstalled.\nThe validator recovery drill runs again there, with the signing guard and the start gate."
+    },
+    {
+      "question": "Whether the forked validator disk is kept before it is wiped",
+      "selected": "Snapshot, then wipe",
+      "rule": "A provider snapshot of the replacement's disk is taken and seen available first. It holds the forked blocks and the signing state at 1,401, and it is kept: retired, never deleted. Then validator-1 is reinstalled to the bare operating system, so the forked signing state can never start again. Its delete and rebuild protection is turned back on."
+    }
+  ],
+  "accepted_risks": [
+    "The staging chain stays down until dytallix-staging-3 is installed, so no staging run can happen in between.",
+    "Several items stay open and are listed in the incident record: the startup budget, the startup check's scope, the sentry archive, 4 GB staging hosts, Restart=no, catch-up through consensus against the 6-hour objective, and watching the sentry after the validator starts."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "installing dytallix-staging-3, or reinstalling the sentry",
+    "running the validator recovery drill again",
+    "deleting any snapshot",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
