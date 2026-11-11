@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-11-11-T06-STAGING-3-INSTALL",
+  "approved": "2026-11-11",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether dytallix-staging-3 is installed on the two staging servers once #138 and the incident closeout merge and CI has built the release for main"
+  },
+  "reason": "The closeout of the 10 November double sign retired dytallix-staging-2 and chose a new staging chain, dytallix-staging-3, built from a release that carries the fixes (P01_T06_STAGING_DOUBLE_SIGN_CLOSEOUT_2026-11-11).",
+  "design_ref": "../operations/incidents/2026-11-10-staging-double-sign.md",
+  "decisions": [
+    {
+      "question": "Whether dytallix-staging-3 is installed",
+      "selected": "The full install",
+      "rule": "Nothing starts until main has #138 and the closeout, and CI has built the release for that commit. Then, as dytallix-staging-2 was installed on 2 November:\n- **Build.** The release is downloaded and checked against its SHA256SUMS. The plan, keys, chain and one bundle per host are built in an Ubuntu container with the rehearsal timings. Each bundle's host_install.py must carry the signing guard.\n- **Agent keys.** New per-host read keys are made on commands/dytallix-staging-3/HOST/ (read and list only). This takes the founder's one Backblaze sign-in, then a sign-out.\n- **Upload.** The bundles and monitor settings go to the staging bucket, with 7-day links.\n- **Servers.** Both staging servers are reinstalled by the provider on the same servers and addresses. Delete and rebuild protection is lifted for the reinstall and turned back on.\n- **Install.** Each server is installed over SSH while port 22 is still open after the reinstall, and the node firewall then closes it. The sentry starts first, then the validator. Each gets its staging agent (a new chain starts at sequence 1) and its monitor settings, and host_install.py verify must pass."
+    }
+  ],
+  "accepted_risks": [
+    "The sentry's dytallix-staging-2 disk is replaced. Its snapshot from 10 November is kept.",
+    "Until staging-3 is in, no staging run can happen."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "running the validator recovery drill on dytallix-staging-3",
+    "the transaction or request floods on dytallix-staging-3",
+    "deleting any snapshot",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
