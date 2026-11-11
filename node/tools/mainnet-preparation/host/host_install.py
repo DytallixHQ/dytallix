@@ -33,6 +33,12 @@ from the unpacked bundle, through install.sh and wipe.sh:
            M4): the heartbeat, alert and escalation URLs, from a file on the
            founder's own media, root-only, then runs the monitor once. They
            are never in the bundle and change without touching the keys.
+  guard H  on a replacement validator (validator recovery, F17), after the
+           install and before its first start: raises its signing state to
+           the halt height H, so that its key refuses every proposal and
+           vote at or below H and signs only from H + 1. It is a floor, not
+           a restore: it never lowers a state, the node must be stopped, and
+           a node that has run (an engine store) is refused.
   wipe     removes the node from the host (staging before production):
            /opt/dytallix, /etc/dytallix, /var/lib/dytallix, the unit, the
            profiles, the firewall table, the journal setting, the monitor
@@ -555,6 +561,72 @@ def verify(bundle, host, manifest=None, fresh=False):
     return problems
 
 
+# The signing guard (validator recovery, F17)
+
+# The engine's file signer refuses a height below the state's, a round below
+# the state's at its height, and, at its height, round and step, a message
+# it has no signature for. A state at (H, the largest round, precommit) with
+# no signature therefore refuses everything at or below H and nothing above.
+# The engine encodes the height (int64) as a string.
+GUARD_ROUND = 2**31 - 1
+GUARD_STEP = 3
+
+
+def guard_state(height):
+    """The signing state that refuses every height at or below `height`."""
+    require(isinstance(height, int) and not isinstance(height, bool) and height >= 1,
+            f'the halt height must be a positive integer, not {height!r}')
+    return (json.dumps({'height': str(height), 'round': GUARD_ROUND, 'step': GUARD_STEP}, indent=2) + '\n').encode()
+
+
+def signing_floor(raw):
+    """(height, round, step) of a signing state."""
+    state = json.loads(raw)
+    return int(state['height']), int(state['round']), int(state['step'])
+
+
+def guard(bundle, host, height, out=say):
+    """Raise a stopped validator's signing state to the halt height: written
+    in one step, the manifest's owner and mode kept. A state already at or
+    above the floor is left as it is."""
+    require(host.is_root(), 'run as root')
+    manifest = load_bundle(Path(bundle))
+    require(manifest['role'] == 'validator', f'{manifest["label"]} is a {manifest["role"]}: only a validator signs')
+    require(active_release(host) == manifest['release'], f'release {manifest["release"]} is not installed here')
+    state = host.run(['systemctl', 'is-active', f'{UNIT}.service'], check=False).stdout.strip()
+    require(state not in ('active', 'activating', 'reloading', 'deactivating'),
+            f'{UNIT} is {state}: the guard is set before the validator\'s first start (systemctl stop {UNIT})')
+    # A first start only: a node that has run holds blocks it made or took
+    # (incident 2026-11-10: a new chain from genesis), which a guard cannot undo.
+    held = [path for path in (f'{HOME}/data/blockstore.db', f'{HOME}/data/state.db') if os.path.lexists(host.path(path))]
+    require(not held, f'{", ".join(held)} holds chain state: this node has run. The guard is set before its first '
+                      'start: wipe it and install it again (wipe.sh, then install.sh), then guard it')
+    raw = guard_state(height)
+    secret = next(s for s in manifest['secrets'] if s['path'] == SIGNING_STATE)
+    target = host.path(SIGNING_STATE)
+    held = signing_floor(target.read_bytes())
+    if held >= (height, GUARD_ROUND, GUARD_STEP):
+        out(f'The signing state is already at height {held[0]} (at or above H = {height}); left as it is.')
+        return held[0]
+    temporary = f'{SIGNING_STATE}.guard'
+    if os.path.lexists(host.path(temporary)):
+        os.unlink(host.path(temporary))
+    write_new(host, temporary, raw)
+    os.chmod(host.path(temporary), int(secret['mode'], 8))
+    host.chown(temporary, *ids(secret['owner'], manifest['account']['uid'], manifest['account']['gid']))
+    os.replace(host.path(temporary), target)
+    host.chown(SIGNING_STATE, *ids(secret['owner'], manifest['account']['uid'], manifest['account']['gid']))
+    directory = os.open(target.parent, os.O_RDONLY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+    require(signing_floor(target.read_bytes()) == (height, GUARD_ROUND, GUARD_STEP), 'the guard did not hold')
+    out(f'Signing guard set: the validator key refuses every height at or below {height} and signs from '
+        f'{height + 1}. guarded {height} sha256 {sha256(raw)}')
+    return height
+
+
 # Wiping
 
 # Restoring from an off-host copy (disaster recovery v1, R5)
@@ -793,10 +865,11 @@ def monitor_settings(bundle, host, source, out=say):
 def main(argv):
     restoring = len(argv) in (3, 4) and argv[1] == 'restore' and argv[3:] in ([], ['--accept-history-loss'])
     settings = len(argv) == 3 and argv[1] == 'monitor-settings'
-    if not (restoring or settings) and (len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch',
+    guarding = len(argv) == 3 and argv[1] == 'guard' and argv[2].isdigit()
+    if not (restoring or settings or guarding) and (len(argv) != 2 or argv[1] not in ('install', 'verify', 'stage', 'switch',
                                                                            'wipe')):
         print('usage: host_install.py install|verify|stage|switch|wipe, restore FOLDER [--accept-history-loss], '
-              'or monitor-settings FILE', file=sys.stderr)
+              'guard HALT_HEIGHT, or monitor-settings FILE', file=sys.stderr)
         return 2
     bundle = Path(__file__).resolve().parent
     host = Host()
@@ -805,6 +878,8 @@ def main(argv):
             restore(bundle, host, argv[2], accept_history_loss=len(argv) == 4)
         elif settings:
             return 0 if monitor_settings(bundle, host, argv[2]) else 1
+        elif guarding:
+            guard(bundle, host, int(argv[2]))
         elif argv[1] == 'install':
             install(bundle, host)
         elif argv[1] == 'stage':

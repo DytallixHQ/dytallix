@@ -775,6 +775,7 @@ def restore_drill(work, timeout=900):
 # The validator recovery drill (simulation plan, T9; validator recovery F17)
 
 WAL = '/var/lib/dytallix/node/data/cs.wal'
+SIGNING_STATE = '/var/lib/dytallix/node/data/priv_validator_state.json'
 
 
 def validator_recovery_drill(work, timeout=900):
@@ -784,8 +785,10 @@ def validator_recovery_drill(work, timeout=900):
     fence); the sentry's height is read twice to confirm the halt at H; on the
     sentry the old votes are set aside (its consensus log moved, never
     deleted); the replacement is installed from the same bundle with its seal
-    code typed and not started; the sentry, then the validator, start; the
-    validator block-syncs to H from the sentry and signs from H + 1. It writes
+    code typed and not started, and its signing guard set at H
+    (host_install.py guard); the sentry starts and is held past its startup
+    budget (the start gate), then the validator starts; the validator
+    catches up to H from the sentry and signs from H + 1. It writes
     digest-bound evidence (recovery.py) judged against the approved 8-hour
     objective. Runs before the restore drill, while the sentry still holds
     every block from genesis for the replacement to sync."""
@@ -830,12 +833,38 @@ def validator_recovery_drill(work, timeout=900):
     if result.returncode != 0:
         raise Failed('install.sh failed on the replacement')
     instants['installed_at'] = time.time()
+    say(f'== set the replacement\'s signing guard at H = {halt}')
+    subprocess.run([sys.executable, '-I', '-B', str(bundle / 'host_install.py'), 'guard', str(halt)], check=True)
+    floor = json.loads(Path(SIGNING_STATE).read_bytes())
+    obs['signing_guard'] = {'height': int(floor['height'])}
+    if (obs['signing_guard']['height'], floor['round'], floor['step']) != (halt, 2**31 - 1, 3):
+        raise Failed(f'the signing guard did not hold: {floor}')
+    instants['guarded_at'] = time.time()
     if runner_alerts(work).exists():
         # CI only (fault alerts): the reinstall recreated the runner's firewall
         # table; the sentry's alerts reach the runner's stand-in again.
         runner_alert_rule(reconcile.LocalHost())
     sentry.run(['systemctl', 'start', 'dytallix-node'], timeout=120)
     instants['sentry_started_at'] = time.time()
+    # The start gate: the sentry's engine answering at H past its startup
+    # budget before the validator starts.
+    service = next(staging_host.unpack(work / 'net', PUBLIC).glob('files/etc/dytallix/*/service.json'))
+    process = json.loads(service.read_bytes())['process']
+    budget = recovery.hold_budget(process)
+    obs['sentry_hold'] = {'process': {name: process[name] for name in recovery.HOLD_BOUNDS},
+                          'from': instants['sentry_started_at'], 'readings': []}
+    while True:
+        sent = time.time()
+        found = engine(sentry)
+        obs['sentry_hold']['readings'].append({'at': sent, 'height': found[0] if found else None})
+        status, detail = recovery.held(obs, halt, pending=True)
+        if status == recovery.PASS:
+            instants['sentry_held_at'] = obs['sentry_hold']['readings'][-1]['at']
+            say(f'== {detail}')
+            break
+        if status == recovery.FAIL:
+            raise Failed(f'the start gate held the validator: {detail}')
+        time.sleep(5)
     subprocess.run(['systemctl', 'start', 'dytallix-node.service'], check=True)
     instants['validator_started_at'] = time.time()
     deadline = time.monotonic() + timeout

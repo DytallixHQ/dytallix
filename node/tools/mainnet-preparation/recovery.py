@@ -8,16 +8,26 @@ alone.
   recovery.py verify --evidence FILE --genesis NATIVE_GENESIS
 
 The evidence records the procedure's instants on one clock (declared,
-fenced, the sentry's consensus log set aside, installed, the sentry and then
-the validator started, the first block after the halt), the halt height H
+fenced, the sentry's consensus log set aside, installed, the replacement's
+signing guard set, the sentry started and seen held past its startup
+budget, the validator started, the first block after the halt), the halt height H
 read twice from the sentry, the heights both nodes reached after it, their
 block and application hashes at one height after it, the validator set the
 client's status view lists before and after, and the replacement's
 `host_install.py verify`. Each rule of the procedure is one check:
 
 - the order: nothing installed before the old host was fenced, and the
-  validator started only after the sentry's old votes were set aside and the
-  sentry was started;
+  validator started only after the sentry's old votes were set aside, its
+  signing guard was set, and the sentry was started and held;
+- the signing guard: the replacement's signing state raised to H before its
+  first start (host_install.py guard H), so that its key refuses every
+  height at or below H. A replacement that finds no peer and starts a new
+  chain from genesis (incident 2026-11-10) then cannot sign its height 1;
+- the sentry held: the sentry's engine read at H, never above it (with the
+  old validator fenced and the replacement stopped, nothing else can sign)
+  and never unanswered, from its start until past its startup budget (its
+  service.json: startup, stop and kill bounds, and a margin), before the
+  validator starts;
 - the halt confirmed: the sentry's height read twice, unchanged;
 - signing again: the validator past H + 1 and the sentry following, the same
   block and application hash on both at a height after H;
@@ -46,9 +56,11 @@ instant is the founder's clock. A run is a directory holding run.json, the
 observations so far:
 
   recovery.py start --run DIR --cli DYTALLIX --client-home DIR
-  recovery.py mark --run DIR fenced|wal_set_aside|installed|sentry_started|validator_started
-                   [--moved-to PATH]
+  recovery.py mark --run DIR fenced|wal_set_aside|installed|guarded|sentry_started|validator_started
+                   [--moved-to PATH] [--height H]
   recovery.py halt --run DIR --status-url URL
+  recovery.py hold --run DIR --service SENTRY_SERVICE.json --store STORE.json --chain ID --sentry LABEL
+                   --cli DYTALLIX --home DIR --key KEY.json --paper FILE --signer DYTALLIX_ROOT_SIGN --work DIR
   recovery.py first-block --run DIR --status-url URL [--timeout S]
   recovery.py finish --run DIR --store STORE.json --chain ID --validator LABEL --sentry LABEL
                      --cli DYTALLIX --home DIR --key KEY.json --paper FILE --signer DYTALLIX_ROOT_SIGN
@@ -59,9 +71,18 @@ start is the declaration: the validator set read through the client
 channel, then the instant. Each mark is one console step done, at the
 founder's clock, recorded once and as done: a step marked out of the
 procedure's order is kept, and the order check fails it. halt reads the
-status page twice, a minute apart, after the fence: H. first-block polls
+status page twice, a minute apart, after the fence: H. guarded is marked
+with the height host_install.py guard printed at the replacement's console.
+hold is the start gate: after the sentry starts, it reads the sentry's
+engine through its agent (reconcile-read; the status page only serves once
+the sentry is ready, and it needs a peer for that) until past the sentry's
+startup budget, and says to start the validator only if every reading
+answered at H; otherwise it exits 1 and the validator stays stopped. It can
+be run again after a failed hold (the failed one is kept). first-block polls
 the status page from the validator's start until it serves a height above
-H (with one validator, only the replacement can have signed it), and keeps
+H (with one validator, only the replacement can have signed it), stops
+with an order to stop the validator if the sentry ever serves a height
+below H, and keeps
 the reader's longest gap between answers, which can only make the recovery
 look slower. finish sends reconcile-read to both hosts' agents for the same
 look (the replacement's agent installed again after it started), compares
@@ -79,11 +100,15 @@ import time
 
 HERE = Path(__file__).resolve().parent
 OBJECTIVES = HERE.parents[2] / 'launch' / 'operations' / 'OBJECTIVES.json'
-SCHEMA = 'dytallix.validator-recovery.v1'
+SCHEMA = 'dytallix.validator-recovery.v2'
 PASS, FAIL, INCONCLUSIVE = 'PASS', 'FAIL', 'INCONCLUSIVE'
 # The procedure's instants, in the order the procedure requires them.
-STEPS = ('declared_at', 'fenced_at', 'wal_set_aside_at', 'installed_at', 'sentry_started_at',
-         'validator_started_at', 'first_block_after_halt_at')
+STEPS = ('declared_at', 'fenced_at', 'wal_set_aside_at', 'installed_at', 'guarded_at', 'sentry_started_at',
+         'sentry_held_at', 'validator_started_at', 'first_block_after_halt_at')
+# The sentry is held past its startup budget: the supervisor's startup, stop
+# and kill bounds from its service.json, and this margin, in seconds.
+HOLD_MARGIN = 60
+HOLD_BOUNDS = ('startup_millis', 'stop_millis', 'kill_millis')
 # Heights past H both nodes must reach: signing again, not one block.
 AFTER = 3
 
@@ -109,6 +134,65 @@ def approved_target(path=OBJECTIVES):
     return int(json.loads(Path(path).read_bytes())['recovery']['rto_minutes']['validator']) * 60
 
 
+def hold_budget(process):
+    """Seconds the sentry must stay up before the validator starts, from its
+    service.json's process bounds."""
+    values = [process.get(name) for name in HOLD_BOUNDS]
+    if not all(isinstance(v, int) and not isinstance(v, bool) and v > 0 for v in values):
+        raise Failed(f'the sentry\'s service.json has no {", ".join(HOLD_BOUNDS)}')
+    return sum(values) / 1000 + HOLD_MARGIN
+
+
+def held(observations, height, pending=False):
+    """(status, detail) of the start gate: the sentry's engine read from its
+    start to past its budget, every reading answered at H once the engine
+    first answered (within its startup bound), all before the validator
+    started. While the hold runs (`pending`), a hold not yet past the budget
+    is INCONCLUSIVE, not FAIL."""
+    hold = observations.get('sentry_hold')
+    instants = observations.get('instants') or {}
+    if height is None or not isinstance(hold, dict) or not is_number(instants.get('sentry_started_at')):
+        return INCONCLUSIVE, 'the sentry was not held before the validator started'
+    # The hold counts from its own start: a hold run again after the sentry
+    # was started again counts from then, not from the first start.
+    started = hold.get('from')
+    if not is_number(started) or started < instants['sentry_started_at']:
+        return FAIL, 'the hold did not start after the sentry was started'
+    readings = hold.get('readings') or []
+    try:
+        budget = hold_budget(hold.get('process') or {})
+    except Failed as error:
+        return INCONCLUSIVE, str(error)
+    if len(readings) < 2 or not all(isinstance(r, dict) and is_number(r.get('at')) for r in readings):
+        return INCONCLUSIVE, 'fewer than two readings of the sentry'
+    if readings[0]['at'] < started:
+        return FAIL, 'a reading before the sentry was started'
+    answered = [i for i, r in enumerate(readings) if isinstance(r.get('height'), int)]
+    starting = answered[0] if answered else len(readings)
+    if any(r['at'] - started > hold.get('process', {})['startup_millis'] / 1000 for r in readings[:starting]):
+        return FAIL, 'the sentry\'s engine did not answer within its startup bound'
+    if not answered:
+        return (INCONCLUSIVE if pending else FAIL), 'the sentry\'s engine has not answered yet'
+    readings = readings[starting:]
+    unanswered = [r for r in readings if not isinstance(r.get('height'), int)]
+    if unanswered:
+        return FAIL, f'the sentry did not answer {unanswered[0]["at"] - started:.0f} s after its start: it was not up'
+    above = [r['height'] for r in readings if r['height'] > height]
+    if above:
+        return FAIL, f'the sentry passed H={height} ({above[0]}) before the validator started: another signer'
+    below = [r['height'] for r in readings if r['height'] < height]
+    if below:
+        return FAIL, f'the sentry read {below[0]}, below H={height}'
+    span = readings[-1]['at'] - started
+    if span < budget:
+        return (INCONCLUSIVE if pending else FAIL), (f'the sentry was held {span:.0f} s, under its {budget:.0f} s '
+                                                     'startup budget')
+    late = instants.get('validator_started_at')
+    if is_number(late) and readings[-1]['at'] > late:
+        return FAIL, 'the hold ended after the validator started'
+    return PASS, f'the sentry answered at H={height} {len(readings)} times over {span:.0f} s (budget {budget:.0f} s)'
+
+
 def evaluate(observations, target):
     """The checks, each (name, status, detail), from the observations."""
     rows = []
@@ -132,6 +216,15 @@ def evaluate(observations, target):
         add('halt', PASS if len(set(halt)) == 1 else FAIL,
             f'the sentry stayed at {halt[0]}' if len(set(halt)) == 1 else f'the sentry moved after the fence: {halt}')
     height = halt[-1] if halt and isinstance(halt[-1], int) else None
+
+    guard = observations.get('signing_guard')
+    if height is None or not isinstance(guard, dict) or not isinstance(guard.get('height'), int):
+        add('signing_guard', INCONCLUSIVE, 'the replacement\'s signing guard was not recorded')
+    else:
+        add('signing_guard', PASS if guard['height'] == height else FAIL,
+            f'the replacement refuses every height at or below {guard["height"]}' if guard['height'] == height
+            else f'the signing guard is at {guard["height"]}, not H={height}')
+    add('sentry_held', *held(observations, height))
 
     reached = observations.get('reached') or {}
     if height is None or not all(isinstance(reached.get(n), int) for n in ('validator', 'sentry')):
@@ -202,10 +295,10 @@ def verify(record, genesis_bytes, target=None):
 # The real-host run, from the founder's machine.
 
 RUN = 'run.json'
-RUN_SCHEMA = 'dytallix.validator-recovery-run.v1'
+RUN_SCHEMA = 'dytallix.validator-recovery-run.v2'
 CLOCK = "the founder's machine"
 # The steps done at a console, in the procedure's order.
-MARKS = ('fenced', 'wal_set_aside', 'installed', 'sentry_started', 'validator_started')
+MARKS = ('fenced', 'wal_set_aside', 'installed', 'guarded', 'sentry_started', 'validator_started')
 # The runbook reads the sentry's height twice, a minute apart.
 HALT_GAP = 60
 # Catch-up from genesis is most of the 8-hour objective.
@@ -251,12 +344,15 @@ def start(directory, client, clock=time.time):
     return run
 
 
-def mark(directory, step, clock=time.time, moved_to=None):
+def mark(directory, step, clock=time.time, moved_to=None, height=None):
     """One console step done, at the founder's clock, recorded once and as
     done: a step out of the procedure's order is kept for the order check to
-    fail, never refused."""
+    fail, never refused. guarded takes the height host_install.py guard
+    printed."""
     if step not in MARKS:
         raise Failed(f'{step} is not a step of the procedure ({", ".join(MARKS)})')
+    if (step == 'guarded') != (height is not None):
+        raise Failed('guarded, and only guarded, takes --height: the height host_install.py guard printed')
     run = load_run(directory)
     obs = run['observations']
     if f'{step}_at' in obs['instants']:
@@ -264,6 +360,8 @@ def mark(directory, step, clock=time.time, moved_to=None):
     obs['instants'][f'{step}_at'] = clock()
     if step == 'wal_set_aside' and moved_to:
         obs['wal_set_aside'] = {'host': 'sentry', 'moved_to': moved_to}
+    if step == 'guarded':
+        obs['signing_guard'] = {'height': height}
     save_run(directory, run)
     return obs['instants'][f'{step}_at']
 
@@ -298,6 +396,55 @@ def halt(directory, read_page, sleep=time.sleep, gap=HALT_GAP):
     return obs['halt_readings']
 
 
+def hold(directory, read_height, process, clock=time.time, sleep=time.sleep, period=15, say=print):
+    """The start gate: after the sentry starts and before the validator does,
+    the sentry's engine read every `period` seconds until past its startup
+    budget. Once its engine first answers (within its startup bound), every
+    reading must answer at H (above H, something else signs). The first miss
+    ends the hold, FAIL: the validator stays stopped. Run again, a new hold
+    replaces a failed one, which is kept."""
+    run = load_run(directory)
+    obs = run['observations']
+    instants = obs['instants']
+    for step, why in (('sentry_started_at', 'the sentry is held after it starts: mark it first'),
+                      ('guarded_at', 'set the signing guard first: host_install.py guard H, then mark guarded')):
+        if step not in instants:
+            raise Failed(why)
+    if 'validator_started_at' in instants:
+        raise Failed('the validator is already started: the hold was before it')
+    if 'sentry_held_at' in instants:
+        raise Failed('the sentry is already held')
+    readings = obs.get('halt_readings') or []
+    if len(readings) < 2 or readings[-1] is None:
+        raise Failed('no halt height: read the halt first')
+    height = readings[-1]
+    guard = (obs.get('signing_guard') or {}).get('height')
+    if guard != height:
+        raise Failed(f'the signing guard is at {guard}, not H = {height}: set it again at H')
+    budget = hold_budget(process)
+    if obs.get('sentry_hold'):
+        obs.setdefault('sentry_hold_failed', []).append(obs.pop('sentry_hold'))
+    record = {'process': {name: process[name] for name in HOLD_BOUNDS}, 'from': clock(), 'readings': []}
+    obs['sentry_hold'] = record
+    while True:
+        # The instant the read is sent: the engine cannot have been read
+        # before it, and an agent's answer may come minutes later.
+        now = clock()
+        found = read_height()
+        record['readings'].append({'at': now, 'height': found})
+        say(f'== the sentry\'s engine read {found} at {now - record["from"]:.0f} s into the hold')
+        status, detail = held(obs, height, pending=True)
+        if status == FAIL:
+            save_run(directory, run)
+            raise Failed(f'{detail}. Do not start the validator: find why, start the sentry again, and hold again')
+        if status == PASS:
+            instants['sentry_held_at'] = now
+            save_run(directory, run)
+            return detail
+        save_run(directory, run)
+        sleep(period)
+
+
 def first_block(directory, read_page, clock=time.time, sleep=time.sleep, timeout=FIRST_BLOCK_TIMEOUT, period=1):
     """The first block after the halt, at the founder's clock: the status page
     polled until it serves a height above H. With one validator only the
@@ -322,6 +469,9 @@ def first_block(directory, read_page, clock=time.time, sleep=time.sleep, timeout
         now = clock()
         if page.get('http') is not None or page.get('refused'):
             gap, last = max(gap, now - last), now
+        if page_height(page) is not None and page_height(page) < height:
+            save_run(directory, run)
+            raise Failed(f'the sentry serves {page["height"]}, below H = {height}: stop the validator at once')
         if (page_height(page) or 0) > height:
             obs['instants']['first_block_after_halt_at'] = now
             obs['first_block'] = {'height': page['height'], 'block_time': page.get('time'),
@@ -348,6 +498,14 @@ def engine_readings(result):
             continue
         found[height] = {'block_hash': block, 'app_hash': app}
     return found
+
+
+def agent_height(channel, timeout=900):
+    """The engine's height as one reconcile-read through a host's agent, or
+    None if it did not answer."""
+    import reconcile
+    sequence = channel.send(reconcile.READ_COMMAND)
+    return max(engine_readings(channel.wait([sequence], timeout)[0]), default=None)
 
 
 def finish(directory, channels, client, chain_id, genesis_bytes, host_verify_exit, target, say=print,
@@ -403,7 +561,14 @@ def main():
     m = commands.add_parser('mark')
     m.add_argument('step', choices=MARKS)
     m.add_argument('--moved-to', help='where the sentry\'s consensus log was set aside')
+    m.add_argument('--height', type=int, help='for guarded: the height host_install.py guard printed')
     h = commands.add_parser('halt')
+    g = commands.add_parser('hold')
+    g.add_argument('--service', type=Path, required=True, help='the sentry bundle\'s service.json')
+    for name in ('store', 'home', 'key', 'paper', 'signer', 'work', 'cli'):
+        g.add_argument(f'--{name}', type=Path, required=True)
+    for name in ('chain', 'sentry'):
+        g.add_argument(f'--{name}', required=True)
     b = commands.add_parser('first-block')
     b.add_argument('--timeout', type=int, default=FIRST_BLOCK_TIMEOUT)
     f = commands.add_parser('finish')
@@ -413,7 +578,7 @@ def main():
         f.add_argument(f'--{name}', required=True)
     f.add_argument('--host-verify-exit', type=int, required=True,
                    help='the replacement\'s host_install.py verify exit, read at its console')
-    for p in (s, m, h, b, f):
+    for p in (s, m, h, g, b, f):
         p.add_argument('--run', type=Path, required=True)
     for p in (s, f):
         p.add_argument('--cli', type=Path, required=True)
@@ -449,8 +614,15 @@ def run_step(args, reconcile, staging_founder):
         start(args.run, client())
         print(f'== declared; the validator set read: {RUN} at {args.run}')
     elif args.command == 'mark':
-        mark(args.run, args.step, moved_to=args.moved_to)
+        mark(args.run, args.step, moved_to=args.moved_to, height=args.height)
         print(f'== {args.step} marked')
+    elif args.command == 'hold':
+        store = staging_founder.open_store(args.store, args.work / 'store-scratch')
+        channel = staging_founder.Channel(store, args.chain, args.sentry, args.work / 'results' / args.sentry,
+                                          args.cli, args.home, args.key, args.paper, args.signer)
+        process = json.loads(args.service.read_bytes())['process']
+        print(f'== {hold(args.run, lambda: agent_height(channel), process)}')
+        print('== GO: start the validator now (systemctl start dytallix-node), then mark validator_started')
     elif args.command == 'halt':
         print(f'== the sentry read {halt(args.run, page)} a minute apart')
     elif args.command == 'first-block':
