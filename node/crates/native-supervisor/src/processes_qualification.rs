@@ -31,6 +31,8 @@ pub const CASES: &[(&str, fn())] = &[
     ("blocked_application_probe_deadline_stops_and_reaps_owned_child", blocked_application_probe_deadline_stops_and_reaps_owned_child),
     ("cancellation_interrupts_blocked_probe_and_reaps_owned_child", cancellation_interrupts_blocked_probe_and_reaps_owned_child),
     ("detected_child_failure_is_not_suppressed_by_concurrent_cancellation", detected_child_failure_is_not_suppressed_by_concurrent_cancellation),
+    ("a_stop_signal_to_every_child_with_the_owner_is_a_clean_requested_stop", a_stop_signal_to_every_child_with_the_owner_is_a_clean_requested_stop),
+    ("a_child_that_outlives_the_stop_bound_fails_the_requested_stop", a_child_that_outlives_the_stop_bound_fails_the_requested_stop),
     ("child_exit_without_an_rpc_stops_all_owned_dependents", child_exit_without_an_rpc_stops_all_owned_dependents),
     ("unknown_mapped_libraries_fail_without_relaxation_and_cleanup", unknown_mapped_libraries_fail_without_relaxation_and_cleanup),
     ("wrong_start_order_or_stale_endpoint_is_terminal", wrong_start_order_or_stale_endpoint_is_terminal),
@@ -349,6 +351,8 @@ fn the_stop_records_the_application_exit_and_its_class() {
     assert_eq!(exits[0]["classification"], "EXITED");
     assert_eq!(exits[0]["si_status"], 14);
     assert_eq!(exits[0]["application_failure_class"], "release");
+    // A failure class is a failure, even in a requested stop.
+    assert_eq!(owner.stop_account(), StopAccount { forced_kills: 0, unexplained_exits: 1 });
     let report = serde_json::json!({"failure": {"child_exit": {"role": crate::processes::Role::Engine.as_str(),
         "classification": "EXITED", "application_failure_class": null}}, "stop_exits": exits});
     assert_eq!(crate::startup_diagnostic::application_failure_class(&report), "release");
@@ -572,7 +576,48 @@ fn detected_child_failure_is_not_suppressed_by_concurrent_cancellation() {
     owner.cancellation_handle().store(true, Ordering::SeqCst);
     let error = owner.check_alive().unwrap_err();
     assert!(!is_graceful_cancellation(&error));
+    assert!(!is_clean_requested_stop(&error, owner.stop_account()), "{error:#}");
     assert!(matches!(error.downcast_ref::<OwnedChildExit>(), Some(exit) if exit.role == super::Role::Application && exit.pid == pid), "{error:#}");
+    assert_gone(pid);
+}
+fn a_stop_signal_to_every_child_with_the_owner_is_a_clean_requested_stop() {
+    // As the service manager's default stop (11 November 2026 finding): the
+    // stop signal reaches the owner and every child at once, so a child can
+    // end before the owner reads its own request.
+    let fixture = Fixture::new(true);
+    let mut owner = fixture.owner();
+    owner.start_application(&[]).unwrap();
+    probe(&mut owner);
+    owner.start_bridge(&fixture.socket("bridge.sock")).unwrap();
+    let pids = owner.owned_pids();
+    owner.cancellation_handle().store(true, Ordering::SeqCst);
+    for child in &owner.children {
+        signal_owned(&child.child, libc::SIGTERM).unwrap();
+    }
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while !owner.any_child_exited() {
+        wait_tick(deadline, Duration::from_millis(5)).unwrap();
+    }
+    let error = owner.check_alive().unwrap_err();
+    assert!(error.is::<ExitAfterStopRequest>() && error.is::<OwnedChildExit>(), "{error:#}");
+    assert_eq!(owner.stop_account(), StopAccount::default(), "{:?}", owner.stop_exits());
+    assert!(is_clean_requested_stop(&error, owner.stop_account()), "{error:#}");
+    for (_, pid) in pids {
+        assert_gone(pid);
+    }
+}
+fn a_child_that_outlives_the_stop_bound_fails_the_requested_stop() {
+    let fixture = Fixture::new(true);
+    let mut owner = fixture.owner();
+    owner.start_application(&["--fixture-ignore-sigterm".into()]).unwrap();
+    // The probe answer comes after the fixture sets its signal disposition.
+    probe(&mut owner);
+    let pid = owner.owned_pids()[0].1;
+    owner.cancellation_handle().store(true, Ordering::SeqCst);
+    let error = owner.check_alive().unwrap_err();
+    assert!(is_graceful_cancellation(&error), "{error:#}");
+    assert_eq!(owner.stop_account(), StopAccount { forced_kills: 1, unexplained_exits: 0 });
+    assert!(!is_clean_requested_stop(&error, owner.stop_account()));
     assert_gone(pid);
 }
 fn child_exit_without_an_rpc_stops_all_owned_dependents() {

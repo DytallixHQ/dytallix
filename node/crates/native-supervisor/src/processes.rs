@@ -61,6 +61,85 @@ pub fn is_graceful_cancellation(error: &anyhow::Error) -> bool {
     error.is::<OperationCancelled>() && !error.is::<CleanupFailure>()
 }
 
+/// Marks a child exit first seen after a stop was requested. The service
+/// manager's stop signals every process in the unit, the children too, so a
+/// child may end before the supervisor reads its own request. The exit stays
+/// an `OwnedChildExit`; only the requested-stop check below reads the mark.
+#[derive(Debug)]
+pub struct ExitAfterStopRequest;
+impl std::fmt::Display for ExitAfterStopRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("Owned child exit seen after a stop request")
+    }
+}
+impl std::error::Error for ExitAfterStopRequest {}
+
+/// How the children ended during the owner's stop.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct StopAccount {
+    /// Children still running at the stop bound, then killed.
+    pub forced_kills: usize,
+    /// Children whose end a stop does not explain (see `stop_explains`), or
+    /// whose end could not be read.
+    pub unexplained_exits: usize,
+}
+impl StopAccount {
+    pub fn is_clean(self) -> bool { self.forced_kills == 0 && self.unexplained_exits == 0 }
+    pub fn report(self) -> serde_json::Value {
+        serde_json::json!({"forced_kills":self.forced_kills,"unexplained_exits":self.unexplained_exits})
+    }
+}
+
+/// Whether a stop explains how a child ended: it exited by itself (any
+/// status: the adapter exits 1 when cancelled, the application with its exit
+/// code), or the stop signal killed it. A dump, any other signal (SIGSEGV,
+/// SIGABRT, SIGKILL), an unread status, or the application's failure class
+/// (E04 gap 15) is a failure.
+pub fn stop_explains(role: Role, observation: &ExitObservation) -> bool {
+    // Linux waitid: CLD_EXITED=1, CLD_KILLED=2, CLD_DUMPED=3.
+    match (observation.si_code, observation.si_status) {
+        (Some(1), Some(status)) => !(role == Role::Application
+            && dytallix_fast_node::failure_class::FailureClass::from_exit_status(status).is_some()),
+        (Some(2), Some(signal)) => signal == libc::SIGTERM || signal == libc::SIGINT,
+        _ => false,
+    }
+}
+
+/// Mark a child exit seen after a stop request. The flag is read after the
+/// exit is seen, so an exit seen before the request is never marked.
+fn mark_if_requested(cancelled: &AtomicBool, exit: anyhow::Error) -> anyhow::Error {
+    if cancelled.load(Ordering::SeqCst) { exit.context(ExitAfterStopRequest) } else { exit }
+}
+
+/// A failed check of one child that its own exit explains: a child that
+/// ends mid-check fails it (a zombie's /proc/PID/ns/mnt no longer reads).
+/// Report that child's exit, marked as `active` marks it, with the check's
+/// error kept. A failure of a child still running, or another child's
+/// exit, never changes the error.
+fn own_exit_explains<T>(cancelled: &AtomicBool, role: Role, child: &Child, result: Result<T>) -> Result<T> {
+    result.map_err(|error| match exit_observation(child) {
+        Ok(Some(observation)) => mark_if_requested(
+            cancelled,
+            error.context(OwnedChildExit { role, pid: child.id(), observation }),
+        ),
+        _ => error,
+    })
+}
+
+/// A requested stop is a successful service exit when the request came
+/// before any failure was seen, no cleanup failed, and every child ended
+/// within the stop bound in a way the stop explains. A child's crash seen
+/// before the request, a stop past its bound or a forced kill still fails.
+pub fn is_clean_requested_stop(error: &anyhow::Error, stop: StopAccount) -> bool {
+    let requested = error.is::<OperationCancelled>()
+        || error.is::<ownership::OwnershipCancelled>()
+        || (error.is::<ExitAfterStopRequest>()
+            && error
+                .downcast_ref::<OwnedChildExit>()
+                .is_some_and(|exit| stop_explains(exit.role, &exit.observation)));
+    requested && !has_cleanup_failure(error) && stop.is_clean()
+}
+
 #[derive(Clone, Debug)]
 pub struct ProcessBounds {
     pub startup_timeout: Duration,
@@ -210,6 +289,7 @@ pub struct ProcessOwner {
     first_failure_snapshot: Option<serde_json::Value>,
     /// Each child's own exit seen during the stop, before any SIGKILL.
     stop_exits: Vec<serde_json::Value>,
+    stop_account: StopAccount,
     bounds: ProcessBounds,
     environment: ExplicitEnvironment,
     children: Vec<OwnedChild>,
@@ -281,6 +361,7 @@ impl ProcessOwner {
             cancelled: ownership::cancellation_handle(),
             first_failure_snapshot: None,
             stop_exits: Vec::new(),
+            stop_account: StopAccount::default(),
             failed: false,
             stopped: false,
         })
@@ -382,7 +463,8 @@ impl ProcessOwner {
         // A detected child failure takes priority over concurrent cancellation.
         for child in &self.children {
             if let Some(observation) = exit_observation(&child.child)? {
-                return Err(OwnedChildExit { role: child.role, pid: child.child.id(), observation }.into());
+                let exit = OwnedChildExit { role: child.role, pid: child.child.id(), observation };
+                return Err(mark_if_requested(&self.cancelled, anyhow::Error::new(exit)));
             }
         }
         if self.cancelled.load(Ordering::SeqCst) {
@@ -394,6 +476,12 @@ impl ProcessOwner {
     pub fn capture_failure(&mut self) { capture_first_failure(&mut self.first_failure_snapshot, &self.children); }
     pub fn first_failure_snapshot(&self) -> Option<&serde_json::Value> { self.first_failure_snapshot.as_ref() }
     pub fn stop_exits(&self) -> &[serde_json::Value] { &self.stop_exits }
+    pub fn stop_account(&self) -> StopAccount { self.stop_account }
+    /// Whether any child has ended, without reaping it. An unreadable status
+    /// counts as ended, so the caller's next check reports it.
+    pub fn any_child_exited(&self) -> bool {
+        self.children.iter().any(|child| !matches!(exit_observation(&child.child), Ok(None)))
+    }
     fn finish<T>(&mut self, result: Result<T>) -> Result<T> {
         match result {
             Ok(value) => Ok(value),
@@ -629,9 +717,9 @@ impl ProcessOwner {
             .as_ref()
             .context("Owned role has no captured identity")?;
         let security = self.admission_security.as_ref().context("Owned security policy absent")?.for_role(role);
-        security.check_owned(identity)?;
+        own_exit_explains(&self.cancelled, role, &child.child, security.check_owned(identity))?;
         let budget = self.observation_pause.context("Explicit observation pause budget absent")?;
-        let (snapshot, timing) = observation::controlled_pause::observe_paused(
+        let observed = observation::controlled_pause::observe_paused(
             &mut child.child, identity, role.as_str(), &self.catalog,
             &self.observation_bounds, budget, &self.cancelled,
         ).map_err(|error| {
@@ -640,8 +728,9 @@ impl ProcessOwner {
             } else {
                 error
             }
-        })?;
-        security.check_owned(identity)?;
+        });
+        let (snapshot, timing) = own_exit_explains(&self.cancelled, role, &child.child, observed)?;
+        own_exit_explains(&self.cancelled, role, &child.child, security.check_owned(identity))?;
         self.observation_timings.iter_mut().find(|entry| entry.role == role.as_str())
             .context("Unknown observation timing role")?.record(&timing)?;
         child.snapshot = Some(snapshot.clone());
@@ -802,7 +891,8 @@ impl ProcessOwner {
                     .identity
                     .as_ref()
                     .context("Owned role has no captured identity")?;
-                security.for_role(child.role).check_owned(identity)?;
+                let checked = security.for_role(child.role).check_owned(identity);
+                own_exit_explains(&self.cancelled, child.role, &child.child, checked)?;
             }
             Ok(())
         })();
@@ -850,10 +940,17 @@ impl ProcessOwner {
         // application exits with its failure class when told to stop (E04
         // gap 15), usually after the engine whose exit started the stop.
         for child in &self.children {
-            if let Ok(Some(observation)) = exit_observation(&child.child) {
-                if observation.si_code.is_some() {
-                    self.stop_exits.push(crate::startup_diagnostic::child_exit_record(&OwnedChildExit{role:child.role,pid:child.child.id(),observation}));
+            match exit_observation(&child.child) {
+                Ok(Some(observation)) => {
+                    if observation.si_code.is_some() {
+                        self.stop_exits.push(crate::startup_diagnostic::child_exit_record(&OwnedChildExit{role:child.role,pid:child.child.id(),observation}));
+                    }
+                    if !stop_explains(child.role, &observation) {
+                        self.stop_account.unexplained_exits += 1;
+                    }
                 }
+                Ok(None) => self.stop_account.forced_kills += 1,
+                Err(_) => self.stop_account.unexplained_exits += 1,
             }
         }
         for child in self.children.iter().rev() {
@@ -1317,6 +1414,13 @@ pub fn qualification_fixture_main() -> Result<()> {
         ensure!(unsafe { libc::signal(libc::SIGTERM, exit_release as *const () as libc::sighandler_t) } != libc::SIG_ERR,
             "Fixture SIGTERM handler not installed");
     }
+    // A child that outlives the stop bound: neither its input's end nor
+    // SIGTERM ends it, only the owner's SIGKILL.
+    let ignore_sigterm = args.iter().any(|a| a == "--fixture-ignore-sigterm");
+    if ignore_sigterm {
+        ensure!(unsafe { libc::signal(libc::SIGTERM, libc::SIG_IGN) } != libc::SIG_ERR,
+            "Fixture SIGTERM disposition not set");
+    }
     for line in std::io::stdin().lock().lines() {
         let line = line?;
         match line.as_str() {
@@ -1348,6 +1452,11 @@ pub fn qualification_fixture_main() -> Result<()> {
             _ => println!("{line}"),
         }
         std::io::stdout().flush()?;
+    }
+    if ignore_sigterm {
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+        }
     }
     if failed_release {
         std::process::exit(14);
@@ -1409,6 +1518,53 @@ mod exit_diagnostic_tests {
         let again=exit_observation(&child).unwrap().unwrap();assert_eq!(again.si_status,Some(37));
         assert_eq!(child.wait().unwrap().code(),Some(37));
         let reaped=exit_observation(&child).unwrap().unwrap();assert_eq!(reaped.observation_errno,Some(libc::ECHILD));assert!(reaped.si_status.is_none());
+    }
+    /// Real waitid statuses: an own exit or the stop signal is explained; a
+    /// crash signal, a kill or an unread status is not.
+    #[test]
+    fn a_stop_explains_own_exits_and_the_stop_signal_only() {
+        let ended=|script:&str|{
+            let mut child=Command::new("/bin/sh").args(["-c",script]).spawn().unwrap();
+            let deadline=Instant::now()+Duration::from_secs(3);
+            let observation=loop {
+                if let Some(value)=exit_observation(&child).unwrap(){break value;}
+                assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(5));
+            };
+            child.wait().unwrap();
+            (observation,exit_observation(&child).unwrap().unwrap())
+        };
+        for (script,role,explained) in [
+            ("exit 1",Role::Adapter,true),("exit 0",Role::Engine,true),("kill -TERM $$",Role::Engine,true),
+            ("kill -INT $$",Role::Bridge,true),("exit 14",Role::Application,false),("exit 14",Role::Bridge,true),
+            ("kill -SEGV $$",Role::Engine,false),("kill -KILL $$",Role::Adapter,false),
+        ] {
+            let (observation,reaped)=ended(script);
+            assert_eq!(stop_explains(role,&observation),explained,"{script} {role:?} {observation:?}");
+            assert!(!stop_explains(role,&reaped),"{script}: an unread status explains nothing");
+        }
+    }
+    /// A child that ends mid-check fails its security check (a zombie's mount
+    /// namespace no longer reads); that check reports the child's own exit.
+    #[test]
+    fn a_check_failed_by_its_own_childs_exit_reports_that_exit() {
+        let mut ended=Command::new("/bin/sh").args(["-c","exit 0"]).spawn().unwrap();
+        let mut running=Command::new("/bin/sh").args(["-c","sleep 30"]).spawn().unwrap();
+        let deadline=Instant::now()+Duration::from_secs(3);
+        while exit_observation(&ended).unwrap().is_none() { assert!(Instant::now()<deadline);std::thread::sleep(Duration::from_millis(5)); }
+        assert!(std::fs::read_link(format!("/proc/{}/ns/mnt",ended.id())).is_err());
+        let requested=AtomicBool::new(true);
+        let failed=||Err::<(),_>(anyhow::anyhow!("check failed"));
+        let error=own_exit_explains(&requested,Role::Adapter,&ended,failed()).unwrap_err();
+        assert!(error.is::<ExitAfterStopRequest>(),"{error:#}");
+        assert!(matches!(error.downcast_ref::<OwnedChildExit>(),Some(exit) if exit.role==Role::Adapter && exit.pid==ended.id()));
+        assert!(format!("{error:#}").contains("check failed"));
+        let error=own_exit_explains(&AtomicBool::new(false),Role::Adapter,&ended,failed()).unwrap_err();
+        assert!(error.is::<OwnedChildExit>() && !error.is::<ExitAfterStopRequest>(),"{error:#}");
+        // A running child's failure stays as it is, whatever another child did.
+        let error=own_exit_explains(&requested,Role::Engine,&running,failed()).unwrap_err();
+        assert!(!error.is::<OwnedChildExit>() && !error.is::<ExitAfterStopRequest>(),"{error:#}");
+        assert_eq!(own_exit_explains(&requested,Role::Engine,&running,Ok(5)).unwrap(),5);
+        running.kill().unwrap();running.wait().unwrap();ended.wait().unwrap();
     }
 }
 

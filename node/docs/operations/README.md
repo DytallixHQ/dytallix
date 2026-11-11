@@ -56,6 +56,17 @@ retired in production activation v1, A5.
   whichever of the two holds the application's exit. It is null when the
   application was killed rather than exiting.
 
+  A requested stop (`systemctl stop`, SIGTERM or SIGINT) exits 0, so the
+  unit is `inactive`, when every child ends within the stop bound by itself
+  or by the stop signal. systemd's stop signals the children with the
+  supervisor, so a child may end before the supervisor reads its own
+  request; that exit counts as part of the stop. The stop exits 1, so the
+  unit is `failed`, when a child crashed (a dump or another signal), the
+  application exited with its class, a child exit was seen before the
+  request, or a child outlived the stop bound and was killed.
+  `stop_account` counts the children killed at the bound (`forced_kills`)
+  and the ends the stop does not explain (`unexplained_exits`).
+
   The engine's, bridge's and adapter's own output follows in the same
   journal, each line prefixed with its role:
   `journalctl -u dytallix-node -o cat | grep '^consensus_engine: '` shows
