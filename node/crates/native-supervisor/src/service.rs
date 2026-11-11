@@ -298,6 +298,13 @@ impl NativeService {
                 .find(|(role, _)| *role == Role::Adapter)
                 .context("Owned adapter handle missing")?
                 .1;
+            // The engine's no-peer readiness carries to the adapter, which
+            // relays the engine's status (still catching up).
+            let peerless = self
+                .engine_readiness
+                .as_ref()
+                .context("Engine readiness absent")?
+                .peerless();
             self.adapter_readiness = Some(crate::startup_diagnostic::phase(readiness::verify_adapter(
                 listen.parse()?,
                 adapter_pid,
@@ -306,6 +313,7 @@ impl NativeService {
                     .as_ref()
                     .context("Engine readiness absent")?
                     .minimum_height(),
+                peerless,
                 &self.config.process,
                 || self.owner.check_alive(),
             ), Role::Adapter, crate::startup_diagnostic::Stage::AdapterReadiness)?);
@@ -319,6 +327,7 @@ impl NativeService {
                         .as_ref()
                         .context("Engine readiness absent")?
                         .minimum_height(),
+                    peerless,
                     &self.config.process,
                     || self.owner.check_alive(),
                 ), Role::Adapter, crate::startup_diagnostic::Stage::AdapterChannel)?);

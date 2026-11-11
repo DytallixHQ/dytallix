@@ -978,11 +978,13 @@ fn listener_binding(
     bail!("HTTP listener ownership requires Linux")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn verify_adapter(
     address: SocketAddr,
     expected_adapter_pid: u32,
     expected_chain: &str,
     minimum_height: u64,
+    peerless: bool,
     limits: &ProcessLimits,
     health: impl FnMut() -> Result<()>,
 ) -> Result<AdapterReady> {
@@ -998,6 +1000,7 @@ pub fn verify_adapter(
         expected_adapter_pid,
         expected_chain,
         minimum_height,
+        peerless,
         limits,
         health,
         Stage::AdapterHttp,
@@ -1015,6 +1018,7 @@ pub fn verify_adapter_channel(
     expected_adapter_pid: u32,
     expected_chain: &str,
     minimum_height: u64,
+    peerless: bool,
     limits: &ProcessLimits,
     health: impl FnMut() -> Result<()>,
 ) -> Result<AdapterReady> {
@@ -1029,6 +1033,7 @@ pub fn verify_adapter_channel(
         expected_adapter_pid,
         expected_chain,
         minimum_height,
+        peerless,
         limits,
         health,
         Stage::AdapterChannel,
@@ -1050,6 +1055,7 @@ fn verify_listener(
     expected_adapter_pid: u32,
     expected_chain: &str,
     minimum_height: u64,
+    peerless: bool,
     limits: &ProcessLimits,
     mut health: impl FnMut() -> Result<()>,
     stage: Stage,
@@ -1076,7 +1082,9 @@ fn verify_listener(
             &mut deadline,
         ), Role::Adapter, Stage::AdapterListener)?;
         phase((|| { ensure!(before == after,"Adapter listener identity changed during readiness"); Ok(()) })(), Role::Adapter, Stage::AdapterIdentity)?;
-        if height >= minimum_height && !catching_up {
+        // An engine ready by the no-peer rule still reports catching up, and
+        // the adapter relays its status: the same rule holds here.
+        if height >= minimum_height && (!catching_up || peerless) {
             phase(deadline.check(), Role::Adapter, Stage::AdapterReadiness)?;
             return Ok(AdapterReady {
                 chain_id: expected_chain.into(),
@@ -1422,6 +1430,7 @@ mod tests {
             std::process::id(),
             "chain",
             0,
+            false,
             &bounds,
             || Ok(())
         )
@@ -1440,6 +1449,7 @@ mod tests {
             std::process::id(),
             "chain",
             4,
+            false,
             &passing_limits(),
             || Ok(()),
         );
@@ -1447,6 +1457,26 @@ mod tests {
         let ready = result.unwrap();
         assert!(ready.listener_identity_bound());
         assert_eq!(ready.block_height(), 5);
+        task.join().unwrap();
+    }
+    /// An adapter relaying a catching-up engine is ready only when the
+    /// engine was ready by the no-peer rule (T06).
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn readiness_adapter_accepts_catching_up_only_when_peerless() {
+        let body = serde_json::to_vec(&serde_json::json!({"jsonrpc":"2.0","id":-1,"result":{
+            "node_info":{"network":"chain"},"sync_info":{"latest_block_height":"5","catching_up":true}}})).unwrap();
+        let (release, lifetime) = std::sync::mpsc::channel();
+        let (address, task) = server_with_lifetime(Some(http_response(&body)), Some(lifetime));
+        let ready = verify_adapter(address, std::process::id(), "chain", 4, true, &passing_limits(), || Ok(()));
+        release.send(()).unwrap();
+        assert_eq!(ready.unwrap().block_height(), 5);
+        task.join().unwrap();
+        let (release, lifetime) = std::sync::mpsc::channel();
+        let (address, task) = server_with_lifetime(Some(http_response(&body)), Some(lifetime));
+        let refused = verify_adapter(address, std::process::id(), "chain", 4, false, &limits(), || Ok(()));
+        release.send(()).unwrap();
+        assert!(refused.is_err());
         task.join().unwrap();
     }
     #[cfg(target_os = "linux")]
@@ -1641,7 +1671,7 @@ mod tests {
         );
         let start = Instant::now();
         let mut health_checks = 0;
-        let result = verify_adapter(address, std::process::id(), "chain", 4, &passing_limits(), || {
+        let result = verify_adapter(address, std::process::id(), "chain", 4, false, &passing_limits(), || {
             health_checks += 1;
             Ok(())
         });
@@ -1667,6 +1697,7 @@ mod tests {
             child.id(),
             "chain",
             0,
+            false,
             &limits(),
             || {
                 ensure!(child.try_wait()?.is_none(), "Test child exited");
