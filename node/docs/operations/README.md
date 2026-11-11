@@ -76,6 +76,9 @@ retired in production activation v1, A5.
 - **Stopped node check.** With the node stopped, run
   `dytallix-state-check --config APPLICATION_CONFIG --genesis NATIVE_GENESIS --db HOME/appdb`.
   It prints the first failure in full ([build and run](../build-and-run.md)).
+  With `--write-startup-checkpoint` it also writes the startup checkpoint, so
+  a node with a long history starts within its budget
+  ([startup checkpoint](startup-checkpoint.md)).
 - **Light blocks.** With the node stopped,
   `dytallix-light-export --home HOME --from A --to B --output FILE` exports
   the node's own signed headers and prints the trusted height and hash.

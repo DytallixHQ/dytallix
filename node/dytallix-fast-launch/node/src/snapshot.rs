@@ -119,7 +119,9 @@ fn checkpoint_dir(root: &Path, height: u64) -> PathBuf {
 /// Keys the snapshot leaves out: the state tree's records, which a joining
 /// node rebuilds from the entries and checks against the state digest.
 fn excluded(key: &[u8]) -> bool {
+    // The startup checkpoint is this node's own record of what it verified.
     key.starts_with(crate::state_tree::PREFIX)
+        || key == crate::consensus_settlement::CHECKPOINT_KEY.as_bytes()
 }
 
 /// One entry in the stream: key and value, each with a 32-bit big-endian

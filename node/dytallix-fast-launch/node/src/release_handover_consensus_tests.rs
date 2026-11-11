@@ -634,6 +634,8 @@ fn handover_startup_rejects_missing_verifier_and_structurally_consistent_bad_sig
     }
     batch.put(record_key(1), serde_json::to_vec(&record).unwrap());
     batch.put(HEAD_KEY, serde_json::to_vec(&record.head).unwrap());
+    // A restored snapshot never carries this node's startup checkpoint.
+    batch.delete(CHECKPOINT_KEY);
     write_sync(&app.storage, batch).unwrap();
     verify_recovery(&app.storage).unwrap();
     let changed = data(&app);

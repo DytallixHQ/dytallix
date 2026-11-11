@@ -968,6 +968,8 @@ pub struct VerifiedReleaseAuthority {
     expected: crate::runtime_candidate::ExpectedCandidate,
     committed_info: Option<Info>,
     active_schema: Option<u16>,
+    /// The preflight's passed startup check, if it ran one.
+    startup: Option<PreflightStartup>,
 }
 impl VerifiedReleaseAuthority {
     pub fn expected_candidate(&self) -> &crate::runtime_candidate::ExpectedCandidate {
@@ -1003,19 +1005,41 @@ fn retry_verifier_infrastructure<T>(attempts: u32, pause: std::time::Duration,
     }
 }
 
+/// How a startup check ended: no consensus state, or verified with the
+/// checkpoint it would write (none on a windowed node).
+#[derive(Clone, Debug)]
+enum Startup {
+    Empty,
+    Verified(Option<StartupCheckpoint>),
+}
+impl Startup {
+    fn initialized(&self) -> bool {
+        matches!(self, Startup::Verified(_))
+    }
+}
+
+/// The startup check: bindings, the root receipt, the history after the
+/// stored checkpoint (all of it without one) with every state-wide check, and
+/// the control replays with the verifier. With `persist` (a writable handle)
+/// it writes the next checkpoint before marking the storage verified.
 fn check_stored_startup(
     storage: &Storage,
     config: &ConsensusConfig,
     genesis_bytes: &[u8],
     root_genesis: Option<&crate::root_genesis::PreparedRootGenesis>,
     emergency_verifier: Option<&EmergencyVerifier>,
-) -> Result<bool> {
+    persist: bool,
+) -> Result<Startup> {
+    #[cfg(test)]
+    STARTUP_CHECKS.with(|n| n.set(n.get() + 1));
     if check_stored_bindings(storage, config, genesis_bytes)? {
         classify(crate::root_genesis::check_receipt(
             storage.db.get(crate::root_genesis::STATE_KEY)?.as_deref(), root_genesis),
             FailureClass::History)?;
         let sequence = storage.db.latest_sequence_number();
-        let history = HistoryRead::new(storage);
+        let mut history = HistoryRead::new(storage);
+        history.checkpoint = classify(read_checkpoint(storage), FailureClass::History)?;
+        let history = history;
         let trace = verify_recovery_with(&history)?;
         if let (Some(policy), Some(verifier)) = (&config.emergency, emergency_verifier) {
             classify(retry_verifier_infrastructure(STARTUP_VERIFIER_ATTEMPTS, STARTUP_VERIFIER_PAUSE, || {
@@ -1032,11 +1056,76 @@ fn check_stored_startup(
                 handover_history(&history, config, &trace, &outcomes, Some(verifier))
             }), FailureClass::Replay)?;
         }
-        storage.mark_verified(sequence)?;
-        Ok(true)
+        let next = history.next_checkpoint.borrow_mut().take();
+        if persist {
+            persist_checkpoint(storage, next.as_ref())?;
+        } else {
+            storage.mark_verified(sequence)?;
+        }
+        Ok(Startup::Verified(next))
     } else {
-        Ok(false)
+        Ok(Startup::Empty)
     }
+}
+
+/// Write a checkpoint a passed check produced, then mark the storage
+/// verified at the sequence after that write.
+fn persist_checkpoint(storage: &Storage, checkpoint: Option<&StartupCheckpoint>) -> Result<()> {
+    if let Some(checkpoint) = checkpoint {
+        classify(write_checkpoint(storage, checkpoint), FailureClass::Storage)?;
+    }
+    storage.mark_verified(storage.db.latest_sequence_number())
+}
+
+/// What the read-only preflight saw when its startup check passed. The
+/// writable open repeats the check only if any of it changed (T06: one
+/// startup check per start).
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct StartupFingerprint {
+    identity: Option<Vec<u8>>,
+    sequence: u64,
+    head: Option<Vec<u8>>,
+    checkpoint: Option<Vec<u8>>,
+}
+fn startup_fingerprint(storage: &Storage, path: &Path) -> Result<StartupFingerprint> {
+    let identity = match std::fs::read(path.join("IDENTITY")) {
+        Ok(bytes) => Some(bytes),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(error.into()),
+    };
+    Ok(StartupFingerprint {
+        identity,
+        sequence: storage.db.latest_sequence_number(),
+        head: storage.db.get(HEAD_KEY)?,
+        checkpoint: storage.db.get(CHECKPOINT_KEY)?,
+    })
+}
+/// A preflight's passed check, carried to the writable open.
+#[derive(Clone, Debug)]
+struct PreflightStartup {
+    fingerprint: StartupFingerprint,
+    checkpoint: Option<StartupCheckpoint>,
+}
+/// The writable open's startup check: none when the preflight checked the
+/// same database (same RocksDB identity, sequence, head and checkpoint), so
+/// it writes the preflight's checkpoint; otherwise the full startup check.
+fn writable_startup_check(
+    storage: &Storage,
+    path: &Path,
+    config: &ConsensusConfig,
+    genesis_bytes: &[u8],
+    root_genesis: Option<&crate::root_genesis::PreparedRootGenesis>,
+    emergency_verifier: Option<&EmergencyVerifier>,
+    preflight: Option<&PreflightStartup>,
+) -> Result<bool> {
+    if let Some(preflight) = preflight {
+        if classify(startup_fingerprint(storage, path), FailureClass::Storage)? == preflight.fingerprint {
+            persist_checkpoint(storage, preflight.checkpoint.as_ref())?;
+            return Ok(true);
+        }
+    }
+    Ok(check_stored_startup(storage, config, genesis_bytes, root_genesis, emergency_verifier, true)?
+        .initialized())
 }
 
 /// Whether the database is initialized, after checking that it was
@@ -1228,6 +1317,39 @@ pub fn check_stopped(path: &Path, config: &ConsensusConfig, genesis_bytes: &[u8]
     Ok(StoppedCheck::Passed(current_info(&storage)?))
 }
 
+/// Maintenance (startup checkpoint v1, T06): the complete check of a stopped
+/// node's database, as `check_stopped`, then the startup checkpoint at its
+/// head, so the next start checks only later records. It opens the database
+/// writable, which RocksDB refuses while the node holds it; it may take any
+/// time, which is why startup never runs it unasked. Returns the checkpoint
+/// height (none on a node that removed records, which needs none).
+pub fn write_startup_checkpoint(
+    path: &Path,
+    config: &ConsensusConfig,
+    genesis_bytes: &[u8],
+) -> Result<(StoppedCheck, Option<u64>)> {
+    classify(config.validate().and_then(|()| source_binding(config, genesis_bytes)),
+        FailureClass::Configuration)?;
+    classify(
+        (|| -> Result<()> {
+            ensure!(path.join("CURRENT").try_exists()?, "No database at the given path");
+            Ok(())
+        })(),
+        FailureClass::Storage,
+    )?;
+    let storage = classify(Storage::open(path.to_path_buf()), FailureClass::Storage)?;
+    if !check_stored_bindings(&storage, config, genesis_bytes)? {
+        return Ok((StoppedCheck::Empty, None));
+    }
+    let history = HistoryRead::new(&storage);
+    verify_recovery_with(&history)?;
+    let next = history.next_checkpoint.borrow_mut().take();
+    if let Some(checkpoint) = &next {
+        classify(write_checkpoint(&storage, checkpoint), FailureClass::Storage)?;
+    }
+    Ok((StoppedCheck::Passed(current_info(&storage)?), next.map(|checkpoint| checkpoint.height)))
+}
+
 /// The release committed state selects, read only. With `verified` (a root
 /// genesis prepared through the helper and its verifier) the stored root
 /// receipt and every control are replayed and a restart's signatures are
@@ -1248,7 +1370,7 @@ fn preflight_prepared_release(
             manifest_sha512: root_release.clone(), chain_id: config.chain_id.clone(),
             app_genesis_sha256: config.app_state_sha256.clone(),
             migration_registry_sha256: upgrade::registry_sha256(),
-        }, committed_info: None, active_schema: None,
+        }, committed_info: None, active_schema: None, startup: None,
     };
     if !path.join("CURRENT").try_exists()? {
         if path.try_exists()? {
@@ -1260,8 +1382,18 @@ fn preflight_prepared_release(
     }
     let storage = Storage::open_read_only(path.to_path_buf())?;
     let initialized = match verified {
-        Some((root_genesis, verifier)) =>
-            check_stored_startup(&storage, config, genesis_bytes, Some(root_genesis), Some(verifier))?,
+        Some((root_genesis, verifier)) => {
+            match check_stored_startup(&storage, config, genesis_bytes, Some(root_genesis), Some(verifier), false)? {
+                Startup::Verified(checkpoint) => {
+                    authority.startup = Some(PreflightStartup {
+                        fingerprint: classify(startup_fingerprint(&storage, path), FailureClass::Storage)?,
+                        checkpoint,
+                    });
+                    true
+                }
+                Startup::Empty => false,
+            }
+        }
         None => check_stored_bindings(&storage, config, genesis_bytes)?,
     };
     if initialized {
@@ -1294,6 +1426,16 @@ struct HistoryRead<'a> {
     cached_bytes: std::cell::Cell<usize>,
     budget: usize,
     release_trace: std::cell::RefCell<Option<(String, Vec<(u64, String)>)>>,
+    /// The stored startup checkpoint a startup check may start from; never
+    /// set for the complete check (startup checkpoint v1, T06).
+    checkpoint: Option<StartupCheckpoint>,
+    /// The bound checkpoint, set by `verify_history` before any replay.
+    floor: std::cell::RefCell<Option<StartupCheckpoint>>,
+    /// Heights below the bound checkpoint that control replays read besides
+    /// its control heights (the anchors and restart blocks a window keeps).
+    floor_anchors: std::cell::RefCell<BTreeSet<u64>>,
+    /// The checkpoint a passed check would write.
+    next_checkpoint: std::cell::RefCell<Option<StartupCheckpoint>>,
     #[cfg(test)]
     block_decodes: std::cell::Cell<usize>,
     #[cfg(test)]
@@ -1317,6 +1459,10 @@ impl<'a> HistoryRead<'a> {
             cached_bytes: Default::default(),
             budget,
             release_trace: Default::default(),
+            checkpoint: None,
+            floor: Default::default(),
+            floor_anchors: Default::default(),
+            next_checkpoint: Default::default(),
             #[cfg(test)]
             block_decodes: Default::default(),
             #[cfg(test)]
@@ -1335,6 +1481,8 @@ impl<'a> HistoryRead<'a> {
         let record = Arc::new(decode::<BlockRecord>(&bytes)?);
         #[cfg(test)]
         self.block_decodes.set(self.block_decodes.get() + 1);
+        #[cfg(test)]
+        BLOCK_DECODES.with(|n| n.set(n.get() + 1));
         // Budget uses serialized bytes, not an RSS claim. Entries are bounded
         // additionally by the existing block and history limits.
         if bytes.len() <= self.budget.saturating_sub(self.cached_bytes.get()) {
@@ -1362,6 +1510,21 @@ impl<'a> HistoryRead<'a> {
     /// Heights of the block records held up to `height`, ascending: records
     /// kept below the retained window, then the window.
     fn heights(&self, height: u64) -> Result<Vec<u64>> {
+        // From a bound checkpoint: the records below it that carry a control
+        // or that a control names (as a window keeps them), then the
+        // checkpoint's record and on.
+        if let Some(floor) = &*self.floor.borrow() {
+            let below: BTreeSet<u64> = floor
+                .controls
+                .iter()
+                .chain(self.floor_anchors.borrow().iter())
+                .copied()
+                .filter(|h| *h < floor.height)
+                .collect();
+            let mut heights: Vec<u64> = below.into_iter().collect();
+            heights.extend(floor.height..=height);
+            return Ok(heights);
+        }
         let retained = retained_from(self.storage)?;
         let mut heights = kept_below(self.storage, retained)?;
         heights.extend(retained..=height);
@@ -1397,6 +1560,124 @@ fn retained_from(storage: &Storage) -> Result<u64> {
     );
     ensure!(height > 1, "Invalid retained block height");
     Ok(height)
+}
+/// The startup checkpoint (startup checkpoint v1, T06): node-local, like the
+/// retained window, never committed state and never in a snapshot. It names
+/// the height through which this node's block records have been verified, so
+/// that startup re-reads only the records after it. Outside every prefix the
+/// key scans police, so an older release ignores it.
+pub(crate) const CHECKPOINT_KEY: &str = "local:v1:startup-checkpoint";
+const CHECKPOINT_VERSION: u8 = 1;
+/// What a version this release does not know, or bytes it cannot read, ask of
+/// the operator: the complete check, which writes a new checkpoint.
+const CHECKPOINT_REFUSED: &str = "Startup checkpoint unreadable or of an unknown version; \
+    stop the node and run dytallix-state-check --write-startup-checkpoint";
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct StartupCheckpoint {
+    pub(crate) version: u8,
+    /// Records 1..=height were verified: those through `complete_height` by
+    /// the complete check, later ones by a startup check or by the per-block
+    /// check of their commit.
+    pub(crate) height: u64,
+    /// The engine and application hashes of record `height` (the genesis
+    /// values at height 0). The application hash chains every earlier record.
+    pub(crate) engine_hash: String,
+    pub(crate) app_hash: String,
+    /// The head at the last complete check.
+    pub(crate) complete_height: u64,
+    /// Heights at or below `height` whose records carry a control result
+    /// (`pinned` without anchors), ascending: the control replays read them.
+    pub(crate) controls: Vec<u64>,
+}
+pub(crate) fn read_checkpoint(storage: &Storage) -> Result<Option<StartupCheckpoint>> {
+    let Some(raw) = storage.db.get(CHECKPOINT_KEY)? else {
+        return Ok(None);
+    };
+    let checkpoint: StartupCheckpoint =
+        serde_json::from_slice(&raw).map_err(|_| anyhow::anyhow!(CHECKPOINT_REFUSED))?;
+    ensure!(checkpoint.version == CHECKPOINT_VERSION, CHECKPOINT_REFUSED);
+    Ok(Some(checkpoint))
+}
+/// Write a checkpoint unless the same one is stored.
+fn write_checkpoint(storage: &Storage, checkpoint: &StartupCheckpoint) -> Result<()> {
+    let bytes = serde_json::to_vec(checkpoint)?;
+    if storage.db.get(CHECKPOINT_KEY)?.as_deref() != Some(bytes.as_slice()) {
+        storage.db.put(CHECKPOINT_KEY, bytes)?;
+    }
+    Ok(())
+}
+/// The checkpoint after the per-block check of `record` passed: extended
+/// only when it stood at the parent, on a node that holds every record.
+fn extended_checkpoint(storage: &Storage, head: &Head, control: bool) -> Result<Option<StartupCheckpoint>> {
+    let height = head.anchor.height;
+    if retained_from(storage)? > 1 {
+        return Ok(None);
+    }
+    let mut checkpoint = match read_checkpoint(storage) {
+        Ok(Some(checkpoint)) if checkpoint.height.checked_add(1) == Some(height) => checkpoint,
+        // Block 1 follows the genesis state the chain's start checked.
+        Ok(None) if height == 1 => StartupCheckpoint {
+            version: CHECKPOINT_VERSION, height: 0, engine_hash: String::new(),
+            app_hash: String::new(), complete_height: 0, controls: Vec::new(),
+        },
+        // Absent, unreadable or behind: startup decides.
+        _ => return Ok(None),
+    };
+    checkpoint.height = height;
+    checkpoint.engine_hash = head.anchor.engine_hash.clone();
+    checkpoint.app_hash = head.app_hash.clone();
+    if control {
+        checkpoint.controls.push(height);
+    }
+    Ok(Some(checkpoint))
+}
+/// Bind a stored checkpoint to the records it names. `None` when there is
+/// nothing to skip (height 0). Any mismatch refuses startup.
+fn bind_checkpoint(
+    history: &HistoryRead<'_>,
+    config: &ConsensusConfig,
+    checkpoint: &StartupCheckpoint,
+    height: u64,
+    genesis_app_hash: &str,
+) -> Result<Option<StartupCheckpoint>> {
+    ensure!(
+        checkpoint.height <= height && checkpoint.complete_height <= checkpoint.height,
+        "Startup checkpoint is above the committed head"
+    );
+    ensure!(
+        checkpoint.controls.windows(2).all(|pair| pair[0] < pair[1])
+            && checkpoint.controls.last().map_or(true, |h| *h <= checkpoint.height)
+            && checkpoint.controls.first().map_or(true, |h| *h >= 1),
+        "Startup checkpoint control heights invalid"
+    );
+    if checkpoint.height == 0 {
+        ensure!(
+            checkpoint.controls.is_empty()
+                && checkpoint.engine_hash == "genesis"
+                && checkpoint.app_hash == genesis_app_hash,
+            "Startup checkpoint differs from genesis"
+        );
+        return Ok(None);
+    }
+    let record = history.block(checkpoint.height)?;
+    input_limits(config, &record.input)?;
+    check_record(config, checkpoint.height, &record)?;
+    ensure!(
+        record.head.app_hash == checkpoint.app_hash
+            && record.head.anchor.engine_hash == checkpoint.engine_hash,
+        "Startup checkpoint differs from its block record"
+    );
+    // Both ends of the skipped chain stay anchored: block 1 to the stored
+    // genesis commitment, as the complete check requires.
+    let first = history.block(1)?;
+    check_record(config, 1, &first)?;
+    ensure!(
+        first.head.anchor.parent_engine_hash == "genesis"
+            && first.head.anchor.prior_app_hash == genesis_app_hash,
+        "Initial consensus parent or application commitment differs"
+    );
+    Ok(Some(checkpoint.clone()))
 }
 fn height_of_record_key(key: &[u8]) -> Result<u64> {
     let hex = key
@@ -1617,6 +1898,10 @@ pub enum QueryRequest<'a> {
 thread_local! { static RECOVERY_PASSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 #[cfg(test)]
 thread_local! { static FULL_HISTORY_PASSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+thread_local! { static BLOCK_DECODES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+#[cfg(test)]
+thread_local! { static STARTUP_CHECKS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 #[cfg(test)]
 thread_local! { static STATE_DIGEST_READS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
 pub struct ConsensusApplication {
@@ -5099,7 +5384,9 @@ impl ConsensusApplication {
         // Candidate authority is established before a writable RocksDB handle
         // exists. Read-only preflight cannot exclude another process's writer.
         // The native owner holds its lifecycle lease across this transition;
-        // this application also repeats all checks after the writable open.
+        // the writable open repeats the startup check only if the database
+        // differs from the one the preflight checked (T06: one check a start).
+        let mut preflight_startup = None;
         if let Some(input) = &candidate {
             let authority = preflight_prepared_release(
                 path.as_ref(), &config, &genesis_bytes,
@@ -5110,6 +5397,7 @@ impl ConsensusApplication {
             classify(crate::runtime_candidate_v2::verify_runtime_candidate(
                 &input.input, &authority, &input.root, &input.verifier,
             ), FailureClass::Release)?;
+            preflight_startup = authority.startup.clone();
             if matches!(&input.input, crate::runtime_candidate_v2::RuntimeCandidateInput::V2(_)) {
                 // Catalog, configured helper binding and current application
                 // identity have passed. Only now may the live verifier exist.
@@ -5129,8 +5417,8 @@ impl ConsensusApplication {
             FailureClass::Storage,
         )?);
         let started = std::time::Instant::now();
-        let initialized = check_stored_startup(&storage, &config, &genesis_bytes,
-            root_genesis.as_ref(), emergency_verifier.as_ref())?;
+        let initialized = writable_startup_check(&storage, path.as_ref(), &config, &genesis_bytes,
+            root_genesis.as_ref(), emergency_verifier.as_ref(), preflight_startup.as_ref())?;
         let startup_check_seconds = started.elapsed().as_secs_f64();
         // The restart is checked again on the writable database.
         let restart = match candidate.as_ref().and_then(|input| input.restart.as_deref()) {
@@ -5171,6 +5459,7 @@ impl ConsensusApplication {
                     active_schema: if initialized {
                         upgrade_state(&storage, &config)?.map(|state| state.active_schema())
                     } else { None },
+                    startup: None,
                 };
                 classify(crate::runtime_candidate_v2::verify_runtime_candidate(
                     &input.input, &authority, &input.root, &input.verifier,
@@ -6740,6 +7029,12 @@ impl ConsensusApplication {
                     && app_hash(&head.state_digest, &head.anchor)? == head.app_hash,
                 "Restored head differs from the trusted application hash"
             );
+            // A snapshot never carries a checkpoint: the restored records are
+            // checked here, not trusted from the serving node.
+            ensure!(
+                storage.db.get(CHECKPOINT_KEY)?.is_none(),
+                "Snapshot carries a startup checkpoint"
+            );
             ensure!(
                 check_stored_startup(
                     storage,
@@ -6747,7 +7042,9 @@ impl ConsensusApplication {
                     &self.genesis_bytes,
                     self.root_genesis.as_ref(),
                     self.emergency_verifier.as_ref(),
-                )?,
+                    true,
+                )?
+                .initialized(),
                 "Restored database holds no consensus state"
             );
             self.ensure_active_runtime_in(storage)
@@ -6900,6 +7197,7 @@ impl ConsensusApplication {
         );
         batch.put(HEAD_KEY, serde_json::to_vec(&prepared.record.head)?);
         let head = prepared.record.head.clone();
+        let control = pinned(head.anchor.height, &prepared.record, &BTreeSet::new());
         let mut pruned = 0u64;
         if self.block_history == BlockHistory::Window {
             if let Some((deletes, retained)) =
@@ -6922,7 +7220,14 @@ impl ConsensusApplication {
             verify_history(&HistoryRead::shared(&self.storage), Some(expected_next.height)),
             FailureClass::History,
         )?;
-        self.storage.mark_verified(sequence)?;
+        // The checkpoint moves only after this block's check passed, and only
+        // from its parent; a crash before this write leaves it one behind.
+        if let Some(checkpoint) = extended_checkpoint(&self.storage, &head, control)? {
+            classify(write_checkpoint(&self.storage, &checkpoint), FailureClass::Storage)?;
+            persist_checkpoint(&self.storage, None)?;
+        } else {
+            self.storage.mark_verified(sequence)?;
+        }
         // Snapshot failures never affect consensus (state sync v1, rule 3).
         if let Some(writer) = &mut self.snapshots {
             if writer.due(expected_next.height) {
@@ -7813,12 +8118,33 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     // record, which anchors the chain (state sync v1, rule 1). Receipts and
     // evidence of removed blocks are checked against state only.
     let retained = retained_from(storage)?;
-    let start = match from {
-        Some(from) => from,
-        None if retained > 1 => retained + 1,
-        None => 1,
+    // A startup check on a node holding every record starts after its bound
+    // checkpoint, as a window starts after its first record: older records
+    // and their receipts are checked against state only (startup checkpoint
+    // v1). The complete check never has one.
+    let floor = match (&history.checkpoint, from) {
+        (Some(checkpoint), None) if retained == 1 => {
+            bind_checkpoint(history, &config, checkpoint, height, &initial_info.app_hash)?
+        }
+        _ => None,
+    };
+    *history.floor_anchors.borrow_mut() = match &floor {
+        Some(floor) => control_anchors(storage, &config)?
+            .into_iter()
+            .filter(|h| (1..floor.height).contains(h))
+            .collect(),
+        None => BTreeSet::new(),
+    };
+    *history.floor.borrow_mut() = floor.clone();
+    let base = floor.as_ref().map_or(retained, |floor| floor.height);
+    let start = match (from, &floor) {
+        (Some(from), _) => from,
+        (None, Some(floor)) => floor.height + 1,
+        (None, None) if retained > 1 => retained + 1,
+        (None, None) => 1,
     };
     let windowed = from.is_none() && start > 1;
+    let mut controls_found = Vec::new();
     let mut ordinary_positions = BTreeMap::new();
     if let Some(state) = &ordinary {
         ensure!(
@@ -7875,7 +8201,8 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
         );
         known.insert(HEAD_KEY.as_bytes().to_vec());
         ensure!(
-            (1..=height).contains(&start) && (start > retained || retained == 1),
+            ((1..=height).contains(&start) && (start > retained || retained == 1))
+                || (floor.is_some() && start == height + 1),
             "Verification start is outside retained history"
         );
         if windowed {
@@ -7900,8 +8227,8 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             _ => start,
         };
         let evidence_floor = match &lifecycle {
-            Some(lifecycle) => retained.max(lifecycle.history.base_height),
-            None => retained,
+            Some(lifecycle) => base.max(lifecycle.history.base_height),
+            None => base,
         };
         let mut next_set = match &lifecycle {
             Some(_) if start == 1 => Some(configured_validator_map(&config)),
@@ -7919,6 +8246,9 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             known.insert(key.as_bytes().to_vec());
             let record = history.block(h)?;
             input_limits(&config, &record.input)?;
+            if from.is_none() && pinned(h, &record, &BTreeSet::new()) {
+                controls_found.push(h);
+            }
             if windowed {
                 evidence_times_with(
                     storage,
@@ -8082,7 +8412,7 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
                     // A windowed replay derives only observations whose
                     // epoch it still holds; retention keeps the latest one.
                     let derivable =
-                        !windowed || h.saturating_sub(state.config.epoch_blocks) >= retained;
+                        !windowed || h.saturating_sub(state.config.epoch_blocks) >= base;
                     ensure!(
                         !derivable
                             || Some(observation)
@@ -8391,7 +8721,29 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     }
     // Records kept below the window must be pinned; the control replays
     // below bind their controls to receipts.
-    if windowed {
+    // Below a checkpoint every record is held; the replays read those with
+    // a control, which must still carry one.
+    if let Some(floor) = &floor {
+        for &h in floor.controls.iter().filter(|h| **h < floor.height) {
+            let record = history.block(h)?;
+            input_limits(&config, &record.input)?;
+            check_record(&config, h, &record)?;
+            ensure!(
+                pinned(h, &record, &BTreeSet::new()),
+                "Startup checkpoint control height holds no control"
+            );
+        }
+        // The anchors recorded controls name, which the replays read. An
+        // anchor at height 0 is the genesis commitment, which has no record.
+        for h in control_anchors(storage, &config)?
+            .into_iter()
+            .filter(|h| (1..floor.height).contains(h))
+        {
+            let record = history.block(h)?;
+            input_limits(&config, &record.input)?;
+            check_record(&config, h, &record)?;
+        }
+    } else if windowed {
         let anchors = control_anchors(storage, &config)?;
         for h in kept_below(storage, retained)? {
             let record = history.block(h)?;
@@ -8428,7 +8780,13 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
             && !key.starts_with(b"consensus:release-handover:")
             && !key.starts_with(ROOT_AUTHORITY_PREFIX)
         {
-            ensure!(known.contains(key.as_ref()), "Unknown consensus record");
+            ensure!(
+                known.contains(key.as_ref())
+                    || floor.as_ref().is_some_and(|floor| {
+                        height_of_record_key(&key).is_ok_and(|h| (1..=floor.height).contains(&h))
+                    }),
+                "Unknown consensus record"
+            );
         }
         if key.starts_with(b"penalty:") {
             ensure!(
@@ -8461,6 +8819,25 @@ fn verify_history(history: &HistoryRead<'_>, from: Option<u64>) -> Result<Emerge
     root_authority_history(history, &config, &emergency_trace, None)?;
     let outcomes = upgrade_history(history, &config, &emergency_trace, None)?;
     handover_history(history, &config, &emergency_trace, &outcomes, None)?;
+    if retained == 1 {
+        let (engine_hash, app_hash) = match &current {
+            Some(head) => (head.anchor.engine_hash.clone(), head.app_hash.clone()),
+            None => ("genesis".to_owned(), initial_info.app_hash.clone()),
+        };
+        let mut controls: Vec<u64> = floor
+            .as_ref()
+            .map(|floor| floor.controls.iter().copied().filter(|h| *h < start).collect())
+            .unwrap_or_default();
+        controls.extend(controls_found);
+        *history.next_checkpoint.borrow_mut() = Some(StartupCheckpoint {
+            version: CHECKPOINT_VERSION,
+            height,
+            engine_hash,
+            app_hash,
+            complete_height: floor.as_ref().map_or(height, |floor| floor.complete_height),
+            controls,
+        });
+    }
     Ok(emergency_trace)
 }
 

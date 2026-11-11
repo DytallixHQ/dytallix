@@ -447,7 +447,9 @@ fn committed_chain_writes_snapshots_of_its_committed_database() {
             let (key, value) = item.unwrap();
             (key.to_vec(), value.to_vec())
         })
-        .filter(|(key, _)| !key.starts_with(crate::state_tree::PREFIX))
+        .filter(|(key, _)| {
+            !key.starts_with(crate::state_tree::PREFIX) && key.as_slice() != CHECKPOINT_KEY.as_bytes()
+        })
         .collect();
     assert_eq!(entries, expected);
     assert!(entries.iter().any(|(key, _)| key == HEAD_KEY.as_bytes()));

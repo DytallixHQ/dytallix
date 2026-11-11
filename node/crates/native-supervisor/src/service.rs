@@ -232,6 +232,11 @@ impl NativeService {
             .config
             .catch_up_millis
             .map(std::time::Duration::from_millis);
+        // A production sentry or endpoint may be ready without peers (the
+        // no-peer rule, readiness::PeerlessWait); a validator may not.
+        let peerless = (catch_up.is_some()
+            && matches!(self.config.role, Some(NodeRole::Sentry | NodeRole::Endpoint)))
+        .then(|| self.config.operator_rpc_socket());
         let (owner, lease, security) = (&mut self.owner, &self.lease, &self.supervisor_security);
         self.engine_readiness = Some(crate::startup_diagnostic::phase(readiness::verify_engine(
             &self.config.rpc_socket(),
@@ -240,6 +245,7 @@ impl NativeService {
             self.authority.committed_info(),
             &self.config.process,
             catch_up,
+            peerless.as_deref(),
             || {
                 if catch_up.is_some() {
                     lease.recheck()?;
@@ -387,7 +393,7 @@ impl NativeService {
             "release_manifest_sha512":self.authority.expected_candidate().manifest_sha512,
             "preflight_height":self.authority.committed_info().map(|v|v.height),
             "started":self.started,"supervisor":self.self_snapshot.report(),
-            "engine_readiness":self.engine_readiness.as_ref().map(|v|json!({"chain_id":v.chain_id(),"block_height":v.block_height(),"application_height":v.application_info().height,"application_hash":v.application_info().app_hash,"pid":v.engine_pid()})),
+            "engine_readiness":self.engine_readiness.as_ref().map(|v|json!({"chain_id":v.chain_id(),"block_height":v.block_height(),"application_height":v.application_info().height,"application_hash":v.application_info().app_hash,"pid":v.engine_pid(),"peerless":v.peerless()})),
             "adapter_readiness":self.adapter_readiness.as_ref().map(|v|json!({"chain_id":v.chain_id(),"block_height":v.block_height(),"pid":v.adapter_pid(),"listener_identity_bound":v.listener_identity_bound()})),
             "channel_readiness":self.channel_readiness.as_ref().map(|v|json!({"chain_id":v.chain_id(),"block_height":v.block_height(),"pid":v.adapter_pid(),"listener_identity_bound":v.listener_identity_bound()})),
             "observation_timings":self.owner.observation_timings(),

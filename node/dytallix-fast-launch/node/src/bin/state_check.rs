@@ -8,6 +8,12 @@
 //! the database holds no consensus state, the failure class's status (10 to
 //! 17) when a check fails, and 1 for an unclassified failure.
 //!
+//! `--write-startup-checkpoint` (maintenance, T06) opens the database
+//! writable instead, runs the same complete check, which may take any time,
+//! and writes the startup checkpoint at the head, so the node's next start
+//! checks only the records after it. RocksDB refuses it while the node runs.
+//! The report adds `startup_checkpoint_height`.
+//!
 //! After a halt, `--restart-target RELEASE_SHA512 --evidence SHA256
 //! [--halted-block-hash HASH] --restart-output DIR` also writes the unsigned
 //! restart authorization for the committed checkpoint (restart v1, E04 gap
@@ -22,7 +28,8 @@
 //! node count.
 use anyhow::{bail, ensure, Context, Result};
 use dytallix_fast_node::consensus_settlement::{
-    check_stopped, restart_inputs, restart_policy, ConsensusConfig, StoppedCheck,
+    check_stopped, restart_inputs, restart_policy, write_startup_checkpoint, ConsensusConfig,
+    StoppedCheck,
 };
 use dytallix_fast_node::control_request::{self, Request, SignatureRecord};
 use dytallix_fast_node::failure_class::{class_of, classify, describe, FailureClass};
@@ -143,7 +150,12 @@ fn run() -> Result<(StoppedCheck, Option<Value>)> {
     let (mut config, mut genesis, mut db) = (None, None, None);
     let (mut target, mut evidence, mut block, mut output) = (None, None, None, None);
     let (mut assemble, mut signatures) = (None, None);
+    let mut checkpoint = false;
     while let Some(flag) = args.next() {
+        if flag.to_str() == Some("--write-startup-checkpoint") {
+            ensure!(!std::mem::replace(&mut checkpoint, true), "Duplicate argument");
+            continue;
+        }
         let value = args.next().context("Each argument requires a value")?;
         let slot: &mut Option<PathBuf> = match flag.to_str() {
             Some("--config") => &mut config,
@@ -156,7 +168,7 @@ fn run() -> Result<(StoppedCheck, Option<Value>)> {
             Some("--restart-assemble") => &mut assemble,
             Some("--restart-signatures") => &mut signatures,
             _ => bail!("usage: dytallix-state-check --config FILE --genesis FILE --db DIR \
-                [--restart-target SHA512 --evidence SHA256 [--halted-block-hash HASH] --restart-output DIR \
+                [--write-startup-checkpoint | --restart-target SHA512 --evidence SHA256 [--halted-block-hash HASH] --restart-output DIR \
                 | --restart-assemble REQUEST --restart-signatures DIR --restart-output DIR]"),
         };
         ensure!(slot.replace(PathBuf::from(value)).is_none(), "Duplicate argument");
@@ -171,6 +183,14 @@ fn run() -> Result<(StoppedCheck, Option<Value>)> {
         FailureClass::Configuration,
     )?;
     let db = db.context("--db is required")?;
+    if checkpoint {
+        ensure!(
+            [&target, &evidence, &block, &output, &assemble, &signatures].iter().all(|v| v.is_none()),
+            "--write-startup-checkpoint takes no restart argument"
+        );
+        let (check, height) = write_startup_checkpoint(&db, &config, &genesis)?;
+        return Ok((check, Some(json!({"startup_checkpoint_height": height}))));
+    }
     let check = check_stopped(&db, &config, &genesis)?;
     let text = |value: Option<PathBuf>| value.map(|v| v.to_string_lossy().into_owned());
     let restart = match (text(target), text(evidence), text(block), output, assemble, signatures) {
@@ -196,8 +216,12 @@ fn report(outcome: Result<(StoppedCheck, Option<Value>)>) -> (Value, u8) {
         Ok((StoppedCheck::Passed(info), restart)) => {
             let mut value = json!({"schema":1,"result":"pass","height":info.height,
                 "app_hash":info.app_hash,"not_checked":NOT_CHECKED});
-            if let Some(restart) = restart {
-                value["restart"] = restart;
+            match restart {
+                Some(Value::Object(extra)) if extra.contains_key("startup_checkpoint_height") => {
+                    value["startup_checkpoint_height"] = extra["startup_checkpoint_height"].clone();
+                }
+                Some(restart) => value["restart"] = restart,
+                None => {}
             }
             (value, 0)
         }

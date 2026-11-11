@@ -36,8 +36,13 @@ pub struct EngineReady {
     block_height: u64,
     application: Info,
     engine_pid: u32,
+    /// Ready by the no-peer rule, still catching up (`PeerlessWait`).
+    peerless: bool,
 }
 impl EngineReady {
+    pub fn peerless(&self) -> bool {
+        self.peerless
+    }
     pub fn chain_id(&self) -> &str {
         &self.chain_id
     }
@@ -554,6 +559,39 @@ fn application_info(raw: &[u8]) -> Result<Info> {
         app_hash: hex::encode(bytes),
     })
 }
+/// The engine's peer count from operator `net_info`.
+fn net_peers(raw: &[u8]) -> Result<u64> {
+    decimal(rpc_result(raw)?.get("n_peers").context("Net info peer count missing")?)
+}
+
+/// The no-peer rule (T06, approved 10 November 2026). The engine reports
+/// caught up only once it has a peer (block sync), so a node started without
+/// one would wait out its whole catch-up budget and fail. A sentry or
+/// endpoint whose engine reports no peer at every poll for one whole startup
+/// bound, at an unchanged height, is ready as peerless; a peer seen, or a
+/// height change, restarts the window. Validators never use it: their
+/// readiness still needs catch-up, and readiness never moves an engine out of
+/// block sync, so the rule cannot make any node sign.
+#[derive(Default)]
+struct PeerlessWait {
+    since: Option<(Instant, u64)>,
+}
+impl PeerlessWait {
+    fn observe(&mut self, now: Instant, peers: u64, height: u64, window: Duration) -> bool {
+        match self.since {
+            _ if peers != 0 => {
+                self.since = None;
+                false
+            }
+            Some((start, at)) if at == height => now.saturating_duration_since(start) >= window,
+            _ => {
+                self.since = Some((now, height));
+                false
+            }
+        }
+    }
+}
+
 fn check_application(info: &Info, preflight: Option<&Info>) -> Result<bool> {
     if let Some(prior) = preflight {
         if info.height < prior.height {
@@ -573,7 +611,9 @@ fn check_application(info: &Info, preflight: Option<&Info>) -> Result<bool> {
 /// budget the whole wait has the startup bound (the development mode). A
 /// production node waits up to its catch-up budget (P01, 1 October 2026),
 /// while each round of probes keeps the startup bound; `health` runs at
-/// every poll.
+/// every poll. With `peerless` (the operator socket of a production sentry
+/// or endpoint) the no-peer rule applies (`PeerlessWait`).
+#[allow(clippy::too_many_arguments)]
 pub fn verify_engine(
     socket: &Path,
     expected_engine_pid: u32,
@@ -581,6 +621,7 @@ pub fn verify_engine(
     preflight: Option<&Info>,
     limits: &ProcessLimits,
     catch_up: Option<Duration>,
+    peerless: Option<&Path>,
     mut health: impl FnMut() -> Result<()>,
 ) -> Result<EngineReady> {
     ensure!(
@@ -592,6 +633,7 @@ pub fn verify_engine(
     let end = started
         .checked_add(catch_up.unwrap_or(startup))
         .context("Readiness deadline overflow")?;
+    let mut wait = PeerlessWait::default();
     loop {
         let round = Instant::now()
             .checked_add(startup)
@@ -603,7 +645,15 @@ pub fn verify_engine(
         let application_raw = phase(ipc_probe(socket, expected_engine_pid, "/abci_info", limits, &mut deadline), Role::Engine, Stage::ApplicationRpc)?;
         let application = phase(application_info(&application_raw), Role::Engine, Stage::ApplicationValidation)?;
         let application_ready = phase(check_application(&application, preflight), Role::Engine, Stage::ApplicationComparison)?;
-        if !catching_up
+        let without_peers = match peerless {
+            Some(operator) if catching_up => {
+                let raw = phase(ipc_probe(operator, expected_engine_pid, "/net_info", limits, &mut deadline), Role::Engine, Stage::StatusRpc)?;
+                let peers = phase(net_peers(&raw), Role::Engine, Stage::StatusValidation)?;
+                wait.observe(Instant::now(), peers, height, startup)
+            }
+            _ => false,
+        };
+        if (!catching_up || without_peers)
             && height >= preflight.map_or(0, |v| v.height)
             && application.height >= height
             && application_ready
@@ -614,6 +664,7 @@ pub fn verify_engine(
                 block_height: height,
                 application,
                 engine_pid: expected_engine_pid,
+                peerless: catching_up,
             });
         }
         drop(deadline);
@@ -1057,6 +1108,40 @@ mod tests {
     /// For checks that should pass: they return as soon as the listener is
     /// ready, so the budget only bounds a failure, and a slow CI runner must
     /// not turn a pass into a deadline failure (7 and 11 October 2026).
+    #[test]
+    fn peerless_readiness_needs_no_peer_for_a_whole_window_at_one_height() {
+        let window = Duration::from_secs(60);
+        let t0 = Instant::now();
+        let at = |s: u64| t0 + Duration::from_secs(s);
+        let mut wait = PeerlessWait::default();
+        assert!(!wait.observe(at(0), 0, 100, window));
+        assert!(!wait.observe(at(59), 0, 100, window));
+        assert!(wait.observe(at(60), 0, 100, window));
+        // A peer seen restarts the window.
+        let mut wait = PeerlessWait::default();
+        assert!(!wait.observe(at(0), 0, 100, window));
+        assert!(!wait.observe(at(30), 1, 100, window));
+        assert!(!wait.observe(at(61), 0, 100, window));
+        assert!(!wait.observe(at(120), 0, 100, window));
+        assert!(wait.observe(at(121), 0, 100, window));
+        // So does a height change: the node is syncing from somewhere.
+        let mut wait = PeerlessWait::default();
+        assert!(!wait.observe(at(0), 0, 100, window));
+        assert!(!wait.observe(at(60), 0, 101, window));
+        assert!(!wait.observe(at(119), 0, 101, window));
+        assert!(wait.observe(at(120), 0, 101, window));
+    }
+    #[test]
+    fn net_info_peer_count_is_a_decimal_string() {
+        let body = |peers: Value| {
+            serde_json::to_vec(&serde_json::json!({"jsonrpc":"2.0","id":-1,
+                "result":{"listening":true,"listeners":[],"n_peers":peers,"peers":[]}})).unwrap()
+        };
+        assert_eq!(net_peers(&body("0".into())).unwrap(), 0);
+        assert_eq!(net_peers(&body("3".into())).unwrap(), 3);
+        assert!(net_peers(&body(3.into())).is_err());
+        assert!(net_peers(&body("-1".into())).is_err());
+    }
     #[cfg(target_os = "linux")]
     fn passing_limits() -> ProcessLimits {
         ProcessLimits { startup_millis: 10_000, ..limits() }
@@ -1420,6 +1505,7 @@ mod tests {
             Some(&prior),
             &passing_limits(),
             None,
+            None,
             || Ok(()),
         )
         .unwrap();
@@ -1469,6 +1555,9 @@ mod tests {
                     let mut status: Value = serde_json::from_slice(&status_body("chain", 10)).unwrap();
                     status["result"]["sync_info"]["catching_up"] = (statuses <= rounds).into();
                     serde_json::to_vec(&status).unwrap()
+                } else if String::from_utf8_lossy(&request).contains("/net_info") {
+                    serde_json::to_vec(&serde_json::json!({"jsonrpc":"2.0","id":-1,
+                        "result":{"listening":true,"listeners":[],"n_peers":"0","peers":[]}})).unwrap()
                 } else {
                     app_body(10, &[8; 32])
                 };
@@ -1490,14 +1579,14 @@ mod tests {
         let mut limits = limits();
         limits.poll_millis = 4;
         let (_dir, path, task) = catching_up_engine(150);
-        let error = verify_engine(&path, std::process::id(), "chain", None, &limits, None, || Ok(()))
+        let error = verify_engine(&path, std::process::id(), "chain", None, &limits, None, None, || Ok(()))
             .unwrap_err();
         assert!(error.chain().any(|cause| cause.is::<ReadinessExpired>()));
         task.join().unwrap();
         let (_ready_dir, path, task) = catching_up_engine(150);
         let mut checks = 0;
         let ready = verify_engine(&path, std::process::id(), "chain", None, &limits,
-            Some(Duration::from_secs(30)), || {
+            Some(Duration::from_secs(30)), None, || {
                 checks += 1;
                 Ok(())
             })
@@ -1509,13 +1598,35 @@ mod tests {
         let (_stalled_dir, path, task) = catching_up_engine(usize::MAX);
         let mut calls = 0;
         let error = verify_engine(&path, std::process::id(), "chain", None, &limits,
-            Some(Duration::from_secs(30)), || {
+            Some(Duration::from_secs(30)), None, || {
                 calls += 1;
                 ensure!(calls < 50, "Owned child exited");
                 Ok(())
             })
         .unwrap_err();
         assert!(format!("{error:#}").contains("Owned child exited"));
+        drop(task);
+    }
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_peerless_engine_is_ready_after_one_startup_bound_only_with_the_rule() {
+        let mut limits = limits();
+        limits.poll_millis = 4;
+        // Never caught up, never a peer: ready as peerless after the bound.
+        let (_dir, path, task) = catching_up_engine(usize::MAX);
+        let started = Instant::now();
+        let ready = verify_engine(&path, std::process::id(), "chain", None, &limits,
+            Some(Duration::from_secs(30)), Some(&path), || Ok(()))
+        .unwrap();
+        assert!(ready.peerless());
+        assert!(started.elapsed() >= Duration::from_millis(limits.startup_millis));
+        drop(task);
+        // Without the rule (a validator) the same engine is never ready.
+        let (_dir, path, task) = catching_up_engine(usize::MAX);
+        let error = verify_engine(&path, std::process::id(), "chain", None, &limits,
+            Some(Duration::from_millis(600)), None, || Ok(()))
+        .unwrap_err();
+        assert!(error.chain().any(|cause| cause.is::<ReadinessExpired>()));
         drop(task);
     }
     #[cfg(target_os = "linux")]

@@ -378,7 +378,7 @@
         },
         {
           "path": "crates/native-supervisor/src/service.rs",
-          "sha256": "83e72819905b40df7959ac75dfc21c6e778036ba9260bbebb76f5a8720360b24"
+          "sha256": "fd12a43f473630e569dd80c3c20f6031198165d259d972458112a6924d5a798a"
         }
       ],
       "policy": "Unix ABCI and Unix-socket RPC; HTTP/1 loopback adapter; no TLS",
