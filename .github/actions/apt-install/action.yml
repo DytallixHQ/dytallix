@@ -1,0 +1,49 @@
+name: Cached apt install
+description: >-
+  Install Ubuntu packages from a cache of their .deb files and package lists
+  when one fits, else from Ubuntu's mirrors after a DNS check, so a mirror
+  outage fails in seconds with its cause (Canonical outage, 11 November 2026:
+  every apt step failed on "Temporary failure resolving", one after a 20-minute
+  hold). Only main saves the cache, so every branch reads one cache per
+  package set; apt checks each cached .deb against its signed list.
+inputs:
+  packages:
+    description: Space-separated package names.
+    required: true
+runs:
+  using: composite
+  steps:
+    - id: key
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        set -euo pipefail
+        # shellcheck disable=SC2086 # split the package list on purpose
+        hash=$(printf '%s\n' $PACKAGES | sort -u | sha256sum | cut -c1-16)
+        {
+          echo "dir=$HOME/.apt-offline"
+          echo "prefix=apt-v1-${ImageOS}-${hash}-"
+          echo "key=apt-v1-${ImageOS}-${hash}-${ImageVersion}"
+        } >> "$GITHUB_OUTPUT"
+    # A new runner image changes the key; the prefix still restores the last
+    # image's cache, which serves an install it still fits.
+    - id: restore
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.key.outputs.dir }}
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: ${{ steps.key.outputs.prefix }}
+    - id: install
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+        DIR: ${{ steps.key.outputs.dir }}
+      run: bash "$GITHUB_ACTION_PATH/install.sh"
+    - if: >-
+        github.ref == 'refs/heads/main' && steps.install.outputs.fetched == 'true'
+        && steps.restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.key.outputs.dir }}
+        key: ${{ steps.key.outputs.key }}
