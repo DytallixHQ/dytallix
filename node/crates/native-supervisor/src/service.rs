@@ -370,6 +370,10 @@ impl NativeService {
     pub fn stop(&mut self) -> Result<()> {
         self.owner.shutdown()
     }
+    pub fn stop_account(&self) -> crate::processes::StopAccount { self.owner.stop_account() }
+    /// A cheap check between monitor ticks, so a child's own end is seen
+    /// before a later stop request can be read as its cause.
+    pub fn child_exited(&self) -> bool { self.owner.any_child_exited() }
     pub fn observation_timings(&self) -> Value { self.owner.observation_timings() }
     /// The report's scope and mode fields. Qualification belongs to the
     /// accepted release (E06, T03), so no report claims it.
@@ -394,6 +398,7 @@ impl NativeService {
             "observation_timings":self.owner.observation_timings(),
             "first_failure_children":self.owner.first_failure_snapshot(),
             "stop_exits":self.owner.stop_exits(),
+            "stop_account":self.owner.stop_account().report(),
             "helper_admission":dytallix_fast_node::root_genesis::helper_admission_receipt(),
             "application_startup_helper_admission_receipt":self.application_startup_helper_admission_receipt}))
     }

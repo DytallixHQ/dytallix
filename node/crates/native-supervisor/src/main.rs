@@ -1,5 +1,5 @@
 use anyhow::{ensure, Context, Result};
-use dytallix_native_supervisor::processes::{is_graceful_cancellation, with_owned_cleanup};
+use dytallix_native_supervisor::processes::{is_clean_requested_stop, with_owned_cleanup, StopAccount};
 use dytallix_native_supervisor::service::NativeService;
 use std::io::Write;
 use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
@@ -45,7 +45,12 @@ fn run() -> Result<()> {
             // Check child failures before classifying the cancellation signal.
             service.monitor_tick()?;
             let deadline = std::time::Instant::now() + service.monitor_interval();
-            while !flag.load(Ordering::SeqCst) && std::time::Instant::now() < deadline {
+            // A child's own end ends the wait too: it is then seen before
+            // any later stop request, so the request cannot explain it.
+            while !flag.load(Ordering::SeqCst)
+                && !service.child_exited()
+                && std::time::Instant::now() < deadline
+            {
                 std::thread::sleep(
                     std::time::Duration::from_millis(25)
                         .min(deadline.saturating_duration_since(std::time::Instant::now())),
@@ -56,7 +61,7 @@ fn run() -> Result<()> {
     if result.is_err() { service.capture_failure(); }
     let cleanup = service.stop();
     let final_stop_succeeded = cleanup.is_ok();
-    let finished = finish_shutdown(result, cleanup);
+    let finished = finish_shutdown(result, cleanup, service.stop_account());
     // No owned child cleanup is delayed by the final diagnostic output.
     let mut report = service.final_timing_report();
     report["final_stop_succeeded"] = final_stop_succeeded.into();
@@ -217,9 +222,11 @@ impl ReportSink {
     }
 }
 
-fn finish_shutdown(result: Result<()>, cleanup: Result<()>) -> Result<()> {
+/// A requested stop (SIGTERM or SIGINT) that the children end cleanly
+/// within the stop bound exits 0; see `is_clean_requested_stop`.
+fn finish_shutdown(result: Result<()>, cleanup: Result<()>, stop: StopAccount) -> Result<()> {
     match with_owned_cleanup(result, cleanup, "Service") {
-        Err(error) if is_graceful_cancellation(&error) => Ok(()),
+        Err(error) if is_clean_requested_stop(&error, stop) => Ok(()),
         result => result,
     }
 }
@@ -227,7 +234,9 @@ fn finish_shutdown(result: Result<()>, cleanup: Result<()>) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dytallix_native_supervisor::processes::OperationCancelled;
+    use dytallix_native_supervisor::processes::{ExitAfterStopRequest, OperationCancelled, Role};
+    use dytallix_native_supervisor::startup_diagnostic::{ExitObservation, OwnedChildExit};
+    use dytallix_release_runtime::ownership::OwnershipCancelled;
 
     fn socket_sink() -> (ReportSink, std::os::unix::net::UnixStream) {
         let (writer, reader) = std::os::unix::net::UnixStream::pair().unwrap();
@@ -330,8 +339,8 @@ mod tests {
     #[test]
     fn intentional_cancellation_with_successful_cleanup_returns_success() {
         let cancellation = anyhow::Error::new(OperationCancelled).context("Readiness interrupted");
-        assert!(finish_shutdown(Err(cancellation), Ok(())).is_ok());
-        assert!(finish_shutdown(Ok(()), Ok(())).is_ok());
+        assert!(finish_shutdown(Err(cancellation), Ok(()), CLEAN).is_ok());
+        assert!(finish_shutdown(Ok(()), Ok(()), CLEAN).is_ok());
     }
     #[test]
     fn process_and_observation_failures_are_not_cancellation() {
@@ -340,7 +349,7 @@ mod tests {
             "Owned consensus_stdio exited",
             "Unknown executable mapping",
         ] {
-            assert!(finish_shutdown(Err(anyhow::anyhow!(message)), Ok(())).is_err());
+            assert!(finish_shutdown(Err(anyhow::anyhow!(message)), Ok(()), CLEAN).is_err());
         }
     }
     #[test]
@@ -350,13 +359,90 @@ mod tests {
             Err(anyhow::anyhow!("Reap deadline exceeded")),
             "Owned process",
         );
-        let error = finish_shutdown(earlier, Ok(())).unwrap_err();
+        let error = finish_shutdown(earlier, Ok(()), CLEAN).unwrap_err();
         assert!(format!("{error:#}").contains("Reap deadline exceeded"));
         assert!(finish_shutdown(
             Err(OperationCancelled.into()),
-            Err(anyhow::anyhow!("Final stop failed"))
+            Err(anyhow::anyhow!("Final stop failed")),
+            CLEAN
         )
         .is_err());
-        assert!(finish_shutdown(Ok(()), Err(anyhow::anyhow!("Final stop failed"))).is_err());
+        assert!(finish_shutdown(Ok(()), Err(anyhow::anyhow!("Final stop failed")), CLEAN).is_err());
+    }
+
+    const CLEAN: StopAccount = StopAccount { forced_kills: 0, unexplained_exits: 0 };
+    // Linux waitid si_code values, as startup_diagnostic records them.
+    const EXITED: i32 = 1;
+    const KILLED: i32 = 2;
+    const DUMPED: i32 = 3;
+    fn exit(role: Role, si_code: Option<i32>, si_status: Option<i32>) -> OwnedChildExit {
+        OwnedChildExit { role, pid: 7, observation: ExitObservation {
+            observed_pid: si_code.map(|_| 7), si_code, si_status,
+            observation_errno: si_code.is_none().then_some(libc::ECHILD) } }
+    }
+    /// As `ProcessOwner::active` reports an exit first seen after the request.
+    fn after_request(exit: OwnedChildExit) -> Result<()> {
+        Err(anyhow::Error::new(exit).context(ExitAfterStopRequest).context("Native service phase=monitor_tick"))
+    }
+
+    // 11 November 2026 finding: the service manager's stop signals the
+    // children with the supervisor; the adapter, cancelled, exits 1 before
+    // the supervisor reads its own request. That stop is clean.
+    #[test]
+    fn a_child_ended_by_the_same_stop_request_is_a_clean_stop() {
+        for (role, code, status) in [
+            (Role::Adapter, EXITED, 1),
+            (Role::Bridge, EXITED, 1),
+            (Role::Engine, EXITED, 0),
+            (Role::Engine, KILLED, libc::SIGTERM),
+            (Role::Bridge, KILLED, libc::SIGINT),
+            (Role::Application, EXITED, 1),
+        ] {
+            let result = after_request(exit(role, Some(code), Some(status)));
+            assert!(finish_shutdown(result, Ok(()), CLEAN).is_ok(), "{role:?} {code} {status}");
+        }
+        // As a security check that the child's own exit failed mid-check.
+        let check = anyhow::Error::new(std::io::Error::from_raw_os_error(libc::ENOENT))
+            .context(exit(Role::Adapter, Some(EXITED), Some(1)))
+            .context(ExitAfterStopRequest);
+        assert!(finish_shutdown(Err(check), Ok(()), CLEAN).is_ok());
+    }
+    #[test]
+    fn a_crash_or_failure_class_during_a_requested_stop_fails() {
+        for (role, code, status) in [
+            (Role::Engine, KILLED, libc::SIGSEGV),
+            (Role::Adapter, KILLED, libc::SIGKILL),
+            (Role::Bridge, DUMPED, libc::SIGABRT),
+            (Role::Application, EXITED, 14),
+            (Role::Application, EXITED, 16),
+        ] {
+            let result = after_request(exit(role, Some(code), Some(status)));
+            assert!(finish_shutdown(result, Ok(()), CLEAN).is_err(), "{role:?} {code} {status}");
+        }
+        // An unread status explains nothing.
+        assert!(finish_shutdown(after_request(exit(Role::Engine, None, None)), Ok(()), CLEAN).is_err());
+    }
+    #[test]
+    fn a_child_exit_seen_before_the_request_fails_even_if_the_stop_is_clean() {
+        let result: Result<()> = Err(anyhow::Error::new(exit(Role::Adapter, Some(EXITED), Some(1))));
+        let error = finish_shutdown(result, Ok(()), CLEAN).unwrap_err();
+        assert!(error.is::<OwnedChildExit>());
+    }
+    #[test]
+    fn a_requested_stop_past_its_bound_or_with_an_unexplained_end_fails() {
+        let forced = StopAccount { forced_kills: 1, unexplained_exits: 0 };
+        let unexplained = StopAccount { forced_kills: 0, unexplained_exits: 1 };
+        for stop in [forced, unexplained] {
+            assert!(finish_shutdown(Err(OperationCancelled.into()), Ok(()), stop).is_err());
+            let result = after_request(exit(Role::Adapter, Some(EXITED), Some(1)));
+            assert!(finish_shutdown(result, Ok(()), stop).is_err());
+        }
+    }
+    #[test]
+    fn a_stop_during_the_startup_report_is_a_requested_stop() {
+        let result: Result<()> = Err(OwnershipCancelled.into());
+        assert!(finish_shutdown(result, Ok(()), CLEAN).is_ok());
+        let result: Result<()> = Err(OwnershipCancelled.into());
+        assert!(finish_shutdown(result, Err(anyhow::anyhow!("Final stop failed")), CLEAN).is_err());
     }
 }
