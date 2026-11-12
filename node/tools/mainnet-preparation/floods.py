@@ -19,7 +19,8 @@ load wallets. Each type and what counts as the node refusing it:
     recorded). The ones past the bound must be refused with the queue's
     capacity reason, and every one admitted must commit (a full queue
     refuses, never evicts: mempool rule 5). More admitted than the bound
-    while every batch met the same head is a success (a defect), as is an
+    while every batch met the same head (read before each batch and once
+    after the last) is a success (a defect), as is an
     admitted transaction that never commits. A flood that met no full queue
     because a block came in between proves nothing and is made again.
   - request_flood: flooders at FLOODERS addresses (each the channel's
@@ -197,11 +198,18 @@ def finish(kind, attempt, observed):
 
 # The transaction flood
 
-def transaction_observed(rows, bound):
+def transaction_observed(rows, bound, after=()):
+    """The flood's counts. Its heads are each batch's head, read before the
+    batch's transactions, and the head read after the last batch (after):
+    a block that commits partway through a batch drains the queue for the
+    rest of it, and only the head after shows it (11 November 2026: 67
+    admitted against 64, every batch at one head)."""
     admitted = [r for r in rows if r['status'] in ('admitted', 'committed', 'lost')]
     refused = [r for r in rows if r['status'] == 'refused']
+    heads = {r['submit_height'] for r in rows if r['submit_height'] is not None}
+    heads.update(h for h in after if h is not None)
     return {'bound': bound, 'sent': len(rows),
-            'heads': sorted({r['submit_height'] for r in rows if r['submit_height'] is not None}),
+            'heads': sorted(heads),
             'admitted': len(admitted), 'committed': sum(r['status'] == 'committed' for r in rows),
             'lost': sum(r['status'] == 'lost' for r in rows),
             'queue_refused': sum(QUEUE_REFUSAL in (r['log'] or '') for r in refused),
@@ -236,7 +244,9 @@ def sign_share(run, wallets, recipient_hex):
 def send_signed(run, rpc, signed, wait):
     """The signed transfers sent at once over every connection as soon as
     wait() returns (a fresh block), then followed to their receipts or
-    their expiry. The rows, and the transport errors met."""
+    their expiry. The rows, the transport errors met, and the head read
+    once every batch is answered (None if that read failed, itself an
+    error)."""
     batches = [signed[n:n + load.MAX_BATCH - 1] for n in range(0, len(signed), load.MAX_BATCH - 1)]
     wait()
     errors = []
@@ -254,20 +264,25 @@ def send_signed(run, rpc, signed, wait):
         thread.start()
     for thread in threads:
         thread.join()
+    try:
+        after = load.head_height(rpc.one('head', 'abci_info', {}))
+    except load.Transport as error:
+        after = None
+        errors.append(str(error)[:200])
     rows = [row for row, _ in signed]
     for row in rows:
         if row['status'] in ('admitted', 'uncertain'):
             run.tracker.add(row)
     run.tracker.drain(run.s.block_time * (run.s.expiry_blocks + 12), interval=run.s.poll_interval)
-    return rows, errors
+    return rows, errors, after
 
 
 def transaction_flood(run, rpc, wallets, funder, bound, show):
     """One flood: every wallet's transfer signed, then sent at once just
     after a block, then followed to its receipt or its expiry."""
     signed = sign_share(run, wallets, funder.account_id)
-    rows, errors = send_signed(run, rpc, signed, lambda: wait_new_head(rpc))
-    observed = transaction_observed(rows, bound)
+    rows, errors, after = send_signed(run, rpc, signed, lambda: wait_new_head(rpc))
+    observed = transaction_observed(rows, bound, [after])
     if errors:
         observed['error'] = errors[0]
     show(f'== transaction_flood: {observed["admitted"]} admitted at heads {observed["heads"]}, '
