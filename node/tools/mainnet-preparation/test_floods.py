@@ -83,6 +83,19 @@ class Classify(unittest.TestCase):
                          (4, 3, 1, 2, [120, 121]))
         self.assertEqual(seen['other_refusals'], ['Ordinary spending nonce is stale'])
 
+    def test_a_block_partway_through_a_batch_is_not_an_over_admission(self):
+        # 11 November 2026: every batch read head 1060 before its sends, a
+        # block came partway through one, and 67 were admitted against 64.
+        def row(status, log=None):
+            return {'status': status, 'log': log, 'submit_height': 1060}
+        rows = [row('committed')] * 67 + [row('refused', floods.QUEUE_REFUSAL)] * 13
+        unchanged = floods.transaction_observed(rows, 64, [1060])
+        self.assertEqual(floods.classify({'type': 'transaction_flood', 'observed': unchanged}), 'admitted')
+        moved = floods.transaction_observed(rows, 64, [1061])
+        self.assertEqual(moved['heads'], [1060, 1061])
+        self.assertEqual(floods.classify({'type': 'transaction_flood', 'observed': moved}), 'refused')
+        self.assertEqual(floods.transaction_observed(rows, 64, [None])['heads'], [1060])
+
 
 class Record(unittest.TestCase):
     def rows(self, n=floods.TARGET):

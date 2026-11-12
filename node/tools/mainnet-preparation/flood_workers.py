@@ -164,12 +164,12 @@ def serve(run, shard, out, close, hammer, clock=time.time, sleep=time.sleep, pol
 
             def wait():
                 heads.append(wait_height(run.rpc, command['height'], command['timeout'], sleep))
-            rows, errors = floods.send_signed(run, run.rpc, signed, wait)
+            rows, errors, after = floods.send_signed(run, run.rpc, signed, wait)
             signed = None
             raw = load.rows_jsonl(rows)
             (out / rows_name(seq)).write_bytes(raw)
             reply = {'rows': len(rows), 'rows_sha256': load.sha256(raw), 'errors': errors[:3],
-                     'sent_at_head': heads[0] if heads else None}
+                     'sent_at_head': heads[0] if heads else None, 'sent_until_head': after}
         elif do in ('hammer', 'idle'):
             close()
             while clock() < command['start_at']:
@@ -276,7 +276,7 @@ def machine_transaction_flood(run, rpc, workers, bound, lead, show):
     timeout = lead + run.s.block_time * (run.s.expiry_blocks + 12) + 300
     replies = workers.ask([{'do': 'send', 'height': height, 'timeout': lead + 120}] * workers.count, timeout)
     rows = [row for n, reply in enumerate(replies) for row in workers.rows(n, seq, reply)]
-    observed = floods.transaction_observed(rows, bound)
+    observed = floods.transaction_observed(rows, bound, [r.get('sent_until_head') for r in replies])
     errors = [e for reply in replies for e in reply['errors']]
     if errors:
         observed['error'] = errors[0]

@@ -146,7 +146,12 @@ SCENARIOS = (
     {'name': 'peer_drop', 'command': 'fault-peer-drop', 'args': {}},
     # At least 150 s, so the once-a-minute monitor must see the 60 s halt
     # rule fire (P01, 10 November 2026; P01_T05_FAULT_ALERTS_2026-11-10).
-    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 150}},
+    # 240 s: the monitor counts the halt from the tick that last saw the
+    # height move, and a tick up to 1 s late (AccuracySec) leaves the next
+    # one under 60 s, so the alert can come three ticks after the cut. At
+    # 150 s it fired 67 to 148 s in and missed 2 of 12 CI runs (11 November
+    # 2026). The agent allows up to 300 s.
+    {'name': 'partition', 'command': 'fault-partition', 'args': {'duration_seconds': 240}},
     {'name': 'process_kill', 'command': 'fault-kill', 'args': {}},
 )
 # R02's validator process restart, on the validator through its own agent.
