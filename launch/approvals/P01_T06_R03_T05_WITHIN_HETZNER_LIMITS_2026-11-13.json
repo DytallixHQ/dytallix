@@ -1,0 +1,85 @@
+{
+  "decision_id": "P01-2026-11-13-T06-R03-T05-WITHIN-HETZNER-LIMITS",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Hetzner will not raise the account limits; run R03 and T05 with the capacity the account has (user: 'proceed as outlined', then 'fill out with your recommendations', 13 November 2026)"
+  },
+  "reason": "Hetzner refused to raise the account limits. The project has 8 cores, 7 of them in use (the website cpx21, 3; the staging sentry and validator cx23, 2 each), and 2 of its 5 primary IPv4 addresses free. That leaves room for one 1-core load machine. The 7-machine plan in P01_T06_STAGING_3_T9_AND_FLOODS_2026-11-11 created no machines on 11 November (run 20261111155419). While rescoping this, the adapter's per-address connection bound turned out to key on the exact IP, so one IPv6 /64 could fill every slot; fixed in PR #146 (CI only).",
+  "design_ref": "../../node/docs/mainnet/launch-rehearsals.md",
+  "decisions": [
+    {
+      "question": "Load sources for R03 and T05",
+      "selected": "One Hetzner load machine (1 core) for the floods and load; the founder's Mac for the drive and the honest client",
+      "rule": "At most 1 load machine per window, made by load_machines.py up --count 1, the cheapest x86 type outside hel1, deleted by the watchdog at its deadline. The founder's Mac runs the drive and the honest client in the r03-drive container, as on 11 November. Both sources use IPv4 only."
+    },
+    {
+      "question": "R03 transaction floods",
+      "selected": "Run as approved in P01_T04_FLOODS_2026-11-09 from the two sources",
+      "rule": "Transaction volume depends on the wallet fleet, not the number of source addresses; the flood rules and pass criteria are unchanged."
+    },
+    {
+      "question": "R03 request floods",
+      "selected": "Measure what two IPv4 sources can do; slot exhaustion stays proven in CI",
+      "rule": "On the real hosts the run reports sentry latency, throughput and whether the honest client is served while two sources hold their per-address connections. That 14 flooding connections from 7 addresses leave the honest client served is proven by the CI network job (30 of 30 attempts clean on 10 November) and is not claimed from this run."
+    },
+    {
+      "question": "T05 capacity",
+      "selected": "Step the rate from the same sources until the sentry or the load source saturates",
+      "rule": "The pass rule of P01_T06_T05_CAPACITY_RUN_2026-11-10 (at least 180 basic Sends a block for 30 minutes, nothing lost) is unchanged. If the load source saturates first, the result is recorded as a lower bound, not a pass, and goes back for a decision."
+    },
+    {
+      "question": "When R03 runs",
+      "selected": "Saturday 14 November 2026, 15:00 to 19:00 UTC",
+      "rule": "One window for both flood types: with one load machine there is no reason to split them. load_machines.py up --count 1 --hours 4 at 15:00 UTC; 10 transaction floods, then 10 request floods (flood_workers.py drive --workers 1); down at the end, and load_machines.py check must show nothing left. The no-cost preparation (funding preflight, priming) runs before 15:00 with no machine up."
+    },
+    {
+      "question": "How long the load machine may run",
+      "selected": "4 hours per window, deleted by the watchdog at its deadline",
+      "rule": "Each window makes its own machine; none outlives its window."
+    },
+    {
+      "question": "When the T5 host loss on the real staging sentry runs",
+      "selected": "Sunday 15 November 2026, 15:00 to 16:00 UTC",
+      "rule": "Once, under P01_T05 real-host decisions of 10 November (existing hcloud token, staging sentry only, 600 s target). After R03 so the floods are not measured on a host just power-cycled; before T05. After the boot, timedatectl timesync-status is recorded."
+    },
+    {
+      "question": "When T05 runs",
+      "selected": "Monday 16 November 2026, 15:00 to 19:00 UTC",
+      "rule": "One load machine for 4 hours, as for R03."
+    },
+    {
+      "question": "T05 rate steps",
+      "selected": "60, 120, 180 basic Sends a block for 10 minutes each, then 180 held for 30 minutes, then 240 for 10 minutes",
+      "rule": "At the 5 s block target: 12, 24, 36, then 36 held, then 48 transactions a second (load.py --rate). 70 minutes of load inside the window. The 30-minute hold at 180 is the pass rule's measurement; the 240 step reads headroom only and does not change the pass rule. If the load source cannot reach a step, the run stops stepping and records the highest rate reached as a lower bound."
+    },
+    {
+      "question": "T05 memory and CPU reading",
+      "selected": "Not measured in this run",
+      "rule": "No resource reading exists in the tools yet and building one would delay the run. The run reports rate, inclusion and losses; the 4 GB server and 3 GiB node-limit check of P01_E05_TWO_SEATS stays open, to be measured in a later T05 run once a reading is built."
+    }
+  ],
+  "accepted_risks": [
+    "The real-host request flood cannot fill the sentry's connection slots from enough addresses; that property rests on CI.",
+    "The staging hosts run bundles built before PR #146, so their per-address bound still keys on the exact IP. Using IPv4-only sources keeps the run unaffected; the fix reaches the hosts with the next sealed bundle.",
+    "The founder's Mac is a home connection: its uplink and NAT may cap the rate before the sentry does.",
+    "T05 does not yet show the node within its 3 GiB memory limit under load; that check stays open.",
+    "The drive and the honest client run in the linux container on the founder's Mac under amd64 emulation; the 120-block transaction expiry and 3 retries (PR #133) cover its slow signing."
+  ],
+  "unset": [],
+  "supersedes": [
+    "the 7-machine count and window in P01_T06_STAGING_3_T9_AND_FLOODS_2026-11-11 (the flood rules there still apply)",
+    "the machine count (1 to 8) and the 'once the Hetzner IPv4 limit increase is granted' timing in P01_T06_T05_CAPACITY_RUN_2026-11-10"
+  ],
+  "does_not_authorize": [
+    "more than 1 load machine per window, or any run outside its window",
+    "stopping, resizing or deleting the website server or either staging host",
+    "load machines at any other provider",
+    "rebuilding either host or lifting a host's delete protection",
+    "any change to the approved capacity, queue or connection values",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
