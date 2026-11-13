@@ -507,9 +507,9 @@
       "source": {
         "tool": "T9",
         "built": "2026-10-28",
-        "remaining": "its first run on the staging hosts, each step timed at their consoles"
+        "remaining": null
       },
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/69"
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/operations/runs/2026-11-11-staging-3-t9.md"
     },
     {
       "id": "staging.hosts.ready",
