@@ -296,3 +296,28 @@ fn each_address_has_its_own_bound() {
     drop((_second, _other, _again));
     assert!(slots.counts.lock().unwrap().is_empty());
 }
+
+#[test]
+fn an_ipv6_host_counts_as_its_64() {
+    let slots = AddressSlots::new(2);
+    let a: IpAddr = "2001:db8:1:2::1".parse().unwrap();
+    let b: IpAddr = "2001:db8:1:2:ffff:ffff:ffff:ffff".parse().unwrap();
+    let c: IpAddr = "2001:db8:1:3::1".parse().unwrap();
+    let _first = slots.acquire(a).unwrap();
+    let _second = slots.acquire(b).unwrap();
+    assert!(slots.acquire("2001:db8:1:2::9".parse().unwrap()).is_none());
+    let _other = slots.acquire(c).unwrap();
+}
+
+#[test]
+fn a_mapped_ipv4_address_counts_as_ipv4() {
+    let slots = AddressSlots::new(1);
+    let _v4 = slots.acquire("198.51.100.1".parse().unwrap()).unwrap();
+    assert!(slots
+        .acquire("::ffff:198.51.100.1".parse().unwrap())
+        .is_none());
+    assert_eq!(
+        address_key("::ffff:198.51.100.1".parse().unwrap()),
+        "198.51.100.1".parse::<IpAddr>().unwrap()
+    );
+}
