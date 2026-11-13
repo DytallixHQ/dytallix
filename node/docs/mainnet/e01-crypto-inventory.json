@@ -232,7 +232,7 @@
         },
         {
           "path": "consensus/pqc-http-adapter/src/channel.rs",
-          "sha256": "5a13feaf2e042f99e316386cb8dfef1c0b52547f2104b4bfd1693a88b82ba101"
+          "sha256": "4afa967732c4640a5d33e9725876b89403ba6c7a76c24af8fc699a27e63ebe2c"
         },
         {
           "path": "consensus/pqc-http-adapter/src/bin/dytallix-channel-key.rs",
