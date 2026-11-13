@@ -7,7 +7,7 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "93ec38fb683d5d0fa6858b8f936fa9f42fa78df5a8c9f1a63f6133a2caa902cd"
+        "sha256": "9597252774c5ad4623db46c62030a33f853f8279ddc63b327941ad57eb395db8"
       },
       {
         "path": ".github/workflows/host-install.yml",
@@ -533,9 +533,9 @@
       "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
-      "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: its first run on the staging hosts, each step timed at their consoles",
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/69",
+      "status": "pass",
+      "value": "Built and proven in the CI staging network",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/operations/runs/2026-11-11-staging-3-t9.md",
       "updated": "2026-10-28"
     },
     {
