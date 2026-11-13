@@ -163,7 +163,24 @@ pub fn read_seed(path: &Path) -> Result<Zeroizing<[u8; SEED_LEN]>, String> {
     Ok(seed)
 }
 
-/// Open connections per client address.
+/// The address a connection is counted against. An IPv4 address counts
+/// as itself, also when it arrives written as IPv6 (`::ffff:a.b.c.d`). An
+/// IPv6 address counts as its /64: one host is routinely given a whole /64,
+/// so a bound on single IPv6 addresses would not bound that host at all.
+pub(crate) fn address_key(ip: IpAddr) -> IpAddr {
+    match ip {
+        IpAddr::V4(v4) => IpAddr::V4(v4),
+        IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
+            Some(v4) => IpAddr::V4(v4),
+            None => {
+                let s = v6.segments();
+                IpAddr::V6(std::net::Ipv6Addr::new(s[0], s[1], s[2], s[3], 0, 0, 0, 0))
+            }
+        },
+    }
+}
+
+/// Open connections per client address (see `address_key`).
 pub(crate) struct AddressSlots {
     counts: Mutex<HashMap<IpAddr, usize>>,
     max: usize,
@@ -183,6 +200,7 @@ impl AddressSlots {
     }
 
     pub(crate) fn acquire(self: &Arc<Self>, ip: IpAddr) -> Option<AddressSlot> {
+        let ip = address_key(ip);
         let mut counts = self.counts.lock().ok()?;
         let count = counts.entry(ip).or_insert(0);
         if *count >= self.max {
