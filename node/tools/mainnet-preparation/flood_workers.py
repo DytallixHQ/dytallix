@@ -179,7 +179,12 @@ def serve(run, shard, out, close, hammer, clock=time.time, sleep=time.sleep, pol
             if do == 'hammer':
                 counts, failure = hammer(command['seconds'])
                 reply = {'counts': counts, 'failure': failure}
-        elif do != 'stop':
+        elif do == 'stop':
+            # The signing cost that sizes load machines (T05): this worker's
+            # prepare+sign+transport per transaction, and its cores.
+            reply = {'sign_ms': load.distribution(getattr(getattr(run, 'signer', None), 'sign_ms', [])),
+                     'cpus': os.cpu_count()}
+        else:
             raise Failed(f'an unknown command {do!r}')
         load_workers.write_json(out / reply_name(seq), dict(reply, schema=WORKER_SCHEMA, seq=seq, do=do))
         if do == 'stop':
@@ -404,9 +409,10 @@ def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, set
                     rows.append(row)
                     if row['outcome'] != 'transport':
                         break
-        workers.ask([{'do': 'stop'}] * count, 300)
+        stopped = workers.ask([{'do': 'stop'}] * count, 300)
         summary = [{'shard': p['shard'], 'wallets': p['wallets'], 'primed_s': p['primed_s'],
-                    'address': transport.address(n),
+                    'address': transport.address(n), 'sign_ms': stopped[n].get('sign_ms'),
+                    'cpus': stopped[n].get('cpus'),
                     'sent_at_heads': [h[n] for h in sent_at]} for n, p in enumerate(primed)]
     except BaseException as error:
         load_workers.write_json(out / 'failure.json', {'error': f'{type(error).__name__}: {error}'[:500]})
