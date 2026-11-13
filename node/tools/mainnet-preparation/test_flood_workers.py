@@ -331,6 +331,15 @@ class Pieces(unittest.TestCase):
             with self.subTest(why=why), self.assertRaisesRegex(load.Failed, why):
                 fw.check_plan(count, kinds, separate)
 
+    def test_a_reduced_request_flood_needs_only_its_own_flooders(self):
+        fw.check_plan(1, ('request_flood',), True, flooders=1)
+        fw.check_plan(2, tuple(floods.REASONS), True, flooders=2)
+        with self.assertRaisesRegex(load.Failed, 'needs 3 machines'):
+            fw.check_plan(2, ('request_flood',), True, flooders=3)
+        for flooders in (0, floods.FLOODERS + 1):
+            with self.subTest(flooders=flooders), self.assertRaisesRegex(load.Failed, '--flooders is 1 to'):
+                fw.check_plan(7, ('request_flood',), True, flooders=flooders)
+
     def test_the_target_head_leaves_the_commands_time_to_arrive(self):
         self.assertEqual(fw.target_height(120, 15.0, 5.0), 124)
         self.assertEqual(fw.target_height(120, 0.0, 5.0), 121)

@@ -135,7 +135,8 @@ def tally(rows, attempts):
     return types
 
 
-def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, bound, started, finished):
+def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, bound, started, finished,
+                 flooders=FLOODERS):
     for row in rows:
         if row['type'] != 'control':
             if classify(row) != row['outcome'] or describe(row) != row['log']:
@@ -153,7 +154,7 @@ def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, 
             'genesis': {'native_genesis_sha256': digest(genesis_bytes),
                         'engine_genesis_sha256': digest(engine_genesis_bytes)},
             'started': started, 'finished': finished, 'attempts_wanted': attempts,
-            'limits': dict(CHANNEL, queue_max_entries=bound, flooders=FLOODERS, flood_seconds=FLOOD_SECONDS),
+            'limits': dict(CHANNEL, queue_max_entries=bound, flooders=flooders, flood_seconds=FLOOD_SECONDS),
             'types': types,
             'controls': {'made': len(controls), 'committed': sum(r.get('committed') is True for r in controls)},
             'successes': sum(t['counts']['admitted'] for t in types.values()),
@@ -365,7 +366,7 @@ def honest_reads(rpc, seconds):
     return reads, served, heights, misses, slowest
 
 
-def request_observed(flooders, counts, failures, honest, show):
+def request_observed(flooders, counts, failures, honest, show, expected=FLOODERS):
     """One request flood's observations: each flooder's counts (or why it
     did not report) and the honest reads."""
     reads, served, heights, misses, slowest = honest
@@ -375,7 +376,7 @@ def request_observed(flooders, counts, failures, honest, show):
                 'honest_slowest_s': round(slowest, 2), 'honest_misses': misses[:3],
                 'flood_first_errors': [e for c in counts for e in c.get('first_errors', [])][:3],
                 'runner_load': [round(v, 2) for v in os.getloadavg()]}
-    if failures or len(counts) < FLOODERS:
+    if failures or len(counts) < expected:
         observed['error'] = f'a flooder did not report: {failures[:1]}'
     show(f'== request_flood: flooders served {observed["flood_served"]} ({observed["flood_errors"]} not), '
          f'honest {served}/{reads}, heights {observed["honest_heights"]}')

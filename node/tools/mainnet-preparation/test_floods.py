@@ -113,6 +113,14 @@ class Record(unittest.TestCase):
         self.assertEqual(floods.verify(json.loads(json.dumps(record)), floods.rows_bytes(rows), NATIVE, ENGINE),
                          floods.PASS)
 
+    def test_a_reduced_request_flood_record_is_not_evidence(self):
+        rows = self.rows()
+        record = floods.build_record('dytallix-staging-1', NATIVE, ENGINE, rows, floods.TARGET, 64,
+                                     '2026-11-09T20:00:00Z', '2026-11-09T20:30:00Z', flooders=1)
+        self.assertEqual(record['limits']['flooders'], 1)
+        with self.assertRaisesRegex(floods.Failed, 'not the approved bounds'):
+            floods.verify(json.loads(json.dumps(record)), floods.rows_bytes(rows), NATIVE, ENGINE)
+
     def test_fewer_than_ten_or_one_success_fails(self):
         self.assertEqual(self.record(self.rows(9))['status'], floods.FAIL)
         rows = self.rows() + [tx(committed=63, lost=1)]

@@ -45,6 +45,8 @@ SSH and local transports, the file handshake) and floods.py's own pieces:
      (floods.honest_reads); the observations are floods.request_observed's.
      It needs FLOODERS machines, each with its own address: the approved
      plan is 7 addresses x 2 connections, 14 of the channel's 16;
+     --flooders N (fewer) is a reduced measurement for real hosts with
+     fewer load machines: its record names N and floods.verify refuses it;
   5. after both, the workers stop and drive makes the two control transfers.
 
 drive is restart-safe (P01, 10 November 2026, after R03's setup failures):
@@ -303,12 +305,15 @@ def machine_request_flood(rpc, workers, flooders, lead, show, seconds=floods.FLO
     hammers = [r for r in replies if r['do'] == 'hammer']
     counts = [r['counts'] for r in hammers if r['counts'] is not None]
     failures = [r['failure'] or '' for r in hammers if r['counts'] is None]
-    return floods.request_observed(len(hammers), counts, failures, honest, show)
+    return floods.request_observed(len(hammers), counts, failures, honest, show, expected=flooders)
 
 
 def check_plan(count, kinds, separate, flooders=floods.FLOODERS):
     """The machines must fit the channel and, for the request flood, give
-    the approved flooder addresses."""
+    the flooder addresses (the approved FLOODERS unless a reduced
+    measurement asks for fewer)."""
+    if not 1 <= flooders <= floods.FLOODERS:
+        raise Failed(f'--flooders is 1 to {floods.FLOODERS}')
     load_workers.budget(count, load_workers.PER_ADDRESS, separate)
     if 'request_flood' in kinds:
         if not separate:
@@ -354,11 +359,12 @@ def preflight(run, settings, attempts, kinds, show, budget):
 
 
 def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, settings, files, lead=LEAD,
-             show=load.say, clock=time.time, sleep=time.sleep, poll=None, prime_timeout=3600, funding=None):
+             show=load.say, clock=time.time, sleep=time.sleep, poll=None, prime_timeout=3600, funding=None,
+             flooders=floods.FLOODERS):
     """Funding, the shares, the floods from the workers and the controls:
     the rows floods.build_record judges, and each worker's summary."""
     out = Path(out)
-    check_plan(count, kinds, transport.separate)
+    check_plan(count, kinds, transport.separate, flooders)
     wallets = run.role('load')
     if len(wallets) < bound + floods.FLOOD_EXTRA:
         raise Failed(f'the transaction flood needs {bound + floods.FLOOD_EXTRA} load wallets for a queue of {bound}')
@@ -394,7 +400,7 @@ def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, set
             for attempt in range(attempts):
                 for _ in range(floods.MAX_TRIES):
                     row = floods.finish('request_flood', attempt,
-                                        machine_request_flood(rpc, workers, floods.FLOODERS, lead, show))
+                                        machine_request_flood(rpc, workers, flooders, lead, show))
                     rows.append(row)
                     if row['outcome'] != 'transport':
                         break
@@ -415,7 +421,7 @@ def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, set
 
 def drive(cli, home, fleet_dir, out, application_config, funder_label, validator, native, engine, transport,
           count, attempts=floods.TARGET, kinds=tuple(floods.REASONS), worker_cli=None, lead=LEAD, show=load.say,
-          passphrase=None, settings=None):
+          passphrase=None, settings=None, flooders=floods.FLOODERS):
     out, fleet_dir = Path(out), Path(fleet_dir)
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, HOME=str(home))
@@ -439,10 +445,11 @@ def drive(cli, home, fleet_dir, out, application_config, funder_label, validator
                         validator, config, show=show)
         funding = {}
         rows, summary = campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, settings, files,
-                                 lead, show, funding=funding)
+                                 lead, show, funding=funding, flooders=flooders)
     finally:
         gateway.stop()
-    record = floods.build_record(chain_id, native, engine, rows, attempts, bound, started, floods.stamp())
+    record = floods.build_record(chain_id, native, engine, rows, attempts, bound, started, floods.stamp(),
+                                 flooders=flooders)
     (out / 'floods.jsonl').write_bytes(floods.rows_bytes(rows))
     (out / 'floods.json').write_text(json.dumps(record, indent=2) + '\n')
     used = {key: getattr(settings, key) for key in RECORDED}
@@ -491,6 +498,9 @@ def main():
     d.add_argument('--prime-parallel', type=int, default=load_workers.PER_ADDRESS,
                    help='concurrent first spends (each holds one of the address\'s channel connections)')
     d.add_argument('--retries', type=int, default=4, help='tries again for a timed-out read or first spend')
+    d.add_argument('--flooders', type=int, default=floods.FLOODERS,
+                   help='request-flood addresses; fewer than the approved number is a measurement only, and '
+                        'floods.verify refuses its record as evidence')
     args = parser.parse_args()
     try:
         if args.command == 'work':
@@ -513,8 +523,11 @@ def main():
         record = drive(args.cli, args.home, args.fleet, args.out, args.application_config, args.funder,
                        args.validator, args.genesis.read_bytes(), args.engine_genesis.read_bytes(), transport,
                        args.workers, args.attempts, kinds, args.worker_cli, args.lead, passphrase=args.passphrase,
-                       settings=settings_from(args))
+                       settings=settings_from(args), flooders=args.flooders)
         floods.report(record)
+        if args.flooders < floods.FLOODERS:
+            print(f'flood_workers: request floods from {args.flooders} of {floods.FLOODERS} addresses: a measurement, '
+                  'not evidence for the approved bounds (floods.verify refuses this record)')
         return 0 if record['status'] == floods.PASS else 1
     except (floods.Failed, Failed, OSError, KeyError, ValueError, subprocess.SubprocessError) as error:
         print(f'flood_workers: {error}', file=sys.stderr)
