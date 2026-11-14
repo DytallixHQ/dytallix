@@ -612,10 +612,37 @@ def broadcast(rpc, signed, label='broadcast'):
 
 # One run
 
+def parse_steps(text):
+    """'RATE:SECONDS,...' (transactions a second, all senders together) as
+    [[rate, seconds], ...]; each rate positive, each step at least 1 s."""
+    steps = []
+    for part in (p for p in text.split(',') if p.strip()):
+        rate, _, seconds = part.partition(':')
+        steps.append([float(rate), float(seconds)])
+    if not steps or any(r <= 0 or d < 1 for r, d in steps):
+        raise Failed(f'--steps is RATE:SECONDS,... with each rate above 0 and each step at least 1 s: {text!r}')
+    return steps
+
+
+def rate_at(s, elapsed):
+    """The rate the window paces at `elapsed` seconds in: the step it is in,
+    or `rate` when there are no steps."""
+    if not s.steps:
+        return s.rate
+    for rate, seconds in s.steps:
+        if elapsed < seconds:
+            return rate
+        elapsed -= seconds
+    return s.steps[-1][0]
+
+
 class Settings:
     def __init__(self, **values):
         self.rate = 1.0
         self.duration = 120.0
+        # T05 rate steps: [[rate, seconds], ...] in order; when set they pace
+        # the window instead of `rate`, and `duration` is their sum.
+        self.steps = None
         self.mix = parse_mix(DEFAULT_MIX)
         self.connections = 2
         self.batch = MAX_BATCH
@@ -1087,7 +1114,8 @@ class Load:
                     stopped = True
                     self.show(f'== {sum(1 for r in self.rows if r["phase"] == "run")} transactions launched; draining')
                 if not stopped:
-                    tokens = min(tokens + s.rate * (now - last), max(s.batch * 2, 1))
+                    rate = rate_at(s, now - started)
+                    tokens = min(tokens + rate * (now - last), max(s.batch * 2, 1))
                 last = now
                 # Launch: the next idle wallet, a kind it can make, signed offline.
                 while not stopped and tokens >= 1:
@@ -1602,6 +1630,7 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
                          'read_ms': {label: distribution(values) for label, values in sorted(rpc.latency.items())},
                          'sign_ms': distribution(signer.sign_ms), 'cpus': os.cpu_count()}
         settings_record = {'rate': settings.rate, 'duration': settings.duration, 'mix': settings.mix,
+                           **({'steps': settings.steps} if settings.steps else {}),
                            'connections': settings.connections, 'batch': settings.batch, 'signers': settings.signers,
                            'expiry_blocks': settings.expiry_blocks, 'fund_drt': settings.fund_drt,
                            'fund_dgt': settings.fund_dgt, 'governance': settings.governance,

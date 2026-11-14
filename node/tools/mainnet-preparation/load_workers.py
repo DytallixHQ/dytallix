@@ -79,7 +79,7 @@ CHANNEL_CONNECTIONS, PER_ADDRESS = 16, 2
 TOOLS = ('load.py', 'load_workers.py', 'config_checks.py', 'native_checks.py')
 # The settings a worker takes from its share; its rate is the total over N.
 SHARED = ('rate', 'duration', 'mix', 'connections', 'batch', 'signers', 'expiry_blocks', 'block_time',
-          'poll_interval', 'seed')
+          'poll_interval', 'seed', 'steps')
 REMOTE = '/root/load'
 
 Failed = load.Failed
@@ -377,7 +377,8 @@ def coordinate(run, fleet, transport, count, out, settings, files, show=load.say
     try:
         for n, share in enumerate(shares):
             shared = {key: getattr(settings, key) for key in SHARED}
-            shared.update(rate=settings.rate / count, seed=settings.seed + n)
+            shared.update(rate=settings.rate / count, seed=settings.seed + n,
+                          steps=[[r / count, d] for r, d in settings.steps] if settings.steps else None)
             write_shard(fleet, share, n, out / 'shards' / f'{n:02}', funded, shared)
             transport.ship(n, out / 'shards' / f'{n:02}', files)
             transport.start(n)
@@ -437,6 +438,7 @@ def finish(run, fleet, rows, before, settings, workers, out, funding_s, priming_
                      'read_ms': {label: load.distribution(values) for label, values in sorted(run.rpc.latency.items())},
                      'sign_ms': load.distribution(getattr(run.signer, 'sign_ms', [])), 'cpus': os.cpu_count()}
     settings_record = {'rate': settings.rate, 'duration': settings.duration, 'mix': settings.mix,
+                       **({'steps': settings.steps} if settings.steps else {}),
                        'connections': settings.connections, 'batch': settings.batch, 'signers': settings.signers,
                        'expiry_blocks': settings.expiry_blocks, 'fund_drt': settings.fund_drt,
                        'fund_dgt': settings.fund_dgt, 'governance': False, 'governance_vote': False,
@@ -531,6 +533,8 @@ def main():
     d.add_argument('--min-within-2', type=float, default=0.99)
     d.add_argument('--max-refused', type=int)
     d.add_argument('--passphrase', type=Path)
+    d.add_argument('--steps', help='T05 rate steps RATE:SECONDS,... in order (all workers together); '
+                                    'replaces --rate and --duration')
     args = parser.parse_args()
     try:
         if args.command == 'work':
@@ -541,6 +545,10 @@ def main():
                                  block_time=args.block_time, fund_drt=args.fund_drt * load.UNIT,
                                  fund_dgt=args.fund_dgt * load.UNIT, min_within_2=args.min_within_2,
                                  max_refused=args.max_refused)
+        if args.steps:
+            settings.steps = load.parse_steps(args.steps)
+            settings.rate = max(r for r, _ in settings.steps)
+            settings.duration = sum(d for _, d in settings.steps)
         if args.machines:
             transport = SshTransport(args.machines, args.validator)
             if args.workers > len(transport.machines):

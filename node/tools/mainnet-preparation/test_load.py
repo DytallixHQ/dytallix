@@ -735,3 +735,18 @@ class ResumeTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RateSteps(unittest.TestCase):
+    def test_steps_parse_and_pace_the_window_in_order(self):
+        steps = load.parse_steps('12:600,24:600,36:2400,48:600')
+        self.assertEqual(steps, [[12.0, 600.0], [24.0, 600.0], [36.0, 2400.0], [48.0, 600.0]])
+        s = load.Settings(steps=steps)
+        self.assertEqual([load.rate_at(s, t) for t in (0, 599.9, 600, 1199, 1200, 3599, 3600, 4199, 9999)],
+                         [12, 12, 24, 24, 36, 36, 48, 48, 48])
+        self.assertEqual(load.rate_at(load.Settings(rate=3.0), 1e6), 3.0)
+
+    def test_bad_steps_are_refused(self):
+        for text in ('', '0:60', '12:0.5', '-1:60'):
+            with self.subTest(text=text), self.assertRaises(load.Failed):
+                load.parse_steps(text)
