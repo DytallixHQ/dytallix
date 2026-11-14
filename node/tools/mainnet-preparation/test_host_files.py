@@ -159,8 +159,7 @@ class HostFilesTests(unittest.TestCase):
                 self.assertNotIn('StartLimit', unit)
             else:
                 self.assertNotIn('Restart=no', unit)
-                for line in ('Restart=on-failure', 'RestartSec=30', 'StartLimitIntervalSec=600', 'StartLimitBurst=3',
-                             'RestartPreventExitStatus=10 11 12 13 14 15'):
+                for line in ('Restart=on-abnormal', 'RestartSec=30', 'StartLimitIntervalSec=600', 'StartLimitBurst=3'):
                     self.assertIn(line + '\n', unit)
                 self.assertLess(unit.index('StartLimitBurst=3'), unit.index('[Service]'))
             self.assertIn('AppArmorProfile=' + admission['supervisor_label'], unit)

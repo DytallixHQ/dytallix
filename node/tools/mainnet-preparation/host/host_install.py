@@ -503,6 +503,8 @@ def switch(bundle, host, out=say):
         host.run(['systemctl', 'enable', '--now', timer])
     problems = verify(bundle, host, manifest)
     require(not problems, 'the switched host does not verify; the node was not started:\n  ' + '\n  '.join(problems))
+    # A deliberate start clears the unit's start limit first (P01_T06_RESTART_POLICY_2026-11-13).
+    host.run(['systemctl', 'reset-failed', f'{UNIT}.service'], check=False)
     host.run(['systemctl', 'start', f'{UNIT}.service'])
     out(f'Switched to {release} and started {UNIT}. Release {current} stays installed until the next stage.')
     return manifest
@@ -755,6 +757,7 @@ def restore(bundle, host, copy, accept_history_loss=False, out=say, sleep=time.s
     since = int(clock())
     report = None
     try:
+        host.run(['systemctl', 'reset-failed', f'{UNIT}.service'], check=False)
         host.run(['systemctl', 'start', f'{UNIT}.service'])
         deadline = since + timeout
         while report is None:

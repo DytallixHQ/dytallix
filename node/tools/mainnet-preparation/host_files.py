@@ -155,7 +155,7 @@ def service_value(approved, name):
 
 def unit_file(properties, exec_start, role):
     """The systemd unit: the rendered properties under [Service]. A validator
-    never restarts itself; the sentry and endpoint restart on failure, at most
+    never restarts itself; the sentry and endpoint restart after a crash, at most
     three starts in ten minutes (P01_T06_RESTART_POLICY_2026-11-13)."""
     def value(v):
         if isinstance(v, bool):
@@ -178,10 +178,11 @@ def unit_file(properties, exec_start, role):
         f'ExecStart={exec_start}',
         # An operator starts a validator by hand, after the signing guard and
         # the sentry hold (runbooks); a restart never wipes or repairs state.
-        # The integrity classes (configuration 10 to execution 15) repeat on any
-        # start and need their runbook, so they never restart.
-        *(['Restart=no'] if role == 'validator' else
-          ['Restart=on-failure', 'RestartSec=30', 'RestartPreventExitStatus=10 11 12 13 14 15']),
+        # The sentry and endpoint restart only after a crash by signal (an OOM
+        # kill, a segfault). The supervisor exits 1 for every failure class, so
+        # any classified failure (an upgrade halt, replay, verifier) stays down
+        # for its runbook and the unit-failure alert.
+        *(['Restart=no'] if role == 'validator' else ['Restart=on-abnormal', 'RestartSec=30']),
         # Above the supervisor's 30 s stop and 10 s kill budget.
         'TimeoutStopSec=60',
         'KillSignal=SIGTERM',
