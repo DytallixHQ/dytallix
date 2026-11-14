@@ -150,8 +150,10 @@ two request forms and within its bounds.
 - **Endpoint costs.** Each hello costs the endpoint one encapsulation and one
   signature, run on the adapter's single thread. C-b bounds connections in
   all and per client address. D12-Q01 sets the rates.
-- **Review.** The protocol has not had an independent review, which P02
-  requires before production.
+- **Review.** The protocol has not had an independent review and will not
+  before production: it gets the public review and the AI review, and the
+  founder's sign-off
+  ([no independent review](../../../launch/approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json)).
 
 ### Test vector
 

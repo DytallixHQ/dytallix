@@ -8,9 +8,11 @@ the signers' procedure with the offline signer,
 signers or authorize a launch. Root signers sign only after the P02 review,
 E06 release acceptance and gate acceptance. The five genesis keys are in
 the five key kits, held by five people, one each (P01, 7 October 2026,
-`launch/approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json`). Under the solo
-launch profile (P01, 3 October 2026) the P02 review is the 30-day public
-review and the founder's sign-off (`launch/TRUST_MODEL.md`).
+`launch/approvals/P01_E05_ROOT_KEY_HOLDERS_2026-10-07.json`). Under the solo launch profile (P01, 3 October 2026) the P02 review is the
+30-day public review, the AI review and the founder's sign-off; there is no
+independent review (P01, 13 November 2026,
+`launch/approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json`;
+`launch/TRUST_MODEL.md`).
 
 ## What is signed
 

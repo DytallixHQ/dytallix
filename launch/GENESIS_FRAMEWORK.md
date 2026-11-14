@@ -142,8 +142,9 @@ two copies in two separate places of their own
   ([root genesis signing](../node/docs/mainnet/root-genesis-signing.md)).
 - **Reproducible.** A clean CI runner and a fresh container each rebuild the
   release and the genesis files byte for byte.
-- **When.** Holders sign only after Hashlock's audit and the 30-day public
-  review (with a separate review by AI, labeled as AI), the seven simulation
+- **When.** Holders sign only after the 30-day public review (with a
+  separate review by AI, labeled as AI, and no independent audit;
+  [no independent review](approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json)), the seven simulation
   runs on the final candidate, release acceptance (E06) and gate acceptance
   ([activation](approvals/P01_E05_ACTIVATION_2026-09-30.json),
   [audit](approvals/P01_E06_AUDIT_2026-10-10.json)).
@@ -182,12 +183,12 @@ More validators join later through on-chain registration.
 5. Rent the hosts; the node key session; the staging runs on the
    production hosts (E03, the T suites, the capacity measurements, the kit
    drills and the statistical campaign) with rehearsal identities.
-6. Freeze the release candidate (E06); Hashlock's audit and the 30-day
-   public review; fixes, re-checked by Hashlock; the final candidate. Until
+6. Freeze the release candidate (E06); the 30-day public review and the AI
+   review (no independent audit); fixes; the final candidate. Until
    the freeze, engineering prepares the review: a review guide, issue
    templates and the AI review, labeled as AI
    ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json),
-   [audit](approvals/P01_E06_AUDIT_2026-10-10.json)).
+   [no independent review](approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json)).
 7. The seven simulation runs on the final candidate, on the production
    hosts ([simulation plan](../node/docs/mainnet/launch-rehearsals.md)); wipe.
 8. Final input freeze: the allocation ledger (bucket, holder, validator and

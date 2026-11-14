@@ -99,7 +99,7 @@ Before integration, define epoch utilization aggregation, missing-block treatmen
 observation freshness, oracle quorum, initial epoch issuance, configuration
 encoding, and governance migration. D02–D07 remain separate decisions.
 Before activation, calibrate the plant, select gains within a proved domain,
-integrate atomic supply accounting, and complete independent review and release
+integrate atomic supply accounting, and complete the founder's review (no independent reviewer is available: the founder reviews it against the code, with property tests over its invariants; P01, 13 November 2026) and release
 qualification. A successful reference test does not authorize activation.
 
 ## Observation contract v1 (implemented, approved for D01-Q02)

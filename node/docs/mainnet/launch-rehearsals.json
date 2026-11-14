@@ -114,8 +114,8 @@
       "id": "L13",
       "name": "Consensus fault-model qualification",
       "mandatory": true,
-      "acceptance": "Hashlock's audit and the public review cover the approved fault assumption (less than one third faulty; with one validator, none tolerated); no conflicting finalization in any run",
-      "dependency": "The audit of the frozen candidate",
+      "acceptance": "The public review and the AI review (no independent audit) cover the approved fault assumption (less than one third faulty; with one validator, none tolerated); no conflicting finalization in any run",
+      "dependency": "The public review and the AI review of the frozen candidate",
       "owner_role": "Consensus and assurance",
       "implementation": "pending"
     },
@@ -159,7 +159,7 @@
       "id": "L18",
       "name": "Repeated full launch",
       "mandatory": true,
-      "acceptance": "Seven fresh full launch runs R01-R07 pass on the final candidate, after the audit fixes, on the production hosts before genesis, with the production architecture, token model, validator model, genesis, deployment, upgrade procedures and runbooks",
+      "acceptance": "Seven fresh full launch runs R01-R07 pass on the final candidate, after the public-review fixes, on the production hosts before genesis, with the production architecture, token model, validator model, genesis, deployment, upgrade procedures and runbooks",
       "dependency": "L03-L17 and the simulation tools T1-T9",
       "owner_role": "QA and operations",
       "implementation": "pending"
@@ -177,7 +177,7 @@
       "id": "L20",
       "name": "Final launch decision",
       "mandatory": true,
-      "acceptance": "All mandatory evidence passes; Hashlock's report is published and its findings fixed or answered; release and genesis digests agree; three of the five genesis keys sign and the founder signs off",
+      "acceptance": "All mandatory evidence passes; the public review window has closed and its findings and the AI review's are fixed or answered on the record; release and genesis digests agree; three of the five genesis keys sign and the founder signs off",
       "dependency": "All earlier scenarios and G0-G8 gate evidence",
       "owner_role": "Protocol, security, and operations",
       "implementation": "pending"
@@ -192,7 +192,7 @@
   },
   "qualification": {
     "required_full_runs": 7,
-    "schedule": "Task-driven: after the audit fixes, on the final candidate, on the production hosts before genesis, one run after another",
+    "schedule": "Task-driven: after the public-review fixes, on the final candidate, on the production hosts before genesis, one run after another",
     "successful_full_runs": 0,
     "launch_suite_status": "blocked",
     "production_configuration_required": true,
@@ -269,7 +269,7 @@
         "Operate for the full simulation period.",
         "Document all abnormalities."
       ],
-      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, the operator record and the founder's review record (not independent; P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). No run passes from local checks or process exit alone."
     },
     {
       "id": "R02",
@@ -309,7 +309,7 @@
         "Rewards.",
         "Wallet operation."
       ],
-      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, the operator record and the founder's review record (not independent; P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). No run passes from local checks or process exit alone."
     },
     {
       "id": "R03",
@@ -355,7 +355,7 @@
         "Recovery time.",
         "Token accounting."
       ],
-      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, the operator record and the founder's review record (not independent; P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). No run passes from local checks or process exit alone."
     },
     {
       "id": "R04",
@@ -395,7 +395,7 @@
         "Token supply.",
         "Continue operating after upgrade."
       ],
-      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, the operator record and the founder's review record (not independent; P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). No run passes from local checks or process exit alone."
     },
     {
       "id": "R05",
@@ -440,7 +440,7 @@
         "Attempt to start incompatible versions.",
         "The system and procedures should prevent foreseeable operator errors from becoming catastrophic network failures."
       ],
-      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, the operator record and the founder's review record (not independent; P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). No run passes from local checks or process exit alone."
     },
     {
       "id": "R06",
@@ -493,7 +493,7 @@
         "Reward behavior.",
         "Supply behavior."
       ],
-      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, the operator record and the founder's review record (not independent; P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). No run passes from local checks or process exit alone."
     },
     {
       "id": "R07",
@@ -594,7 +594,7 @@
         "Complete:",
         "FINAL_MAINNET_SIMULATION_REPORT.md"
       ],
-      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, operator and independent reviewer records. No run passes from local checks or process exit alone."
+      "evidence_required": "Exact candidate and configuration digests, timestamps, all assertions, state and supply reconciliation, the operator record and the founder's review record (not independent; P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). No run passes from local checks or process exit alone."
     }
   ],
   "final_dress_rehearsal_checkpoints": [
@@ -727,7 +727,7 @@
     "Three complete fresh launches: replaced by seven mandatory Week 4 runs.",
     "At least 30 consecutive days: not an approved mandatory launch requirement. Retained only in archived prior text.",
     "Four independent operators, three failure domains, two restore/upgrade exercises, twice forecast peak and 99.9% normal-load finality: replaced by the solo launch profile and the approved thresholds (simulation plan approval).",
-    "Week 4 placement of the seven runs: replaced by task-driven placement after the audit fixes, on the final candidate."
+    "Week 4 placement of the seven runs: replaced by task-driven placement after the public-review fixes, on the final candidate."
   ],
   "approved_thresholds": {
     "approval_record": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
@@ -744,6 +744,6 @@
     "attacks": "At least 3,000 attempts per attack type with zero successes (success rate below 1 in 1,000 at 95% confidence); about 30 repetitions per connection- or network-level attack",
     "faults": "About 30 repetitions per quick fault and 3 to 5 per heavy fault, with recovery time distributions",
     "endurance": "At least 15 days continuous at the exact production values, covering full unbonding, governance, a release handover after its notice and at least 15 epochs; the attack and fault campaigns interleave inside it",
-    "results": "A campaign report to Hashlock with the frozen candidate; any successful attack is a defect fixed before the freeze"
+    "results": "A campaign report published with the frozen candidate for the public review; any successful attack is a defect fixed before the freeze"
   }
 }

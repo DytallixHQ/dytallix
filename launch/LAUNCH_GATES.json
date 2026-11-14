@@ -11,7 +11,7 @@
     "OPEN": "No credited implementation or preparation evidence for the requirement.",
     "PARTIAL": "Credited implementation, tests or preparation exist; required implementation, qualification or acceptance is incomplete.",
     "READY FOR ACCEPTANCE": "All implementation and candidate qualification evidence is complete; only authorized formal acceptance remains.",
-    "PASS": "Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance. Under the solo launch profile, independent acceptance has the meaning in acceptance_profile."
+    "PASS": "Every formal acceptance requirement is satisfied with current candidate-bound evidence and the founder's recorded acceptance under acceptance_profile. No independent reviewer accepts any gate (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13)."
   },
   "score_definition": "Passed gates divided by 35 measures formal acceptance only. PARTIAL does not imply a measured percentage or an equal amount of completed work.",
   "passed_count": 0,
@@ -36,14 +36,21 @@
     "disclosure_ref": "TRUST_MODEL.md",
     "rule": "The founder launches alone. Where a gate asks for independent, named, operator, reviewer or custodian acceptance, these terms apply. Gate requirements are otherwise unchanged, and each concentration of control is disclosed in TRUST_MODEL.md.",
     "terms": {
-      "independent review or acceptance": "Hashlock, an independent security firm, audits the frozen candidate, every finding fixed (Hashlock re-checking the fix) or answered on the record; alongside it, a 30-day public review (GitHub issues, with a bug bounty paid in DGT) and a separate adversarial AI review labeled as AI; and the founder's sign-off. The launch is labeled unaudited until Hashlock's report is published (P01, 10 October 2026).",
+      "independent review or acceptance": "No independent review or audit (P01, 13 November 2026, approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json). The code goes through multiple layers of agentic assessment, labeled as AI; the frozen candidate then has a 30-day freeze and bug review (a public review on GitHub issues with a bug bounty paid in DGT), every finding fixed or answered on the record; and the founder signs off against a written checklist. No audit or independent review is claimed.",
       "independent reproduction": "A clean GitHub Actions runner and a fresh container on the founder's machine each reproduce the release and the genesis files byte for byte.",
       "operator acceptance and genesis hash verification": "The founder, the only operator, records acceptance and verifies the genesis hash on every host.",
       "custodians and signers": "Five people, the founder and four others, hold the five key kits, one each; kit N holds key N of each role (genesis, upgrade, freeze, resume), any three act, and no holder sees another's kit secret (P01, 7 October 2026).",
       "independent monitoring": "A free hosted uptime checker, separate from the hosts, checking every 3 minutes and alerting by e-mail; a free heartbeat service alerts the founder's phone when a host goes quiet (P01, 12 October 2026).",
       "on-call coverage": "The founder, paged 24/7, best effort, against the published goals in operations/OBJECTIVES.json.",
       "staging and simulations": "The production hosts before genesis, with rehearsal chain IDs and throwaway keys, then wiped and re-provisioned."
-    }
+    },
+    "amendments": [
+      {
+        "approved": "2026-11-13",
+        "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
+        "change": "Independent review, acceptance and reviewer roles are replaced by the founder's acceptance after the agentic assessments and the 30-day freeze and bug review; the Hashlock audit requirement and every label tied to it are removed."
+      }
+    ]
   },
   "decision_counts": {
     "fully_open_policy_questions": 0,
@@ -437,12 +444,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -456,7 +463,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -472,7 +479,7 @@
             "json_pointer": "/steps/8"
           }
         ],
-        "owner_role": "Consensus lead and independent protocol reviewers",
+        "owner_role": "Consensus lead and founder protocol review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -491,7 +498,7 @@
       "id": "G02",
       "category": "Consensus safety",
       "status": "PARTIAL",
-      "reason": "Local agreement checks do not cover the complete production fault model, engine evidence coverage or independent safety acceptance.",
+      "reason": "Local agreement checks do not cover the complete production fault model, engine evidence coverage or the founder's safety acceptance.",
       "candidate_commit": null,
       "evidence": [
         {
@@ -610,9 +617,9 @@
       "remaining_work": [
         "Approve the fault model, finality, evidence, retention and synchronization requirements.",
         "Qualify required fault scenarios, state sync and evidence handling on the frozen candidate.",
-        "Complete independent consensus review and resolve every safety ambiguity."
+        "Complete the consensus review under acceptance_profile (public review, AI review, founder sign-off; not independent) and resolve every safety ambiguity."
       ],
-      "current_blocker": "Local agreement checks do not cover the complete production fault model, engine evidence coverage or independent safety acceptance.",
+      "current_blocker": "Local agreement checks do not cover the complete production fault model, engine evidence coverage or the founder's safety acceptance.",
       "decision_categories": [
         "D06",
         "D09",
@@ -750,12 +757,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -764,12 +771,12 @@
         "required_work": [
           "Approve the fault model, finality, evidence, retention and synchronization requirements.",
           "Qualify required fault scenarios, state sync and evidence handling on the frozen candidate.",
-          "Complete independent consensus review and resolve every safety ambiguity."
+          "Complete the consensus review under acceptance_profile (public review, AI review, founder sign-off; not independent) and resolve every safety ambiguity."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -785,7 +792,7 @@
             "json_pointer": "/steps/8"
           }
         ],
-        "owner_role": "Consensus lead and independent security reviewers",
+        "owner_role": "Consensus lead and founder security review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -804,7 +811,7 @@
       "id": "G03",
       "category": "PQC correctness",
       "status": "PARTIAL",
-      "reason": "The development genesis consumer is implemented. Production schemas, external artifact-file verification, custody, full root-enabled engine qualification, remaining Rust classical code and independent cryptographic acceptance remain open.",
+      "reason": "The development genesis consumer is implemented. Production schemas, external artifact-file verification, custody, full root-enabled engine qualification, remaining Rust classical code and the founder's cryptographic acceptance (not independent) remain open.",
       "candidate_commit": null,
       "evidence": [
         {
@@ -1185,9 +1192,9 @@
       "remaining_work": [
         "Approve and qualify production root schemas, manifest contents, custody, role parameters and migration rules. Extend the tested file binding and durable action consumers beyond development genesis.",
         "Bind known-answer, cross-implementation, malformed-input and side-channel review to the final candidate.",
-        "Resolve the remaining G35 profile/provider boundaries and obtain independent cryptographic acceptance."
+        "Resolve the remaining G35 profile/provider boundaries and record the founder's cryptographic acceptance (acceptance_profile; not independent)."
       ],
-      "current_blocker": "Production schema acceptance, numeric limits, custody, final-candidate cryptographic qualification and independent acceptance remain open. New Rust paths require Linux artifact qualification.",
+      "current_blocker": "Production schema acceptance, numeric limits, custody, final-candidate cryptographic qualification and the founder's acceptance remain open. New Rust paths require Linux artifact qualification.",
       "decision_categories": [
         "D10",
         "D14"
@@ -1274,12 +1281,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -1288,17 +1295,17 @@
         "required_work": [
           "Complete production root storage and action consumers, custody, role parameters and migration rules.",
           "Bind known-answer, cross-implementation, malformed-input and side-channel review to the final candidate.",
-          "Resolve G35 boundary violations and obtain independent cryptographic acceptance."
+          "Resolve G35 boundary violations and record the founder's cryptographic acceptance (acceptance_profile; not independent)."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
             "id": "L02",
-            "required_evidence": "Frozen source, locks, build environment, executables, configuration templates and provider inventories; independent G35 acceptance. Final production genesis bytes are bound at L11.",
+            "required_evidence": "Frozen source, locks, build environment, executables, configuration templates and provider inventories; the founder's G35 acceptance. Final production genesis bytes are bound at L11.",
             "source_ref": "decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json",
             "json_pointer": "/steps/1"
           },
@@ -1315,7 +1322,7 @@
             "json_pointer": "/steps/9"
           }
         ],
-        "owner_role": "Cryptography lead and independent cryptographic reviewers",
+        "owner_role": "Cryptography lead and founder cryptographic review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -1644,12 +1651,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -1663,7 +1670,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -1680,12 +1687,12 @@
           },
           {
             "id": "L11",
-            "required_evidence": "Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; independent verification; completed final candidate/key/genesis record bindings for acceptance before L13.",
+            "required_evidence": "Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; verification by CI reproduction and the founder; completed final candidate/key/genesis record bindings for acceptance before L13.",
             "source_ref": "decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json",
             "json_pointer": "/steps/10"
           }
         ],
-        "owner_role": "Release lead, independent genesis verifier and validator operators",
+        "owner_role": "Release lead, founder genesis verification with CI reproduction and validator operators",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -1965,7 +1972,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -1988,12 +1995,12 @@
           },
           {
             "id": "L11",
-            "required_evidence": "Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; independent verification; completed final candidate/key/genesis record bindings for acceptance before L13.",
+            "required_evidence": "Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; verification by CI reproduction and the founder; completed final candidate/key/genesis record bindings for acceptance before L13.",
             "source_ref": "decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json",
             "json_pointer": "/steps/10"
           }
         ],
-        "owner_role": "Economics lead, custodians and independent genesis verifier",
+        "owner_role": "Economics lead, custodians and founder genesis verification with CI reproduction",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -2387,12 +2394,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -2406,12 +2413,12 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
             "id": "L02",
-            "required_evidence": "Frozen source, locks, build environment, executables, configuration templates and provider inventories; independent G35 acceptance. Final production genesis bytes are bound at L11.",
+            "required_evidence": "Frozen source, locks, build environment, executables, configuration templates and provider inventories; the founder's G35 acceptance. Final production genesis bytes are bound at L11.",
             "source_ref": "decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json",
             "json_pointer": "/steps/1"
           },
@@ -2422,7 +2429,7 @@
             "json_pointer": "/steps/11"
           }
         ],
-        "owner_role": "Release lead and independent build reviewer",
+        "owner_role": "Release lead and founder build review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -2860,12 +2867,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -2879,7 +2886,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -3282,12 +3289,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -3301,7 +3308,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -3311,7 +3318,7 @@
             "json_pointer": "/steps/5"
           }
         ],
-        "owner_role": "Validator operators, SRE lead and independent recovery reviewer",
+        "owner_role": "Validator operators, SRE lead and founder recovery review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -3534,12 +3541,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -3553,7 +3560,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -3563,7 +3570,7 @@
             "json_pointer": "/steps/5"
           }
         ],
-        "owner_role": "Storage/SRE leads and independent recovery reviewer",
+        "owner_role": "Storage/SRE leads and founder recovery review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -4053,12 +4060,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -4072,7 +4079,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -4082,7 +4089,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Runtime and wallet leads; independent transaction reviewer",
+        "owner_role": "Runtime and wallet leads; founder transaction review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -4346,12 +4353,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -4365,7 +4372,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -4375,7 +4382,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Wallet lead, custody reviewer and independent client reviewer",
+        "owner_role": "Wallet lead, custody reviewer and founder client review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -4502,7 +4509,7 @@
       "remaining_work": [
         "Approve and configure initial DRT funding, fees, custody and transfer restrictions.",
         "Run DRT transfer, insufficient-funds, failure, duplicate and restart cases on the frozen network.",
-        "Reconcile every transfer and fee with the production supply ledger and obtain independent acceptance."
+        "Reconcile every transfer and fee with the production supply ledger and record the founder's acceptance."
       ],
       "current_blocker": "Production DRT bootstrap, fee calibration and final economic qualification remain open.",
       "decision_categories": [
@@ -4671,12 +4678,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -4685,12 +4692,12 @@
         "required_work": [
           "Approve and configure initial DRT funding, fees, custody and transfer restrictions.",
           "Run DRT transfer, insufficient-funds, failure, duplicate and restart cases on the frozen network.",
-          "Reconcile every transfer and fee with the production supply ledger and obtain independent acceptance."
+          "Reconcile every transfer and fee with the production supply ledger and record the founder's acceptance."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -4700,7 +4707,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Runtime/economics leads and independent accounting reviewer",
+        "owner_role": "Runtime/economics leads and founder accounting review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -4786,7 +4793,7 @@
       "remaining_work": [
         "Complete production DGT allocation, vesting and initial mint decisions.",
         "Qualify transferable and locked balances through maintained clients and the frozen chain, including failure and restart.",
-        "Reconcile transfers, custody and supply and record independent acceptance."
+        "Reconcile transfers, custody and supply and record the founder's acceptance."
       ],
       "current_blocker": "Production beneficiaries, vesting inputs and mint authority remain incomplete; local generic transfer tests do not qualify the final DGT lifecycle.",
       "decision_categories": [
@@ -4932,12 +4939,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -4946,12 +4953,12 @@
         "required_work": [
           "Complete production DGT allocation, vesting and initial mint decisions.",
           "Qualify transferable and locked balances through maintained clients and the frozen chain, including failure and restart.",
-          "Reconcile transfers, custody and supply and record independent acceptance."
+          "Reconcile transfers, custody and supply and record the founder's acceptance."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -4961,7 +4968,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Runtime/economics leads and independent accounting reviewer",
+        "owner_role": "Runtime/economics leads and founder accounting review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -5266,12 +5273,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -5285,7 +5292,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -5301,7 +5308,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Economics/runtime leads and independent supply reviewer",
+        "owner_role": "Economics/runtime leads and founder supply review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -5566,12 +5573,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -5585,7 +5592,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -5601,7 +5608,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Economics/runtime leads and independent supply reviewer",
+        "owner_role": "Economics/runtime leads and founder supply review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -5866,12 +5873,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -5885,7 +5892,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -5895,7 +5902,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Validator/economics leads and independent lifecycle reviewer",
+        "owner_role": "Validator/economics leads and founder lifecycle review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -6193,12 +6200,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -6212,7 +6219,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -6222,7 +6229,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Validator/economics leads and independent lifecycle reviewer",
+        "owner_role": "Validator/economics leads and founder lifecycle review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -6505,12 +6512,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -6524,7 +6531,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -6534,7 +6541,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Validator/economics leads and independent liability reviewer",
+        "owner_role": "Validator/economics leads and founder liability review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -6839,12 +6846,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -6858,7 +6865,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -6874,7 +6881,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Economics lead, treasury authority and independent accounting reviewer",
+        "owner_role": "Economics lead, treasury authority and founder accounting review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -7206,12 +7213,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -7225,7 +7232,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -7235,7 +7242,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Runtime/economics leads and independent fee reviewer",
+        "owner_role": "Runtime/economics leads and founder fee review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -7486,12 +7493,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -7505,7 +7512,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -7515,7 +7522,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Consensus/economics leads and independent evidence reviewer",
+        "owner_role": "Consensus/economics leads and founder evidence review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -7834,12 +7841,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -7853,7 +7860,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -7869,7 +7876,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "Governance/economics leads and independent governance reviewer",
+        "owner_role": "Governance/economics leads and founder governance review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -7962,7 +7969,7 @@
       "remaining_work": [
         "Verify treasury recipients and custodians; approve governance, spending and emergency authorities.",
         "Integrate actual treasury authorization and durable action execution.",
-        "Qualify permitted/rejected spending, replay, failure and recovery with independent accounting review."
+        "Qualify permitted/rejected spending, replay, failure and recovery with the founder's accounting review (not independent)."
       ],
       "current_blocker": "Treasury recipient/custody record D02-Q02 and governance authority D11-Q03 remain open; custody balances do not authorize spending.",
       "decision_categories": [
@@ -8131,12 +8138,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -8145,12 +8152,12 @@
         "required_work": [
           "Verify treasury recipients and custodians; approve governance, spending and emergency authorities.",
           "Integrate actual treasury authorization and durable action execution.",
-          "Qualify permitted/rejected spending, replay, failure and recovery with independent accounting review."
+          "Qualify permitted/rejected spending, replay, failure and recovery with the founder's accounting review (not independent)."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -8172,7 +8179,7 @@
             "json_pointer": "/steps/9"
           }
         ],
-        "owner_role": "Treasury authority, custodians and independent control reviewer",
+        "owner_role": "Treasury authority, custodians and founder control review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -8444,7 +8451,7 @@
       "remaining_work": [
         "Approve the production storage/compression profile and qualify complete existing state on the frozen Linux release. Prior compressed-SST fixture reads remain scoped evidence.",
         "Accept production control schemas, authority membership/thresholds and action priority/cancellation. Preserve exact migration versions and qualify cross-binary authorization, state reopening and execution.",
-        "Run the complete cross-version migration/rollback matrix with late or missing validators, old RPC nodes, wallet activity and post-upgrade economics; obtain independent review and complete the applicable final simulation."
+        "Run the complete cross-version migration/rollback matrix with late or missing validators, old RPC nodes, wallet activity and post-upgrade economics; complete the founder's review and the applicable final simulation."
       ],
       "current_blocker": "The first executor works for the root-bound running candidate. Version-preserving migration history, cross-binary installation/reopen/rollback, production authority inputs and full RC1-to-RC2 qualification remain open.",
       "decision_categories": [
@@ -8601,12 +8608,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -8615,12 +8622,12 @@
         "required_work": [
           "Freeze an actual source/target version pair, migration contract and safe rollback or forward-recovery plan.",
           "Integrate upgrade authorization and durable state transitions.",
-          "Run the complete cross-version matrix, independent review and applicable final simulation."
+          "Run the complete cross-version matrix, the founder's review and the applicable final simulation."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -8630,7 +8637,7 @@
             "json_pointer": "/steps/5"
           }
         ],
-        "owner_role": "Release lead, operators and independent migration reviewer",
+        "owner_role": "Release lead, operators and founder migration review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -9095,12 +9102,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -9114,7 +9121,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -9130,7 +9137,7 @@
             "json_pointer": "/steps/7"
           }
         ],
-        "owner_role": "RPC/SRE leads and independent client reviewer",
+        "owner_role": "RPC/SRE leads and founder client review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -9309,12 +9316,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -9328,7 +9335,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -9338,7 +9345,7 @@
             "json_pointer": "/steps/7"
           }
         ],
-        "owner_role": "Performance lead and independent capacity reviewer",
+        "owner_role": "Performance lead and founder capacity review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -9533,12 +9540,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -9552,7 +9559,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -9568,7 +9575,7 @@
             "json_pointer": "/steps/7"
           }
         ],
-        "owner_role": "SRE lead and independent operations reviewer",
+        "owner_role": "SRE lead and founder operations review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -9713,12 +9720,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -9732,7 +9739,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -9748,7 +9755,7 @@
             "json_pointer": "/steps/7"
           }
         ],
-        "owner_role": "SRE/on-call lead and independent operations reviewer",
+        "owner_role": "SRE/on-call lead and founder operations review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -9951,12 +9958,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -9970,7 +9977,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -9980,7 +9987,7 @@
             "json_pointer": "/steps/4"
           }
         ],
-        "owner_role": "Storage/SRE leads, custodians and independent recovery reviewer",
+        "owner_role": "Storage/SRE leads, custodians and founder recovery review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -10051,7 +10058,7 @@
       "remaining_work": [
         "Qualify the remaining corruption, server/disk loss, partition, resource-pressure and off-host scenarios on approved disposable Linux staging.",
         "Measure each approved recovery objective and reconcile state, supply, stake and signing safety.",
-        "Obtain named operator and independent recovery acceptance."
+        "Record the founder's operator and recovery acceptance (not independent)."
       ],
       "current_blocker": "The full failure matrix and off-host Linux recovery remain unexecuted; five local drills cover only a subset.",
       "decision_categories": [
@@ -10253,12 +10260,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -10267,12 +10274,12 @@
         "required_work": [
           "Qualify the remaining corruption, server/disk loss, partition, resource-pressure and off-host scenarios on approved disposable Linux staging.",
           "Measure each approved recovery objective and reconcile state, supply, stake and signing safety.",
-          "Obtain named operator and independent recovery acceptance."
+          "Record the founder's operator and recovery acceptance (not independent)."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -10282,7 +10289,7 @@
             "json_pointer": "/steps/5"
           }
         ],
-        "owner_role": "SRE/incident lead and independent recovery reviewer",
+        "owner_role": "SRE/incident lead and founder recovery review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -10300,7 +10307,7 @@
       "id": "G31",
       "category": "Security",
       "status": "PARTIAL",
-      "reason": "Independent reviewer acceptance remains absent. Internal reviews do not close G35, production root policy/custody, external artifact verification or final candidate security qualification.",
+      "reason": "The public review, the AI review and the founder's sign-off of the frozen candidate have not happened. Internal reviews do not close G35, production root policy/custody, external artifact verification or final candidate security qualification.",
       "candidate_commit": null,
       "evidence": [
         {
@@ -10623,7 +10630,7 @@
         }
       ],
       "reviewer": null,
-      "requirement": "Complete independent security review of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.",
+      "requirement": "Complete the security review, under acceptance_profile (public review, AI review, founder sign-off; no independent audit), of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.",
       "completed_work": [
         "Security preparation defines 14 open review questions across nine areas, with 28 source/evidence hashes and 18 result/log hashes. Fifteen validator tests passed.",
         "Source reviews and malformed-input, replay, authority and atomicity checks exist across implementation packages.",
@@ -10641,12 +10648,12 @@
         "Candidate 15 deadline evidence isolated timing variance and an EACCES result for external SIGSTOP. The policy does not grant unconfined STOP to the helper. This was an internal development probe, not security acceptance."
       ],
       "remaining_work": [
-        "Assign independent reviewers and approved review scopes tied to exact candidate hashes.",
+        "Publish the review scope, tied to exact candidate hashes, for the 30-day public review and the AI review.",
         "Resolve dossier questions, full dependency/provider and effective storage-path review; qualify production root consumers, external artifact verification and custody.",
         "Close all P0/absolute blockers and repeat affected checks after candidate changes.",
-        "Review the post-GO helper cutoff and typed deadline race; reject test methods that widen production signal permissions. Independently review any corrected candidate and repeat affected native tests."
+        "Review the post-GO helper cutoff and typed deadline race; reject test methods that widen production signal permissions. Review any corrected candidate under acceptance_profile and repeat affected native tests."
       ],
-      "current_blocker": "Independent security acceptance of the frozen candidate, production authority/custody, full distribution/provider review and complete production behavior qualification remain open.",
+      "current_blocker": "Security acceptance of the frozen candidate under acceptance_profile, production authority/custody, full distribution/provider review and complete production behavior qualification remain open.",
       "decision_categories": [
         "D07",
         "D10",
@@ -10813,26 +10820,26 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
       "acceptance_requirement": {
-        "gate_specific": "Complete independent security review of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.",
+        "gate_specific": "Complete the security review, under acceptance_profile (public review, AI review, founder sign-off; no independent audit), of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.",
         "required_work": [
-          "Assign independent reviewers and approved review scopes tied to exact candidate hashes.",
+          "Publish the review scope, tied to exact candidate hashes, for the 30-day public review and the AI review.",
           "Resolve dossier questions, dependency/provider and effective storage-path review; qualify actual root consumers and custody.",
           "Close all P0/absolute blockers and repeat affected checks after candidate changes."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -10842,7 +10849,7 @@
             "json_pointer": "/steps/2"
           }
         ],
-        "owner_role": "Independent security auditors and accountable release authority",
+        "owner_role": "Founder (accountable release authority); no independent audit: public and AI reviews under acceptance_profile",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -11144,7 +11151,7 @@
         }
       ],
       "reviewer": null,
-      "requirement": "Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify that independent engineers and operators can use them without undocumented knowledge.",
+      "requirement": "Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify, on clean CI runners and by the founder on a clean machine, that they can be used without undocumented knowledge.",
       "completed_work": [
         "Protocol, economics, genesis and infrastructure drafts retain approval and gap records.",
         "Fifteen-step runbook maps all 35 gates and eight production records; fifteen structural tests pass.",
@@ -11161,9 +11168,9 @@
       "remaining_work": [
         "Complete the required artifact set and replace unset commands, thresholds, recovery objectives and named roles with accepted values.",
         "Update documents to the final maintained candidate and resolve all contradictory historical statements.",
-        "Obtain two independent specification interpretations and operator execution/review of the final runbooks."
+        "Prove the build and install instructions on clean CI runners and record the founder's walkthrough of the final runbooks."
       ],
-      "current_blocker": "Final production settings, commands, named roles, complete artifact set and independent specification/operator review remain open.",
+      "current_blocker": "Final production settings, commands, named roles, complete artifact set and the clean-environment runs and the founder's walkthrough remain open.",
       "decision_categories": [
         "D07",
         "D12",
@@ -11274,26 +11281,26 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
       "acceptance_requirement": {
-        "gate_specific": "Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify that independent engineers and operators can use them without undocumented knowledge.",
+        "gate_specific": "Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify, on clean CI runners and by the founder on a clean machine, that they can be used without undocumented knowledge.",
         "required_work": [
           "Complete the required artifact set and replace unset commands, thresholds, recovery objectives and named roles with accepted values.",
           "Update documents to the final maintained candidate and resolve all contradictory historical statements.",
-          "Obtain two independent specification interpretations and operator execution/review of the final runbooks."
+          "Prove the build and install instructions on clean CI runners and record the founder's walkthrough of the final runbooks."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -11303,7 +11310,7 @@
             "json_pointer": "/steps/8"
           }
         ],
-        "owner_role": "Documentation/release leads, independent engineers and operators",
+        "owner_role": "Documentation/release leads, founder walkthrough and CI clean-environment runs",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -11322,7 +11329,7 @@
       "id": "G33",
       "category": "Developer onboarding",
       "status": "PARTIAL",
-      "reason": "Portable source and local client tests do not establish independently completed production developer onboarding or published release artifacts.",
+      "reason": "Portable source and local client tests do not establish completed clean-environment developer onboarding or published release artifacts.",
       "candidate_commit": null,
       "evidence": [
         {
@@ -11551,10 +11558,10 @@
       ],
       "remaining_work": [
         "Publish-ready artifacts must match the accepted source, dependencies and interface contract.",
-        "Have an independent developer follow clean-environment instructions using the final network and clients.",
+        "Follow the clean-environment instructions on a clean machine (founder walkthrough, recorded, and CI) using the final network and clients.",
         "Qualify account onboarding, endpoint trust, receipt/state proofs and documented failure/recovery paths."
       ],
-      "current_blocker": "Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Independent onboarding, accepted client distribution, endpoint trust, state/receipt proofs and hosted developer flows remain open.",
+      "current_blocker": "Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Clean-environment onboarding, accepted client distribution, endpoint trust, state/receipt proofs and hosted developer flows remain open.",
       "decision_categories": [
         "D07",
         "D10",
@@ -11659,12 +11666,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -11672,13 +11679,13 @@
         "gate_specific": "Provide functional developer onboarding for the frozen network, SDK, CLI and documented interfaces. Verify clean setup, account/key handling, signing, submission, receipts, failures and network selection.",
         "required_work": [
           "Publish-ready artifacts must match the accepted source, dependencies and interface contract.",
-          "Have an independent developer follow clean-environment instructions using the final network and clients.",
+          "Follow the clean-environment instructions on a clean machine (founder walkthrough, recorded, and CI) using the final network and clients.",
           "Qualify account onboarding, endpoint trust, receipt/state proofs and documented failure/recovery paths."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -11688,7 +11695,7 @@
             "json_pointer": "/steps/6"
           }
         ],
-        "owner_role": "SDK lead and independent developer reviewer",
+        "owner_role": "SDK lead and founder developer review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -11912,7 +11919,7 @@
         "Approve topology, admission thresholds and registry authority.",
         "Have named operators execute clean Linux onboarding and recovery against the frozen artifacts."
       ],
-      "current_blocker": "Initial operator membership/control groups, accepted role/custody records, approved topology/admission rules and independent reviewer appointments remain incomplete.",
+      "current_blocker": "Initial operator membership/control groups, accepted role/custody records, approved topology/admission rules remain incomplete.",
       "decision_categories": [
         "D09",
         "D10",
@@ -12089,12 +12096,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -12108,7 +12115,7 @@
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
@@ -12130,7 +12137,7 @@
             "json_pointer": "/steps/11"
           }
         ],
-        "owner_role": "Validator/SRE leads, operators and independent onboarding reviewer",
+        "owner_role": "Validator/SRE leads, operators and founder onboarding review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,
@@ -12649,9 +12656,9 @@
         "Complete exact role/parameter/standards profiles, source/config/dependency inventories, loaded-library inspection and independently reproducible release hashes. Default compatibility source/builds remain outside the selected strict executable scope.",
         "Approve production root-required genesis schemas and manifest semantics. Integrate durable production upgrade/emergency consumers, action priority/cancellation and accepted custody, rotation and recovery.",
         "Qualify operational, account, peer, client, receipt-proof, restart and resource requirements against the exact frozen candidate, including approved x86_64 hosts and the hosted wallet.",
-        "Obtain independent protocol, cryptography, release and operator acceptance for every required G35 evidence item."
+        "Record the founder's protocol, cryptography, release and operator acceptance (not independent) for every required G35 evidence item, with the E01 checks enforced in CI."
       ],
-      "current_blocker": "Mandatory veto remains active. Changed Rust paths need Linux rebuild and compiled-artifact inspection. Full OS/provider/distribution, interface/custody, production wire acceptance, independent reproduction and review remain incomplete.",
+      "current_blocker": "Mandatory veto remains active. Changed Rust paths need Linux rebuild and compiled-artifact inspection. Full OS/provider/distribution, interface/custody, production wire acceptance, independent reproduction and the founder's review remain incomplete.",
       "decision_categories": [
         "D06",
         "D10",
@@ -12686,9 +12693,9 @@
           "Operational signing, account/key migration, consensus, SDK, wallet, receipts, restart, RPC and light-client tests against the exact candidate",
           "Separate root authorization with trusted keys, policy, replay persistence, custody, rotation and actual genesis/upgrade/emergency execution checks",
           "Interoperability, known-answer, malformed-input, downgrade-rejection, resource-limit and side-channel review evidence",
-          "Independent protocol, cryptography, release and operator review tied to the exact source and artifact hashes"
+          "Founder protocol, cryptography, release and operator review (acceptance_profile; not independent) tied to the exact source and artifact hashes"
         ],
-        "pass_rule": "All required evidence must be complete, independently accepted and current for the production candidate. Any unknown, failed check or missing integration keeps G35 FAIL and mainnet NO_GO.",
+        "pass_rule": "All required evidence must be complete, accepted under acceptance_profile and current for the production candidate. Any unknown, failed check or missing integration keeps G35 FAIL and mainnet NO_GO.",
         "qualified": false,
         "production_values_selected": false,
         "work_dependencies": [
@@ -12829,12 +12836,12 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "blocking_output": "Release responsibility register",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "source_ref": "MAINNET_DECISION_REGISTER.json"
         }
       ],
@@ -12845,17 +12852,17 @@
           "Complete exact role/parameter/standards profile, source/config/dependency inventory, loaded-library inspection and independently reproducible release hashes.",
           "Integrate actual durable genesis/upgrade/emergency root actions and accepted custody, rotation and recovery.",
           "Qualify all operational, account, peer, client, receipt, restart, malformed/downgrade/resource and side-channel requirements against the exact candidate.",
-          "Obtain independent protocol, cryptography, release and operator acceptance for every required G35 evidence item."
+          "Record the founder's protocol, cryptography, release and operator acceptance (not independent) for every required G35 evidence item, with the E01 checks enforced in CI."
         ],
         "common": [
           "Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.",
           "Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.",
-          "Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures."
+          "Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance."
         ],
         "runbook_requirements": [
           {
             "id": "L02",
-            "required_evidence": "Frozen source, locks, build environment, executables, configuration templates and provider inventories; independent G35 acceptance. Final production genesis bytes are bound at L11.",
+            "required_evidence": "Frozen source, locks, build environment, executables, configuration templates and provider inventories; the founder's G35 acceptance. Final production genesis bytes are bound at L11.",
             "source_ref": "decision-register/launch-preparation-workstreams/runbook/CHECKLIST.json",
             "json_pointer": "/steps/1"
           },
@@ -12878,7 +12885,7 @@
             "json_pointer": "/steps/11"
           }
         ],
-        "owner_role": "Independent protocol, cryptography, release and operator reviewers",
+        "owner_role": "Founder protocol, cryptography, release and operator review (not independent)",
         "assignee": null,
         "independent_reviewer": null,
         "acceptance_record": null,

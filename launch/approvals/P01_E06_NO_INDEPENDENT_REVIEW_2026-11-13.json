@@ -1,0 +1,88 @@
+{
+  "decision_id": "P01-2026-11-13-E06-NO-INDEPENDENT-REVIEW",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Launch blockers that wait on an independent outside reviewer or auditor",
+    "quote": "we don't have currently any independent outside, reviewers all blockers that are consistent with this have to be removed because if we don't remove them, we will never finish",
+    "follow_up_quote": "we will remove any and all references to un audited From the code from the website and from any in all implementation barriers"
+  },
+  "reason": "No independent outside reviewer or auditor is available, and none is funded: the Hashlock engagement of P01_E06_AUDIT_2026-10-10 never had its scope, quote, contract or funding set. Every launch requirement that waits on an independent reviewer therefore blocks launch indefinitely. This record removes those requirements and names what replaces each one. Nothing here claims that an audit or independent review happened.",
+  "design_ref": "../TRUST_MODEL.md",
+  "decisions": [
+    {
+      "question": "1. The security audit of the frozen candidate (Hashlock; the meaning of 'independent review or acceptance' in the SOLO_LAUNCH_V1 profile)",
+      "selected": "No independent audit before mainnet; agentic assessment, the 30-day freeze and bug review and the founder's checklist sign-off replace it",
+      "rule": "'Independent review or acceptance' in LAUNCH_GATES.json's acceptance profile now means: the code goes through multiple layers of agentic assessment, labeled as AI; the frozen candidate then has a 30-day freeze and bug review (a public review on GitHub issues with a bug bounty paid in DGT from the Ecosystem bucket), every finding fixed or answered on the record; and the founder signs off against a written checklist. The label saying the code was not audited, and every rule tied to it (removing it when a report is published), are removed from the code, the website, the documents and every implementation check. No audit or independent review is claimed anywhere. A human audit may be added later without reopening any gate."
+    },
+    {
+      "question": "2. Gate acceptance by named independent reviewers (all 35 gates: the common acceptance requirement and each gate's acceptance authority)",
+      "selected": "The founder accepts each gate against its evidence; no independent reviewer is named",
+      "rule": "A gate passes when its candidate-bound evidence is complete and the founder records acceptance under the profile term of decision 1. Each acceptance authority names the founder's review and says it is not independent. NO_GO stays until all 35 gates pass, the seven runs qualify and the eight records are accepted (gate_master.py is unchanged)."
+    },
+    {
+      "question": "3. Gate wording that asks for independent consensus (G02), cryptographic (G03), security (G31) and protocol/cryptography/release/operator (G35) acceptance",
+      "selected": "Founder checklist review, the checks CI enforces, the public review and the AI review",
+      "rule": "G35 keeps its mandatory launch veto; its evidence is accepted by the founder with the E01 inventory and source-boundary checks enforced in CI (scripts/e01_inventory.py --check). G02, G03 and G31 are accepted under decision 1."
+    },
+    {
+      "question": "4. The P02 independent review of the E03 negative-peer method (E03_HOST_METHOD_REVIEW.json)",
+      "selected": "The founder's review against a written protected-host checklist, recorded as not independent",
+      "rule": "The founder inspects the exact method against the checklist in node/docs/mainnet/e03-negative-peer-method.md and records E03_HOST_METHOD_REVIEW.json with reviewer 'P01 (founder, not independent)', the scope, findings and decision APPROVED_FOR_ONE_BOUNDED_CASE, bound to the same three approval hashes. The separate review of the wrong-key result before the malformed-peer case is the founder's too. Every other E03 rule (one case per sitting, salvage before cleanup, exact-rule rollback, stop on any ambiguous remote result, explicit approval for each run) is unchanged."
+    },
+    {
+      "question": "5. 'Root signers sign only after the P02 review' (genesis signing)",
+      "selected": "P02 is the decision-1 review",
+      "rule": "The root signers sign after the public review window has closed, its findings are fixed or answered on the record, and the founder has signed off; no independent review is awaited."
+    },
+    {
+      "question": "6. D14-Q03: who accepts each engineering, operations, signing and independent review role",
+      "selected": "The founder holds every role; there is no independent reviewer",
+      "rule": "D14-Q03 is closed with this record. The concentration of every role in one person is disclosed in TRUST_MODEL.md."
+    },
+    {
+      "question": "7. Two independent specification interpretations and independent engineers, operators and developers (G32, G33, the artifact register)",
+      "selected": "Clean-environment runs in CI and a founder walkthrough",
+      "rule": "The build and install instructions are proven by CI on clean runners (the host-install and staging-network jobs) and the founder follows the final runbooks and developer instructions on a clean machine, recording each step. No second interpretation by another person is required."
+    },
+    {
+      "question": "8. Independent reviewer records for the seven simulation runs (R01-R07) and the artifact register's independent decisions",
+      "selected": "The automated results verdicts and a founder record",
+      "rule": "Each run's evidence is the results.py verdict over its signed records plus the founder's operator record. No independent reviewer record is required."
+    },
+    {
+      "question": "9. Independent assurance artifacts (assurance lead, economics, supply, governance and test reviews in the artifact register)",
+      "selected": "Under decision 1",
+      "rule": "The supply and economics controls are covered by the CI-enforced reconciliation and the public review; no independent assurance lead is appointed."
+    },
+    {
+      "question": "10. Independent review of the adaptive-emission proof",
+      "selected": "Founder review of the proof and property tests over its invariants",
+      "rule": "Adaptive emission is active at genesis (D01-Q01, the corrected adaptive controller; E05 adaptive_issuance values). Before the E06 freeze the founder reviews node/docs/mainnet/adaptive-emission-proof.md against the code, and randomized property tests cover the proof's invariants (bounded sums, saturation, no overflow, deterministic encoding) in node/crates/adaptive-emission. The proof is disclosed as not independently reviewed."
+    }
+  ],
+  "accepted_risks": [
+    "Mainnet launches without any independent security audit or independent review of its consensus, post-quantum cryptography, root signing, economics or wallet. Defects that an outside auditor might have found may reach mainnet; the 30-day freeze and bug review and its bounty are the only outside scrutiny.",
+    "Every acceptance, including the E03 method review and the adaptive-emission proof review, is made by the person who built the system.",
+    "Public pages no longer carry a label saying the code was not audited; they describe the agentic assessments and the freeze and bug review, and never claim an audit or independent review."
+  ],
+  "not_covered": [
+    "Five-holder key custody (P01_E05_ROOT_KEY_HOLDERS_2026-10-07, P01_E05_HOLDER_DISCLOSURE_2026-10-10): the four other holders hold keys, they do not review, and are unchanged by this record.",
+    "Independent reproduction (CI runner and a clean container) and independent monitoring (a hosted uptime service): automated, not reviewers; unchanged."
+  ],
+  "supersedes": [
+    "P01_E06_AUDIT_2026-10-10: the Hashlock audit requirement and its unset engagement (its order-of-work decision stands, without the audit step)",
+    "P01_T06_E03_STAGING_HOSTS_2026-11-10: the P02 independent-reviewer item",
+    "P01_T06_E03_RUNNER_ACCESS_2026-11-13 (PR #151, not yet on main when this was written): its unset P02 reviewer",
+    "The 'independent review or acceptance' term of the SOLO_LAUNCH_V1 profile as amended on 10 October 2026, and the label rule of P01_E05_SOLO_LAUNCH_2026-10-03 (D14) and P01_E06_AUDIT_2026-10-10"
+  ],
+  "does_not_authorize": [
+    "any claim, on a public page or elsewhere, that the code was audited or independently reviewed",
+    "any E03 dispatch before the founder's E03_HOST_METHOD_REVIEW.json exists",
+    "relaxing any technical check, test, CI job or the G35 launch veto",
+    "gate acceptance (each gate is still accepted on its evidence)",
+    "production activation of any chain",
+    "mainnet launch"
+  ]
+}

@@ -81,7 +81,7 @@ def render(d):
         a = g['acceptance_requirement']
         out += ['', f"**Acceptance requirement:** {a['gate_specific']}", ''] + [f'- {s}' for s in a['common']]
         out += [f"- {s['id']}: {s['required_evidence']}" for s in a.get('runbook_requirements') or []]
-        out += ['', f"**Acceptance authority:** {a['owner_role']}. Named assignee, independent reviewer and acceptance record remain unset.",
+        out += ['', f"**Acceptance authority:** {a['owner_role']}. The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.",
                 '', f"**Current blocker:** {g['current_blocker']}", '',
                 '**Decision and record dependencies:** ' + ', '.join(q['id'] for q in g['decision_dependencies'])
                 + ". See exact questions and source status in this gate's JSON record.", '', '**Requirement sources**', '']

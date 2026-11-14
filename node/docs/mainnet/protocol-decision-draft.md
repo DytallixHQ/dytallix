@@ -41,7 +41,7 @@ its specification, calibrated proof domain, and accounting integration pass revi
 ## Acceptance record
 
 For each row record: selected option, exact values and units, specification
-version, rationale, protocol owner, independent reviewer, approval date,
+version, rationale, protocol owner, reviewer (the founder; no independent reviewer), approval date,
 activation/migration rule, and required test vectors. Assign owners before
 estimating a launch date.
 
