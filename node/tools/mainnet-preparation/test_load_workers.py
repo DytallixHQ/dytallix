@@ -300,5 +300,21 @@ class TransportTests(unittest.TestCase):
             lw.wait_for(transport, 1, 'primed.json', 10, poll=0.02)
 
 
+    def test_a_worker_that_replies_and_stops_between_two_reads_is_read(self):
+        class Racing:
+            """The reply lands, and the worker exits, just after the first read."""
+            reads = 0
+
+            def read(self, n, name):
+                if name == 'error.json':
+                    return None
+                self.reads += 1
+                return None if self.reads == 1 else b'{"stopped": true}'
+
+            def alive(self, n):
+                return False
+        self.assertEqual(lw.wait_for(Racing(), 1, 'reply-006.json', 10, poll=0.02), [{'stopped': True}])
+
+
 if __name__ == '__main__':
     unittest.main()

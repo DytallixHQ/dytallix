@@ -347,7 +347,11 @@ def wait_for(transport, count, name, timeout, clock=time.time, sleep=time.sleep,
             if error is not None:
                 raise Failed(f'worker {n} failed: {json.loads(error)["error"]}')
             if not transport.alive(n):
-                raise Failed(f'worker {n} stopped without {name}')
+                # A worker may write its file and exit between the read and this check (stop does).
+                raw = transport.read(n, name)
+                if raw is None:
+                    raise Failed(f'worker {n} stopped without {name}')
+                found[n] = json.loads(raw)
         if len(found) < count:
             if clock() > deadline:
                 raise Failed(f'{count - len(found)} workers wrote no {name} within {timeout} s')
