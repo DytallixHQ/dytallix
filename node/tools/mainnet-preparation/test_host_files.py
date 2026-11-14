@@ -153,7 +153,16 @@ class HostFilesTests(unittest.TestCase):
             self.assertIn(f'ExecStart=/opt/dytallix/{manifest["release"]}/bin/dytallix-native-supervisor '
                           f'--service-config {etc}/service.json', unit)
             self.assertIn('User=41001', unit)
-            self.assertIn('Restart=no', unit)
+            # P01_T06_RESTART_POLICY_2026-11-13: only a validator never restarts itself.
+            if role == 'validator':
+                self.assertIn('Restart=no', unit)
+                self.assertNotIn('StartLimit', unit)
+            else:
+                self.assertNotIn('Restart=no', unit)
+                for line in ('Restart=on-failure', 'RestartSec=30', 'StartLimitIntervalSec=600', 'StartLimitBurst=3',
+                             'RestartPreventExitStatus=10 11 12 13 14 15'):
+                    self.assertIn(line + '\n', unit)
+                self.assertLess(unit.index('StartLimitBurst=3'), unit.index('[Service]'))
             self.assertIn('AppArmorProfile=' + admission['supervisor_label'], unit)
             self.assertIn(f'MemoryMax={3 << 30}', unit)
             # The profiles and the firewall table.

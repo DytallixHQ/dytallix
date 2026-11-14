@@ -6,7 +6,7 @@
     "kind": "user_reply",
     "question_set": "Whether the node unit keeps Restart=no (host_files.py:177) after the sentry was not restarted on 2026-11-10 (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
   },
-  "reason": "Staging sentry startup failure of 2026-11-10 (BOUNDED_STARTUP_FAILURE, height 173,074); root cause in draft PR #135, fix in PR #136. The supervisor exited at +92 s and systemd did not restart it; the replacement validator then ran without a sentry. With the checkpoint a restart would now pass its startup check.",
+  "reason": "Staging sentry startup failure of 2026-11-10 (BOUNDED_STARTUP_FAILURE, height 173,074); root cause in draft PR #135, fix in PR #136. The supervisor exited at +92 s and systemd did not restart it; the replacement validator then ran without a sentry. With the checkpoint a restart would now pass its startup check. The E04 records of 4 and 5 November (P01_E04_VERIFIER_CLASS, P01_E04_CHECKTX_VERIFIER, P01_E04_CHECKTX_HELPER_FAILURES, P01_E04_NODE_WARNINGS) did not authorize an automatic restart and left the unit at Restart=no; this decision changes that for the sentry and endpoint only.",
   "design_ref": "../../node/docs/operations/validator-recovery.md",
   "decisions": [
     {
@@ -16,7 +16,7 @@
     },
     {
       "question": "Sentry and endpoint units",
-      "selected": "Restart=on-failure, RestartSec=30, StartLimitIntervalSec=600, StartLimitBurst=3, with the unit-failure alert unchanged",
+      "selected": "Restart=on-failure, RestartSec=30, StartLimitIntervalSec=600, StartLimitBurst=3, with the unit-failure alert unchanged; the integrity failure classes 10 to 15 (configuration, history, supply, replay, release, execution) never restart (RestartPreventExitStatus), since they repeat on any start and their runbooks need an operator",
       "rule": "A start that fails three times in 10 minutes stays down and pages; the restart never wipes or repairs state. Changing host_files.py so the sentry and endpoint units render the restart settings above, and the validator unit keeps Restart=no; it reaches the hosts with the next sealed bundle."
     }
   ],
