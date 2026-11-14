@@ -27,6 +27,8 @@ import json
 from pathlib import Path
 import sys
 
+import load  # block times are header times, as load.py records them
+
 SCHEMA = 'dytallix.t05-steps.v1'
 BLOCK_SECONDS = 5.0
 LOST = ('lost', 'refused', 'uncertain', 'unsigned', 'expired')
@@ -39,6 +41,16 @@ class Failed(Exception):
 
 def epoch(text):
     return datetime.strptime(text, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=timezone.utc).timestamp()
+
+
+def block_time(text):
+    """A block's header time (RFC 3339, up to nanoseconds) in seconds since the epoch."""
+    if not isinstance(text, str):
+        raise Failed(f'not a header time: {text!r}')
+    try:
+        return load.header_seconds(text)
+    except load.Failed as error:
+        raise Failed(str(error))
 
 
 def percentile(values, q):
@@ -101,7 +113,7 @@ def windows(evidence, target_per_block=180, hold_seconds=1800.0, block_seconds=B
 def summarize(evidence, rows, target_per_block=180, hold_seconds=1800.0, block_seconds=BLOCK_SECONDS):
     steps, (asked, hold_start, hold_end) = windows(evidence, target_per_block, hold_seconds, block_seconds)
     rows = [r for r in rows if r.get('phase') == 'run']
-    block_times = {int(h): float(t) for h, t in (evidence.get('block_times') or {}).items()}
+    block_times = {int(h): block_time(t) for h, t in (evidence.get('block_times') or {}).items()}
     if not block_times:
         raise Failed('the evidence has no block times')
     out = []
