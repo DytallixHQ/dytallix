@@ -47,7 +47,8 @@ These corrections do not depend on the implementation choice:
 ## Required evidence
 
 Each approved rule must identify its implementation, test vectors, owner, and
-independent reviewer. Consensus rules must use deterministic arithmetic and
+reviewer (the founder under the solo launch profile; there is no independent
+reviewer, P01, 13 November 2026). Consensus rules must use deterministic arithmetic and
 serialization. A bounded simulation is not a proof over all admitted inputs.
 
 The PID proof remains open. A permitted proportional special case has local
@@ -66,7 +67,8 @@ lifecycle are integrated and independently qualified.
 2. Complete the required mathematical and cryptographic review.
 3. Implement one selected transition system and its migration rules.
 4. Pass component tests and selected-node integration tests.
-5. Complete independent security review and fix verification.
+5. Complete the public review and the AI review, and fix verification (no
+   independent security review; P01, 13 November 2026).
 6. Qualify the frozen release with independent validators and recovery drills.
 7. Approve the genesis digest, release digests, and launch decision.
 

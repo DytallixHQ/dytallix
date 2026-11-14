@@ -1,6 +1,6 @@
 # Adaptive emission: proof and limits
 
-Status: engineering derivation for independent review. No calibrated mainnet
+Status: engineering derivation for the founder's review, with property tests over its invariants; it has had no independent review (P01, 13 November 2026). No calibrated mainnet
 plant or approved gain table exists in this batch.
 
 ## 1. Arithmetic and state invariants

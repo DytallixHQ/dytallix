@@ -55,10 +55,10 @@ Those failures remain open. No remote CI run, push, deployment, or launch occurr
 3. Add issuance, allocation balances, supply, and the epoch/block marker to the
    same atomic transaction. Do not commit the journal before separately crediting accounts.
 4. Define parameter migration and bind configuration to approved genesis data.
-5. Calibrate the plant and gains. Complete independent review of the conditional proof.
+5. Calibrate the plant and gains. Complete the founder's review of the conditional proof (no independent reviewer is available: the founder reviews it against the code, with property tests over its invariants; P01, 13 November 2026).
 6. Close the governance, reward, benchmark, and core compilation failures.
 7. Complete distributed consensus, cryptographic assurance, operator qualification,
    and the remaining mainnet gates.
 
 Checksums prove neither input authenticity nor consensus finality. Calibration,
-accounting integration, independent review, and mainnet approval remain incomplete.
+accounting integration, the founder's review of the proof, and mainnet approval remain incomplete.

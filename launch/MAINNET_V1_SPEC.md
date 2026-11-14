@@ -1,6 +1,6 @@
 # Dytallix Mainnet v1 specification
 
-Status: NOT FROZEN, NO GO. Current as of 10 October 2026; it freezes with the release candidate (E06), which Hashlock audits while the 30-day public review covers it. Each row states the approved rule and links its source; the [decision register](DECISIONS_REQUIRED.md) and the dated P01 [approvals](approvals/) are authoritative where wording differs. The September draft is in this file's history.
+Status: NOT FROZEN, NO GO. Current as of 10 October 2026; it freezes with the release candidate (E06), which the 30-day public review covers (no independent audit). Each row states the approved rule and links its source; the [decision register](DECISIONS_REQUIRED.md) and the dated P01 [approvals](approvals/) are authoritative where wording differs. The September draft is in this file's history.
 
 One canonical genesis creates the permanent network. No later economic genesis is permitted.
 
@@ -50,7 +50,7 @@ Maintain these invariants across genesis, transactions, empty blocks, rewards, p
 
 ## Freeze and change control
 
-This specification freezes with the release candidate (E06), after the staging runs on the production hosts ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)). Hashlock audits the frozen candidate; the 30-day public review covers this specification with the code, alongside a separate AI review labeled as AI; and the founder signs off ([audit](approvals/P01_E06_AUDIT_2026-10-10.json), [solo launch profile](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)). A source implementation is evidence of behavior; it is not approval of the rule.
+This specification freezes with the release candidate (E06), after the staging runs on the production hosts ([review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)). There is no independent audit; the 30-day public review covers this specification with the code, alongside a separate AI review labeled as AI; and the founder signs off ([audit](approvals/P01_E06_AUDIT_2026-10-10.json), [solo launch profile](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)). A source implementation is evidence of behavior; it is not approval of the rule.
 
 After the audit's fixes, the seven simulation runs qualify the final candidate. After the freeze, only launch-blocking fixes are permitted. Each fix requires a new candidate, a documented diff, affected regression tests and review on the record. Genesis-relevant changes require new deterministic build evidence before launch.
 

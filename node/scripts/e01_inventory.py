@@ -207,8 +207,8 @@ EXCEPTIONS = [
     "Package and symbol rules cannot detect every renamed or unknown algorithm. A clean inventory alone does not establish PQC compliance.",
     "E04 gap 20 deleted the engine fork's classical packages; the fork has one build, with no build tags.",
     "The production startup flag remains fail-closed. The candidate transport runs only with an explicit staging flag and a reserved staging chain identity.",
-    "The ML-KEM-768 + ML-DSA-65 peer protocol still requires independent protocol review (P02).",
-    "Production chain identity, addresses, keys, custody, the release commit, the full distribution inventory and independent review are not frozen (E05, E06, P01, P02).",
+    "The ML-KEM-768 + ML-DSA-65 peer protocol has had no independent protocol review and will not before production; it gets the public review, the AI review and the founder's sign-off (P02 as amended by P01, 13 November 2026).",
+    "Production chain identity, addresses, keys, custody, the release commit, the full distribution inventory and the public review are not frozen (E05, E06, P01, P02).",
 ]
 
 REQUIRED_PRODUCTION_CONFIGURATION = [

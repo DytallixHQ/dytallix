@@ -10,7 +10,7 @@ Current counts: 0 OPEN, 35 PARTIAL, 0 READY FOR ACCEPTANCE, 0 PASS. Partial prog
 
 **Solo launch profile** (P01, 3 October 2026, [approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json), [trust model](TRUST_MODEL.md)). The founder launches alone. Where a gate asks for independent, named, operator, reviewer or custodian acceptance, these terms apply. Gate requirements are otherwise unchanged, and each concentration of control is disclosed in TRUST_MODEL.md.
 
-- **Independent review or acceptance:** Hashlock, an independent security firm, audits the frozen candidate, every finding fixed (Hashlock re-checking the fix) or answered on the record; alongside it, a 30-day public review (GitHub issues, with a bug bounty paid in DGT) and a separate adversarial AI review labeled as AI; and the founder's sign-off. The launch is labeled unaudited until Hashlock's report is published (P01, 10 October 2026).
+- **Independent review or acceptance:** No independent review or audit (P01, 13 November 2026, approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json). The code goes through multiple layers of agentic assessment, labeled as AI; the frozen candidate then has a 30-day freeze and bug review (a public review on GitHub issues with a bug bounty paid in DGT), every finding fixed or answered on the record; and the founder signs off against a written checklist. No audit or independent review is claimed.
 - **Independent reproduction:** A clean GitHub Actions runner and a fresh container on the founder's machine each reproduce the release and the genesis files byte for byte.
 - **Operator acceptance and genesis hash verification:** The founder, the only operator, records acceptance and verifies the genesis hash on every host.
 - **Custodians and signers:** Five people, the founder and four others, hold the five key kits, one each; kit N holds key N of each role (genesis, upgrade, freeze, resume), any three act, and no holder sees another's kit secret (P01, 7 October 2026).
@@ -65,7 +65,7 @@ Use the reconciliation report (`decision-register/gate-consolidation-20260912/RE
 - **OPEN:** No credited implementation or preparation evidence for the requirement.
 - **PARTIAL:** Credited implementation, tests or preparation exist; required implementation, qualification or acceptance is incomplete.
 - **READY FOR ACCEPTANCE:** All implementation and candidate qualification evidence is complete; only authorized formal acceptance remains.
-- **PASS:** Every formal acceptance requirement is satisfied with current candidate-bound evidence and named authorized independent acceptance. Under the solo launch profile, independent acceptance has the meaning in acceptance_profile.
+- **PASS:** Every formal acceptance requirement is satisfied with current candidate-bound evidence and the founder's recorded acceptance under acceptance_profile. No independent reviewer accepts any gate (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13).
 
 All 35 gates and eight production records must be accepted for the final compatible candidate set. Complete seven valid simulations under MAINNET_EXECUTION_PLAN.md and obtain explicit launch authorization. No gate status alone authorizes deployment.
 
@@ -142,11 +142,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L08: Controlled staging measurements; approved limits and recovery objectives; no conversion of component rates into TPS.
 - L09: Seven complete reviewed frozen-candidate simulation records under the existing execution plan.
 
-**Acceptance authority:** Consensus lead and independent protocol reviewers. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Consensus lead and founder protocol review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Production consensus parameters, topology, sustained targets and full fault acceptance remain open.
 
@@ -205,19 +205,19 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Approve the fault model, finality, evidence, retention and synchronization requirements.
 - Qualify required fault scenarios, state sync and evidence handling on the frozen candidate.
-- Complete independent consensus review and resolve every safety ambiguity.
+- Complete the consensus review under acceptance_profile (public review, AI review, founder sign-off; not independent) and resolve every safety ambiguity.
 
 **Acceptance requirement:** Demonstrate that the production consensus system preserves finalized history and consistent state under its approved Byzantine fault assumptions, partitions, validator changes and recovery.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L03: Review scope, frozen candidate hashes, findings, remediation checks and signed acceptance.
 - L09: Seven complete reviewed frozen-candidate simulation records under the existing execution plan.
 
-**Acceptance authority:** Consensus lead and independent security reviewers. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Consensus lead and founder security review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
-**Current blocker:** Local agreement checks do not cover the complete production fault model, engine evidence coverage or independent safety acceptance.
+**Current blocker:** Local agreement checks do not cover the complete production fault model, engine evidence coverage or the founder's safety acceptance.
 
 **Decision and record dependencies:** D06-Q01, D06-Q02, D09-Q01, D09-Q02, D09-Q03, D09-Q04, D09-Q05, D14-Q01, D14-Q02, D14-Q03. See exact questions and source status in this gate's JSON record.
 
@@ -345,20 +345,20 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Approve and qualify production root schemas, manifest contents, custody, role parameters and migration rules. Extend the tested file binding and durable action consumers beyond development genesis.
 - Bind known-answer, cross-implementation, malformed-input and side-channel review to the final candidate.
-- Resolve the remaining G35 profile/provider boundaries and obtain independent cryptographic acceptance.
+- Resolve the remaining G35 profile/provider boundaries and record the founder's cryptographic acceptance (acceptance_profile; not independent).
 
 **Acceptance requirement:** Freeze and qualify the role-specific PQC architecture, key and signature encodings, domain separation, replay protection, key handling and fail-closed behavior. Complete known-answer, cross-implementation and malformed-input checks.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
-- L02: Frozen source, locks, build environment, executables, configuration templates and provider inventories; independent G35 acceptance. Final production genesis bytes are bound at L11.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
+- L02: Frozen source, locks, build environment, executables, configuration templates and provider inventories; the founder's G35 acceptance. Final production genesis bytes are bound at L11.
 - L03: Review scope, frozen candidate hashes, findings, remediation checks and signed acceptance.
 - L10: Explicit ceremony authorization, public key validation, custody roles and recovery procedures. Never export private material.
 
-**Acceptance authority:** Cryptography lead and independent cryptographic reviewers. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Cryptography lead and founder cryptographic review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
-**Current blocker:** Production schema acceptance, numeric limits, custody, final-candidate cryptographic qualification and independent acceptance remain open. New Rust paths require Linux artifact qualification.
+**Current blocker:** Production schema acceptance, numeric limits, custody, final-candidate cryptographic qualification and the founder's acceptance remain open. New Rust paths require Linux artifact qualification.
 
 **Decision and record dependencies:** D10-Q01, D10-Q02, D10-Q03, D14-Q01, D14-Q02, D14-Q03. See exact questions and source status in this gate's JSON record.
 
@@ -421,12 +421,12 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L04: Explicit beneficiary schedules, base-unit totals, approved parameters and deterministic input/output comparison.
 - L10: Explicit ceremony authorization, public key validation, custody roles and recovery procedures. Never export private material.
-- L11: Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; independent verification; completed final candidate/key/genesis record bindings for acceptance before L13.
+- L11: Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; verification by CI reproduction and the founder; completed final candidate/key/genesis record bindings for acceptance before L13.
 
-**Acceptance authority:** Release lead, independent genesis verifier and validator operators. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Release lead, founder genesis verification with CI reproduction and validator operators. The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Required production genesis values, typed consumers and accepted records remain incomplete. File-hash binding does not authenticate an approval or authorize production generation.
 
@@ -483,13 +483,13 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L01: Verified preparable fields; approved input policy and role assignments. Final candidate, production-key and genesis bindings remain pending until L11-L13.
 - L04: Explicit beneficiary schedules, base-unit totals, approved parameters and deterministic input/output comparison.
 - L10: Explicit ceremony authorization, public key validation, custody roles and recovery procedures. Never export private material.
-- L11: Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; independent verification; completed final candidate/key/genesis record bindings for acceptance before L13.
+- L11: Exact serialized production genesis bytes, public keys, file hashes and approved protocol commitments; verification by CI reproduction and the founder; completed final candidate/key/genesis record bindings for acceptance before L13.
 
-**Acceptance authority:** Economics lead, custodians and independent genesis verifier. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Economics lead, custodians and founder genesis verification with CI reproduction. The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Exact beneficiary/custody records and initial issuance decisions remain open. A full-supply fixture does not approve minting all DGT at genesis.
 
@@ -607,11 +607,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
-- L02: Frozen source, locks, build environment, executables, configuration templates and provider inventories; independent G35 acceptance. Final production genesis bytes are bound at L11.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
+- L02: Frozen source, locks, build environment, executables, configuration templates and provider inventories; the founder's G35 acceptance. Final production genesis bytes are bound at L11.
 - L12: Authenticated approved distribution, signer/revocation checks and per-host exact artifact/config/genesis equality.
 
-**Acceptance authority:** Release lead and independent build reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Release lead and founder build review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Full production distribution freeze, independent clean reproduction, provider review and release acceptance remain open.
 
@@ -723,12 +723,12 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L01: Verified preparable fields; approved input policy and role assignments. Final candidate, production-key and genesis bindings remain pending until L11-L13.
 - L05: Host identities, configuration digests, restricted services, backup/restore proof and alert delivery acknowledgement.
 - L12: Authenticated approved distribution, signer/revocation checks and per-host exact artifact/config/genesis equality.
 
-**Acceptance authority:** SRE lead and named validator operators. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** SRE lead and named validator operators. The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Approved production topology, operators, custody, repeated clean provisioning, monitoring and backups remain open.
 
@@ -813,10 +813,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L06: Signer exclusivity, backup epoch, anti-double-sign state, state compatibility and reviewed source/target upgrade pair.
 
-**Acceptance authority:** Validator operators, SRE lead and independent recovery reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Validator operators, SRE lead and founder recovery review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** New Rust behavior needs native requalification. Off-host recovery, signing-state conflicts, accepted custodians, measured recovery objectives and operator acceptance remain open.
 
@@ -878,10 +878,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L06: Signer exclusivity, backup epoch, anti-double-sign state, state compatibility and reviewed source/target upgrade pair.
 
-**Acceptance authority:** Storage/SRE leads and independent recovery reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Storage/SRE leads and founder recovery review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** A stopped same-host restore before later signing does not cover stale snapshots, corruption, physical loss or production recovery objectives.
 
@@ -1001,10 +1001,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Runtime and wallet leads; independent transaction reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Runtime and wallet leads; founder transaction review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Native selected-client execution passed within the disposable fixture. Production enrollment/recovery custody, final role/fee inputs, hosted acceptance and independent state/receipt inclusion proofs remain open.
 
@@ -1077,10 +1077,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Wallet lead, custody reviewer and independent client reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Wallet lead, custody reviewer and founder client review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Native strict CLI startup is qualified within its bounded scope. Durable wallet custody, full application-proof interfaces, accepted public endpoint trust and frozen hosted-wallet acceptance remain open.
 
@@ -1134,16 +1134,16 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Approve and configure initial DRT funding, fees, custody and transfer restrictions.
 - Run DRT transfer, insufficient-funds, failure, duplicate and restart cases on the frozen network.
-- Reconcile every transfer and fee with the production supply ledger and obtain independent acceptance.
+- Reconcile every transfer and fee with the production supply ledger and record the founder's acceptance.
 
 **Acceptance requirement:** Execute signed DRT transfers through the frozen network. Verify authorization, balances, fees, failures, replay protection and restart persistence; reconcile all balance changes to global DRT supply.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Runtime/economics leads and independent accounting reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Runtime/economics leads and founder accounting review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Production DRT bootstrap, fee calibration and final economic qualification remain open.
 
@@ -1188,16 +1188,16 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Complete production DGT allocation, vesting and initial mint decisions.
 - Qualify transferable and locked balances through maintained clients and the frozen chain, including failure and restart.
-- Reconcile transfers, custody and supply and record independent acceptance.
+- Reconcile transfers, custody and supply and record the founder's acceptance.
 
 **Acceptance requirement:** Execute signed DGT transfers through the frozen network. Enforce ownership and vesting restrictions. Verify balances, fees, failures, replay protection and persistence against global DGT supply.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Runtime/economics leads and independent accounting reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Runtime/economics leads and founder accounting review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Production beneficiaries, vesting inputs and mint authority remain incomplete; local generic transfer tests do not qualify the final DGT lifecycle.
 
@@ -1254,11 +1254,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L04: Explicit beneficiary schedules, base-unit totals, approved parameters and deterministic input/output comparison.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Economics/runtime leads and independent supply reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Economics/runtime leads and founder supply review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Production controller/observation configuration, bootstrap and burn authority remain unresolved.
 
@@ -1312,11 +1312,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L04: Explicit beneficiary schedules, base-unit totals, approved parameters and deterministic input/output comparison.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Economics/runtime leads and independent supply reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Economics/runtime leads and founder supply review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** The cap is approved, but genesis mint scope, later authority and complete production custody inputs are not accepted.
 
@@ -1370,10 +1370,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Validator/economics leads and independent lifecycle reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Validator/economics leads and founder lifecycle review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Production stake thresholds, operators and locked-principal qualification remain open.
 
@@ -1426,10 +1426,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Validator/economics leads and independent lifecycle reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Validator/economics leads and founder lifecycle review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Final operator/beneficiary records and production delegation qualification remain incomplete.
 
@@ -1492,10 +1492,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Validator/economics leads and independent liability reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Validator/economics leads and founder liability review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Production withdrawals remain disabled. Approved liability/evidence bounds, full fault attribution, locked-principal implementation, activation/migration and production withdrawal qualification remain open.
 
@@ -1564,11 +1564,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L04: Explicit beneficiary schedules, base-unit totals, approved parameters and deterministic input/output comparison.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Economics lead, treasury authority and independent accounting reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Economics lead, treasury authority and founder accounting review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Production validator-pool rules, treasury authority and issuance configuration remain unresolved.
 
@@ -1634,10 +1634,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Runtime/economics leads and independent fee reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Runtime/economics leads and founder fee review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Production numeric fee/resource inputs and general burn/distribution policy remain open.
 
@@ -1695,10 +1695,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Consensus/economics leads and independent evidence reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Consensus/economics leads and founder evidence review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Existing duplicate-vote fixture coverage is bounded. Full engine evidence attribution, production penalty values, locked liability, activation/migration and end-to-end fault acceptance remain open.
 
@@ -1774,11 +1774,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L04: Explicit beneficiary schedules, base-unit totals, approved parameters and deterministic input/output comparison.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** Governance/economics leads and independent governance reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Governance/economics leads and founder governance review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Custodian identities, keys, epochs, measured numeric limits, production wire acceptance and upgrade authority inputs remain open. Broader governance snapshot, timing and execution decisions remain open.
 
@@ -1828,18 +1828,18 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Verify treasury recipients and custodians; approve governance, spending and emergency authorities.
 - Integrate actual treasury authorization and durable action execution.
-- Qualify permitted/rejected spending, replay, failure and recovery with independent accounting review.
+- Qualify permitted/rejected spending, replay, failure and recovery with the founder's accounting review (not independent).
 
 **Acceptance requirement:** Define and enforce treasury receipt, custody and spending authority. Qualify authorized and rejected actions, conservation, audit records, replay protection and recovery.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L01: Verified preparable fields; approved input policy and role assignments. Final candidate, production-key and genesis bindings remain pending until L11-L13.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 - L10: Explicit ceremony authorization, public key validation, custody roles and recovery procedures. Never export private material.
 
-**Acceptance authority:** Treasury authority, custodians and independent control reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Treasury authority, custodians and founder control review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Treasury recipient/custody record D02-Q02 and governance authority D11-Q03 remain open; custody balances do not authorize spending.
 
@@ -1939,16 +1939,16 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Approve the production storage/compression profile and qualify complete existing state on the frozen Linux release. Prior compressed-SST fixture reads remain scoped evidence.
 - Accept production control schemas, authority membership/thresholds and action priority/cancellation. Preserve exact migration versions and qualify cross-binary authorization, state reopening and execution.
-- Run the complete cross-version migration/rollback matrix with late or missing validators, old RPC nodes, wallet activity and post-upgrade economics; obtain independent review and complete the applicable final simulation.
+- Run the complete cross-version migration/rollback matrix with late or missing validators, old RPC nodes, wallet activity and post-upgrade economics; complete the founder's review and the applicable final simulation.
 
 **Acceptance requirement:** Qualify a controlled RC1-to-RC2 upgrade with reviewed state migration and recovery. Test late/missing validators, old RPC nodes, wallet activity, rollback compatibility and the post-upgrade economic lifecycle.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L06: Signer exclusivity, backup epoch, anti-double-sign state, state compatibility and reviewed source/target upgrade pair.
 
-**Acceptance authority:** Release lead, operators and independent migration reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Release lead, operators and founder migration review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** The first executor works for the root-bound running candidate. Version-preserving migration history, cross-binary installation/reopen/rollback, production authority inputs and full RC1-to-RC2 qualification remain open.
 
@@ -2059,11 +2059,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L05: Host identities, configuration digests, restricted services, backup/restore proof and alert delivery acknowledgement.
 - L08: Controlled staging measurements; approved limits and recovery objectives; no conversion of component rates into TPS.
 
-**Acceptance authority:** RPC/SRE leads and independent client reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** RPC/SRE leads and founder client review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Hosted endpoint trust, receipt/state proofs, public transport, production services and load/outage/upgrade targets remain open.
 
@@ -2113,10 +2113,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L08: Controlled staging measurements; approved limits and recovery objectives; no conversion of component rates into TPS.
 
-**Acceptance authority:** Performance lead and independent capacity reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Performance lead and founder capacity review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Component timings and queue benchmarks do not measure sustained committed network throughput. Production targets remain unset.
 
@@ -2175,11 +2175,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L05: Host identities, configuration digests, restricted services, backup/restore proof and alert delivery acknowledgement.
 - L08: Controlled staging measurements; approved limits and recovery objectives; no conversion of component rates into TPS.
 
-**Acceptance authority:** SRE lead and independent operations reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** SRE lead and founder operations review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** The selected build omits the embedded metrics listener. Required monitoring interface/coverage, accepted owner, thresholds and operational validation remain open.
 
@@ -2226,11 +2226,11 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L05: Host identities, configuration digests, restricted services, backup/restore proof and alert delivery acknowledgement.
 - L08: Controlled staging measurements; approved limits and recovery objectives; no conversion of component rates into TPS.
 
-**Acceptance authority:** SRE/on-call lead and independent operations reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** SRE/on-call lead and founder operations review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Alert thresholds, contacts and operational acceptance remain unset. Checklist validation does not demonstrate alert delivery.
 
@@ -2280,10 +2280,10 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L05: Host identities, configuration digests, restricted services, backup/restore proof and alert delivery acknowledgement.
 
-**Acceptance authority:** Storage/SRE leads, custodians and independent recovery reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Storage/SRE leads, custodians and founder recovery review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** Same-host stopped-fleet backup does not qualify off-host storage, stale-signing safety or production backup objectives.
 
@@ -2324,16 +2324,16 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Qualify the remaining corruption, server/disk loss, partition, resource-pressure and off-host scenarios on approved disposable Linux staging.
 - Measure each approved recovery objective and reconcile state, supply, stake and signing safety.
-- Obtain named operator and independent recovery acceptance.
+- Record the founder's operator and recovery acceptance (not independent).
 
 **Acceptance requirement:** Recover from the required server, state, disk, network and resource failures using documented procedures. Preserve finalized history, supply and exclusive signing; meet approved service and recovery objectives.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L06: Signer exclusivity, backup epoch, anti-double-sign state, state compatibility and reviewed source/target upgrade pair.
 
-**Acceptance authority:** SRE/incident lead and independent recovery reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** SRE/incident lead and founder recovery review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
 **Current blocker:** The full failure matrix and off-host Linux recovery remain unexecuted; five local drills cover only a subset.
 
@@ -2351,7 +2351,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Status: PARTIAL**
 
-**Requirement:** Complete independent security review of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.
+**Requirement:** Complete the security review, under acceptance_profile (public review, AI review, founder sign-off; no independent audit), of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.
 
 **Completed work**
 
@@ -2452,21 +2452,21 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Remaining work**
 
-- Assign independent reviewers and approved review scopes tied to exact candidate hashes.
+- Publish the review scope, tied to exact candidate hashes, for the 30-day public review and the AI review.
 - Resolve dossier questions, full dependency/provider and effective storage-path review; qualify production root consumers, external artifact verification and custody.
 - Close all P0/absolute blockers and repeat affected checks after candidate changes.
-- Review the post-GO helper cutoff and typed deadline race; reject test methods that widen production signal permissions. Independently review any corrected candidate and repeat affected native tests.
+- Review the post-GO helper cutoff and typed deadline race; reject test methods that widen production signal permissions. Review any corrected candidate under acceptance_profile and repeat affected native tests.
 
-**Acceptance requirement:** Complete independent security review of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.
+**Acceptance requirement:** Complete the security review, under acceptance_profile (public review, AI review, founder sign-off; no independent audit), of the frozen protocol, cryptography, economic controls, interfaces, keys, dependencies, build/distribution chain and server configuration. Resolve every P0 and absolute launch blocker.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L03: Review scope, frozen candidate hashes, findings, remediation checks and signed acceptance.
 
-**Acceptance authority:** Independent security auditors and accountable release authority. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Founder (accountable release authority); no independent audit: public and AI reviews under acceptance_profile. The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
-**Current blocker:** Independent security acceptance of the frozen candidate, production authority/custody, full distribution/provider review and complete production behavior qualification remain open.
+**Current blocker:** Security acceptance of the frozen candidate under acceptance_profile, production authority/custody, full distribution/provider review and complete production behavior qualification remain open.
 
 **Decision and record dependencies:** D07-Q01, D10-Q01, D10-Q02, D10-Q03, D11-Q01, D11-Q02, D11-Q03, D12-Q01, D12-Q02, D12-Q03, D14-Q01, D14-Q02, D14-Q03. See exact questions and source status in this gate's JSON record.
 
@@ -2484,7 +2484,7 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 **Status: PARTIAL**
 
-**Requirement:** Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify that independent engineers and operators can use them without undocumented knowledge.
+**Requirement:** Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify, on clean CI runners and by the founder on a clean machine, that they can be used without undocumented knowledge.
 
 **Completed work**
 
@@ -2573,18 +2573,18 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Complete the required artifact set and replace unset commands, thresholds, recovery objectives and named roles with accepted values.
 - Update documents to the final maintained candidate and resolve all contradictory historical statements.
-- Obtain two independent specification interpretations and operator execution/review of the final runbooks.
+- Prove the build and install instructions on clean CI runners and record the founder's walkthrough of the final runbooks.
 
-**Acceptance requirement:** Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify that independent engineers and operators can use them without undocumented knowledge.
+**Acceptance requirement:** Complete and freeze the required specifications, build/deployment instructions, operational and recovery runbooks, test reports and release evidence. Verify, on clean CI runners and by the founder on a clean machine, that they can be used without undocumented knowledge.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L09: Seven complete reviewed frozen-candidate simulation records under the existing execution plan.
 
-**Acceptance authority:** Documentation/release leads, independent engineers and operators. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Documentation/release leads, founder walkthrough and CI clean-environment runs. The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
-**Current blocker:** Final production settings, commands, named roles, complete artifact set and independent specification/operator review remain open.
+**Current blocker:** Final production settings, commands, named roles, complete artifact set and the clean-environment runs and the founder's walkthrough remain open.
 
 **Decision and record dependencies:** D07-Q01, D12-Q01, D12-Q02, D12-Q03, D14-Q01, D14-Q02, D14-Q03. See exact questions and source status in this gate's JSON record.
 
@@ -2674,19 +2674,19 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 **Remaining work**
 
 - Publish-ready artifacts must match the accepted source, dependencies and interface contract.
-- Have an independent developer follow clean-environment instructions using the final network and clients.
+- Follow the clean-environment instructions on a clean machine (founder walkthrough, recorded, and CI) using the final network and clients.
 - Qualify account onboarding, endpoint trust, receipt/state proofs and documented failure/recovery paths.
 
 **Acceptance requirement:** Provide functional developer onboarding for the frozen network, SDK, CLI and documented interfaces. Verify clean setup, account/key handling, signing, submission, receipts, failures and network selection.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L07: Frozen hosted wallet and independent RPC evidence, receipt verification and complete supply reconciliation.
 
-**Acceptance authority:** SDK lead and independent developer reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** SDK lead and founder developer review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
-**Current blocker:** Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Independent onboarding, accepted client distribution, endpoint trust, state/receipt proofs and hosted developer flows remain open.
+**Current blocker:** Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Clean-environment onboarding, accepted client distribution, endpoint trust, state/receipt proofs and hosted developer flows remain open.
 
 **Decision and record dependencies:** D07-Q01, D10-Q01, D10-Q02, D10-Q03, D14-Q01, D14-Q02, D14-Q03. See exact questions and source status in this gate's JSON record.
 
@@ -2775,14 +2775,14 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
 - L01: Verified preparable fields; approved input policy and role assignments. Final candidate, production-key and genesis bindings remain pending until L11-L13.
 - L05: Host identities, configuration digests, restricted services, backup/restore proof and alert delivery acknowledgement.
 - L12: Authenticated approved distribution, signer/revocation checks and per-host exact artifact/config/genesis equality.
 
-**Acceptance authority:** Validator/SRE leads, operators and independent onboarding reviewer. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Validator/SRE leads, operators and founder onboarding review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
-**Current blocker:** Initial operator membership/control groups, accepted role/custody records, approved topology/admission rules and independent reviewer appointments remain incomplete.
+**Current blocker:** Initial operator membership/control groups, accepted role/custody records, approved topology/admission rules remain incomplete.
 
 **Decision and record dependencies:** D09-Q01, D09-Q02, D09-Q03, D09-Q04, D09-Q05, D10-Q01, D10-Q02, D10-Q03, D12-Q01, D12-Q02, D12-Q03, D14-Q01, D14-Q02, D14-Q03. See exact questions and source status in this gate's JSON record.
 
@@ -2939,21 +2939,21 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - Complete exact role/parameter/standards profiles, source/config/dependency inventories, loaded-library inspection and independently reproducible release hashes. Default compatibility source/builds remain outside the selected strict executable scope.
 - Approve production root-required genesis schemas and manifest semantics. Integrate durable production upgrade/emergency consumers, action priority/cancellation and accepted custody, rotation and recovery.
 - Qualify operational, account, peer, client, receipt-proof, restart and resource requirements against the exact frozen candidate, including approved x86_64 hosts and the hosted wallet.
-- Obtain independent protocol, cryptography, release and operator acceptance for every required G35 evidence item.
+- Record the founder's protocol, cryptography, release and operator acceptance (not independent) for every required G35 evidence item, with the E01 checks enforced in CI.
 
 **Acceptance requirement:** No quantum-vulnerable asymmetric cryptography may establish or protect trust inside the production trust boundary.
 
 - Use the exact frozen source, binary/image, genesis and configuration hashes. Record the environment, operators, start/end times, procedure, raw evidence digest, reviewer and unresolved defects.
 - Satisfy all gate-specific requirements and approved thresholds. Resolve affected P0 defects and absolute launch blockers. Requalify affected evidence after candidate changes.
-- Obtain acceptance from named authorized owners and independent reviewers. Agent assessments and local test passes do not supply those signatures.
-- L02: Frozen source, locks, build environment, executables, configuration templates and provider inventories; independent G35 acceptance. Final production genesis bytes are bound at L11.
+- Record the founder's acceptance under acceptance_profile; it is not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13). Agent assessments and local test passes do not supply that acceptance.
+- L02: Frozen source, locks, build environment, executables, configuration templates and provider inventories; the founder's G35 acceptance. Final production genesis bytes are bound at L11.
 - L03: Review scope, frozen candidate hashes, findings, remediation checks and signed acceptance.
 - L10: Explicit ceremony authorization, public key validation, custody roles and recovery procedures. Never export private material.
 - L12: Authenticated approved distribution, signer/revocation checks and per-host exact artifact/config/genesis equality.
 
-**Acceptance authority:** Independent protocol, cryptography, release and operator reviewers. Named assignee, independent reviewer and acceptance record remain unset.
+**Acceptance authority:** Founder protocol, cryptography, release and operator review (not independent). The founder accepts under the acceptance profile; there is no independent reviewer. The acceptance record remains unset.
 
-**Current blocker:** Mandatory veto remains active. Changed Rust paths need Linux rebuild and compiled-artifact inspection. Full OS/provider/distribution, interface/custody, production wire acceptance, independent reproduction and review remain incomplete.
+**Current blocker:** Mandatory veto remains active. Changed Rust paths need Linux rebuild and compiled-artifact inspection. Full OS/provider/distribution, interface/custody, production wire acceptance, independent reproduction and the founder's review remain incomplete.
 
 **Decision and record dependencies:** D06-Q01, D06-Q02, D10-Q01, D10-Q02, D10-Q03, D12-Q01, D12-Q02, D12-Q03, D14-Q01, D14-Q02, D14-Q03. See exact questions and source status in this gate's JSON record.
 
@@ -2971,9 +2971,9 @@ Exact SHA-256 values are in this gate's JSON evidence entries. Package result re
 - Operational signing, account/key migration, consensus, SDK, wallet, receipts, restart, RPC and light-client tests against the exact candidate
 - Separate root authorization with trusted keys, policy, replay persistence, custody, rotation and actual genesis/upgrade/emergency execution checks
 - Interoperability, known-answer, malformed-input, downgrade-rejection, resource-limit and side-channel review evidence
-- Independent protocol, cryptography, release and operator review tied to the exact source and artifact hashes
+- Founder protocol, cryptography, release and operator review (acceptance_profile; not independent) tied to the exact source and artifact hashes
 
-**Original formal pass rule:** All required evidence must be complete, independently accepted and current for the production candidate. Any unknown, failed check or missing integration keeps G35 FAIL and mainnet NO_GO.
+**Original formal pass rule:** All required evidence must be complete, accepted under acceptance_profile and current for the production candidate. Any unknown, failed check or missing integration keeps G35 FAIL and mainnet NO_GO.
 The archived FAIL term denotes failed formal qualification. The current progress term is PARTIAL. The launch veto remains active.
 
 **Current source boundary:** Current source is pinned in decision-register/emergency-upgrade-execution/evidence/SOURCE_CHECK.json. New Rust implementation has local executable evidence. Prior Linux/native artifacts precede these changes. Production and G35 acceptance remain open.

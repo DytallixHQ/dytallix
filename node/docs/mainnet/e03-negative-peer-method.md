@@ -1,7 +1,8 @@
 # E03 negative-peer method
 
-Status: **E03 engineering complete; the method awaits formal independent
-review (P02).** 26 September 2026. The two cross-host cases (wrong-key, then
+Status: **E03 engineering complete; the method awaits the founder's
+checklist review (replacing the independent P02 review; P01, 13 November
+2026).** 26 September 2026. The two cross-host cases (wrong-key, then
 malformed-peer) are T02. No host was contacted in this step. Mainnet remains
 `NO_GO`.
 
@@ -26,7 +27,7 @@ E03.1–E03.5).
 | E03.2 Sender | Records the case instance, accepted-byte count, frame hash and transport-config hash; limited to the wrong-key and malformed-peer cases |
 | E03.3 Receiver | One supervised instance records its PID, start ticks, running executable hash, rejection branch and exit |
 | E03.4 Collector | Hashes the raw sender, receiver and supervisor records before parsing; binds the socket tuple, interface, endpoints, fixture, timeout and case ID |
-| E03.5 Runner | One case per invocation; the malformed-peer case requires a recomputed, separately reviewed wrong-key result; token-owned paths, a narrow firewall rule, evidence salvage before cleanup, exact-rule rollback and afterchecks; any ambiguous remote result stops further mutation. Dispatch is refused without the independent review record |
+| E03.5 Runner | One case per invocation; the malformed-peer case requires a recomputed wrong-key result, separately reviewed by the founder; token-owned paths, a narrow firewall rule, evidence salvage before cleanup, exact-rule rollback and afterchecks; any ambiguous remote result stops further mutation. Dispatch is refused without the method review record (the founder's, below) |
 
 ## Checks against the maintained source (26 September)
 
@@ -84,14 +85,43 @@ record is `E03_DEDICATED_HOSTS_DECISION.json`.
 2. **Inert checks:** rerun both on the v3 binaries. arm64 runs locally in
    Docker. amd64 needs a native x86_64 host in a new network namespace, and
    the owner's approval for that run.
-3. **P02:** a formally independent reviewer inspects the exact method against
-   the protected-host requirements and, if accepted, records
-   `E03_HOST_METHOD_REVIEW.json` with the reviewer, scope, findings and
+3. **Method review (was P02):** no independent reviewer is available, so the
+   founder inspects the exact method against the checklist below and, if
+   accepted, records `E03_HOST_METHOD_REVIEW.json` with `reviewer: "P01
+   (founder, not independent)"`, the scope, the findings and
    `decision: APPROVED_FOR_ONE_BOUNDED_CASE`, bound to the three approval
-   hashes. The earlier technical reviews do not satisfy this.
+   hashes ([no independent review](../../../launch/approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json)).
+   The record says plainly that the review is not independent.
 4. **T02:** one bounded wrong-key cross-host case; inspection of its raw files
    and a separate first-case decision; then the malformed-peer case. Each run
    touches staging hosts and needs explicit approval.
 
 Any change to the runner, build manifest, event-order decision or recovery
 procedure invalidates the review.
+
+## Method review checklist (founder, not independent)
+
+Each item is answered yes, no or not applicable with the file and line, or the
+command output, that shows it. Any "no" stops the review.
+
+1. The runner, build manifest, event-order approval and recovery procedure
+   match the three approval hashes the record binds; nothing else in the packet
+   changed since they were taken.
+2. One case per invocation: the runner refuses a second case, and the
+   malformed-peer case refuses without a recomputed wrong-key result and its
+   separate review.
+3. The runner touches only token-owned paths and one narrow firewall rule per
+   case, and its rollback removes exactly that rule (shown by the afterchecks).
+4. Evidence is salvaged before cleanup, and the collector hashes the raw
+   sender, receiver and supervisor records before parsing.
+5. Any ambiguous remote result stops further mutation; the stop path is
+   exercised by the inert checks.
+6. Both inert checks passed on the v3 binaries (arm64 and amd64) with the
+   recorded outputs.
+7. The hosts are the dedicated staging hosts named in the approval, with SSH
+   opened at the console for the sitting and the firewall reloaded from its
+   file afterwards.
+8. The validator's signing state and the sentry's chain data are untouched by
+   the runner (it never writes outside its token-owned paths).
+9. The case's pass rule (receiver rejects in the case-specific branch after
+   reading the complete invalid frame) is the one in E03.1, unchanged.

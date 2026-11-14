@@ -3059,7 +3059,7 @@
           "recommendation": "Freeze exact sources, features, toolchains, artifacts and signer roles.",
           "selected_value": {
             "production_build": "RELEASE_BINARIES_WITHOUT_DEVELOPMENT_ENTRY_POINTS",
-            "review_independence": "HASHLOCK_AUDIT_OF_THE_FROZEN_CANDIDATE_PLUS_PUBLIC_30_DAY_REVIEW_DGT_BUG_BOUNTY_LABELED_AI_REVIEW_FOUNDER_SIGN_OFF_UNAUDITED_UNTIL_THE_REPORT",
+            "review_independence": "NO_INDEPENDENT_REVIEW_OR_AUDIT_PUBLIC_30_DAY_REVIEW_DGT_BUG_BOUNTY_LABELED_AI_REVIEW_FOUNDER_CHECKLIST_SIGN_OFF",
             "build_reproduction": "CLEAN_GITHUB_ACTIONS_RUNNER_AND_FRESH_LOCAL_CONTAINER_BYTE_IDENTICAL",
             "release_targets": "LINUX_X86_64_NODE_AND_TOOLS_WALLET_ALSO_FROM_SOURCE",
             "build_environment": "PINNED_BUILDER_IMAGE_RUST_1_88_0_GO_1_25_14_DEBIAN_SNAPSHOT_20250721",
@@ -3090,7 +3090,7 @@
           ],
           "legacy_retirement_boundary": "LR01 authorizes local retirement of the identified development timer and direct legacy staking/emission mutations. Preserve explicit RewardState adapters, shared planning, historical reads and staking ownership compatibility records. Deployment, migration and state deletion are not authorized. The legacy rounding defect remains historical diagnostic evidence; retirement is not an arithmetic repair.",
           "related_approval_ref": "decision-register/ordinary-signing-implementation/APPROVAL.json",
-          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder, with the launch labeled unaudited until a human audit; a clean CI runner and a fresh local container reproduce the release byte for byte. E06 (P01, 5 October 2026): Linux x86_64 release, the wallet also from source; a published builder image and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release and the upgrade keys approve later ones, with no separate release key. Release libraries (P01, 5 October 2026): every release binary is a static executable, so the release manifest lists no runtime libraries and host updates never change what the node runs. Repository (P01, 5 October 2026): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; after the move, mainnet/ in exocognosis/dytallix becomes a pointer. Review order (P01, 10 October 2026): the release candidate is frozen after the holders' kits, the custody packets and the staging runs on the production hosts (genesis framework, order of work); until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered before the freeze. Audit (P01, 10 October 2026): Hashlock audits the frozen release candidate (the node application, the PQC CometBFT fork, the root authorization tools and the CLI wallet) alongside the 30-day public review and the AI review; the launch is labeled unaudited until the report is published.",
+          "approved_portion": "Production build (P01, 30 September 2026): release binaries are built without the development entry points (production activation v1). Solo launch (P01, 3 October 2026): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate AI review labeled as AI, signed off by the founder; a clean CI runner and a fresh local container reproduce the release byte for byte. E06 (P01, 5 October 2026): Linux x86_64 release, the wallet also from source; a published builder image and no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release and the upgrade keys approve later ones, with no separate release key. Release libraries (P01, 5 October 2026): every release binary is a static executable, so the release manifest lists no runtime libraries and host updates never change what the node runs. Repository (P01, 5 October 2026): MIT OR Apache-2.0; DCO sign-off for outside contributions, no CLA; the moved history uses the founder's GitHub noreply address; after the move, mainnet/ in exocognosis/dytallix becomes a pointer. Review order (P01, 10 October 2026): the release candidate is frozen after the holders' kits, the custody packets and the staging runs on the production hosts (genesis framework, order of work); until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered before the freeze. Audit (P01, 10 October 2026): Hashlock audits the frozen release candidate (the node application, the PQC CometBFT fork, the root authorization tools and the CLI wallet) alongside the 30-day public review and the AI review No independent review (P01, 13 November 2026): the Hashlock audit is withdrawn; the public review, the AI review and the founder's checklist sign-off are the only review; no audit or independent review is claimed.",
           "remaining_choices": [],
           "approval_records": [
             "approvals/P01_E05_ACTIVATION_2026-09-30.json",
@@ -3099,7 +3099,8 @@
             "approvals/P01_E06_STATIC_RELEASE_2026-10-05.json",
             "approvals/P01_E06_REPOSITORY_2026-10-05.json",
             "approvals/P01_E06_REVIEW_ORDER_2026-10-10.json",
-            "approvals/P01_E06_AUDIT_2026-10-10.json"
+            "approvals/P01_E06_AUDIT_2026-10-10.json",
+            "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json"
           ]
         },
         {
@@ -3151,14 +3152,19 @@
         {
           "id": "D14-Q03",
           "kind": "required_record",
-          "status": "OPEN",
+          "status": "APPROVED",
           "question": "Who accepts each engineering, operations, signing and independent review role?",
           "recommendation": "Obtain named owner and reviewer acceptance with scope and evidence responsibilities.",
-          "selected_value": null,
+          "selected_value": {
+            "engineering_operations_signing_roles": "FOUNDER",
+            "independent_reviewer": "NONE",
+            "review": "MULTIPLE_LAYERS_OF_AGENTIC_ASSESSMENT_THEN_30_DAY_FREEZE_AND_BUG_REVIEW_WITH_DGT_BOUNTY_PLUS_FOUNDER_CHECKLIST_SIGN_OFF",
+            "claim": "NO_AUDIT_OR_INDEPENDENT_REVIEW_IS_CLAIMED"
+          },
           "owner_role_proposed": "Release and QA leads with independent reviewers",
-          "assignee": null,
-          "reviewer": null,
-          "approval_record": null,
+          "assignee": "P01 (founder): every role",
+          "reviewer": "none: no independent reviewer (P01, 13 November 2026)",
+          "approval_record": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
           "blocks_work": [
             "W14"
           ],
@@ -3185,11 +3191,12 @@
           ],
           "current_preparation_packet_ref": "decision-register/parallel-tracks-20260912/track-4/records/D14-Q03.json",
           "preparation_scope": "Completion packet and field dependencies only. Existing approval and acceptance fields are unchanged.",
-          "solo_launch_profile": "Solo launch (P01, 3 October 2026): the founder holds every engineering, operations and signing role. The independent review is a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded.",
+          "solo_launch_profile": "Solo launch (P01, 3 October 2026; amended 13 November 2026): the founder holds every engineering, operations, signing and review role. There is no independent review or audit: a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder; no audit or independent review is claimed.",
           "solo_launch_profile_ref": "approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json",
           "approval_records": [
             "approvals/P01_E05_MONITORING_2026-10-09.json",
-            "approvals/P01_E06_AUDIT_2026-10-10.json"
+            "approvals/P01_E06_AUDIT_2026-10-10.json",
+            "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json"
           ]
         }
       ],
@@ -4017,7 +4024,7 @@
       "decisions": [
         "Custody: the founder holds every root key in five key kits; any three act (D10-Q03, D11-Q03).",
         "Topology: one validator, one sentry (archive), one endpoint, all the founder's (D09-Q02, D12-Q01, D12-Q03).",
-        "Review: a 30-day public review with a DGT bug bounty and a labeled AI review, founder sign-off, launch labeled unaudited (D14-Q01, D14-Q02, D14-Q03).",
+        "Review: a 30-day public review with a DGT bug bounty and a labeled AI review, founder sign-off (D14-Q01, D14-Q02, D14-Q03).",
         "Operations: solo best effort; goals of 99.5% and 99.0%; one archive node plus a monthly offline export; endpoint recovery 4 h; a free hosted uptime checker (D12-Q02).",
         "Tokens: one founder account per bucket plus treasury, publicly listed; the validator self-bond from Ecosystem (D08-Q01, D02-Q02).",
         "Staging: the production hosts before genesis; reproducible builds: a clean CI runner and a fresh local container (D12-Q03, D14-Q01, D14-Q02)."
@@ -4454,7 +4461,7 @@
       "approved_by": "P01",
       "record_ref": "approvals/P01_E06_AUDIT_2026-10-10.json",
       "decisions": [
-        "D14-Q01, D14-Q03: Hashlock audits the frozen release candidate alongside the 30-day public review and the AI review; the launch is labeled unaudited until the report is published.",
+        "D14-Q01, D14-Q03: Hashlock audits the frozen release candidate alongside the 30-day public review and the AI review; withdrawn on 13 November 2026.",
         "D14-Q02: the seven simulation runs happen after the audit's fixes, on the final candidate."
       ],
       "question_refs": [
@@ -4466,7 +4473,11 @@
         "Hashlock's engagement (founder)",
         "The bug bounty tiers and amounts",
         "The simulation runs' pass thresholds and calendar"
-      ]
+      ],
+      "superseded_in_part_by": {
+        "record_ref": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
+        "part": "The Hashlock audit and its engagement; the order of work stands without the audit step."
+      }
     },
     {
       "id": "P01-2026-10-10-E05-CAPACITY-VALUES",
@@ -4680,6 +4691,22 @@
         "D06-Q02"
       ],
       "unset": []
+    },
+    {
+      "id": "P01-2026-11-13-E06-NO-INDEPENDENT-REVIEW",
+      "approved": "2026-11-13",
+      "approved_by": "P01",
+      "record_ref": "approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
+      "decisions": [
+        "D14-Q01, D14-Q03: no independent review or audit is available or funded; the Hashlock audit is withdrawn. The 30-day public review with a DGT bounty, the AI review labeled as AI and the founder's checklist sign-off replace every independent review, acceptance and reviewer role; no audit or independent review is claimed.",
+        "E03: the founder's review against a written protected-host checklist, recorded as not independent, replaces the P02 method review.",
+        "Adaptive emission (active at genesis): founder review of the proof and property tests over its invariants."
+      ],
+      "question_refs": [
+        "D14-Q01",
+        "D14-Q02",
+        "D14-Q03"
+      ]
     }
   ],
   "status_rule": "APPROVED means P01 approved the policy rule the question asks for. Production values, named owners, reviewer acceptance and gate qualification remain separate and unset.",

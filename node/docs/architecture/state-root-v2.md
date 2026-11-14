@@ -41,7 +41,8 @@ done. Engineering task E04. Covers problems P3 and P9 of
   used in production by Aptos and Penumbra, with inclusion and non-inclusion
   proofs and export by version for state sync. It adds roughly a dozen crates
   (none cryptographic beyond hashes), which must pass the G35 dependency
-  check, the E01 source inventory and the independent review. It is not in the
+  check, the E01 source inventory and the public and AI reviews (no independent
+  review). It is not in the
   local crate cache, so evaluating it needs a download from crates.io.
 - **B. In-house binary sparse Merkle tree.** About 800 lines with SHA3-256 and
   no new dependency. More consensus-critical code to write and review, and
