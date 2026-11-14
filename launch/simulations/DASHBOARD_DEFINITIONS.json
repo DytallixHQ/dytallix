@@ -1,6 +1,6 @@
 {
   "schema": "dytallix.launch-dashboard-definitions.v1",
-  "about": "What launch_dashboard.py builds launch/simulations/dashboard.json from (node/tools/mainnet-preparation; the page is dytallix.com/developers/launch). Each KPI names its source: an approval record, a tool (built on the date given, proven by its CI step named \"(Tn)\" in host-install.yml, with any scope still to come), or results, from the newest signed result summary that reports it (launch/simulations/results/, written and signed by results.py with the results key, RESULTS_KEY.json); until one does, a result KPI is planned. results false marks a KPI that does not apply to its run.",
+  "about": "What launch_dashboard.py builds launch/simulations/dashboard.json from (node/tools/mainnet-preparation; the page is dytallix.com/developers/launch). Each KPI names its source: an approval record, a tool (built on the date given, proven by its CI step named \"(Tn)\" in host-install.yml, with any scope still to come), or results, from the newest signed result summary that reports it (launch/simulations/results/, written and signed by results.py with the results key, RESULTS_KEY.json); until one does, a result KPI is planned. results false marks a KPI that does not apply to its run. The page also lists the launch gates G01 to G35 from launch/LAUNCH_GATES.json (status and current blocker), and as_of is the newest KPI or approval date.",
   "planned_on": "2026-10-11",
   "project_since": "2026-09-26",
   "schema_rules": [
@@ -421,7 +421,7 @@
       "source": {
         "tool": "T4",
         "built": "2026-11-02",
-        "remaining": "request and transaction floods on the real hosts, with the load machines (R03); built in CI, P01 9 November 2026"
+        "remaining": "request and transaction floods on the real hosts with one load machine (R03), Tuesday 17 November 2026 (P01 14 November 2026)"
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64"
     },
@@ -437,7 +437,7 @@
       "source": {
         "tool": "T5",
         "built": "2026-11-02",
-        "remaining": "host loss on the real staging sentry, once (faults.py host-loss; P01 10 November 2026): built, its window not chosen yet"
+        "remaining": "host loss on the real staging sentry, once (faults.py host-loss), Sunday 15 November 2026 (P01 14 November 2026)"
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78"
     },
