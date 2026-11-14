@@ -1,0 +1,21 @@
+{
+  "decision_id": "P01-2026-11-13-T06-STAGING-HOST-MEMORY",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether 4 GB staging hosts are accepted against the hosting approval's 8 GB per role (P01_E05_HOSTING_2026-10-11, D12-Q01) (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
+  },
+  "reason": "The draft for this decision (after the 10 November startup failure) took the hosting record's 8 GB per role as the mainnet rule. P01_E05_TWO_SEATS_2026-10-11 replaced it: the two seats run on the founder's two 4 GB servers with the node's memory limit at 3 GiB, 'measure first, resize if needed', measured by T05. The staging hosts are those servers, so their T05 is the measurement TWO_SEATS asks for.",
+  "design_ref": "../../node/docs/architecture/disaster-recovery-v1.md",
+  "decisions": [
+    {
+      "question": "Staging host memory",
+      "selected": "Keep the 4 GB servers and the 3 GiB node limit under P01_E05_TWO_SEATS_2026-10-11; T05 on them is the mainnet sizing measurement",
+      "rule": "The 8 GB rule of P01_E05_HOSTING_2026-10-11 stays superseded by P01_E05_TWO_SEATS_2026-10-11. If T05 or the startup timings show the 4 GB servers or the 3 GiB limit fall short, resizing goes to a new decision. Shared vCPU stays a disclosed difference from a dedicated-vCPU validator."
+    }
+  ],
+  "does_not_authorize": [
+    "Resizing, rebuilding or contacting any host"
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "decision_id": "P01-2026-11-13-T06-E03-RUNNER-ACCESS",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "The items P01_T06_E03_STAGING_HOSTS_2026-11-10 left unset (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
+  },
+  "reason": "P01_T06_E03_STAGING_HOSTS_2026-11-10 made the staging hosts dedicated during E03 and left four items unset.",
+  "design_ref": "../../node/docs/mainnet/e03-negative-peer-method.md",
+  "decisions": [
+    {
+      "question": "How the runner reaches the hosts",
+      "selected": "Open SSH at the provider console for each case, as the agent install did, and reload the firewall from its file after",
+      "rule": "One case per sitting; evidence salvaged before cleanup; any ambiguous remote result stops further mutation."
+    },
+    {
+      "question": "The amd64 inert check: where and when",
+      "selected": "On a native x86_64 GitHub Actions runner in a new network namespace, as a CI job",
+      "rule": "Required before P02 by the method's remaining step 2. It touches no staging host and no Hetzner capacity."
+    },
+    {
+      "question": "Re-pinning the runner and its reviewed preflight to the rebuilt hosts",
+      "selected": "Re-pin in its own PR",
+      "rule": "The runner's hash changes; the P02 review follows the new hash."
+    }
+  ],
+  "accepted_risks": [
+    "Opening SSH briefly exposes the host for the sitting."
+  ],
+  "unset": [
+    "Who performs the P02 independent review: not chosen; E03 cannot dispatch without it"
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "any E03 dispatch before the P02 review record exists",
+    "the malformed-peer case before a separate first-case decision on the wrong-key case",
+    "rebuilding either host",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

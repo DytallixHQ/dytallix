@@ -1,0 +1,27 @@
+{
+  "decision_id": "P01-2026-11-13-T06-STARTUP-CHECK-SCOPE",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the startup check's scope with a checkpoint (PR #136) is an approved value, and how often the complete check must run (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
+  },
+  "reason": "Staging sentry startup failure of 2026-11-10 (BOUNDED_STARTUP_FAILURE, height 173,074); root cause in draft PR #135, fix in PR #136. Startup no longer re-reads records below the checkpoint (except block 1, control records and their anchors); those checks run in dytallix-state-check. The list is in the design ref.",
+  "design_ref": "../../node/docs/operations/startup-checkpoint.md",
+  "decisions": [
+    {
+      "question": "Startup check scope",
+      "selected": "Approve the scope as listed in startup-checkpoint.md",
+      "rule": "Every state-wide check and the verifier replays stay at every start; only per-record checks below the checkpoint move to the complete check."
+    },
+    {
+      "question": "Cadence of the complete check",
+      "selected": "On a stopped copy at each quarterly restore drill, before each release upgrade, and after any unexplained stop",
+      "rule": "A complete-check failure is a Severity 1 incident (supply-mismatch or fork runbook by class)."
+    }
+  ],
+  "does_not_authorize": [
+    "Merging PR #136",
+    "Any host action"
+  ]
+}
