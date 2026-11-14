@@ -28,6 +28,14 @@ Integer operations and explicit update order give identical outputs for identica
 validated state and input. Allocation failure or process termination is outside
 this functional proof; durable transaction recovery remains an integration task.
 
+`node/crates/adaptive-emission/tests/properties.rs` checks these invariants over
+randomized accepted configurations (gains up to 2^64-1, windows up to
+65,536) and inputs, with fixed seeds, in a build that traps integer overflow:
+the error, derivative and integral bounds, gains never raised by damping, the
+command inside [E_min, E_max], the window length, a rejected input leaving the
+state unchanged, identical outputs for identical state and input (also across
+a snapshot and restore), and an unrepresentable next epoch refused.
+
 ## 2. Conditional stability theorem for the full controller
 
 Normalize emission as x=E/E_ref, for a fixed positive E_ref measured in uDRT.
