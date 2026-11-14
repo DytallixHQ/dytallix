@@ -164,10 +164,11 @@
       ]
     },
     "start": {
-      "purpose": "Start the node",
+      "purpose": "Start the node; a deliberate start first clears the unit's start limit, which bounds only its own restarts on failure (P01_T06_RESTART_POLICY_2026-11-13)",
       "args": {},
       "timeout_seconds": 120,
       "steps": [
+        ["systemctl", "reset-failed", "dytallix-node.service"],
         ["systemctl", "start", "dytallix-node.service"],
         ["systemctl", "is-active", "dytallix-node.service"]
       ]

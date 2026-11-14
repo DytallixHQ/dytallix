@@ -17,7 +17,7 @@
     {
       "question": "Sentry and endpoint units",
       "selected": "Restart=on-failure, RestartSec=30, StartLimitIntervalSec=600, StartLimitBurst=3, with the unit-failure alert unchanged; the integrity failure classes 10 to 15 (configuration, history, supply, replay, release, execution) never restart (RestartPreventExitStatus), since they repeat on any start and their runbooks need an operator",
-      "rule": "A start that fails three times in 10 minutes stays down and pages; the restart never wipes or repairs state. Changing host_files.py so the sentry and endpoint units render the restart settings above, and the validator unit keeps Restart=no; it reaches the hosts with the next sealed bundle."
+      "rule": "A start that fails three times in 10 minutes stays down and pages; the restart never wipes or repairs state. Changing host_files.py so the sentry and endpoint units render the restart settings above, and the validator unit keeps Restart=no; it reaches the hosts with the next sealed bundle. systemd counts every start against the limit, so a deliberate start (an operator's, the staging agent's start command, a drill's) runs systemctl reset-failed first: the limit bounds only the unit's own restarts on failure, and the monitor's restart-loop alert still counts every start."
     }
   ],
   "does_not_authorize": [
