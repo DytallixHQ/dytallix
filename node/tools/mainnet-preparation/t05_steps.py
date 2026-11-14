@@ -75,23 +75,18 @@ def interval(rows, block_times, lo, hi):
             'kinds': sorted({r['kind'] for r in sent})}
 
 
-def summarize(evidence, rows, target_per_block=180, hold_seconds=1800.0, block_seconds=BLOCK_SECONDS):
+def windows(evidence, target_per_block=180, hold_seconds=1800.0, block_seconds=BLOCK_SECONDS):
+    """Each rate step as (rate, start, end) in epoch seconds, and the hold as
+    (rate, start, end): the last hold_seconds of the first run of equal steps
+    at or above the target. t05_resources.py reads the hosts over the same."""
     steps = evidence.get('settings', {}).get('steps')
     if not steps:
         raise Failed('the run has no rate steps (load_workers.py drive --steps)')
-    rows = [r for r in rows if r.get('phase') == 'run']
-    block_times = {int(h): float(t) for h, t in (evidence.get('block_times') or {}).items()}
-    if not block_times:
-        raise Failed('the evidence has no block times')
     start = window_start(evidence)
     out, offset = [], 0.0
     for rate, seconds in steps:
-        row = interval(rows, block_times, start + offset, start + offset + seconds)
-        row.update(asked_per_s=rate, asked_per_block=round(rate * block_seconds, 1),
-                   source_limited=row['launched_per_s'] < SOURCE_SHORTFALL * rate)
-        out.append(row)
+        out.append((rate, start + offset, start + offset + seconds))
         offset += seconds
-    # The hold: the last hold_seconds of the last run of steps at or above the target.
     at_target = [i for i, (rate, _) in enumerate(steps) if rate * block_seconds >= target_per_block]
     if not at_target:
         raise Failed(f'no step asks for {target_per_block} a block')
@@ -100,8 +95,22 @@ def summarize(evidence, rows, target_per_block=180, hold_seconds=1800.0, block_s
         last += 1
     hold_end = start + sum(s for _, s in steps[:last + 1])
     hold_start = max(start + sum(s for _, s in steps[:first]), hold_end - hold_seconds)
+    return out, (steps[first][0], hold_start, hold_end)
+
+
+def summarize(evidence, rows, target_per_block=180, hold_seconds=1800.0, block_seconds=BLOCK_SECONDS):
+    steps, (asked, hold_start, hold_end) = windows(evidence, target_per_block, hold_seconds, block_seconds)
+    rows = [r for r in rows if r.get('phase') == 'run']
+    block_times = {int(h): float(t) for h, t in (evidence.get('block_times') or {}).items()}
+    if not block_times:
+        raise Failed('the evidence has no block times')
+    out = []
+    for rate, lo, hi in steps:
+        row = interval(rows, block_times, lo, hi)
+        row.update(asked_per_s=rate, asked_per_block=round(rate * block_seconds, 1),
+                   source_limited=row['launched_per_s'] < SOURCE_SHORTFALL * rate)
+        out.append(row)
     hold = interval(rows, block_times, hold_start, hold_end)
-    asked = steps[first][0]
     hold.update(asked_per_s=asked, source_limited=hold['launched_per_s'] < SOURCE_SHORTFALL * asked)
     best = max((s['committed_per_block'] or 0) for s in out)
     if hold['source_limited']:
