@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-11-14-T06-R03-T05-RESCHEDULE",
+  "approved": "2026-11-14",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the R03 and T05 windows move when the load machine cannot be made on 14 and 16 November"
+  },
+  "reason": "The R03 window of Saturday 14 November 2026 passed without a run, and the T05 window of Monday 16 November cannot run either. Other servers in the shared provider project have no delete protection until about 16 November 22:30 UTC. load_machines.py up refuses to make a load machine while any server outside the load label lacks delete protection, and those servers are not the staging run's to change.",
+  "design_ref": "P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13.json",
+  "decisions": [
+    {
+      "question": "When R03 and T05 run",
+      "selected": "R03 Tuesday 17 November, T05 Wednesday 18 November",
+      "rule": "- The T5 host loss on the real staging sentry stays on Sunday 15 November 2026, 15:00 to 16:00 UTC.\n- R03 runs on Tuesday 17 November 2026, 15:00 to 19:00 UTC.\n- T05 runs on Wednesday 18 November 2026, 15:00 to 19:00 UTC.\n- Everything else in P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13 is unchanged: one load machine per window, a 4-hour watchdog, the same floods, rate steps and pass rules.\n- Before each window's load machine is made, the founder confirms the provider account's limits in the provider console.\nThe host loss now comes two days before R03 rather than after it, so R03 is still not measured on a host just power-cycled."
+    }
+  ],
+  "accepted_risks": [
+    "R03 and T05 move three and two days later."
+  ],
+  "supersedes": [
+    "P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13.json (its R03 and T05 windows only)"
+  ],
+  "does_not_authorize": [
+    "changing any server outside the load label",
+    "more than one load machine per window",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
