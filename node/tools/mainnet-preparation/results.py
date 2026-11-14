@@ -7,8 +7,8 @@ results key.
   results.py summarize campaign [--faults FILE ...] [--restores FILE ...] [--recoveries FILE ...] \
       [--attacks FILE ...] [--loads EVIDENCE ...] [--alerts FILE ...] \
       --genesis NATIVE_GENESIS --engine-genesis ENGINE_GENESIS --release BUILD_RECORD.json --commit SHA [--root DIR]
-  results.py summarize staging --hosts FILE --staging STAGING.json --recovery T9_EVIDENCE.json \
-      --genesis NATIVE_GENESIS [--root DIR]
+  results.py summarize staging [--hosts FILE --staging STAGING.json --recovery T9_EVIDENCE.json] \
+      [--t05 EVIDENCE] --genesis NATIVE_GENESIS [--root DIR]
   results.py sign --cli DYTALLIX --home DIR SUMMARY
   results.py verify --cli DYTALLIX SUMMARY [SUMMARY ...]
 
@@ -112,6 +112,19 @@ the chain leave the evidence: no country, region, address or host name. It
 is written as launch/simulations/results/staging/DATE.json, DATE the day of
 the sentry's verify.
 
+The staging summary of staging.t05.capacity is built ahead of its approval
+too (the T05 run, P01_T06_T05_CAPACITY_RUN_2026-11-10, is approved; its
+results path is not). It reads the T05 stepped load run's evidence and the
+transactions file beside it (load_workers.py drive --steps), re-verified by
+load.py and checked against the native genesis's chain_id (the load
+record names no genesis, so none is bound), and judges it again
+with t05_steps.py at the approved 180 a block held for 1800 s: PASS passes,
+FAIL fails, and LOWER_BOUND (the load source, not the chain, was the limit)
+stays in progress. Its value is the committed per block over the hold, or
+for a lower bound the highest committed per block of any step. Both staging
+KPIs can go into one summary; a summary of a day never drops a KPI an
+earlier summary of that day reported.
+
 sign signs a summary with the results key, whose keystore's active wallet
 must be launch-results with the newest public key in RESULTS_KEY.json, over
 'dytallix-launch-results-v1:' and the SHA-256 of the summary's exact bytes,
@@ -145,6 +158,7 @@ import root_controls  # noqa: E402
 import staging_command  # noqa: E402
 import staging_hosts  # noqa: E402
 import staking  # noqa: E402
+import t05_steps  # noqa: E402
 
 ROOT = launch_dashboard.ROOT
 SCHEMA = launch_dashboard.RESULT_SCHEMA
@@ -494,6 +508,56 @@ def summarize_staging_hosts(hosts_raw, staging, genesis_bytes, recovery_raw):
     return summary
 
 
+CAPACITY_KPI = 'staging.t05.capacity'
+CAPACITY_STATUS = {'PASS': 'pass', 'LOWER_BOUND': 'in_progress', 'FAIL': 'fail'}
+CAPACITY_PER_BLOCK = 180
+CAPACITY_HOLD_SECONDS = 1800.0
+
+
+def capacity_kpi(raw, rows_bytes, genesis_bytes):
+    """staging.t05.capacity, its source and its day from one T05 stepped load run."""
+    record = json.loads(raw)
+    try:
+        status = load.verify(record, rows_bytes)
+    except (load.Failed, KeyError, TypeError, ValueError) as error:
+        raise Failed(f'the T05 load record does not verify: {error}')
+    chain = json.loads(genesis_bytes).get('chain_id')
+    require(record['chain_id'] == chain, f'the T05 run is on {record["chain_id"]}, not the genesis chain {chain}')
+    rows = [json.loads(line) for line in rows_bytes.splitlines() if line.strip()]
+    try:
+        judged = t05_steps.summarize(record, rows, CAPACITY_PER_BLOCK, CAPACITY_HOLD_SECONDS)
+    except (t05_steps.Failed, KeyError, TypeError, ValueError) as error:
+        raise Failed(f'the T05 run cannot be judged: {error}')
+    verdict = judged['verdict']
+    value = judged['highest_committed_per_block'] if verdict == 'LOWER_BOUND' else judged['hold']['committed_per_block']
+    kpi = {'id': CAPACITY_KPI, 'status': CAPACITY_STATUS[verdict], 'value': value, 'unit': 'count', 'target': None}
+    source = {'tool': 'load', 'sha256': digest(raw), 'chain_id': record['chain_id'],
+              'native_genesis_sha256': None, 'status': status}
+    return kpi, source, day(record['finished'])
+
+
+def summarize_staging(genesis_bytes, hosts=None, capacity=None):
+    """One staging summary from a hosts record (hosts_raw, staging, recovery_raw)
+    and/or a T05 run (evidence, transactions)."""
+    require(hosts or capacity, 'staging needs a hosts record or a T05 run')
+    kpis, sources, days = [], [], []
+    if hosts:
+        found = summarize_staging_hosts(hosts[0], hosts[1], genesis_bytes, hosts[2])
+        kpis += found['kpis']
+        sources += found['sources']
+        days.append(found['date'])
+    if capacity:
+        kpi, source, at = capacity_kpi(capacity[0], capacity[1], genesis_bytes)
+        kpis.append(kpi)
+        sources.append(source)
+        days.append(at)
+    summary = {'schema': SCHEMA, 'scope': 'staging', 'date': max(days), 'kpis': kpis,
+               'sources': sorted(sources, key=lambda s: s['sha256'])}
+    problems = summary_problems(summary)
+    require(not problems, '; '.join(problems))
+    return summary
+
+
 def summary_problems(summary, root=ROOT):
     """launch_dashboard's own check of a summary, with the page's definitions."""
     definitions = json.loads((Path(root) / launch_dashboard.DEFINITIONS).read_bytes())
@@ -554,6 +618,11 @@ def write_summary(summary, root=ROOT):
     path = Path(root) / launch_dashboard.RESULTS / summary['scope'] / f'{summary["date"]}.json'
     path.parent.mkdir(parents=True, exist_ok=True)
     raw = render(summary).encode()
+    if path.exists():
+        # One summary a scope a day: a new one may not drop what the day's summary reported.
+        dropped = {k['id'] for k in json.loads(path.read_bytes())['kpis']} - {k['id'] for k in summary['kpis']}
+        require(not dropped, f'{path.name} already reports {", ".join(sorted(dropped))}; '
+                             'summarize that evidence again with this')
     if path.exists() and path.read_bytes() != raw:
         # A changed summary needs a new signature.
         Path(f'{path}.sig').unlink(missing_ok=True)
@@ -568,7 +637,7 @@ def main():
     s.add_argument('scope', choices=['campaign', 'staging'])
     for name in ('faults', 'restores', 'recoveries', 'attacks', 'loads', 'alerts'):
         s.add_argument(f'--{name}', type=Path, nargs='+', default=[])
-    for name in ('hosts', 'staging', 'recovery'):
+    for name in ('hosts', 'staging', 'recovery', 't05'):
         s.add_argument(f'--{name}', type=Path)
     s.add_argument('--genesis', type=Path, required=True)
     for name in ('engine_genesis', 'release'):
@@ -585,9 +654,14 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'summarize' and args.scope == 'staging':
-            require(args.hosts and args.staging and args.recovery, 'staging needs --hosts, --staging and --recovery')
-            summary = summarize_staging_hosts(args.hosts.read_bytes(), json.loads(args.staging.read_bytes()),
-                                              args.genesis.read_bytes(), args.recovery.read_bytes())
+            named = [args.hosts, args.staging, args.recovery]
+            require(all(named) or not any(named), '--hosts needs --staging and --recovery')
+            require(all(named) or args.t05, 'staging needs --hosts, --staging and --recovery, or --t05')
+            hosts = (args.hosts.read_bytes(), json.loads(args.staging.read_bytes()),
+                     args.recovery.read_bytes()) if all(named) else None
+            capacity = (args.t05.read_bytes(), (args.t05.parent / 'transactions.jsonl').read_bytes()) \
+                if args.t05 else None
+            summary = summarize_staging(args.genesis.read_bytes(), hosts, capacity)
             path = write_summary(summary, args.root)
             print(f'{path} ({", ".join(f"{k["id"]} {k["status"]}" for k in summary["kpis"])}); sign it next')
         elif args.command == 'summarize':
