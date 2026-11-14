@@ -1,0 +1,26 @@
+{
+  "decision_id": "P01-2026-11-13-T06-T05-RESOURCE-READING",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether T05 reads memory and CPU from the hosts' monitor history (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
+  },
+  "reason": "P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13 left T05's memory and CPU unmeasured, taking no reading to exist. Each host's monitor (host/monitor.py) already samples host CPU and memory every minute into its sealed daily history.",
+  "design_ref": "../../node/docs/architecture/monitoring-v1.md",
+  "decisions": [
+    {
+      "question": "T05 memory and CPU reading",
+      "selected": "Read from each host's monitor history for the T05 window",
+      "rule": "After 16 November's history is sealed and uploaded, the founder opens it (dytallix-root-sign history-open via staging_founder.py) and the T05 result reports, per host, peak and median memory percent and CPU percent at each rate step. This is host-wide memory, not the node cgroup alone; the hosts run only Dytallix. It answers the 3 GiB question of P01_E05_TWO_SEATS_2026-10-11 as far as host-wide readings can."
+    }
+  ],
+  "supersedes": [
+    "the 'T05 memory and CPU reading: not measured in this run' decision of P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13"
+  ],
+  "does_not_authorize": [
+    "any change to the monitor or its sample rate",
+    "contacting either host beyond the approved T05 window",
+    "mainnet launch"
+  ]
+}

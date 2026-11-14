@@ -211,7 +211,9 @@ def effect_holds(scenario_kind, effect):
         closed, after = effect.get('closed') or [], effect.get('after') or []
         return bool(closed) and not set(closed) & set(after)
     if scenario_kind == 'process':
-        return (effect.get('active') or '') in ('inactive', 'failed', 'deactivating')
+        # 'activating': a sentry waiting out RestartSec after the kill
+        # (P01_T06_RESTART_POLICY_2026-11-13); it was active before the kill.
+        return (effect.get('active') or '') in ('inactive', 'failed', 'deactivating', 'activating')
     if scenario_kind == 'host':
         # The controller saw the machine stop, the reader read while it was
         # off, and the status page served nothing in that time.

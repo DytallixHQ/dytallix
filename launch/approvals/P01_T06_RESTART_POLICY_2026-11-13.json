@@ -1,0 +1,29 @@
+{
+  "decision_id": "P01-2026-11-13-T06-RESTART-POLICY",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the node unit keeps Restart=no (host_files.py:177) after the sentry was not restarted on 2026-11-10 (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
+  },
+  "reason": "Staging sentry startup failure of 2026-11-10 (BOUNDED_STARTUP_FAILURE, height 173,074); root cause in draft PR #135, fix in PR #136. The supervisor exited at +92 s and systemd did not restart it; the replacement validator then ran without a sentry. With the checkpoint a restart would now pass its startup check. The E04 records of 4 and 5 November (P01_E04_VERIFIER_CLASS, P01_E04_CHECKTX_VERIFIER, P01_E04_CHECKTX_HELPER_FAILURES, P01_E04_NODE_WARNINGS) did not authorize an automatic restart and left the unit at Restart=no; this decision changes that for the sentry and endpoint only.",
+  "design_ref": "../../node/docs/operations/validator-recovery.md",
+  "decisions": [
+    {
+      "question": "Validator unit",
+      "selected": "Keep Restart=no: a validator starts only by hand, after the signing guard and the sentry hold",
+      "rule": "No automatic restart may start a validator."
+    },
+    {
+      "question": "Sentry and endpoint units",
+      "selected": "Restart=on-abnormal, RestartSec=30, StartLimitIntervalSec=600, StartLimitBurst=3, with the unit-failure alert unchanged: the sentry and endpoint restart after a crash by signal (an OOM kill, a segfault, a kill); every classified failure stays down for its runbook",
+      "rule": "A start that fails three times in 10 minutes stays down and pages; the restart never wipes or repairs state. Changing host_files.py so the sentry and endpoint units render the restart settings above, and the validator unit keeps Restart=no; it reaches the hosts with the next sealed bundle. systemd counts every start against the limit, so a deliberate start (an operator's, the staging agent's start command, a drill's) runs systemctl reset-failed first: the limit bounds only the unit's own restarts on failure, and the monitor's restart-loop alert still counts every start. The supervisor exits 1 for every failure class (the class is in its report, not its exit status), so systemd cannot tell an upgrade halt or an integrity failure from any other exit; Restart=on-abnormal restarts only crashes by signal. The CI upgrade drill (run 43544759514) showed Restart=on-failure restarting an old release at its upgrade halt until the start limit refused the new release's start."
+    }
+  ],
+  "does_not_authorize": [
+    "Restart for the validator unit",
+    "installing the changed unit on a host outside a sealed bundle and its approved install",
+    "production activation of any chain",
+    "mainnet launch"
+  ]
+}

@@ -628,6 +628,9 @@ def run(work, timeout=600):
     guests = {label: agent(work, label) for label in VMS}
     for label, guest in guests.items():
         say(f'== start {label}')
+        # A deliberate start clears the unit's start limit first: it bounds
+        # automatic restarts only (P01_T06_RESTART_POLICY_2026-11-13).
+        guest.run(['systemctl', 'reset-failed', 'dytallix-node'], check=False)
         guest.run(['systemctl', 'start', 'dytallix-node'])
     validator = staging_host.height() or 0
     target = max(validator, 2 * SNAPSHOT_INTERVAL)
@@ -859,6 +862,7 @@ def validator_recovery_drill(work, timeout=900):
         # CI only (fault alerts): the reinstall recreated the runner's firewall
         # table; the sentry's alerts reach the runner's stand-in again.
         runner_alert_rule(reconcile.LocalHost())
+    sentry.run(['systemctl', 'reset-failed', 'dytallix-node'], check=False)
     sentry.run(['systemctl', 'start', 'dytallix-node'], timeout=120)
     instants['sentry_started_at'] = time.time()
     # The start gate: the sentry's engine answering at H past its startup
@@ -1855,6 +1859,9 @@ def monitor_drill(work, label='sentry-1'):
     say('== restart loop: the node is restarted three times')
     mark, starts = len(alert_events(guest)), []
     for _ in range(3):
+        # Operator restarts: each clears the start limit, which bounds only
+        # the unit's own restarts; the monitor still counts every start.
+        guest.run(['systemctl', 'reset-failed', 'dytallix-node'], check=False)
         guest.run(['systemctl', 'restart', 'dytallix-node'], timeout=180)
         starts.append(guest_time(guest))
         heartbeat_after(starts[-1])

@@ -153,8 +153,10 @@ def service_value(approved, name):
     return approved[key]
 
 
-def unit_file(properties, exec_start):
-    """The systemd unit: the rendered properties under [Service]."""
+def unit_file(properties, exec_start, role):
+    """The systemd unit: the rendered properties under [Service]. A validator
+    never restarts itself; the sentry and endpoint restart after a crash, at most
+    three starts in ten minutes (P01_T06_RESTART_POLICY_2026-11-13)."""
     def value(v):
         if isinstance(v, bool):
             return 'yes' if v else 'no'
@@ -169,12 +171,18 @@ def unit_file(properties, exec_start):
         'Wants=network-online.target time-sync.target',
         'After=network-online.target time-sync.target apparmor.service nftables.service',
         'Requires=apparmor.service nftables.service',
+        *([] if role == 'validator' else ['StartLimitIntervalSec=600', 'StartLimitBurst=3']),
         '',
         '[Service]',
         'Type=simple',
         f'ExecStart={exec_start}',
-        # An operator restarts the node after a refusal or a halt (runbooks).
-        'Restart=no',
+        # An operator starts a validator by hand, after the signing guard and
+        # the sentry hold (runbooks); a restart never wipes or repairs state.
+        # The sentry and endpoint restart only after a crash by signal (an OOM
+        # kill, a segfault). The supervisor exits 1 for every failure class, so
+        # any classified failure (an upgrade halt, replay, verifier) stays down
+        # for its runbook and the unit-failure alert.
+        *(['Restart=no'] if role == 'validator' else ['Restart=on-abnormal', 'RestartSec=30']),
         # Above the supervisor's 30 s stop and 10 s kill budget.
         'TimeoutStopSec=60',
         'KillSignal=SIGTERM',
@@ -582,7 +590,7 @@ def host(label, plan_host, *, release, chain, hosts, keys, approved, setup):
 
     # The unit, the role profiles and the firewall table.
     exec_start = f'{bin_dir}/{roles["service_supervisor"]} --service-config {etc}/service.json'
-    unit = unit_file(unit_properties['properties'], exec_start)
+    unit = unit_file(unit_properties['properties'], exec_start, plan_host['role'])
     add(f'/etc/systemd/system/{UNIT}.service', unit)
     # apparmor.service loads the files directly in /etc/apparmor.d at boot.
     add(f'/etc/apparmor.d/{UNIT}', policy['apparmor.profile'])

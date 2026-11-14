@@ -1,0 +1,22 @@
+{
+  "decision_id": "P01-2026-11-13-T06-STARTUP-BUDGET",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the application startup budget (process_startup_millis, P01_E05_VALUES_4) or its 60 s code cap changes after the startup checkpoint (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
+  },
+  "reason": "Staging sentry startup failure of 2026-11-10 (BOUNDED_STARTUP_FAILURE, height 173,074); root cause in draft PR #135, fix in PR #136. With PR #136 startup work is bounded by the blocks after the checkpoint (normally 0 to a few), not by history length.",
+  "design_ref": "../../node/docs/operations/startup-checkpoint.md",
+  "decisions": [
+    {
+      "question": "process_startup_millis and the 60000 ms code cap (config.rs:59-66)",
+      "selected": "Keep 60000 ms and the code cap; the one-time complete check runs through dytallix-state-check --write-startup-checkpoint, outside the budget",
+      "rule": "The budget is never raised to fit a complete history check; a node without a checkpoint is brought up by the maintenance command."
+    }
+  ],
+  "does_not_authorize": [
+    "Any change to other P01_E05_VALUES_4 values",
+    "Running the maintenance command on any host"
+  ]
+}

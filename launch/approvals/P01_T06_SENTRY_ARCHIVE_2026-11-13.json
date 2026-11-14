@@ -1,0 +1,21 @@
+{
+  "decision_id": "P01-2026-11-13-T06-SENTRY-ARCHIVE",
+  "approved": "2026-11-13",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Whether the sentry stays an archive node (D12-Q01; host_files.py:549) now that startup no longer grows with its history (user, 13 November 2026: 'proceed with your recommendations on the remaining items')"
+  },
+  "reason": "Staging sentry startup failure of 2026-11-10 (BOUNDED_STARTUP_FAILURE, height 173,074); root cause in draft PR #135, fix in PR #136. Archive made the sentry's startup linear in height; with the checkpoint it is not. Archive still grows the sentry's volume (D12-Q01 rule).",
+  "design_ref": "../../node/docs/operations/startup-checkpoint.md",
+  "decisions": [
+    {
+      "question": "Sentry block history",
+      "selected": "Keep archive: the sentry holds every committed block, a second copy of the history on another host",
+      "rule": "If archive is kept, the sentry's volume is sized for the archive and its startup relies on the checkpoint; if window, the sentry no longer holds every block and the disaster recovery claim changes."
+    }
+  ],
+  "does_not_authorize": [
+    "Changing host_files.py or any installed host"
+  ]
+}
