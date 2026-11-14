@@ -28,7 +28,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [Supervisor production mode](approvals/P01_E05_SUPERVISOR_2026-10-01.json) (1 October): the engine, application, bridge and HTTP adapter are observed once at startup and then held by kernel limits, and readiness waits for catch-up up to a per-host budget whose value is unset (D12-Q01, D12-Q02).
 - [Network identity](approvals/P01_E05_CHAIN_IDENTITY_2026-10-03.json) (3 October): chain ID `dytallix-mainnet-1`, display name Dytallix, and a genesis time set at the final freeze at 14:00:00 UTC on a weekday, at least 72 hours after the final build (D13-Q01; [identity](genesis/IDENTITY.json)).
 - [Operations objectives](approvals/P01_E05_OPERATIONS_OBJECTIVES_2026-10-03.json) (3 October): monthly targets of 99.9% (chain) and 99.5% (endpoints), 24/7 paging, archive and log retention, RPO zero committed blocks and RTOs per role (D12-Q02; [operations objectives](operations/OBJECTIVES.md)).
-- [Solo launch profile](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json) (3 October): the founder launches alone. Every root key in five key kits; one validator on three hosts; a 30-day public review with a DGT bug bounty and a labeled AI review instead of an independent human audit, with the launch labeled unaudited; best-effort operations; one founder account per token bucket; staging on the production hosts; reproducible builds on a clean CI runner and a local container ([trust model](TRUST_MODEL.md)).
+- [Solo launch profile](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json) (3 October): the founder launches alone. Every root key in five key kits; one validator on three hosts; a 30-day public review with a DGT bug bounty and a labeled AI review  instead of an independent human audit; best-effort operations; one founder account per token bucket; staging on the production hosts; reproducible builds on a clean CI runner and a local container ([trust model](TRUST_MODEL.md)).
 - [Engineering close-out](approvals/P01_E05_ENGINEERING_CLOSE_2026-10-03.json) (3 October): sentries and endpoints can never sign and validators may start before registration; a plain-HTTP status page with no cryptography for the uptime checker; `client_compatibility_window` and `max_open_proposals` dropped; fault assumptions recorded; the CLI is the launch wallet.
 - [E06 release](approvals/P01_E06_RELEASE_2026-10-05.json) (5 October): Linux x86_64, the wallet also from source; a published builder image, no node container; GitHub Releases on DytallixHQ/dytallix after the repository move; the root-signed genesis binds the first release, with no separate release key ([release](../release/README.md)).
 - [E06 release libraries](approvals/P01_E06_STATIC_RELEASE_2026-10-05.json) (5 October): every release binary is static, with glibc and libstdc++ linked in, so the release manifest lists no runtime libraries and host updates never change what the node runs ([release manifest](../release/README.md#release-manifest)).
@@ -47,7 +47,7 @@ P01 approved these engineering designs. Each document records the options and th
 - [Review order](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json) (10 October): the release candidate is frozen after the holders' kits, the custody packets and the staging runs, as the order of work says; until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered before the freeze (D14-Q01, D14-Q02) ([genesis framework](GENESIS_FRAMEWORK.md#6-order-of-work)).
 - [Launch records](approvals/P01_E05_LAUNCH_RECORDS_2026-10-10.json) (10 October): the readable gate list is generated in the repository by `gate_master.py` and checked in CI, and each gate's text is reconciled against the current main branch, every gate staying PARTIAL; superseded reports keep their paths with a dated historical banner; references to records held outside the repository stay only in the gate data and historical reports (G32, D14-Q02) ([gate list](MAINNET_GATE_MASTER.md)).
 - [DRT supply](approvals/P01_E05_DRT_SUPPLY_2026-10-10.json) (10 October): the genesis DRT bootstrap stays at 1,000,000 DRT as approved on 30 September, with only its per-account rows open; DRT has no total supply cap, since issuance stays between 500 and 1,000 DRT a block and every fee is burned (D08-Q02, D05-Q01) ([genesis framework](GENESIS_FRAMEWORK.md#1-tokens)).
-- [Audit](approvals/P01_E06_AUDIT_2026-10-10.json) (10 October): Hashlock audits the frozen release candidate (the node application, the PQC CometBFT fork, the root authorization tools and the CLI wallet) alongside the 30-day public review and the AI review; the launch is labeled unaudited until its report is published; the seven simulation runs move after the audit's fixes, onto the final candidate (D14-Q01, D14-Q02, D14-Q03) ([genesis framework](GENESIS_FRAMEWORK.md#6-order-of-work)).
+- [No independent review](approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json) (13 November): no independent audit or reviewer is available or funded. The Hashlock audit of 10 October is withdrawn; the 30-day public review with a DGT bounty, the AI review labeled as AI and the founder's checklist sign-off replace every independent review.
 - [Capacity values](approvals/P01_E05_CAPACITY_VALUES_2026-10-10.json) (10 October): the seven proposed capacity values are approved: engine mempool 2,100 transactions and 16,000,000 bytes, peer rates 5,120,000 bytes a second, client channel 16 connections and 2 per address, loopback adapter 4; T05 confirms them (D06-Q02, D12-Q01) ([E05 values](E05_VALUES.json)).
 - [Simulation plan](approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json) (11 October): the seven runs' pass criteria; shortened timings in R01 to R06 and exact ones in R07; a staging-only signed agent on the console-only hosts; load from several small machines; a statistical campaign during staging (3,000 attempts per attack type with zero successes, repeated faults, a 15-day endurance run at production values); and a task-driven launch with no calendar (D14-Q02) ([simulation plan](../node/docs/mainnet/launch-rehearsals.md)).
 - [Hosting](approvals/P01_E05_HOSTING_2026-10-11.json) (11 October): all three hosts on one provider, Hetzner Cloud, the validator and the sentry in different countries, replacing the rule that put them at different providers; the backup bucket stays at another provider and the single-provider risk is disclosed in the trust model; each role on a cloud server of its own with at least 8 GB, the validator on a dedicated-vCPU type, the sentry with a growing volume (D12-Q01, D12-Q02, D12-Q03) ([disaster recovery v1](../node/docs/architecture/disaster-recovery-v1.md)).
@@ -679,7 +679,7 @@ Gate references: G01, G02, G03, G04, G06, G07, G08, G09, G10, G11, G12, G13, G14
 
 Which release targets, build environment, registry, signing authority and review independence criteria apply?
 
-**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded. A clean GitHub Actions runner and a fresh local container reproduce the release byte for byte.
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the independent review is a 30-day public review of the frozen candidate with a DGT bug bounty and a separate review labeled as AI, signed off by the founder; the founder signs off. A clean GitHub Actions runner and a fresh local container reproduce the release byte for byte.
 
 Approved portion (P01, 30 September 2026): release binaries are built without the development entry points ([production activation approval](approvals/P01_E05_ACTIVATION_2026-09-30.json), design [production activation v1](../node/docs/architecture/production-activation-v1.md)).
 
@@ -691,11 +691,11 @@ Repository ([P01, 5 October 2026](approvals/P01_E06_REPOSITORY_2026-10-05.json))
 
 Review order ([P01, 10 October 2026](approvals/P01_E06_REVIEW_ORDER_2026-10-10.json)): the release candidate is frozen after the holders' kits, the custody packets and the staging runs on the production hosts ([order of work](GENESIS_FRAMEWORK.md#6-order-of-work)). Until then engineering prepares the 30-day public review: a review guide, issue templates and the AI review, labeled as AI, whose findings are fixed or answered on the record before the freeze. The bounty tiers and amounts remain a later decision.
 
-Audit ([P01, 10 October 2026](approvals/P01_E06_AUDIT_2026-10-10.json)): Hashlock audits the frozen release candidate (the node application, the PQC CometBFT fork, the root authorization tools and the CLI wallet), alongside the public review and the AI review. Every finding is fixed, with Hashlock re-checking the fix, or answered on the record; the launch is labeled unaudited until the report is published.
+No independent review ([P01, 13 November 2026](approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json)): the Hashlock audit of 10 October is withdrawn. The public review and the AI review, with the founder's sign-off,  are the review, after multiple layers of agentic assessment; no audit or independent review is claimed.
 
 Required output: Release and review specification.
 
-Proposed owner role: Release and QA leads with independent reviewers. Named assignment and reviewer remain as recorded in the structured register.
+Proposed owner role: the founder (no independent reviewer). Named assignment and reviewer remain as recorded in the structured register.
 
 Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_GATES.json](LAUNCH_GATES.json), batch-10/REPORT.md (historical record, not in this repository).
 
@@ -721,21 +721,21 @@ Rehearsal timings ([P01, 12 October 2026](approvals/P01_T06_REHEARSAL_TIMINGS_20
 
 Required output: Qualification and launch acceptance plan.
 
-Proposed owner role: Release and QA leads with independent reviewers. Named assignment and reviewer remain as recorded in the structured register.
+Proposed owner role: the founder (no independent reviewer). Named assignment and reviewer remain as recorded in the structured register.
 
 Evidence: [USER_LAUNCH_REQUIREMENTS.txt](USER_LAUNCH_REQUIREMENTS.txt), [LAUNCH_GATES.json](LAUNCH_GATES.json), batch-10/REPORT.md (historical record, not in this repository).
 
-### D14-Q03 — OPEN
+### D14-Q03 — APPROVED
 
 Who accepts each engineering, operations, signing and independent review role?
 
-**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder holds every engineering, operations and signing role. The independent review is a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder; the launch is labeled unaudited until a human audit is funded.
+**Solo launch** ([P01, 3 October 2026](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)): the founder holds every engineering, operations and signing role. The independent review is a 30-day public review with a DGT bug bounty plus a separate AI review labeled as AI, signed off by the founder.
 
-Audit ([P01, 10 October 2026](approvals/P01_E06_AUDIT_2026-10-10.json)): Hashlock is the independent auditor of the frozen candidate; its engagement is open.
+Closed ([P01, 13 November 2026](approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json)): the founder holds every engineering, operations, signing and review role; there is no independent reviewer or auditor.
 
 Required output: Release responsibility register.
 
-Proposed owner role: Release and QA leads with independent reviewers. Named assignment and reviewer remain as recorded in the structured register.
+Proposed owner role: the founder (no independent reviewer). Named assignment and reviewer remain as recorded in the structured register.
 
 Preparation: D14-Q03 packet (historical record decision-register/parallel-tracks-20260912/track-4/records/D14-Q03.json, not in this repository). Acceptance is still open.
 

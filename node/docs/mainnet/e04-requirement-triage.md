@@ -271,8 +271,8 @@ acceptance; decision IDs refer to `launch/MAINNET_DECISION_REGISTER.json`.
 - **E05 and E06 engineering:** the production upgrade policy (schema 2) with
   its threshold and notice; production activation of the local
   qualification profiles; the exact engine release (D06-Q01).
-- **E06 and T:** release targets and acceptance (D14-Q01 to D14-Q03); the
-  independent protocol review (P02).
+- **E06 and T:** release targets and acceptance (D14-Q01 to D14-Q03); the protocol review (P02: the public review, the AI review and the founder's
+  sign-off; not independent, P01, 13 November 2026).
 
 ## First live CI run (27 September)
 

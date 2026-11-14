@@ -147,7 +147,7 @@ of 1.
 | D02-Q02 | Treasury recipient account and custody | Open; solo launch: a founder treasury account ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)) |
 | D08-Q03 | DRT bootstrap recipients and amounts | Open; after the bootstrap amount |
 | D13-Q02 | Final identity manifest and genesis digest | After the build |
-| D14-Q03 | Release roles and the independent reviewer (P02) | Open; solo launch: the founder holds every role; the review is a 30-day public review with a DGT bug bounty and a labeled AI review ([approval](approvals/P01_E05_SOLO_LAUNCH_2026-10-03.json)); Hashlock audits the frozen candidate, and the launch is labeled unaudited until its report is published ([audit](approvals/P01_E06_AUDIT_2026-10-10.json)) |
+| D14-Q03 | Release roles and the independent reviewer (P02) | Approved: the founder holds every role; there is no independent reviewer or audit. The review is a 30-day public review with a DGT bug bounty and a labeled AI review, signed off by the founder ([review](approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json)) |
 
 ## Next engineering
 

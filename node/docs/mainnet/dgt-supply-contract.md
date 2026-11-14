@@ -97,6 +97,5 @@ assertions remain in place. Direct legacy mutation helpers remain outside this c
 Vesting still requires a selected timestamp rule and enforcement on every spending path.
 Future staking needs signed delegation, reward settlement before stake changes, unbonding,
 validator selection, and atomic payouts. The approved adaptive model still needs calibrated
-parameters and integration with allocation and monetary settlement. Independent review,
-cryptographic assurance, distributed operation, performance, and release qualification
+parameters and integration with allocation and monetary settlement. The founder's review (no independent review), cryptographic assurance, distributed operation, performance, and release qualification
 remain open. Local accounting tests do not establish mainnet readiness.

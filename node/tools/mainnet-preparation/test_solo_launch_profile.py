@@ -41,8 +41,10 @@ class SoloLaunchProfileTests(unittest.TestCase):
 
     def test_the_disclosure_states_the_concentrations(self):
         text = (LAUNCH/'TRUST_MODEL.md').read_text()
+        # No audit is claimed (P01, 13 November 2026).
+        self.assertNotIn('audited by', text.lower())
         # The founder's share and the five kit holders (P01, 7 October 2026).
-        for phrase in ('unaudited', '99.99% of DGT', 'five key kits', 'Five people', 'One validator'):
+        for phrase in ('30-day freeze and bug review', '99.99% of DGT', 'five key kits', 'Five people', 'One validator'):
             self.assertIn(phrase, text)
 
 

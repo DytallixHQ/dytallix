@@ -112,4 +112,4 @@ commit API must join that larger transaction before activation.
 
 Allocation, rounding-residual ownership, observations, fees, burning, parameter
 migration, and distributed finality remain separate specifications. Mainnet
-activation still requires calibration and independent review of the proof.
+activation still requires calibration and the founder's review of the proof (no independent reviewer is available: the founder reviews it against the code, with property tests over its invariants; P01, 13 November 2026).

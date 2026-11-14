@@ -23,17 +23,19 @@
       "question": "Re-pinning the runner and its reviewed preflight to the rebuilt hosts",
       "selected": "Re-pin in its own PR",
       "rule": "The runner's hash changes; the P02 review follows the new hash."
+    },
+    {
+      "question": "Who performs the P02 review",
+      "selected": "The founder, against the written protected-host checklist, recorded as not independent (P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13)",
+      "rule": "No independent reviewer is available; the founder's checklist record replaces the P02 review. The out-of-repo runner must accept it, which goes in with the re-pin."
     }
   ],
   "accepted_risks": [
     "Opening SSH briefly exposes the host for the sitting."
   ],
-  "unset": [
-    "Who performs the P02 independent review: not chosen; E03 cannot dispatch without it"
-  ],
   "supersedes": [],
   "does_not_authorize": [
-    "any E03 dispatch before the P02 review record exists",
+    "any E03 dispatch before the founder's checklist record exists",
     "the malformed-peer case before a separate first-case decision on the wrong-key case",
     "rebuilding either host",
     "production activation of any chain",

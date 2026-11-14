@@ -86,7 +86,9 @@ Local diagnostics (not qualification): the PQC-only engine binary built with
 
 - **T01:** classify the standard library's `crypto/internal/boring` markers
   and all loaded providers in the compiled production binaries.
-- **P02:** independent review of the ML-KEM-768 + ML-DSA-65 peer protocol.
+- **P02:** review of the ML-KEM-768 + ML-DSA-65 peer protocol: the public
+  review, the AI review and the founder's sign-off; no independent review is
+  available (P01, 13 November 2026).
 - **E05:** production chain ID, validator and peer keys, endpoints (the nine
   required configuration inputs in the inventory remain unset, among them
   the application configuration with the recovery, ordinary, lifecycle and

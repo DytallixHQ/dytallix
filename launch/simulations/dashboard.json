@@ -7,7 +7,7 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "9597252774c5ad4623db46c62030a33f853f8279ddc63b327941ad57eb395db8"
+        "sha256": "d5105f3dd65f69d44c7aaf730f105508507bcf870a9ccf8e620a5557f7a851c6"
       },
       {
         "path": ".github/workflows/host-install.yml",
@@ -45,7 +45,7 @@
   "project": {
     "since": "2026-09-26",
     "commits_at_as_of": 566,
-    "approval_records": 107
+    "approval_records": 108
   },
   "phases": [
     {
@@ -83,9 +83,9 @@
     {
       "id": "review",
       "order": 5,
-      "name": "Freeze, audit and public review",
-      "summary": "The release candidate is frozen, audited by Hashlock and opened to a 30-day public review with a DGT bug bounty. Every finding is fixed or answered on the record.",
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_AUDIT_2026-10-10.json",
+      "name": "Freeze and bug review",
+      "summary": "After multiple layers of agentic assessment, the release candidate is frozen for a 30-day freeze and bug review: a public review with a bug bounty paid in DGT. Every finding is fixed or answered on the record.",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
       "status": "planned"
     },
     {
@@ -271,12 +271,6 @@
       "summary": "The candidate under review."
     },
     {
-      "id": "hashlock",
-      "phase": "review",
-      "name": "Hashlock audit",
-      "summary": "Independent security audit of the frozen candidate."
-    },
-    {
       "id": "public",
       "phase": "review",
       "name": "Public review",
@@ -286,7 +280,7 @@
       "id": "findings",
       "phase": "review",
       "name": "Findings",
-      "summary": "Audit, public and AI review findings."
+      "summary": "Agentic assessment and bug review findings."
     },
     {
       "id": "ai",
@@ -1021,26 +1015,12 @@
       "group": "E06",
       "name": "Release candidate frozen",
       "measures": "A tagged release candidate whose binaries a clean CI runner and a fresh container reproduce byte for byte.",
-      "why": "The audit, the public review and the simulations must all test the same code.",
+      "why": "The public review, the AI review and the simulations must all test the same code.",
       "threshold": "Tagged and reproduced",
       "unit": null,
       "status": "planned",
       "value": null,
       "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_REVIEW_ORDER_2026-10-10.json",
-      "updated": "2026-10-11"
-    },
-    {
-      "id": "review.hashlock.audit",
-      "phase": "review",
-      "group": "hashlock",
-      "name": "Independent audit",
-      "measures": "Hashlock's audit of the consensus application, the post-quantum CometBFT fork, the root authorization tools and the CLI wallet.",
-      "why": "An independent human audit lowers the risk of defects. The launch is labeled unaudited until the report is published.",
-      "threshold": "Report published; every finding fixed and re-checked, or answered on the record",
-      "unit": null,
-      "status": "planned",
-      "value": null,
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_AUDIT_2026-10-10.json",
       "updated": "2026-10-11"
     },
     {
@@ -1063,13 +1043,13 @@
       "phase": "review",
       "group": "findings",
       "name": "Open findings",
-      "measures": "Audit, public review and AI review findings not yet fixed or answered on the record.",
+      "measures": "Findings from the agentic assessments and the 30-day freeze and bug review not yet fixed or answered on the record.",
       "why": "No finding may be silently dropped before launch.",
       "threshold": "0 at launch",
       "unit": "count",
       "status": "planned",
       "value": null,
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_AUDIT_2026-10-10.json",
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json",
       "updated": "2026-10-11"
     },
     {

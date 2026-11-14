@@ -5,7 +5,7 @@ Status: planned; no run has passed. Seven full launch simulations (R01 to R07) m
 ## Where and when
 
 - **Where.** The two production hosts (the validator, and the sentry, which also serves clients; [two seats](../../../launch/approvals/P01_E05_TWO_SEATS_2026-10-11.json)), before genesis, under the solo launch profile. Every tool is first built and proven in the CI staging network ([host install workflow](../../../.github/workflows/host-install.yml)).
-- **When.** Task-driven: after Hashlock's audit fixes, on the final candidate, one run after another ([audit approval](../../../launch/approvals/P01_E06_AUDIT_2026-10-10.json), [order of work](../../../launch/GENESIS_FRAMEWORK.md#6-order-of-work)). The staging runs before the freeze (E03, the T suites, the capacity measurements, the kit drills) come first and find defects early.
+- **When.** Task-driven: after the public-review fixes, on the final candidate, one run after another (no independent audit: [no independent review](../../../launch/approvals/P01_E06_NO_INDEPENDENT_REVIEW_2026-11-13.json), [order of work](../../../launch/GENESIS_FRAMEWORK.md#6-order-of-work)). The staging runs before the freeze (E03, the T suites, the capacity measurements, the kit drills) come first and find defects early.
 - **Length.** Each run operates for 24 hours after its genesis; R07 spans T−6h to T+24h. No checkpoint is compressed.
 - **Before the runs.** During staging, a [statistical campaign](#statistical-campaign-staging) of about 15 to 21 days of host time measures attacks, faults, performance and endurance with confidence.
 
@@ -76,7 +76,7 @@ The launch has one validator, so some of the brief's network scenarios mean some
 
 ## Statistical campaign (staging)
 
-The seven runs are pass/fail qualification. Before them, during staging and before the freeze, the production hosts run a longer campaign that measures behavior with statistical confidence ([simulation plan approval](../../../launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)). It uses rehearsal identities, the tools below, and its results go to Hashlock with the frozen candidate.
+The seven runs are pass/fail qualification. Before them, during staging and before the freeze, the production hosts run a longer campaign that measures behavior with statistical confidence ([simulation plan approval](../../../launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json)). It uses rehearsal identities, the tools below, and its results are published with the frozen candidate for the public review.
 
 | Part | Rule | Host time |
 |---|---|---|
