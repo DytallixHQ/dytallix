@@ -114,7 +114,7 @@ class Summary(unittest.TestCase):
     def test_the_page_reads_the_signed_staging_summary(self):
         root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, root)
-        for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW, test_results.PLAN):
+        for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW, launch_dashboard.GATES, test_results.PLAN):
             (root / path).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(launch_dashboard.ROOT / path, root / path)
         path = results.write_summary(summarize(hosts()), root)

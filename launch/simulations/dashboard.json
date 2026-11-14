@@ -1,17 +1,21 @@
 {
   "schema": "dytallix.launch-dashboard.v1",
-  "as_of": "2026-11-05",
+  "as_of": "2026-11-14",
   "source": {
     "repo": "https://github.com/DytallixHQ/dytallix",
     "ref": "main",
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "d5105f3dd65f69d44c7aaf730f105508507bcf870a9ccf8e620a5557f7a851c6"
+        "sha256": "f00653260ddc734fe3f32962837d4fa63c8e2b71a44c3b924f01b5eaecf27f0c"
       },
       {
         "path": ".github/workflows/host-install.yml",
         "sha256": "7b3698e53868a866ae09fc3c6d8953f176b0cfb930e5962d809e4beb27bad893"
+      },
+      {
+        "path": "launch/LAUNCH_GATES.json",
+        "sha256": "b15c68ccc822f568cc89d07a23b347cf31b5392e4bd2267d8af686a128f26994"
       },
       {
         "path": "launch/simulations/results/campaign/2026-11-03.json",
@@ -44,7 +48,7 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 566,
+    "commits_at_as_of": 687,
     "approval_records": 109
   },
   "phases": [
@@ -458,7 +462,7 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: request and transaction floods on the real hosts, with the load machines (R03); built in CI, P01 9 November 2026",
+      "value": "Built and proven in the CI staging network; still to come: request and transaction floods on the real hosts with one load machine (R03), Tuesday 17 November 2026 (P01 14 November 2026)",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64",
       "updated": "2026-11-02"
     },
@@ -472,7 +476,7 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: host loss on the real staging sentry, once (faults.py host-loss; P01 10 November 2026): built, its window not chosen yet",
+      "value": "Built and proven in the CI staging network; still to come: host loss on the real staging sentry, once (faults.py host-loss), Sunday 15 November 2026 (P01 14 November 2026)",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78",
       "updated": "2026-11-02"
     },
@@ -1696,5 +1700,220 @@
       "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/TRUST_MODEL.md",
       "updated": "2026-10-11"
     }
-  ]
+  ],
+  "gates": {
+    "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/MAINNET_GATE_MASTER.md",
+    "items": [
+      {
+        "id": "G01",
+        "name": "Consensus stability",
+        "status": "in_progress",
+        "next": "Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Production consensus parameters, topology, sustained targets and full fault acceptance remain open."
+      },
+      {
+        "id": "G02",
+        "name": "Consensus safety",
+        "status": "in_progress",
+        "next": "Local agreement checks do not cover the complete production fault model, engine evidence coverage or the founder's safety acceptance."
+      },
+      {
+        "id": "G03",
+        "name": "PQC correctness",
+        "status": "in_progress",
+        "next": "Production schema acceptance, numeric limits, custody, final-candidate cryptographic qualification and the founder's acceptance remain open. New Rust paths require Linux artifact qualification."
+      },
+      {
+        "id": "G04",
+        "name": "Genesis reproducibility",
+        "status": "in_progress",
+        "next": "Required production genesis values, typed consumers and accepted records remain incomplete. File-hash binding does not authenticate an approval or authorize production generation."
+      },
+      {
+        "id": "G05",
+        "name": "Genesis allocation correctness",
+        "status": "in_progress",
+        "next": "Exact beneficiary/custody records and initial issuance decisions remain open. A full-supply fixture does not approve minting all DGT at genesis."
+      },
+      {
+        "id": "G06",
+        "name": "Binary reproducibility",
+        "status": "in_progress",
+        "next": "Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Full production distribution freeze, independent clean reproduction, provider review and release acceptance remain open."
+      },
+      {
+        "id": "G07",
+        "name": "Validator deployment",
+        "status": "in_progress",
+        "next": "Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Approved production topology, operators, custody, repeated clean provisioning, monitoring and backups remain open."
+      },
+      {
+        "id": "G08",
+        "name": "Validator recovery",
+        "status": "in_progress",
+        "next": "New Rust behavior needs native requalification. Off-host recovery, signing-state conflicts, accepted custodians, measured recovery objectives and operator acceptance remain open."
+      },
+      {
+        "id": "G09",
+        "name": "State recovery",
+        "status": "in_progress",
+        "next": "A stopped same-host restore before later signing does not cover stale snapshots, corruption, physical loss or production recovery objectives."
+      },
+      {
+        "id": "G10",
+        "name": "PQC transaction lifecycle",
+        "status": "in_progress",
+        "next": "Native selected-client execution passed within the disposable fixture. Production enrollment/recovery custody, final role/fee inputs, hosted acceptance and independent state/receipt inclusion proofs remain open."
+      },
+      {
+        "id": "G11",
+        "name": "Wallet reliability",
+        "status": "in_progress",
+        "next": "Native strict CLI startup is qualified within its bounded scope. Durable wallet custody, full application-proof interfaces, accepted public endpoint trust and frozen hosted-wallet acceptance remain open."
+      },
+      {
+        "id": "G12",
+        "name": "DRT transfers",
+        "status": "in_progress",
+        "next": "Production DRT bootstrap, fee calibration and final economic qualification remain open."
+      },
+      {
+        "id": "G13",
+        "name": "DGT transfers",
+        "status": "in_progress",
+        "next": "Production beneficiaries, vesting inputs and mint authority remain incomplete; local generic transfer tests do not qualify the final DGT lifecycle."
+      },
+      {
+        "id": "G14",
+        "name": "DRT supply accounting",
+        "status": "in_progress",
+        "next": "Production controller/observation configuration, bootstrap and burn authority remain unresolved."
+      },
+      {
+        "id": "G15",
+        "name": "DGT supply accounting",
+        "status": "in_progress",
+        "next": "The cap is approved, but genesis mint scope, later authority and complete production custody inputs are not accepted."
+      },
+      {
+        "id": "G16",
+        "name": "Staking",
+        "status": "in_progress",
+        "next": "Production stake thresholds, operators and locked-principal qualification remain open."
+      },
+      {
+        "id": "G17",
+        "name": "Delegation",
+        "status": "in_progress",
+        "next": "Final operator/beneficiary records and production delegation qualification remain incomplete."
+      },
+      {
+        "id": "G18",
+        "name": "Undelegation",
+        "status": "in_progress",
+        "next": "Production withdrawals remain disabled. Approved liability/evidence bounds, full fault attribution, locked-principal implementation, activation/migration and production withdrawal qualification remain open."
+      },
+      {
+        "id": "G19",
+        "name": "Rewards",
+        "status": "in_progress",
+        "next": "Production validator-pool rules, treasury authority and issuance configuration remain unresolved."
+      },
+      {
+        "id": "G20",
+        "name": "Fees",
+        "status": "in_progress",
+        "next": "Production numeric fee/resource inputs and general burn/distribution policy remain open."
+      },
+      {
+        "id": "G21",
+        "name": "Slashing",
+        "status": "in_progress",
+        "next": "Existing duplicate-vote fixture coverage is bounded. Full engine evidence attribution, production penalty values, locked liability, activation/migration and end-to-end fault acceptance remain open."
+      },
+      {
+        "id": "G22",
+        "name": "Governance",
+        "status": "in_progress",
+        "next": "Custodian identities, keys, epochs, measured numeric limits, production wire acceptance and upgrade authority inputs remain open. Broader governance snapshot, timing and execution decisions remain open."
+      },
+      {
+        "id": "G23",
+        "name": "Treasury controls",
+        "status": "in_progress",
+        "next": "Treasury recipient/custody record D02-Q02 and governance authority D11-Q03 remain open; custody balances do not authorize spending."
+      },
+      {
+        "id": "G24",
+        "name": "Upgrade procedure",
+        "status": "in_progress",
+        "next": "The first executor works for the root-bound running candidate. Version-preserving migration history, cross-binary installation/reopen/rollback, production authority inputs and full RC1-to-RC2 qualification remain open."
+      },
+      {
+        "id": "G25",
+        "name": "RPC stability",
+        "status": "in_progress",
+        "next": "Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Hosted endpoint trust, receipt/state proofs, public transport, production services and load/outage/upgrade targets remain open."
+      },
+      {
+        "id": "G26",
+        "name": "Load capacity",
+        "status": "in_progress",
+        "next": "Component timings and queue benchmarks do not measure sustained committed network throughput. Production targets remain unset."
+      },
+      {
+        "id": "G27",
+        "name": "Monitoring",
+        "status": "in_progress",
+        "next": "The selected build omits the embedded metrics listener. Required monitoring interface/coverage, accepted owner, thresholds and operational validation remain open."
+      },
+      {
+        "id": "G28",
+        "name": "Alerting",
+        "status": "in_progress",
+        "next": "Alert thresholds, contacts and operational acceptance remain unset. Checklist validation does not demonstrate alert delivery."
+      },
+      {
+        "id": "G29",
+        "name": "Backup procedures",
+        "status": "in_progress",
+        "next": "Same-host stopped-fleet backup does not qualify off-host storage, stale-signing safety or production backup objectives."
+      },
+      {
+        "id": "G30",
+        "name": "Disaster recovery",
+        "status": "in_progress",
+        "next": "The full failure matrix and off-host Linux recovery remain unexecuted; five local drills cover only a subset."
+      },
+      {
+        "id": "G31",
+        "name": "Security",
+        "status": "in_progress",
+        "next": "Security acceptance of the frozen candidate under acceptance_profile, production authority/custody, full distribution/provider review and complete production behavior qualification remain open."
+      },
+      {
+        "id": "G32",
+        "name": "Documentation",
+        "status": "in_progress",
+        "next": "Final production settings, commands, named roles, complete artifact set and the clean-environment runs and the founder's walkthrough remain open."
+      },
+      {
+        "id": "G33",
+        "name": "Developer onboarding",
+        "status": "in_progress",
+        "next": "Changed Rust code has local executable evidence. Current Linux and actual-engine qualification must be repeated. Clean-environment onboarding, accepted client distribution, endpoint trust, state/receipt proofs and hosted developer flows remain open."
+      },
+      {
+        "id": "G34",
+        "name": "Validator onboarding",
+        "status": "in_progress",
+        "next": "Initial operator membership/control groups, accepted role/custody records, approved topology/admission rules remain incomplete."
+      },
+      {
+        "id": "G35",
+        "name": "No quantum-vulnerable asymmetric cryptography inside the production trust boundary",
+        "status": "in_progress",
+        "next": "Mandatory veto remains active. Changed Rust paths need Linux rebuild and compiled-artifact inspection. Full OS/provider/distribution, interface/custody, production wire acceptance, independent reproduction and the founder's review remain incomplete."
+      }
+    ]
+  }
 }
