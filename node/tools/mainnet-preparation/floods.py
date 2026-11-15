@@ -59,7 +59,6 @@ import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import record_bytes  # noqa: E402
 import attacks  # noqa: E402
 import load  # noqa: E402
 
@@ -121,8 +120,19 @@ def describe(row):
 
 
 def tally(rows, attempts):
-    """Each type's outcome counts, first log and status (attacks.tally_types)."""
-    return attacks.tally_types(rows, attempts, REASONS, attacks.first_log)
+    types = {}
+    for kind in REASONS:
+        mine = [r for r in rows if r['type'] == kind]
+        counts = {o: sum(1 for r in mine if r['outcome'] == o) for o in OUTCOMES}
+        if counts['admitted'] or counts['refused_other']:
+            status = FAIL
+        elif not mine:
+            status = 'not_run'
+        else:
+            status = PASS if counts['refused'] >= attempts else FAIL
+        types[kind] = {'reason': REASONS[kind], 'counts': counts, 'status': status,
+                       'first_log': next((r['log'] for r in mine), None)}
+    return types
 
 
 def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, bound, started, finished,
@@ -156,21 +166,29 @@ def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, 
 
 def verify(record, raw, genesis_bytes, engine_genesis_bytes):
     """Re-evaluates a campaign record from its rows."""
-    def approved(limits):
-        bound = limits.get('queue_max_entries')
-        return (limits == dict(CHANNEL, queue_max_entries=bound, flooders=FLOODERS, flood_seconds=FLOOD_SECONDS)
-                and isinstance(bound, int) and bound > 0)
-
-    def rebuild(rows):
-        bound = record['limits']['queue_max_entries']
-        for row in rows:
-            if row['type'] == 'transaction_flood' and row['observed'].get('bound') not in (None, bound):
-                raise Failed('a transaction flood was judged against another queue bound')
-        return build_record(record['chain_id'], genesis_bytes, engine_genesis_bytes, rows, record['attempts_wanted'],
-                            bound, record['started'], record['finished'])
-
-    return attacks.verify_campaign(record, raw, genesis_bytes, engine_genesis_bytes, SCHEMA, FAMILY, rebuild, Failed,
-                                   approved)
+    body = {k: v for k, v in record.items() if k != 'sha256'}
+    if record.get('schema') != SCHEMA or digest(canonical(body)) != record.get('sha256'):
+        raise Failed('the evidence digest does not match its contents')
+    if record['family'] != FAMILY:
+        raise Failed(f'the record is for {record["family"]}, not {FAMILY}')
+    bound = record['limits'].get('queue_max_entries')
+    if record['limits'] != dict(CHANNEL, queue_max_entries=bound, flooders=FLOODERS, flood_seconds=FLOOD_SECONDS) \
+            or not (isinstance(bound, int) and bound > 0):
+        raise Failed(f'the record was judged against {record["limits"]}, not the approved bounds')
+    if digest(raw) != record['rows_sha256']:
+        raise Failed('the rows are not the ones the evidence names')
+    if record['genesis'] != {'native_genesis_sha256': digest(genesis_bytes),
+                             'engine_genesis_sha256': digest(engine_genesis_bytes)}:
+        raise Failed('the evidence names another genesis')
+    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    for row in rows:
+        if row['type'] == 'transaction_flood' and row['observed'].get('bound') not in (None, bound):
+            raise Failed('a transaction flood was judged against another queue bound')
+    again = build_record(record['chain_id'], genesis_bytes, engine_genesis_bytes, rows, record['attempts_wanted'],
+                         bound, record['started'], record['finished'])
+    if again != record:
+        raise Failed('the counts and statuses do not follow from the rows')
+    return record['status']
 
 
 def finish(kind, attempt, observed):
@@ -376,15 +394,24 @@ def control(run, wallet, funder):
             'code': row.get('code')}
 
 
-stamp = record_bytes.stamp
+def stamp():
+    return time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
 
 
 def run_campaign(cli, home, fleet_dir, out, application_config, funder_label, validator, native, engine,
                  attempts=TARGET, kinds=tuple(REASONS), spaces=(), show=load.say, passphrase=None, settings=None):
-    out, env, config, fleet, _, funder = load.open_run(home, fleet_dir, out, application_config,
-                                                       funder_label, passphrase)
+    out, fleet_dir = Path(out), Path(fleet_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, HOME=str(home))
+    if passphrase:
+        env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
+    config = json.loads(Path(application_config).read_bytes())
     bound = int(config['ordinary']['queue_max_entries'])
+    fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
+    fleet['_dir'] = str(fleet_dir)
     chain_id = fleet['chain_id']
+    entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
+    funder = load.keystore_account(entries, funder_label, chain_id)
     if 'request_flood' in kinds and len(spaces) < FLOODERS:
         raise Failed(f'the request flood needs {FLOODERS} addresses of its own (--spaces)')
     started, rows = stamp(), []

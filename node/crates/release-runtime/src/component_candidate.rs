@@ -578,6 +578,28 @@ fn metadata_ok(
     #[allow(unreachable_code)]
     Ok(())
 }
+fn identity(a: &Metadata, b: &Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        a.dev() == b.dev()
+            && a.ino() == b.ino()
+            && a.len() == b.len()
+            && a.mode() == b.mode()
+            && a.uid() == b.uid()
+            && a.gid() == b.gid()
+            && a.nlink() == b.nlink()
+            && a.mtime() == b.mtime()
+            && a.mtime_nsec() == b.mtime_nsec()
+            && a.ctime() == b.ctime()
+            && a.ctime_nsec() == b.ctime_nsec()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (a, b);
+        false
+    }
+}
 fn open_checked(
     path: &Path,
     limit: u64,
@@ -591,7 +613,7 @@ fn open_checked(
     let file = File::open(path)?;
     let opened = file.metadata()?;
     ensure!(
-        crate::observation::same_metadata(&before, &opened),
+        identity(&before, &opened),
         "Candidate identity changed before opening"
     );
     metadata_ok(&opened, limit, policy, executable)?;
@@ -609,14 +631,14 @@ fn finish_checked(
     let after = file.metadata()?;
     metadata_ok(&after, limit, policy, executable)?;
     ensure!(
-        crate::observation::same_metadata(opened, &after),
+        identity(opened, &after),
         "Candidate file changed during read"
     );
     exact_path(path, bounds.max_path_bytes)?;
     let named = std::fs::symlink_metadata(path)?;
     metadata_ok(&named, limit, policy, executable)?;
     ensure!(
-        crate::observation::same_metadata(opened, &named),
+        identity(opened, &named),
         "Candidate path changed during read"
     );
     Ok(())

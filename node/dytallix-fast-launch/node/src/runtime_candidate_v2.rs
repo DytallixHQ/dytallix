@@ -173,6 +173,29 @@ fn safe_helper_metadata(m: &Metadata, limit: u64, owners: &BTreeSet<u32>) -> Res
     anyhow::bail!("Bootstrap helper identity requires Unix");
     Ok(())
 }
+fn same_metadata(a: &Metadata, b: &Metadata) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        a.dev() == b.dev()
+            && a.ino() == b.ino()
+            && a.len() == b.len()
+            && a.mode() == b.mode()
+            && a.uid() == b.uid()
+            && a.gid() == b.gid()
+            && a.nlink() == b.nlink()
+            && a.mtime() == b.mtime()
+            && a.mtime_nsec() == b.mtime_nsec()
+            && a.ctime() == b.ctime()
+            && a.ctime_nsec() == b.ctime_nsec()
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (a, b);
+        false
+    }
+}
+
 /// The caller supplies the original independent root configuration. The target
 /// catalog cannot choose this path or its trusted SHA256 digest.
 fn bootstrap_file(
@@ -199,7 +222,7 @@ fn bootstrap_file(
     let opened = file.metadata()?;
     safe_helper_metadata(&opened, limit, owners)?;
     ensure!(
-        observation::same_metadata(&before, &opened),
+        same_metadata(&before, &opened),
         "Bootstrap helper changed during open"
     );
     let mut sha256 = Sha256::new();
@@ -232,8 +255,8 @@ fn bootstrap_file(
     );
     ensure!(
         total == before.len()
-            && observation::same_metadata(&before, &file.metadata()?)
-            && observation::same_metadata(&before, &std::fs::symlink_metadata(path)?),
+            && same_metadata(&before, &file.metadata()?)
+            && same_metadata(&before, &std::fs::symlink_metadata(path)?),
         "Bootstrap helper changed while hashing"
     );
     Ok((digest, before, file))
@@ -290,8 +313,8 @@ pub fn verify_catalog(
     )?;
     verify_helper_role_bindings(&files, &root.helper_path, &before, live)?;
     ensure!(
-        observation::same_metadata(&before, &handle.metadata()?)
-            && observation::same_metadata(&before, &std::fs::symlink_metadata(&root.helper_path)?),
+        same_metadata(&before, &handle.metadata()?)
+            && same_metadata(&before, &std::fs::symlink_metadata(&root.helper_path)?),
         "Bootstrap helper changed during catalog verification"
     );
     Ok(files)

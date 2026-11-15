@@ -428,10 +428,18 @@ def campaign(run, rpc, fleet, transport, count, out, bound, kinds, attempts, set
 def drive(cli, home, fleet_dir, out, application_config, funder_label, validator, native, engine, transport,
           count, attempts=floods.TARGET, kinds=tuple(floods.REASONS), worker_cli=None, lead=LEAD, show=load.say,
           passphrase=None, settings=None, flooders=floods.FLOODERS):
-    out, env, config, fleet, _, funder = load.open_run(home, fleet_dir, out, application_config,
-                                                       funder_label, passphrase)
+    out, fleet_dir = Path(out), Path(fleet_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, HOME=str(home))
+    if passphrase:
+        env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
+    config = json.loads(Path(application_config).read_bytes())
     bound = int(config['ordinary']['queue_max_entries'])
+    fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
+    fleet['_dir'] = str(fleet_dir)
     chain_id = fleet['chain_id']
+    entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
+    funder = load.keystore_account(entries, funder_label, chain_id)
     files = load_workers.worker_files(worker_cli or cli, home, application_config)
     files.update({name: HERE / name for name in TOOLS})
     settings = settings or load.Settings()

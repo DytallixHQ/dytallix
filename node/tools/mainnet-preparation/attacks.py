@@ -62,7 +62,9 @@ import argparse
 import base64
 from collections import Counter
 import copy
+import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -72,7 +74,6 @@ import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-import record_bytes  # noqa: E402
 import adversary  # noqa: E402
 import config_checks  # noqa: E402
 import load  # noqa: E402
@@ -129,11 +130,12 @@ class Failed(Exception):
     pass
 
 
-digest = record_bytes.digest
+def digest(data):
+    return hashlib.sha256(data).hexdigest()
 
 
-canonical = record_bytes.canonical
-record_digest = record_bytes.record_digest
+def canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
 
 
 def built(kind):
@@ -428,16 +430,15 @@ class Campaign:
 
 # The record
 
-def tally_types(rows, attempts, reasons, first_log, built=None):
-    """Each type's outcome counts, first log and status, for every type in
-    `reasons`: PASS once the wanted attempts were refused with no success and
-    no other refusal. `first_log(rows)` reads a type's first answer from its
-    rows; a type `built` says is not built is not_built."""
+def tally(rows, attempts):
+    """Each type's outcome counts, the first log and its status, from rows:
+    PASS once the wanted attempts were refused for the type's reason with no
+    success and no other refusal."""
     types = {}
-    for kind in reasons:
+    for kind in REASONS:
         mine = [r for r in rows if r['type'] == kind]
         counts = {o: sum(1 for r in mine if r['outcome'] == o) for o in OUTCOMES}
-        if built is not None and not built(kind):
+        if not built(kind):
             status = 'not_built'
         elif counts['admitted'] or counts['refused_other']:
             status = FAIL
@@ -445,24 +446,9 @@ def tally_types(rows, attempts, reasons, first_log, built=None):
             status = 'not_run'
         else:
             status = PASS if counts['refused'] >= attempts else FAIL
-        types[kind] = {'reason': reasons[kind], 'counts': counts, 'status': status, 'first_log': first_log(mine)}
+        types[kind] = {'reason': REASONS[kind], 'counts': counts, 'status': status,
+                       'first_log': next((r['log'] for r in mine), None)}
     return types
-
-
-def first_log(rows):
-    return next((r['log'] for r in rows), None)
-
-
-def first_logged(rows):
-    """The first log of the rows that carry one."""
-    return next((r['log'] for r in rows if 'log' in r), None)
-
-
-def tally(rows, attempts):
-    """Each type's outcome counts, the first log and its status, from rows:
-    PASS once the wanted attempts were refused for the type's reason with no
-    success and no other refusal."""
-    return tally_types(rows, attempts, REASONS, first_log, built)
 
 
 def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, started, finished):
@@ -497,35 +483,24 @@ def rows_bytes(rows):
     return b''.join(canonical({k: v for k, v in r.items() if k != 'checked'}) + b'\n' for r in rows)
 
 
-def verify_campaign(record, raw, genesis_bytes, engine_genesis_bytes, schema, family, rebuild, error=Failed,
-                    limits_ok=None):
-    """Re-evaluates a campaign family's record from its rows: its digest,
-    family, approved bounds (`limits_ok`, if the family records any), rows
-    and genesis, then `rebuild(rows)` must give the record back. Raises
-    `error`; returns the record's status."""
-    body = {k: v for k, v in record.items() if k != 'sha256'}
-    if record.get('schema') != schema or record_digest(body) != record.get('sha256'):
-        raise error('the evidence digest does not match its contents')
-    if record['family'] != family:
-        raise error(f'the record is for {record["family"]}, not {family}')
-    if limits_ok is not None and not limits_ok(record['limits']):
-        raise error(f'the record was judged against {record["limits"]}, not the approved bounds')
-    if digest(raw) != record['rows_sha256']:
-        raise error('the rows are not the ones the evidence names')
-    if record['genesis'] != {'native_genesis_sha256': digest(genesis_bytes),
-                             'engine_genesis_sha256': digest(engine_genesis_bytes)}:
-        raise error('the evidence names another genesis')
-    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
-    if rebuild(rows) != record:
-        raise error('the counts and statuses do not follow from the rows')
-    return record['status']
-
-
 def verify(record, raw, genesis_bytes, engine_genesis_bytes):
     """Re-evaluates a campaign record from its rows."""
-    return verify_campaign(record, raw, genesis_bytes, engine_genesis_bytes, SCHEMA, FAMILY,
-                           lambda rows: build_record(record['chain_id'], genesis_bytes, engine_genesis_bytes, rows,
-                                                     record['attempts_wanted'], record['started'], record['finished']))
+    body = {k: v for k, v in record.items() if k != 'sha256'}
+    if record.get('schema') != SCHEMA or digest(canonical(body)) != record.get('sha256'):
+        raise Failed('the evidence digest does not match its contents')
+    if record['family'] != FAMILY:
+        raise Failed(f'the record is for {record["family"]}, not {FAMILY}')
+    if digest(raw) != record['rows_sha256']:
+        raise Failed('the rows are not the ones the evidence names')
+    if record['genesis'] != {'native_genesis_sha256': digest(genesis_bytes),
+                             'engine_genesis_sha256': digest(engine_genesis_bytes)}:
+        raise Failed('the evidence names another genesis')
+    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
+    again = build_record(record['chain_id'], genesis_bytes, engine_genesis_bytes, rows, record['attempts_wanted'],
+                         record['started'], record['finished'])
+    if again != record:
+        raise Failed('the counts and statuses do not follow from the rows')
+    return record['status']
 
 
 # The release CLI's signing, with the falsified views an attacker can give it
@@ -606,8 +581,16 @@ class Forger:
 
 def run_campaign(cli, home, fleet_dir, out, application_config, funder_label, validator, attempts, kinds,
                  native_genesis, engine_genesis, show=load.say, passphrase=None, settings=None, attack_client=None):
-    out, env, config, fleet, _, funder = load.open_run(home, fleet_dir, out, application_config,
-                                                       funder_label, passphrase)
+    out, fleet_dir = Path(out), Path(fleet_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, HOME=str(home))
+    if passphrase:
+        env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
+    config = json.loads(Path(application_config).read_bytes())
+    fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
+    fleet['_dir'] = str(fleet_dir)
+    entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
+    funder = load.keystore_account(entries, funder_label, fleet['chain_id'])
     settings = settings or load.Settings()
     started = load.now_utc()
     gateway = load.Gateway(cli, env, out / 'gateway.log')

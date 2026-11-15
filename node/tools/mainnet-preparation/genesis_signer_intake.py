@@ -92,7 +92,22 @@ def validate(data, root, emergency=None, upgrade=None):
     evidence = data['evidence']
     if not require(isinstance(evidence, dict), 'evidence must be an object'):
         return result(errors)
-    parsed = u.public_evidence(evidence, root, require, fields)
+    parsed = {}
+    for identifier, ref in evidence.items():
+        if not fields(ref, {'path', 'sha256'}, 'evidence.' + identifier): continue
+        relative = ref['path']
+        if not require(text(relative) and not Path(relative).is_absolute() and '..' not in Path(relative).parts, identifier + ': unsafe path'): continue
+        path = root / relative
+        if not require(not any(p.is_symlink() for p in [path, *path.parents] if p != root.parent) and path.resolve().is_relative_to(root.resolve()), identifier + ': path escape or symlink'): continue
+        if not require(path.is_file() and path.stat().st_size <= u.EVIDENCE_LIMIT, identifier + ': missing or oversized public evidence'): continue
+        raw = path.read_bytes()
+        if not require(isinstance(ref['sha256'], str) and u.HEX.fullmatch(ref['sha256']) is not None and hashlib.sha256(raw).hexdigest() == ref['sha256'], identifier + ': digest mismatch'): continue
+        try: item = c.decode(raw)
+        except (ValueError, UnicodeError):
+            require(False, identifier + ': evidence must be UTF-8 JSON'); continue
+        if not fields(item, u.ITEM, identifier): continue
+        if not require(item['kind'] in u.KINDS and text(item['public_statement']), identifier + ': invalid public statement'): continue
+        parsed[identifier] = item
 
     used = set()
 

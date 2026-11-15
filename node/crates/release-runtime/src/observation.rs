@@ -249,15 +249,11 @@ fn file_identity(_: &Metadata) -> FileIdentity {
         inode: 0,
     }
 }
-/// Whether two reads of a file's metadata see the same file, unchanged:
-/// device, inode, size, mode, owner, links and both change times.
-/// Never on a platform without Unix metadata.
-pub fn same_metadata(a: &Metadata, b: &Metadata) -> bool {
+fn same_metadata(a: &Metadata, b: &Metadata) -> bool {
     #[cfg(unix)]
     {
         use std::os::unix::fs::MetadataExt;
-        a.dev() == b.dev()
-            && a.ino() == b.ino()
+        file_identity(a) == file_identity(b)
             && a.len() == b.len()
             && a.mode() == b.mode()
             && a.uid() == b.uid()
