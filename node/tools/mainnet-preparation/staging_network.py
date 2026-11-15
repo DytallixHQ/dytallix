@@ -2846,7 +2846,7 @@ def results_drill(work, drill, native, engine):
     reads summaries. Nothing CI makes is published."""
     repo = Path(__file__).resolve().parents[3]
     root = drill / 'results'
-    for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW,
+    for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW, launch_dashboard.GATES,
                  'launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json'):
         (root / path).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(repo / path, root / path)

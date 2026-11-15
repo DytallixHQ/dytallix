@@ -269,7 +269,7 @@ class SignAndRead(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.root)
-        for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW, PLAN):
+        for path in (launch_dashboard.DEFINITIONS, launch_dashboard.WORKFLOW, launch_dashboard.GATES, PLAN):
             (self.root / path).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(launch_dashboard.ROOT / path, self.root / path)
         self.key = '5a' * (results.PUBLIC_KEY_HEX // 2)

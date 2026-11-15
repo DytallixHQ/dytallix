@@ -9,7 +9,12 @@ DASHBOARD_DEFINITIONS.json names it for each KPI: an approval record's date; a
 tool's build date, proven by its CI step named "(Tn)" in host-install.yml; or
 results, from the newest signed result summary that reports the KPI
 (launch/simulations/results/, written and signed by results.py), so a result
-KPI stays planned until one does. Nothing is entered by hand. Every summary
+KPI stays planned until one does. Nothing is entered by hand. as_of is the newest date among the KPIs and the
+approval records, so a decision moves it too. The launch gates (G01 to G35)
+are copied from launch/LAUNCH_GATES.json: each gate's ID, area, status and
+current blocker, with the tracker's own status mapped to the page's (OPEN is
+planned, PARTIAL and READY FOR ACCEPTANCE are in progress, PASS is pass).
+Every summary
 must have its signature file beside it and pass summary_problems (the page's
 rules, and the KPI's unit and target); the signatures themselves are checked
 with the release CLI (results.py verify), which this check does not run.
@@ -38,6 +43,10 @@ RESULT_SCHEMA = 'dytallix.launch-result.v1'
 # An ML-DSA-65 signature (3,309 bytes) in hex.
 SIGNATURE = re.compile(r'[0-9a-f]{6618}')
 WORKFLOW = '.github/workflows/host-install.yml'
+GATES = 'launch/LAUNCH_GATES.json'
+GATES_PAGE = 'launch/MAINNET_GATE_MASTER.md'
+GATE_STATUS = {'OPEN': 'planned', 'PARTIAL': 'in_progress', 'READY FOR ACCEPTANCE': 'in_progress', 'PASS': 'pass'}
+GATE_ID = re.compile(r'G[0-9]{2}')
 APPROVALS = 'launch/approvals'
 DEFINITIONS_SCHEMA = 'dytallix.launch-dashboard-definitions.v1'
 REPO = 'https://github.com/DytallixHQ/dytallix'
@@ -172,6 +181,18 @@ def page_problems(data):
         if target is not None and not (number(target) and math.isfinite(target)):
             errors.append(f'{path}.target must be a number')
         if not is_date(kpi.get('updated')): errors.append(f'{path}.updated must be a date')
+    if 'gates' in data:
+        gates = data['gates'] if isinstance(data['gates'], dict) else {}
+        evidence(gates.get('evidence_url'), 'gates.evidence_url')
+        seen = set()
+        for index, gate in enumerate(items(gates.get('items'), 'gates.items', 100)):
+            path, gate = f'gates.items[{index}]', gate if isinstance(gate, dict) else {}
+            if not isinstance(gate.get('id'), str) or not GATE_ID.fullmatch(gate['id']) or gate['id'] in seen:
+                errors.append(f'{path}.id is invalid')
+            else: seen.add(gate['id'])
+            text(gate.get('name'), f'{path}.name')
+            if gate.get('status') not in STATUSES: errors.append(f'{path}.status is invalid')
+            if gate.get('next') is not None: text(gate['next'], f'{path}.next')
     return errors
 
 
@@ -198,7 +219,8 @@ def gather(root=ROOT):
     workflow = (root / WORKFLOW).read_bytes()
     d = json.loads(definitions)
     if d.get('schema') != DEFINITIONS_SCHEMA: raise Invalid(f'{DEFINITIONS} is not {DEFINITIONS_SCHEMA}')
-    records, digests = {}, [(DEFINITIONS, definitions), (WORKFLOW, workflow)]
+    gates = (root / GATES).read_bytes()
+    records, digests = {}, [(DEFINITIONS, definitions), (WORKFLOW, workflow), (GATES, gates)]
     summaries = []
     for path in sorted((root / RESULTS).rglob('*')) if (root / RESULTS).exists() else []:
         name = path.relative_to(root).as_posix()
@@ -220,9 +242,22 @@ def gather(root=ROOT):
             raw = (root / record).read_bytes()
             records[record] = json.loads(raw)
             digests.append((record, raw))
+    approvals = sorted((root / APPROVALS).glob('*.json'))
+    decided = [json.loads(path.read_bytes()).get('approved') for path in approvals]
     return {'definitions': d, 'workflow': workflow.decode('utf-8'), 'records': records, 'summaries': summaries,
-            'inputs': [{'path': path, 'sha256': sha256(raw)} for path, raw in digests],
-            'approval_records': len(list((root / APPROVALS).glob('*.json')))}
+            'gates': json.loads(gates), 'inputs': [{'path': path, 'sha256': sha256(raw)} for path, raw in digests],
+            'approval_records': len(approvals), 'decided': max((day for day in decided if is_date(day)), default=None)}
+
+
+def gate_items(tracker):
+    """The page's gate rows from the tracker: ID, area, status and current blocker."""
+    rows = []
+    for gate in tracker.get('gates', []):
+        if gate.get('status') not in GATE_STATUS: raise Invalid(f'{GATES}: {gate.get("id")} has status {gate.get("status")}')
+        blocker = gate.get('current_blocker')
+        rows.append({'id': gate['id'], 'name': gate['category'], 'status': GATE_STATUS[gate['status']],
+                     'next': blocker if isinstance(blocker, str) and blocker.strip() else None})
+    return rows
 
 
 def summary_problems(summary, definitions):
@@ -302,13 +337,14 @@ def build(found, commits):
         kpi.update(status=status, value=value, evidence_url=evidence or k['evidence_url'], updated=updated)
         kpis.append(kpi)
     phases = [dict(p, status=roll_up([k['status'] for k in kpis if k['phase'] == p['id']])) for p in d['phases']]
-    as_of = max(k['updated'] for k in kpis)
+    as_of = max([k['updated'] for k in kpis] + ([found['decided']] if found.get('decided') else []))
     return {'schema': SCHEMA, 'as_of': as_of,
             'source': {'repo': REPO, 'ref': 'main', 'inputs': found['inputs']},
             'schema_rules': d['schema_rules'],
             'project': {'since': d['project_since'], 'commits_at_as_of': commits,
                         'approval_records': found['approval_records']},
-            'phases': phases, 'groups': d['groups'], 'kpis': kpis}
+            'phases': phases, 'groups': d['groups'], 'kpis': kpis,
+            'gates': {'evidence_url': f'{REPO}/blob/main/{GATES_PAGE}', 'items': gate_items(found['gates'])}}
 
 
 def render(data): return json.dumps(data, indent=2, ensure_ascii=False) + '\n'
@@ -331,7 +367,8 @@ def problems(data, root=ROOT):
         if named: found.append(f'names a launch server ({", ".join(named)}): {value[:80]}')
     if is_date(data.get('as_of')) and data['as_of'] < SITE_COPY_AS_OF:
         found.append(f'as_of {data["as_of"]} is older than the site\'s own copy ({SITE_COPY_AS_OF})')
-    for item in (*data.get('phases', []), *data.get('kpis', [])):
+    for item in (*data.get('phases', []), *data.get('kpis', []),
+                 {'id': 'gates', 'evidence_url': (data.get('gates') or {}).get('evidence_url')}):
         url = item.get('evidence_url') or ''
         if url.startswith(f'{REPO}/blob/main/'):
             path = url[len(f'{REPO}/blob/main/'):].split('#')[0]
