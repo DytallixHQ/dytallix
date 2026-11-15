@@ -32,7 +32,6 @@ INCONCLUSIVE. Only PASS exits 0. results.py summarize staging reduces the
 record to staging.hosts.ready: the count of hosts whose verify exited 0.
 """
 import argparse
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -40,6 +39,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import recovery  # noqa: E402
 
 SCHEMA = 'dytallix.staging-hosts.v1'
@@ -54,10 +54,10 @@ class Failed(Exception):
     pass
 
 
-def digest(data): return hashlib.sha256(data).hexdigest()
+digest = record_bytes.digest
 
 
-def canonical(value): return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+canonical = record_bytes.canonical
 
 
 def bundles(staging):

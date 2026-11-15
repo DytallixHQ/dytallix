@@ -69,6 +69,7 @@ import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import attacks  # noqa: E402
 import load  # noqa: E402
 
@@ -110,8 +111,7 @@ class Unavailable(Exception):
 digest, rows_bytes = attacks.digest, attacks.rows_bytes
 
 
-def record_digest(value):
-    return digest(attacks.canonical(value))
+record_digest = record_bytes.record_digest
 
 
 def fingerprint(identity):
@@ -289,21 +289,8 @@ class Campaign:
 
 
 def tally(rows, attempts):
-    """Each type's outcome counts, first log and status: PASS once the wanted
-    attempts were refused with no success and no other refusal."""
-    types = {}
-    for kind in REASONS:
-        mine = [r for r in rows if r['type'] == kind]
-        counts = {o: sum(1 for r in mine if r['outcome'] == o) for o in OUTCOMES}
-        if counts['admitted'] or counts['refused_other']:
-            status = FAIL
-        elif not mine:
-            status = 'not_run'
-        else:
-            status = PASS if counts['refused'] >= attempts else FAIL
-        types[kind] = {'reason': REASONS[kind], 'counts': counts, 'status': status,
-                       'first_log': next((r['log'] for r in mine if 'log' in r), None)}
-    return types
+    """Each type's outcome counts, first log and status (attacks.tally_types)."""
+    return attacks.tally_types(rows, attempts, REASONS, attacks.first_logged)
 
 
 def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, materials, started, finished):
@@ -337,22 +324,11 @@ def build_record(chain_id, genesis_bytes, engine_genesis_bytes, rows, attempts, 
 
 def verify(record, raw, genesis_bytes, engine_genesis_bytes):
     """Re-evaluates a campaign record from its rows."""
-    body = {k: v for k, v in record.items() if k != 'sha256'}
-    if record.get('schema') != SCHEMA or record_digest(body) != record.get('sha256'):
-        raise Failed('the evidence digest does not match its contents')
-    if record['family'] != FAMILY:
-        raise Failed(f'the record is for {record["family"]}, not {FAMILY}')
-    if digest(raw) != record['rows_sha256']:
-        raise Failed('the rows are not the ones the evidence names')
-    if record['genesis'] != {'native_genesis_sha256': digest(genesis_bytes),
-                             'engine_genesis_sha256': digest(engine_genesis_bytes)}:
-        raise Failed('the evidence names another genesis')
-    rows = [json.loads(line) for line in raw.splitlines() if line.strip()]
-    again = build_record(record['chain_id'], genesis_bytes, engine_genesis_bytes, rows, record['attempts_wanted'],
-                         record['materials'], record['started'], record['finished'])
-    if again != record:
-        raise Failed('the counts and statuses do not follow from the rows')
-    return record['status']
+    return attacks.verify_campaign(
+        record, raw, genesis_bytes, engine_genesis_bytes, SCHEMA, FAMILY,
+        lambda rows: build_record(record['chain_id'], genesis_bytes, engine_genesis_bytes, rows, record['attempts_wanted'],
+                                  record['materials'], record['started'], record['finished']),
+        Failed)
 
 
 # The node, through the release CLI and the client channel
@@ -698,16 +674,8 @@ def materials_of(desk):
 
 def run_campaign(cli, home, fleet_dir, out, application_config, funder_label, validator, endpoint, attempts, kinds,
                  native_genesis, engine_genesis, show=load.say, passphrase=None, settings=None):
-    out, fleet_dir = Path(out), Path(fleet_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, HOME=str(home))
-    if passphrase:
-        env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
-    config = json.loads(Path(application_config).read_bytes())
-    fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
-    fleet['_dir'] = str(fleet_dir)
-    entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
-    funder = load.keystore_account(entries, funder_label, fleet['chain_id'])
+    out, env, config, fleet, _, funder = load.open_run(home, fleet_dir, out, application_config,
+                                                       funder_label, passphrase)
     settings = settings or load.Settings()
     started = load.now_utc()
     gateway = load.Gateway(cli, env, out / 'gateway.log')

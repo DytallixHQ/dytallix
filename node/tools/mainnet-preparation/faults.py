@@ -88,7 +88,6 @@ approval allows one run.
 """
 import argparse
 from datetime import datetime, timezone
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -99,6 +98,7 @@ import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import reconcile  # noqa: E402
 
 SCHEMA = 'dytallix.fault-run.v1'
@@ -119,12 +119,10 @@ class Failed(Exception):
     pass
 
 
-def digest(data):
-    return hashlib.sha256(data).hexdigest()
+digest = record_bytes.digest
 
 
-def canonical(value):
-    return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+canonical = record_bytes.canonical
 
 
 def instant(text):
