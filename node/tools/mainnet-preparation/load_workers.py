@@ -55,7 +55,6 @@ address-free summaries are published.
 """
 import argparse
 from collections import Counter
-from datetime import datetime, timezone
 import io
 import json
 import os
@@ -69,14 +68,16 @@ import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import load  # noqa: E402
 
 SHARD_SCHEMA = 'dytallix.load-shard.v1'
 WORKER_SCHEMA = 'dytallix.load-worker.v1'
 # The sentry's production bounds on its client channel.
 CHANNEL_CONNECTIONS, PER_ADDRESS = 16, 2
-# What a worker runs: load.py imports config_checks, which imports native_checks.
-TOOLS = ('load.py', 'load_workers.py', 'config_checks.py', 'native_checks.py')
+# What a worker runs: load.py imports config_checks, which imports native_checks,
+# and record_bytes.
+TOOLS = ('load.py', 'load_workers.py', 'config_checks.py', 'native_checks.py', 'record_bytes.py')
 # The settings a worker takes from its share; its rate is the total over N.
 SHARED = ('rate', 'duration', 'mix', 'connections', 'batch', 'signers', 'expiry_blocks', 'block_time',
           'poll_interval', 'seed', 'steps')
@@ -85,8 +86,7 @@ REMOTE = '/root/load'
 Failed = load.Failed
 
 
-def iso(seconds):
-    return datetime.fromtimestamp(seconds, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+iso = record_bytes.iso_micro
 
 
 def write_json(path, value):
@@ -468,16 +468,8 @@ def worker_files(cli, home, application_config):
 
 def drive(cli, home, fleet_dir, out, application_config, funder_label, validator, settings, transport, count,
           worker_cli=None, show=load.say, passphrase=None):
-    out, fleet_dir = Path(out), Path(fleet_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, HOME=str(home))
-    if passphrase:
-        env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
-    config = json.loads(Path(application_config).read_bytes())
-    fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
-    fleet['_dir'] = str(fleet_dir)
-    entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
-    funder = load.keystore_account(entries, funder_label, fleet['chain_id'])
+    out, env, config, fleet, _, funder = load.open_run(home, fleet_dir, out, application_config,
+                                                       funder_label, passphrase)
     files = worker_files(worker_cli or cli, home, application_config)
     started = load.now_utc()
     gateway = load.Gateway(cli, env, out / 'gateway.log')

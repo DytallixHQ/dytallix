@@ -44,13 +44,13 @@ not count for it.
 """
 import argparse
 from datetime import datetime, timedelta, timezone
-import hashlib
 import json
 from pathlib import Path
 import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import faults as fault_tool  # noqa: E402
 import load as load_tool  # noqa: E402
 import reconcile  # noqa: E402
@@ -102,12 +102,10 @@ class Failed(Exception):
     pass
 
 
-def digest(data):
-    return hashlib.sha256(data).hexdigest()
+digest = record_bytes.digest
 
 
-def canonical(value):
-    return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+canonical = record_bytes.canonical
 
 
 def instant(text):
