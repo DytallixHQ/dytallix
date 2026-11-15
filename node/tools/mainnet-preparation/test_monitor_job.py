@@ -384,8 +384,10 @@ class HistoryUploadTests(MonitorJob):
         history.mkdir()
         today = datetime.datetime.fromtimestamp(START + 60, datetime.timezone.utc).date()
         self.days = [str(today - datetime.timedelta(days=n)) for n in (2, 1)]
+        # gzip stamps the time, so the written bytes are kept for comparison.
+        self.compressed = {day: gzip.compress(day.encode()) for day in self.days}
         for day in self.days:
-            (history / f'{day}.jsonl.gz').write_bytes(gzip.compress(day.encode()))
+            (history / f'{day}.jsonl.gz').write_bytes(self.compressed[day])
 
     def test_finished_days_go_up_oldest_first_one_per_run(self):
         summary, _ = self.tick()
@@ -400,7 +402,7 @@ class HistoryUploadTests(MonitorJob):
         # The upload key reaches curl on its standard input only.
         self.assertEqual(upload['argv'][1:], ['--config', '-'])
         self.assertIn('user = "AKIDHISTORY:aGlzdA=="', upload['config'])
-        self.assertEqual(upload['copy'], b'sealed ' + gzip.compress(self.days[0].encode()))
+        self.assertEqual(upload['copy'], b'sealed ' + self.compressed[self.days[0]])
         self.assertEqual(list((self.state / 'scratch').iterdir()), [], 'the copy was left behind')
         summary, sent = self.tick()
         self.assertEqual((summary['history_pending'], len(self.uploads)), (0, 2))
