@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tests for t05_steps.py: per-step counts and the PASS / LOWER_BOUND / FAIL verdict."""
 from datetime import datetime, timezone
+import json
 import unittest
 
 import t05_steps as t
@@ -22,7 +23,7 @@ def run(launch_scale=1.0, commit_scale=1.0, lose_in_hold=0):
         for k in range(int(seconds / 5)):
             at = START + offset + 5 * k
             height += 1
-            block_times[str(height)] = at + 5
+            block_times[str(height)] = iso(at + 5)
             sent = int(rate * 5 * launch_scale)
             committed = int(sent * commit_scale)
             for j in range(sent):
@@ -60,6 +61,43 @@ class Verdict(unittest.TestCase):
         evidence, rows = run()
         del evidence['settings']['steps']
         with self.assertRaisesRegex(t.Failed, 'no rate steps'):
+            t.summarize(evidence, rows)
+
+
+class RealEvidence(unittest.TestCase):
+    """The drive's evidence as load.evidence writes it: block times are header times (RFC 3339 text)."""
+
+    def test_a_load_record_is_read_as_the_drive_writes_it(self):
+        import load
+        import test_load
+        rows, times = [], {}
+        for k in range(12):
+            height = 101 + k
+            times[str(height)] = datetime.fromtimestamp(START + 5 * k + 5, timezone.utc).strftime(
+                '%Y-%m-%dT%H:%M:%S') + '.123456789Z'
+            for _ in range(10):
+                row = test_load.tx_row('run', 'send_drt', block=height, submit=height - 1)
+                row['submitted_at'] = START + 5 * k + 0.1
+                rows.append(row)
+        raw = load.rows_jsonl(rows)
+        ledger = load.ledger(rows, 100, 10)
+        charged = sum(int(e['charge_udrt']) for e in ledger['entries'])
+        settings = dict(test_load.SETTINGS, max_refused=None, steps=[[2.0, 60.0]])
+        stamp = lambda s: datetime.fromtimestamp(s, timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+        record = load.evidence(test_load.CHAIN, settings, {}, raw, ledger, test_load.supply(0, 100),
+                               test_load.supply(charged, 113), times, {},
+                               {'workers': [{'window': {'started': iso(START)}}]}, stamp(START), stamp(START + 70))
+        record = json.loads(json.dumps(record))
+        load.verify(record, raw)
+        result = t.summarize(record, [json.loads(line) for line in raw.splitlines()],
+                             target_per_block=10, hold_seconds=60)
+        self.assertEqual((result['verdict'], result['hold']['committed_per_block'], result['hold']['blocks']),
+                         ('PASS', 10.0, 11))
+
+    def test_a_block_time_that_is_not_a_header_time_is_refused(self):
+        evidence, rows = run()
+        evidence['block_times']['101'] = 1_800_000_005.0
+        with self.assertRaisesRegex(t.Failed, 'not a header time'):
             t.summarize(evidence, rows)
 
 
