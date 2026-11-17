@@ -71,7 +71,6 @@ import base64
 from collections import Counter, defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -89,6 +88,7 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import config_checks  # noqa: E402
 
 SCHEMA = 'dytallix.load-run.v1'
@@ -128,12 +128,10 @@ def say(message):
     print(message, flush=True)
 
 
-def canonical(value):
-    return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+canonical = record_bytes.canonical
 
 
-def sha256(data):
-    return hashlib.sha256(data).hexdigest()
+sha256 = record_bytes.digest
 
 
 def now_utc():
@@ -1520,12 +1518,13 @@ def keystore_account(entries, label, chain_id):
     return {'label': label, 'address': address, 'account_id': account_id.hex()}
 
 
-def run_load(cli, home, fleet_dir, out, application_config, funder_label, validator, settings, show=say,
-             port=0, passphrase=None, sweep_from=()):
-    """Funding, first spends, the measured window (with governance beside
-    it), then the evidence. Returns the evidence record. The funder's
-    keystore passphrase file is `passphrase` or the environment's
-    DYTALLIX_KEYSTORE_PASSPHRASE_FILE."""
+def open_run(home, fleet_dir, out, application_config, funder_label, passphrase=None):
+    """What every run on a fleet starts from: its output folder (made), the
+    CLI's environment (HOME, and the funder's keystore passphrase file if
+    given), the application configuration, the fleet (its folder as `_dir`),
+    the keystore's entries by name and the funder.
+
+    Returns (out, env, config, fleet, entries, funder)."""
     out, fleet_dir = Path(out), Path(fleet_dir)
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, HOME=str(home))
@@ -1534,9 +1533,20 @@ def run_load(cli, home, fleet_dir, out, application_config, funder_label, valida
     config = json.loads(Path(application_config).read_bytes())
     fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
     fleet['_dir'] = str(fleet_dir)
-    chain_id = fleet['chain_id']
     entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
-    funder = keystore_account(entries, funder_label, chain_id)
+    funder = keystore_account(entries, funder_label, fleet['chain_id'])
+    return out, env, config, fleet, entries, funder
+
+
+def run_load(cli, home, fleet_dir, out, application_config, funder_label, validator, settings, show=say,
+             port=0, passphrase=None, sweep_from=()):
+    """Funding, first spends, the measured window (with governance beside
+    it), then the evidence. Returns the evidence record. The funder's
+    keystore passphrase file is `passphrase` or the environment's
+    DYTALLIX_KEYSTORE_PASSPHRASE_FILE."""
+    out, env, config, fleet, entries, funder = open_run(home, fleet_dir, out, application_config,
+                                                        funder_label, passphrase)
+    chain_id = fleet['chain_id']
     sweepers = [keystore_account(entries, label, chain_id) for label in sweep_from]
     started = now_utc()
     gateway = Gateway(cli, env, out / 'gateway.log', port)
@@ -1659,17 +1669,9 @@ def adversary_run(cli, home, fleet_dir, out, application_config, funder_label, v
     adversary evidence record, which `adversary.verify` re-evaluates. Floods
     follow with the load machines."""
     import adversary
-    out, fleet_dir = Path(out), Path(fleet_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, HOME=str(home))
-    if passphrase:
-        env['DYTALLIX_KEYSTORE_PASSPHRASE_FILE'] = str(passphrase)
-    config = json.loads(Path(application_config).read_bytes())
-    fleet = json.loads((fleet_dir / 'fleet.json').read_bytes())
-    fleet['_dir'] = str(fleet_dir)
+    out, env, config, fleet, _, funder = open_run(home, fleet_dir, out, application_config,
+                                                  funder_label, passphrase)
     chain_id = fleet['chain_id']
-    entries = {e['name']: e for e in json.loads((Path(home) / '.dytallix' / 'keystore.json').read_bytes())['entries']}
-    funder = keystore_account(entries, funder_label, chain_id)
     gateway = Gateway(cli, env, out / 'gateway.log', port)
     show(f'== the gateway relays to {gateway.endpoint} at {gateway.url}')
     try:

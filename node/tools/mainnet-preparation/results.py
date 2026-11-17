@@ -134,7 +134,6 @@ RESULTS_KEY.json lists. launch_dashboard.py reads the summaries.
 """
 import argparse
 from datetime import datetime, timezone
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -143,6 +142,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import account_recovery  # noqa: E402
 import attacks  # noqa: E402
 import endpoints  # noqa: E402
@@ -209,7 +209,7 @@ def require(ok, message):
         raise Failed(message)
 
 
-def digest(raw): return hashlib.sha256(raw).hexdigest()
+digest = record_bytes.digest
 
 
 def render(summary): return json.dumps(summary, indent=2) + '\n'

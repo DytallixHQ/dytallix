@@ -33,7 +33,6 @@ from the file alone and checks its digest.
 """
 import argparse
 from datetime import datetime, timezone
-import hashlib
 import json
 from pathlib import Path
 import re
@@ -43,7 +42,9 @@ import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE / 'host'))
+sys.path.insert(1, str(HERE))
 import monitor  # noqa: E402
+import record_bytes  # noqa: E402
 
 SCHEMA = 'dytallix.reconciliation.v1'
 LEDGER_SCHEMA = 'dytallix.reconcile-ledger.v1'
@@ -74,12 +75,10 @@ class Missing(Failed):
     """A reading without a field its schema requires: never a pass."""
 
 
-def digest(data):
-    return hashlib.sha256(data).hexdigest()
+digest = record_bytes.digest
 
 
-def canonical(value):
-    return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+canonical = record_bytes.canonical
 
 
 # Readings
@@ -669,8 +668,7 @@ BURST_SECONDS = 50
 SEND_WINDOW = (5, 40)
 
 
-def iso(seconds):
-    return datetime.fromtimestamp(seconds, tz=timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+iso = record_bytes.iso_micro
 
 
 def send_window(every):

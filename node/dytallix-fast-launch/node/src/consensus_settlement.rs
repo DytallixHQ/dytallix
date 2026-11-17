@@ -97,91 +97,58 @@ pub struct ConsensusConfig {
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_lifecycle"
+        deserialize_with = "explicit"
     )]
     pub lifecycle: Option<LifecycleConfig>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_penalty"
+        deserialize_with = "explicit"
     )]
     pub penalty: Option<PenaltyConfig>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_recovery"
+        deserialize_with = "explicit"
     )]
     pub recovery: Option<RecoveryBook>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_ordinary"
+        deserialize_with = "explicit"
     )]
     pub ordinary: Option<OrdinaryConfig>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_governance"
+        deserialize_with = "explicit"
     )]
     pub governance: Option<GovernanceCandidateConfig>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_emergency"
+        deserialize_with = "explicit"
     )]
     pub emergency: Option<emergency::Policy>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_upgrade"
+        deserialize_with = "explicit"
     )]
     pub upgrade: Option<upgrade::Policy>,
     #[serde(
         default,
         skip_serializing_if = "Option::is_none",
-        deserialize_with = "explicit_handover"
+        deserialize_with = "explicit"
     )]
     pub release_handover: Option<handover::Policy>,
 }
-fn explicit_handover<'de, D: serde::Deserializer<'de>>(
+/// Deserializes a present field as `Some`: with `default`, an absent field is
+/// `None`, while a present one must be a valid value, never `null`.
+fn explicit<'de, D: serde::Deserializer<'de>, T: Deserialize<'de>>(
     deserializer: D,
-) -> std::result::Result<Option<handover::Policy>, D::Error> {
-    handover::Policy::deserialize(deserializer).map(Some)
-}
-fn explicit_upgrade<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> std::result::Result<Option<upgrade::Policy>, D::Error> {
-    upgrade::Policy::deserialize(deserializer).map(Some)
-}
-fn explicit_emergency<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> std::result::Result<Option<emergency::Policy>, D::Error> {
-    emergency::Policy::deserialize(deserializer).map(Some)
-}
-fn explicit_ordinary<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> std::result::Result<Option<OrdinaryConfig>, D::Error> {
-    OrdinaryConfig::deserialize(deserializer).map(Some)
-}
-fn explicit_governance<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> std::result::Result<Option<GovernanceCandidateConfig>, D::Error> {
-    GovernanceCandidateConfig::deserialize(deserializer).map(Some)
-}
-fn explicit_recovery<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> std::result::Result<Option<RecoveryBook>, D::Error> {
-    RecoveryBook::deserialize(deserializer).map(Some)
-}
-fn explicit_penalty<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> std::result::Result<Option<PenaltyConfig>, D::Error> {
-    PenaltyConfig::deserialize(deserializer).map(Some)
-}
-fn explicit_lifecycle<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> std::result::Result<Option<LifecycleConfig>, D::Error> {
-    LifecycleConfig::deserialize(deserializer).map(Some)
+) -> std::result::Result<Option<T>, D::Error> {
+    T::deserialize(deserializer).map(Some)
 }
 impl ConsensusConfig {
     pub fn validate(&self) -> Result<()> {

@@ -40,13 +40,13 @@ byte there changes only the signature, not the structure.
 """
 import argparse
 import base64
-import hashlib
 import json
 from pathlib import Path
 import sys
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import record_bytes  # noqa: E402
 import reconcile  # noqa: E402
 
 SCHEMA = 'dytallix.adversary-run.v1'
@@ -90,12 +90,10 @@ class Failed(Exception):
     pass
 
 
-def digest(data):
-    return hashlib.sha256(data).hexdigest()
+digest = record_bytes.digest
 
 
-def canonical(value):
-    return json.dumps(value, sort_keys=True, separators=(',', ':')).encode()
+canonical = record_bytes.canonical
 
 
 def expectation(name):
