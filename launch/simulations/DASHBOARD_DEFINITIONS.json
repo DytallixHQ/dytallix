@@ -437,7 +437,7 @@
       "source": {
         "tool": "T5",
         "built": "2026-11-02",
-        "remaining": "host loss on the real staging sentry, once (faults.py host-loss), Tuesday 17 November 2026 (P01 17 November 2026)"
+        "remaining": null
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78"
     },
