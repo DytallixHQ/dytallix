@@ -1,0 +1,29 @@
+{
+  "schema": "dytallix.launch-result.v1",
+  "scope": "campaign",
+  "date": "2026-11-11",
+  "candidate": {
+    "commit": "f65ea67a06243d77d609e5b803048412cc0caab5",
+    "release_set_sha256": "b26049c7124535f7fe0aaffa91223410eef39ba4447d5681d9406d7b9f3930fb"
+  },
+  "kpis": [
+    {
+      "id": "campaign.faults.validator_host",
+      "status": "in_progress",
+      "value": 833.8,
+      "unit": "s",
+      "samples": 1,
+      "target": 28800,
+      "repetitions": 3
+    }
+  ],
+  "sources": [
+    {
+      "tool": "recovery",
+      "sha256": "a787da73a6a30445860ad4ed3b7867465e80213a976c817d9714d974299ac1ee",
+      "chain_id": "dytallix-staging-3",
+      "native_genesis_sha256": "4adf2d977ef7f92b49788850bba6dd13bbb0a2c871a10f706d3551c51606ff95",
+      "status": "PASS"
+    }
+  ]
+}
