@@ -34,6 +34,14 @@
         "sha256": "f863754385bfff2ae671988d5c1aff6c6ca9b565fb1122f807e0b6e912c13a9e"
       },
       {
+        "path": "launch/simulations/results/campaign/2026-11-11.json",
+        "sha256": "bb903feb8b2561368f9f561c0e2ee913ef0c14be7811e30b78b621891b706d4b"
+      },
+      {
+        "path": "launch/simulations/results/campaign/2026-11-11.json.sig",
+        "sha256": "c3e6779538bcb8173e9ea4845a42d95f791fdfa18dd14f33d9f4d14e0a985397"
+      },
+      {
         "path": "launch/approvals/P01_T06_SIMULATION_PLAN_2026-10-11.json",
         "sha256": "bb0bcf6937758d9abb9a45b3bd04119ded75df75f1ac96d302d6d13aea9902ce"
       }
@@ -48,7 +56,7 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 687,
+    "commits_at_as_of": 693,
     "approval_records": 109
   },
   "phases": [
@@ -880,10 +888,10 @@
       "threshold": "Within 8 hours",
       "unit": "s",
       "target": 28800,
-      "status": "planned",
-      "value": null,
-      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/node/docs/mainnet/launch-rehearsals.md#pass-criteria",
-      "updated": "2026-10-11"
+      "status": "in_progress",
+      "value": 833.8,
+      "evidence_url": "https://github.com/DytallixHQ/dytallix/blob/main/launch/simulations/results/campaign/2026-11-11.json",
+      "updated": "2026-11-11"
     },
     {
       "id": "campaign.faults.alerts",
