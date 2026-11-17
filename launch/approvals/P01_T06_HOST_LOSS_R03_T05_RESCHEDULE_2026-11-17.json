@@ -1,0 +1,31 @@
+{
+  "decision_id": "P01-2026-11-17-T06-HOST-LOSS-R03-T05-RESCHEDULE",
+  "approved": "2026-11-17",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the host loss, R03 and T05 windows move while other servers in the shared provider project lack delete protection until about 18 November"
+  },
+  "reason": "The T5 host loss window of Sunday 15 November 2026 passed without a run. Other servers in the shared provider project have no delete protection until about Wednesday 18 November 20:00 UTC, so load_machines.py up refuses to make a load machine for R03 on 17 November and for T05 on 18 November; those servers are not the staging run's to change. The host loss makes no server, so it is not blocked.",
+  "design_ref": "P01_T06_R03_T05_RESCHEDULE_2026-11-14.json",
+  "decisions": [
+    {
+      "question": "When the host loss, R03 and T05 run",
+      "selected": "Host loss Tuesday 17 November, R03 Thursday 19 November, T05 Friday 20 November",
+      "rule": "- The T5 host loss on the real staging sentry runs on Tuesday 17 November 2026, 15:00 to 16:00 UTC, in the window R03 had.\n- R03 runs on Thursday 19 November 2026, 15:00 to 19:00 UTC.\n- T05 runs on Friday 20 November 2026, 15:00 to 19:00 UTC.\n- Everything else in P01_T05_HOST_LOSS_REAL_2026-11-10 and P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13 is unchanged: P01's go at each window, one load machine per window, a 4-hour watchdog, the same floods, rate steps and pass rules.\n- Before each window's load machine is made, the founder confirms the provider account's limits in the provider console.\nR03 comes two days after the host loss, so it is still not measured on a host just power-cycled."
+    }
+  ],
+  "accepted_risks": [
+    "R03 and T05 move two days later, so the measured capacity R06's load thresholds depend on arrives on 20 November."
+  ],
+  "supersedes": [
+    "P01_T06_R03_T05_RESCHEDULE_2026-11-14.json (its host loss, R03 and T05 windows)"
+  ],
+  "does_not_authorize": [
+    "changing any server outside the load label, other than the host loss's power off and on of the staging sentry",
+    "more than one load machine per window",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
