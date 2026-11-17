@@ -1,0 +1,29 @@
+{
+  "decision_id": "P01-2026-11-17-T06-T05-CAPACITY-RESULTS-PATH",
+  "approved": "2026-11-17",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "How the launch page shows Measured capacity (staging.t05.capacity) from the T05 verdict",
+    "quote": "Yes, approve"
+  },
+  "reason": "staging.t05.capacity reads from results. results.py summarize staging --t05 (PR #161) builds its summary from the T05 load record, but no record approved how each verdict of the run is shown.",
+  "design_ref": "P01_T06_T05_CAPACITY_RUN_2026-11-10.json",
+  "decisions": [
+    {
+      "question": "How each T05 verdict is shown",
+      "selected": "PASS shows passed at the rate held; a saturated load source shows in progress at the highest rate reached; FAIL shows failed",
+      "rule": "- The run is judged again by t05_steps.py at the approved target, 180 basic Sends a block held for 1800 s, rather than read from a verdict file.\n- PASS: status pass; the value is the basic Sends a block committed during the hold.\n- LOWER_BOUND (the load source saturated before the target): status in_progress; the value is the highest basic Sends a block committed in any step. It is a lower bound, not a pass, and goes back to P01 as P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13 requires.\n- FAIL: status fail.\n- The summary is checked against the native genesis's chain_id, signed with the results key and published by pull request, as the other staging results are."
+    }
+  ],
+  "accepted_risks": [
+    "A lower bound shows in progress, not failed, so the page does not say the hosts fell short when the load source did."
+  ],
+  "supersedes": [],
+  "does_not_authorize": [
+    "changing the T05 pass rule, steps, window or machine count",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}
