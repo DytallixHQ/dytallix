@@ -73,10 +73,11 @@ class LaunchDashboardTests(unittest.TestCase):
         self.assertEqual(self.kpi(self.data, 'tools.t3.ready')['status'], 'pass')
         self.assertEqual(self.kpi(self.data, 'tools.t8.ready')['status'], 'pass')
         self.assertEqual(self.kpi(self.data, 'tools.t9.ready')['status'], 'pass')
-        t5 = self.kpi(self.data, 'tools.t5.ready')
-        self.assertEqual(t5['status'], 'in_progress')
-        self.assertIn('still to come: host loss on the real staging sentry', t5['value'])
-        self.assertEqual(t5['updated'], '2026-11-02')
+        self.assertEqual(self.kpi(self.data, 'tools.t5.ready')['status'], 'pass')
+        # A tool with scope still to come stays in progress (whichever tools those are today).
+        for kpi in self.data['kpis']:
+            if kpi['id'].startswith('tools.') and 'still to come:' in (kpi['value'] or ''):
+                self.assertEqual(kpi['status'], 'in_progress', kpi['id'])
         self.assertEqual(self.kpi(self.data, 'plan.d14_q02.approval')['value'], 'Approved 11 October 2026')
 
     def test_a_tool_claim_must_match_its_ci_step(self):

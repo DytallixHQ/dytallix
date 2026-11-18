@@ -7,7 +7,7 @@
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "8863df7f78e4408d3b33ae4d2b2be44ae4423b1901571207985b30979753d792"
+        "sha256": "3b011326ee35f8a8a20c21aa7386082a9d2488153d5e5deb074ff97881f7bd30"
       },
       {
         "path": ".github/workflows/host-install.yml",
@@ -56,7 +56,7 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 707,
+    "commits_at_as_of": 711,
     "approval_records": 111
   },
   "phases": [
@@ -483,8 +483,8 @@
       "why": "A run is only as good as the tool that drives and checks it. Each tool is proven in the CI staging network before it touches a real host.",
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
-      "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: host loss on the real staging sentry, once (faults.py host-loss), Tuesday 17 November 2026 (P01 17 November 2026)",
+      "status": "pass",
+      "value": "Built and proven in the CI staging network",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/78",
       "updated": "2026-11-02"
     },
