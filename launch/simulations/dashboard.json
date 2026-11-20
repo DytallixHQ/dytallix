@@ -1,13 +1,13 @@
 {
   "schema": "dytallix.launch-dashboard.v1",
-  "as_of": "2026-11-17",
+  "as_of": "2026-11-19",
   "source": {
     "repo": "https://github.com/DytallixHQ/dytallix",
     "ref": "main",
     "inputs": [
       {
         "path": "launch/simulations/DASHBOARD_DEFINITIONS.json",
-        "sha256": "3b011326ee35f8a8a20c21aa7386082a9d2488153d5e5deb074ff97881f7bd30"
+        "sha256": "fe41099b28ab0774775e8c4ceb0d1d5c59405c4b88067cf67d859feaf4c2031d"
       },
       {
         "path": ".github/workflows/host-install.yml",
@@ -56,8 +56,8 @@
   ],
   "project": {
     "since": "2026-09-26",
-    "commits_at_as_of": 711,
-    "approval_records": 111
+    "commits_at_as_of": 713,
+    "approval_records": 112
   },
   "phases": [
     {
@@ -470,7 +470,7 @@
       "threshold": "Built and passing in the CI staging network",
       "unit": null,
       "status": "in_progress",
-      "value": "Built and proven in the CI staging network; still to come: request and transaction floods on the real hosts with one load machine (R03), Thursday 19 November 2026 (P01 17 November 2026)",
+      "value": "Built and proven in the CI staging network; still to come: request and transaction floods on the real hosts with one load machine (R03), Sunday 22 November 2026 (P01 19 November 2026)",
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64",
       "updated": "2026-11-02"
     },
