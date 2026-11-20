@@ -1,0 +1,33 @@
+{
+  "decision_id": "P01-2026-11-19-T06-R03-T05-RESCHEDULE",
+  "approved": "2026-11-19",
+  "approved_by": "P01",
+  "approval_source": {
+    "kind": "user_reply",
+    "question_set": "Move R03 to Sunday 22 November 15:00-19:00 UTC and T05 to Monday 23 November 15:00-19:00 UTC, with everything else unchanged, while other servers in the shared provider project lack delete protection until about 22 November",
+    "quote": "Yes, Sun 22 / Mon 23"
+  },
+  "reason": "At the start of the R03 window, Thursday 19 November 2026 15:00 UTC, three servers of another project in the shared provider account had no delete protection, so load_machines.py up refused to make R03's load machine. They were created on 19 November about 01:16 UTC with a 78-hour watchdog, so they are deleted by about Sunday 22 November 07:16 UTC. They are not the staging run's to change. T05 needs a load machine the same way, so its Friday 20 November window is blocked as well.",
+  "design_ref": "P01_T06_HOST_LOSS_R03_T05_RESCHEDULE_2026-11-17.json",
+  "decisions": [
+    {
+      "question": "When R03 and T05 run",
+      "selected": "R03 Sunday 22 November, T05 Monday 23 November",
+      "rule": "- R03 runs on Sunday 22 November 2026, 15:00 to 19:00 UTC.\n- T05 runs on Monday 23 November 2026, 15:00 to 19:00 UTC.\n- Everything else in P01_T06_HOST_LOSS_R03_T05_RESCHEDULE_2026-11-17, P01_T05_HOST_LOSS_REAL_2026-11-10 and P01_T06_R03_T05_WITHIN_HETZNER_LIMITS_2026-11-13 is unchanged: P01's go at each window, one load machine per window, a 4-hour watchdog, the same floods, rate steps and pass rules.\n- If servers without delete protection are still in the account at a window's start, that window does not run and goes back to P01."
+    }
+  ],
+  "accepted_risks": [
+    "R03 and T05 move three days later, so the measured capacity R06's load thresholds depend on arrives on 23 November.",
+    "Another project may start new unprotected servers before Sunday; the window then goes back to P01 again."
+  ],
+  "supersedes": [
+    "P01_T06_HOST_LOSS_R03_T05_RESCHEDULE_2026-11-17.json (its R03 and T05 windows; its host loss ran and passed on 17 November)"
+  ],
+  "does_not_authorize": [
+    "changing any server outside the load label",
+    "more than one load machine per window",
+    "production activation of any chain",
+    "gate acceptance",
+    "mainnet launch"
+  ]
+}

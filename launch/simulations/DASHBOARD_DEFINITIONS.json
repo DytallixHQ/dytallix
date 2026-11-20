@@ -421,7 +421,7 @@
       "source": {
         "tool": "T4",
         "built": "2026-11-02",
-        "remaining": "request and transaction floods on the real hosts with one load machine (R03), Thursday 19 November 2026 (P01 17 November 2026)"
+        "remaining": "request and transaction floods on the real hosts with one load machine (R03), Sunday 22 November 2026 (P01 19 November 2026)"
       },
       "evidence_url": "https://github.com/DytallixHQ/dytallix/pull/64"
     },
